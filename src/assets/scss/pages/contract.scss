@@ -1,0 +1,149 @@
+// ================================================================================================
+//  File Name: contract.scss
+//  Description: Invoice Layout page layouts SCSS.
+//  ----------------------------------------------------------------------------------------------
+//  Item Name: Vuexy React Admin Template
+//  Version: 1.0
+//  Author: PIXINVENT
+//  Author URL: http://www.themeforest.net/user/pixinvent
+// ================================================================================================
+
+// Core variables and mixins
+@import "~bootstrap/scss/_functions.scss";
+@import "~bootstrap/scss/mixins";
+@import "../bootstrap-extended/mixins";
+
+// Load variable overrides
+@import "../core/variables/variables";
+@import "~bootstrap/scss/_variables.scss";
+
+// Overrides user variable
+@import "../core/variables/components-variables";
+.bold-black {
+  font-weight:900;
+  color: black;
+}
+.width-85 {
+  width:85%
+}
+.contract-text {
+  font-weight: bold;
+  width:60px;
+  font-size:15px;
+  border:0;
+  font-weight:bold;
+}
+.contract-caption {
+  width:85%;
+  font-weight: bold;
+  font-size:16px;
+  border:0;
+  color:black;
+  font-weight:bold;
+  height: 24px;
+}
+.contract-subcontent {
+  width:100%;
+  font-size:15px;
+  border:0;
+  color:#575757;
+  height: 24px;
+}
+.contract-general-condition {
+  width:100%;
+  font-size:15px;
+  border:0;
+  color:#575757;
+}
+.vertical-line{
+  border-left: 2px solid #8d8d8d;
+  height: 800px;
+  align-items: stretch;
+  position:absolute;
+  left: 72%;
+  margin-top:40px;
+}
+.contract-text2 {
+  margin-top:-3px;
+  height: 22px;
+  text-align: right;
+  width:65px;
+  padding:0;
+  font-size:16px;
+  border:0;
+}
+.contract-div {
+  margin-top:0px;
+  height: 22px;
+  text-align: right;
+  width:65px;
+  padding:0;
+  font-size:15px;
+  border:0;
+}
+.contract-caption1-section{
+  padding-right:0;
+}
+.tableCSS{
+  border: 2px solid #8d8d8d;
+  border-spacing:0;
+  width:100%;
+  margin-top:20px;
+  text-align:center;
+}
+.tableCSS td{
+  margin:0;
+  padding:10px;
+}
+
+.contract-page {
+  padding: 2.2rem;
+
+  .recipient-info,
+  .company-info,
+  .company-contact,
+  .recipient-contact {
+    p {
+      line-height: 2;
+      margin-bottom: 0;
+    }
+  }
+
+  .contract-items-table,
+  .contract-total-table {
+    table {
+      border: 2px solid $body-bg;
+    }
+  }
+}
+
+// media query for print
+@media print {
+  body {
+    visibility: hidden;
+  }
+  .main-menu,
+  .header-navbar-shadow,
+  .header-navbar,
+  .content-header,
+  .contract-header {
+    display: none;
+  }
+  .contract-page {
+    visibility: visible;
+    background: black;
+  }
+  .content-wrapper,
+  .app-content,
+  .contract-page,
+  .card-body,
+  .contract-wrapper {
+    padding: 0;
+    margin: 0;
+  }
+}
+@page {
+  //  margin for print page
+  margin: 0;
+  padding: 0;
+}

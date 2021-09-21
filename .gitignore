@@ -1,0 +1,7 @@
+node_modules/
+.idea/
+.test
+package-lock.json
+live-front-moneynci.zip
+local_front-moneynci.zip
+build/
