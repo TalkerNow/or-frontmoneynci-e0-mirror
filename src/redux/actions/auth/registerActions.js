@@ -94,7 +94,7 @@ export const signupWithJWT = (email, password, first_name, last_name) => {
         }
 
       })
-      .catch(err => console.log(err))
+      .catch(err => {console.log(err)})
 
   }
 }

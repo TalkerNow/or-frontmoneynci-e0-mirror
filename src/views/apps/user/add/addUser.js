@@ -511,9 +511,7 @@ class AddUser extends React.Component {
                 />
               </FormGroup>
             </Col>
-          </Row>
-		//! TODO crash a cause de personal_information 
-	{/*
+          </Row>	
           <Row>
             <Col md="6" sm="12">
               <FormGroup>
@@ -524,7 +522,7 @@ class AddUser extends React.Component {
                 </CustomInput>
               </FormGroup>
             </Col>
-          </Row>*/}
+          </Row>
           <h4>Notes</h4>
           <Row>
             <Col md="12" sm="12">

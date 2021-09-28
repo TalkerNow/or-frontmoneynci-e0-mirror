@@ -88,7 +88,7 @@ class MembersList extends React.Component {
               onClick={() => history.push("/app/member/edit/" + params.data.id + "/1")}
             >
  <span>{"prenom" + " " + "nom"}</span>
-              {/* <span>{params.data.personal_informations.first_name + " " + params.data.personal_informations.last_name}</span>*/}
+              <span>{params.data.personal_informations.first_name + " " + params.data.personal_informations.last_name}</span>
             </div>
           )
         }

@@ -67,22 +67,19 @@ class UserView extends React.Component {
                                 <div className="user-info-title font-weight-bold">
                                   Civilité
                                 </div>
-				<div>{"civilité"}</div>
-                                {/*<div>{this.state.persoData['Civilite']}</div>*/}
+                                <div>{this.state.persoData['Civilite']}</div>
                               </div>
                               <div className="d-flex user-info">
                                 <div className="user-info-title font-weight-bold">
                                   Nom
                                 </div>
-					<div>{"nom de famille"}</div>
-                                {/*<div>{this.state.persoData['last_name']}</div>*/}
+                                <div>{this.state.persoData['last_name']}</div>
                               </div>
                               <div className="d-flex user-info">
                                 <div className="user-info-title font-weight-bold">
                                   Prénom
                                 </div>
                                 <div className="text-truncate">
-					<span>{"prénom"}</span>
                                   <span>{this.state.rowData['name']}</span>
                                 </div>
                               </div>
@@ -139,23 +136,20 @@ class UserView extends React.Component {
                     <div className="user-info-title font-weight-bold">
                       Date Nais
                     </div>
-			<div>{"date de naissance"}</div>
-                    {/*<div> {moment(this.state.persoData['birth_date']).format("DD/MM/YYYY")}</div>*/}
+                    <div> {moment(this.state.persoData['birth_date']).format("DD/MM/YYYY")}</div>
                   </div>
                   <div className="d-flex user-info">
                     <div className="user-info-title font-weight-bold">
                       Statut Martial
                     </div>
-			<div>{"martial_status"}</div>
-                    {/*<div>{this.state.persoData['martial_status']}</div>*/}
+                    <div>{this.state.persoData['martial_status']}</div>
                   </div>
                   <div className="d-flex user-info">
                     <div className="user-info-title font-weight-bold">
                       Service Nat
                     </div>
                     <div className="text-truncate">
-			<span>{"service militaire"}</span>
-                      {/*<span>{this.state.persoData['military_service']}</span>*/}
+                      <span>{this.state.persoData['military_service']}</span>
                     </div>
                   </div>
                   <div className="d-flex user-info">
@@ -163,8 +157,7 @@ class UserView extends React.Component {
                       Nb d'enfant(s)
                     </div>
                     <div className="text-truncate">
-			<span>{"nombre d'enfants"}</span>
-                      {/*<span>{this.state.persoData['children_number']}</span>*/}
+                      <span>{this.state.persoData['children_number']}</span>
                     </div>
                   </div>
                   <div className="d-flex user-info">
@@ -172,8 +165,7 @@ class UserView extends React.Component {
                       Tel mob
                     </div>
                     <div className="text-truncate">
-			<span>{"mobile number"}</span>
-                      {/*<span>{this.state.persoData['mobile_number']}</span>*/}
+                      <span>{this.state.persoData['mobile_number']}</span>
                     </div>
                   </div>
                   <div className="d-flex user-info">
@@ -181,8 +173,7 @@ class UserView extends React.Component {
                       Tel bur
                     </div>
                     <div className="text-truncate">
-			<span>{"office number"}</span>
-                      {/*<span>{this.state.persoData['office_number']}</span>*/}
+                      <span>{this.state.persoData['office_number']}</span>
                     </div>
                   </div>
                 </div>
@@ -197,12 +188,11 @@ class UserView extends React.Component {
               <CardBody>
                 <div className="users-page-view-table">
                   <div className="d-flex user-info">
-			<div>{"notes"}</div>
-                    {/*<div>
+                    <div>
                       {this.state.persoData['notes'] && this.state.persoData['notes'].split('\n').map(function(item) {
                         return (<>{item}<br/></>)
                       })}
-                    </div>*/}
+                    </div>
                   </div>
                 </div>
               </CardBody>
@@ -219,23 +209,20 @@ class UserView extends React.Component {
                     <div className="user-info-title font-weight-bold">
                       Adresse1
                     </div>
-			<div>{"adresse personel"}</div>
-                    {/*<div> {this.state.persoData['personal_address']}</div>*/}
+                    <div> {this.state.persoData['personal_address']}</div>
                   </div>
                   <div className="d-flex user-info">
                     <div className="user-info-title font-weight-bold">
                       Adresse2
                     </div>
-			<div>{"seconde adresse personel"}</div>
-                    {/*<div>{this.state.persoData['personal_address_2']}</div>*/}
+                    <div>{this.state.persoData['personal_address_2']}</div>
                   </div>
                   <div className="d-flex user-info">
                     <div className="user-info-title font-weight-bold">
                       CP
                     </div>
                     <div className="text-truncate">
-			<span>{"code postal"}</span>
-                      {/*<span>{this.state.persoData['personal_zip_code']}</span>*/}
+                      <span>{this.state.persoData['personal_zip_code']}</span>
                     </div>
                   </div>
                   <div className="d-flex user-info">
@@ -243,8 +230,7 @@ class UserView extends React.Component {
                       VILLE
                     </div>
                     <div className="text-truncate">
-				<span>{"ville de résidence"}</span>
-                      {/*<span>{this.state.persoData['personal_city']}</span>*/}
+                      <span>{this.state.persoData['personal_city']}</span>
                     </div>
                   </div>
                   <div className="d-flex user-info">
@@ -252,8 +238,7 @@ class UserView extends React.Component {
                       PAYS
                     </div>
                     <div className="text-truncate">
-			<span>{"pays de résidence"}</span>
-                      {/*<span>{this.state.persoData['personal_country']}</span>*/}
+                      <span>{this.state.persoData['personal_country']}</span>
                     </div>
                   </div>
                 </div>
@@ -263,7 +248,7 @@ class UserView extends React.Component {
           <Col sm="12" md="6">
             <Card>
               <CardHeader>
-                <CardTitle><MapPin className="info" size={25} /> Société: "nom de la sociétée"{/*{this.state.persoData['society_name']}*/}</CardTitle>
+                <CardTitle><MapPin className="info" size={25} /> Société: {this.state.persoData['society_name']}</CardTitle>
               </CardHeader>
               <CardBody>
                 <div className="users-page-view-table">
@@ -271,23 +256,22 @@ class UserView extends React.Component {
                     <div className="user-info-title font-weight-bold">
                       Adresse1
                     </div>
-			<div>{"adresse de la société"}</div>
-                    {/*<div> {this.state.persoData['society_address']}</div>*/}
+                    <div> {this.state.persoData['society_address']}</div>
                   </div>
                   <div className="d-flex user-info">
                     <div className="user-info-title font-weight-bold">
                       Adresse2
                     </div>
-			<div>{"seconde adresse de la sociétée"}</div>
-                    {/*<div>{this.state.persoData['society_address_2']}</div>*/}
+			
+                    <div>{this.state.persoData['society_address_2']}</div>
                   </div>
                   <div className="d-flex user-info">
                     <div className="user-info-title font-weight-bold">
                       CP
                     </div>
                     <div className="text-truncate">
-			<span>{"code postal de la sociétée"}</span>
-                     {/* <span>{this.state.persoData['society_zip_code']}</span>*/}
+			
+                     <span>{this.state.persoData['society_zip_code']}</span>
                     </div>
                   </div>
                   <div className="d-flex user-info">
@@ -295,8 +279,7 @@ class UserView extends React.Component {
                       VILLE
                     </div>
                     <div className="text-truncate">
-			<span>{"ville de la sociétée"}</span>
-                      {/*<span>{this.state.persoData['society_city']}</span>*/}
+                      <span>{this.state.persoData['society_city']}</span>
                     </div>
                   </div>
                   <div className="d-flex user-info">
@@ -304,8 +287,7 @@ class UserView extends React.Component {
                       PAYS
                     </div>
                     <div className="text-truncate">
-			<span>{"pays de la socétée"}</span>
-                      {/*<span>{this.state.persoData['society_country']}</span>*/}
+                      <span>{this.state.persoData['society_country']}</span>
                     </div>
                   </div>
                 </div>

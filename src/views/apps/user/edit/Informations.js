@@ -786,8 +786,7 @@ class UserAccountTab extends React.Component {
                         />
                     </FormGroup>
                 </Col>
-		//! TODO mis en commentaire a cause de crash (personal_informations.firstname === introuvable)
-                {/*this.props.members &&
+                this.props.members &&
                     <Col md="6" sm="12">
                         <FormGroup>
                             <CustomInput type="select" name="member"
@@ -800,7 +799,7 @@ class UserAccountTab extends React.Component {
                             </CustomInput>
                         </FormGroup>
                     </Col>
-                */}
+               
                 <Col className="d-flex justify-content-end flex-wrap mt-2" sm="12">
                     <Button.Ripple className="mr-1" color="primary" type="submit">
                       Modifier
