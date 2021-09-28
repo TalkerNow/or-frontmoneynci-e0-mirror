@@ -66,7 +66,7 @@ const UserDropdown = props => {
       <DropdownItem divider />
       <DropdownItem
         tag="a"
-        href="/user_manage/pages/login"
+        href="/pages/login"
         onClick={e => {
           e.preventDefault()
             const provider = props.loggedInWith
