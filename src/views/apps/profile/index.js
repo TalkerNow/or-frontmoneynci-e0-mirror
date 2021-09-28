@@ -80,7 +80,7 @@ class UserView extends React.Component {
                                   Prénom
                                 </div>
                                 <div className="text-truncate">
-                                  <span>{this.state.rowData['name']}</span>
+                                  <span>{this.state.persoData['first_name']}</span>
                                 </div>
                               </div>
                               <div className="d-flex user-info">
