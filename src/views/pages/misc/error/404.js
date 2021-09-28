@@ -25,7 +25,7 @@ class Error404 extends React.Component {
               </p>
               <Button.Ripple
                 tag="a"
-                href="/user_manage/"
+                href="/"
                 color="primary"
                 size="lg"
                 className="mt-2"
