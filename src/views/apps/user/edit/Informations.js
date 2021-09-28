@@ -786,7 +786,6 @@ class UserAccountTab extends React.Component {
                         />
                     </FormGroup>
                 </Col>
-                this.props.members &&
                     <Col md="6" sm="12">
                         <FormGroup>
                             <CustomInput type="select" name="member"
