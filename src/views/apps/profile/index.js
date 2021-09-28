@@ -67,7 +67,7 @@ class UserView extends React.Component {
                                 <div className="user-info-title font-weight-bold">
                                   Civilité
                                 </div>
-                                <div>{this.state.persoData['Civilite']}</div>
+                                <div>{this.state.persoData['civility']}</div>
                               </div>
                               <div className="d-flex user-info">
                                 <div className="user-info-title font-weight-bold">
