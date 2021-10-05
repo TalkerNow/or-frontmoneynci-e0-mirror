@@ -70,7 +70,7 @@ class MembersList extends React.Component {
       {
         headerName: "ID",
         field: "id",
-        width: 120,
+        width: 160,
         filter: true,
         checkboxSelection: true,
         headerCheckboxSelectionFilteredOnly: true,
@@ -93,41 +93,10 @@ class MembersList extends React.Component {
         }
       },
       {
-        headerName: "Presta",
-        field: "subscribe_services",
-        filter: true,
-        width: 220,
-        cellRendererFramework: params => {
-          return (
-              <>
-                {(() => {
-                  let subscribe_service = params.data.subscribe_services;
-                  if(subscribe_service === null || subscribe_service === ""){
-                    return <div></div>;
-                  }else{
-                    let lst_subscribe_services = subscribe_service.replaceAll('"','').trim().split('/');
-                    const tags = [];
-                    lst_subscribe_services.forEach(function(service) {
-                      if(service !== ''){
-                        tags.push(<Chip
-                            className="m-0 text-center ml-1"
-                            color={chipColors[service.trim()]}
-                            text={service}
-                        />);
-                      }
-                    })
-                    return tags;
-                  }
-                })()}
-              </>
-          )
-        }
-      },
-      {
         headerName: "Email",
         field: "email",
         filter: true,
-        width: 230
+        width: 300,
       },
       {
         headerName: "Date de Création",
@@ -143,29 +112,10 @@ class MembersList extends React.Component {
         }
       },
       {
-        headerName: "Statut",
-        field: "status",
+        headerName: "Role",
+        field: "role",
         filter: true,
-        width: 130,
-      },
-      {
-        headerName: "FA",
-        field: "status_fa",
-        filter: true,
-        width: 130,
-        cellRendererFramework: params => {
-          return (
-              <>
-                {(params.data.status === "En cours" || params.data.status === "Termine" ) &&
-                <Chip
-                    className="m-0 text-center ml-1"
-                    color={params.data.status_fa === 1 ? "success" : "warning"}
-                    text={params.data.status_fa === 1 ? "Paid" : "Not Paid"}
-                />
-                }
-              </>
-          )
-        }
+        width: 250,
       },
       {
         headerName: "Actions",

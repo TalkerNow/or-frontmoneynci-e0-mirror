@@ -1420,7 +1420,7 @@ class EditContract extends React.Component {
                           <div style={{textAlign:'center'}}><h1>Conditions Générales de ventes de {this.ifExist("first_name")} {this.ifExist("last_name")}</h1></div>
                           <div style={{whiteSpace: 'pre-wrap', fontSize:'16px',marginTop:'50px'}}>{this.state.general_condition}</div>
                       </div>
-                      <div className="pt-3 contract-footer" style={{textAlign:'center',marginTop:'70px'}}>
+                      <div className="pt-3 contract-footer" style={{textAlign:'center',marginTop:'30px'}}>
                           <p>
                               EOR - 36, RUE DE LABORDE 75008 PARIS  - SIRET N° 48488721100023 - APE N° 7022Z
                           </p>
