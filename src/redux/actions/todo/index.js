@@ -11,7 +11,7 @@ export const getTodos = routeParams => {
     }
     var role = localStorage.getItem("role");
 
-    if(role === "admin"|| role === "Technician MAXO" || role === "Technician EOR" || role === "Consultant MAXO"){
+    if(role === "admin" || role === "Technician EOR"){
         await axios.get(global.config.server_url + "/tasks?filter="+routeParams.filter, Config).then(response => {
           dispatch({
             type: "GET_TODOS",

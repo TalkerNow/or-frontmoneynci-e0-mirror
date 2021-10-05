@@ -16,7 +16,7 @@ import { User, MapPin,Aperture } from "react-feather"
 import "flatpickr/dist/themes/light.css";
 import "../../../../assets/scss/plugins/forms/flatpickr/flatpickr.scss"
 import InputMaskDate from "./InputMaskDate"
-//import { updateUsersInformation } from "../../../../redux/actions/form/informationsFormActions"
+import { updateUsersInformation } from "../../../../redux/actions/form/informationsFormActions"
 import axios from "axios";
 //import moment from "moment"
 import {toast} from "react-toastify";
@@ -71,7 +71,6 @@ class UserAccountTab extends React.Component {
         Authorization: "Bearer " + localStorage.getItem("token")
       }
     }
-    console.log(localStorage.getItem("token"))
     axios
         .put(global.config.server_url+"/users/" + this.props.id, {
           name: information.username,
@@ -413,11 +412,8 @@ class UserAccountTab extends React.Component {
                             <Input type="select" name="select" id="role" defaultValue={this.ifDataExist("role")}
                                    onChange={e => this.setState({role: e.target.value})}>
                                 <option>Client EOR</option>
-                                <option>Client MAXO</option>
                                 <option>Consultant EOR</option>
-                                <option>Consultant MAXO</option>
                                 <option>Technician EOR</option>
-                                <option>Technician MAXO</option>
                                 <option>admin</option>
                             </Input>
                         }
@@ -425,11 +421,8 @@ class UserAccountTab extends React.Component {
                             <Input type="select" name="select" id="role" defaultValue="Client EOR"
                                    onChange={e => this.setState({role: e.target.value})}>
                                 <option>Client EOR</option>
-                                <option>Client MAXO</option>
                                 <option>Consultant EOR</option>
-                                <option>Consultant MAXO</option>
                                 <option>Technician EOR</option>
-                                <option>Technician MAXO</option>
                                 <option>admin</option>
                             </Input>
                         }
