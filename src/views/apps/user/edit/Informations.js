@@ -39,7 +39,7 @@ class UserAccountTab extends React.Component {
     status:this.props.data.status,
     status_fa:this.props.data.status_fa,
 
-    civility: this.props.perso.civility ? this.props.perso.civility : "Monsieur",
+    civility: this.props.perso.civility,
     first_name: this.props.perso.first_name,
     last_name: this.props.perso.last_name,
     role: this.props.data.role,
