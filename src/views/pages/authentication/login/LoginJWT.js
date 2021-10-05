@@ -13,8 +13,8 @@ toast.configure();
 
 class LoginJWT extends React.Component {
   state = {
-    email: "jfc@eor.fr",
-    password: "123",
+    email: "",
+    password: "",
     remember: false
   }
 

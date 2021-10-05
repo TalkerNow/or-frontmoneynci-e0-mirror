@@ -383,13 +383,13 @@ class UserAccountTab extends React.Component {
                 </Col>
                 <Col md="6" sm="12" style={{marginTop:'-15px'}}>
                     <FormGroup style={{marginBottom:'15px'}}>
-                        <Label for="p_password">mot de passe</Label>
+                        <Label for="p_password">Mot de passe</Label>
                         <Input
                             type="text"
                             defaultValue={this.ifDataExist('p_password')}
                             onChange={e => this.setState({ p_password: e.target.value })}
                             id="p_password"
-                            placeholder="mot de passe"
+                            placeholder="Mot de passe"
                         />
                     </FormGroup>
                 </Col>
