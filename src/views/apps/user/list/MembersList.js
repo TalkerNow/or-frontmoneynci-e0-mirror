@@ -70,7 +70,7 @@ class MembersList extends React.Component {
       {
         headerName: "ID",
         field: "id",
-        width: 120,
+        width: 160,
         filter: true,
         checkboxSelection: true,
         headerCheckboxSelectionFilteredOnly: true,
@@ -127,7 +127,7 @@ class MembersList extends React.Component {
         headerName: "Email",
         field: "email",
         filter: true,
-        width: 230
+        width: 300,
       },
       {
         headerName: "Date de Création",
@@ -146,7 +146,7 @@ class MembersList extends React.Component {
         headerName: "Role",
         field: "role",
         filter: true,
-        width: 130,
+        width: 250,
       },
       // {
       //   headerName: "FA",
