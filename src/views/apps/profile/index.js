@@ -85,7 +85,7 @@ class UserView extends React.Component {
                               </div>
                               <div className="d-flex user-info">
                                 <div className="user-info-title font-weight-bold">
-                                  Subscribe Services
+                                  Prestation
                                 </div>
                                 <div className="text-truncate">
                                   <span>{this.state.rowData['subscribe_services']? this.state.rowData['subscribe_services']:'No Subscribe'}</span>
@@ -97,7 +97,7 @@ class UserView extends React.Component {
                             <div className="users-page-view-table">
                               <div className="d-flex user-info">
                                 <div className="user-info-title font-weight-bold">
-                                  Password
+                                  Mot de passe
                                 </div>
                                 <div>{this.state.rowData['p_password']}</div>
                               </div>
@@ -146,7 +146,7 @@ class UserView extends React.Component {
                   </div>
                   <div className="d-flex user-info">
                     <div className="user-info-title font-weight-bold">
-                      Service Nat
+                      Service Militaire
                     </div>
                     <div className="text-truncate">
                       <span>{this.state.persoData['military_service']}</span>
@@ -219,7 +219,7 @@ class UserView extends React.Component {
                   </div>
                   <div className="d-flex user-info">
                     <div className="user-info-title font-weight-bold">
-                      CP
+                      Code Postal
                     </div>
                     <div className="text-truncate">
                       <span>{this.state.persoData['personal_zip_code']}</span>
@@ -227,7 +227,7 @@ class UserView extends React.Component {
                   </div>
                   <div className="d-flex user-info">
                     <div className="user-info-title font-weight-bold">
-                      VILLE
+                      Ville
                     </div>
                     <div className="text-truncate">
                       <span>{this.state.persoData['personal_city']}</span>
@@ -235,7 +235,7 @@ class UserView extends React.Component {
                   </div>
                   <div className="d-flex user-info">
                     <div className="user-info-title font-weight-bold">
-                      PAYS
+                      Pays
                     </div>
                     <div className="text-truncate">
                       <span>{this.state.persoData['personal_country']}</span>
@@ -267,7 +267,7 @@ class UserView extends React.Component {
                   </div>
                   <div className="d-flex user-info">
                     <div className="user-info-title font-weight-bold">
-                      CP
+                      Code Postal
                     </div>
                     <div className="text-truncate">
 			
@@ -276,7 +276,7 @@ class UserView extends React.Component {
                   </div>
                   <div className="d-flex user-info">
                     <div className="user-info-title font-weight-bold">
-                      VILLE
+                      Ville
                     </div>
                     <div className="text-truncate">
                       <span>{this.state.persoData['society_city']}</span>
@@ -284,7 +284,7 @@ class UserView extends React.Component {
                   </div>
                   <div className="d-flex user-info">
                     <div className="user-info-title font-weight-bold">
-                      PAYS
+                      Pays
                     </div>
                     <div className="text-truncate">
                       <span>{this.state.persoData['society_country']}</span>

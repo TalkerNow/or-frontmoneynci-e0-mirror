@@ -283,11 +283,8 @@ class AddUser extends React.Component {
               <FormGroup>
                 <CustomInput type="select" name="role" required id="role" onChange={e => this.setState({ data: { ...this.state.data, role: e.target.value} })}>
                   <option>Client EOR</option>
-                  <option>Client MAXO</option>
                   <option>Consultant EOR</option>
-                  <option>Consultant MAXO</option>
                   <option>Technician EOR</option>
-                  <option>Technician MAXO</option>
                   <option>admin</option>
                 </CustomInput>
               </FormGroup>
@@ -458,7 +455,7 @@ class AddUser extends React.Component {
               </FormGroup>
               <FormGroup>
                 <Input
-                    type="number" placeholder="CP"
+                    type="number" placeholder="Code Postal"
                     onChange={e => this.setState({ data: { ...this.state.data, personal_zip_code: e.target.value} })}
                 />
               </FormGroup>
@@ -494,7 +491,7 @@ class AddUser extends React.Component {
               </FormGroup>
               <FormGroup>
                 <Input
-                    type="number" placeholder="CP"
+                    type="number" placeholder="Code Postal"
                     onChange={e => this.setState({ data: { ...this.state.data, society_zip_code: e.target.value} })}
                 />
               </FormGroup>

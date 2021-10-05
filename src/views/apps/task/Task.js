@@ -73,8 +73,7 @@ class TODO extends React.Component {
     return (
         <div className="todo-application position-relative">
             {
-                (this.state.role == "admin"|| this.state.role == "Technician MAXO" ||
-                this.state.role == "Technician EOR" || this.state.role == "Consultant MAXO") &&
+                (this.state.role == "admin"|| this.state.role == "Technician EOR") &&
                 <div
                     className={`app-content-overlay ${
                         this.state.addTask || this.state.sidebarOpen ? "show" : ""

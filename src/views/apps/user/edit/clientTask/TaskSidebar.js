@@ -506,8 +506,7 @@ class FilterSidebar extends React.Component {
                  </Col>
               </Row>
               {
-                (this.state.role == "admin"|| this.state.role == "Technician MAXO" ||
-                    this.state.role == "Technician EOR" || this.state.role == "Consultant MAXO") &&
+                (this.state.role == "admin"|| this.state.role == "Technician EOR") &&
                     <>
                       <hr style={{marginBottom:'10px', marginTop:0}}/>
                       <div className="d-flex justify-content-end">
