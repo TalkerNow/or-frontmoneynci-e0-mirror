@@ -455,7 +455,7 @@ class AddUser extends React.Component {
               </FormGroup>
               <FormGroup>
                 <Input
-                    type="number" placeholder="CP"
+                    type="number" placeholder="Code Postal"
                     onChange={e => this.setState({ data: { ...this.state.data, personal_zip_code: e.target.value} })}
                 />
               </FormGroup>
@@ -491,7 +491,7 @@ class AddUser extends React.Component {
               </FormGroup>
               <FormGroup>
                 <Input
-                    type="number" placeholder="CP"
+                    type="number" placeholder="Code Postal"
                     onChange={e => this.setState({ data: { ...this.state.data, society_zip_code: e.target.value} })}
                 />
               </FormGroup>

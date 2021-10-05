@@ -243,7 +243,7 @@ class UserAccountTab extends React.Component {
                         <div style={{display:"inline-block"}}>
                             <h5 style={{marginBottom:'5px'}}>
                                 <Aperture className="mr-50" size={16} />
-                                <span className="align-middle">Subscribe Services: </span>
+                                <span className="align-middle">Prestation: </span>
                             </h5>
                         </div>
                         <div style={{display:'inline-block',marginLeft:'5px'}}>
@@ -377,19 +377,19 @@ class UserAccountTab extends React.Component {
                             defaultValue={this.ifExist("last_name")}
                             onChange={e => this.setState({ last_name: e.target.value })}
                             id="name"
-                            placeholder="Name"
+                            placeholder="Nom"
                         />
                     </FormGroup>
                 </Col>
                 <Col md="6" sm="12" style={{marginTop:'-15px'}}>
                     <FormGroup style={{marginBottom:'15px'}}>
-                        <Label for="p_password">Password</Label>
+                        <Label for="p_password">mot de passe</Label>
                         <Input
                             type="text"
                             defaultValue={this.ifDataExist('p_password')}
                             onChange={e => this.setState({ p_password: e.target.value })}
                             id="p_password"
-                            placeholder="Password"
+                            placeholder="mot de passe"
                         />
                     </FormGroup>
                 </Col>
@@ -401,7 +401,7 @@ class UserAccountTab extends React.Component {
                             defaultValue={this.ifExist("first_name")}
                             onChange={e => this.setState({ first_name: e.target.value })}
                             id="name"
-                            placeholder="Name"
+                            placeholder="Prénom"
                         />
                     </FormGroup>
                 </Col>
@@ -616,23 +616,23 @@ class UserAccountTab extends React.Component {
                 </Col>
                 <Col md="6" sm="12">
                     <FormGroup>
-                        <Label for="officenumber">Office Number</Label>
+                        <Label for="officenumber">Numéro de Telephone de la société</Label>
                         <Input
                             type="text"
                             id="officenumber"
                             defaultValue={this.ifExist("office_number")}
-                            placeholder="Office Number"
+                            placeholder="Numéro de Téléphone de la société"
                             onChange={e => this.setState({ office_number: e.target.value })}
                         />
                     </FormGroup>
                 </Col>
                 <Col md="6" sm="12">
                     <FormGroup>
-                        <Label for="contactnumber">Contact Number</Label>
+                        <Label for="contactnumber">Numéro de Telephone</Label>
                         <Input
                             type="text"
                             id="contactnumber"
-                            placeholder="Contact Number"
+                            placeholder="Numéro de Telephone"
                             defaultValue={this.ifExist("mobile_number")}
                             onChange={e => this.setState({ contact_number: e.target.value })}
                         />
