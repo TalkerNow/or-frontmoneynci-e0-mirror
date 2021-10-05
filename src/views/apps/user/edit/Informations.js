@@ -16,7 +16,7 @@ import { User, MapPin,Aperture } from "react-feather"
 import "flatpickr/dist/themes/light.css";
 import "../../../../assets/scss/plugins/forms/flatpickr/flatpickr.scss"
 import InputMaskDate from "./InputMaskDate"
-import { updateUsersInformation } from "../../../../redux/actions/form/informationsFormActions"
+// import { updateUsersInformation } from "../../../../redux/actions/form/informationsFormActions"
 import axios from "axios";
 //import moment from "moment"
 import {toast} from "react-toastify";
