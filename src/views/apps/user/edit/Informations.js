@@ -783,7 +783,7 @@ class UserAccountTab extends React.Component {
                         <FormGroup>
                             <CustomInput type="select" name="member"
                                          value={this.state.parent_id != null ? this.state.parent_id : this.ifDataExist('parent_id')}
-                                         required id="member" onChange={e => this.setState({parent_id: e.target.value})}>
+                                        id="member" onChange={e => this.setState({parent_id: e.target.value})}>
                                 {this.props.members && this.props.members.map((member, index) => (
                                     <option
                                         value={member.id}>{member.personal_informations.first_name + " " + member.personal_informations.last_name}</option>
