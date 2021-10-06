@@ -1,10 +1,7 @@
 #!/bin/bash
 
-#Pull the oncoming changes to the branch master
-#git pull origin master
-
-#Install the needed packages, delete unneeded packages and update some others
-yarn install
-
-#Start the server on port 3000
-yarn start
+yarn run build
+sudo cp -rf build/ /var/www/html/
+sudo a2enmod rewrite
+sudo systemctl stop apache2
+sudo systemctl start apache2

@@ -246,6 +246,8 @@ class EditContract extends React.Component {
             subscribe_services += " / SIMU";
         if(input_values.c3)
             subscribe_services += " / AR";
+        if(input_values.c4)
+          subscribe_services += " / AR";
         if(input_values.c5)
             subscribe_services += " / TFD";
         if(input_values.c6)
