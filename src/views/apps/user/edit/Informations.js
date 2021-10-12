@@ -272,7 +272,7 @@ class UserAccountTab extends React.Component {
                         </div>
                     </div>
                     <FormGroup style={{marginTop:'8px'}}>
-                        {this.props.data['subscribre_services'] != null &&
+                        {this.props.data['subscribe_services'] != null &&
                         <>
                             <div className="d-inline-block mr-1">
                                 <Radio
