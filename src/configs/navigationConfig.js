@@ -8,7 +8,7 @@ const navigationConfig = [
     title: "Dashboard",
     type: "item",
     icon: <Icon.Home size={20}/>,
-    permissions: ["admin", "Consultants"],
+    permissions: ["admin"],
     navLink: "/"
     //badge: "warning",
     //badgeText: "2"
