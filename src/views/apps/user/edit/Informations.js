@@ -238,6 +238,7 @@ class UserAccountTab extends React.Component {
                         }
                     </FormGroup>
                 </Col>
+                
                 <Col md="6" sm="12" style={{marginTop:'20px'}}>
                     <div>
                         <div style={{display:"inline-block"}}>
@@ -251,7 +252,7 @@ class UserAccountTab extends React.Component {
                                     {(() => {
                                         let subscribe_service =this.ifDataExist("subscribe_services");
                                         if(subscribe_service == null || subscribe_service == ""){
-                                            return <div>No</div>;
+                                            return <div></div>;
                                         }else{
                                             let lst_subscribe_services = subscribe_service.replaceAll('"','').trim().split('/');
                                             const tags = [];
@@ -271,7 +272,7 @@ class UserAccountTab extends React.Component {
                         </div>
                     </div>
                     <FormGroup style={{marginTop:'8px'}}>
-                        {this.props.data['status'] != null &&
+                        {this.props.data['subscribre_services'] != null &&
                         <>
                             <div className="d-inline-block mr-1">
                                 <Radio
