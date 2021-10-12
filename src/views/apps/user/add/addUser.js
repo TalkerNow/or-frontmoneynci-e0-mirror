@@ -43,7 +43,7 @@ class AddUser extends React.Component {
           first_name: null,
           society_related: "Moneynci",
           email: null,
-          role:"Client EOR",
+          role:"Client",
           password: generator.generate({length: 10, numbers: true}),
           civility: "Monsieur",
           martial_status: "Célibataire",
@@ -282,9 +282,9 @@ class AddUser extends React.Component {
             <Col md="6" sm="12">
               <FormGroup>
                 <CustomInput type="select" name="role" required id="role" onChange={e => this.setState({ data: { ...this.state.data, role: e.target.value} })}>
-                  <option>Client EOR</option>
-                  <option>Consultant EOR</option>
-                  <option>Technician EOR</option>
+                  <option>Client</option>
+                  <option>Consultant</option>
+                  <option>Expert</option>
                   <option>admin</option>
                 </CustomInput>
               </FormGroup>

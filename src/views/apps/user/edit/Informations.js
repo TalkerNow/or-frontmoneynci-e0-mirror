@@ -75,7 +75,7 @@ class UserAccountTab extends React.Component {
         .put(global.config.server_url+"/users/" + this.props.id, {
           name: information.username,
           email: information.email,
-          role: information.role? information.role: this.props.data.role? this.props.data.role : "Client EOR",
+          role: information.role? information.role: this.props.data.role? this.props.data.role : "Client",
           p_password: information.p_password,
           status: information.status ? information.status: this.props.perso.status? this.props.perso.status: "En attente",
           status_fa: information.status_fa? information.status_fa: this.props.perso.status_fa? this.props.perso.status_fa: false,
@@ -252,7 +252,7 @@ class UserAccountTab extends React.Component {
                                     {(() => {
                                         let subscribe_service =this.ifDataExist("subscribe_services");
                                         if(subscribe_service == null || subscribe_service == ""){
-                                            return <div></div>;
+                                            return <div>No</div>;
                                         }else{
                                             let lst_subscribe_services = subscribe_service.replaceAll('"','').trim().split('/');
                                             const tags = [];
@@ -412,18 +412,18 @@ class UserAccountTab extends React.Component {
                         {this.ifDataExist("role") != null &&
                             <Input type="select" name="select" id="role" defaultValue={this.ifDataExist("role")}
                                    onChange={e => this.setState({role: e.target.value})}>
-                                <option>Client EOR</option>
-                                <option>Consultant EOR</option>
-                                <option>Technician EOR</option>
+                                <option>Client</option>
+                                <option>Consultant</option>
+                                <option>Expert</option>
                                 <option>admin</option>
                             </Input>
                         }
                         {this.ifDataExist("role") == null &&
-                            <Input type="select" name="select" id="role" defaultValue="Client EOR"
+                            <Input type="select" name="select" id="role" defaultValue="Client"
                                    onChange={e => this.setState({role: e.target.value})}>
-                                <option>Client EOR</option>
-                                <option>Consultant EOR</option>
-                                <option>Technician EOR</option>
+                                <option>Client</option>
+                                <option>Consultant</option>
+                                <option>Expert</option>
                                 <option>admin</option>
                             </Input>
                         }

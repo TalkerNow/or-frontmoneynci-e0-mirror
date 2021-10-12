@@ -8,7 +8,7 @@ const navigationConfig = [
     title: "Dashboard",
     type: "item",
     icon: <Icon.Home size={20}/>,
-    permissions: ["admin", "Technician EOR","Client EOR",],
+    permissions: ["admin", "Expert","Client"],
     navLink: "/"
     //badge: "warning",
     //badgeText: "2"
@@ -18,7 +18,7 @@ const navigationConfig = [
     title: "profil",
     type: "item",
     icon: <Icon.User size={20}/>,
-    permissions: ["admin", "Client EOR","Consultant EOR","Technician EOR"],
+    permissions: ["admin", "Client","Consultant","Expert"],
     navLink: "/app/profile"
     //badge: "warning",
     //badgeText: "2"
@@ -28,7 +28,7 @@ const navigationConfig = [
     title: "Clients",
     type: "item",
     icon: <Icon.Monitor size={20}/>,
-    permissions: ["admin", "Technician EOR", "Consultant EOR"],
+    permissions: ["admin", "Expert", "Consultant"],
     navLink: "/app/user/clientslist"
     //badge: "warning",
     //badgeText: "2"
@@ -38,7 +38,7 @@ const navigationConfig = [
     title: "Tâches",
     type: "item",
     icon: <Icon.CheckSquare size={20} />,
-    permissions: ["admin", "Client EOR","Consultant EOR", "Technician EOR"],
+    permissions: ["admin", "Client","Consultant", "Expert"],
     navLink: "/task/:filter",
     filterBase: "/task/all"
   },
@@ -47,7 +47,7 @@ const navigationConfig = [
     title: "Documents",
     type: "item",
     icon: <Icon.Folder size={20} />,
-    permissions: ["admin", "Client EOR", "Consultant EOR", "Technician EOR"],
+    permissions: ["admin", "Client", "Consultant", "Expert"],
     badge: "primary",
     badgeText: "5 news",
     navLink: "/document",
@@ -68,7 +68,7 @@ const navigationConfig = [
     title: "Contrats",
     type: "item",
     icon: <Icon.Folder size={20}/>,
-    permissions: ["admin", "Technician EOR", "Consultant EOR"],
+    permissions: ["admin", "Expert", "Consultant"],
     navLink: "/app/AllContracts"
     //badge: "warning",
     //badgeText: "2"
