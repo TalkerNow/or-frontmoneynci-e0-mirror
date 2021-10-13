@@ -33,6 +33,9 @@ const chipColors = {
 
 class UserAccountTab extends React.Component {
   state = {
+    rowData: [],
+    persoData: [],
+
     dob: this.props.perso["birth_date"],
     username: this.props.data.username,
     p_password: this.props.data.p_password,
@@ -64,16 +67,31 @@ class UserAccountTab extends React.Component {
 
     parent_id: this.props.data.parent_id
   }
+
+  async componentDidMount() {
+    const Config = {
+      headers: {
+        Authorization: "Bearer " + localStorage.getItem("token")
+      }
+    }
+    await axios.get(global.config.server_url + "/users/" + this.props.match.params.id, Config).then(response => {
+      let rowData = response.data
+      let persoData = response.data.personal_informations;
+
+      this.setState({ rowData, persoData })
+    })
+  }
+
   updateUsername = e => {      
       if (e.first_name != null && e.last_name != null) {
         this.setState({ first_name: e.first_name});
         this.setState({ last_name: e.last_name});
         this.setState({username: e.first_name + " " + e.last_name});
       } else if (e.first_name != null && e.last_name == null) {
-        this.setState({username: e.first_name + " " + this.state.last_name});
+        this.setState({username: e.first_name + " " + this.state.persoData.last_name});
         this.setState({first_name: e.first_name});
       } else if (e.first_name == null && e.last_name != null) {
-        this.setState({username: this.state.first_name + " " + e.last_name});
+        this.setState({username: this.state.persoData.first_name + " " + e.last_name});
         this.setState({last_name: e.last_name});
       } else return
   }
@@ -173,7 +191,6 @@ class UserAccountTab extends React.Component {
     e.preventDefault();
     this.updateUsersInformation(this.state);
   }
-
   render() {
     return (
       <Row>
