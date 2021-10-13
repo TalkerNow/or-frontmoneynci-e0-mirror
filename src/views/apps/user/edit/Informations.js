@@ -74,7 +74,7 @@ class UserAccountTab extends React.Component {
         Authorization: "Bearer " + localStorage.getItem("token")
       }
     }
-    await axios.get(global.config.server_url + "/users/" + this.props.match.params.id, Config).then(response => {
+    await axios.get(global.config.server_url + "/users/" + this.props.id, Config).then(response => {
       let rowData = response.data
       let persoData = response.data.personal_informations;
 
