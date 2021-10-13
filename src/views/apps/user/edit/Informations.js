@@ -64,7 +64,19 @@ class UserAccountTab extends React.Component {
 
     parent_id: this.props.data.parent_id
   }
-
+  updateUsername = e => {      
+      if (e.first_name != null && e.last_name != null) {
+        this.setState({ first_name: e.first_name});
+        this.setState({ last_name: e.last_name});
+        this.setState({username: e.first_name + " " + e.last_name});
+      } else if (e.first_name != null && e.last_name == null) {
+        this.setState({username: e.first_name + " " + this.state.last_name});
+        this.setState({first_name: e.first_name});
+      } else if (e.first_name == null && e.last_name != null) {
+        this.setState({username: this.state.first_name + " " + e.last_name});
+        this.setState({last_name: e.last_name});
+      } else return
+  }
   updateUsersInformation = information => {
     const Config = {
       headers: {
@@ -376,7 +388,7 @@ class UserAccountTab extends React.Component {
                         <Input
                             type="text"
                             defaultValue={this.ifExist("last_name")}
-                            onChange={e => this.setState({ last_name: e.target.value })}
+                            onChange={e => this.updateUsername({ last_name: e.target.value, first_name: null })}
                             id="name"
                             placeholder="Nom"
                         />
@@ -400,7 +412,7 @@ class UserAccountTab extends React.Component {
                         <Input
                             type="text"
                             defaultValue={this.ifExist("first_name")}
-                            onChange={e => this.setState({ first_name: e.target.value })}
+                            onChange={e => this.updateUsername({ first_name: e.target.value, last_name: null })}
                             id="name"
                             placeholder="Prénom"
                         />
