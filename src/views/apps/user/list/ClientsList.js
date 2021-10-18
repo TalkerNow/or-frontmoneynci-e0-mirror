@@ -140,17 +140,17 @@ class ClientsList extends React.Component {
           )
         }
       },
-      // {
-      //   headerName: "Email",
-      //   field: "email",
-      //   filter: true,
-      //   width: 230
-      // },
+      {
+        headerName: "Email",
+        field: "email",
+        filter: true,
+        width: 200
+      },
       {
         headerName: "Date de Création",
         field: "created_at",
         filter: true,
-        width: 200,
+        width: 150,
         cellRendererFramework: params => {
           return (
               <div>
