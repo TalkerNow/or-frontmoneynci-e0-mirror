@@ -72,7 +72,7 @@ class ClientsList extends React.Component {
       {
         headerName: "ID",
         field: "id",
-        width: 120,
+        width: 150,
         filter: true,
         checkboxSelection: true,
         headerCheckboxSelectionFilteredOnly: true,
@@ -140,12 +140,12 @@ class ClientsList extends React.Component {
           )
         }
       },
-      {
-        headerName: "Email",
-        field: "email",
-        filter: true,
-        width: 230
-      },
+      // {
+      //   headerName: "Email",
+      //   field: "email",
+      //   filter: true,
+      //   width: 230
+      // },
       {
         headerName: "Date de Création",
         field: "created_at",
