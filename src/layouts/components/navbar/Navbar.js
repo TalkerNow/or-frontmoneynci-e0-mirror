@@ -23,7 +23,7 @@ const UserName = props => {
       username = props.user.login.values.loggedInUser.name
     }
   } else {
-    username = "John Doe"
+    username = localStorage.getItem("username");
   }
 
   return username

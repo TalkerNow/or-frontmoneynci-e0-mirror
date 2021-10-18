@@ -84,7 +84,7 @@ export const signupWithJWT = (email, password, first_name, last_name) => {
           localStorage.setItem("token", response.data.accessToken);
           localStorage.setItem("userid", loggedInUser.id);
           localStorage.setItem("role", loggedInUser.role);
-
+          localStorage.setItem("username", response.data.name);
           dispatch({
             type: "LOGIN_WITH_JWT",
             payload: { loggedInUser, loggedInWith: "jwt" }
