@@ -221,7 +221,6 @@ class Sidebar extends Component {
 
 const mapStateToProps = state => {
   return {
-    // currentUser: state.auth.login.userRole
     currentUser: localStorage.getItem('role')
   }
 }

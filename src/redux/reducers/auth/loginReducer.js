@@ -19,8 +19,8 @@ export const login = (state = { userRole: "visitor" }, action) => {
         return {...state, values: action.payload }
     }
     case "LOGOUT_WITH_JWT": {
-      console.log("logout")
-      localStorage.setItem("token", "null") //remove JWT token
+      localStorage.setItem("token", "null")
+      localStorage.setItem("username", "null") //remove JWT token
       console.log(localStorage.getItem("token"))
       return { ...state, values: action.payload }
     }
