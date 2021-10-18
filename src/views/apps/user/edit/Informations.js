@@ -33,6 +33,9 @@ const chipColors = {
 
 class UserAccountTab extends React.Component {
   state = {
+    rowData: [],
+    persoData: [],
+
     dob: this.props.perso["birth_date"],
     username: this.props.data.username,
     p_password: this.props.data.p_password,
@@ -65,6 +68,33 @@ class UserAccountTab extends React.Component {
     parent_id: this.props.data.parent_id
   }
 
+  async componentDidMount() {
+    const Config = {
+      headers: {
+        Authorization: "Bearer " + localStorage.getItem("token")
+      }
+    }
+    await axios.get(global.config.server_url + "/users/" + this.props.id, Config).then(response => {
+      let rowData = response.data
+      let persoData = response.data.personal_informations;
+
+      this.setState({ rowData, persoData })
+    })
+  }
+
+  updateUsername = e => {      
+      if (e.first_name != null && e.last_name != null) {
+        this.setState({ first_name: e.first_name});
+        this.setState({ last_name: e.last_name});
+        this.setState({username: e.first_name + " " + e.last_name});
+      } else if (e.first_name != null && e.last_name == null) {
+        this.setState({username: e.first_name + " " + this.state.persoData.last_name});
+        this.setState({first_name: e.first_name});
+      } else if (e.first_name == null && e.last_name != null) {
+        this.setState({username: this.state.persoData.first_name + " " + e.last_name});
+        this.setState({last_name: e.last_name});
+      } else return
+  }
   updateUsersInformation = information => {
     const Config = {
       headers: {
@@ -75,7 +105,7 @@ class UserAccountTab extends React.Component {
         .put(global.config.server_url+"/users/" + this.props.id, {
           name: information.username,
           email: information.email,
-          role: information.role? information.role: this.props.data.role? this.props.data.role : "Client EOR",
+          role: information.role? information.role: this.props.data.role? this.props.data.role : "Client",
           p_password: information.p_password,
           status: information.status ? information.status: this.props.perso.status? this.props.perso.status: "En attente",
           status_fa: information.status_fa? information.status_fa: this.props.perso.status_fa? this.props.perso.status_fa: false,
@@ -161,7 +191,6 @@ class UserAccountTab extends React.Component {
     e.preventDefault();
     this.updateUsersInformation(this.state);
   }
-
   render() {
     return (
       <Row>
@@ -252,7 +281,7 @@ class UserAccountTab extends React.Component {
                                     {(() => {
                                         let subscribe_service =this.ifDataExist("subscribe_services");
                                         if(subscribe_service == null || subscribe_service == ""){
-                                            return <div></div>;
+                                            return <div>No</div>;
                                         }else{
                                             let lst_subscribe_services = subscribe_service.replaceAll('"','').trim().split('/');
                                             const tags = [];
@@ -362,7 +391,7 @@ class UserAccountTab extends React.Component {
                                 name="status_fa"
                                 inline
                                 defaultChecked={this.props.data['status_fa']}
-                                onChange={() => this.setState({status_fa: !this.state.status_fa})}
+                                onChange={() => this.setState({status_fa: Math.abs(this.state.status_fa  - 1)})}
                             >
                                 <span className="mb-0 switch-label" style={{paddingTop:'3px'}}>Paid</span>
                             </CustomInput>
@@ -376,7 +405,7 @@ class UserAccountTab extends React.Component {
                         <Input
                             type="text"
                             defaultValue={this.ifExist("last_name")}
-                            onChange={e => this.setState({ last_name: e.target.value })}
+                            onChange={e => this.updateUsername({ last_name: e.target.value, first_name: null })}
                             id="name"
                             placeholder="Nom"
                         />
@@ -400,7 +429,7 @@ class UserAccountTab extends React.Component {
                         <Input
                             type="text"
                             defaultValue={this.ifExist("first_name")}
-                            onChange={e => this.setState({ first_name: e.target.value })}
+                            onChange={e => this.updateUsername({ first_name: e.target.value, last_name: null })}
                             id="name"
                             placeholder="Prénom"
                         />
@@ -412,18 +441,18 @@ class UserAccountTab extends React.Component {
                         {this.ifDataExist("role") != null &&
                             <Input type="select" name="select" id="role" defaultValue={this.ifDataExist("role")}
                                    onChange={e => this.setState({role: e.target.value})}>
-                                <option>Client EOR</option>
-                                <option>Consultant EOR</option>
-                                <option>Technician EOR</option>
+                                <option>Client</option>
+                                <option>Consultant</option>
+                                <option>Expert</option>
                                 <option>admin</option>
                             </Input>
                         }
                         {this.ifDataExist("role") == null &&
-                            <Input type="select" name="select" id="role" defaultValue="Client EOR"
+                            <Input type="select" name="select" id="role" defaultValue="Client"
                                    onChange={e => this.setState({role: e.target.value})}>
-                                <option>Client EOR</option>
-                                <option>Consultant EOR</option>
-                                <option>Technician EOR</option>
+                                <option>Client</option>
+                                <option>Consultant</option>
+                                <option>Expert</option>
                                 <option>admin</option>
                             </Input>
                         }
