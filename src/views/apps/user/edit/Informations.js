@@ -391,7 +391,7 @@ class UserAccountTab extends React.Component {
                                 name="status_fa"
                                 inline
                                 defaultChecked={this.props.data['status_fa']}
-                                onChange={() => this.setState({status_fa: !this.state.status_fa})}
+                                onChange={() => this.setState({status_fa: Math.abs(this.state.status_fa  - 1)})}
                             >
                                 <span className="mb-0 switch-label" style={{paddingTop:'3px'}}>Paid</span>
                             </CustomInput>
