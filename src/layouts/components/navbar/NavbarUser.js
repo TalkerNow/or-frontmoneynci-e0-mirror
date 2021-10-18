@@ -110,63 +110,11 @@ class NavbarUser extends React.PureComponent {
     })
   }
 
-  removeItem = id => {
-    let cart = this.state.shoppingCart
-
-    let updatedCart = cart.filter(i => i.id !== id)
-
-    this.setState({
-      shoppingCart: updatedCart
-    })
-  }
 
   handleLangDropdown = () =>
     this.setState({ langDropdown: !this.state.langDropdown })
 
   render() {
-    this.state.shoppingCart.map(item => {
-      return (
-        <div className="cart-item" key={item.id}>
-          <Media
-            className="p-0"
-            onClick={() => history.push("/ecommerce/product-detail")}
-          >
-            <Media className="text-center pr-0 mr-1" left>
-              <img
-                className={`${
-                  item.imgClass
-                    ? item.imgClass + " cart-item-img"
-                    : "cart-item-img"
-                }`}
-                src={item.img}
-                width={item.width}
-                alt="Cart Item"
-              />
-            </Media>
-            <Media className="overflow-hidden pr-1 py-1 pl-0" body>
-              <span className="item-title text-truncate text-bold-500 d-block mb-50">
-                {item.name}
-              </span>
-              <span className="item-desc font-small-2 text-truncate d-block">
-                {item.desc}
-              </span>
-              <div className="d-flex justify-content-between align-items-center mt-1">
-                <span className="align-middle d-block">1 x {item.price}</span>
-                <Icon.X
-                  className="danger"
-                  size={15}
-                  onClick={e => {
-                    e.stopPropagation()
-                    this.removeItem(item.id)
-                  }}
-                />
-              </div>
-            </Media>
-          </Media>
-        </div>
-      )
-    })
-
     return (
       <ul className="nav navbar-nav navbar-nav-user float-right">
         <IntlContext.Consumer>
