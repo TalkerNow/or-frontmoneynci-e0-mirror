@@ -69,15 +69,15 @@ class ClientsList extends React.Component {
     },
     searchVal: "",
     columnDefs: [
-      {
-        headerName: "ID",
-        field: "id",
-        width: 150,
-        filter: true,
-        checkboxSelection: true,
-        headerCheckboxSelectionFilteredOnly: true,
-        headerCheckboxSelection: true
-      },
+      // {
+      //   headerName: "ID",
+      //   field: "id",
+      //   width: 150,
+      //   filter: true,
+      //   checkboxSelection: true,
+      //   headerCheckboxSelectionFilteredOnly: true,
+      //   headerCheckboxSelection: true
+      // },
       {
         headerName: "Nom",
         field: "name",
