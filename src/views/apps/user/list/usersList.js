@@ -54,7 +54,7 @@ class AdmUsersList extends React.Component {
       {
         headerName: "ID",
         field: "id",
-        width: 150,
+        width: 160,
         filter: true,
         checkboxSelection: true,
         headerCheckboxSelectionFilteredOnly: true,

@@ -69,15 +69,15 @@ class ClientsList extends React.Component {
     },
     searchVal: "",
     columnDefs: [
-      {
-        headerName: "ID",
-        field: "id",
-        width: 120,
-        filter: true,
-        checkboxSelection: true,
-        headerCheckboxSelectionFilteredOnly: true,
-        headerCheckboxSelection: true
-      },
+      // {
+      //   headerName: "ID",
+      //   field: "id",
+      //   width: 150,
+      //   filter: true,
+      //   checkboxSelection: true,
+      //   headerCheckboxSelectionFilteredOnly: true,
+      //   headerCheckboxSelection: true
+      // },
       {
         headerName: "Nom",
         field: "name",
@@ -144,13 +144,13 @@ class ClientsList extends React.Component {
         headerName: "Email",
         field: "email",
         filter: true,
-        width: 230
+        width: 200
       },
       {
         headerName: "Date de Création",
         field: "created_at",
         filter: true,
-        width: 200,
+        width: 150,
         cellRendererFramework: params => {
           return (
               <div>
