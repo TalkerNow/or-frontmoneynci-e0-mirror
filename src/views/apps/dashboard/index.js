@@ -38,7 +38,6 @@ class Index extends React.Component {
     }
 
     await axios.get(global.config.server_url + "/get_statistics", Config).then(response => {
-      console.log(response.data);
       this.setState({
         clients_count: response.data.clients_count,
         clients_count_list: response.data.clients_count_list,

@@ -115,7 +115,6 @@ class RevenueGraph extends React.Component {
     }
 
     await axios.get(global.config.server_url + "/get_statistics_per_month", Config).then(response => {
-      console.log(response.data);
       this.setState({
         series: [
           {

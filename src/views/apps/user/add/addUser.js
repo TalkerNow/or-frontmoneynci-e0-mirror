@@ -103,7 +103,6 @@ class AddUser extends React.Component {
       parent_id: data.parent_id
     })
         .then(function(result) {
-          console.log(result)
           if (result.data.accessToken) {
             axios
                 .post(global.config.server_url + "/personal_information", {
@@ -150,7 +149,6 @@ class AddUser extends React.Component {
                 .catch(error => {
                     waiterHide();
                     axios.delete(global.config.server_url + "/users/" + result.data.user.id, Config).then(response => {
-                        console.log(error);
                         toast.error("API injoignable.")
                     })
                 })

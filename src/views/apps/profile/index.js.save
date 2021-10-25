@@ -41,10 +41,8 @@ class UserView extends React.Component {
     var userid = localStorage.getItem("userid");
 
     await axios.get(global.config.server_url + "/users/" + userid, Config).then(response => {
-      console.log(response.data);
       let rowData = response.data;
       let persoData = response.data.personal_informations;
-      console.log(persoData);
       this.setState({ rowData, persoData })
     })
   }

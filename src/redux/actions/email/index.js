@@ -14,7 +14,6 @@ export const getEmails = routeParams => {
           routeParams
         })
       })
-      .catch(err => console.log(err))
   }
 }
 
@@ -30,7 +29,6 @@ export const StarEmail = id => {
           mailId: id
         })
       })
-      .catch(err => console.log(err))
   }
 }
 
@@ -83,7 +81,6 @@ export const moveMail = (to, id) => {
         })
         dispatch(getEmails(routeParams))
       })
-      .catch(err => console.log(err))
   }
 }
 
@@ -102,7 +99,6 @@ export const unreadMails = unreadFlag => {
           id: selectedEmails
         })
       })
-      .catch(err => console.log(err))
   }
 }
 
@@ -118,9 +114,6 @@ export const setLabel = label => {
       .then(response => {
         dispatch({ type: "SET_LABELS", label, response })
         dispatch(getEmails(routeParams))
-      })
-      .catch(error => {
-        console.log(error)
       })
   }
 }

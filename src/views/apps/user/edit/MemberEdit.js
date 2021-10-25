@@ -36,7 +36,6 @@ class UserEdit extends React.Component {
     }
 
     this.setState({ activeTab: this.props.match.params.tab});
-    console.log("param:tab-"+this.props.match.params.tab);
     await axios.get(global.config.server_url + "/users/" + this.props.match.params.id, Config).then(response => {
       let rowData = response.data
       let persoData = response.data.personal_informations;
