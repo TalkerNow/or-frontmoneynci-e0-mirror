@@ -3,7 +3,6 @@ import { history } from "../../../history"
 
 export const getTodos = (routeParams) => {
   return async dispatch => {
-    console.log(routeParams);
     const Config = {
       headers: {
         Authorization: "Bearer " + localStorage.getItem("token")

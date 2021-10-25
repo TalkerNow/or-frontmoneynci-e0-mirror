@@ -89,8 +89,6 @@ class EditContract extends React.Component {
                     formValues: values
                 }
             );
-        }else {
-            console.log("Values are empty!");
         }
     })
   }

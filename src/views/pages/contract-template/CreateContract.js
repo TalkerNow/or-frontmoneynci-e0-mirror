@@ -189,8 +189,6 @@ class CreateContract extends React.Component {
               );
               input_values = { ...values};
               this.calculate();
-          }else {
-              console.log("Values are empty!");
           }
       })
       axios.get(global.config.server_url + "/users/" + this.props.match.params.id, Config).then(response => {
@@ -218,7 +216,6 @@ class CreateContract extends React.Component {
       parameters['user_id'] = userid;
       parameters['parent_id'] = localStorage.getItem("userid");
       parameters['values'] = JSON.stringify(input_values);
-      console.log(input_values);
         //-------- save Contract ---------
       axios.post(global.config.server_url + "/documents", parameters, Config)
           .then(function(result) {

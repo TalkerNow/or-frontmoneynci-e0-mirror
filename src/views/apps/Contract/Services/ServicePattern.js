@@ -178,7 +178,6 @@ class ServicePattern extends React.Component {
         Authorization: "Bearer " + localStorage.getItem("token")
       }
     }
-    console.log(params)
     axios.put(global.config.server_url + "/services/" + params.data.id,  {
       name: params.data.name,
       description: params.data.description,
@@ -193,9 +192,9 @@ class ServicePattern extends React.Component {
       document_id: 0,
       status: "template"
     }, Config)
-        .then(function(result) {
+        /*.then(function(result) {
           console.log(result)
-        })
+        })*/
         .catch(function(error) {
           toast.error("API injoignable")
         })
