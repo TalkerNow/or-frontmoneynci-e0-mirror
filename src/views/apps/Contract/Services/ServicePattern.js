@@ -192,9 +192,6 @@ class ServicePattern extends React.Component {
       document_id: 0,
       status: "template"
     }, Config)
-        /*.then(function(result) {
-          console.log(result)
-        })*/
         .catch(function(error) {
           toast.error("API injoignable")
         })

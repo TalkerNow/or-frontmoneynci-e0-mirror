@@ -11,7 +11,6 @@ export const getChats = () => {
           chats: response.data.chats
         })
       })
-      .catch(err => console.log(err))
   }
 }
 
@@ -25,7 +24,6 @@ export const getContactChats = () => {
           chats: response.data
         })
       })
-      .catch(err => console.log(err))
   }
 }
 
@@ -43,7 +41,6 @@ export const togglePinned = (id, value) => {
           value
         })
       })
-      .catch(err => console.log(err))
   }
 }
 
@@ -72,11 +69,9 @@ export const sendMessage = (id, isPinned, text) => {
           })
           dispatch(getChats())
         })
-        .catch(err => console.log(err))
     }
-  } else {
+  } else
     return
-  }
 }
 
 export const changeStatus = status => {
@@ -109,6 +104,5 @@ export const markSeenAllMessages = id => {
           id
         })
       })
-      .catch(err => console.log(err))
   }
 }

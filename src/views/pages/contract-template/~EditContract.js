@@ -119,7 +119,6 @@ class EditContract extends React.Component {
           // const width = pdfDOC.internal.pageSize.getWidth();
           // let height = pdfDOC.internal.pageSize.getHeight();
           // height = 3 * width;
-          //   console.log(width+":"+height);
           // pdfDOC.addImage(imgData, 'JPEG', 0, 0, width - 20, height - 10);
           // pdfDOC.save('summary.pdf');   //Download the rendered PDF.
 

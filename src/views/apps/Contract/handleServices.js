@@ -102,9 +102,6 @@ class handleServices extends React.Component {
             document_id: params.data.document_id,
             status: "unselected"
         }, Config)
-            /*.then(function(result) {
-                console.log(result)
-            })*/
             .catch(function(error) {
                 toast.error("API injoignable")
             })
@@ -130,9 +127,6 @@ class handleServices extends React.Component {
             document_id: params.data.document_id,
             status: "selected"
         }, Config)
-            /*.then(function(result) {
-                console.log(result)
-            })*/
             .catch(function(error) {
                 toast.error("API injoignable")
             })

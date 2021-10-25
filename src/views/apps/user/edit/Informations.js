@@ -142,14 +142,6 @@ class UserAccountTab extends React.Component {
                   // history.push("/app/user/conslist")
                   toast.info("Modifications enregistrées");
               })
-              .catch(error => {
-                console.log(error);
-                toast.error("API injoignable.")
-              })
-        })
-        .catch(error => {
-          console.log(error);
-          toast.error("API injoignable.")
         })
   }
 

@@ -140,7 +140,6 @@ class DropzoneBasic extends React.Component {
             link.click();
         }).catch(error => {
             waiterHide();
-            console.log("there is no file");
         });
     }
     render() {

@@ -49,9 +49,6 @@ export const signupWithFirebase = (email, password, name) => {
         })
         history.push("/")
       })
-      .catch(error => {
-        console.log(error.message)
-      })
   }
 }
 
@@ -73,7 +70,6 @@ export const signupWithJWT = (email, password, first_name, last_name) => {
               toast.info("Utilisateur enregistré");
             })
             .catch(error => {
-              console.log(error);
               toast.error("API injoignable.")
             })
         var loggedInUser
@@ -94,7 +90,6 @@ export const signupWithJWT = (email, password, first_name, last_name) => {
         }
 
       })
-      .catch(err => {console.log(err)})
 
   }
 }
