@@ -64,9 +64,9 @@ export const submitLoginWithFireBase = (email, password, remember) => {
           history.push("/")
         })
       })
-      .catch(error => {
+      /*.catch(error => {
         console.log(error)
-      })
+      })*/
   }
 }
 
@@ -93,9 +93,9 @@ export const loginWithFB = () => {
         })
         if (user) history.push("/")
       })
-      .catch(error => {
+      /*.catch(error => {
         console.log(error)
-      })
+      })*/
   }
 }
 
@@ -121,9 +121,9 @@ export const loginWithTwitter = () => {
         })
         history.push("/")
       })
-      .catch(function(error) {
+      /*.catch(function(error) {
         console.log(error)
-      })
+      })*/
   }
 }
 
@@ -149,9 +149,9 @@ export const loginWithGoogle = () => {
         })
         history.push("/")
       })
-      .catch(function(error) {
+      /*.catch(function(error) {
         console.log(error)
-      })
+      })*/
   }
 }
 
@@ -178,9 +178,9 @@ export const loginWithGithub = () => {
         })
         history.push("/")
       })
-      .catch(function(error) {
+      /*.catch(function(error) {
         console.log(error)
-      })
+      })*/
   }
 }
 
@@ -211,7 +211,7 @@ export const loginWithJWT = user => {
         }
       })
       .catch(error => {
-        console.log(error)
+        //console.log(error)
         if (error.response && error.response.status)
           toast.error("Email ou mot de passe incorrect.")
         else
