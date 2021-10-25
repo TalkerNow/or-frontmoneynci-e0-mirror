@@ -18,7 +18,7 @@ const navigationConfig = [
     title: "profil",
     type: "item",
     icon: <Icon.User size={20}/>,
-    permissions: ["admin", "Client","Consultant","Expert"],
+    permissions: ["admin", "Client","Ancient Client","Consultant","Expert"],
     navLink: "/app/profile"
     //badge: "warning",
     //badgeText: "2"
@@ -38,7 +38,7 @@ const navigationConfig = [
     title: "Tâches",
     type: "item",
     icon: <Icon.CheckSquare size={20} />,
-    permissions: ["admin", "Client","Consultant", "Expert"],
+    permissions: ["admin", "Client","Ancient Client","Consultant", "Expert"],
     navLink: "/task/:filter",
     filterBase: "/task/all"
   },
@@ -47,7 +47,7 @@ const navigationConfig = [
     title: "Documents",
     type: "item",
     icon: <Icon.Folder size={20} />,
-    permissions: ["admin", "Client", "Consultant", "Expert"],
+    permissions: ["admin", "Client","Ancient Client", "Consultant", "Expert"],
     badge: "primary",
     badgeText: "5 news",
     navLink: "/document",
