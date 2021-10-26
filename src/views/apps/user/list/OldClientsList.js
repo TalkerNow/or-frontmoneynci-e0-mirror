@@ -89,7 +89,7 @@ class OldClientsList extends React.Component {
               className="d-flex align-items-center cursor-pointer"
               onClick={() => history.push("/app/user/edit/" + params.data.id + "/1")}
             >
-              <span>{params.data.personal_informations.first_name + " " + params.data.personal_informations.last_name}</span>
+              <span>{params.data.old_client.cl_prenom + " " + params.data.old_client.cl_nom}</span>
             </div>
           )
         }
@@ -154,7 +154,7 @@ class OldClientsList extends React.Component {
         cellRendererFramework: params => {
           return (
               <div>
-                <Moment format="DD-MM-YYYY" date={params.data.created_at} utc/>
+                <Moment format="DD-MM-YYYY" date={params.data.old_client.cl_date} utc/>
               </div>
           )
         }
@@ -384,6 +384,11 @@ class OldClientsList extends React.Component {
               refreshing: this.state.reload
             })}
           >
+            <CardHeader>
+              <CardTitle>
+                Anciens client es une page qui ressence les clients provenant d'Optionretraite.net
+              </CardTitle>
+            </CardHeader>
             <CardHeader>
               <CardTitle>Filters</CardTitle>
               <div className="actions">
