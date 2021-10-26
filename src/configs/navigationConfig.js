@@ -34,6 +34,16 @@ const navigationConfig = [
     //badgeText: "2"
   },
   {
+    id: "users",
+    title: "Anciens Clients",
+    type: "item",
+    icon: <Icon.Monitor size={20}/>,
+    permissions: ["admin", "Expert", "Consultant"],
+    navLink: "/app/user/oldClientslist"
+    //badge: "warning",
+    //badgeText: "2"
+  },  
+  {
     id: "tasks",
     title: "Tâches",
     type: "item",
