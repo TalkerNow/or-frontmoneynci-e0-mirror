@@ -135,7 +135,7 @@ class OldClientsList extends React.Component {
               <div
                   className="d-flex align-items-center cursor-pointer"
               >
-                <span>{params.data.parent? params.data.parent.name:""}</span>
+                <span>{params.data.parent? params.data.parent.name:"Inc"}</span>
               </div>
           )
         }
@@ -239,21 +239,13 @@ class OldClientsList extends React.Component {
       }
     }
 
-    await axios.get(global.config.server_url + "/users?kind=client", Config).then(response => {
+    await axios.get(global.config.server_url + "/users?kind=oldclient", Config).then(response => {
       let rowData = response.data
       this.setState({ rowData })
     })
   }
 
-  deleteUser(id){
-      const Config = {
-          headers: { Authorization: "Bearer " + localStorage.getItem("token") }
-      }
-      axios.delete(global.config.server_url + "/users/" + id, Config).then(response => {
-          var SelectedData = this.gridApi.getSelectedRows();
-          this.gridApi.updateRowData({remove: SelectedData})
-      })
-  }
+
   onGridReady = params => {
     this.gridApi = params.api
     this.gridColumnApi = params.columnApi
@@ -585,11 +577,6 @@ class OldClientsList extends React.Component {
                       onChange={e => this.updateSearchQuery(e.target.value)}
                       value={this.state.searchVal}
                     />
-                    <div>
-                      <Button.Ripple className="mr-1 mb-1" outline color="primary" onClick={() => history.push("/app/user/createUser")}>
-                        <UserPlus size={15} />
-                      </Button.Ripple>
-                    </div>
                     <div className="dropdown mr-1 mb-1 d-inline-block">
                       <UncontrolledButtonDropdown>
                         <DropdownToggle color="primary" caret>
