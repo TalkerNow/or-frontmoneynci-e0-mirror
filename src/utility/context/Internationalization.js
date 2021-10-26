@@ -6,9 +6,7 @@ import messages_fr from "../../assets/data/locales/fr.json"
 
 const menu_messages = {
   en: messages_en,
-  de: messages_de,
-  fr: messages_fr,
-  pt: messages_pt
+  fr: messages_fr
 }
 
 const Context = React.createContext()
