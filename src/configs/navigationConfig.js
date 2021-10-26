@@ -34,7 +34,7 @@ const navigationConfig = [
     //badgeText: "2"
   },
   {
-    id: "users",
+    id: "oldUsers",
     title: "Anciens Clients",
     type: "item",
     icon: <Icon.Monitor size={20}/>,
