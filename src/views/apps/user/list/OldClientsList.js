@@ -241,6 +241,7 @@ class OldClientsList extends React.Component {
 
     await axios.get(global.config.server_url + "/users?kind=oldclient", Config).then(response => {
       let rowData = response.data
+      console.log(response.data)
       this.setState({ rowData })
     })
   }
@@ -378,7 +379,7 @@ class OldClientsList extends React.Component {
           >
             <CardHeader>
               <CardTitle>
-                Anciens client es une page qui ressence les clients provenant d'Optionretraite.net
+                Cette page permet de recenser les clients provenant d'Optionretraite.net
               </CardTitle>
             </CardHeader>
             <CardHeader>
