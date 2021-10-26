@@ -15,7 +15,7 @@ const navigationConfig = [
    },
   {
     id: "profile",
-    title: "profil",
+    title: "Profile",
     type: "item",
     icon: <Icon.User size={20}/>,
     permissions: ["admin", "Client","Ancient Client","Consultant","Expert"],
