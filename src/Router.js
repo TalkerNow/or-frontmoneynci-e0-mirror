@@ -107,7 +107,7 @@ class AppRouter extends React.Component {
           <AppRoute path="/document" component={document} />
 
           <AppRoute path="/app/user/clientslist" component={clientslist} />
-          <AppRoute path="app/user/oldclientslist" component={oldclientslist}/>
+          <AppRoute path="/app/user/oldclientslist" component={oldclientslist}/>
           <AppRoute path="/app/user/edit/:id/:tab" component={userEdit} />
           <AppRoute path="/app/user/clientTask/:id/:filter" component={clientTask} />
           <AppRoute path="/app/user/createUser" component={createUser} />
