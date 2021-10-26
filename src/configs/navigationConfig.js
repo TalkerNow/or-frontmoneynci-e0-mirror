@@ -39,7 +39,7 @@ const navigationConfig = [
     type: "item",
     icon: <Icon.Monitor size={20}/>,
     permissions: ["admin", "Expert", "Consultant"],
-    navLink: "/app/user/oldClientslist"
+    navLink: "/app/user/oldClientsList"
     //badge: "warning",
     //badgeText: "2"
   },  

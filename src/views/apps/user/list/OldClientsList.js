@@ -47,7 +47,7 @@ const chipColors = {
   ACTU: 'primary',
   RAC: 'warning'
 }
-class ClientsList extends React.Component {
+class OldClientsList extends React.Component {
   state = {
     defaultAlert : false,
     confirmAlert : false,
@@ -634,6 +634,6 @@ class ClientsList extends React.Component {
   }
 }
 
-export default ClientsList
+export default OldClientsList
 /* eslint-disable */
 
