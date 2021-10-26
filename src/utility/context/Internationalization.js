@@ -2,9 +2,7 @@ import React from "react"
 import { IntlProvider } from "react-intl"
 
 import messages_en from "../../assets/data/locales/en.json"
-import messages_de from "../../assets/data/locales/de.json"
 import messages_fr from "../../assets/data/locales/fr.json"
-import messages_pt from "../../assets/data/locales/pt.json"
 
 const menu_messages = {
   en: messages_en,
