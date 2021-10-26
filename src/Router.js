@@ -26,7 +26,7 @@ const memberTask = lazy(() => import("./views/apps/user/edit/memberTask/Task"))
 const document = lazy(() => import("./views/apps/document"))
 
 const clientslist = lazy(() => import("./views/apps/user/list/ClientsList"))
-const oldClientsList = lazy(() => import("./views/apps/user/list/OldClientsList"))
+const oldclientslist = lazy(() => import("./views/apps/user/list/OldClientsList"))
 const memberslist = lazy(() => import("./views/apps/user/list/MembersList"))
 const createUser = lazy(() => import("./views/apps/user/add/addUser"))
 const userEdit = lazy(() => import("./views/apps/user/edit/ClientEdit"))
@@ -107,7 +107,7 @@ class AppRouter extends React.Component {
           <AppRoute path="/document" component={document} />
 
           <AppRoute path="/app/user/clientslist" component={clientslist} />
-          <AppRoute path="app/user/oldClientsList" component={oldClientsList}/>
+          <AppRoute path="app/user/oldclientslist" component={oldclientslist}/>
           <AppRoute path="/app/user/edit/:id/:tab" component={userEdit} />
           <AppRoute path="/app/user/clientTask/:id/:filter" component={clientTask} />
           <AppRoute path="/app/user/createUser" component={createUser} />
