@@ -241,7 +241,7 @@ class OldClientsList extends React.Component {
 
     await axios.get(global.config.server_url + "/users?kind=oldclient", Config).then(response => {
       let rowData = response.data
-      console.log(response.data)
+      console.log(rowData)
       this.setState({ rowData })
     })
   }
