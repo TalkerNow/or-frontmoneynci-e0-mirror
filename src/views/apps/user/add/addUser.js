@@ -285,6 +285,7 @@ class AddUser extends React.Component {
             </Col>
             <Col md="6" sm="12">
               <FormGroup>
+                <Label for="role">Rôle</Label>
                 <CustomInput type="select" name="role" required id="role" onChange={e => this.setState({ data: { ...this.state.data, role: e.target.value} })}>
                   <option>Client</option>
                   <option>Consultant</option>
@@ -295,8 +296,10 @@ class AddUser extends React.Component {
             </Col>
             <Col md="6" sm="12">
               <FormGroup>
+                <Label for="dateofbirth">Date de naissance</Label>
                 <InputMaskDate
                     onChange={e => this.handledob(e.target.value)}
+                    id="dateofbirth"
                 />
               </FormGroup>
             </Col>
@@ -567,6 +570,7 @@ class AddUser extends React.Component {
           <Row>
             <Col md="6" sm="12">
               <FormGroup>
+                <Label for="member">Expert</Label>
                 <CustomInput type="select" name="member" required id="member" onChange={e => this.setState({ data: { ...this.state.data, parent_id: e.target.value} })}>
                     {this.state.members.map((member, index) => (
                         <option value={member.id}>{member.personal_informations.first_name + " " + member.personal_informations.last_name}</option>
