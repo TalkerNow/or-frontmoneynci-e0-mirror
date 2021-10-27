@@ -674,6 +674,30 @@ class UserAccountTab extends React.Component {
                 </Col>
                 <Col md="6" sm="12">
                     <FormGroup>
+                        <Label for="SS1">Sécurité Sociale</Label>
+                        <Input
+                            type="number"
+                            id="secu_social"
+                            placeholder="Sécurité Sociale"
+                            defaultValue={this.ifExist("secu_social")}
+                            onChange={e => this.setState({ secu_social: e.target.value })}
+                        />
+                    </FormGroup>
+                </Col>
+                <Col md="6" sm="12">
+                    <FormGroup>
+                        <Label for="SS2">Clé de Sécurité Sociale</Label>
+                        <Input
+                            type="number"
+                            id="secu_social_key"
+                            placeholder="Clé de Sécurité Sociale"
+                            defaultValue={this.ifExist("secu_social_key")}
+                            onChange={e => this.setState({ secu_social_key: e.target.value })}
+                        />
+                    </FormGroup>
+                </Col>
+                <Col md="6" sm="12">
+                    <FormGroup>
                         <Label for="child_nbr">Nom Société</Label>
                         <Input
                             type="text"
