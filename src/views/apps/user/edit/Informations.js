@@ -697,6 +697,10 @@ class UserAccountTab extends React.Component {
                     </FormGroup>
                 </Col>
                 <Col md="6" sm="12">
+
+</Col>
+
+                <Col md="6" sm="12">
                     <FormGroup>
                         <Label for="child_nbr">Nom Société</Label>
                         <Input
