@@ -305,7 +305,7 @@ class AddUser extends React.Component {
             </Col>
             <Col md="6" sm="12">
               <FormGroup>
-              <Label for="email">EMail</Label>
+              <Label for="email">Adresse mail</Label>
                 <Input
                     type="email"
                     placeholder="Email"
