@@ -249,36 +249,43 @@ class AddUser extends React.Component {
             </Col>
             <Col md="6" sm="12">
               <FormGroup>
+                <Label for="lastname">Nom</Label>
                 <Input
                     type="text" placeholder="Nom"
                     required
                     value={this.state.data.last_name}
                     onChange={e => this.setState({ data: { ...this.state.data, last_name: e.target.value} })}
+                    id="lastname"
                 />
               </FormGroup>
             </Col>
             <Col md="6" sm="12">
               <FormGroup>
+                <Label for="password">Mot de passe</Label>
                 <Input
                     type="pass"
                     placeholder="Mot de passe"
                     required
                     value={this.state.data.password}
                     onChange={e => this.setState({ data: { ...this.state.data, password: e.target.value} })}
+                    id="password"
                 />
               </FormGroup>
             </Col>
             <Col md="6" sm="12">
               <FormGroup>
+              <Label for="firstname">Prénom</Label>
                 <Input
                     type="text" placeholder="Prénom"
                     required
                     onChange={e => this.setState({ data: { ...this.state.data, first_name: e.target.value} })}
+                    id="firstname"
                 />
               </FormGroup>
             </Col>
             <Col md="6" sm="12">
               <FormGroup>
+                <Label for="role">Rôle</Label>
                 <CustomInput type="select" name="role" required id="role" onChange={e => this.setState({ data: { ...this.state.data, role: e.target.value} })}>
                   <option>Client</option>
                   <option>Consultant</option>
@@ -289,19 +296,23 @@ class AddUser extends React.Component {
             </Col>
             <Col md="6" sm="12">
               <FormGroup>
+                <Label for="dateofbirth">Date de naissance</Label>
                 <InputMaskDate
                     onChange={e => this.handledob(e.target.value)}
+                    id="dateofbirth"
                 />
               </FormGroup>
             </Col>
             <Col md="6" sm="12">
               <FormGroup>
+              <Label for="email">Adresse mail</Label>
                 <Input
                     type="email"
                     placeholder="Email"
                     required
                     value={this.state.data.email}
                     onChange={e => this.setState({ data: { ...this.state.data, email: e.target.value} })}
+                    id="email"
                 />
               </FormGroup>
             </Col>
@@ -382,52 +393,64 @@ class AddUser extends React.Component {
             </Col>
             <Col md="6" sm="12">
               <FormGroup>
+                <Label for="officenumber">N° de Téléphone</Label>
                 <Input
                     type="Input-Number" placeholder="Téléphone fixe"
                     onChange={e => this.setState({ data: { ...this.state.data, office_number: e.target.value} })}
+                    id="officenumber"
                 />
               </FormGroup>
             </Col>
             <Col md="6" sm="12">
               <FormGroup>
+                <Label for="contactnumber">Téléphone portable</Label>
                 <Input
                     type="Input-Number" placeholder="Téléphone portable"
                     onChange={e => this.setState({ data: { ...this.state.data, mobile_number: e.target.value} })}
+                    id="contactnumber"
                 />
               </FormGroup>
             </Col>
             <Col md="6" sm="12">
               <FormGroup>
+                <Label for="nb_child">Nombre D'enfants</Label>
                 <Input
                     type="number" placeholder="Nombre d'enfants"
                     value={this.state.data.children_number}
                     onChange={e => this.setState({ data: { ...this.state.data, children_number: e.target.value} })}
+                    id="nb_child"
                 />
               </FormGroup>
             </Col>
             <Col md="6" sm="12">
               <FormGroup>
+                <Label for="SS1">N° de Sécurité Sociale</Label>
                 <Input
                     type="number" placeholder="Sécurité Sociale"
                     Value={this.state.data.secu_social}
                     onChange={e => this.setState({ ...this.state.data, secu_social: e.target.value })}
+                    id="SS1"
                 />
               </FormGroup>
             </Col>
             <Col md="6" sm="12">
               <FormGroup>
+                <Label for="SS2">Clé de sécurité sociale</Label>
                 <Input
                     type="number" placeholder="Clé de Sécurité Sociale"
                     Value={this.state.data.secu_social_key}
                     onChange={e => this.setState({ ...this.state.data, secu_social_key: e.target.value })}
+                    id="SS2"
                 />
               </FormGroup>
             </Col>
             <Col md="6" sm="12">
               <FormGroup>
+                <Label for="officename">Nom de la Société</Label>
                 <Input
                     type="text" placeholder="Nom Société"
                     onChange={e => this.setState({ data: { ...this.state.data, society_name: e.target.value} })}
+                    id="officename"
                 />
               </FormGroup>
             </Col>
@@ -457,33 +480,43 @@ class AddUser extends React.Component {
               <span className="align-middle">Adresse du client</span>
             </h5>
               <FormGroup>
+                <Label for="adress1">Adresse 1</Label>
                 <Input
                     type="text" placeholder="Adresse 1"
                     onChange={e => this.setState({ data: { ...this.state.data, personal_address: e.target.value} })}
+                    id="adress1"
                 />
               </FormGroup>
               <FormGroup>
+                <Label for="adress2">Adresse 2</Label>
                 <Input
                     type="text" placeholder="Adresse 2"
                     onChange={e => this.setState({ data: { ...this.state.data, personal_address_2: e.target.value} })}
+                    id="adress2"
                 />
               </FormGroup>
               <FormGroup>
+                <Label for="postalcode">Code postal</Label>
                 <Input
                     type="number" placeholder="Code Postal"
                     onChange={e => this.setState({ data: { ...this.state.data, personal_zip_code: e.target.value} })}
+                    id="postalcode"
                 />
               </FormGroup>
               <FormGroup>
+              <Label for="city">Ville</Label>
                 <Input
                     type="text" placeholder="Ville"
                     onChange={e => this.setState({ data: { ...this.state.data, personal_city: e.target.value} })}
+                    id="city"
                 />
               </FormGroup>
               <FormGroup>
+                <Label for="country">Pays</Label>
                 <Input
                     type="text" placeholder="Pays "
                     onChange={e => this.setState({ data: { ...this.state.data, personal_country: e.target.value} })}
+                    id="country"
                 />
               </FormGroup>
           </Col>
@@ -493,33 +526,43 @@ class AddUser extends React.Component {
                 <span className="align-middle">Adresse de sa société</span>
               </h5>
               <FormGroup>
+                <Label for="officeadress1">Adresse 1</Label>
                 <Input
                     type="text" placeholder="Adresse 1"
                     onChange={e => this.setState({ data: { ...this.state.data, society_address: e.target.value} })}
+                    id="officeadress1"
                 />
               </FormGroup>
               <FormGroup>
+                <Label for="officeadress2">Adresse 2</Label>
                 <Input
                     type="text" placeholder="Adresse 2"
                     onChange={e => this.setState({ data: { ...this.state.data, society_address_2: e.target.value} })}
+                    id="officeadress2"
                 />
               </FormGroup>
               <FormGroup>
+              <Label for="officepostcode">Code Postal</Label>
                 <Input
                     type="number" placeholder="Code Postal"
                     onChange={e => this.setState({ data: { ...this.state.data, society_zip_code: e.target.value} })}
+                    id="officepostcode"
                 />
               </FormGroup>
               <FormGroup>
+                <Label for="officecity">Ville</Label>
                 <Input
                     type="text" placeholder="Ville"
                     onChange={e => this.setState({ data: { ...this.state.data, society_city: e.target.value} })}
+                    id="officecity"
                 />
               </FormGroup>
               <FormGroup>
+                <Label for="officecountry">Pays</Label>
                 <Input
                     type="text" placeholder="Pays"
                     onChange={e => this.setState({ data: { ...this.state.data, society_country: e.target.value} })}
+                    id="officecountry"
                 />
               </FormGroup>
             </Col>
@@ -527,6 +570,7 @@ class AddUser extends React.Component {
           <Row>
             <Col md="6" sm="12">
               <FormGroup>
+                <Label for="member">Expert</Label>
                 <CustomInput type="select" name="member" required id="member" onChange={e => this.setState({ data: { ...this.state.data, parent_id: e.target.value} })}>
                     {this.state.members.map((member, index) => (
                         <option value={member.id}>{member.personal_informations.first_name + " " + member.personal_informations.last_name}</option>
@@ -539,8 +583,11 @@ class AddUser extends React.Component {
           <Row>
             <Col md="12" sm="12">
               <FormGroup>
+                <Label for="notes">Notes</Label>
                 <Input type="textarea" rows="5" placeholder="Notes"
-                       onChange={e => this.setState({ data: { ...this.state.data, notes: e.target.value} })}/>
+                       onChange={e => this.setState({ data: { ...this.state.data, notes: e.target.value} })}
+                       id="notes"
+                       />
               </FormGroup>
             </Col>
             <Col md={{ size: 8, offset: 4 }}>
