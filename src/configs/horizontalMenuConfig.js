@@ -41,14 +41,14 @@ const horizontalMenuConfig = [
         filterBase: "/email/inbox",
         permissions: ["admin", "editor"]
       },
-      {
+      /*{
         id: "chat",
         title: "Chat",
         type: "item",
         icon: <Icon.MessageSquare size={16} />,
         navLink: "/chat",
         permissions: ["admin", "editor"]
-      },
+      },*/
       {
         id: "todo",
         title: "Todo",
