@@ -27,10 +27,6 @@ class UserInfoTab extends React.Component {
         .then(response => {
               toast.info("Modifications enregistrées");
         })
-        .catch(error => {
-            console.log(error);
-            toast.error("API injoignable.")
-        })
   }
 
   ifExist(name)

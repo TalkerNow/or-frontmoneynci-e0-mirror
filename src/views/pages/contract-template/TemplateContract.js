@@ -183,8 +183,6 @@ class TemplateContract extends React.Component {
               );
               input_values = { ...values};
               this.calculate();
-          }else {
-              console.log("Values are empty!");
           }
       })
   }
@@ -196,7 +194,6 @@ class TemplateContract extends React.Component {
           }
       }
       var parameters ={};
-      console.log(this.state.formValues);
       parameters['values'] = JSON.stringify(this.state.formValues);
       parameters['general_condition'] = this.state.general_condition;
       axios.put(global.config.server_url + "/contract_templates/1", parameters, Config)

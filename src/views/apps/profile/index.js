@@ -39,10 +39,8 @@ class UserView extends React.Component {
     var userid = localStorage.getItem("userid");
 
     await axios.get(global.config.server_url + "/users/" + userid, Config).then(response => {
-      console.log(response.data);
       let rowData = response.data;
       let persoData = response.data.personal_informations;
-      console.log(persoData);
       this.setState({ rowData, persoData })
     })
   }
@@ -162,6 +160,22 @@ class UserView extends React.Component {
                   </div>
                   <div className="d-flex user-info">
                     <div className="user-info-title font-weight-bold">
+                      Numéro de sécurité Sociale
+                    </div>
+                    <div className="text-truncate">
+                      <span>{this.state.persoData['secu_social']}</span>
+                    </div>
+                  </div>
+                  <div className="d-flex user-info">
+                    <div className="user-info-title font-weight-bold">
+                      Clé de sécurité Sociale
+                    </div>
+                    <div className="text-truncate">
+                      <span>{this.state.persoData['secu_social_key']}</span>
+                    </div>
+                  </div>
+                  <div className="d-flex user-info">
+                    <div className="user-info-title font-weight-bold">
                       Tel mob
                     </div>
                     <div className="text-truncate">
@@ -181,7 +195,7 @@ class UserView extends React.Component {
             </Card>
           </Col>
           <Col sm="12" md="6">
-            <Card style={{minHeight:'280px'}}>
+            <Card style={{minHeight:'360px'}}>
               <CardHeader>
                 <CardTitle><MessageCircle className="warning" size={25} /> Notes</CardTitle>
               </CardHeader>

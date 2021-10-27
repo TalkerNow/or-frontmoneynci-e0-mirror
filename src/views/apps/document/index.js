@@ -34,7 +34,6 @@ class DropzoneBasic extends React.Component {
             }
         }
         axios.get(global.config.server_url + "/files?user_id=" + localStorage.getItem("userid"), Config).then(response => {
-            console.log(response.data);
             var dates = [];
             var cur_date = null;
             response.data.forEach(file => {
@@ -81,8 +80,7 @@ class DropzoneBasic extends React.Component {
                     });
                     this.setState({ dates: date_array })
                     this.setState({ files: file_array })
-                }else
-                    console.log("uploadFail!");
+                }
             });
     }
     removeFile = (id) =>{
@@ -145,7 +143,6 @@ class DropzoneBasic extends React.Component {
             link.click();
         }).catch(error => {
             waiterHide();
-            console.log("there is no file");
         });
     }
     render() {

@@ -26,13 +26,13 @@ export const searchResult = [
         link: "/clientTask/all",
         icon: "CheckSquare"
       },
-      {
+      /*{
         id: 4,
         target: "Chat",
         title: "Chat",
         link: "/chat",
         icon: "MessageSquare"
-      },
+      },*/
       {
         id: 5,
         target: "Email",

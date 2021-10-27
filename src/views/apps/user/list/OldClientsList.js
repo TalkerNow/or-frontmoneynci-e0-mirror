@@ -1,3 +1,5 @@
+/* eslint-disable */
+
 import React from "react"
 import {Button} from "reactstrap"
 import {
@@ -19,6 +21,7 @@ import {
   Spinner
 } from "reactstrap"
 import axios from "axios"
+import Chip from "../../../../components/@vuexy/chips/ChipComponent"
 import { ContextLayout } from "../../../../utility/context/Layout"
 import { AgGridReact } from "ag-grid-react"
 import {
@@ -35,14 +38,23 @@ import "../../../../assets/scss/pages/users.scss"
 import SweetAlert from "react-bootstrap-sweetalert";
 import Moment from "react-moment";
 import {toast} from "react-toastify";
-class SubServicePattern extends React.Component {
+import swal from 'sweetalert';
+const chipColors = {
+  CH: "warning",
+  SIMU: "success",
+  AR: "primary",
+  TFD: "danger",
+  ACTU: 'primary',
+  RAC: 'warning'
+}
+class OldClientsList extends React.Component {
   state = {
     defaultAlert : false,
     confirmAlert : false,
     cancelAlert : false,
     IdToDelete: 0,
     rowData: null,
-    pageSize: 20,
+    pageSize: 50,
     isVisible: true,
     reload: false,
     collapse: false,
@@ -52,56 +64,138 @@ class SubServicePattern extends React.Component {
     verified: "All",
     department: "All",
     defaultColDef: {
+      resizable: true,
       sortable: true
     },
     searchVal: "",
     columnDefs: [
+      // {
+      //   headerName: "ID",
+      //   field: "id",
+      //   width: 150,
+      //   filter: true,
+      //   checkboxSelection: true,
+      //   headerCheckboxSelectionFilteredOnly: true,
+      //   headerCheckboxSelection: true
+      // },
       {
-        headerName: "Nom de la sous-prestation",
+        headerName: "Nom",
         field: "name",
         filter: true,
-        editable: true,
-        checkboxSelection: true,
-        headerCheckboxSelection: true,
-        width: 400,
-        pinned: window.innerWidth > 992 ? "left" : false
+        width: 250,
+        cellRendererFramework: params => {
+          return (
+            <div
+              className="d-flex align-items-center cursor-pointer"
+              onClick={() => history.push("/app/user/edit/" + params.data.id + "/1")}
+            >
+              <span>{params.data.personal_informations.first_name + " " + params.data.personal_informations.last_name}</span>
+            </div>
+          )
+        }
       },
       {
-        headerName: "€ HT",
-        field: "value",
+        headerName: "Presta",
+        field: "subscribe_services",
+        filter: true,
+        width: 220,
+        cellRendererFramework: params => {
+          return (
+              <>
+                {(() => {
+                  let subscribe_service = params.data.subscribe_services;
+                  if(subscribe_service == null || subscribe_service == ""){
+                    return <div></div>;
+                  }else{
+                    let lst_subscribe_services = subscribe_service.replaceAll('"','').trim().split('/');
+                    const tags = [];
+                    lst_subscribe_services.forEach(function(service) {
+                      if(service != ''){
+                        tags.push(<Chip
+                            className="m-0 text-center ml-1"
+                            color={chipColors[service.trim()]}
+                            text={service}
+                        />);
+                      }
+                    })
+                    return tags;
+                  }
+                })()}
+              </>
+          )
+        }
+      },
+      {
+        headerName: "Technicien Nom",
+        field: "technician_name",
+        filter: true,
+        width: 250,
+        cellRendererFramework: params => {
+          return (
+              <div
+                  className="d-flex align-items-center cursor-pointer"
+              >
+                <span>{params.data.parent? params.data.parent.name:""}</span>
+              </div>
+          )
+        }
+      },
+      {
+        headerName: "Email",
+        field: "email",
+        filter: true,
+        width: 200
+      },
+      {
+        headerName: "Date de Création",
+        field: "created_at",
+        filter: true,
         width: 150,
-        filter: true,
-        editable: true,
-        headerCheckboxSelectionFilteredOnly: true,
+        cellRendererFramework: params => {
+          return (
+              <div>
+                <Moment format="DD-MM-YYYY" date={params.data.created_at} utc/>
+              </div>
+          )
+        }
       },
       {
-        headerName: "Nombre",
-        field: "value1",
-        width: 150,
+        headerName: "Statut",
+        field: "status",
         filter: true,
-        editable: true,
-        headerCheckboxSelectionFilteredOnly: true,
+        width: 130,
       },
       {
-        headerName: "Total HT",
-        field: "total_ht",
-        editable: true,
+        headerName: "Sécutité Social",
+        field: "SS1",
         filter: true,
-        width: 150
+        width: 220,
+        cellRendererFramework: params => {
+          return (
+            <div className="d-flex align-items-center cursor-pointer">
+                <span>{params.data.personal_informations.secu_social? params.data.personal_informations.secu_social:""}</span>
+                </div>
+          )
+        }
       },
       {
-        headerName: "Description",
-        field: "description",
+        headerName: "FA",
+        field: "status_fa",
         filter: true,
-        editable: true,
-        width: 400,
-      },
-      {
-        headerName: "Total TTC",
-        field: "total_ttc",
-        editable: true,
-        filter: true,
-        width: 150
+        width: 130,
+        cellRendererFramework: params => {
+          return (
+            <>
+              {(params.data.status == "En cours" || params.data.status == "Termine" ) &&
+                  <Chip
+                      className="m-0 text-center ml-1"
+                      color={params.data.status_fa == 1 ? "success" : "warning"}
+                      text={params.data.status_fa == 1 ? "Paid" : "Not Paid"}
+                  />
+              }
+            </>
+          )
+        }
       },
       {
         headerName: "Actions",
@@ -109,18 +203,46 @@ class SubServicePattern extends React.Component {
         width: 150,
         cellRendererFramework: params => {
           return (
-              <div className="actions cursor-pointer">
-                <Trash2
-                    size={15}
-                    onClick={() => {
-                      this.handleAlert("defaultAlert", true, params.data.id)
-                    }}
-                />
-              </div>
+            <div className="actions cursor-pointer">
+              <Edit
+                className="mr-50"
+                size={15}
+                onClick={() => history.push("/app/user/edit/" + params.data.id + "/1")}
+              />
+              <Trash2
+                size={15}
+                onClick={() => { this.handleAlert("defaultAlert", true, params.data.id)}}
+              />
+            </div>
           )
         }
       }
     ]
+  }
+
+  createContract(id, name)
+  {
+    const Config = {
+      headers: {
+        Authorization: "Bearer " + localStorage.getItem("token")
+      }
+    }
+    axios.post(global.config.server_url + "/documents",{
+      name: "abc",
+      link_to_documents : "N/a",
+      type: "contrat",
+      document_state: "Pending...",
+      date: "2010-10-10",
+      comment: "Contrat de " + name,
+      advanced_payment: "0",
+      user_id: id
+    }, Config)
+        .then(function(result) {
+          history.push("/app/contract/handleServices/" + result.data.id)
+        })
+        .catch(function(error) {
+          toast.error("API injoignable" + error)
+        })
   }
 
   async componentDidMount() {
@@ -130,64 +252,26 @@ class SubServicePattern extends React.Component {
       }
     }
 
-    await axios.get(global.config.server_url + "/services/template", Config).then(response => {
-      let bufferRowData = response.data
-      let rowData = []
-      let id = this.props.match.params.id
-
-      bufferRowData.forEach(function(item){
-        if (item.parent_id == id)
-          rowData.push(item);
-      });
-
+    await axios.get(global.config.server_url + "/users?kind=oldclient", Config).then(response => {
+      let rowData = response.data
       this.setState({ rowData })
     })
-    //axios.get("/api/aggrid/data").then(response => {
-    //  let rowData = response.data.data
-     // JSON.stringify(rowData)
-     // this.setState({ rowData })
-    //})
   }
 
   deleteUser(id){
-    const Config = {
-      headers: {
-        Authorization: "Bearer " + localStorage.getItem("token")
+      const Config = {
+          headers: { Authorization: "Bearer " + localStorage.getItem("token") }
       }
-    }
-    axios.delete(global.config.server_url + "/services/" + id, Config).then(response => {})
+      axios.delete(global.config.server_url + "/users/" + id, Config).then(response => {
+          var SelectedData = this.gridApi.getSelectedRows();
+          this.gridApi.updateRowData({remove: SelectedData})
+      })
   }
-
   onGridReady = params => {
     this.gridApi = params.api
     this.gridColumnApi = params.columnApi
+    this.gridApi.setDomLayout("autoHeight");
   }
-
-  onCellEditingStopped = params => {
-    const Config = {
-      headers: {
-        Authorization: "Bearer " + localStorage.getItem("token")
-      }
-    }
-    axios.put(global.config.server_url + "/services/" + params.data.id,  {
-      name: params.data.name,
-      description: params.data.description,
-      variable: params.data.variable,
-      value: params.data.value,
-      variable1: params.data.variable1,
-      value1: params.data.value1,
-      total_ht: params.data.total_ht,
-      total_ttc: params.data.total_ttc,
-      parent_id: params.data.parent_id,
-      tva: params.data.tva,
-      document_id: 0,
-      status: "template"
-    }, Config)
-        .catch(function(error) {
-          toast.error("API injoignable")
-        })
-  }
-
   filterData = (column, val) => {
     var filter = this.gridApi.getFilterInstance(column)
     var modelObj = null
@@ -200,7 +284,6 @@ class SubServicePattern extends React.Component {
     filter.setModel(modelObj)
     this.gridApi.onFilterChanged()
   }
-
   filterSize = val => {
     if (this.gridApi) {
       this.gridApi.paginationSetPageSize(Number(val))
@@ -215,7 +298,6 @@ class SubServicePattern extends React.Component {
       searchVal: val
     })
   }
-
   refreshCard = () => {
     this.setState({ reload: true })
     setTimeout(() => {
@@ -228,7 +310,6 @@ class SubServicePattern extends React.Component {
       })
     }, 500)
   }
-
   toggleCollapse = () => {
     this.setState(state => ({ collapse: !state.collapse }))
   }
@@ -238,7 +319,6 @@ class SubServicePattern extends React.Component {
   onEntering = () => {
     this.setState({ status: "Opening..." })
   }
-
   onEntered = () => {
     this.setState({ status: "Opened" })
   }
@@ -251,65 +331,61 @@ class SubServicePattern extends React.Component {
   removeCard = () => {
     this.setState({ isVisible: false })
   }
-
   handleAlert = (state, value, id) => {
-    this.setState({ [state] : value })
-    if (id != 0)
-      this.setState({ IdToDelete : id })
-    if (state === "confirmAlert" && value === true) {
-      this.deleteUser(this.state.IdToDelete)
-      var SelectedData = this.gridApi.getSelectedRows();
-      this.gridApi.updateRowData({remove: SelectedData})
-    }
+      this.setState({ [state] : value })
+      if (id != 0)
+          this.setState({ IdToDelete : id })
+      if (state === "confirmAlert" && value === true) {
+          this.deleteUser(this.state.IdToDelete)
+      }
   }
-
   render() {
     const { rowData, columnDefs, defaultColDef, pageSize } = this.state
     return (
     <div>
-      <SweetAlert title="Êtes vous sûrs?"
-                  warning
-                  show={this.state.defaultAlert}
-                  showCancel
-                  reverseButtons
-                  cancelBtnBsStyle="danger"
-                  confirmBtnText="Oui, supprimer"
-                  cancelBtnText="Annuler"
-                  onConfirm={() => {
-                    this.handleAlert("basicAlert", false, 0)
-                    this.handleAlert("confirmAlert", true, 0)
-                  }}
-                  onCancel={() => {
-                    this.handleAlert("basicAlert", false, 0)
-                    this.handleAlert("cancelAlert", true, 0)
-                  }}
-      >
-        Vous ne pourrez pas revenir en arrière
-      </SweetAlert>
+        <SweetAlert title="Êtes vous sûrs?"
+                    warning
+                    show={this.state.defaultAlert}
+                    showCancel
+                    reverseButtons
+                    cancelBtnBsStyle="danger"
+                    confirmBtnText="Oui, supprimer"
+                    cancelBtnText="Annuler"
+                    onConfirm={() => {
+                        this.handleAlert("basicAlert", false, 0)
+                        this.handleAlert("confirmAlert", true, 0)
+                    }}
+                    onCancel={() => {
+                        this.handleAlert("basicAlert", false, 0)
+                        this.handleAlert("cancelAlert", true, 0)
+                    }}
+        >
+            Vous ne pourrez pas revenir en arrière
+        </SweetAlert>
 
-      <SweetAlert success title="Supprimé!"
-                  confirmBtnBsStyle="success"
-                  show={this.state.confirmAlert}
-                  onConfirm={() => {
-                    this.handleAlert("defaultAlert", false, 0)
-                    this.handleAlert("confirmAlert", false, 0)
-                  }}
-      >
-        <p className="sweet-alert-text">Your file has been deleted.</p>
-      </SweetAlert>
+        <SweetAlert success title="Supprimé!"
+                    confirmBtnBsStyle="success"
+                    show={this.state.confirmAlert}
+                    onConfirm={() => {
+                        this.handleAlert("defaultAlert", false, 0)
+                        this.handleAlert("confirmAlert", false, 0)
+                    }}
+        >
+            <p className="sweet-alert-text">Your file has been deleted.</p>
+        </SweetAlert>
 
-      <SweetAlert error title="Annulé!"
-                  confirmBtnBsStyle="success"
-                  show={this.state.cancelAlert}
-                  onConfirm={() =>{
-                    this.handleAlert("defaultAlert", false, 0)
-                    this.handleAlert("cancelAlert", false, 0)
-                  }}
-      >
-        <p className="sweet-alert-text">
-          L'action est annulé
-        </p>
-      </SweetAlert>
+        <SweetAlert error title="Annulé!"
+                    confirmBtnBsStyle="success"
+                    show={this.state.cancelAlert}
+                    onConfirm={() =>{
+                        this.handleAlert("defaultAlert", false, 0)
+                        this.handleAlert("cancelAlert", false, 0)
+                    }}
+        >
+            <p className="sweet-alert-text">
+                L'action est annulé
+            </p>
+        </SweetAlert>
       <Row className="app-user-list">
         <Col sm="12">
           <Card
@@ -321,6 +397,11 @@ class SubServicePattern extends React.Component {
               refreshing: this.state.reload
             })}
           >
+            <CardHeader>
+              <CardTitle>
+                Cette page permet de recenser les clients provenant d'Optionretraite.net
+              </CardTitle>
+            </CardHeader>
             <CardHeader>
               <CardTitle>Filters</CardTitle>
               <div className="actions">
@@ -471,7 +552,7 @@ class SubServicePattern extends React.Component {
           </Card>
         </Col>
         <Col sm="12">
-          <Card>
+          <Card style={{minHeight:'3000px'}}>
             <CardBody>
               <div className="ag-theme-material ag-grid-table">
                 <div className="ag-grid-actions d-flex justify-content-between flex-wrap mb-1">
@@ -479,7 +560,7 @@ class SubServicePattern extends React.Component {
                     <UncontrolledDropdown className="ag-dropdown p-1">
                       <DropdownToggle tag="div">
                         1 - {pageSize} of 150
-                        <ChevronDown className="ml-50" size={15} />
+                        <ChevronDown className="ml-50" size={20} />
                       </DropdownToggle>
                       <DropdownMenu right>
                         <DropdownItem
@@ -517,11 +598,6 @@ class SubServicePattern extends React.Component {
                       onChange={e => this.updateSearchQuery(e.target.value)}
                       value={this.state.searchVal}
                     />
-                    <div>
-                      <Button.Ripple className="mr-1 mb-1" outline color="primary" onClick={() => history.push("/app/user/createSubService/" + this.props.match.params.id)}>
-                        <PlusSquare size={15} />
-                      </Button.Ripple>
-                    </div>
                     <div className="dropdown mr-1 mb-1 d-inline-block">
                       <UncontrolledButtonDropdown>
                         <DropdownToggle color="primary" caret>
@@ -542,6 +618,7 @@ class SubServicePattern extends React.Component {
                   <ContextLayout.Consumer>
                     {context => (
                       <AgGridReact
+                        height={'autoHeight'}
                         gridOptions={{}}
                         rowSelection="multiple"
                         defaultColDef={defaultColDef}
@@ -555,7 +632,6 @@ class SubServicePattern extends React.Component {
                         pivotPanelShow="always"
                         paginationPageSize={pageSize}
                         resizable={true}
-                        onCellEditingStopped={this.onCellEditingStopped}
                         enableRtl={context.state.direction === "rtl"}
                       />
                     )}
@@ -571,4 +647,6 @@ class SubServicePattern extends React.Component {
   }
 }
 
-export default SubServicePattern
+export default OldClientsList
+/* eslint-disable */
+

@@ -15,10 +15,10 @@ const navigationConfig = [
    },
   {
     id: "profile",
-    title: "profil",
+    title: "Profile",
     type: "item",
     icon: <Icon.User size={20}/>,
-    permissions: ["admin", "Client","Consultant","Expert"],
+    permissions: ["admin", "Client","Ancient Client","Consultant","Expert"],
     navLink: "/app/profile"
     //badge: "warning",
     //badgeText: "2"
@@ -34,11 +34,21 @@ const navigationConfig = [
     //badgeText: "2"
   },
   {
+    id: "oldUsers",
+    title: "Anciens Clients",
+    type: "item",
+    icon: <Icon.Monitor size={20}/>,
+    permissions: ["admin", "Expert", "Consultant"],
+    navLink: "/app/user/oldclientslist"
+    //badge: "warning",
+    //badgeText: "2"
+  },  
+  {
     id: "tasks",
     title: "Tâches",
     type: "item",
     icon: <Icon.CheckSquare size={20} />,
-    permissions: ["admin", "Client","Consultant", "Expert"],
+    permissions: ["admin", "Client","Ancient Client","Consultant", "Expert"],
     navLink: "/task/:filter",
     filterBase: "/task/all"
   },
@@ -47,7 +57,7 @@ const navigationConfig = [
     title: "Documents",
     type: "item",
     icon: <Icon.Folder size={20} />,
-    permissions: ["admin", "Client", "Consultant", "Expert"],
+    permissions: ["admin", "Client","Ancient Client", "Consultant", "Expert"],
     badge: "primary",
     badgeText: "5 news",
     navLink: "/document",

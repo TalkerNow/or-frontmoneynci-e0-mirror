@@ -204,8 +204,6 @@ class EditContract extends React.Component {
               );
               input_values = { ...values};
               this.calculate();
-          }else {
-              console.log("Values are empty!");
           }
       })
   }
