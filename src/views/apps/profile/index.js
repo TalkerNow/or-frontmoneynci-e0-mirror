@@ -160,6 +160,22 @@ class UserView extends React.Component {
                   </div>
                   <div className="d-flex user-info">
                     <div className="user-info-title font-weight-bold">
+                      Numéro de sécurité Sociale
+                    </div>
+                    <div className="text-truncate">
+                      <span>{this.state.persoData['secu_social']}</span>
+                    </div>
+                  </div>
+                  <div className="d-flex user-info">
+                    <div className="user-info-title font-weight-bold">
+                      Clé de sécurité Sociale
+                    </div>
+                    <div className="text-truncate">
+                      <span>{this.state.persoData['secu_social_key']}</span>
+                    </div>
+                  </div>
+                  <div className="d-flex user-info">
+                    <div className="user-info-title font-weight-bold">
                       Tel mob
                     </div>
                     <div className="text-truncate">

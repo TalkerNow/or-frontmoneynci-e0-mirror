@@ -51,6 +51,8 @@ class UserAccountTab extends React.Component {
     office_number: this.props.perso.office_number,
     martial_status: this.props.perso.martial_status,
     children_number: this.props.perso.children_number,
+    secu_social: this.props.perso.secu_social,
+    secu_social_key: this.props.perso.secu_social_key,
     military_service: this.props.perso.military_service,
 
     personal_address: this.props.perso.personal_address,
@@ -120,6 +122,8 @@ class UserAccountTab extends React.Component {
                   birth_date: information.dob,
                   martial_status: information.martial_status? information.martial_status: this.props.perso.martial_status?this.props.perso.martial_status:"Célibataire",
                   children_number: information.children_number,
+                  secu_social: information.secu_social,
+                  secu_social_key: information.secu_social_key,
                   mobile_number: information.contact_number,
                   office_number: information.office_number,
 

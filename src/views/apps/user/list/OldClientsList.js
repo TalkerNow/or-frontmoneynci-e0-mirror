@@ -598,11 +598,6 @@ class OldClientsList extends React.Component {
                       onChange={e => this.updateSearchQuery(e.target.value)}
                       value={this.state.searchVal}
                     />
-                    <div>
-                      <Button.Ripple className="mr-1 mb-1" outline color="primary" onClick={() => history.push("/app/user/createUser")}>
-                        <UserPlus size={15} />
-                      </Button.Ripple>
-                    </div>
                     <div className="dropdown mr-1 mb-1 d-inline-block">
                       <UncontrolledButtonDropdown>
                         <DropdownToggle color="primary" caret>
