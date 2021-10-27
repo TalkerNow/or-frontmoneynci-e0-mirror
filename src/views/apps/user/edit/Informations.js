@@ -698,8 +698,7 @@ class UserAccountTab extends React.Component {
                 </Col>
                 <Col md="6" sm="12">
 
-</Col>
-
+                </Col>
                 <Col md="6" sm="12">
                     <FormGroup>
                         <Label for="child_nbr">Nom Société</Label>
@@ -711,9 +710,6 @@ class UserAccountTab extends React.Component {
                             onChange={e => this.setState({ society_name: e.target.value })}
                         />
                     </FormGroup>
-                </Col>
-                <Col md="6" sm="12">
-
                 </Col>
                 <Col md="6" sm="12">
                 </Col>
