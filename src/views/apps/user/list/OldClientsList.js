@@ -169,7 +169,14 @@ class OldClientsList extends React.Component {
         headerName: "Sécutité Social",
         field: "SS1",
         filter: true,
-        width: 130,
+        width: 250,
+        cellRendererFramework: params => {
+          return (
+              <div>
+                <Moment secu_social={params.data.personal_informations.secu_social} utc/>
+              </div>
+          )
+        }
       },
       {
         headerName: "FA",
