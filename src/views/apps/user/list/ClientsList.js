@@ -166,6 +166,19 @@ class ClientsList extends React.Component {
         width: 130,
       },
       {
+        headerName: "Sécutité Social",
+        field: "SS1",
+        filter: true,
+        width: 220,
+        cellRendererFramework: params => {
+          return (
+              <div>
+                <Moment secu_social={params.data.personal_informations.secu_social} utc/>
+              </div>
+          )
+        }
+      },
+      {
         headerName: "FA",
         field: "status_fa",
         filter: true,
