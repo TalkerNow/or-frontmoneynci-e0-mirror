@@ -89,7 +89,7 @@ class OldClientsList extends React.Component {
               className="d-flex align-items-center cursor-pointer"
               onClick={() => history.push("/app/user/edit/" + params.data.id + "/1")}
             >
-              <span>{params.data.old_client.cl_prenom + " " + params.data.old_client.cl_nom}</span>
+              <span>{params.data.personal_informations.first_name + " " + params.data.personal_informations.last_name}</span>
             </div>
           )
         }
@@ -135,7 +135,7 @@ class OldClientsList extends React.Component {
               <div
                   className="d-flex align-items-center cursor-pointer"
               >
-                <span>{params.data.parent? params.data.parent.name:"Inc"}</span>
+                <span>{params.data.parent? params.data.parent.name:""}</span>
               </div>
           )
         }
@@ -154,7 +154,7 @@ class OldClientsList extends React.Component {
         cellRendererFramework: params => {
           return (
               <div>
-                <Moment format="DD-MM-YYYY" date={params.data.old_client.cl_date} utc/>
+                <Moment format="DD-MM-YYYY" date={params.data.created_at} utc/>
               </div>
           )
         }
@@ -239,14 +239,21 @@ class OldClientsList extends React.Component {
       }
     }
 
-    await axios.get(global.config.server_url + "/users?kind=oldclient", Config).then(response => {
+    await axios.get(global.config.server_url + "/users?kind=client", Config).then(response => {
       let rowData = response.data
-      console.log(response)
       this.setState({ rowData })
     })
   }
 
-
+  deleteUser(id){
+      const Config = {
+          headers: { Authorization: "Bearer " + localStorage.getItem("token") }
+      }
+      axios.delete(global.config.server_url + "/users/" + id, Config).then(response => {
+          var SelectedData = this.gridApi.getSelectedRows();
+          this.gridApi.updateRowData({remove: SelectedData})
+      })
+  }
   onGridReady = params => {
     this.gridApi = params.api
     this.gridColumnApi = params.columnApi
@@ -377,11 +384,6 @@ class OldClientsList extends React.Component {
               refreshing: this.state.reload
             })}
           >
-            <CardHeader>
-              <CardTitle>
-                Cette page permet de recenser les clients provenant d'Optionretraite.net
-              </CardTitle>
-            </CardHeader>
             <CardHeader>
               <CardTitle>Filters</CardTitle>
               <div className="actions">
@@ -578,6 +580,11 @@ class OldClientsList extends React.Component {
                       onChange={e => this.updateSearchQuery(e.target.value)}
                       value={this.state.searchVal}
                     />
+                    <div>
+                      <Button.Ripple className="mr-1 mb-1" outline color="primary" onClick={() => history.push("/app/user/createUser")}>
+                        <UserPlus size={15} />
+                      </Button.Ripple>
+                    </div>
                     <div className="dropdown mr-1 mb-1 d-inline-block">
                       <UncontrolledButtonDropdown>
                         <DropdownToggle color="primary" caret>
