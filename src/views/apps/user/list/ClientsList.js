@@ -172,9 +172,9 @@ class ClientsList extends React.Component {
         width: 220,
         cellRendererFramework: params => {
           return (
-              <div>
-                <Moment secu_social={params.data.personal_informations.secu_social} utc/>
-              </div>
+            <div className="d-flex align-items-center cursor-pointer">
+                <span>{params.data.personal_informations.secu_social? params.data.personal_informations.secu_social:""}</span>
+                </div>
           )
         }
       },
