@@ -195,7 +195,7 @@ class UserView extends React.Component {
             </Card>
           </Col>
           <Col sm="12" md="6">
-            <Card style={{minHeight:'280px'}}>
+            <Card style={{minHeight:'340px'}}>
               <CardHeader>
                 <CardTitle><MessageCircle className="warning" size={25} /> Notes</CardTitle>
               </CardHeader>
