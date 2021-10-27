@@ -399,10 +399,27 @@ class AddUser extends React.Component {
             <Col md="6" sm="12">
               <FormGroup>
                 <Input
-                    type="number"
-                    placeholder="Nombre d'enfants"
+                    type="number" placeholder="Nombre d'enfants"
                     value={this.state.data.children_number}
                     onChange={e => this.setState({ data: { ...this.state.data, children_number: e.target.value} })}
+                />
+              </FormGroup>
+            </Col>
+            <Col md="6" sm="12">
+              <FormGroup>
+                <Input
+                    type="number" placeholder="Sécurité Sociale"
+                    Value={this.state.data.secu_social}
+                    onChange={e => this.setState({ ...this.state.data, secu_social: e.target.value })}
+                />
+              </FormGroup>
+            </Col>
+            <Col md="6" sm="12">
+              <FormGroup>
+                <Input
+                    type="number" placeholder="Clé de Sécurité Sociale"
+                    Value={this.state.data.secu_social_key}
+                    onChange={e => this.setState({ ...this.state.data, secu_social_key: e.target.value })}
                 />
               </FormGroup>
             </Col>

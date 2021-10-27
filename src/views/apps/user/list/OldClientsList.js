@@ -89,7 +89,7 @@ class OldClientsList extends React.Component {
               className="d-flex align-items-center cursor-pointer"
               onClick={() => history.push("/app/user/edit/" + params.data.id + "/1")}
             >
-              <span>{params.data.old_client.cl_prenom + " " + params.data.old_client.cl_nom}</span>
+              <span>{params.data.personal_informations.first_name + " " + params.data.personal_informations.last_name}</span>
             </div>
           )
         }
@@ -135,7 +135,7 @@ class OldClientsList extends React.Component {
               <div
                   className="d-flex align-items-center cursor-pointer"
               >
-                <span>{params.data.parent? params.data.parent.name:"Inc"}</span>
+                <span>{params.data.parent? params.data.parent.name:""}</span>
               </div>
           )
         }
@@ -154,7 +154,7 @@ class OldClientsList extends React.Component {
         cellRendererFramework: params => {
           return (
               <div>
-                <Moment format="DD-MM-YYYY" date={params.data.old_client.cl_date} utc/>
+                <Moment format="DD-MM-YYYY" date={params.data.created_at} utc/>
               </div>
           )
         }
@@ -164,6 +164,19 @@ class OldClientsList extends React.Component {
         field: "status",
         filter: true,
         width: 130,
+      },
+      {
+        headerName: "Sécutité Social",
+        field: "SS1",
+        filter: true,
+        width: 220,
+        cellRendererFramework: params => {
+          return (
+            <div className="d-flex align-items-center cursor-pointer">
+                <span>{params.data.personal_informations.secu_social? params.data.personal_informations.secu_social:""}</span>
+                </div>
+          )
+        }
       },
       {
         headerName: "FA",
@@ -241,12 +254,19 @@ class OldClientsList extends React.Component {
 
     await axios.get(global.config.server_url + "/users?kind=oldclient", Config).then(response => {
       let rowData = response.data
-      console.log(response.data)
       this.setState({ rowData })
     })
   }
 
-
+  deleteUser(id){
+      const Config = {
+          headers: { Authorization: "Bearer " + localStorage.getItem("token") }
+      }
+      axios.delete(global.config.server_url + "/users/" + id, Config).then(response => {
+          var SelectedData = this.gridApi.getSelectedRows();
+          this.gridApi.updateRowData({remove: SelectedData})
+      })
+  }
   onGridReady = params => {
     this.gridApi = params.api
     this.gridColumnApi = params.columnApi

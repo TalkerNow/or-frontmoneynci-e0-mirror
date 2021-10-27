@@ -157,11 +157,11 @@ class SideMenuContent extends React.Component {
               item.id
             ),
             hover: this.props.hoverIndex === item.id,
-            active:(this.props.activeItemState.includes("app/user") && item.navLink.includes("app/user"))
-                ||( this.props.activeItemState.includes("app/member") && item.navLink.includes("app/member")) || (this.props.activeItemState === item.navLink &&
-                item.type === "item") ||
-              (item.parentOf &&
-                item.parentOf.includes(this.props.activeItemState)),
+            active:(this.props.activeItemState.includes("app/user/oldclientslist") && item.navLink.includes("app/user/oldclientslist")) 
+            || (this.props.activeItemState.includes("app/user/clientslist") && item.navLink.includes("app/user/clientslist"))
+            || ( this.props.activeItemState.includes("app/member") && item.navLink.includes("app/member"))
+            || (this.props.activeItemState === item.navLink && item.type === "item") 
+            || (item.parentOf && item.parentOf.includes(this.props.activeItemState)),
             disabled: item.disabled
           })}
           key={item.id}

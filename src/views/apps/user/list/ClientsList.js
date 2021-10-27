@@ -166,6 +166,19 @@ class ClientsList extends React.Component {
         width: 130,
       },
       {
+        headerName: "Sécutité Social",
+        field: "SS1",
+        filter: true,
+        width: 220,
+        cellRendererFramework: params => {
+          return (
+            <div className="d-flex align-items-center cursor-pointer">
+                <span>{params.data.personal_informations.secu_social? params.data.personal_informations.secu_social:""}</span>
+                </div>
+          )
+        }
+      },
+      {
         headerName: "FA",
         field: "status_fa",
         filter: true,
