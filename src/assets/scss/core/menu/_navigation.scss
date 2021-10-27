@@ -91,8 +91,8 @@
       margin-top: 1.35rem;
       .brand-logo {
         background: url("../../../img/logo/eor_logo.png") no-repeat;
-        // height: 24px;
-        // width: 35px;
+        height: 24px;
+        width: 35px;
       }
 
       .brand-text {
@@ -273,6 +273,57 @@
 
 // Navigation Themes
 
+.horizontal-layout,
+.vertical-layout{
+  &.theme-primary {
+    .navbar-container,
+    .navbar-header {
+      .brand-logo {
+        background-position: -65px -54px !important;
+      }
+    }
+  }
+  &.theme-success {
+    .navbar-container,
+    .navbar-header {
+      .brand-logo {
+        background-position: -120px -10px !important;
+      }
+    }
+  }
+  &.theme-danger {
+    .navbar-container,
+    .navbar-header {
+      .brand-logo {
+        background-position: -10px -10px !important;
+      }
+    }
+  }
+  &.theme-info {
+    .navbar-container,
+    .navbar-header {
+      .brand-logo {
+        background-position: -10px -54px !important;
+      }
+    }
+  }
+  &.theme-warning {
+    .navbar-container,
+    .navbar-header {
+      .brand-logo {
+        background-position: -120px -54px !important;
+      }
+    }
+  }
+  &.theme-dark {
+    .navbar-container,
+    .navbar-header {
+      .brand-logo {
+        background-position: -65px -10px !important;
+      }
+    }
+  }
+}
 // Navigation Header
 //=====================
 .main-menu-header {
