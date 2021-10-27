@@ -166,6 +166,12 @@ class OldClientsList extends React.Component {
         width: 130,
       },
       {
+        headerName: "Sécutité Social",
+        field: "SS1",
+        filter: true,
+        width: 130,
+      },
+      {
         headerName: "FA",
         field: "status_fa",
         filter: true,
