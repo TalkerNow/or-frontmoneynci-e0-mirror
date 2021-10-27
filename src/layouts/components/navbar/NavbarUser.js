@@ -121,7 +121,7 @@ class NavbarUser extends React.PureComponent {
           {context => {
             let langArr = {
               "en" : "English",
-              "fr" : "French",
+              "fr" : "Français",
             }
             return (
               <Dropdown
