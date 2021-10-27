@@ -708,8 +708,6 @@ class UserAccountTab extends React.Component {
                         />
                     </FormGroup>
                 </Col>
-                <Col md="6" sm="12">
-                </Col>
                 <Col className="mt-1" md="6" sm="12">
                     <h5 className="mb-1">
                         <User className="mr-50" size={16} />
