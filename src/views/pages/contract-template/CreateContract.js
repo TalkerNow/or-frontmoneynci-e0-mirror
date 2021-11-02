@@ -280,7 +280,7 @@ class CreateContract extends React.Component {
         }
         var parameters = {};
         var userid = this.props.match.params.id;
-        var parentid = this.props.match.params.parent_id;
+        var parentid = "302";
         parameters['link_to_documents'] = "N/a";
         parameters['type'] = "contract";
         parameters['document_state'] = "Pending...";
