@@ -191,8 +191,12 @@ class EditContract extends React.Component {
           perso = Object.assign(perso, userData);
           this.setState(
               {
-                  user_id: response.data.data.user,
-                  parent_id: response.data.data.parent_id
+                  user_id: response.data.data.user.id
+              }
+          );
+          this.setState(
+              {
+                parent_id: response.data.data.parent_id.id
               }
           );
           this.setState({ rowData, perso});
@@ -274,7 +278,6 @@ class EditContract extends React.Component {
       var parameters = {};
       var userid = this.state.user_id;
       parameters['user_id'] = userid;
-      parameters['parent_id'] = localStorage.getItem("parent_id");
       parameters['values'] = JSON.stringify(input_values);
       parameters['advanced_payment'] = this.state.formValues['TOTALTTC']?this.state.formValues['TOTALTTC']:0;
 
