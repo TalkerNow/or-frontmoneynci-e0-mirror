@@ -191,7 +191,8 @@ class EditContract extends React.Component {
           perso = Object.assign(perso, userData);
           this.setState(
               {
-                  user_id: response.data.data.user.id
+                  user_id: response.data.data.user,
+                  parent_id: response.data.data.parent_id
               }
           );
           this.setState({ rowData, perso});
