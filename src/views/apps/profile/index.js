@@ -14,7 +14,6 @@ import {
 //import { Link } from "react-router-dom"
 //import Checkbox from "../../../components/@vuexy/checkbox/CheckboxesVuexy"
 //import userImg from "../../../assets/img/portrait/small/avatar-s-18.jpg"
-import "../../../extensions/i18n/"
 import "../../../assets/scss/pages/users.scss"
 import axios from "axios";
 import {
