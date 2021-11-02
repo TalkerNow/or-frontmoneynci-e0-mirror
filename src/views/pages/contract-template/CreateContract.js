@@ -285,6 +285,7 @@ class CreateContract extends React.Component {
 
         axios.post(global.config.server_url + "/documents", parameters, Config)
             .then(function(result) {
+                console.log(parent_id);
             })
             .catch(function(error) {
                 toast.error("API injoignable" + error)
