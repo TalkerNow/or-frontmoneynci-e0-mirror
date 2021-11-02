@@ -14,6 +14,7 @@ import {
 //import { Link } from "react-router-dom"
 //import Checkbox from "../../../components/@vuexy/checkbox/CheckboxesVuexy"
 //import userImg from "../../../assets/img/portrait/small/avatar-s-18.jpg"
+import "../../../extensions/i18n/"
 import "../../../assets/scss/pages/users.scss"
 import axios from "axios";
 import {
@@ -132,7 +133,7 @@ class UserView extends React.Component {
                 <div className="users-page-view-table">
                   <div className="d-flex user-info">
                     <div className="user-info-title font-weight-bold">
-                      Date Nais
+                      Date de Naissance
                     </div>
                     <div> {moment(this.state.persoData['birth_date']).format("DD/MM/YYYY")}</div>
                   </div>
