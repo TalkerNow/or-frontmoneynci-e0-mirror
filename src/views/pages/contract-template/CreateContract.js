@@ -182,7 +182,7 @@ class CreateContract extends React.Component {
         {
           parent_id: this.props.match.params.parent_id
         }
-    );i
+    );
       axios.get(global.config.server_url + "/get_template/1", Config).then(response => {
           if(response.data != null) {
               let values = JSON.parse(response.data.values);
