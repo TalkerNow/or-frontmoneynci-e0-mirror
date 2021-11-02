@@ -196,7 +196,7 @@ class EditContract extends React.Component {
           );
           this.setState(
               {
-                parent_id: response.data.data.parent_id.id
+                parent_id: response.data.data.parent_id
               }
           );
           this.setState({ rowData, perso});
