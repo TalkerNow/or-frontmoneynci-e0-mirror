@@ -280,7 +280,7 @@ class CreateContract extends React.Component {
         }
         var parameters = {};
         var userid = this.props.match.params.id;
-        var parentid = "302";
+        var parentid = this.props.match.params.parent_id;
         parameters['link_to_documents'] = "N/a";
         parameters['type'] = "contract";
         parameters['document_state'] = "Pending...";
@@ -288,12 +288,11 @@ class CreateContract extends React.Component {
         parameters['comment'] = "Contract de " + this.state.perso['first_name'] +" "+ this.state.perso['last_name'];
         parameters['advanced_payment'] = this.state.formValues['TOTALTTC']?this.state.formValues['TOTALTTC'] : 0;
         parameters['user_id'] = userid;
-        parameters['parent_id'] = parentid;//localStorage.getItem("userid");
+        parameters['parent_id'] = 303;//localStorage.getItem("userid");
         parameters['values'] = JSON.stringify(input_values);
 
         axios.post(global.config.server_url + "/documents", parameters, Config)
-            .then(function(result) {
-            })
+            
             .catch(function(error) {
                 toast.error("API injoignable" + error)
             })
