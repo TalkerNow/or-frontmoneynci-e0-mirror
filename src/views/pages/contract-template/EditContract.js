@@ -34,9 +34,7 @@ var input_values = {
 class EditContract extends React.Component {
   state = {
     rowData:[],
-    //ctData:[],
     perso:[],
-    //persoCt:[],
     services:[],
     activeTab:"1",
     formValues:{
@@ -186,12 +184,6 @@ class EditContract extends React.Component {
               );
           }
       })
-/*      axios.get(global.config.server_url + "/users/" + this.props.match.params.id, Config).then(response => {
-        let ctData = response.data
-        let persoCt = response.data.personal_informations;
-        persoCt =  Object.assign(ctData, persoCt);
-        this.setState({ ctData, persoCt })
-    })*/
       axios.get(global.config.server_url + "/get_contract/" + this.props.match.params.id, Config).then(response => {
           let rowData = response.data.data
           let perso = response.data.data.personal_informations;
@@ -229,9 +221,7 @@ class EditContract extends React.Component {
       }
       var parameters = {};
       var userid = this.state.user_id;
-      //var parentid = this.state.ctData.parent_id;
       parameters['user_id'] = userid;
-      //parameters['parent_id'] = parentid.toString();
       parameters['values'] = JSON.stringify(input_values);
       parameters['advanced_payment'] = this.state.formValues['TOTALTTC']?this.state.formValues['TOTALTTC']:0;
 
@@ -287,9 +277,7 @@ class EditContract extends React.Component {
       }
       var parameters = {};
       var userid = this.state.user_id;
-      //var parentid = this.state.ctData.parent_id;
       parameters['user_id'] = userid;
-      //Tesparameters['parent_id'] = parentid.toString();
       parameters['values'] = JSON.stringify(input_values);
       parameters['advanced_payment'] = this.state.formValues['TOTALTTC']?this.state.formValues['TOTALTTC']:0;
 
@@ -367,10 +355,6 @@ class EditContract extends React.Component {
                   <FileText size="15" />
                   <span className="align-middle ml-50">Print</span>
               </Button>
-              {/*<Button.Ripple color="primary" outline>*/}
-                  {/*<Download size="15" />*/}
-                  {/*<span className="align-middle ml-50">Download</span>*/}
-              {/*</Button.Ripple>*/}
           </Col>
           <Col className="contract-wrapper" style={{marginLeft:'auto', marginRight:'auto',marginTop:'30px',fontSize:'15px'}}>
             <Card className="contract-page" style={{padding:'0.5rem 5.5rem 2.2rem 5.5rem'}} id="print-section">
