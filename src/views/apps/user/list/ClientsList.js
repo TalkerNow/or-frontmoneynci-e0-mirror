@@ -95,7 +95,7 @@ class ClientsList extends React.Component {
         }
       },
       {
-        headerName: "Presta",
+        headerName: "Prestation",
         field: "subscribe_services",
         filter: true,
         width: 220,

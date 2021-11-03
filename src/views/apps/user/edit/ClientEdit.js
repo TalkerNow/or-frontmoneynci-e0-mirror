@@ -172,6 +172,7 @@ class UserEdit extends React.Component {
                   <Contracts
                       name={this.state.rowData.name}
                       id={this.props.match.params.id}
+                      parent_id={this.state.rowData.parent_id}
                   />
                 </TabPane>
                 <TabPane tabId="4">

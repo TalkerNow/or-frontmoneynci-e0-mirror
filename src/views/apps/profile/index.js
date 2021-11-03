@@ -132,7 +132,7 @@ class UserView extends React.Component {
                 <div className="users-page-view-table">
                   <div className="d-flex user-info">
                     <div className="user-info-title font-weight-bold">
-                      Date Nais
+                      Date de Naissance
                     </div>
                     <div> {moment(this.state.persoData['birth_date']).format("DD/MM/YYYY")}</div>
                   </div>
