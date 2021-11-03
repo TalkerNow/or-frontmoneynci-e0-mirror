@@ -194,6 +194,11 @@ class EditContract extends React.Component {
                   user_id: response.data.data.user.id
               }
           );
+          this.setState(
+              {
+                parent_id: response.data.data.parent_id
+              }
+          );
           this.setState({ rowData, perso});
           if(response.data.data.values != null) {
               let values = JSON.parse(response.data.data.values);
@@ -350,10 +355,6 @@ class EditContract extends React.Component {
                   <FileText size="15" />
                   <span className="align-middle ml-50">Print</span>
               </Button>
-              {/*<Button.Ripple color="primary" outline>*/}
-                  {/*<Download size="15" />*/}
-                  {/*<span className="align-middle ml-50">Download</span>*/}
-              {/*</Button.Ripple>*/}
           </Col>
           <Col className="contract-wrapper" style={{marginLeft:'auto', marginRight:'auto',marginTop:'30px',fontSize:'15px'}}>
             <Card className="contract-page" style={{padding:'0.5rem 5.5rem 2.2rem 5.5rem'}} id="print-section">
