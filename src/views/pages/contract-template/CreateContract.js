@@ -287,7 +287,7 @@ class CreateContract extends React.Component {
         parameters['date'] = "N/a";
         parameters['comment'] = "Contract de " + this.state.perso['first_name'] +" "+ this.state.perso['last_name'];
         parameters['advanced_payment'] = this.state.formValues['TOTALTTC']?this.state.formValues['TOTALTTC'] : 0;
-        parameters['user_id'] = userid;
+        parameters['user_id'] = 666;//userid;
         parameters['parent_id'] = 303;//localStorage.getItem("userid");
         parameters['values'] = JSON.stringify(input_values);
 
