@@ -184,6 +184,12 @@ class EditContract extends React.Component {
               );
           }
       })
+      axios.get(global.config.server_url + "/users/" + this.props.match.params.id, Config).then(response => {
+        let ctData = response.data
+        let persoCt = response.data.personal_informations;
+        persoCt =  Object.assign(ctData, persoCt);
+        this.setState({ ctData, persoCt })
+    })
       axios.get(global.config.server_url + "/get_contract/" + this.props.match.params.id, Config).then(response => {
           let rowData = response.data.data
           let perso = response.data.data.personal_informations;
@@ -221,7 +227,7 @@ class EditContract extends React.Component {
       }
       var parameters = {};
       var userid = this.state.user_id;
-      var parentid = this.state.rowData.parent_id;
+      var parentid = this.state.ctData.parent_id;
       parameters['user_id'] = userid;
       parameters['parent_id'] = parentid.toString();
       parameters['values'] = JSON.stringify(input_values);
@@ -279,7 +285,7 @@ class EditContract extends React.Component {
       }
       var parameters = {};
       var userid = this.state.user_id;
-      var parentid = this.state.rowData.parent_id;
+      var parentid = this.state.ctData.parent_id;
       parameters['user_id'] = userid;
       parameters['parent_id'] = parentid.toString();
       parameters['values'] = JSON.stringify(input_values);
