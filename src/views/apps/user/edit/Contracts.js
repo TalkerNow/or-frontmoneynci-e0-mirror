@@ -425,7 +425,7 @@ class Contracts extends React.Component {
                         <div>
                           <Button.Ripple className="mr-1 mb-1" outline color="primary"
                                          style={{}}
-                                         onClick={() => history.push("/pages/create-contract/" + this.props.id)}>
+                                         onClick={() => history.push("/pages/create-contract/" + this.props.id + this.props.parent_id)}>
                             <FolderPlus size={15} /> contrat
                           </Button.Ripple>
                         </div>
