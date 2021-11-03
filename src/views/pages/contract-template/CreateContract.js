@@ -224,7 +224,7 @@ class CreateContract extends React.Component {
       parameters['values'] = JSON.stringify(input_values);
       console.log(this.props.match.params.id);
         //-------- save Contract ---------
-      axios.post(global.config.server_url + "/documents", parameters, Config)
+      axios.post(global.config.server_url + "/create_contract", parameters, Config)
           .then(function(result) {
               history.push("/app/user/edit/" + userid + "/3")
           })
