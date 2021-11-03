@@ -34,6 +34,7 @@ var input_values = {
 class EditContract extends React.Component {
   state = {
     rowData:[],
+    ctData:[],
     perso:[],
     services:[],
     activeTab:"1",
