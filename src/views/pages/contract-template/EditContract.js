@@ -221,7 +221,9 @@ class EditContract extends React.Component {
       }
       var parameters = {};
       var userid = this.state.user_id;
+      var parentid = this.state.rowData.parent_id;
       parameters['user_id'] = userid;
+      parameters['parent_id'] = parentid.toString();
       parameters['values'] = JSON.stringify(input_values);
       parameters['advanced_payment'] = this.state.formValues['TOTALTTC']?this.state.formValues['TOTALTTC']:0;
 
@@ -277,7 +279,9 @@ class EditContract extends React.Component {
       }
       var parameters = {};
       var userid = this.state.user_id;
+      var parentid = this.state.rowData.parent_id;
       parameters['user_id'] = userid;
+      parameters['parent_id'] = parentid.toString();
       parameters['values'] = JSON.stringify(input_values);
       parameters['advanced_payment'] = this.state.formValues['TOTALTTC']?this.state.formValues['TOTALTTC']:0;
 
