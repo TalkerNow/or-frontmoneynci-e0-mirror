@@ -222,7 +222,7 @@ class CreateContract extends React.Component {
       parameters['user_id'] = userid;
       parameters['parent_id'] = localStorage.getItem("parent_id"); //localStorage.getItem("userid");
       parameters['values'] = JSON.stringify(input_values);
-      console.log(this.props.match.params.parent_id);
+      console.log(this.props.match.params.id);
         //-------- save Contract ---------
       axios.post(global.config.server_url + "/documents", parameters, Config)
           .then(function(result) {
