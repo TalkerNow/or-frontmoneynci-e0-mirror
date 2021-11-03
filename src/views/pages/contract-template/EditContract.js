@@ -36,6 +36,7 @@ class EditContract extends React.Component {
     rowData:[],
     ctData:[],
     perso:[],
+    persoCt:[],
     services:[],
     activeTab:"1",
     formValues:{
