@@ -220,8 +220,9 @@ class CreateContract extends React.Component {
       parameters['comment'] = "Contract de " + this.state.perso['first_name'] + " "+ this.state.perso['last_name'];
       parameters['advanced_payment'] = this.state.formValues['TOTALTTC']?this.state.formValues['TOTALTTC'] : 0;
       parameters['user_id'] = userid;
-      parameters['parent_id'] = parentid.toString(); //localStorage.getItem("parent_id"); //localStorage.getItem("userid");
+      parameters['parent_id'] = localStorage.getItem("parent_id"); //localStorage.getItem("userid");
       parameters['values'] = JSON.stringify(input_values);
+      console.log(this.props.match.params.parent_id);
         //-------- save Contract ---------
       axios.post(global.config.server_url + "/documents", parameters, Config)
           .then(function(result) {
