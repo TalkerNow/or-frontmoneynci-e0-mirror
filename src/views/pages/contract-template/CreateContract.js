@@ -178,6 +178,11 @@ class CreateContract extends React.Component {
               user_id: this.props.match.params.id
           }
       );
+      this.setState(
+        {
+          parent_id: this.props.match.params.parent_id
+        }
+    );
       axios.get(global.config.server_url + "/get_template/1", Config).then(response => {
           if(response.data != null) {
               let values = JSON.parse(response.data.values);
@@ -207,6 +212,7 @@ class CreateContract extends React.Component {
       }
       var parameters = {};
       var userid = this.props.match.params.id;
+      var parentid = this.state.rowData.parent_id;
       parameters['link_to_documents'] = "N/a";
       parameters['type'] = "contract";
       parameters['document_state'] = "Pending...";
@@ -214,8 +220,9 @@ class CreateContract extends React.Component {
       parameters['comment'] = "Contract de " + this.state.perso['first_name'] + " "+ this.state.perso['last_name'];
       parameters['advanced_payment'] = this.state.formValues['TOTALTTC']?this.state.formValues['TOTALTTC'] : 0;
       parameters['user_id'] = userid;
-      parameters['parent_id'] = localStorage.getItem("userid");
+      parameters['parent_id'] = parentid.toString();
       parameters['values'] = JSON.stringify(input_values);
+      console.log(this.props.match.params.id);
         //-------- save Contract ---------
       axios.post(global.config.server_url + "/documents", parameters, Config)
           .then(function(result) {
@@ -237,6 +244,7 @@ class CreateContract extends React.Component {
           }
       }
       var userid = this.props.match.params.id;
+      var parentid = this.props.match.params.parent_id;
       let subscribe_services = "";
 
       if(input_values.c1)
@@ -256,6 +264,7 @@ class CreateContract extends React.Component {
 
       axios.post(global.config.server_url + "/set_user_subscribe_services", {
           user_id: userid,
+          parent_id: parentid,
           subscribe_services: subscribe_services,
       }, Config)
           .then(function(result) {
@@ -273,6 +282,7 @@ class CreateContract extends React.Component {
         }
         var parameters = {};
         var userid = this.props.match.params.id;
+        var parentid = this.state.rowData.parent_id;
         parameters['link_to_documents'] = "N/a";
         parameters['type'] = "contract";
         parameters['document_state'] = "Pending...";
@@ -280,12 +290,11 @@ class CreateContract extends React.Component {
         parameters['comment'] = "Contract de " + this.state.perso['first_name'] +" "+ this.state.perso['last_name'];
         parameters['advanced_payment'] = this.state.formValues['TOTALTTC']?this.state.formValues['TOTALTTC'] : 0;
         parameters['user_id'] = userid;
-        parameters['parent_id'] = localStorage.getItem("userid");
+        parameters['parent_id'] = parentid.toString();//parentid;//localStorage.getItem("userid");
         parameters['values'] = JSON.stringify(input_values);
 
         axios.post(global.config.server_url + "/documents", parameters, Config)
-            .then(function(result) {
-            })
+            
             .catch(function(error) {
                 toast.error("API injoignable" + error)
             })
