@@ -52,6 +52,14 @@ class UserView extends React.Component {
             <Card>
               <CardHeader>
                 <CardTitle><Globe className="primary" size={25} /> Account</CardTitle>
+                <Row>
+                  <Button
+                        color="primary"
+                        disabled={this.state.activeStep === 0}
+                        onClick={e => handleNavigation(e, "/app/user/edit/MemberEdit")}>
+                        Modifier
+                      </Button>
+                </Row>
               </CardHeader>
               <CardBody>
                 <Row className="mx-0" col="12">
