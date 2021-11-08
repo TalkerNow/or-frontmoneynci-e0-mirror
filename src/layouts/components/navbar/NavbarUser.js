@@ -8,7 +8,6 @@ import {
   DropdownItem,
   DropdownToggle,
   Media,
-  Button,
   Badge
 } from "reactstrap"
 import PerfectScrollbar from "react-perfect-scrollbar"
