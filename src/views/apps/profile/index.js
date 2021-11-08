@@ -26,10 +26,10 @@ import {
 } from "react-feather"
 import moment from "moment";
 
-const handleNavigation = (e, path) => {
+/*const handleNavigation = (e, path) => {
   e.preventDefault()
   history.push(path)
-}
+}*/
 
 class UserView extends React.Component {
   state = {
@@ -64,7 +64,7 @@ class UserView extends React.Component {
                 <Button
                         color="primary"
                         disabled={this.state.activeStep === 0}
-                        onClick={e => handleNavigation(e, "/app/user/edit/MemberEdit")}>
+                        onClick={() => history.push("/app/member/edit/" + params.data.id + "/1")}>
                         Modifier
                 </Button>
               </CardHeader>
