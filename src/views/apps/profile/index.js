@@ -15,6 +15,7 @@ import {
 //import Checkbox from "../../../components/@vuexy/checkbox/CheckboxesVuexy"
 //import userImg from "../../../assets/img/portrait/small/avatar-s-18.jpg"
 import "../../../assets/scss/pages/users.scss"
+import { history } from "../../../history"
 import axios from "axios";
 import {
   Globe,
@@ -23,6 +24,11 @@ import {
   MapPin
 } from "react-feather"
 import moment from "moment";
+
+const handleNavigation = (e, path) => {
+  e.preventDefault()
+  history.push(path)
+}
 
 class UserView extends React.Component {
   state = {
