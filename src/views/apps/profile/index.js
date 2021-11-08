@@ -59,8 +59,6 @@ class UserView extends React.Component {
             <Card>
               <CardHeader>
                 <CardTitle><Globe className="primary" size={25} /> Account</CardTitle>
-              </CardHeader>
-              <CardHeader>
                 <Button
                         color="primary"
                         disabled={this.state.activeStep === 0}
