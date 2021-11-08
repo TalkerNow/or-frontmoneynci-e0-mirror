@@ -64,7 +64,7 @@ class UserView extends React.Component {
                 <Button
                         color="primary"
                         disabled={this.state.activeStep === 0}
-                        onClick={() => history.push("/app/member/edit/" + userid + "/1")}>
+                        onClick={() => history.push("/app/member/edit/" + persoData.userid + "/1")}>
                         Modifier
                 </Button>
               </CardHeader>
