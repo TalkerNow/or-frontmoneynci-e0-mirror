@@ -8,6 +8,7 @@ import {
   CardBody,
   Media,
   Row,
+  Button,
   Col,
 } from "reactstrap"
 //import { Edit, Trash, Lock, Check } from "react-feather"
@@ -15,6 +16,7 @@ import {
 //import Checkbox from "../../../components/@vuexy/checkbox/CheckboxesVuexy"
 //import userImg from "../../../assets/img/portrait/small/avatar-s-18.jpg"
 import "../../../assets/scss/pages/users.scss"
+import { history } from "../../../history"
 import axios from "axios";
 import {
   Globe,
@@ -23,6 +25,11 @@ import {
   MapPin
 } from "react-feather"
 import moment from "moment";
+
+/*const handleNavigation = (e, path) => {
+  e.preventDefault()
+  history.push(path)
+}*/
 
 class UserView extends React.Component {
   state = {
@@ -52,6 +59,12 @@ class UserView extends React.Component {
             <Card>
               <CardHeader>
                 <CardTitle><Globe className="primary" size={25} /> Account</CardTitle>
+                <Button
+                        color="primary"
+                        disabled={this.state.activeStep === 0}
+                        onClick={() => history.push("/app/member/edit/" + localStorage.getItem("userid") + "/1")}>
+                        Modifier
+                </Button>
               </CardHeader>
               <CardBody>
                 <Row className="mx-0" col="12">
