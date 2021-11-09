@@ -65,7 +65,7 @@ const ProtectedRoute = ({ component: Component, fullLayout, isAuth, ...rest }) =
     {...rest}
     render={props => {
       console.log(isAuth);
-      if (isAuth.user) return (
+      if (isAuth) return (
         <ContextLayout.Consumer>
           {context => {
             let LayoutTag =
