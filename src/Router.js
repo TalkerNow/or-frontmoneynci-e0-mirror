@@ -64,7 +64,7 @@ const ProtectedRoute = ({ component: Component, fullLayout, isAuth, ...rest }) =
   <Route
     {...rest}
     render={props => {
-      if (isAuth) return (
+      if (isAuth.user) return (
         <ContextLayout.Consumer>
           {context => {
             let LayoutTag =
