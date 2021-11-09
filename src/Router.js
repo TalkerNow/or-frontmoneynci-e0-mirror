@@ -47,6 +47,47 @@ const AdmUserList = lazy(() => import("./views/apps/user/list/usersList"))
 const createService = lazy(() => import("./views/apps/Contract/Services/addService"))
 
 // Set Layout and Component Using App Route
+
+// const ProtectedRoute = ({ isAuth, component: Component, ...rest }) => (
+//   <Route
+//     {...rest}
+//     render={
+//       (props) => {
+//         if (isAuth) return <Component {...rest} {...props} />;
+//         return <Redirect to={{ pathname: '/' }} />;
+//       }
+//     }
+//   />
+// );
+
+const ProtectedRoute = ({ component: Component, fullLayout, isAuth, ...rest }) => (
+  <Route
+    {...rest}
+    render={props => {
+      if (isAuth) return (
+        <ContextLayout.Consumer>
+          {context => {
+            let LayoutTag =
+              fullLayout === true
+                ? context.fullLayout
+                : context.state.activeLayout === "horizontal"
+                ? context.horizontalLayout
+                : context.VerticalLayout
+            return (
+              <LayoutTag {...props} permission={props.user}>
+                <Suspense fallback={<Spinner />}>
+                  <Component {...props} />
+                </Suspense>
+              </LayoutTag>
+            )
+          }}
+        </ContextLayout.Consumer>
+      )
+      return <Redirect to={{ pathname: '/misc/not-authorized' }} />;
+    }}
+  />
+)
+
 const RouteConfig = ({ component: Component, fullLayout, ...rest }) => (
   <Route
     {...rest}
@@ -88,8 +129,7 @@ class AppRouter extends React.Component {
       <Router history={history} basename={'/'}>
         <Switch>
           <AppRoute exact path="/" component={dashboard} />
-
-          <AppRoute path="/misc/error/404" component={error404} fullLayout />
+          <AppRoute path="/misc/error/404" component={error404} fullLayout/>
           <AppRoute path="/pages/login" component={Login} fullLayout />
           <AppRoute path="/pages/register" component={register} fullLayout />
           <AppRoute path="/pages/forgot-password" component={forgotPassword} fullLayout/>
@@ -118,7 +158,7 @@ class AppRouter extends React.Component {
           <AppRoute path="/app/member/createUser" component={createUser} />
 
           <AppRoute path="/app/AllContracts" component={AllContracts} />
-          <AppRoute path="/app/contractTemplate" component={TemplateContract} />
+          <ProtectedRoute path="/app/contractTemplate" component={TemplateContract} isAuth={mapStateToProps}/>
           <AppRoute path="/pages/contract/:id" component={editContract} />
           <AppRoute path="/pages/create-contract/:id" component={createContract} />
 
