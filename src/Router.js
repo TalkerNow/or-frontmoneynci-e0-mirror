@@ -159,7 +159,7 @@ class AppRouter extends React.Component {
           <AppRoute path="/app/member/createUser" component={createUser} />
 
           <AppRoute path="/app/AllContracts" component={AllContracts} />
-          <ProtectedRoute path="/app/contractTemplate" component={TemplateContract} isAuth={mapStateToProps}/>
+          <ProtectedRoute path="/app/contractTemplate" component={TemplateContract} isAuth={mapStateToProps()}/>
           <AppRoute path="/pages/contract/:id" component={editContract} />
           <AppRoute path="/pages/create-contract/:id" component={createContract} />
 
