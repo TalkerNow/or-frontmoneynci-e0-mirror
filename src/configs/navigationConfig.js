@@ -48,7 +48,7 @@ const navigationConfig = [
     title: "Tâches",
     type: "item",
     icon: <Icon.CheckSquare size={20} />,
-    permissions: ["admin", "Client","Ancient Client","Consultant", "Expert"],
+    permissions: ["admin","Consultant", "Expert"],
     navLink: "/task/:filter",
     filterBase: "/task/all"
   },
