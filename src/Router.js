@@ -50,7 +50,7 @@ const ProtectedRoute = ({ component: Component, fullLayout, isAuth, authorisatio
   <Route
     {...rest}
     render={props => {
-      if (authorisation.include(isAuth.role)) return (
+      if (authorisation.include(isAuth.user, 0)) return (
         <ContextLayout.Consumer>
           {context => {
             let LayoutTag =
@@ -102,7 +102,7 @@ const RouteConfig = ({ component: Component, fullLayout, ...rest }) => (
 )
 function mapStateToProps() {
   return {
-    role: localStorage.getItem('role')
+    user: localStorage.getItem('role')
   }
 }
 
