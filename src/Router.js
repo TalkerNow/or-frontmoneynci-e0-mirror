@@ -104,7 +104,7 @@ const RouteConfig = ({ component: Component, fullLayout, ...rest }) => (
 
 const mapStateToProps = state => {
   return {
-    role: state.auth.login.userRole
+    role: state
   }
 }
 
