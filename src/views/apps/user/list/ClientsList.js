@@ -387,7 +387,7 @@ class ClientsList extends React.Component {
             </p>
         </SweetAlert>
       <Row className="app-user-list">
-        <Col sm="12">
+        {/* <Col sm="12">
           <Card
             className={classnames("card-action card-reload", {
               "d-none": this.state.isVisible === false,
@@ -545,7 +545,7 @@ class ClientsList extends React.Component {
               </CardBody>
             </Collapse>
           </Card>
-        </Col>
+        </Col> */}
         <Col sm="12">
           <Card style={{minHeight:'3000px'}}>
             <CardBody>
