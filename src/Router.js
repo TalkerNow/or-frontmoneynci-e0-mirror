@@ -46,26 +46,11 @@ const register = lazy(() => import("./views/pages/authentication/register/Regist
 const AdmUserList = lazy(() => import("./views/apps/user/list/usersList"))
 const createService = lazy(() => import("./views/apps/Contract/Services/addService"))
 
-// Set Layout and Component Using App Route
-
-// const ProtectedRoute = ({ isAuth, component: Component, ...rest }) => (
-//   <Route
-//     {...rest}
-//     render={
-//       (props) => {
-//         if (isAuth) return <Component {...rest} {...props} />;
-//         return <Redirect to={{ pathname: '/' }} />;
-//       }
-//     }
-//   />
-// );
-
-const ProtectedRoute = ({ component: Component, fullLayout, isAuth, ...rest }) => (
+const ProtectedRoute = ({ component: Component, fullLayout, isAuth, authorisation, ...rest }) => (
   <Route
     {...rest}
     render={props => {
-      console.log(isAuth);
-      if (isAuth.user == 'admin') return (
+      if (authorisation.include(isAuth.role)) return (
         <ContextLayout.Consumer>
           {context => {
             let LayoutTag =
@@ -117,7 +102,7 @@ const RouteConfig = ({ component: Component, fullLayout, ...rest }) => (
 )
 function mapStateToProps() {
   return {
-    user: localStorage.getItem('role')
+    role: localStorage.getItem('role')
   }
 }
 
@@ -159,7 +144,7 @@ class AppRouter extends React.Component {
           <AppRoute path="/app/member/createUser" component={createUser} />
 
           <AppRoute path="/app/AllContracts" component={AllContracts} />
-          <ProtectedRoute path="/app/contractTemplate" component={TemplateContract} isAuth={mapStateToProps()}/>
+          <ProtectedRoute path="/app/contractTemplate" component={TemplateContract} isAuth={mapStateToProps()} authorisation={['admin']}/>
           <AppRoute path="/pages/contract/:id" component={editContract} />
           <AppRoute path="/pages/create-contract/:id" component={createContract} />
 
