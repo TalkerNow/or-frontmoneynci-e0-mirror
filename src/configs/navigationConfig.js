@@ -8,7 +8,7 @@ const navigationConfig = [
     title: "Dashboard",
     type: "item",
     icon: <Icon.Home size={20}/>,
-    permissions: ["admin"],
+    permissions: ["admin", 'Consultant'],
     navLink: "/"
     //badge: "warning",
     //badgeText: "2"
@@ -18,7 +18,7 @@ const navigationConfig = [
     title: "Profile",
     type: "item",
     icon: <Icon.User size={20}/>,
-    permissions: ["admin", "Client","Ancient Client","Consultant","Expert"],
+    permissions: ["admin", "Client",,"Consultant","Expert"],
     navLink: "/app/profile"
     //badge: "warning",
     //badgeText: "2"
@@ -88,7 +88,7 @@ const navigationConfig = [
     title: "Membres",
     type: "item",
     icon: <Icon.Folder size={20}/>,
-    permissions: ["admin"],
+    permissions: ["admin", 'Consultant'],
     navLink: "/app/member/memberslist"
     //badge: "warning",
     //badgeText: "2"
