@@ -101,9 +101,10 @@ const RouteConfig = ({ component: Component, fullLayout, ...rest }) => (
     }}
   />
 )
-function mapStateToProps() {
+
+const mapStateToProps = state => {
   return {
-    user: localStorage.getItem('role')
+    role: state.auth.login.userRole
   }
 }
 
