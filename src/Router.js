@@ -10,7 +10,7 @@ import { ContextLayout } from "./utility/context/Layout"
 const dashboard = lazy(() =>
   import("./views/apps/dashboard")
 )
-const handleServices = lazy(() => import("./views/apps/Contract/handleServices"))
+// const handleServices = lazy(() => import("./views/apps/Contract/handleServices"))
 const error404 = lazy(() => import("./views/pages/misc/error/404"))
 const error500 = lazy(() => import("./views/pages/misc/error/500"))
 const authorized = lazy(() => import("./views/pages/misc/NotAuthorized"))
@@ -18,7 +18,7 @@ const authorized = lazy(() => import("./views/pages/misc/NotAuthorized"))
 //-------- current active -----------------
 const profile = lazy(() => import("./views/apps/profile"))
 
-const payment = lazy(() => import("./views/apps/payment/PaymentList"))
+// const payment = lazy(() => import("./views/apps/payment/PaymentList"))
 
 const task = lazy(() => import("./views/apps/task/Task"))
 const clientTask = lazy(() => import("./views/apps/user/edit/clientTask/Task"))
@@ -40,13 +40,41 @@ const editContract = lazy(() => import("./views/pages/contract-template/EditCont
 //-----------------------------------
 const Login = lazy(() => import("./views/pages/authentication/login/Login"))
 const forgotPassword = lazy(() => import("./views/pages/authentication/ForgotPassword"))
-const lockScreen = lazy(() => import("./views/pages/authentication/LockScreen"))
+// const lockScreen = lazy(() => import("./views/pages/authentication/LockScreen"))
 const resetPassword = lazy(() => import("./views/pages/authentication/ResetPassword"))
 const register = lazy(() => import("./views/pages/authentication/register/Register"))
-const AdmUserList = lazy(() => import("./views/apps/user/list/usersList"))
-const createService = lazy(() => import("./views/apps/Contract/Services/addService"))
+// const AdmUserList = lazy(() => import("./views/apps/user/list/usersList"))
+// const createService = lazy(() => import("./views/apps/Contract/Services/addService"))
 
-// Set Layout and Component Using App Route
+const ProtectedRoute = ({ component: Component, fullLayout, isAuth, authorisation, ...rest }) => (
+  <Route
+    {...rest}
+    render={props => {
+      console.log(isAuth)
+      if (authorisation.includes(isAuth.user)) return (
+        <ContextLayout.Consumer>
+          {context => {
+            let LayoutTag =
+              fullLayout === true
+                ? context.fullLayout
+                : context.state.activeLayout === "horizontal"
+                ? context.horizontalLayout
+                : context.VerticalLayout
+            return (
+              <LayoutTag {...props} permission={props.user}>
+                <Suspense fallback={<Spinner />}>
+                  <Component {...props} />
+                </Suspense>
+              </LayoutTag>
+            )
+          }}
+        </ContextLayout.Consumer>
+      )
+      return <Redirect to={{ pathname: '/misc/not-authorized' }} />;
+    }}
+  />
+)
+
 const RouteConfig = ({ component: Component, fullLayout, ...rest }) => (
   <Route
     {...rest}
@@ -73,9 +101,9 @@ const RouteConfig = ({ component: Component, fullLayout, ...rest }) => (
     }}
   />
 )
-const mapStateToProps = state => {
+function mapStateToProps() {
   return {
-    user: state.auth.login.userRole
+    user: localStorage.getItem('role')
   }
 }
 
@@ -83,48 +111,51 @@ const AppRoute = connect(mapStateToProps)(RouteConfig)
 
 class AppRouter extends React.Component {
   render() {
+    const basic_acess = ['admin', 'Consultant', 'Expert', 'Client'];
+    const employee_acess = ['admin', 'Consultant', 'Expert'];
+    const reduced_acess =  ['admin', 'Consultant'];
+
     return (
       // Set the directory path if you are deploying in sub-folder
       <Router history={history} basename={'/'}>
         <Switch>
-          <AppRoute exact path="/" component={dashboard} />
-
-          <AppRoute path="/misc/error/404" component={error404} fullLayout />
+          <ProtectedRoute exact path="/" component={dashboard} isAuth={mapStateToProps()} authorisation={reduced_acess}/>
+          <AppRoute path="/misc/error/404" component={error404} fullLayout/>
           <AppRoute path="/pages/login" component={Login} fullLayout />
           <AppRoute path="/pages/register" component={register} fullLayout />
           <AppRoute path="/pages/forgot-password" component={forgotPassword} fullLayout/>
-          <AppRoute path="/pages/lock-screen" component={lockScreen} fullLayout/>
+          {/* <AppRoute path="/pages/lock-screen" component={lockScreen} fullLayout/> */}
           <AppRoute path="/pages/reset-password" component={resetPassword} fullLayout/>
           <AppRoute path="/misc/error/500" component={error500} fullLayout />
           <AppRoute path="/misc/not-authorized" component={authorized} fullLayout/>
 
-          <AppRoute path="/app/profile" component={profile} />
+          <ProtectedRoute path="/app/profile" component={profile} isAuth={mapStateToProps()} authorisation={basic_acess}/>
 
-          <AppRoute path="/payment/paymentlist" component={payment} />
+          {/* <AppRoute path="/payment/paymentlist" component={payment} /> */}
 
-          <AppRoute path="/task" exact component={() => <Redirect to="/task/all" />}/>
-          <AppRoute path="/task/:filter" component={task} />
-          <AppRoute path="/document" component={document} />
+          <ProtectedRoute path="/task" exact component={() => <Redirect to="/task/all" />} isAuth={mapStateToProps()} authorisation={employee_acess}/>
+          <ProtectedRoute path="/task/:filter" component={task} isAuth={mapStateToProps()} authorisation={employee_acess}/>
+          <ProtectedRoute path="/document" component={document} isAuth={mapStateToProps()} authorisation={basic_acess}/>
 
-          <AppRoute path="/app/user/clientslist" component={clientslist} />
-          <AppRoute path="/app/user/oldclientslist" component={oldclientslist}/>
-          <AppRoute path="/app/user/edit/:id/:tab" component={userEdit} />
-          <AppRoute path="/app/user/clientTask/:id/:filter" component={clientTask} />
-          <AppRoute path="/app/user/createUser" component={createUser} />
+          <ProtectedRoute path="/app/user/clientslist" component={clientslist} isAuth={mapStateToProps()} authorisation={employee_acess}/>
+          <ProtectedRoute path="/app/user/oldclientslist" component={oldclientslist} isAuth={mapStateToProps()} authorisation={employee_acess}/>
+          <ProtectedRoute path="/app/user/edit/:id/:tab" component={userEdit} isAuth={mapStateToProps()} authorisation={employee_acess}/>
+          <ProtectedRoute path="/app/user/clientTask/:id/:filter" component={clientTask} isAuth={mapStateToProps()} authorisation={employee_acess}/>
+          <ProtectedRoute path="/app/user/createUser" component={createUser} isAuth={mapStateToProps()} authorisation={employee_acess}/>
 
-          <AppRoute path="/app/member/memberslist" component={memberslist} />
-          <AppRoute path="/app/member/edit/:id/:tab" component={memberEdit} />
-          <AppRoute path="/app/member/memberTask/:id/:filter" component={memberTask} />
-          <AppRoute path="/app/member/createUser" component={createUser} />
+          <ProtectedRoute path="/app/member/memberslist" component={memberslist} isAuth={mapStateToProps()} authorisation={reduced_acess}/>
+          <ProtectedRoute path="/app/member/edit/:id/:tab" component={memberEdit} isAuth={mapStateToProps()} authorisation={reduced_acess}/>
+          <ProtectedRoute path="/app/member/memberTask/:id/:filter" component={memberTask} isAuth={mapStateToProps()} authorisation={reduced_acess}/>
+          <ProtectedRoute path="/app/member/createUser" component={createUser} isAuth={mapStateToProps()} authorisation={reduced_acess}/>
 
-          <AppRoute path="/app/AllContracts" component={AllContracts} />
-          <AppRoute path="/app/contractTemplate" component={TemplateContract} />
-          <AppRoute path="/pages/contract/:id" component={editContract} />
-          <AppRoute path="/pages/create-contract/:id" component={createContract} />
+          <ProtectedRoute path="/app/AllContracts" component={AllContracts} isAuth={mapStateToProps()} authorisation={employee_acess}/>
+          <ProtectedRoute path="/app/contractTemplate" component={TemplateContract} isAuth={mapStateToProps()} authorisation={reduced_acess}/>
+          <ProtectedRoute path="/pages/contract/:id" component={editContract} isAuth={mapStateToProps()} authorisation={basic_acess}/>
+          <ProtectedRoute path="/pages/create-contract/:id" component={createContract} isAuth={mapStateToProps()} authorisation={employee_acess}/>
 
-          <AppRoute path="/app/user/userlist" component={AdmUserList} />
-          <AppRoute path="/app/contract/handleServices/:id" component={handleServices} />
-          <AppRoute path="/app/user/createService" component={createService} />
+          {/* <AppRoute path="/app/user/userlist" component={AdmUserList} /> */}
+          {/* <AppRoute path="/app/contract/handleServices/:id" component={handleServices} /> */}
+          {/* <AppRoute path="/app/user/createService" component={createService} /> */}
 
           <AppRoute component={error404} fullLayout />
         </Switch>
