@@ -129,7 +129,7 @@ class AppRouter extends React.Component {
           <AppRoute path="/misc/error/500" component={error500} fullLayout />
           <AppRoute path="/misc/not-authorized" component={authorized} fullLayout/>
 
-          <AppRoute path="/app/profile" component={profile} isAuth={mapStateToProps()} authorisation={basic_acess}/>
+          <ProtectedRoute path="/app/profile" component={profile} isAuth={mapStateToProps()} authorisation={basic_acess}/>
 
           {/* <AppRoute path="/payment/paymentlist" component={payment} /> */}
 
