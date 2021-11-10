@@ -1,7 +1,6 @@
 import React from "react"
 import { Card, CardBody, Button, Row, Col } from "reactstrap"
 import notAuthImg from "../../../assets/img/pages/not-authorized.png"
-import {history} from '../../../history';
 
 class NotAuthorized extends React.Component {
   render() {
@@ -22,15 +21,15 @@ class NotAuthorized extends React.Component {
               <p className="pb-2">
                 Vous devez d'abord vous connecter.
               </p>
-              <Button
+              <Button.Ripple
                 tag="a"
-                onClick={() => history.push("/pages/login")}
+                href="/pages/login"
                 color="primary"
                 size="lg"
                 className="mt-2"
               >
                 Me Connecter
-              </Button>
+              </Button.Ripple>
             </CardBody>
           </Card>
         </Col>
