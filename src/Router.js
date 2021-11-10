@@ -10,7 +10,7 @@ import { ContextLayout } from "./utility/context/Layout"
 const dashboard = lazy(() =>
   import("./views/apps/dashboard")
 )
-const handleServices = lazy(() => import("./views/apps/Contract/handleServices"))
+// const handleServices = lazy(() => import("./views/apps/Contract/handleServices"))
 const error404 = lazy(() => import("./views/pages/misc/error/404"))
 const error500 = lazy(() => import("./views/pages/misc/error/500"))
 const authorized = lazy(() => import("./views/pages/misc/NotAuthorized"))
@@ -118,7 +118,7 @@ class AppRouter extends React.Component {
       // Set the directory path if you are deploying in sub-folder
       <Router history={history} basename={'/'}>
         <Switch>
-          <AppRoute exact path="/" component={dashboard} />
+          <AppRoute exact path="/" component={dashboard} isAuth={mapStateToProps()} authorisation={reduced_acess}/>
           <AppRoute path="/misc/error/404" component={error404} fullLayout/>
           <AppRoute path="/pages/login" component={Login} fullLayout />
           <AppRoute path="/pages/register" component={register} fullLayout />
