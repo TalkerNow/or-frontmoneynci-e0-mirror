@@ -118,7 +118,7 @@ class AppRouter extends React.Component {
       // Set the directory path if you are deploying in sub-folder
       <Router history={history} basename={'/'}>
         <Switch>
-          <AppRoute exact path="/" component={dashboard} isAuth={mapStateToProps()} authorisation={reduced_acess}/>
+          <ProtectedRoute exact path="/" component={dashboard} isAuth={mapStateToProps()} authorisation={reduced_acess}/>
           <AppRoute path="/misc/error/404" component={error404} fullLayout/>
           <AppRoute path="/pages/login" component={Login} fullLayout />
           <AppRoute path="/pages/register" component={register} fullLayout />
