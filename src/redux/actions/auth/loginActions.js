@@ -180,7 +180,7 @@ export const loginWithJWT = user => {
         var loggedInUser
         if (response.data && !response.data.error) {
           loggedInUser = response.data.user
-
+          dispatch({ type: "LOGOUT_WITH_JWT", payload: {} })
           localStorage.setItem("userid", loggedInUser.id);
           localStorage.setItem("role", loggedInUser.role);
           localStorage.setItem("token", response.data.accessToken);

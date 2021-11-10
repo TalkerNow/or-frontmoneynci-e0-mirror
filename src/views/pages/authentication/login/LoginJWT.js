@@ -20,7 +20,6 @@ class LoginJWT extends React.Component {
 
   handleLogin = e => {
     e.preventDefault()
-    this.props.logoutWithJWT()
     this.props.loginWithJWT(this.state)
   }
 
