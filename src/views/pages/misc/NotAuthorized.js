@@ -21,15 +21,15 @@ class NotAuthorized extends React.Component {
               <p className="pb-2">
                 Vous devez d'abord vous connecter.
               </p>
-              <Button.Ripple
+              <Button
                 tag="a"
-                href="/pages/login"
+                onClick={() => history.push("/pages/login")}
                 color="primary"
                 size="lg"
                 className="mt-2"
               >
                 Me Connecter
-              </Button.Ripple>
+              </Button>
             </CardBody>
           </Card>
         </Col>
