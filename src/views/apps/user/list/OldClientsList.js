@@ -78,7 +78,7 @@ class OldClientsList extends React.Component {
       //   headerCheckboxSelectionFilteredOnly: true,
       //   headerCheckboxSelection: true
       // },
-      {
+      /*{
         headerName: "Nom",
         field: "name",
         filter: true,
@@ -102,7 +102,7 @@ class OldClientsList extends React.Component {
         cellRendererFramework: params => {
           return (
               <>
-                {(() => {
+                {(() => {params
                   let subscribe_service = params.data.subscribe_services;
                   if(subscribe_service == null || subscribe_service == ""){
                     return <div></div>;
@@ -139,14 +139,14 @@ class OldClientsList extends React.Component {
               </div>
           )
         }
-      },
+      },*/
       {
         headerName: "Email",
-        field: "email",
+        field: "cl_mail",
         filter: true,
         width: 200
-      },
-      {
+      }
+      /*{
         headerName: "Date de Création",
         field: "created_at",
         filter: true,
@@ -158,8 +158,8 @@ class OldClientsList extends React.Component {
               </div>
           )
         }
-      },
-      {
+      },*/
+      /*{
         headerName: "Statut",
         field: "status",
         filter: true,
@@ -216,7 +216,7 @@ class OldClientsList extends React.Component {
             </div>
           )
         }
-      }
+      }*/
     ]
   }
 
@@ -256,7 +256,6 @@ class OldClientsList extends React.Component {
       let rowData = response.data
       this.setState({ rowData })
     })
-    console.log(rowData);
   }
 
   deleteUser(id){
