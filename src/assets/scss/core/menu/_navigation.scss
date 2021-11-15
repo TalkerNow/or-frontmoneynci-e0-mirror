@@ -88,12 +88,12 @@
       // padding: 15px 0px;
       display: flex;
       align-items: center;
-      margin-top: 1.35rem;
+      // margin-top: 1.35rem;
       .brand-logo {
-        background: url("../../../img/logo/vuesax-logo.png") no-repeat;
-        background-position: -65px -54px;
-        height: 24px;
-        width: 35px;
+        background: url("../../../img/logo/small_eor_logo.png") no-repeat;
+        height: 50px;
+        width: 50px;
+        border-radius: 50%;
       }
 
       .brand-text {
@@ -280,7 +280,6 @@
     .navbar-container,
     .navbar-header {
       .brand-logo {
-        background-position: -65px -54px !important;
       }
     }
   }
@@ -325,7 +324,6 @@
     }
   }
 }
-
 // Navigation Header
 //=====================
 .main-menu-header {
