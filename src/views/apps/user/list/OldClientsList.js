@@ -256,6 +256,7 @@ class OldClientsList extends React.Component {
       let rowData = response.data
       this.setState({ rowData })
     })
+    console.log(response);
   }
 
   deleteUser(id){
