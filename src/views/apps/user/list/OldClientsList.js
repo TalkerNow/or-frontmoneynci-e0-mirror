@@ -80,52 +80,17 @@ class OldClientsList extends React.Component {
       // },
       {
         headerName: "Nom",
-        field: "name",
+        field: "cl_nom",
         filter: true,
         width: 250,
-        cellRendererFramework: params => {
-          return (
-            <div
-              className="d-flex align-items-center cursor-pointer"
-              onClick={() => history.push("/app/user/edit/" + params.data.id + "/1")}
-            >
-              <span>{params.data.personal_informations.first_name + " " + params.data.personal_informations.last_name}</span>
-            </div>
-          )
-        }
       },
       {
-        headerName: "Presta",
-        field: "subscribe_services",
+        headerName: "Prénom",
+        field: "cl_prenom",
         filter: true,
-        width: 220,
-        cellRendererFramework: params => {
-          return (
-              <>
-                {(() => {
-                  let subscribe_service = params.data.subscribe_services;
-                  if(subscribe_service == null || subscribe_service == ""){
-                    return <div></div>;
-                  }else{
-                    let lst_subscribe_services = subscribe_service.replaceAll('"','').trim().split('/');
-                    const tags = [];
-                    lst_subscribe_services.forEach(function(service) {
-                      if(service != ''){
-                        tags.push(<Chip
-                            className="m-0 text-center ml-1"
-                            color={chipColors[service.trim()]}
-                            text={service}
-                        />);
-                      }
-                    })
-                    return tags;
-                  }
-                })()}
-              </>
-          )
-        }
+        width: 250,
       },
-      {
+      /*{
         headerName: "Technicien Nom",
         field: "technician_name",
         filter: true,
@@ -139,84 +104,19 @@ class OldClientsList extends React.Component {
               </div>
           )
         }
-      },
+      },*/
       {
         headerName: "Email",
-        field: "email",
+        field: "cl_mail",
         filter: true,
         width: 200
       },
       {
         headerName: "Date de Création",
-        field: "created_at",
+        field: "cl_date",
         filter: true,
         width: 150,
-        cellRendererFramework: params => {
-          return (
-              <div>
-                <Moment format="DD-MM-YYYY" date={params.data.created_at} utc/>
-              </div>
-          )
-        }
       },
-      {
-        headerName: "Statut",
-        field: "status",
-        filter: true,
-        width: 130,
-      },
-      {
-        headerName: "Sécutité Social",
-        field: "SS1",
-        filter: true,
-        width: 220,
-        cellRendererFramework: params => {
-          return (
-            <div className="d-flex align-items-center cursor-pointer">
-                <span>{params.data.personal_informations.secu_social? params.data.personal_informations.secu_social:""}</span>
-                </div>
-          )
-        }
-      },
-      {
-        headerName: "FA",
-        field: "status_fa",
-        filter: true,
-        width: 130,
-        cellRendererFramework: params => {
-          return (
-            <>
-              {(params.data.status == "En cours" || params.data.status == "Termine" ) &&
-                  <Chip
-                      className="m-0 text-center ml-1"
-                      color={params.data.status_fa == 1 ? "success" : "warning"}
-                      text={params.data.status_fa == 1 ? "Paid" : "Not Paid"}
-                  />
-              }
-            </>
-          )
-        }
-      },
-      {
-        headerName: "Actions",
-        field: "transactions",
-        width: 150,
-        cellRendererFramework: params => {
-          return (
-            <div className="actions cursor-pointer">
-              <Edit
-                className="mr-50"
-                size={15}
-                onClick={() => history.push("/app/user/edit/" + params.data.id + "/1")}
-              />
-              <Trash2
-                size={15}
-                onClick={() => { this.handleAlert("defaultAlert", true, params.data.id)}}
-              />
-            </div>
-          )
-        }
-      }
     ]
   }
 
@@ -253,7 +153,8 @@ class OldClientsList extends React.Component {
     }
 
     await axios.get(global.config.server_url + "/users?kind=oldclient", Config).then(response => {
-      let rowData = response.data
+      console.log(response)
+      let rowData = response.data.data
       this.setState({ rowData })
     })
   }
