@@ -33,7 +33,7 @@
     "match-sorter": "~4.0.2",
     "moment": "^2.29.1",
     "namor": "^2.0.2",
-    "node": "^16.9.1",
+    "node": "^10.24.1",
     "postcss-rtl": "^1.5.0",
     "prismjs": "^1.19.0",
     "prop-types": "~15.7.2",
@@ -98,6 +98,7 @@
     "eject": "react-app-rewired eject"
   },
   "devDependencies": {
+    "gulp-sass": "^5.0.0",
     "node-sass": "^4.13.1",
     "react-app-rewire-postcss": "^3.0.2",
     "react-app-rewired": "^2.1.5"
