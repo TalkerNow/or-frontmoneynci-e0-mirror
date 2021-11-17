@@ -210,15 +210,35 @@ class CreateContract extends React.Component {
               Authorization: "Bearer " + localStorage.getItem("token")
           }
       }
+      let subscribe_services = "";
+
+      if(input_values.c1)
+          subscribe_services += "CH";
+      if(input_values.c2)
+          subscribe_services += " / SIMU";
+      if(input_values.c3)
+          subscribe_services += " / AR";
+      if(input_values.c4)
+          subscribe_services += " / AR";
+      if(input_values.c5)
+          subscribe_services += " / TFD";
+      if(input_values.c6)
+          subscribe_services += " / ACTU";
+      if(input_values.c7)
+          subscribe_services += " / RAC";
       var parameters = {};
       var userid = this.props.match.params.id;
       var parentid = this.state.rowData.parent_id;
       parameters['link_to_documents'] = "N/a";
       parameters['type'] = "contract";
-      parameters['document_state'] = "Pending...";
+      parameters['document_state'] = "en attente";
       parameters['date'] = "N/a";
+      parameters['subscribe_services'] = subscribe_services;
+      parameters['status_payment'] = 0;
       parameters['comment'] = "Contract de " + this.state.perso['first_name'] + " "+ this.state.perso['last_name'];
       parameters['advanced_payment'] = this.state.formValues['TOTALTTC']?this.state.formValues['TOTALTTC'] : 0;
+      parameters['pre_payment'] = parseFloat(this.state.formValues['FINAL75'])?parseFloat(this.state.formValues['FINAL75']) : 0;
+      parameters['end_payment'] = parseFloat(this.state.formValues['FINAL25'])?parseFloat(this.state.formValues['FINAL25']) : 0;
       parameters['user_id'] = userid;
       parameters['parent_id'] = parentid.toString();
       parameters['values'] = JSON.stringify(input_values);
@@ -280,13 +300,34 @@ class CreateContract extends React.Component {
                 Authorization: "Bearer " + localStorage.getItem("token")
             }
         }
+        let subscribe_services = "";
+
+      if(input_values.c1)
+          subscribe_services += "CH";
+      if(input_values.c2)
+          subscribe_services += " / SIMU";
+      if(input_values.c3)
+          subscribe_services += " / AR";
+      if(input_values.c4)
+          subscribe_services += " / AR";
+      if(input_values.c5)
+          subscribe_services += " / TFD";
+      if(input_values.c6)
+          subscribe_services += " / ACTU";
+      if(input_values.c7)
+          subscribe_services += " / RAC";
+
         var parameters = {};
         var userid = this.props.match.params.id;
         var parentid = this.state.rowData.parent_id;
         parameters['link_to_documents'] = "N/a";
         parameters['type'] = "contract";
-        parameters['document_state'] = "Pending...";
+        parameters['document_state'] = "en attente";
         parameters['date'] = "N/a";
+        parameters['status_payment'] = 0;
+        parameters['subscribe_services'] = subscribe_services;
+        parameters['pre_payment'] = parseFloat(this.state.formValues['FINAL75'])?parseFloat(this.state.formValues['FINAL75']) : 0;
+        parameters['end_payment'] = parseFloat(this.state.formValues['FINAL25'])?parseFloat(this.state.formValues['FINAL25']) : 0;
         parameters['comment'] = "Contract de " + this.state.perso['first_name'] +" "+ this.state.perso['last_name'];
         parameters['advanced_payment'] = this.state.formValues['TOTALTTC']?this.state.formValues['TOTALTTC'] : 0;
         parameters['user_id'] = userid;
