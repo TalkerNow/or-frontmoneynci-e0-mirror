@@ -69,7 +69,8 @@ class ForgotPassword extends React.Component {
                           className="px-75 btn-block"
                           onClick={e => {
                             e.preventDefault()
-                            history.push("/")
+                            // TODO send axios link to back forgotPassword
+                            history.push("/pages/login")
                           }}
                         >
                           Recover Password

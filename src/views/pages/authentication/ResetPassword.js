@@ -86,6 +86,7 @@ class ResetPassword extends React.Component {
                           color="primary"
                           type="submit"
                           className="btn-block mt-1 mt-sm-0"
+                          // TODO reset the password of the user
                           onClick={e => e.preventDefault()}
                         >
                           Reset
