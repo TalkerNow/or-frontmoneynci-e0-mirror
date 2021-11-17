@@ -219,9 +219,27 @@ class EditContract extends React.Component {
               Authorization: "Bearer " + localStorage.getItem("token")
           }
       }
+      let subscribe_services = "";
+
+      if(input_values.c1)
+          subscribe_services += "CH";
+      if(input_values.c2)
+          subscribe_services += " / SIMU";
+      if(input_values.c3)
+          subscribe_services += " / AR";
+      if(input_values.c4)
+          subscribe_services += " / AR";
+      if(input_values.c5)
+          subscribe_services += " / TFD";
+      if(input_values.c6)
+          subscribe_services += " / ACTU";
+      if(input_values.c7)
+          subscribe_services += " / RAC";
+
       var parameters = {};
       var userid = this.state.user_id;
       parameters['user_id'] = userid;
+      parameters['subscribe_services'] = subscribe_services;
       parameters['values'] = JSON.stringify(input_values);
       parameters['advanced_payment'] = this.state.formValues['TOTALTTC']?this.state.formValues['TOTALTTC']:0;
       parameters['pre_payment'] = parseFloat(this.state.formValues['FINAL75'])?parseFloat(this.state.formValues['FINAL75']) : 0;
@@ -276,9 +294,27 @@ class EditContract extends React.Component {
               Authorization: "Bearer " + localStorage.getItem("token")
           }
       }
+      let subscribe_services = "";
+
+      if(input_values.c1)
+          subscribe_services += "CH";
+      if(input_values.c2)
+          subscribe_services += " / SIMU";
+      if(input_values.c3)
+          subscribe_services += " / AR";
+      if(input_values.c4)
+          subscribe_services += " / AR";
+      if(input_values.c5)
+          subscribe_services += " / TFD";
+      if(input_values.c6)
+          subscribe_services += " / ACTU";
+      if(input_values.c7)
+          subscribe_services += " / RAC";
+
       var parameters = {};
       var userid = this.state.user_id;
       parameters['user_id'] = userid;
+      parameters['subscribe_services'] = subscribe_services;
       parameters['values'] = JSON.stringify(input_values);
       parameters['advanced_payment'] = this.state.formValues['TOTALTTC']?this.state.formValues['TOTALTTC']:0;
       parameters['pre_payment'] = parseFloat(this.state.formValues['FINAL75'])?parseFloat(this.state.formValues['FINAL75']) : 0;
