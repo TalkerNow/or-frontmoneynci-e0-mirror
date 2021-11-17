@@ -110,8 +110,8 @@ class OldClientsList extends React.Component {
         field: "cl_mail",
         filter: true,
         width: 200
-      }
-      /*{
+      },
+      {
         headerName: "Date de Création",
         field: "cl_date",
         filter: true,
