@@ -224,8 +224,8 @@ class EditContract extends React.Component {
       parameters['user_id'] = userid;
       parameters['values'] = JSON.stringify(input_values);
       parameters['advanced_payment'] = this.state.formValues['TOTALTTC']?this.state.formValues['TOTALTTC']:0;
-      parameters['pre_payment'] = this.state.formValues['FINAL75']?this.state.formValues['FINAL75'] : 0;
-      parameters['end_payment'] = this.state.formValues['FINAL25']?this.state.formValues['FINAL25'] : 0;
+      parameters['pre_payment'] = parseFloat(this.state.formValues['FINAL75'])?parseFloat(this.state.formValues['FINAL75']) : 0;
+      parameters['end_payment'] = parseFloat(this.state.formValues['FINAL25'])?parseFloat(this.state.formValues['FINAL25']) : 0;
       axios.put(global.config.server_url + "/documents/" + this.props.match.params.id, parameters, Config)
           .then(function(result) {
               history.push("/app/user/edit/" + userid + "/3")
@@ -281,8 +281,8 @@ class EditContract extends React.Component {
       parameters['user_id'] = userid;
       parameters['values'] = JSON.stringify(input_values);
       parameters['advanced_payment'] = this.state.formValues['TOTALTTC']?this.state.formValues['TOTALTTC']:0;
-      parameters['pre_payment'] = this.state.formValues['FINAL75']?this.state.formValues['FINAL75'] : 0;
-      parameters['end_payment'] = this.state.formValues['FINAL25']?this.state.formValues['FINAL25'] : 0;
+      parameters['pre_payment'] = parseFloat(this.state.formValues['FINAL75'])?parseFloat(this.state.formValues['FINAL75']) : 0;
+      parameters['end_payment'] = parseFloat(this.state.formValues['FINAL25'])?parseFloat(this.state.formValues['FINAL25']) : 0;
       axios.put(global.config.server_url + "/documents/" + this.props.match.params.id, parameters, Config)
           .then(function(result) {
           })
