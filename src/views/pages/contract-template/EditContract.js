@@ -290,6 +290,20 @@ class EditContract extends React.Component {
       //--- set the subscribe services from contract into user table--------
       this.setSubscribeServices();
   }
+  setStatusPayment(value) {
+    if (value == 1) {
+        if (this.state.status_payment == 0)
+            this.setState({status_payment:1})
+        else 
+            this.setState({status_payment:0})
+    } else if (value == 2) {
+        if (this.state.status_payment <= 1)
+            this.setState({status_payment:2})
+        else 
+            this.setState({status_payment:1})
+    }
+    Math.abs(this.state.status_payment - 2)
+  }
     setSubscribeServices(){
         const Config = {
             headers: {
@@ -461,7 +475,7 @@ class EditContract extends React.Component {
                                 name="Acompte"
                                 inline
                                 defaultChecked={this.state.status_payment > 0? true: false}
-                                onChange={() => this.setState({status_payment: Math.abs(this.state.status_payment - 1)})}
+                                onChange={() => this.setStatusPayment(1)}
                             >
                                 <span className="mb-0 switch-label" style={{paddingTop:'3px'}}>Acomte</span>
                             </CustomInput>
@@ -472,7 +486,7 @@ class EditContract extends React.Component {
                                 name="Sold"
                                 inline
                                 defaultChecked={this.state.status_payment > 1? true: false}
-                                onChange={() => this.setState({status_payment: Math.abs(this.state.status_payment - 2)})}
+                                onChange={() => this.setStatusPayment(2)}
                             >
                                 <span className="mb-0 switch-label" style={{paddingTop:'3px'}}>Soldé</span>
                             </CustomInput>
