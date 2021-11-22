@@ -265,7 +265,7 @@ class UserAccountTab extends React.Component {
                 </Col>
                 
                 <Col md="6" sm="12" style={{marginTop:'20px'}}>
-                    <div>
+                    {/* <div>
                         <div style={{display:"inline-block"}}>
                             <h5 style={{marginBottom:'5px'}}>
                                 <Aperture className="mr-50" size={16} />
@@ -393,7 +393,7 @@ class UserAccountTab extends React.Component {
                             </CustomInput>
                         </div>
                         }
-                    </FormGroup>
+                    </FormGroup> */}
                 </Col>
                 <Col md="6" sm="12" style={{marginTop:'-15px'}}>
                     <FormGroup>

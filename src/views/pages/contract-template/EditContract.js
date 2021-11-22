@@ -56,8 +56,8 @@ class EditContract extends React.Component {
     },
     general_condition:'',
     subscribe_services:'',
-    status:'',
-    status_payment: 0,
+    status: null,
+    status_payment: null,
   }
 
   ifExist(name)
@@ -226,6 +226,7 @@ class EditContract extends React.Component {
               status: response.data.data.document_state
             }
         );
+        console.log(response.data.data.status_payment)
         this.setState(
             {
                 status_payment: response.data.data.status_payment
@@ -242,6 +243,7 @@ class EditContract extends React.Component {
               input_values = { ...values};
               this.calculate();
           }
+          this.forceUpdate();
       })
   }
 
@@ -271,7 +273,9 @@ class EditContract extends React.Component {
       var parameters = {};
       var userid = this.state.user_id;
       parameters['user_id'] = userid;
+      parameters['document_state'] = this.state.status;
       parameters['subscribe_services'] = sub_services;
+      parameters['status_payment'] = this.state.status_payment;
       parameters['values'] = JSON.stringify(input_values);
       parameters['advanced_payment'] = this.state.formValues['TOTALTTC']?this.state.formValues['TOTALTTC']:0;
       parameters['pre_payment'] = parseFloat(this.state.formValues['FINAL75'])?parseFloat(this.state.formValues['FINAL75']) : 0;
@@ -363,7 +367,7 @@ class EditContract extends React.Component {
       this.setSubscribeServices();
 
       //------ print action -------
-      document.getElementById("send_contract_section").remove();
+      //document.getElementById("send_contract_section").remove();
       document.getElementById("button_section").remove();
       document.getElementById("print-section").style.marginTop = '-90px';
       document.getElementById("print-section").style.fontSize = '18px';
@@ -377,21 +381,8 @@ class EditContract extends React.Component {
   render() {
     return (
       <React.Fragment>
-        <Breadcrumbs
-          breadCrumbTitle="Edit Contract"
-          breadCrumbParent="Pages"
-          breadCrumbActive="Edit Contract"
-        />
         <Row>
-          <Col className="mb-1 contract-header" md="5" sm="12" id="send_contract_section">
-            <InputGroup>
-              <Input placeholder="Email" />
-              <InputGroupAddon addonType="append">
-                <Button.Ripple color="primary" outline>
-                  Send Contract
-                </Button.Ripple>
-              </InputGroupAddon>
-              <Col md="5" sm="12">
+        <Col md="5" sm="12" className="mb-1 contract-header" style={{height: '50px'}}>
                     <div>
                         <div style={{display:"inline-block"}}>
                             <h5 style={{marginBottom:'5px'}}>
@@ -424,13 +415,13 @@ class EditContract extends React.Component {
                         </div>
                     </div>
                     <FormGroup style={{marginTop:'8px'}}>
-                        {this.state.subscribe_services != null &&
+                        {(this.state.status != null && this.state.subscribe_services != null && this.state.status_payment != null) &&
                         <>
                             <div className="d-inline-block mr-1">
                                 <Radio
                                     label="En attente"
                                     color="primary"
-                                    defaultChecked={this.state.status == 'En attente'? true: false}
+                                    defaultChecked={this.state.status == "En attente"? true: false}
                                     name="status"
                                     onChange={() => this.setState({status: "En attente"})}
                                 />
@@ -462,68 +453,34 @@ class EditContract extends React.Component {
                                     onChange={() => this.setState({status: "Perdu"})}
                                 />
                             </div>
-                        </>
-                        }
-                        {this.state.status == null &&
-                        <>
-                            <div className="d-inline-block mr-1">
-                                <Radio
-                                    label="En attente"
-                                    color="primary"
-                                    name="status"
-                                    defaultChecked={true}
-                                    onChange={() => this.setState({status: "En attente"})}
-                                />
-                            </div>
-                            <div className="d-inline-block mr-1">
-                                <Radio
-                                    label="En cours"
-                                    color="primary"
-                                    name="status"
-                                    defaultChecked={false}
-                                    onChange={() => this.setState({status: "En cours"})}
-                                />
-                            </div>
-                            <div className="d-inline-block mr-1">
-                                <Radio
-                                    label="Termine"
-                                    color="primary"
-                                    name="status"
-                                    defaultChecked={false}
-                                    onChange={() => this.setState({status: "Termine"})}
-                                />
-                            </div>
-                            <div className="d-inline-block mr-1" style={{marginLeft:'10px'}}>
-                                <Radio
-                                    label="Perdu"
-                                    color="primary"
-                                    name="status"
-                                    defaultChecked={false}
-                                    onChange={() => this.setState({status: "Perdu"})}
-                                />
-                            </div>
-                        </>
-                        }
-                        {((this.state.status == null && (this.state.status == "En cours" || this.state.status == "Termine")) ||
-                            (this.state.status != null && (this.state.status == "En cours" || this.state.status == "Termine"))) &&
-                        <div style={{marginLeft:'20px', display:'inline-block',paddingTop:'5px'}}>
+                            <div style={{marginLeft:'20px', display:'inline-block',paddingTop:'5px'}}>
                             <CustomInput
                                 className="custom-switch-success mr-1 mb-2"
                                 type="switch"
-                                id="status_payment"
-                                name="status_payment"
+                                id="acompte"
+                                name="Acompte"
                                 inline
-                                defaultChecked={this.state.status_payment}
-                                onChange={() => this.setState({status_payment: Math.abs(this.state.status_payment  - 1)})}
+                                defaultChecked={this.state.status_payment > 0? true: false}
+                                onChange={() => this.setState({status_payment: Math.abs(this.state.status_payment - 1)})}
                             >
-                                <span className="mb-0 switch-label" style={{paddingTop:'3px'}}>Paid</span>
+                                <span className="mb-0 switch-label" style={{paddingTop:'3px'}}>Acomte</span>
+                            </CustomInput>
+                            <CustomInput
+                                className="custom-switch-success mr-1 mb-2"
+                                type="switch"
+                                id="sold"
+                                name="Sold"
+                                inline
+                                defaultChecked={this.state.status_payment > 1? true: false}
+                                onChange={() => this.setState({status_payment: Math.abs(this.state.status_payment - 2)})}
+                            >
+                                <span className="mb-0 switch-label" style={{paddingTop:'3px'}}>Soldé</span>
                             </CustomInput>
                         </div>
+                        </>
                         }
                     </FormGroup>
                 </Col>
-            </InputGroup>
-          </Col>
           <Col
             className="d-flex flex-column flex-md-row justify-content-end contract-header mb-1"
             md="7"
@@ -558,6 +515,7 @@ class EditContract extends React.Component {
                   <span className="align-middle ml-50">Print</span>
               </Button>
           </Col>
+          
           <Col className="contract-wrapper" style={{marginLeft:'auto', marginRight:'auto',marginTop:'30px',fontSize:'15px'}}>
             <Card className="contract-page" style={{padding:'0.5rem 5.5rem 2.2rem 5.5rem'}} id="print-section">
               <CardBody>

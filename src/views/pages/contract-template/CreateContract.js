@@ -249,7 +249,7 @@ class CreateContract extends React.Component {
       var parentid = this.state.rowData.parent_id;
       parameters['link_to_documents'] = "N/a";
       parameters['type'] = "contract";
-      parameters['document_state'] = "en attente";
+      parameters['document_state'] = "En attente";
       parameters['date'] = "N/a";
       parameters['subscribe_services'] = sub_services;
       parameters['status_payment'] = 0;
@@ -339,7 +339,7 @@ class CreateContract extends React.Component {
         var parentid = this.state.rowData.parent_id;
         parameters['link_to_documents'] = "N/a";
         parameters['type'] = "contract";
-        parameters['document_state'] = "en attente";
+        parameters['document_state'] = "En attente";
         parameters['date'] = "N/a";
         parameters['status_payment'] = 0;
         parameters['subscribe_services'] = sub_services;
@@ -387,137 +387,7 @@ class CreateContract extends React.Component {
                   Send Contract
                 </Button.Ripple>
               </InputGroupAddon>
-              <Col md="5" sm="12">
-                    <div>
-                        <div style={{display:"inline-block"}}>
-                            <h5 style={{marginBottom:'5px'}}>
-                                <Aperture className="mr-50" size={16} />
-                                <span className="align-middle">Prestation: </span>
-                            </h5>
-                        </div>
-                        <div style={{display:'inline-block',marginLeft:'5px'}}>
-                            <div >
-                                    {(() => {
-                                        let subscribe_service =this.state.subscribe_services;
-                                        if(subscribe_service == null || subscribe_service == ""){
-                                            return <div>No</div>;
-                                        }else{
-                                            let lst_subscribe_services = subscribe_service.replaceAll('"','').trim().split('/');
-                                            const tags = [];
-                                            lst_subscribe_services.forEach(function(service) {
-                                                if(service != ''){
-                                                    tags.push(<Chip
-                                                        className="m-0 text-center ml-1"
-                                                        color={chipColors[service.trim()]}
-                                                        text={service}
-                                                    />);
-                                                }
-                                            })
-                                            return tags;
-                                        }
-                                    })()}
-                                </div>
-                        </div>
-                    </div>
-                    <FormGroup style={{marginTop:'8px'}}>
-                        {this.state.subscribe_services != null &&
-                        <>
-                            <div className="d-inline-block mr-1">
-                                <Radio
-                                    label="En attente"
-                                    color="primary"
-                                    defaultChecked={this.state.status == 'En attente'? true: false}
-                                    name="status"
-                                    onChange={() => this.setState({status: "En attente"})}
-                                />
-                            </div>
-                            <div className="d-inline-block mr-1">
-                                <Radio
-                                    label="En cours"
-                                    color="primary"
-                                    defaultChecked={this.state.status == "En cours"? true: false}
-                                    name="status"
-                                    onChange={() => this.setState({status: "En cours"})}
-                                />
-                            </div>
-                            <div className="d-inline-block mr-1">
-                                <Radio
-                                    label="Termine"
-                                    color="primary"
-                                    defaultChecked={this.state.status == "Termine"? true: false}
-                                    name="status"
-                                    onChange={() => this.setState({status: "Termine"})}
-                                />
-                            </div>
-                            <div className="d-inline-block mr-1">
-                                <Radio
-                                    label="Perdu"
-                                    color="primary"
-                                    defaultChecked={this.state.status == "Perdu"? true: false}
-                                    name="status"
-                                    onChange={() => this.setState({status: "Perdu"})}
-                                />
-                            </div>
-                        </>
-                        }
-                        {this.state.status == null &&
-                        <>
-                            <div className="d-inline-block mr-1">
-                                <Radio
-                                    label="En attente"
-                                    color="primary"
-                                    name="status"
-                                    defaultChecked={true}
-                                    onChange={() => this.setState({status: "En attente"})}
-                                />
-                            </div>
-                            <div className="d-inline-block mr-1">
-                                <Radio
-                                    label="En cours"
-                                    color="primary"
-                                    name="status"
-                                    defaultChecked={false}
-                                    onChange={() => this.setState({status: "En cours"})}
-                                />
-                            </div>
-                            <div className="d-inline-block mr-1">
-                                <Radio
-                                    label="Termine"
-                                    color="primary"
-                                    name="status"
-                                    defaultChecked={false}
-                                    onChange={() => this.setState({status: "Termine"})}
-                                />
-                            </div>
-                            <div className="d-inline-block mr-1" style={{marginLeft:'10px'}}>
-                                <Radio
-                                    label="Perdu"
-                                    color="primary"
-                                    name="status"
-                                    defaultChecked={false}
-                                    onChange={() => this.setState({status: "Perdu"})}
-                                />
-                            </div>
-                        </>
-                        }
-                        {((this.state.status == null && (this.state.status == "En cours" || this.state.status == "Termine")) ||
-                            (this.state.status != null && (this.state.status == "En cours" || this.state.status == "Termine"))) &&
-                        <div style={{marginLeft:'20px', display:'inline-block',paddingTop:'5px'}}>
-                            <CustomInput
-                                className="custom-switch-success mr-1 mb-2"
-                                type="switch"
-                                id="status_payment"
-                                name="status_payment"
-                                inline
-                                defaultChecked={this.state.status_payment}
-                                onChange={() => this.setState({status_payment: Math.abs(this.state.status_payment  - 1)})}
-                            >
-                                <span className="mb-0 switch-label" style={{paddingTop:'3px'}}>Paid</span>
-                            </CustomInput>
-                        </div>
-                        }
-                    </FormGroup>
-                </Col>
+              
             </InputGroup>
           </Col>
           <Col
