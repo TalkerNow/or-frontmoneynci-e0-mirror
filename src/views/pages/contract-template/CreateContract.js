@@ -11,8 +11,12 @@ import {
   InputGroup,
   Input,
   InputGroupAddon,
-  Button
+  Button,
+  FormGroup,
+  CustomInput
 } from "reactstrap"
+import Chip from "../../../../src/components/@vuexy/chips/ChipComponent";
+import { User, MapPin,Aperture } from "react-feather";
 import LabeledCheckboxMaterialUi from 'labeled-checkbox-material-ui';
 import Breadcrumbs from "../../../components/@vuexy/breadCrumbs/BreadCrumb"
 import logo from "../../../assets/img/logo/contract_logo.jpg"
@@ -23,6 +27,16 @@ import axios from "axios";
 import Checkbox from "../../../components/@vuexy/checkbox/CheckboxesVuexy";
 import {toast} from "react-toastify";
 import {history} from "../../../history";
+import Radio from "../../../components/@vuexy/radio/RadioVuexy";
+const chipColors = {
+    CH: "warning",
+    SIMU: "success",
+    AR: "primary",
+    TFD: "danger",
+    ACTU: 'primary',
+    RAC: 'warning'
+}
+
 var input_values = {
     "c1":false,     "c2":true,    "c3":true,   "c4":false,     "c5":true,
     "c6":true,  "c7":true,   "cnb2":false,    "cnb4":true,   "cnb5":false,     "cc5":true,
@@ -40,7 +54,10 @@ class CreateContract extends React.Component {
         "c1":false,     "c2":true,    "c3":true,   "c4":false,     "c5":true,
         "c6":true,  "c7":true,   "cnb2":false,    "cnb4":true,   "cnb5":false,     "cc5":true,
     },
-    general_condition:''
+    general_condition:'',
+    subscribe_services:'',
+    status:'',
+    status_payment: 0,
   }
 
   ifExist(name)
@@ -210,30 +227,31 @@ class CreateContract extends React.Component {
               Authorization: "Bearer " + localStorage.getItem("token")
           }
       }
-      let subscribe_services = "";
+      let sub_services = "";
 
       if(input_values.c1)
-          subscribe_services += "CH";
+          sub_services += "CH";
       if(input_values.c2)
-          subscribe_services += " / SIMU";
+          sub_services += " / SIMU";
       if(input_values.c3)
-          subscribe_services += " / AR";
+          sub_services += " / AR";
       if(input_values.c4)
-          subscribe_services += " / AR";
+          sub_services += " / AR";
       if(input_values.c5)
-          subscribe_services += " / TFD";
+          sub_services += " / TFD";
       if(input_values.c6)
-          subscribe_services += " / ACTU";
+          sub_services += " / ACTU";
       if(input_values.c7)
-          subscribe_services += " / RAC";
+          sub_services += " / RAC";
+      this.setState({subscribe_services: sub_services})
       var parameters = {};
       var userid = this.props.match.params.id;
       var parentid = this.state.rowData.parent_id;
       parameters['link_to_documents'] = "N/a";
       parameters['type'] = "contract";
-      parameters['document_state'] = "en attente";
+      parameters['document_state'] = "En attente";
       parameters['date'] = "N/a";
-      parameters['subscribe_services'] = subscribe_services;
+      parameters['subscribe_services'] = sub_services;
       parameters['status_payment'] = 0;
       parameters['comment'] = "Contract de " + this.state.perso['first_name'] + " "+ this.state.perso['last_name'];
       parameters['advanced_payment'] = this.state.formValues['TOTALTTC']?this.state.formValues['TOTALTTC'] : 0;
@@ -242,7 +260,6 @@ class CreateContract extends React.Component {
       parameters['user_id'] = userid;
       parameters['parent_id'] = parentid.toString();
       parameters['values'] = JSON.stringify(input_values);
-      console.log(this.props.match.params.id);
         //-------- save Contract ---------
       axios.post(global.config.server_url + "/documents", parameters, Config)
           .then(function(result) {
@@ -300,32 +317,32 @@ class CreateContract extends React.Component {
                 Authorization: "Bearer " + localStorage.getItem("token")
             }
         }
-        let subscribe_services = "";
+        let sub_services = "";
 
       if(input_values.c1)
-          subscribe_services += "CH";
+          sub_services += "CH";
       if(input_values.c2)
-          subscribe_services += " / SIMU";
+          sub_services += " / SIMU";
       if(input_values.c3)
-          subscribe_services += " / AR";
+          sub_services += " / AR";
       if(input_values.c4)
-          subscribe_services += " / AR";
+          sub_services += " / AR";
       if(input_values.c5)
-          subscribe_services += " / TFD";
+          sub_services += " / TFD";
       if(input_values.c6)
-          subscribe_services += " / ACTU";
+          sub_services += " / ACTU";
       if(input_values.c7)
-          subscribe_services += " / RAC";
-
+          sub_services += " / RAC";
+      this.setState({subscribe_services: sub_services})
         var parameters = {};
         var userid = this.props.match.params.id;
         var parentid = this.state.rowData.parent_id;
         parameters['link_to_documents'] = "N/a";
         parameters['type'] = "contract";
-        parameters['document_state'] = "en attente";
+        parameters['document_state'] = "En attente";
         parameters['date'] = "N/a";
         parameters['status_payment'] = 0;
-        parameters['subscribe_services'] = subscribe_services;
+        parameters['subscribe_services'] = sub_services;
         parameters['pre_payment'] = parseFloat(this.state.formValues['FINAL75'])?parseFloat(this.state.formValues['FINAL75']) : 0;
         parameters['end_payment'] = parseFloat(this.state.formValues['FINAL25'])?parseFloat(this.state.formValues['FINAL25']) : 0;
         parameters['comment'] = "Contract de " + this.state.perso['first_name'] +" "+ this.state.perso['last_name'];
@@ -370,6 +387,7 @@ class CreateContract extends React.Component {
                   Send Contract
                 </Button.Ripple>
               </InputGroupAddon>
+              
             </InputGroup>
           </Col>
           <Col
