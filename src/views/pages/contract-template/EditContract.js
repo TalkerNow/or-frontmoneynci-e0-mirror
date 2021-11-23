@@ -434,7 +434,7 @@ class EditContract extends React.Component {
                     </div>
                     <FormGroup style={{marginTop:'8px'}}>
                         {/* (this.state.status != null && this.state.subscribe_services != null && this.state.status_payment != null) */}
-                        {(this.state.status != null && this.state.subscribe_services != null && this.state.status_payment != null) &&
+                        {(this.state.status != null && this.state.subscribe_services != null) &&
                         <>
                             <div className="d-inline-block mr-1">
                                 <Radio
