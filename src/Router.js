@@ -50,7 +50,6 @@ const ProtectedRoute = ({ component: Component, fullLayout, isAuth, authorisatio
   <Route
     {...rest}
     render={props => {
-      console.log(isAuth)
       if (authorisation.includes(isAuth.user)) return (
         <ContextLayout.Consumer>
           {context => {

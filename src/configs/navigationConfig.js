@@ -18,7 +18,7 @@ const navigationConfig = [
     title: "Profile",
     type: "item",
     icon: <Icon.User size={20}/>,
-    permissions: ["admin", "Client",,"Consultant","Expert"],
+    permissions: ["admin", "Client","Consultant","Expert"],
     navLink: "/app/profile"
     //badge: "warning",
     //badgeText: "2"

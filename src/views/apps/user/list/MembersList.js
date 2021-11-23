@@ -3,10 +3,10 @@ import {Button} from "reactstrap"
 import {
   Card,
   CardBody,
-  CardHeader,
-  CardTitle,
-  FormGroup,
-  Label,
+  //CardHeader,
+  //CardTitle,
+  //FormGroup,
+  //Label,
   Input,
   Row,
   Col,
@@ -15,8 +15,8 @@ import {
   DropdownMenu,
   DropdownItem,
   DropdownToggle,
-  Collapse,
-  Spinner
+  //Collapse,
+  //Spinner
 } from "reactstrap"
 import axios from "axios"
 import { ContextLayout } from "../../../../utility/context/Layout"
@@ -25,10 +25,11 @@ import {
   Edit,
   Trash2,
   ChevronDown,
-  RotateCw,
-  X, UserPlus, Home,
+  //RotateCw,
+  //X,
+   UserPlus, Home,
 } from "react-feather"
-import classnames from "classnames"
+//import classnames from "classnames"
 import { history } from "../../../../history"
 import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss"
 import "../../../../assets/scss/pages/users.scss"
@@ -36,15 +37,15 @@ import SweetAlert from "react-bootstrap-sweetalert";
 import Moment from "react-moment";
 import {toast} from "react-toastify";
 //import swal from 'sweetalert';
-import Chip from "../../../../components/@vuexy/chips/ChipComponent";
-const chipColors = {
-  CH: "warning",
-  SIMU: "success",
-  AR: "primary",
-  TFD: "danger",
-  ACTU: 'primary',
-  RAC: 'warning'
-}
+// import Chip from "../../../../components/@vuexy/chips/ChipComponent";
+// const chipColors = {
+//   CH: "warning",
+//   SIMU: "success",
+//   AR: "primary",
+//   TFD: "danger",
+//   ACTU: 'primary',
+//   RAC: 'warning'
+// }
 class MembersList extends React.Component {
   state = {
     defaultAlert : false,
