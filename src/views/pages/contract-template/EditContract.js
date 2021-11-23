@@ -54,6 +54,8 @@ class EditContract extends React.Component {
         "c1":false,     "c2":true,    "c3":true,   "c4":false,     "c5":true,
         "c6":true,  "c7":true,   "cnb2":false,    "cnb4":true,   "cnb5":false,     "cc5":true,
     },
+    user_id:null,
+    parent_id:null,
     general_condition:'',
     subscribe_services:'',
     status: null,
@@ -218,15 +220,15 @@ class EditContract extends React.Component {
           );
           this.setState(
               {
-                parent_id: response.data.data.parent_id
+                parent_id: response.data.data.user.parent_id
               }
           );
+          
           this.setState(
             {
               status: response.data.data.document_state
             }
         );
-        console.log(response.data.data.status_payment)
         this.setState(
             {
                 status_payment: response.data.data.status_payment
@@ -243,7 +245,6 @@ class EditContract extends React.Component {
               input_values = { ...values};
               this.calculate();
           }
-          this.forceUpdate();
       })
   }
 
@@ -273,6 +274,7 @@ class EditContract extends React.Component {
       var parameters = {};
       var userid = this.state.user_id;
       parameters['user_id'] = userid;
+      parameters['parent_id'] = this.state.parent_id;
       parameters['document_state'] = this.state.status;
       parameters['subscribe_services'] = sub_services;
       parameters['status_payment'] = this.state.status_payment;
@@ -282,6 +284,7 @@ class EditContract extends React.Component {
       parameters['end_payment'] = parseFloat(this.state.formValues['FINAL25'])?parseFloat(this.state.formValues['FINAL25']) : 0;
       axios.put(global.config.server_url + "/documents/" + this.props.match.params.id, parameters, Config)
           .then(function(result) {
+              console.log(parameters)
               history.push("/app/user/edit/" + userid + "/3")
           })
           .catch(function(error) {
@@ -302,7 +305,7 @@ class EditContract extends React.Component {
         else 
             this.setState({status_payment:1})
     }
-    Math.abs(this.state.status_payment - 2)
+   // Math.abs(this.state.status_payment - 2)
   }
     setSubscribeServices(){
         const Config = {
@@ -363,7 +366,8 @@ class EditContract extends React.Component {
       this.setState({subscribe_services: sub_services})
       var parameters = {};
       var userid = this.state.user_id;
-      parameters['user_id'] = userid;
+      parameters['user_id'] = this.state.user_id;;
+      parameters['parent_id'] = this.state.parent_id;
       parameters['subscribe_services'] = sub_services;
       parameters['status_payment'] = this.state.status_payment;
       parameters['values'] = JSON.stringify(input_values);
@@ -429,6 +433,7 @@ class EditContract extends React.Component {
                         </div>
                     </div>
                     <FormGroup style={{marginTop:'8px'}}>
+                        {/* (this.state.status != null && this.state.subscribe_services != null && this.state.status_payment != null) */}
                         {(this.state.status != null && this.state.subscribe_services != null && this.state.status_payment != null) &&
                         <>
                             <div className="d-inline-block mr-1">

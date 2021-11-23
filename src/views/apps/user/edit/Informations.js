@@ -826,6 +826,7 @@ class UserAccountTab extends React.Component {
                 </Col>
                     <Col md="6" sm="12">
                         <FormGroup>
+                        <Label for="member">Expert</Label>
                             <CustomInput type="select" name="member"
                                          value={this.state.parent_id != null ? this.state.parent_id : this.ifDataExist('parent_id')}
                                         id="member" onChange={e => this.setState({parent_id: e.target.value})}>
