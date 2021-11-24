@@ -482,7 +482,7 @@ class EditContract extends React.Component {
                                 defaultChecked={this.state.status_payment > 0? true: false}
                                 onChange={() => this.setStatusPayment(1)}
                             >
-                                <span className="mb-0 switch-label" style={{paddingTop:'3px'}}>Acomte</span>
+                                <span className="mb-0 switch-label" style={{paddingTop:'3px'}}>Acompte</span>
                             </CustomInput>
                             <CustomInput
                                 className="custom-switch-success mr-1 mb-2"

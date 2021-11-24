@@ -152,7 +152,7 @@ class UserView extends React.Component {
                   </div>
                   <div className="d-flex user-info">
                     <div className="user-info-title font-weight-bold">
-                      Statut Martial
+                      Statut Marital
                     </div>
                     <div>{this.state.persoData['martial_status']}</div>
                   </div>
