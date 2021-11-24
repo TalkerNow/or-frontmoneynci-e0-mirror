@@ -64,7 +64,7 @@ class AddUser extends React.Component {
           society_city: null,
           society_country:null,
 
-          parent_id:null
+          parent_id:4
       },
       members:[],
   }
@@ -574,7 +574,7 @@ class AddUser extends React.Component {
                 <CustomInput type="select" name="member" required id="member" onChange={e => this.setState({ data: { ...this.state.data, parent_id: e.target.value} })}>
                     {this.state.members.map((member, index) => (
                         <option value={member.id}>{member.personal_informations.first_name + " " + member.personal_informations.last_name}</option>
-                    ))}
+                    )).reverse()}
                 </CustomInput>
               </FormGroup>
             </Col>
