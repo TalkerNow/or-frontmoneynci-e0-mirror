@@ -169,7 +169,7 @@ class AllContracts extends React.Component {
         filter: true,
         width: 150,
         cellRendererFramework: params => {
-          if ((params.data.document_state === "En cours" || params.data.document_state === "Termine") && params.data.status_payment == 2) {
+          if ((params.data.document_state === "En cours" || params.data.document_state === "Termine") && params.data.status_payment === 2) {
             return (
               <div
                   className="d-flex align-items-center cursor-pointer text-success"
@@ -178,7 +178,7 @@ class AllContracts extends React.Component {
                 <span>{params.data.end_payment + " €"}</span>
               </div>
           )
-        }else if (params.data.document_state == "Termine" && params.data.status_payment < 2) {
+        }else if (params.data.document_state === "Termine" && params.data.status_payment < 2) {
           return (
             <div
                 className="d-flex align-items-center cursor-pointer text-danger"
