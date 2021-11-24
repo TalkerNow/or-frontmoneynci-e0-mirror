@@ -275,6 +275,7 @@ class EditContract extends React.Component {
       var userid = this.state.user_id;
       parameters['user_id'] = userid;
       parameters['parent_id'] = this.state.parent_id;
+      parameters['comment'] = "Contract de " + this.state.perso['first_name'] + " "+ this.state.perso['last_name'];
       parameters['document_state'] = this.state.status;
       parameters['subscribe_services'] = sub_services;
       parameters['status_payment'] = this.state.status_payment;
@@ -369,6 +370,7 @@ class EditContract extends React.Component {
       parameters['user_id'] = this.state.user_id;;
       parameters['parent_id'] = this.state.parent_id;
       parameters['subscribe_services'] = sub_services;
+      parameters['comment'] = "Contract de " + this.state.perso['first_name'] + " "+ this.state.perso['last_name'];
       parameters['status_payment'] = this.state.status_payment;
       parameters['values'] = JSON.stringify(input_values);
       parameters['advanced_payment'] = this.state.formValues['TOTALTTC']?this.state.formValues['TOTALTTC']:0;
