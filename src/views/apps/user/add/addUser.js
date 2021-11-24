@@ -64,7 +64,7 @@ class AddUser extends React.Component {
           society_city: null,
           society_country:null,
 
-          parent_id:null
+          parent_id:4
       },
       members:[],
   }
