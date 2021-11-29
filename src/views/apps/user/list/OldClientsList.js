@@ -78,7 +78,7 @@ class OldClientsList extends React.Component {
       //   headerCheckboxSelectionFilteredOnly: true,
       //   headerCheckboxSelection: true
       // },
-      {
+      /*{
         headerName: "Nom",
         field: "cl_nom",
         filter: true,
@@ -120,8 +120,8 @@ class OldClientsList extends React.Component {
         field: "cl_mail",
         filter: true,
         width: 200
-      },
-      {
+      }
+      /*{
         headerName: "Date de Création",
         field: "cl_date",
         filter: true,

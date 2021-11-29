@@ -94,37 +94,37 @@ class ClientsList extends React.Component {
           )
         }
       },
-      {
-        headerName: "Prestation",
-        field: "subscribe_services",
-        filter: true,
-        width: 220,
-        cellRendererFramework: params => {
-          return (
-              <>
-                {(() => {
-                  let subscribe_service = params.data.subscribe_services;
-                  if(subscribe_service == null || subscribe_service == ""){
-                    return <div></div>;
-                  }else{
-                    let lst_subscribe_services = subscribe_service.replaceAll('"','').trim().split('/');
-                    const tags = [];
-                    lst_subscribe_services.forEach(function(service) {
-                      if(service != ''){
-                        tags.push(<Chip
-                            className="m-0 text-center ml-1"
-                            color={chipColors[service.trim()]}
-                            text={service}
-                        />);
-                      }
-                    })
-                    return tags;
-                  }
-                })()}
-              </>
-          )
-        }
-      },
+      // {
+      //   headerName: "Prestation",
+      //   field: "subscribe_services",
+      //   filter: true,
+      //   width: 220,
+      //   cellRendererFramework: params => {
+      //     return (
+      //         <>
+      //           {(() => {
+      //             let subscribe_service = params.data.subscribe_services;
+      //             if(subscribe_service == null || subscribe_service == ""){
+      //               return <div></div>;
+      //             }else{
+      //               let lst_subscribe_services = subscribe_service.replaceAll('"','').trim().split('/');
+      //               const tags = [];
+      //               lst_subscribe_services.forEach(function(service) {
+      //                 if(service != ''){
+      //                   tags.push(<Chip
+      //                       className="m-0 text-center ml-1"
+      //                       color={chipColors[service.trim()]}
+      //                       text={service}
+      //                   />);
+      //                 }
+      //               })
+      //               return tags;
+      //             }
+      //           })()}
+      //         </>
+      //     )
+      //   }
+      // },
       {
         headerName: "Technicien Nom",
         field: "technician_name",
@@ -159,12 +159,12 @@ class ClientsList extends React.Component {
           )
         }
       },
-      {
-        headerName: "Statut",
-        field: "status",
-        filter: true,
-        width: 130,
-      },
+      // {
+      //   headerName: "Statut",
+      //   field: "status",
+      //   filter: true,
+      //   width: 130,
+      // },
       {
         headerName: "Sécutité Social",
         field: "SS1",
@@ -179,7 +179,7 @@ class ClientsList extends React.Component {
         }
       },
       {
-        headerName: "FA",
+        headerName: "FA (depreciate)",
         field: "status_fa",
         filter: true,
         width: 130,

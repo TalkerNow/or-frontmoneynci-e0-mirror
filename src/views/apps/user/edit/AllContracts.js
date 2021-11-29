@@ -23,7 +23,16 @@ import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss"
 import "../../../../assets/scss/pages/users.scss"
 import Moment from "react-moment";
 import SweetAlert from "react-bootstrap-sweetalert";
+import Chip from "../../../../../src/components/@vuexy/chips/ChipComponent"
 
+const chipColors = {
+  CH: "warning",
+  SIMU: "success",
+  AR: "primary",
+  TFD: "danger",
+  ACTU: 'primary',
+  RAC: 'warning'
+}
 class AllContracts extends React.Component {
   state = {
     defaultAlert : false,
@@ -46,20 +55,20 @@ class AllContracts extends React.Component {
     },
     searchVal: "",
     columnDefs: [
+      // {
+      //   headerName: "ID",
+      //   field: "id",
+      //   width: 150,
+      //   filter: true,
+      //   checkboxSelection: true,
+      //   headerCheckboxSelectionFilteredOnly: true,
+      //   headerCheckboxSelection: true
+      // },
       {
-        headerName: "ID",
-        field: "id",
-        width: 150,
-        filter: true,
-        checkboxSelection: true,
-        headerCheckboxSelectionFilteredOnly: true,
-        headerCheckboxSelection: true
-      },
-      {
-        headerName: "Commentaire",
+        headerName: "contrat",
         field: "comment",
         filter: true,
-        width: 500,
+        width: 300,
         cellRendererFramework: params => {
           return (
               <div
@@ -72,10 +81,41 @@ class AllContracts extends React.Component {
         }
       },
       {
+        headerName: "Prestation",
+        field: "subscribe_services",
+        filter: true,
+        width: 220,
+        cellRendererFramework: params => {
+          return (
+              <>
+                {(() => {
+                  let subscribe_service = params.data.subscribe_services;
+                  if(subscribe_service === null || subscribe_service === ""){
+                    return <div></div>;
+                  }else{
+                    let lst_subscribe_services = subscribe_service.replaceAll('"','').trim().split('/');
+                    const tags = [];
+                    lst_subscribe_services.forEach(function(service) {
+                      if(service !== ''){
+                        tags.push(<Chip
+                            className="m-0 text-center ml-1"
+                            color={chipColors[service.trim()]}
+                            text={service}
+                        />);
+                      }
+                    })
+                    return tags;
+                  }
+                })()}
+              </>
+          )
+        }
+      },
+      {
         headerName: "Montant",
         field: "advanced_payment",
         filter: true,
-        width: 200,
+        width: 150,
         cellRendererFramework: params => {
           return (
               <div
@@ -88,10 +128,82 @@ class AllContracts extends React.Component {
         }
       },
       {
+        headerName: "Acompte",
+        field: "pre_payment",
+        filter: true,
+        width: 150,
+        cellRendererFramework: params => {
+          if ((params.data.document_state === "En cours" || params.data.document_state === "Termine") && params.data.status_payment >= 1) {
+            return (
+              <div
+                  className="d-flex align-items-center cursor-pointer text-success"
+                  //onClick={() => history.push("/app/user/edit/" + params.data.id)}
+              >
+                <span>{params.data.pre_payment + " €"}</span>
+              </div>
+          )
+        }else if ((params.data.document_state === "En cours" || params.data.document_state === "Termine") && params.data.status_payment < 1) {
+          return (
+            <div
+                className="d-flex align-items-center cursor-pointer text-danger"
+                //onClick={() => history.push("/app/user/edit/" + params.data.id)}
+            >
+              <span>{params.data.pre_payment + " €"}</span>
+            </div>
+        )
+      } else {
+            return (
+              <div
+                  className="d-flex align-items-center cursor-pointer"
+                  //onClick={() => history.push("/app/user/edit/" + params.data.id)}
+              >
+                <span>{params.data.pre_payment + " €"}</span>
+              </div>
+          )
+        }
+      }
+      },
+      {
+        headerName: "solde",
+        field: "end_payment",
+        filter: true,
+        width: 150,
+        cellRendererFramework: params => {
+          if ((params.data.document_state === "En cours" || params.data.document_state === "Termine") && params.data.status_payment === 2) {
+            return (
+              <div
+                  className="d-flex align-items-center cursor-pointer text-success"
+                  //onClick={() => history.push("/app/user/edit/" + params.data.id)}
+              >
+                <span>{params.data.end_payment + " €"}</span>
+              </div>
+          )
+        }else if (params.data.document_state === "Termine" && params.data.status_payment < 2) {
+          return (
+            <div
+                className="d-flex align-items-center cursor-pointer text-danger"
+                //onClick={() => history.push("/app/user/edit/" + params.data.id)}
+            >
+              <span>{params.data.end_payment + " €"}</span>
+            </div>
+        )
+      } else {
+            return (
+              <div
+                  className="d-flex align-items-center cursor-pointer"
+                  //onClick={() => history.push("/app/user/edit/" + params.data.id)}
+              >
+                <span>{params.data.end_payment + " €"}</span>
+              </div>
+          )
+        }
+      }
+      },
+      {
         headerName: "Etat",
         field: "document_state",
         filter: true,
-        width: 200,
+        width: 170,
         cellRendererFramework: params => {
           return (
               params.data.user &&
@@ -99,7 +211,7 @@ class AllContracts extends React.Component {
                   className="d-flex align-items-center cursor-pointer"
                   //onClick={() => history.push("/app/user/edit/" + params.data.id)}
               >
-                <span>{params.data.user.status}</span>
+                <span>{params.data.document_state}</span> 
               </div>
           )
         }
@@ -108,7 +220,7 @@ class AllContracts extends React.Component {
         headerName: "Date de Création",
         field: "date",
         filter: true,
-        width: 300,
+        width: 200,
         cellRendererFramework: params => {
           return (
               <div>
