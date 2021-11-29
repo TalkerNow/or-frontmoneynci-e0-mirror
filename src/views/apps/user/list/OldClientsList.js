@@ -83,6 +83,16 @@ class OldClientsList extends React.Component {
         field: "cl_nom",
         filter: true,
         width: 250,
+        cellRendererFramework: rowData => {
+          return (
+            <div
+              className="d-flex align-items-center cursor-pointer"
+              onClick={() => history.push("/app/user/oldedit/" + rowData.data.clcleunik + "/1", rowData.data.clcleunik)}
+            >
+              <span>{rowData.data.cl_nom}</span>
+            </div>
+          )
+        }
       },
       {
         headerName: "Prénom",
@@ -115,8 +125,14 @@ class OldClientsList extends React.Component {
         headerName: "Date de Création",
         field: "cl_date",
         filter: true,
-        width: 150,
+        width: 200,
       },
+      {
+        headerName: "N° de sécurité sociale",
+        field: "cl_ss1",
+        filter: true,
+        width: 230,
+      }
     ]
   }
 

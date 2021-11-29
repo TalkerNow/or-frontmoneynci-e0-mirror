@@ -30,6 +30,7 @@ const oldclientslist = lazy(() => import("./views/apps/user/list/OldClientsList"
 const memberslist = lazy(() => import("./views/apps/user/list/MembersList"))
 const createUser = lazy(() => import("./views/apps/user/add/addUser"))
 const userEdit = lazy(() => import("./views/apps/user/edit/ClientEdit"))
+const oldUserEdit = lazy(() => import("./views/apps/user/edit/OldClientEdit"))
 const memberEdit = lazy(() => import("./views/apps/user/edit/MemberEdit"))
 const AllContracts = lazy(() => import("./views/apps/user/edit/AllContracts"))
 
@@ -140,6 +141,7 @@ class AppRouter extends React.Component {
           <ProtectedRoute path="/app/user/clientslist" component={clientslist} isAuth={mapStateToProps()} authorisation={employee_acess}/>
           <ProtectedRoute path="/app/user/oldclientslist" component={oldclientslist} isAuth={mapStateToProps()} authorisation={employee_acess}/>
           <ProtectedRoute path="/app/user/edit/:id/:tab" component={userEdit} isAuth={mapStateToProps()} authorisation={employee_acess}/>
+          <ProtectedRoute path="/app/user/oldedit/:id/:tab" component={oldUserEdit} isAuth={mapStateToProps()} authorisation={employee_acess}/>
           <ProtectedRoute path="/app/user/clientTask/:id/:filter" component={clientTask} isAuth={mapStateToProps()} authorisation={employee_acess}/>
           <ProtectedRoute path="/app/user/createUser" component={createUser} isAuth={mapStateToProps()} authorisation={employee_acess}/>
 
