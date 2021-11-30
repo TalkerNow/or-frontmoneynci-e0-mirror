@@ -133,23 +133,23 @@ class AcompteCard extends React.Component {
             <div style={{width:'100%'}}>
               <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
                 <p className="mb-0">Acompte</p>
-                <h2 className="text-bold-600 mt-1 mb-25">{this.props.acompte_count}</h2>
+                <h2 className="text-bold-600 mt-1 mb-25">{this.props.current_acompte_count}</h2>
                 <h2 className="text-bold-600 mt-1 mb-25">
-                  <NumberFormat value={this.props.acompte_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
+                  <NumberFormat value={this.props.current_acompte_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
                 </h2>
               </div>
               <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block', marginLeft: '22%' }}>
                 <p className="mb-0">Total</p>
-                <h2 className="text-bold-600 mt-1 mb-25">{this.props.solde_count}</h2>
+                <h2 className="text-bold-600 mt-1 mb-25">{this.props.current_total_count}</h2>
                 <h2 className="text-bold-600 mt-1 mb-25">
-                  <NumberFormat value={this.props.solde_amount + this.props.acompte_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
+                  <NumberFormat value={this.props.solde_amount + this.props.current_total_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
                 </h2>
               </div>
               <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'right'}}>
                 <p className="mb-0">Solde</p>
-                <h2 className="text-bold-600 mt-1 mb-25">{this.props.solde_count}</h2>
+                <h2 className="text-bold-600 mt-1 mb-25">{this.props.current_solde_count}</h2>
                 <h2 className="text-bold-600 mt-1 mb-25">
-                  <NumberFormat value={this.props.solde_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
+                  <NumberFormat value={this.props.current_solde_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
                 </h2>
               </div>
             </div>
@@ -162,16 +162,16 @@ class AcompteCard extends React.Component {
             <div style={{width:'100%'}}>
               <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
                 <p className="mb-0">Total CA</p>
-                <h2 className="text-bold-600 mt-1 mb-25">{this.props.acompte_count}</h2>
+                <h2 className="text-bold-600 mt-1 mb-25">{this.props.opportunite_count}</h2>
                 <h2 className="text-bold-600 mt-1 mb-25">
-                  <NumberFormat value={this.props.acompte_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
+                  <NumberFormat value={this.props.opportunite_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
                 </h2>
               </div>
               <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'right'}}>
                 <p className="mb-0">Total CA</p>
-                <h2 className="text-bold-600 mt-1 mb-25">{this.props.solde_count}</h2>
+                <h2 className="text-bold-600 mt-1 mb-25">{this.props.total_ended_count}</h2>
                 <h2 className="text-bold-600 mt-1 mb-25">
-                  <NumberFormat value={this.props.solde_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
+                  <NumberFormat value={this.props.total_ended_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
                 </h2>
               </div>
             </div>
