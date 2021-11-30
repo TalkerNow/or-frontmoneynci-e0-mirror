@@ -66,12 +66,12 @@ class Index extends React.Component {
                 solde_amount={this.state.solde_amount}
             />
           </Col>
-          <Col lg="4" md="6" sm="6">
+          {/* <Col lg="4" md="6" sm="6">
             <SoldeCard
                 acompte_amount={this.state.acompte_amount}
                 solde_amount={this.state.solde_amount}
             />
-          </Col>
+          </Col> */}
         </Row>
         <Row className="match-height">
           <Col lg="8" md="6" sm="12">

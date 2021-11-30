@@ -1,8 +1,8 @@
 import React from "react"
 //import StatisticsCard from "./StatisticsCard"
 import {DollarSign} from "react-feather"
-//import axios from "axios";
-import {Card, CardBody} from "reactstrap";
+import axios from "axios";
+import {Card, CardBody, Input} from "reactstrap";
 //import Chart from "react-apexcharts";
 import { default as NumberFormat } from 'react-number-format';
 
@@ -55,7 +55,40 @@ const card_properties = {
     x: { show: false }
   }
 }
+const Config = {
+  headers: {
+    Authorization: "Bearer " + localStorage.getItem("token")
+  }
+}
+const FrenchMonth = ['janvier', 'février', 'mars', 'avril','mai','juin','juillet','août',
+                    'septembre','octobre','novembre', 'decembre', 'tous'];
+
 class AcompteCard extends React.Component {
+  state = {
+    month: null,
+    year: null,
+    total_amount: null
+  }
+  async componentDidMount() {
+    let tmp = new Date();
+    this.setState({ month: tmp.getMonth()})
+    this.setState({ year: tmp.getFullYear()})
+    await axios.get(global.config.server_url + "/get_statistics_total_income?year="+tmp.getFullYear()+'&month='+FrenchMonth[tmp.getMonth()], Config).then(response => {
+      this.setState({
+        total_amount: response.data.total_amount,
+      })
+    })
+  }
+  // TODO adapt to this card make the request to the good adress
+  onChangeDate(year, month){
+    axios.get(global.config.server_url + "/get_statistics_total_income?year="+year+"&month="+month, Config).then(response => {
+      this.setState({
+        total_amount: response.data.total_amount,
+      })
+      this.setState({ year: year })
+      this.setState({ month: month })
+    })
+  }
   render() {
     return (
         <Card>
@@ -70,28 +103,75 @@ class AcompteCard extends React.Component {
                           : null
               } ${!this.props.hideChart ? "pb-0" : "pb-2"} pt-2`}
           >
-            <div className="icon-section">
-              <div
-                  className="avatar avatar-stats p-50 m-0 bg-rgba-success"
-              >
-                <div className="avatar-content">
-                  <DollarSign className="success" size={22} />
-                </div>
+            <div className="title-section" style={{textAlign:'center',marginLeft:'auto',marginRight:'auto',marginTop:'10px' ,display:'inline-block',}}>
+              <div style={{display:'inline-block'}}>
+              <Input type="select" name="select" id="role" defaultValue={FrenchMonth[new Date().getMonth()]} style={{width:'130px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
+                     onChange={e => this.onChangeDate(this.state.year, e.target.value)}>
+                    <option>tous</option><option>janvier</option><option>février</option><option>mars</option>
+                    <option>avril</option><option>mai</option><option>juin</option>
+                    <option>juillet</option><option>août</option><option>septembre</option>
+                    <option>octobre</option><option>novembre</option><option>décembre</option>
+              </Input>
+              </div>
+              {/* TODO */}
+              <div style={{display:'inline-block', marginLeft:'10px'}}>
+              <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{width:'80px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
+                     onChange={e => this.onChangeDate(e.target.value, this.state.month)}>
+                       <option>tous</option>
+                    <option>2018</option><option>2019</option><option>2020</option>
+                    <option>2021</option><option>2022'</option><option>2023</option>
+                    <option>2024</option><option>2025</option><option>2026</option>
+                    <option>2027</option><option>2028</option><option>2029</option><option>2030</option>
+              </Input>
               </div>
             </div>
+            <hr style={{width:'100%', margin: '20px 0 0 0', display: 'block', border: 'none', height: '2px',
+                        background: '#7367f0'}} />
+            <div className="icon-section">
+            <p className="text-decoration-underline text-bold-600 mt-1 mb-25"><u>Chiffre d'affaires en cours</u></p>
+            </div>
             <div style={{width:'100%'}}>
-              <div className="title-section" style={{textAlign:'center',marginTop:'30px',display:'inline-block',float:'left'}}>
+              <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
                 <p className="mb-0">Acompte</p>
                 <h2 className="text-bold-600 mt-1 mb-25">{this.props.acompte_count}</h2>
                 <h2 className="text-bold-600 mt-1 mb-25">
-                  <NumberFormat value={this.props.acompte_amount} displayType={'text'} thousandSeparator={true} prefix={'€'} />
+                  <NumberFormat value={this.props.acompte_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
                 </h2>
               </div>
-              <div className="title-section" style={{textAlign:'center',marginTop:'30px',display:'inline-block',float:'right'}}>
+              <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block', marginLeft: '22%' }}>
+                <p className="mb-0">Total</p>
+                <h2 className="text-bold-600 mt-1 mb-25">{this.props.solde_count}</h2>
+                <h2 className="text-bold-600 mt-1 mb-25">
+                  <NumberFormat value={this.props.solde_amount + this.props.acompte_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
+                </h2>
+              </div>
+              <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'right'}}>
                 <p className="mb-0">Solde</p>
                 <h2 className="text-bold-600 mt-1 mb-25">{this.props.solde_count}</h2>
                 <h2 className="text-bold-600 mt-1 mb-25">
-                  <NumberFormat value={this.props.solde_amount} displayType={'text'} thousandSeparator={true} prefix={'€'} />
+                  <NumberFormat value={this.props.solde_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
+                </h2>
+              </div>
+            </div>
+            <hr style={{width:'100%', margin: '20px 0 0 0', display: 'block', border: 'none', height: '2px',
+                        background: '#7367f0'}} />
+            <div className="icon-section"  style={{width:'100%'}}>
+            <p className="text-bold-600 mt-1 mb-25" style={{display: "inline-block", float:'left'}}><u>Opportunités</u></p>
+            <p className="text-bold-600 mt-1 mb-75" style={{display: "inline-block", float: 'right'}}><u>Terminer</u></p>
+            </div>
+            <div style={{width:'100%'}}>
+              <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
+                <p className="mb-0">Total CA</p>
+                <h2 className="text-bold-600 mt-1 mb-25">{this.props.acompte_count}</h2>
+                <h2 className="text-bold-600 mt-1 mb-25">
+                  <NumberFormat value={this.props.acompte_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
+                </h2>
+              </div>
+              <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'right'}}>
+                <p className="mb-0">Total CA</p>
+                <h2 className="text-bold-600 mt-1 mb-25">{this.props.solde_count}</h2>
+                <h2 className="text-bold-600 mt-1 mb-25">
+                  <NumberFormat value={this.props.solde_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
                 </h2>
               </div>
             </div>
