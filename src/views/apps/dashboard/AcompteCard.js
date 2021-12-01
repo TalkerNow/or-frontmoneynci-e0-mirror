@@ -1,6 +1,6 @@
 import React from "react"
 //import StatisticsCard from "./StatisticsCard"
-import {DollarSign} from "react-feather"
+//import {DollarSign} from "react-feather"
 import axios from "axios";
 import {Card, CardBody, Input} from "reactstrap";
 //import Chart from "react-apexcharts";
@@ -61,7 +61,7 @@ const Config = {
   }
 }
 const FrenchMonth = ['janvier', 'février', 'mars', 'avril','mai','juin','juillet','août',
-                    'septembre','octobre','novembre', 'decembre', 'tous'];
+                    'septembre','octobre','novembre', 'decembre'];
 
 class AcompteCard extends React.Component {
   state = {

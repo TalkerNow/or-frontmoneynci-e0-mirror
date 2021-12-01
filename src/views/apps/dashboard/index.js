@@ -57,10 +57,6 @@ class Index extends React.Component {
         current_solde_amount: response.data.current_solde_amount,
         opportunite_count: response.data.opportunite_count,
         opportunite_amount: response.data.opportunite_amount,
-        // acompte_count: response.data.acompte_count,
-        // acompte_amount: response.data.acompte_amount,
-        // solde_count: response.data.solde_count,
-        // solde_amount: response.data.solde_amount,
       })
     })
   }
@@ -86,18 +82,9 @@ class Index extends React.Component {
                 current_solde_amount={this.state.current_solde_amount}
                 opportunite_count={this.state.opportunite_count}
                 opportunite_amount={this.state.opportunite_amount}
-                // acompte_count={this.state.acompte_count}
-                // acompte_amount={this.state.acompte_amount}
-                // solde_count={this.state.solde_count}
-                // solde_amount={this.state.solde_amount}
+                
             />
           </Col>
-          {/* <Col lg="4" md="6" sm="6">
-            <SoldeCard
-                acompte_amount={this.state.acompte_amount}
-                solde_amount={this.state.solde_amount}
-            />
-          </Col> */}
         </Row>
         <Row className="match-height">
           <Col lg="8" md="6" sm="12">
