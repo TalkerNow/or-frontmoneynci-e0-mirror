@@ -207,14 +207,14 @@ class AcompteCard extends React.Component {
             </div>
             <div style={{width:'100%'}}>
               <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
-                <p className="mb-0">Total CA</p>
+                {/* <p className="mb-0">Total CA</p> */}
                 <h2 className="text-bold-600 mt-1 mb-25">{this.state.opportunite_count}</h2>
                 <h2 className="text-bold-600 mt-1 mb-25">
                   <NumberFormat value={this.state.opportunite_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
                 </h2>
               </div>
               <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'right'}}>
-                <p className="mb-0">Total CA</p>
+                {/* <p className="mb-0">Total CA</p> */}
                 <h2 className="text-bold-600 mt-1 mb-25">{this.state.total_ended_count}</h2>
                 <h2 className="text-bold-600 mt-1 mb-25">
                   <NumberFormat value={this.state.total_ended_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
