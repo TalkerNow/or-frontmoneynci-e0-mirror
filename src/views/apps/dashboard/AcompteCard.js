@@ -67,24 +67,70 @@ class AcompteCard extends React.Component {
   state = {
     month: null,
     year: null,
-    total_amount: null
+    current_total_count: 0,
+    current_total_amount: 0,
+    total_ended_count: 0,
+    total_ended_amount: 0,
+    current_acompte_count: 0,
+    current_acompte_amount: 0,
+    current_solde_count: 0,
+    current_solde_amount: 0,
+    opportunite_count: 0,
+    opportunite_amount:0,
   }
   async componentDidMount() {
     let tmp = new Date();
     this.setState({ month: tmp.getMonth()})
     this.setState({ year: tmp.getFullYear()})
+    this.setState({
+      clients_count: this.props.clients_count,
+      clients_count_list: this.props.clients_count_list,
+      current_total_count: this.props.current_total_count,
+      current_total_amount: this.props.current_total_amount,
+      total_ended_count: this.props.total_ended_count,
+      total_ended_amount: this.props.total_ended_amount,
+      current_acompte_count: this.props.current_acompte_count,
+      current_acompte_amount: this.props.current_acompte_amount,
+      current_solde_count: this.props.current_solde_count,
+      current_solde_amount: this.props.current_solde_amount,
+      opportunite_count: this.props.opportunite_count,
+      opportunite_amount: this.props.opportunite_amount,
+    })
     await axios.get(global.config.server_url + "/get_statistics_total_income?year="+tmp.getFullYear()+'&month='+FrenchMonth[tmp.getMonth()], Config).then(response => {
       this.setState({
-        total_amount: response.data.total_amount,
-      })
+        
+          clients_count: response.data.clients_count,
+          clients_count_list: response.data.clients_count_list,
+          current_total_count: response.data.current_total_count,
+          current_total_amount: response.data.current_total_amount,
+          total_ended_count: response.data.total_ended_count,
+          total_ended_amount: response.data.total_ended_amount,
+          current_acompte_count: response.data.current_acompte_count,
+          current_acompte_amount: response.data.current_acompte_amount,
+          current_solde_count: response.data.current_solde_count,
+          current_solde_amount: response.data.current_solde_amount,
+          opportunite_count: response.data.opportunite_count,
+          opportunite_amount: response.data.opportunite_amount,
+        }) // ! replace by good value
     })
   }
   // TODO adapt to this card make the request to the good adress
-  onChangeDate(year, month){
+  onChangeDate(year, month) {
     axios.get(global.config.server_url + "/get_statistics_total_income?year="+year+"&month="+month, Config).then(response => {
-      this.setState({
-        total_amount: response.data.total_amount,
-      })
+        this.setState({
+          clients_count: response.data.clients_count,
+          clients_count_list: response.data.clients_count_list,
+          current_total_count: response.data.current_total_count,
+          current_total_amount: response.data.current_total_amount,
+          total_ended_count: response.data.total_ended_count,
+          total_ended_amount: response.data.total_ended_amount,
+          current_acompte_count: response.data.current_acompte_count,
+          current_acompte_amount: response.data.current_acompte_amount,
+          current_solde_count: response.data.current_solde_count,
+          current_solde_amount: response.data.current_solde_amount,
+          opportunite_count: response.data.opportunite_count,
+          opportunite_amount: response.data.opportunite_amount,
+        }) // ! replace by good value
       this.setState({ year: year })
       this.setState({ month: month })
     })
@@ -133,23 +179,23 @@ class AcompteCard extends React.Component {
             <div style={{width:'100%'}}>
               <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
                 <p className="mb-0">Acompte</p>
-                <h2 className="text-bold-600 mt-1 mb-25">{this.props.current_acompte_count}</h2>
+                <h2 className="text-bold-600 mt-1 mb-25">{this.state.current_acompte_count}</h2>
                 <h2 className="text-bold-600 mt-1 mb-25">
-                  <NumberFormat value={this.props.current_acompte_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
+                  <NumberFormat value={this.state.current_acompte_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
                 </h2>
               </div>
               <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block', marginLeft: '22%' }}>
                 <p className="mb-0">Total</p>
-                <h2 className="text-bold-600 mt-1 mb-25">{this.props.current_total_count}</h2>
+                <h2 className="text-bold-600 mt-1 mb-25">{this.state.current_total_count}</h2>
                 <h2 className="text-bold-600 mt-1 mb-25">
-                  <NumberFormat value={this.props.solde_amount + this.props.current_total_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
+                  <NumberFormat value={this.state.current_total_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
                 </h2>
               </div>
               <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'right'}}>
                 <p className="mb-0">Solde</p>
-                <h2 className="text-bold-600 mt-1 mb-25">{this.props.current_solde_count}</h2>
+                <h2 className="text-bold-600 mt-1 mb-25">{this.state.current_solde_count}</h2>
                 <h2 className="text-bold-600 mt-1 mb-25">
-                  <NumberFormat value={this.props.current_solde_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
+                  <NumberFormat value={this.state.current_solde_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
                 </h2>
               </div>
             </div>
@@ -162,16 +208,16 @@ class AcompteCard extends React.Component {
             <div style={{width:'100%'}}>
               <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
                 <p className="mb-0">Total CA</p>
-                <h2 className="text-bold-600 mt-1 mb-25">{this.props.opportunite_count}</h2>
+                <h2 className="text-bold-600 mt-1 mb-25">{this.state.opportunite_count}</h2>
                 <h2 className="text-bold-600 mt-1 mb-25">
-                  <NumberFormat value={this.props.opportunite_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
+                  <NumberFormat value={this.state.opportunite_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
                 </h2>
               </div>
               <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'right'}}>
                 <p className="mb-0">Total CA</p>
-                <h2 className="text-bold-600 mt-1 mb-25">{this.props.total_ended_count}</h2>
+                <h2 className="text-bold-600 mt-1 mb-25">{this.state.total_ended_count}</h2>
                 <h2 className="text-bold-600 mt-1 mb-25">
-                  <NumberFormat value={this.props.total_ended_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
+                  <NumberFormat value={this.state.total_ended_amount} displayType={'text'} thousandSeparator={true} suffix={'€'} />
                 </h2>
               </div>
             </div>
