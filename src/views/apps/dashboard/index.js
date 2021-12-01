@@ -25,10 +25,16 @@ class Index extends React.Component {
   state = {
     clients_count: 0,
     clients_count_list:[],
-    acompte_count:0,
-    acompte_amount:0,
-    solde_count:0,
-    solde_amount:0
+    current_total_count: 0,
+    current_total_amount: 0,
+    total_ended_count: 0,
+    total_ended_amount: 0,
+    current_acompte_count: 0,
+    current_acompte_amount: 0,
+    current_solde_count: 0,
+    current_solde_amount: 0,
+    opportunite_count: 0,
+    opportunite_amount:0,
   }
   async componentDidMount() {
     const Config = {
@@ -41,10 +47,16 @@ class Index extends React.Component {
       this.setState({
         clients_count: response.data.clients_count,
         clients_count_list: response.data.clients_count_list,
-        acompte_count: response.data.acompte_count,
-        acompte_amount: response.data.acompte_amount,
-        solde_count: response.data.solde_count,
-        solde_amount: response.data.solde_amount,
+        current_total_count: response.data.current_total_count,
+        current_total_amount: response.data.current_total_amount,
+        total_ended_count: response.data.total_ended_count,
+        total_ended_amount: response.data.total_ended_amount,
+        current_acompte_count: response.data.current_acompte_count,
+        current_acompte_amount: response.data.current_acompte_amount,
+        current_solde_count: response.data.current_solde_count,
+        current_solde_amount: response.data.current_solde_amount,
+        opportunite_count: response.data.opportunite_count,
+        opportunite_amount: response.data.opportunite_amount,
       })
     })
   }
@@ -60,16 +72,17 @@ class Index extends React.Component {
           </Col>
           <Col lg="4" md="6" sm="6">
             <AcompteCard
-                acompte_count={this.state.acompte_count}
-                acompte_amount={this.state.acompte_amount}
-                solde_count={this.state.solde_count}
-                solde_amount={this.state.solde_amount}
-            />
-          </Col>
-          <Col lg="4" md="6" sm="6">
-            <SoldeCard
-                acompte_amount={this.state.acompte_amount}
-                solde_amount={this.state.solde_amount}
+                current_total_count={this.state.current_total_count}
+                current_total_amount={this.state.current_total_amount}
+                total_ended_count={this.state.total_ended_count}
+                total_ended_amount={this.state.total_ended_amount}
+                current_acompte_count={this.state.current_acompte_count}
+                current_acompte_amount={this.state.current_acompte_amount}
+                current_solde_count={this.state.current_solde_count}
+                current_solde_amount={this.state.current_solde_amount}
+                opportunite_count={this.state.opportunite_count}
+                opportunite_amount={this.state.opportunite_amount}
+                
             />
           </Col>
         </Row>
