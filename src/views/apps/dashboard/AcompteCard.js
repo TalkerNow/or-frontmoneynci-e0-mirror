@@ -61,7 +61,7 @@ const Config = {
   }
 }
 const FrenchMonth = ['janvier', 'février', 'mars', 'avril','mai','juin','juillet','août',
-                    'septembre','octobre','novembre', 'decembre'];
+                    'septembre','octobre','novembre', 'décembre'];
 
 class AcompteCard extends React.Component {
   state = {
