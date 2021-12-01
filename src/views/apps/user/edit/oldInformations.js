@@ -35,6 +35,7 @@ class UserAccountTab extends React.Component {
   state = {
     rowData: [],
     persoData: [],
+    client_id: null,
   }
 
   async componentDidMount() {
@@ -46,6 +47,14 @@ class UserAccountTab extends React.Component {
     await axios.get(global.config.server_url + "/users?kind=oldclient", Config).then(response => {
         let rowData = response.data.data
         this.setState({ rowData })
+        console.log(rowData)
+      }).then(() => {
+        let i = 0;
+        console.log("logs" + this.state.rowData)
+        while(this.state.rowData[i].clcleunik != id) {
+            i++;
+        }
+        this.setState({ client_id:i })
       })
   }
 
@@ -57,10 +66,10 @@ class UserAccountTab extends React.Component {
       return "N/A";
   }
 
-  async getData(id)
+  getData(id)
   {
       let i = 0;
-      console.log(this.state.rowData)
+      console.log("logs" + this.state.rowData)
       while(this.state.rowData[i].clcleunik != id) {
         i++;
       }
@@ -179,7 +188,7 @@ class UserAccountTab extends React.Component {
                         <Label for="cl_nom">Nom</Label>
                         <Input
                             type="text"
-                            defaultValue={this.getData(this.props.id).cl_nom}
+                            defaultValue={this.rowData[this.state.client_id].cl_nom}
                             id="cl_nom"
                             placeholder="Nom"
                         />

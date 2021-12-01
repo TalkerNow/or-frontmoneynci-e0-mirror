@@ -69,16 +69,7 @@ class OldClientsList extends React.Component {
     },
     searchVal: "",
     columnDefs: [
-      // {
-      //   headerName: "ID",
-      //   field: "id",
-      //   width: 150,
-      //   filter: true,
-      //   checkboxSelection: true,
-      //   headerCheckboxSelectionFilteredOnly: true,
-      //   headerCheckboxSelection: true
-      // },
-      /*{
+      {
         headerName: "Nom",
         field: "cl_nom",
         filter: true,
@@ -120,8 +111,8 @@ class OldClientsList extends React.Component {
         field: "cl_mail",
         filter: true,
         width: 200
-      }
-      /*{
+      },
+      {
         headerName: "Date de Création",
         field: "cl_date",
         filter: true,
@@ -566,4 +557,3 @@ class OldClientsList extends React.Component {
 
 export default OldClientsList
 /* eslint-disable */
-
