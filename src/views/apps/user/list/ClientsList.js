@@ -144,7 +144,16 @@ class ClientsList extends React.Component {
         headerName: "Email",
         field: "email",
         filter: true,
-        width: 200
+        width: 200,
+        cellRendererFramework: rowData => {
+          var email = rowData.data.email;
+          return (
+            <div
+              className="d-flex align-items-center cursor-pointer"
+              onClick={() => window.location.href = "mailto:"+email+"?subject=Subject&body=message%20goes%20here"}
+            ><span>{rowData.data.email}</span></div>
+          )
+        }
       },
       {
         headerName: "Date de Création",

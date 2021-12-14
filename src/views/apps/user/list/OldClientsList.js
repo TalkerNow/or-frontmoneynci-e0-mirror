@@ -48,6 +48,18 @@ const chipColors = {
   RAC: 'warning'
 }
 class OldClientsList extends React.Component {
+  handleCopy = ({ target: { value } }) => {
+    this.setState({ value, copied: false })
+  }
+
+  onCopy = () => {
+    this.setState({ copied: true })
+    toast.success("Text Copied Successfully", {
+      position: toast.POSITION.TOP_CENTER,
+      autoClose: 2000
+    })
+  }
+
   state = {
     defaultAlert : false,
     confirmAlert : false,
@@ -553,6 +565,7 @@ class OldClientsList extends React.Component {
                         pagination={true}
                         pivotPanelShow="always"
                         paginationPageSize={pageSize}
+                        enableRangeSelection={true}
                         resizable={true}
                         enableRtl={context.state.direction === "rtl"}
                       />
