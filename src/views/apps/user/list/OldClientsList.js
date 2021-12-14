@@ -48,6 +48,18 @@ const chipColors = {
   RAC: 'warning'
 }
 class OldClientsList extends React.Component {
+  handleCopy = ({ target: { value } }) => {
+    this.setState({ value, copied: false })
+  }
+
+  onCopy = () => {
+    this.setState({ copied: true })
+    toast.success("Text Copied Successfully", {
+      position: toast.POSITION.TOP_CENTER,
+      autoClose: 2000
+    })
+  }
+
   state = {
     defaultAlert : false,
     confirmAlert : false,
@@ -74,16 +86,6 @@ class OldClientsList extends React.Component {
         field: "cl_nom",
         filter: true,
         width: 250,
-        cellRendererFramework: rowData => {
-          return (
-            <div
-              className="d-flex align-items-center cursor-pointer"
-              onClick={() => history.push("/app/user/oldedit/" + rowData.data.clcleunik + "/1", rowData.data.clcleunik)}
-            >
-              <span>{rowData.data.cl_nom}</span>
-            </div>
-          )
-        }
       },
       {
         headerName: "Prénom",
@@ -91,26 +93,50 @@ class OldClientsList extends React.Component {
         filter: true,
         width: 250,
       },
-      /*{
-        headerName: "Technicien Nom",
-        field: "technician_name",
+      {
+        headerName: "Date de naissance",
+        field: "cl_ne_le",
         filter: true,
         width: 250,
-        cellRendererFramework: params => {
-          return (
-              <div
-                  className="d-flex align-items-center cursor-pointer"
-              >
-                <span>{params.data.parent? params.data.parent.name:""}</span>
-              </div>
-          )
-        }
-      },*/
+      },
+      {
+        headerName: "N° de téléphone",
+        field: "cl_tel_port",
+        filter: true,
+        width: 250,
+      },
+      {
+        headerName: "Adresse",
+        field: "cl_adr",
+        filter: true,
+        width: 250,
+      },
+      {
+        headerName: "Ville",
+        field: "cl_ville",
+        filter: true,
+        width: 250,
+      },
+      {
+        headerName: "Code postal",
+        field: "cl_cp",
+        filter: true,
+        width: 250,
+      },
       {
         headerName: "Email",
         field: "cl_mail",
         filter: true,
-        width: 200
+        width: 200,
+        cellRendererFramework: rowData => {
+          var email = rowData.data.cl_mail;
+          return (
+            <div
+              className="d-flex align-items-center cursor-pointer"
+              onClick={() => window.location.href = "mailto:"+email+"?subject=Subject&body=message%20goes%20here"}
+            ><span>{rowData.data.cl_mail}</span></div>
+          )
+        }
       },
       {
         headerName: "Date de Création",
@@ -539,6 +565,7 @@ class OldClientsList extends React.Component {
                         pagination={true}
                         pivotPanelShow="always"
                         paginationPageSize={pageSize}
+                        enableRangeSelection={true}
                         resizable={true}
                         enableRtl={context.state.direction === "rtl"}
                       />
