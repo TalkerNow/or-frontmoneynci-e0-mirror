@@ -2578,6 +2578,13 @@
   "resolved" "https://registry.npmjs.org/amdefine/-/amdefine-1.0.1.tgz"
   "version" "1.0.1"
 
+"ansi-colors@^1.0.1":
+  "integrity" "sha512-SFKX67auSNoVR38N3L+nvsPjOE0bybKTYbkf5tRvushrAPQ9V75huw0ZxBkKVeRU9kqH3d6HA4xTckbwZ4ixmA=="
+  "resolved" "https://registry.npmjs.org/ansi-colors/-/ansi-colors-1.1.0.tgz"
+  "version" "1.1.0"
+  dependencies:
+    "ansi-wrap" "^0.1.0"
+
 "ansi-colors@^3.0.0":
   "integrity" "sha512-hHUXGagefjN2iRrID63xckIvotOXOojhQKWIPUZ4mNUZ9nLZW+7FMNoE1lOkEhNWYsx/7ysGIuJYCiMAA9FnrA=="
   "resolved" "https://registry.npmjs.org/ansi-colors/-/ansi-colors-3.2.4.tgz"
@@ -2625,6 +2632,11 @@
   "resolved" "https://registry.npmjs.org/ansi-regex/-/ansi-regex-5.0.1.tgz"
   "version" "5.0.1"
 
+"ansi-regex@^5.0.1":
+  "integrity" "sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ=="
+  "resolved" "https://registry.npmjs.org/ansi-regex/-/ansi-regex-5.0.1.tgz"
+  "version" "5.0.1"
+
 "ansi-styles@^2.2.1":
   "integrity" "sha1-tDLdM1i2NM914eRmQ2gkBTPB3b4="
   "resolved" "https://registry.npmjs.org/ansi-styles/-/ansi-styles-2.2.1.tgz"
@@ -2643,6 +2655,11 @@
   "version" "4.3.0"
   dependencies:
     "color-convert" "^2.0.1"
+
+"ansi-wrap@^0.1.0":
+  "integrity" "sha1-qCJQ3bABXponyoLoLqYDu/pF768="
+  "resolved" "https://registry.npmjs.org/ansi-wrap/-/ansi-wrap-0.1.0.tgz"
+  "version" "0.1.0"
 
 "anymatch@^2.0.0":
   "integrity" "sha512-5teOsQWABXHHBFP9y3skS5P3d/WfWXpv3FUpy+LorMrNYaT9pI4oLMQX7jzQ2KklNpGpWHzdCXTDT2Y3XGlZBw=="
@@ -3671,6 +3688,14 @@
     "supports-color" "^5.3.0"
 
 "chalk@^4.1.0":
+  "integrity" "sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA=="
+  "resolved" "https://registry.npmjs.org/chalk/-/chalk-4.1.2.tgz"
+  "version" "4.1.2"
+  dependencies:
+    "ansi-styles" "^4.1.0"
+    "supports-color" "^7.1.0"
+
+"chalk@^4.1.1":
   "integrity" "sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA=="
   "resolved" "https://registry.npmjs.org/chalk/-/chalk-4.1.2.tgz"
   "version" "4.1.2"
@@ -6446,6 +6471,19 @@
   "resolved" "https://registry.npmjs.org/gud/-/gud-1.0.0.tgz"
   "version" "1.0.0"
 
+"gulp-sass@^5.0.0":
+  "integrity" "sha512-J0aH0/2N4+2szGCeut0ktGHK0Wg8L9uWivuigrl7xv+nhxozBQRAKLrhnDDaTa3FeUWYtgT8w4RlgdhRy5v16w=="
+  "resolved" "https://registry.npmjs.org/gulp-sass/-/gulp-sass-5.0.0.tgz"
+  "version" "5.0.0"
+  dependencies:
+    "chalk" "^4.1.1"
+    "lodash" "^4.17.20"
+    "plugin-error" "^1.0.1"
+    "replace-ext" "^2.0.0"
+    "strip-ansi" "^6.0.0"
+    "transfob" "^1.0.0"
+    "vinyl-sourcemaps-apply" "^0.2.1"
+
 "gzip-size@5.1.1":
   "integrity" "sha512-FNHi6mmoHvs1mxZAds4PpdCS6QG8B4C1krxJsMutgxl5t3+GlRTzzI3NEkifXx2pVsOvJdOGSmIgDhQ55FwdPA=="
   "resolved" "https://registry.npmjs.org/gzip-size/-/gzip-size-5.1.1.tgz"
@@ -9095,10 +9133,10 @@
     "stdout-stream" "^1.4.0"
     "true-case-path" "^1.0.2"
 
-"node@^16.9.1":
-  "integrity" "sha512-Oz2AIg5iUGjllkWLUk0OeF8fuIqoSVKwBv1RPzq1crlEPF/eg0u+sgBOrkfkSbhM/7JDUb6xatN8jVaUpSGVnA=="
-  "resolved" "https://registry.npmjs.org/node/-/node-16.9.1.tgz"
-  "version" "16.9.1"
+"node@^10.24.1":
+  "integrity" "sha512-3VQ/FYdesUorecUrJAB2ZxeE9E/3Lm1/g0A5Y3jdnDgu/nK9G7pFBgDUlrLkb9FKWPd4pa3ieOAjvlwLSa4F1w=="
+  "resolved" "https://registry.npmjs.org/node/-/node-10.24.1.tgz"
+  "version" "10.24.1"
   dependencies:
     "node-bin-setup" "^1.0.0"
 
@@ -9756,6 +9794,16 @@
   "version" "3.1.0"
   dependencies:
     "find-up" "^3.0.0"
+
+"plugin-error@^1.0.1":
+  "integrity" "sha512-L1zP0dk7vGweZME2i+EeakvUNqSrdiI3F91TwEoYiGrAfUXmVv6fJIq4g82PAXxNsWOp0J7ZqQy/3Szz0ajTxA=="
+  "resolved" "https://registry.npmjs.org/plugin-error/-/plugin-error-1.0.1.tgz"
+  "version" "1.0.1"
+  dependencies:
+    "ansi-colors" "^1.0.1"
+    "arr-diff" "^4.0.0"
+    "arr-union" "^3.1.0"
+    "extend-shallow" "^3.0.2"
 
 "pn@^1.1.0":
   "integrity" "sha512-2qHaIQr2VLRFoxe2nASzsV6ef4yOOH+Fi9FBOVH6cqeSgUnoyySPZkxzLuzd+RYOQTRpROA0ztTMqxROKSb/nA=="
@@ -11776,6 +11824,11 @@
   dependencies:
     "is-finite" "^1.0.0"
 
+"replace-ext@^2.0.0":
+  "integrity" "sha512-UszKE5KVK6JvyD92nzMn9cDapSk6w/CaFZ96CnmDMUqH9oowfxF/ZjRITD25H4DnOQClLA4/j7jLGXXLVKxAug=="
+  "resolved" "https://registry.npmjs.org/replace-ext/-/replace-ext-2.0.0.tgz"
+  "version" "2.0.0"
+
 "request-promise-core@1.1.4":
   "integrity" "sha512-TTbAfBBRdWD7aNNOoVOBH4pN/KigV6LyapYNNlAPA8JwbovRti1E88m3sYAwsLi5ryhPKsE9APwnjFTgdUjTpw=="
   "resolved" "https://registry.npmjs.org/request-promise-core/-/request-promise-core-1.1.4.tgz"
@@ -12486,6 +12539,11 @@
   "resolved" "https://registry.npmjs.org/source-map/-/source-map-0.5.7.tgz"
   "version" "0.5.7"
 
+"source-map@^0.5.1":
+  "integrity" "sha1-igOdLRAh0i0eoUyA2OpGi6LvP8w="
+  "resolved" "https://registry.npmjs.org/source-map/-/source-map-0.5.7.tgz"
+  "version" "0.5.7"
+
 "source-map@^0.5.6":
   "integrity" "sha1-igOdLRAh0i0eoUyA2OpGi6LvP8w="
   "resolved" "https://registry.npmjs.org/source-map/-/source-map-0.5.7.tgz"
@@ -12826,11 +12884,11 @@
     "ansi-regex" "^4.1.0"
 
 "strip-ansi@^6.0.0":
-  "integrity" "sha512-AuvKTrTfQNYNIctbR1K/YGTR1756GycPsg7b9bdV9Duqur4gv6aKqHXah67Z8ImS7WEz5QVcOtlfW2rZEugt6w=="
-  "resolved" "https://registry.npmjs.org/strip-ansi/-/strip-ansi-6.0.0.tgz"
-  "version" "6.0.0"
+  "integrity" "sha512-Y38VPSHcqkFrCpFnQ9vuSXmquuv5oXOKpGeT6aGrr3o3Gc9AlVa6JBfUSOCnbxGGZF+/0ooI7KrPuUSztUdU5A=="
+  "resolved" "https://registry.npmjs.org/strip-ansi/-/strip-ansi-6.0.1.tgz"
+  "version" "6.0.1"
   dependencies:
-    "ansi-regex" "^5.0.0"
+    "ansi-regex" "^5.0.1"
 
 "strip-ansi@6.0.0":
   "integrity" "sha512-AuvKTrTfQNYNIctbR1K/YGTR1756GycPsg7b9bdV9Duqur4gv6aKqHXah67Z8ImS7WEz5QVcOtlfW2rZEugt6w=="
@@ -13285,6 +13343,11 @@
   dependencies:
     "punycode" "^2.1.0"
 
+"transfob@^1.0.0":
+  "integrity" "sha1-x/wnpbVDCtSGJnrmZtkj90oKsyA="
+  "resolved" "https://registry.npmjs.org/transfob/-/transfob-1.0.0.tgz"
+  "version" "1.0.0"
+
 "tree-changes@^0.5.1":
   "integrity" "sha512-O873xzV2xRZ6N059Mn06QzmGKEE21LlvIPbsk2G+GS9ZX5OCur6PIwuuh0rWpAPvLWQZPj0XObyG27zZyLHUzw=="
   "resolved" "https://registry.npmjs.org/tree-changes/-/tree-changes-0.5.1.tgz"
@@ -13695,6 +13758,13 @@
     "assert-plus" "^1.0.0"
     "core-util-is" "1.0.2"
     "extsprintf" "^1.2.0"
+
+"vinyl-sourcemaps-apply@^0.2.1":
+  "integrity" "sha1-q2VJ1h0XLCsbh75cUI0jnI74dwU="
+  "resolved" "https://registry.npmjs.org/vinyl-sourcemaps-apply/-/vinyl-sourcemaps-apply-0.2.1.tgz"
+  "version" "0.2.1"
+  dependencies:
+    "source-map" "^0.5.1"
 
 "vm-browserify@^1.0.1":
   "integrity" "sha512-2ham8XPWTONajOR0ohOKOHXkm3+gaBmGut3SRuu75xLd/RRaY6vqgh8NBYYk7+RW3u5AtzPQZG8F10LHkl0lAQ=="
