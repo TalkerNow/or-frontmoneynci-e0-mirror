@@ -268,6 +268,17 @@ class Contracts extends React.Component {
     }
     axios.delete(global.config.server_url + "/documents/" + id, Config).then(response => {})
   }
+  
+  handleAlert = (state, value, id) => {
+    this.setState({[state]: value})
+    if (id !== 0)
+      this.setState({IdToDelete: id})
+    if (state === "confirmAlert" && value === true) {
+      this.deleteDoc(this.state.IdToDelete)
+      var SelectedData = this.gridApi.getSelectedRows();
+      this.gridApi.updateRowData({remove: SelectedData})
+    }
+  }
 
   onGridReady = params => {
     this.gridApi = params.api
