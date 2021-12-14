@@ -74,7 +74,7 @@ class OldClientsList extends React.Component {
         field: "cl_nom",
         filter: true,
         width: 250,
-        cellRendererFramework: rowData => {
+        /*cellRendererFramework: rowData => {
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
@@ -83,11 +83,29 @@ class OldClientsList extends React.Component {
               <span>{rowData.data.cl_nom}</span>
             </div>
           )
-        }
+        }*/
       },
       {
         headerName: "Prénom",
         field: "cl_prenom",
+        filter: true,
+        width: 250,
+      },
+      {
+        headerName: "Date de naissance",
+        field: "cl_ne_le",
+        filter: true,
+        width: 250,
+      },
+      {
+        headerName: "N° de téléphone",
+        field: "cl_tel_port",
+        filter: true,
+        width: 250,
+      },
+      {
+        headerName: "Adresse",
+        field: "cl_adr",
         filter: true,
         width: 250,
       },
