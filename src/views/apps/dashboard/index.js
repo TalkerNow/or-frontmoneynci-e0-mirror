@@ -2,11 +2,12 @@
 
 import React from "react"
 import { Row, Col } from "reactstrap"
-import ClientCard from "./ClientCard"
+import ExpertCard from "./ExpertCard"
 import AcompteCard from "./AcompteCard"
 import SoldeCard from "./SoldeCard"
 import YearRevenue from "./YearRevenue"
 import RevenueGraph from "./RevenueGraph"
+import PrestationStatistics from "./Prestations"
 import "../../../assets/scss/plugins/charts/apex-charts.scss"
 import axios from "axios";
 
@@ -63,12 +64,16 @@ class Index extends React.Component {
     return (
       <React.Fragment>
         <Row className="match-height">
-          {/* <Col lg="4" md="6" sm="6">
-            <ClientCard
+          <Col lg="8" md="6" sm="6">
+            <ExpertCard
                 clients_count={this.state.clients_count}
                 clients_count_list={this.state.clients_count_list}
+                primary={$primary}
+                dangerLight={$danger_light}
+                strokeColor={$stroke_color}
+                labelColor={$label_color}
             />
-          </Col> */}
+          </Col>
           <Col lg="4" md="6" sm="6">
             <AcompteCard
                 current_total_count={this.state.current_total_count}
@@ -97,14 +102,20 @@ class Index extends React.Component {
                 labelColor={$label_color}
             />
           </Col>
-          {/* <Col lg="4" md="6" sm="12">
-            <YearRevenue
+          <Col lg="4" md="6" sm="12">
+            {/* <YearRevenue
+                primary={$primary}
+                dangerLight={$danger_light}
+                strokeColor={$stroke_color}
+                labelColor={$label_color}
+            /> */}
+            <PrestationStatistics
                 primary={$primary}
                 dangerLight={$danger_light}
                 strokeColor={$stroke_color}
                 labelColor={$label_color}
             />
-          </Col> */}
+          </Col>
         </Row>
       </React.Fragment>
     )
