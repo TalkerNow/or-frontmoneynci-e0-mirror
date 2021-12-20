@@ -1,6 +1,7 @@
 /* eslint-disable */
 import React from "react"
 import moment from "moment";
+import Moment from "react-moment";
 import {
   Card,
   CardBody,
@@ -569,7 +570,7 @@ class EditContract extends React.Component {
                       <div className="recipient-info" style={{padding:'0.5rem', border:'2px solid #8a8a8a',marginBottom:'10px'}}>
                           <Row>
                               <Col md="4" sm="12" className="contract-caption1-section"> <h5 className="bold-black">Date du contrat</h5> </Col>
-                              <Col md="8" sm="12"> <h6>{moment().format("DD/MM/YYYY")}</h6> </Col>
+                              <Col md="8" sm="12"> <h6><Moment format="DD-MM-YYYY HH:mm" date={this.ifExist("updated_at")} utc/></h6> </Col>
                           </Row>
                       </div>
                   </Col>

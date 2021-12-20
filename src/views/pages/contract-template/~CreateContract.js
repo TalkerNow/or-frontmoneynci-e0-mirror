@@ -291,7 +291,7 @@ class CreateContract extends React.Component {
                   <Col md="6" sm="12">
                       <div className="recipient-info" style={{paddingTop:'0.5rem', paddingBottom:'0.5rem'}}>
                           <Row>
-                              <Col md="5" sm="12" className="contract-caption1-section"> <h5 className="bold-black">Statut Martial</h5> </Col>
+                              <Col md="5" sm="12" className="contract-caption1-section"> <h5 className="bold-black">Statut Marital</h5> </Col>
                               <Col md="7" sm="12"> <h6>{this.ifExist("martial_status")}</h6> </Col>
                           </Row>
                           <Row>
