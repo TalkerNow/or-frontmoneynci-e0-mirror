@@ -32,6 +32,7 @@ import {
   X, UserPlus, PlusSquare, Home, FolderPlus
 } from "react-feather"
 import classnames from "classnames"
+import { CopyToClipboard } from "react-copy-to-clipboard"
 import { history } from "../../../../history"
 import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss"
 import "../../../../assets/scss/pages/users.scss"
@@ -48,13 +49,20 @@ const chipColors = {
   RAC: 'warning'
 }
 class OldClientsList extends React.Component {
-  handleCopy = ({ target: { value } }) => {
-    this.setState({ value, copied: false })
+  onCopy = (information) => {
+    this.setState({ copied: true })
+    navigator.clipboard.writeText(information)
+    toast.success("Copier dans le presse papier", {
+      position: toast.POSITION.TOP_CENTER,
+      autoClose: 2000
+    })
   }
 
-  onCopy = () => {
+  onCopyName = (nom, prenom) => {
+    var info = prenom + " " + nom
     this.setState({ copied: true })
-    toast.success("Text Copied Successfully", {
+    navigator.clipboard.writeText(info)
+    toast.success("Copier dans le presse papier", {
       position: toast.POSITION.TOP_CENTER,
       autoClose: 2000
     })
@@ -70,6 +78,8 @@ class OldClientsList extends React.Component {
     isVisible: true,
     reload: false,
     collapse: false,
+    copied: false,
+    value: "",
     status: "Opened",
     role: "All",
     selectStatus: "All",
@@ -86,42 +96,98 @@ class OldClientsList extends React.Component {
         field: "cl_nom",
         filter: true,
         width: 250,
+        cellRendererFramework: rowData => {
+          return (
+            <div
+              className="d-flex align-items-center cursor-pointer"
+              onClick={() => this.onCopyName(rowData.data.cl_nom,rowData.data.cl_prenom)}
+            ><span>{rowData.data.cl_nom}</span></div>
+          )
+        }
       },
       {
         headerName: "Prénom",
         field: "cl_prenom",
         filter: true,
         width: 250,
+        cellRendererFramework: rowData => {
+          return (
+            <div
+              className="d-flex align-items-center cursor-pointer"
+              onClick={() => this.onCopyName(rowData.data.cl_nom,rowData.data.cl_prenom)}
+            ><span>{rowData.data.cl_prenom}</span></div>
+          )
+        }
       },
       {
         headerName: "Date de naissance",
         field: "cl_ne_le",
         filter: true,
         width: 250,
+        cellRendererFramework: rowData => {
+          return (
+            <div
+              className="d-flex align-items-center cursor-pointer"
+              onClick={() => this.onCopy(rowData.data.cl_ne_le)}
+            ><span>{rowData.data.cl_ne_le}</span></div>
+          )
+        }
       },
       {
         headerName: "N° de téléphone",
         field: "cl_tel_port",
         filter: true,
         width: 250,
+        cellRendererFramework: rowData => {
+          return (
+            <div
+              className="d-flex align-items-center cursor-pointer"
+              onClick={() => this.onCopy(rowData.data.cl_tel_port)}
+            ><span>{rowData.data.cl_tel_port}</span></div>
+          )
+        }
       },
       {
         headerName: "Adresse",
         field: "cl_adr",
         filter: true,
         width: 250,
+        cellRendererFramework: rowData => {
+          return (
+            <div
+              className="d-flex align-items-center cursor-pointer"
+              onClick={() => this.onCopy(rowData.data.cl_adr)}
+            ><span>{rowData.data.cl_adr}</span></div>
+          )
+        }
       },
       {
         headerName: "Ville",
         field: "cl_ville",
         filter: true,
         width: 250,
+        cellRendererFramework: rowData => {
+          return (
+            <div
+              className="d-flex align-items-center cursor-pointer"
+              onClick={() => this.onCopy(rowData.data.cl_ville)}
+            ><span>{rowData.data.cl_ville}</span></div>
+          )
+        }
       },
       {
         headerName: "Code postal",
         field: "cl_cp",
         filter: true,
         width: 250,
+        cellRendererFramework: rowData => {
+          return (
+            <div
+              className="d-flex align-items-center cursor-pointer"
+              onClick={() => this.onCopy(rowData.data.cl_cp)}
+            ><span>{rowData.data.cl_cp}</span></div>
+          )
+        }
       },
       {
         headerName: "Email",
@@ -149,6 +215,14 @@ class OldClientsList extends React.Component {
         field: "cl_ss1",
         filter: true,
         width: 230,
+        cellRendererFramework: rowData => {
+          return (
+            <div
+              className="d-flex align-items-center cursor-pointer"
+              onClick={() => this.onCopy(rowData.data.cl_ssl)}
+            ><span>{rowData.data.cl_ssl}</span></div>
+          )
+        }
       }
     ]
   }
