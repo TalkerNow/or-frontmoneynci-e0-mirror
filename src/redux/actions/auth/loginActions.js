@@ -61,7 +61,7 @@ export const submitLoginWithFireBase = (email, password, remember) => {
                 })
               })
           }
-          history.push("/")
+          history.push("/app/profile")
         })
       })
   }
@@ -88,7 +88,7 @@ export const loginWithFB = () => {
             loggedInWith: "firebase"
           }
         })
-        if (user) history.push("/")
+        if (user) history.push("/app/profile")
       })
   }
 }
@@ -113,7 +113,7 @@ export const loginWithTwitter = () => {
             loggedInWith: "firebase"
           }
         })
-        history.push("/")
+        history.push("/app/profile")
       })
   }
 }
@@ -138,7 +138,7 @@ export const loginWithGoogle = () => {
             loggedInWith: "firebase"
           }
         })
-        history.push("/")
+        history.push("/app/profile")
       })
   }
 }
@@ -164,7 +164,7 @@ export const loginWithGithub = () => {
             loggedInWith: "firebase"
           }
         })
-        history.push("/")
+        history.push("/app/profile")
       })
   }
 }
