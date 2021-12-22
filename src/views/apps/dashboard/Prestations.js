@@ -98,7 +98,7 @@ class PrestationStatistics extends React.Component {
     })
   }
   getPrestation(year){
-    axios.get(global.config.server_url + "/get_prestation"+year, Config).then(response => {
+    axios.get(global.config.server_url + "/getPrestation?year="+year, Config).then(response => {
       this.setState({
         prestation: response.data.prestation,
       })
