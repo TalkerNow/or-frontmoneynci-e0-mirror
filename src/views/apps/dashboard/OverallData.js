@@ -1,80 +1,23 @@
 import React from "react"
-import {PenTool} from "react-feather"
-import axios from "axios";
+import { Compass } from "react-feather"
+//import axios from "axios";
+
 import {Card,
-    CardBody,
-    Nav,
-    NavItem,
-    NavLink,
-    TabContent,
-    CardHeader, CardTitle,
-    TabPane} from "reactstrap";
-    import classnames from "classnames"
-//import Chart from "react-apexcharts";
-import { default as NumberFormat } from 'react-number-format';
-import {history} from "../../../history";
+  CardBody,
+  Nav,
+  Input,
+  NavItem,
+  NavLink,
+  TabContent,
+  CardHeader, CardTitle,
+  TabPane} from "reactstrap";
+  import classnames from "classnames"
 
-/* eslint-disable */
-const card_properties = {
-  chart: {
-    id: "Clients",
-    toolbar: {
-      show: false
-    },
-    sparkline: {
-      enabled: true
-    }
-  },
-  grid: {
-    show: false
-  },
-  colors: ["#7367F0"],
-  dataLabels: {
-    enabled: false
-  },
-  stroke: {
-    curve: "smooth",
-    width: 2.5
-  },
-  fill: {
-    type: "gradient",
-    gradient: {
-      shadeIntensity: 0.9,
-      opacityFrom: 0.7,
-      opacityTo: 0.5,
-      stops: [0, 80, 100]
-    }
-  },
-
-  xaxis: {
-    labels: {
-      show: false
-    },
-    axisBorder: {
-      show: false
-    }
-  },
-  yaxis: {
-    labels: {
-      show: false
-    }
-  },
-  tooltip: {
-    x: { show: false }
-  }
-}
-const Config = {
-  headers: {
-    Authorization: "Bearer " + localStorage.getItem("token")
-  }
-}
-class PrestationStatistics extends React.Component {
-
+  class OverallCard extends React.Component {
   state = {
-    total_amount:0,
-    activeTab: '1',
-    prestation: ""
+    activeTab: "1",
   }
+
   toggle = tab => {
     if (this.state.activeTab !== tab) {
       this.setState({
@@ -82,32 +25,10 @@ class PrestationStatistics extends React.Component {
       })
     }
   }
-  async componentDidMount() {
-    await axios.get(global.config.server_url + "/get_statistics_total_income", Config).then(response => {
-      this.setState({
-        total_amount: response.data.total_amount,
-      })
-    })
-  }
-
-  onChangeYear(year){
-    axios.get(global.config.server_url + "/get_statistics_total_income?year="+year, Config).then(response => {
-      this.setState({
-        total_amount: response.data.total_amount,
-      })
-    })
-  }
-  getPrestation(year){
-    axios.get(global.config.server_url + "/get_prestation"+year, Config).then(response => {
-      this.setState({
-        prestation: response.data.prestation,
-      })
-    })
-  }
   render() {
     return (
         <Card>
-            <CardHeader>
+          <CardHeader>
           <div className="icon-section form-inline">
               <div
                   className={`avatar avatar-stats p-50 ${
@@ -117,10 +38,23 @@ class PrestationStatistics extends React.Component {
                   }`}
               >
                 <div className="avatar-content">
-                  <PenTool className="success" size={22} />
+                  <Compass className="success" size={22} />
                 </div>
               </div>
-              <CardTitle>Prestations</CardTitle>
+              <CardTitle>Informations</CardTitle>
+            </div>
+            <div className="title-section" style={{textAlign:'center',marginLeft:'auto',marginRight:'auto',marginTop:'10px' ,display:'inline-block',}}>
+              {/* TODO */}
+              <div style={{display:'inline-block', marginLeft:'10px'}}>
+              <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{width:'80px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
+                     onChange={e => this.onChangeDate(e.target.value, this.state.month)}>
+                       <option>tous</option>
+                    <option>2018</option><option>2019</option><option>2020</option>
+                    <option>2021</option><option>2022'</option><option>2023</option>
+                    <option>2024</option><option>2025</option><option>2026</option>
+                    <option>2027</option><option>2028</option><option>2029</option><option>2030</option>
+              </Input>
+              </div>
             </div>
           <Nav tabs className="px-2">
                     <NavItem>
@@ -172,20 +106,11 @@ class PrestationStatistics extends React.Component {
                           : null
               } ${!this.props.hideChart ? "pb-0" : "pb-2"} pt-2`}
           >
-           <TabContent activeTab={this.state.activeTab}>
+                  <TabContent activeTab={this.state.activeTab}>
                     <TabPane tabId="1">
                       {/* <LoginJWT /> */}
-                      <p>text Mois.</p>
-                      <div style={{width:'100%'}}>
-                        <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
-                          <p className="mb-0">Total</p>
-                          <h2 className="text-bold-600 mt-1 mb-25">{this.state.prestation}</h2>
-                          <h2 className="text-bold-600 mt-1 mb-25">
-                            <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
-                          </h2>
-                        </div>
-                      </div>
-                    </TabPane>
+                      <p>text Mois.</p>                   
+                       </TabPane>
                     <TabPane tabId="2">
                       <p>text Trimestre</p>
                     </TabPane>
@@ -198,4 +123,4 @@ class PrestationStatistics extends React.Component {
     )
   }
 }
-export default PrestationStatistics
+export default OverallCard

@@ -2,6 +2,7 @@
 
 import React from "react"
 import { Row, Col } from "reactstrap"
+import OverallCard from "./OverallData"
 import ExpertCard from "./ExpertCard"
 import AcompteCard from "./AcompteCard"
 import SoldeCard from "./SoldeCard"
@@ -64,6 +65,16 @@ class Index extends React.Component {
     return (
       <React.Fragment>
         <Row className="match-height">
+        <Col lg="12" md="6" sm="6">
+            <OverallCard
+                clients_count={this.state.clients_count}
+                clients_count_list={this.state.clients_count_list}
+                primary={$primary}
+                dangerLight={$danger_light}
+                strokeColor={$stroke_color}
+                labelColor={$label_color}
+            />
+          </Col>
           <Col lg="8" md="6" sm="6">
             <ExpertCard
                 clients_count={this.state.clients_count}
