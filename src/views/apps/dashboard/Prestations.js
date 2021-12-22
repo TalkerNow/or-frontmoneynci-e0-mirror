@@ -13,6 +13,7 @@ import {Card,
 //import Chart from "react-apexcharts";
 import { default as NumberFormat } from 'react-number-format';
 import {history} from "../../../history";
+import { actions } from "react-table";
 
 /* eslint-disable */
 const card_properties = {
@@ -86,6 +87,11 @@ class PrestationStatistics extends React.Component {
     await axios.get(global.config.server_url + "/get_statistics_total_income", Config).then(response => {
       this.setState({
         total_amount: response.data.total_amount,
+      })
+    })
+    await axios.get(global.config.server_url + "/getPrestation", Config).then(response => {
+      this.setState({
+        prestation: response.data.prestation,
       })
     })
   }
