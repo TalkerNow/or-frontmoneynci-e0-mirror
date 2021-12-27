@@ -83,12 +83,8 @@ class PrestationStatistics extends React.Component {
       })
     }
   }
+
   async componentDidMount() {
-    await axios.get(global.config.server_url + "/get_statistics_total_income", Config).then(response => {
-      this.setState({
-        total_amount: response.data.total_amount,
-      })
-    })
     await axios.get(global.config.server_url + "/getPrestation", Config).then(response => {
       this.setState({
         prestation: response.data.prestation,
@@ -96,14 +92,7 @@ class PrestationStatistics extends React.Component {
     })
   }
 
-  onChangeYear(year){
-    axios.get(global.config.server_url + "/get_statistics_total_income?year="+year, Config).then(response => {
-      this.setState({
-        total_amount: response.data.total_amount,
-      })
-    })
-  }
-  getPrestation(year){
+  getPrestation(year) {
     axios.get(global.config.server_url + "/getPrestation?year="+year, Config).then(response => {
       this.setState({
         prestation: response.data.prestation,

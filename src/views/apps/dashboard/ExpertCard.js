@@ -16,6 +16,7 @@ import {Card,
 class ExpertCard extends React.Component {
   state = {
     activeTab: "1",
+    prestation: []
   }
 
   toggle = tab => {
@@ -25,6 +26,23 @@ class ExpertCard extends React.Component {
       })
     }
   }
+
+  async componentDidMount() {
+    await axios.get(global.config.server_url + "/getMembersPrestation", Config).then(response => {
+      this.setState({
+        prestation: response.data.prestation,
+      })
+    })
+  }
+
+  getPrestation(year) {
+    axios.get(global.config.server_url + "/getPrestation?year="+year, Config).then(response => {
+      this.setState({
+        prestation: response.data.prestation,
+      })
+    })
+  }
+
   render() {
     return (
         <Card>
