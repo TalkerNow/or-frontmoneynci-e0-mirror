@@ -1,6 +1,6 @@
 import React from "react"
 import { Users } from "react-feather"
-//import axios from "axios";
+import axios from "axios";
 
 
 import {Card,
@@ -12,6 +12,12 @@ import {Card,
   CardHeader, CardTitle,
   TabPane} from "reactstrap";
   import classnames from "classnames"
+
+const Config = {
+  headers: {
+    Authorization: "Bearer " + localStorage.getItem("token")
+  }
+}
 
 class ExpertCard extends React.Component {
   state = {
