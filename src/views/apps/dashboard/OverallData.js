@@ -1,11 +1,11 @@
 import React from "react"
-import { Users } from "react-feather"
-import axios from "axios";
-
+import { Compass } from "react-feather"
+//import axios from "axios";
 
 import {Card,
   CardBody,
   Nav,
+  Input,
   NavItem,
   NavLink,
   TabContent,
@@ -13,16 +13,9 @@ import {Card,
   TabPane} from "reactstrap";
   import classnames from "classnames"
 
-const Config = {
-  headers: {
-    Authorization: "Bearer " + localStorage.getItem("token")
-  }
-}
-
-class ExpertCard extends React.Component {
+  class OverallCard extends React.Component {
   state = {
     activeTab: "1",
-    prestation: []
   }
 
   toggle = tab => {
@@ -32,23 +25,6 @@ class ExpertCard extends React.Component {
       })
     }
   }
-
-  async componentDidMount() {
-    await axios.get(global.config.server_url + "/getMembersPrestation", Config).then(response => {
-      this.setState({
-        prestation: response.data.prestation,
-      })
-    })
-  }
-
-  getPrestation(year) {
-    axios.get(global.config.server_url + "/getPrestation?year="+year, Config).then(response => {
-      this.setState({
-        prestation: response.data.prestation,
-      })
-    })
-  }
-
   render() {
     return (
         <Card>
@@ -62,10 +38,23 @@ class ExpertCard extends React.Component {
                   }`}
               >
                 <div className="avatar-content">
-                  <Users className="success" size={22} />
+                  <Compass className="success" size={22} />
                 </div>
               </div>
-              <CardTitle>Experts</CardTitle>
+              <CardTitle>Informations</CardTitle>
+            </div>
+            <div className="title-section" style={{textAlign:'center',marginLeft:'auto',marginRight:'auto',marginTop:'10px' ,display:'inline-block',}}>
+              {/* TODO */}
+              <div style={{display:'inline-block', marginLeft:'10px'}}>
+              <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{width:'80px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
+                     onChange={e => this.onChangeDate(e.target.value, this.state.month)}>
+                       <option>tous</option>
+                    <option>2018</option><option>2019</option><option>2020</option>
+                    <option>2021</option><option>2022'</option><option>2023</option>
+                    <option>2024</option><option>2025</option><option>2026</option>
+                    <option>2027</option><option>2028</option><option>2029</option><option>2030</option>
+              </Input>
+              </div>
             </div>
           <Nav tabs className="px-2">
                     <NavItem>
@@ -134,4 +123,4 @@ class ExpertCard extends React.Component {
     )
   }
 }
-export default ExpertCard
+export default OverallCard
