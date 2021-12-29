@@ -13,6 +13,7 @@ import {Card,
 //import Chart from "react-apexcharts";
 import { default as NumberFormat } from 'react-number-format';
 import {history} from "../../../history";
+import { actions } from "react-table";
 
 /* eslint-disable */
 const card_properties = {
@@ -72,7 +73,8 @@ class PrestationStatistics extends React.Component {
 
   state = {
     total_amount:0,
-    activeTab: '1'
+    activeTab: '1',
+    prestation: ""
   }
   toggle = tab => {
     if (this.state.activeTab !== tab) {
@@ -81,18 +83,19 @@ class PrestationStatistics extends React.Component {
       })
     }
   }
+
   async componentDidMount() {
-    await axios.get(global.config.server_url + "/get_statistics_total_income", Config).then(response => {
+    await axios.get(global.config.server_url + "/getPrestation", Config).then(response => {
       this.setState({
-        total_amount: response.data.total_amount,
+        prestation: response.data.prestation,
       })
     })
   }
 
-  onChangeYear(year){
-    axios.get(global.config.server_url + "/get_statistics_total_income?year="+year, Config).then(response => {
+  getPrestation(year) {
+    axios.get(global.config.server_url + "/getPrestation?year="+year, Config).then(response => {
       this.setState({
-        total_amount: response.data.total_amount,
+        prestation: response.data.prestation,
       })
     })
   }
@@ -167,8 +170,17 @@ class PrestationStatistics extends React.Component {
            <TabContent activeTab={this.state.activeTab}>
                     <TabPane tabId="1">
                       {/* <LoginJWT /> */}
-                      <p>text Mois.</p>                   
-                       </TabPane>
+                      <p>text Mois.</p>
+                      <div style={{width:'100%'}}>
+                        <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
+                          <p className="mb-0">Total</p>
+                          <h2 className="text-bold-600 mt-1 mb-25">{this.state.prestation}</h2>
+                          <h2 className="text-bold-600 mt-1 mb-25">
+                            <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
+                          </h2>
+                        </div>
+                      </div>
+                    </TabPane>
                     <TabPane tabId="2">
                       <p>text Trimestre</p>
                     </TabPane>
