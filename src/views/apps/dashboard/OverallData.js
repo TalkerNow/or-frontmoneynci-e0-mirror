@@ -178,6 +178,13 @@ import {Card,
                   <TabContent activeTab={this.state.activeTab}>
                     <TabPane tabId="1">
                       {/* <LoginJWT /> */}
+                      <Input type="select" name="select" id="role" defaultValue={FrenchMonth[new Date().getMonth()]} style={{width:'120px',marginRight:'auto',fontSize:'17px'}}
+                     onChange={e => this.onChangeDate(this.state.year, e.target.value)}>
+                    <option>tous</option><option>janvier</option><option>février</option><option>mars</option>
+                    <option>avril</option><option>mai</option><option>juin</option>
+                    <option>juillet</option><option>août</option><option>septembre</option>
+                    <option>octobre</option><option>novembre</option><option>décembre</option>
+              </Input>
                       <div className="icon-section form-inline" style={TodoComponent}>
                       <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
                         <div className={`avatar avatar-stats p-50 ${
