@@ -265,6 +265,19 @@ class PrestationStatistics extends React.Component {
                              <option>2027</option><option>2028</option><option>2029</option><option>2030</option>
                        </Input>
                        </div>
+                       <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
+                        {chipType.map(data => (
+                          <Chip
+                          className="m-2 d-flex text-center ml-1"
+                          color={chipColors[data.type]}
+                          text={data.type}
+                          />
+                          ))}
+                          <h2 className="text-bold-600 mt-1 mb-25">{this.state.prestation}</h2>
+                          <h2 className="text-bold-600 mt-1 mb-25">
+                            <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
+                          </h2>
+                        </div>
                        </div>
                     </TabPane>
                   </TabContent>
