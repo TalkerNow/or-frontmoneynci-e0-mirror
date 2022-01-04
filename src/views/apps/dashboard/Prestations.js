@@ -265,6 +265,8 @@ class PrestationStatistics extends React.Component {
                              <option>2027</option><option>2028</option><option>2029</option><option>2030</option>
                        </Input>
                        </div>
+                       </div>
+                       <div style={{width:'100%'}}>
                        <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
                         {chipType.map(data => (
                           <Chip
@@ -278,7 +280,7 @@ class PrestationStatistics extends React.Component {
                             <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
                           </h2>
                         </div>
-                       </div>
+                        </div>
                     </TabPane>
                   </TabContent>
           </CardBody>
