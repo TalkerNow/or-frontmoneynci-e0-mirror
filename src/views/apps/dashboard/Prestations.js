@@ -5,6 +5,7 @@ import {Card,
     CardBody,
     Nav,
     NavItem,
+    Input,
     NavLink,
     TabContent,
     CardHeader, CardTitle,
@@ -15,6 +16,28 @@ import { default as NumberFormat } from 'react-number-format';
 import {history} from "../../../history";
 import { actions } from "react-table";
 
+import Chip from "../../../../src/components/@vuexy/chips/ChipComponent"
+
+const chipColors = {
+  CH: "warning",
+  SIMU: "success",
+  AR: "primary",
+  TFD: "danger",
+  ACTU: 'primary',
+  RAC: 'warning'
+};
+
+const chipType = [
+    {type: 'CH'},
+    {type: 'SIMU'},
+    {type: 'AR'},
+    {type: 'TFD'},
+    {type: 'ACTU'},
+    {type: 'RAC'},
+];
+
+const FrenchMonth = ['janvier', 'février', 'mars', 'avril','mai','juin','juillet','août',
+                    'septembre','octobre','novembre', 'décembre'];
 /* eslint-disable */
 const card_properties = {
   chart: {
@@ -127,7 +150,7 @@ class PrestationStatistics extends React.Component {
                           this.toggle("1")
                         }}
                       >
-                        Mois
+                      Mois
                       </NavLink>
                     </NavItem>
                     <NavItem>
@@ -169,11 +192,35 @@ class PrestationStatistics extends React.Component {
           >
            <TabContent activeTab={this.state.activeTab}>
                     <TabPane tabId="1">
-                      {/* <LoginJWT /> */}
-                      <p>text Mois.</p>
+                       <div className="title-section" style={{textAlign:'center',marginLeft:'auto',marginRight:'auto',marginTop:'10px' ,display:'inline-block',}}>
+                       <div style={{display:'inline-block'}}>
+                       <Input type="select" name="select" id="role" defaultValue={FrenchMonth[new Date().getMonth()]} style={{width:'120px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
+                              onChange={console.log('change')}>
+                             <option>janvier</option><option>février</option><option>mars</option>
+                             <option>avril</option><option>mai</option><option>juin</option>
+                             <option>juillet</option><option>août</option><option>septembre</option>
+                             <option>octobre</option><option>novembre</option><option>décembre</option>
+                       </Input>
+                       </div>
+                       <div style={{display:'inline-block', marginLeft:'5px'}}>
+                       <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{width:'75px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
+                              onChange={console.log('change')}>   
+                             <option>2018</option><option>2019</option><option>2020</option>
+                             <option>2021</option><option>2022</option><option>2023</option>
+                             <option>2024</option><option>2025</option><option>2026</option>
+                             <option>2027</option><option>2028</option><option>2029</option><option>2030</option>
+                       </Input>
+                       </div>
+                       </div>
                       <div style={{width:'100%'}}>
                         <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
-                          <p className="mb-0">Total</p>
+                        {chipType.map(data => (
+                          <Chip
+                          className="m-2 d-flex text-center ml-1"
+                          color={chipColors[data.type]}
+                          text={data.type}
+                          />
+                          ))}
                           <h2 className="text-bold-600 mt-1 mb-25">{this.state.prestation}</h2>
                           <h2 className="text-bold-600 mt-1 mb-25">
                             <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
@@ -182,10 +229,43 @@ class PrestationStatistics extends React.Component {
                       </div>
                     </TabPane>
                     <TabPane tabId="2">
-                      <p>text Trimestre</p>
+                    <div className="title-section" style={{textAlign:'center',marginLeft:'auto',marginRight:'auto',marginTop:'10px' ,display:'inline-block',}}>
+                       <div style={{display:'inline-block', marginLeft:'5px'}}>
+                       <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{width:'130px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
+                              onChange={console.log('change')}>   
+                             <option>Trimestre 1</option><option>Trimestre 2</option><option>Trimestre 3</option>
+                             <option>Trimestre 4</option>
+                       </Input>
+                       </div>
+                       </div>
+                      <div style={{width:'100%'}}>
+                        <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
+                        {chipType.map(data => (
+                          <Chip
+                          className="m-2 d-flex text-center ml-1"
+                          color={chipColors[data.type]}
+                          text={data.type}
+                          />
+                          ))}
+                          <h2 className="text-bold-600 mt-1 mb-25">{this.state.prestation}</h2>
+                          <h2 className="text-bold-600 mt-1 mb-25">
+                            <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
+                          </h2>
+                        </div>
+                      </div>
                     </TabPane>
                     <TabPane tabId="3">
-                      <p> text Annes</p>
+                    <div className="title-section" style={{textAlign:'center',marginLeft:'auto',marginRight:'auto',marginTop:'10px' ,display:'inline-block',}}>
+                       <div style={{display:'inline-block', marginLeft:'5px'}}>
+                       <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{width:'75px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
+                              onChange={console.log('change')}>   
+                             <option>2018</option><option>2019</option><option>2020</option>
+                             <option>2021</option><option>2022</option><option>2023</option>
+                             <option>2024</option><option>2025</option><option>2026</option>
+                             <option>2027</option><option>2028</option><option>2029</option><option>2030</option>
+                       </Input>
+                       </div>
+                       </div>
                     </TabPane>
                   </TabContent>
           </CardBody>
