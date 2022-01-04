@@ -1,6 +1,6 @@
 import React from "react"
 import { Users } from "react-feather"
-//import axios from "axios";
+import axios from "axios";
 
 
 import {Card,
@@ -13,9 +13,16 @@ import {Card,
   TabPane} from "reactstrap";
   import classnames from "classnames"
 
+const Config = {
+  headers: {
+    Authorization: "Bearer " + localStorage.getItem("token")
+  }
+}
+
 class ExpertCard extends React.Component {
   state = {
     activeTab: "1",
+    prestation: []
   }
 
   toggle = tab => {
@@ -25,6 +32,23 @@ class ExpertCard extends React.Component {
       })
     }
   }
+
+  async componentDidMount() {
+    await axios.get(global.config.server_url + "/getMembersPrestation", Config).then(response => {
+      this.setState({
+        prestation: response.data.prestation,
+      })
+    })
+  }
+
+  getPrestation(year) {
+    axios.get(global.config.server_url + "/getPrestation?year="+year, Config).then(response => {
+      this.setState({
+        prestation: response.data.prestation,
+      })
+    })
+  }
+
   render() {
     return (
         <Card>

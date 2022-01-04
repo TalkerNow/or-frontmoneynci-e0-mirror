@@ -1,7 +1,13 @@
 import React from "react"
-import { Card, CardHeader, CardTitle, CardBody } from "reactstrap"
+import { Card, CardHeader, CardTitle, CardBody, Input } from "reactstrap"
 import Chart from "react-apexcharts"
 import axios from "axios";
+
+const Config = {
+  headers: {
+    Authorization: "Bearer " + localStorage.getItem("token")
+  }
+}
 
 class RevenueGraph extends React.Component {
   state = {
@@ -85,45 +91,56 @@ class RevenueGraph extends React.Component {
     series: [
       {
         name: "Acomptes",
-        data: [175, 125, 225, 175, 160, 189, 206, 134, 159, 216, 148, 123]
+        data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
       },
       {
         name: "Soldes",
-        data: [
-          -144,
-          -155,
-          -141,
-          -167,
-          -122,
-          -143,
-          -158,
-          -107,
-          -126,
-          -131,
-          -140,
-          -137
-        ]
+        data: [-0, -0, -0, -0, -0, -0, -0, -0, -0, -0, -0, -0]
       }
     ]
   }
 
-  async componentDidMount() {
-    const Config = {
-      headers: {
-        Authorization: "Bearer " + localStorage.getItem("token")
+  onChangeYear(year) {
+    axios.get(global.config.server_url + "/get_statistics_total_income?year="+year, Config).then(response => {
+      let acomptelist = [];
+      let soldlist = [];
+      for (let i = 0; i < 12; i++) {
+        acomptelist[i] = response.data[i+1]['current_acompte_amount'];
+        soldlist[i] = - response.data[i+1]['current_solde_amount'];
       }
-    }
-
-    await axios.get(global.config.server_url + "/get_statistics_per_month", Config).then(response => {
       this.setState({
         series: [
           {
             name: "Acomptes",
-            data: response.data.lst_acompte_amount
+            data: acomptelist
           },
           {
             name: "Soldes",
-            data: response.data.lst_solde_amount
+            data: soldlist
+          }
+        ]
+      })
+    })
+  }
+
+  async componentDidMount() {
+
+    await axios.get(global.config.server_url + "/get_statistics_total_income", Config).then(response => {
+      let acomptelist = [];
+      let soldlist = [];
+      for (let i = 0; i < 12; i++) {
+        acomptelist[i] = response.data[i+1]['current_acompte_amount'];
+        soldlist[i] = response.data[i+1]['current_solde_amount'];
+      }
+      this.setState({
+        series: [
+          {
+            name: "Acomptes",
+            data: acomptelist
+          },
+          {
+            name: "Soldes",
+            data: soldlist
           }
         ]
       })
@@ -134,6 +151,17 @@ class RevenueGraph extends React.Component {
       <Card>
         <CardHeader>
           <CardTitle>Revenue Report</CardTitle>
+          <div className="title-section" style={{textAlign:'celter',margin:'left' ,display:'inline-block',}}>
+                       <div style={{display:'inline-block', marginLeft:'5px'}}>
+                       <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{width:'75px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
+                              onChange={e => this.onChangeYear(e.target.value)}>   
+                             <option>2018</option><option>2019</option><option>2020</option>
+                             <option>2021</option><option>2022</option><option>2023</option>
+                             <option>2024</option><option>2025</option><option>2026</option>
+                             <option>2027</option><option>2028</option><option>2029</option><option>2030</option>
+                       </Input>
+                       </div>
+                       </div>
         </CardHeader>
         <CardBody>
           <Chart
