@@ -204,7 +204,7 @@ class PrestationStatistics extends React.Component {
                        </div>
                        <div style={{display:'inline-block', marginLeft:'5px'}}>
                        <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{width:'75px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
-                              onChange={console.log('change')}>   
+                              onChange={e => this.getPrestation(e.target.value)}>   
                              <option>2018</option><option>2019</option><option>2020</option>
                              <option>2021</option><option>2022</option><option>2023</option>
                              <option>2024</option><option>2025</option><option>2026</option>
@@ -258,7 +258,7 @@ class PrestationStatistics extends React.Component {
                     <div className="title-section" style={{textAlign:'center',marginLeft:'auto',marginRight:'auto',marginTop:'10px' ,display:'inline-block',}}>
                        <div style={{display:'inline-block', marginLeft:'5px'}}>
                        <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{width:'75px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
-                              onChange={console.log('change')}>   
+                              onChange={e => this.getPrestation(e.target.value)}>   
                              <option>2018</option><option>2019</option><option>2020</option>
                              <option>2021</option><option>2022</option><option>2023</option>
                              <option>2024</option><option>2025</option><option>2026</option>
