@@ -9,6 +9,7 @@ import {Card,
   NavItem,
   NavLink,
   TabContent,
+  Input,
   CardHeader, CardTitle,
   TabPane} from "reactstrap";
   import classnames from "classnames"
@@ -19,6 +20,8 @@ const Config = {
   }
 }
 
+const FrenchMonth = ['janvier', 'février', 'mars', 'avril','mai','juin','juillet','août',
+                    'septembre','octobre','novembre', 'décembre'];
 class ExpertCard extends React.Component {
   state = {
     activeTab: "1",
@@ -41,8 +44,8 @@ class ExpertCard extends React.Component {
     })
   }
 
-  getPrestation(year) {
-    axios.get(global.config.server_url + "/getPrestation?year="+year, Config).then(response => {
+  getMembersPrestation(year) {
+    axios.get(global.config.server_url + "/getMembersPrestation?year="+year, Config).then(response => {
       this.setState({
         prestation: response.data.prestation,
       })
@@ -119,13 +122,52 @@ class ExpertCard extends React.Component {
           >
                   <TabContent activeTab={this.state.activeTab}>
                     <TabPane tabId="1">
-                      {/* <LoginJWT /> */}
+                    <div className="title-section" style={{textAlign:'center',marginLeft:'auto',marginRight:'auto',marginTop:'10px' ,display:'inline-block',}}>
+                       <div style={{display:'inline-block'}}>
+                       <Input type="select" name="select" id="role" defaultValue={FrenchMonth[new Date().getMonth()]} style={{width:'120px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
+                              onChange={console.log('change')}>
+                             <option>janvier</option><option>février</option><option>mars</option>
+                             <option>avril</option><option>mai</option><option>juin</option>
+                             <option>juillet</option><option>août</option><option>septembre</option>
+                             <option>octobre</option><option>novembre</option><option>décembre</option>
+                       </Input>
+                       </div>
+                       <div style={{display:'inline-block', marginLeft:'5px'}}>
+                       <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{width:'75px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
+                              onChange={e => this.getMembersPrestation(e.target.value)}>   
+                             <option>2018</option><option>2019</option><option>2020</option>
+                             <option>2021</option><option>2022</option><option>2023</option>
+                             <option>2024</option><option>2025</option><option>2026</option>
+                             <option>2027</option><option>2028</option><option>2029</option><option>2030</option>
+                       </Input>
+                       </div>
+                       </div>
                       <p>text Mois.</p>                   
                        </TabPane>
                     <TabPane tabId="2">
+                    <div className="title-section" style={{textAlign:'center',marginLeft:'auto',marginRight:'auto',marginTop:'10px' ,display:'inline-block',}}>
+                       <div style={{display:'inline-block', marginLeft:'5px'}}>
+                       <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{width:'130px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
+                              onChange={console.log('change')}>   
+                             <option>Trimestre 1</option><option>Trimestre 2</option><option>Trimestre 3</option>
+                             <option>Trimestre 4</option>
+                       </Input>
+                       </div>
+                       </div>
                       <p>text Trimestre</p>
                     </TabPane>
                     <TabPane tabId="3">
+                    <div className="title-section" style={{textAlign:'center',marginLeft:'auto',marginRight:'auto',marginTop:'10px' ,display:'inline-block',}}>
+                       <div style={{display:'inline-block', marginLeft:'5px'}}>
+                       <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{width:'75px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
+                              onChange={e => this.getMembersPrestation(e.target.value)}>   
+                             <option>2018</option><option>2019</option><option>2020</option>
+                             <option>2021</option><option>2022</option><option>2023</option>
+                             <option>2024</option><option>2025</option><option>2026</option>
+                             <option>2027</option><option>2028</option><option>2029</option><option>2030</option>
+                       </Input>
+                       </div>
+                       </div>
                       <p> text Annes</p>
                     </TabPane>
                   </TabContent>
