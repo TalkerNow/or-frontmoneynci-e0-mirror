@@ -61,6 +61,8 @@ class EditContract extends React.Component {
     subscribe_services:'',
     status: null,
     status_payment: null,
+    deposit_date: null,
+    sold_date: null
   }
 
   ifExist(name)
@@ -187,6 +189,7 @@ class EditContract extends React.Component {
           formValues: this.state.formValues
       })
   }
+   
   async componentDidMount() {
       const Config = {
           headers: {
@@ -224,7 +227,16 @@ class EditContract extends React.Component {
                 parent_id: response.data.data.user.parent_id
               }
           );
-          
+          this.setState(
+              {
+                  deposit_date: response.data.data.deposit_date
+              }
+          );
+          this.setState(
+            {
+                sold_date: response.data.data.sold_date
+            }
+          )
           this.setState(
             {
               status: response.data.data.document_state
@@ -284,6 +296,8 @@ class EditContract extends React.Component {
       parameters['advanced_payment'] = this.state.formValues['TOTALTTC']?this.state.formValues['TOTALTTC']:0;
       parameters['pre_payment'] = parseFloat(this.state.formValues['FINAL75'])?parseFloat(this.state.formValues['FINAL75']) : 0;
       parameters['end_payment'] = parseFloat(this.state.formValues['FINAL25'])?parseFloat(this.state.formValues['FINAL25']) : 0;
+      parameters['deposit_date'] = this.state.deposit_date;
+      parameters['sold_date'] = this.state.sold_date;
       axios.put(global.config.server_url + "/documents/" + this.props.match.params.id, parameters, Config)
           .then(function(result) {
               console.log(parameters)
@@ -297,17 +311,21 @@ class EditContract extends React.Component {
   }
   setStatusPayment(value) {
     if (value == 1) {
-        if (this.state.status_payment == 0)
+        if (this.state.status_payment == 0) {
             this.setState({status_payment:1})
+            this.setState({deposit_date: moment().format("YYYY-MM-DD HH:mm:ss")})
+        }
         else 
             this.setState({status_payment:0})
     } else if (value == 2) {
-        if (this.state.status_payment <= 1)
+        if (this.state.status_payment <= 1) {
             this.setState({status_payment:2})
-        else 
+            this.setState({sold_date: moment().format("YYYY-MM-DD HH:mm:ss")})
+        }
+        else {
             this.setState({status_payment:1})
+        }
     }
-   // Math.abs(this.state.status_payment - 2)
   }
     setSubscribeServices(){
         const Config = {
@@ -377,6 +395,9 @@ class EditContract extends React.Component {
       parameters['advanced_payment'] = this.state.formValues['TOTALTTC']?this.state.formValues['TOTALTTC']:0;
       parameters['pre_payment'] = parseFloat(this.state.formValues['FINAL75'])?parseFloat(this.state.formValues['FINAL75']) : 0;
       parameters['end_payment'] = parseFloat(this.state.formValues['FINAL25'])?parseFloat(this.state.formValues['FINAL25']) : 0;
+      parameters['deposit_date'] = this.state.deposit_date;
+      parameters['sold_date'] = this.state.sold_date;
+
       axios.put(global.config.server_url + "/documents/" + this.props.match.params.id, parameters, Config)
           .then(function(result) {
           })
