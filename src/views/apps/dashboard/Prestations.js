@@ -97,7 +97,7 @@ class PrestationStatistics extends React.Component {
   state = {
     total_amount:0,
     activeTab: '1',
-    prestation: ""
+    prestation: null
   }
   toggle = tab => {
     if (this.state.activeTab !== tab) {
@@ -110,7 +110,7 @@ class PrestationStatistics extends React.Component {
   async componentDidMount() {
     await axios.get(global.config.server_url + "/getPrestation", Config).then(response => {
       this.setState({
-        prestation: response.data.prestation,
+        prestation: response.data,
       })
     })
   }
@@ -118,7 +118,7 @@ class PrestationStatistics extends React.Component {
   getPrestation(year) {
     axios.get(global.config.server_url + "/getPrestation?year="+year, Config).then(response => {
       this.setState({
-        prestation: response.data.prestation,
+        prestation: response.data,
       })
     })
   }
@@ -212,21 +212,67 @@ class PrestationStatistics extends React.Component {
                        </Input>
                        </div>
                        </div>
-                      <div style={{width:'100%'}}>
-                        <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
+                       <div style={{width:'100%'}} className='form-inline'>
+                         <div>
+                         <h4>En Attente</h4>
+                       <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
                         {chipType.map(data => (
+                          <div className='form-inline mt-1'>
                           <Chip
-                          className="m-2 d-flex text-center ml-1"
+                          className="d-flex text-center ml-2"
+                          width='40px'
                           color={chipColors[data.type]}
                           text={data.type}
                           />
+                          <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
+                          </div>
                           ))}
-                          <h2 className="text-bold-600 mt-1 mb-25">{this.state.prestation}</h2>
-                          <h2 className="text-bold-600 mt-1 mb-25">
+                          
+                          {/* <h2 className="text-bold-600 mt-1 mb-25">
                             <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
-                          </h2>
+                          </h2> */}
                         </div>
-                      </div>
+                        </div>
+                        <div className='ml-3'>
+                        <h4>En Cours</h4>
+                       <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
+                        {chipType.map(data => (
+                          <div className='form-inline mt-1'>   
+                          <Chip
+                          className="d-flex text-center ml-2"
+                          color={chipColors[data.type]}
+                          text={data.type}
+                          />
+                          
+                          <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
+                          </div>
+                          ))}
+                          
+                          {/* <h2 className="text-bold-600 mt-1 mb-25">
+                            <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
+                          </h2> */}
+                        </div>
+                        </div>
+                        <div className='ml-3'>
+                        <h4>Termine</h4>
+                       <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
+                        {chipType.map(data => (
+                          <div className='form-inline mt-1'>
+                          <Chip
+                          className="d-flex text-center ml-2"
+                          width='40px'
+                          color={chipColors[data.type]}
+                          text={data.type}
+                          />
+                          <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
+                          </div>
+                          ))}
+                          {/* <h2 className="text-bold-600 mt-1 mb-25">
+                            <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
+                          </h2> */}
+                        </div>
+                        </div>
+                        </div>
                     </TabPane>
                     <TabPane tabId="2">
                     <div className="title-section" style={{textAlign:'center',marginLeft:'auto',marginRight:'auto',marginTop:'10px' ,display:'inline-block',}}>
@@ -247,21 +293,68 @@ class PrestationStatistics extends React.Component {
                        </Input>
                        </div>
                        </div>
-                      <div style={{width:'100%'}}>
-                        <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
+                       <div style={{width:'100%'}} className='form-inline'>
+                         <div>
+                         <h4>En Attente</h4>
+                       <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
                         {chipType.map(data => (
+                          <div className='form-inline mt-1'>
                           <Chip
-                          className="m-2 d-flex text-center ml-1"
+                          className="d-flex text-center ml-2"
+                          width='40px'
                           color={chipColors[data.type]}
                           text={data.type}
                           />
+                          <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
+                          </div>
                           ))}
-                          <h2 className="text-bold-600 mt-1 mb-25">{this.state.prestation}</h2>
-                          <h2 className="text-bold-600 mt-1 mb-25">
+                          
+                          {/* <h2 className="text-bold-600 mt-1 mb-25">
                             <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
-                          </h2>
+                          </h2> */}
                         </div>
-                      </div>
+                        </div>
+                        <div className='ml-3'>
+                        <h4>En Cours</h4>
+                       <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
+                        {chipType.map(data => (
+                          <div className='form-inline mt-1'>   
+                          <Chip
+                          className="d-flex text-center ml-2"
+                          color={chipColors[data.type]}
+                          text={data.type}
+                          />
+                          
+                          <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
+                          </div>
+                          ))}
+                          
+                          {/* <h2 className="text-bold-600 mt-1 mb-25">
+                            <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
+                          </h2> */}
+                        </div>
+                        </div>
+                        <div className='ml-3'>
+                        <h4>Termine</h4>
+                       <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
+                        {chipType.map(data => (
+                          <div className='form-inline mt-1'>
+                          <Chip
+                          className="d-flex text-center ml-2"
+                          width='40px'
+                          color={chipColors[data.type]}
+                          text={data.type}
+                          />
+                          <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
+                          </div>
+                          ))}
+                          
+                          {/* <h2 className="text-bold-600 mt-1 mb-25">
+                            <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
+                          </h2> */}
+                        </div>
+                        </div>
+                        </div>
                     </TabPane>
                     <TabPane tabId="3">
                     <div className="title-section" style={{textAlign:'center',marginLeft:'auto',marginRight:'auto',marginTop:'10px' ,display:'inline-block',}}>
@@ -275,19 +368,66 @@ class PrestationStatistics extends React.Component {
                        </Input>
                        </div>
                        </div>
-                       <div style={{width:'100%'}}>
+                       <div style={{width:'100%'}} className='form-inline'>
+                         <div>
+                         <h4>En Attente</h4>
                        <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
                         {chipType.map(data => (
+                          <div className='form-inline mt-1'>
                           <Chip
-                          className="m-2 d-flex text-center ml-1"
+                          className="d-flex text-center ml-2"
+                          width='40px'
                           color={chipColors[data.type]}
                           text={data.type}
                           />
+                          <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
+                          </div>
                           ))}
-                          <h2 className="text-bold-600 mt-1 mb-25">{this.state.prestation}</h2>
-                          <h2 className="text-bold-600 mt-1 mb-25">
+                          
+                          {/* <h2 className="text-bold-600 mt-1 mb-25">
                             <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
-                          </h2>
+                          </h2> */}
+                        </div>
+                        </div>
+                        <div className='ml-3'>
+                        <h4>En Cours</h4>
+                       <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
+                        {chipType.map(data => (
+                          <div className='form-inline mt-1'>   
+                          <Chip
+                          className="d-flex text-center ml-2"
+                          color={chipColors[data.type]}
+                          text={data.type}
+                          />
+                          
+                          <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
+                          </div>
+                          ))}
+                          
+                          {/* <h2 className="text-bold-600 mt-1 mb-25">
+                            <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
+                          </h2> */}
+                        </div>
+                        </div>
+                        <div className='ml-3'>
+                        <h4>Termine</h4>
+                       <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
+                        {chipType.map(data => (
+                          <div className='form-inline mt-1'>
+                          <Chip
+                          className="d-flex text-center ml-2"
+                          width='40px'
+                          color={chipColors[data.type]}
+                          text={data.type}
+                          />
+                          <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
+                          </div>
+                          ))}
+                          
+                          {/* <h2 className="text-bold-600 mt-1 mb-25">
+                            <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
+                          </h2> */}
+                        </div>
                         </div>
                         </div>
                     </TabPane>
