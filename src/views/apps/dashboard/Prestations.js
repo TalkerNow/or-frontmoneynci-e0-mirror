@@ -237,6 +237,15 @@ class PrestationStatistics extends React.Component {
                              <option>Trimestre 4</option>
                        </Input>
                        </div>
+                       <div style={{display:'inline-block', marginLeft:'5px'}}>
+                       <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{width:'75px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
+                              onChange={e => this.getPrestation(e.target.value)}>   
+                             <option>2018</option><option>2019</option><option>2020</option>
+                             <option>2021</option><option>2022</option><option>2023</option>
+                             <option>2024</option><option>2025</option><option>2026</option>
+                             <option>2027</option><option>2028</option><option>2029</option><option>2030</option>
+                       </Input>
+                       </div>
                        </div>
                       <div style={{width:'100%'}}>
                         <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
