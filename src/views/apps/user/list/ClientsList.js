@@ -163,7 +163,7 @@ class ClientsList extends React.Component {
         cellRendererFramework: params => {
           return (
               <div>
-                <Moment format="DD-MM-YYYY" date={params.data.created_at} utc/>
+                <Moment format="DD-MM-YYYY HH:mm" date={params.data.created_at} utc/>
               </div>
           )
         }

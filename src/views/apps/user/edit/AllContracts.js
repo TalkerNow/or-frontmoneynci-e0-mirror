@@ -218,7 +218,7 @@ class AllContracts extends React.Component {
       },
       {
         headerName: "Date de Création",
-        field: "date",
+        field: "created_at",
         filter: true,
         width: 200,
         cellRendererFramework: params => {
