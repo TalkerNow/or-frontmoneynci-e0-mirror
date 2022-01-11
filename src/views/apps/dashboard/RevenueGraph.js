@@ -111,12 +111,12 @@ class RevenueGraph extends React.Component {
       this.setState({
         series: [
           {
-            name: "Acomptes",
-            data: acomptelist
-          },
-          {
             name: "Soldes",
             data: soldlist
+          },
+          {
+            name: "Acomptes",
+            data: acomptelist
           }
         ]
       })
@@ -130,17 +130,17 @@ class RevenueGraph extends React.Component {
       let soldlist = [];
       for (let i = 0; i < 12; i++) {
         acomptelist[i] = response.data[i+1]['current_acompte_amount'];
-        soldlist[i] = response.data[i+1]['current_solde_amount'];
+        soldlist[i] = - response.data[i+1]['current_solde_amount'];
       }
       this.setState({
         series: [
           {
-            name: "Acomptes",
-            data: acomptelist
-          },
-          {
             name: "Soldes",
             data: soldlist
+          },
+          {
+            name: "Acomptes",
+            data: acomptelist
           }
         ]
       })
