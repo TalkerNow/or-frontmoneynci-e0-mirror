@@ -1,19 +1,21 @@
 import React from "react"
-import {PenTool} from "react-feather"
+import { PenTool } from "react-feather"
 import axios from "axios";
-import {Card,
-    CardBody,
-    Nav,
-    NavItem,
-    Input,
-    NavLink,
-    TabContent,
-    CardHeader, CardTitle,
-    TabPane} from "reactstrap";
-    import classnames from "classnames"
+import {
+  Card,
+  CardBody,
+  Nav,
+  NavItem,
+  Input,
+  NavLink,
+  TabContent,
+  CardHeader, CardTitle,
+  TabPane
+} from "reactstrap";
+import classnames from "classnames"
 //import Chart from "react-apexcharts";
 import { default as NumberFormat } from 'react-number-format';
-import {history} from "../../../history";
+import { history } from "../../../history";
 import { actions } from "react-table";
 
 import Chip from "../../../../src/components/@vuexy/chips/ChipComponent"
@@ -28,16 +30,16 @@ const chipColors = {
 };
 
 const chipType = [
-    {type: 'CH'},
-    {type: 'SIMU'},
-    {type: 'AR'},
-    {type: 'TFD'},
-    {type: 'ACTU'},
-    {type: 'RAC'},
+  { type: 'CH' },
+  { type: 'SIMU' },
+  { type: 'AR' },
+  { type: 'TFD' },
+  { type: 'ACTU' },
+  { type: 'RAC' },
 ];
 
-const FrenchMonth = ['janvier', 'février', 'mars', 'avril','mai','juin','juillet','août',
-                    'septembre','octobre','novembre', 'décembre'];
+const FrenchMonth = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août',
+  'septembre', 'octobre', 'novembre', 'décembre'];
 /* eslint-disable */
 const card_properties = {
   chart: {
@@ -95,7 +97,7 @@ const Config = {
 class PrestationStatistics extends React.Component {
 
   state = {
-    total_amount:0,
+    total_amount: 0,
     activeTab: '1',
     prestation: null
   }
@@ -116,7 +118,7 @@ class PrestationStatistics extends React.Component {
   }
 
   getPrestation(year) {
-    axios.get(global.config.server_url + "/getPrestation?year="+year, Config).then(response => {
+    axios.get(global.config.server_url + "/getPrestation?year=" + year, Config).then(response => {
       this.setState({
         prestation: response.data,
       })
@@ -124,316 +126,314 @@ class PrestationStatistics extends React.Component {
   }
   render() {
     return (
-        <Card>
-            <CardHeader>
+      <Card>
+        <CardHeader>
           <div className="icon-section form-inline">
-              <div
-                  className={`avatar avatar-stats p-50 ${
-                      this.props.iconBg
-                          ? `bg-rgba-${this.props.iconBg}`
-                          : "bg-rgba-primary"
-                  }`}
+            <div
+              className={`avatar avatar-stats p-50 ${this.props.iconBg
+                  ? `bg-rgba-${this.props.iconBg}`
+                  : "bg-rgba-primary"
+                }`}
+            >
+              <div className="avatar-content">
+                <PenTool className="success" size={22} />
+              </div>
+            </div>
+            <CardTitle>Prestations</CardTitle>
+          </div>
+          <Nav tabs className="px-2">
+            <NavItem>
+              <NavLink
+                className={classnames({
+                  active: this.state.activeTab === "1"
+                })}
+                onClick={() => {
+                  this.toggle("1")
+                }}
               >
-                <div className="avatar-content">
-                  <PenTool className="success" size={22} />
+                Mois
+              </NavLink>
+            </NavItem>
+            <NavItem>
+              <NavLink
+                className={classnames({
+                  active: this.state.activeTab === "2"
+                })}
+                onClick={() => {
+                  this.toggle("2")
+                }}
+              >
+                Trimestre
+              </NavLink>
+            </NavItem>
+            <NavItem>
+              <NavLink
+                className={classnames({
+                  active: this.state.activeTab === "3"
+                })}
+                onClick={() => {
+                  this.toggle("3")
+                }}
+              >
+                Annes
+              </NavLink>
+            </NavItem>
+          </Nav>
+        </CardHeader>
+        <CardBody
+          className={`${this.props.className ? this.props.className : "stats-card-body"} d-flex ${!this.props.iconRight && !this.props.hideChart
+              ? "flex-column align-items-start"
+              : this.props.iconRight
+                ? "justify-content-between flex-row-reverse align-items-center"
+                : this.props.hideChart && !this.props.iconRight
+                  ? "justify-content-center flex-column text-center"
+                  : null
+            } ${!this.props.hideChart ? "pb-0" : "pb-2"} pt-2`}
+        >
+          <TabContent activeTab={this.state.activeTab}>
+            <TabPane tabId="1">
+              <div className="title-section" style={{ textAlign: 'center', marginLeft: 'auto', marginRight: 'auto', marginTop: '10px', display: 'inline-block', }}>
+                <div style={{ display: 'inline-block' }}>
+                  <Input type="select" name="select" id="role" defaultValue={FrenchMonth[new Date().getMonth()]} style={{ width: '120px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
+                    onChange={console.log('change')}>
+                    <option>janvier</option><option>février</option><option>mars</option>
+                    <option>avril</option><option>mai</option><option>juin</option>
+                    <option>juillet</option><option>août</option><option>septembre</option>
+                    <option>octobre</option><option>novembre</option><option>décembre</option>
+                  </Input>
+                </div>
+                <div style={{ display: 'inline-block', marginLeft: '5px' }}>
+                  <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{ width: '75px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
+                    onChange={e => this.getPrestation(e.target.value)}>
+                    <option>2018</option><option>2019</option><option>2020</option>
+                    <option>2021</option><option>2022</option><option>2023</option>
+                    <option>2024</option><option>2025</option><option>2026</option>
+                    <option>2027</option><option>2028</option><option>2029</option><option>2030</option>
+                  </Input>
                 </div>
               </div>
-              <CardTitle>Prestations</CardTitle>
-            </div>
-          <Nav tabs className="px-2">
-                    <NavItem>
-                      <NavLink
-                        className={classnames({
-                          active: this.state.activeTab === "1"
-                        })}
-                        onClick={() => {
-                          this.toggle("1")
-                        }}
-                      >
-                      Mois
-                      </NavLink>
-                    </NavItem>
-                    <NavItem>
-                      <NavLink
-                        className={classnames({
-                          active: this.state.activeTab === "2"
-                        })}
-                        onClick={() => {
-                          this.toggle("2")
-                        }}
-                      >
-                        Trimestre
-                      </NavLink>
-                    </NavItem>
-                    <NavItem>
-                      <NavLink
-                        className={classnames({
-                          active: this.state.activeTab === "3"
-                        })}
-                        onClick={() => {
-                          this.toggle("3")
-                        }}
-                      >
-                        Annes
-                      </NavLink>
-                    </NavItem>
-                  </Nav>
-        </CardHeader>
-          <CardBody
-              className={`${this.props.className ? this.props.className : "stats-card-body"} d-flex ${
-                  !this.props.iconRight && !this.props.hideChart
-                      ? "flex-column align-items-start"
-                      : this.props.iconRight
-                      ? "justify-content-between flex-row-reverse align-items-center"
-                      : this.props.hideChart && !this.props.iconRight
-                          ? "justify-content-center flex-column text-center"
-                          : null
-              } ${!this.props.hideChart ? "pb-0" : "pb-2"} pt-2`}
-          >
-           <TabContent activeTab={this.state.activeTab}>
-                    <TabPane tabId="1">
-                       <div className="title-section" style={{textAlign:'center',marginLeft:'auto',marginRight:'auto',marginTop:'10px' ,display:'inline-block',}}>
-                       <div style={{display:'inline-block'}}>
-                       <Input type="select" name="select" id="role" defaultValue={FrenchMonth[new Date().getMonth()]} style={{width:'120px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
-                              onChange={console.log('change')}>
-                             <option>janvier</option><option>février</option><option>mars</option>
-                             <option>avril</option><option>mai</option><option>juin</option>
-                             <option>juillet</option><option>août</option><option>septembre</option>
-                             <option>octobre</option><option>novembre</option><option>décembre</option>
-                       </Input>
-                       </div>
-                       <div style={{display:'inline-block', marginLeft:'5px'}}>
-                       <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{width:'75px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
-                              onChange={e => this.getPrestation(e.target.value)}>   
-                             <option>2018</option><option>2019</option><option>2020</option>
-                             <option>2021</option><option>2022</option><option>2023</option>
-                             <option>2024</option><option>2025</option><option>2026</option>
-                             <option>2027</option><option>2028</option><option>2029</option><option>2030</option>
-                       </Input>
-                       </div>
-                       </div>
-                       <div style={{width:'100%'}} className='form-inline'>
-                         <div>
-                         <h4>En Attente</h4>
-                       <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
-                        {chipType.map(data => (
-                          <div className='form-inline mt-1'>
-                          <Chip
+              <div style={{ width: '100%' }} className='form-inline'>
+                <div>
+                  <h4>En Attente</h4>
+                  <div className="title-section" style={{ textAlign: 'center', marginTop: '10px', display: 'inline-block', float: 'left' }}>
+                    {chipType.map(data => (
+                      <div className='form-inline mt-1'>
+                        <Chip
                           className="d-flex text-center ml-2"
                           width='40px'
                           color={chipColors[data.type]}
                           text={data.type}
-                          />
-                          <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
-                          </div>
-                          ))}
-                          
-                          {/* <h2 className="text-bold-600 mt-1 mb-25">
+                        />
+                        <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
+                      </div>
+                    ))}
+
+                    {/* <h2 className="text-bold-600 mt-1 mb-25">
                             <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
                           </h2> */}
-                        </div>
-                        </div>
-                        <div className='ml-3'>
-                        <h4>En Cours</h4>
-                       <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
-                        {chipType.map(data => (
-                          <div className='form-inline mt-1'>   
-                          <Chip
+                  </div>
+                </div>
+                <div className='ml-3'>
+                  <h4>En Cours</h4>
+                  <div className="title-section" style={{ textAlign: 'center', marginTop: '10px', display: 'inline-block', float: 'left' }}>
+                    {chipType.map(data => (
+                      <div className='form-inline mt-1'>
+                        <Chip
                           className="d-flex text-center ml-2"
                           color={chipColors[data.type]}
                           text={data.type}
-                          />
-                          
-                          <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
-                          </div>
-                          ))}
-                          
-                          {/* <h2 className="text-bold-600 mt-1 mb-25">
+                        />
+
+                        <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
+                      </div>
+                    ))}
+
+                    {/* <h2 className="text-bold-600 mt-1 mb-25">
                             <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
                           </h2> */}
-                        </div>
-                        </div>
-                        <div className='ml-3'>
-                        <h4>Termine</h4>
-                       <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
-                        {chipType.map(data => (
-                          <div className='form-inline mt-1'>
-                          <Chip
-                          className="d-flex text-center ml-2"
-                          width='40px'
-                          color={chipColors[data.type]}
-                          text={data.type}
-                          />
-                          <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
-                          </div>
-                          ))}
-                          {/* <h2 className="text-bold-600 mt-1 mb-25">
-                            <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
-                          </h2> */}
-                        </div>
-                        </div>
-                        </div>
-                    </TabPane>
-                    <TabPane tabId="2">
-                    <div className="title-section" style={{textAlign:'center',marginLeft:'auto',marginRight:'auto',marginTop:'10px' ,display:'inline-block',}}>
-                       <div style={{display:'inline-block', marginLeft:'5px'}}>
-                       <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{width:'130px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
-                              onChange={console.log('change')}>   
-                             <option>Trimestre 1</option><option>Trimestre 2</option><option>Trimestre 3</option>
-                             <option>Trimestre 4</option>
-                       </Input>
-                       </div>
-                       <div style={{display:'inline-block', marginLeft:'5px'}}>
-                       <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{width:'75px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
-                              onChange={e => this.getPrestation(e.target.value)}>   
-                             <option>2018</option><option>2019</option><option>2020</option>
-                             <option>2021</option><option>2022</option><option>2023</option>
-                             <option>2024</option><option>2025</option><option>2026</option>
-                             <option>2027</option><option>2028</option><option>2029</option><option>2030</option>
-                       </Input>
-                       </div>
-                       </div>
-                       <div style={{width:'100%'}} className='form-inline'>
-                         <div>
-                         <h4>En Attente</h4>
-                       <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
-                        {chipType.map(data => (
-                          <div className='form-inline mt-1'>
-                          <Chip
+                  </div>
+                </div>
+                <div className='ml-3'>
+                  <h4>Termine</h4>
+                  <div className="title-section" style={{ textAlign: 'center', marginTop: '10px', display: 'inline-block', float: 'left' }}>
+                    {chipType.map(data => (
+                      <div className='form-inline mt-1'>
+                        <Chip
                           className="d-flex text-center ml-2"
                           width='40px'
                           color={chipColors[data.type]}
                           text={data.type}
-                          />
-                          <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
-                          </div>
-                          ))}
-                          
-                          {/* <h2 className="text-bold-600 mt-1 mb-25">
+                        />
+                        <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
+                      </div>
+                    ))}
+                    {/* <h2 className="text-bold-600 mt-1 mb-25">
                             <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
                           </h2> */}
-                        </div>
-                        </div>
-                        <div className='ml-3'>
-                        <h4>En Cours</h4>
-                       <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
-                        {chipType.map(data => (
-                          <div className='form-inline mt-1'>   
-                          <Chip
-                          className="d-flex text-center ml-2"
-                          color={chipColors[data.type]}
-                          text={data.type}
-                          />
-                          
-                          <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
-                          </div>
-                          ))}
-                          
-                          {/* <h2 className="text-bold-600 mt-1 mb-25">
-                            <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
-                          </h2> */}
-                        </div>
-                        </div>
-                        <div className='ml-3'>
-                        <h4>Termine</h4>
-                       <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
-                        {chipType.map(data => (
-                          <div className='form-inline mt-1'>
-                          <Chip
-                          className="d-flex text-center ml-2"
-                          width='40px'
-                          color={chipColors[data.type]}
-                          text={data.type}
-                          />
-                          <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
-                          </div>
-                          ))}
-                          
-                          {/* <h2 className="text-bold-600 mt-1 mb-25">
-                            <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
-                          </h2> */}
-                        </div>
-                        </div>
-                        </div>
-                    </TabPane>
-                    <TabPane tabId="3">
-                    <div className="title-section" style={{textAlign:'center',marginLeft:'auto',marginRight:'auto',marginTop:'10px' ,display:'inline-block',}}>
-                       <div style={{display:'inline-block', marginLeft:'5px'}}>
-                       <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{width:'75px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
-                              onChange={e => this.getPrestation(e.target.value)}>   
-                             <option>2018</option><option>2019</option><option>2020</option>
-                             <option>2021</option><option>2022</option><option>2023</option>
-                             <option>2024</option><option>2025</option><option>2026</option>
-                             <option>2027</option><option>2028</option><option>2029</option><option>2030</option>
-                       </Input>
-                       </div>
-                       </div>
-                       <div style={{width:'100%'}} className='form-inline'>
-                         <div>
-                         <h4>En Attente</h4>
-                       <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
-                        {chipType.map(data => (
-                          <div className='form-inline mt-1'>
-                          <Chip
+                  </div>
+                </div>
+              </div>
+            </TabPane>
+            <TabPane tabId="2">
+              <div className="title-section" style={{ textAlign: 'center', marginLeft: 'auto', marginRight: 'auto', marginTop: '10px', display: 'inline-block', }}>
+                <div style={{ display: 'inline-block', marginLeft: '5px' }}>
+                  <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{ width: '130px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
+                    onChange={console.log('change')}>
+                    <option>Trimestre 1</option><option>Trimestre 2</option><option>Trimestre 3</option>
+                    <option>Trimestre 4</option>
+                  </Input>
+                </div>
+                <div style={{ display: 'inline-block', marginLeft: '5px' }}>
+                  <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{ width: '75px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
+                    onChange={e => this.getPrestation(e.target.value)}>
+                    <option>2018</option><option>2019</option><option>2020</option>
+                    <option>2021</option><option>2022</option><option>2023</option>
+                    <option>2024</option><option>2025</option><option>2026</option>
+                    <option>2027</option><option>2028</option><option>2029</option><option>2030</option>
+                  </Input>
+                </div>
+              </div>
+              <div style={{ width: '100%' }} className='form-inline'>
+                <div>
+                  <h4>En Attente</h4>
+                  <div className="title-section" style={{ textAlign: 'center', marginTop: '10px', display: 'inline-block', float: 'left' }}>
+                    {chipType.map(data => (
+                      <div className='form-inline mt-1'>
+                        <Chip
                           className="d-flex text-center ml-2"
                           width='40px'
                           color={chipColors[data.type]}
                           text={data.type}
-                          />
-                          <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
-                          </div>
-                          ))}
-                          
-                          {/* <h2 className="text-bold-600 mt-1 mb-25">
+                        />
+                        <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
+                      </div>
+                    ))}
+
+                    {/* <h2 className="text-bold-600 mt-1 mb-25">
                             <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
                           </h2> */}
-                        </div>
-                        </div>
-                        <div className='ml-3'>
-                        <h4>En Cours</h4>
-                       <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
-                        {chipType.map(data => (
-                          <div className='form-inline mt-1'>   
-                          <Chip
+                  </div>
+                </div>
+                <div className='ml-3'>
+                  <h4>En Cours</h4>
+                  <div className="title-section" style={{ textAlign: 'center', marginTop: '10px', display: 'inline-block', float: 'left' }}>
+                    {chipType.map(data => (
+                      <div className='form-inline mt-1'>
+                        <Chip
                           className="d-flex text-center ml-2"
                           color={chipColors[data.type]}
                           text={data.type}
-                          />
-                          
-                          <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
-                          </div>
-                          ))}
-                          
-                          {/* <h2 className="text-bold-600 mt-1 mb-25">
+                        />
+
+                        <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
+                      </div>
+                    ))}
+
+                    {/* <h2 className="text-bold-600 mt-1 mb-25">
                             <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
                           </h2> */}
-                        </div>
-                        </div>
-                        <div className='ml-3'>
-                        <h4>Termine</h4>
-                       <div className="title-section" style={{textAlign:'center',marginTop:'10px',display:'inline-block',float:'left'}}>
-                        {chipType.map(data => (
-                          <div className='form-inline mt-1'>
-                          <Chip
+                  </div>
+                </div>
+                <div className='ml-3'>
+                  <h4>Termine</h4>
+                  <div className="title-section" style={{ textAlign: 'center', marginTop: '10px', display: 'inline-block', float: 'left' }}>
+                    {chipType.map(data => (
+                      <div className='form-inline mt-1'>
+                        <Chip
                           className="d-flex text-center ml-2"
                           width='40px'
                           color={chipColors[data.type]}
                           text={data.type}
-                          />
-                          <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
-                          </div>
-                          ))}
-                          
-                          {/* <h2 className="text-bold-600 mt-1 mb-25">
+                        />
+                        <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
+                      </div>
+                    ))}
+
+                    {/* <h2 className="text-bold-600 mt-1 mb-25">
                             <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
                           </h2> */}
-                        </div>
-                        </div>
-                        </div>
-                    </TabPane>
-                  </TabContent>
-          </CardBody>
-        </Card>
+                  </div>
+                </div>
+              </div>
+            </TabPane>
+            <TabPane tabId="3">
+              <div className="title-section" style={{ textAlign: 'center', marginLeft: 'auto', marginRight: 'auto', marginTop: '10px', display: 'inline-block', }}>
+                <div style={{ display: 'inline-block', marginLeft: '5px' }}>
+                  <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{ width: '75px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
+                    onChange={e => this.getPrestation(e.target.value)}>
+                    <option>2018</option><option>2019</option><option>2020</option>
+                    <option>2021</option><option>2022</option><option>2023</option>
+                    <option>2024</option><option>2025</option><option>2026</option>
+                    <option>2027</option><option>2028</option><option>2029</option><option>2030</option>
+                  </Input>
+                </div>
+              </div>
+              <div style={{ width: '100%' }} className='form-inline'>
+                <div>
+                  <h4>En Attente</h4>
+                  <div className="title-section" style={{ textAlign: 'center', marginTop: '10px', display: 'inline-block', float: 'left' }}>
+                    {chipType.map(data => (
+                      <div className='form-inline mt-1'>
+                        <Chip
+                          className="d-flex text-center ml-2"
+                          width='40px'
+                          color={chipColors[data.type]}
+                          text={data.type}
+                        />
+                        <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
+                      </div>
+                    ))}
+
+                    {/* <h2 className="text-bold-600 mt-1 mb-25">
+                            <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
+                          </h2> */}
+                  </div>
+                </div>
+                <div className='ml-3'>
+                  <h4>En Cours</h4>
+                  <div className="title-section" style={{ textAlign: 'center', marginTop: '10px', display: 'inline-block', float: 'left' }}>
+                    {chipType.map(data => (
+                      <div className='form-inline mt-1'>
+                        <Chip
+                          className="d-flex text-center ml-2"
+                          color={chipColors[data.type]}
+                          text={data.type}
+                        />
+
+                        <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
+                      </div>
+                    ))}
+
+                    {/* <h2 className="text-bold-600 mt-1 mb-25">
+                            <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
+                          </h2> */}
+                  </div>
+                </div>
+                <div className='ml-3'>
+                  <h4>Termine</h4>
+                  <div className="title-section" style={{ textAlign: 'center', marginTop: '10px', display: 'inline-block', float: 'left' }}>
+                    {chipType.map(data => (
+                      <div className='form-inline mt-1'>
+                        <Chip
+                          className="d-flex text-center ml-2"
+                          width='40px'
+                          color={chipColors[data.type]}
+                          text={data.type}
+                        />
+                        <h2 className="text-bold-600 d-flex text-center ml-2">{4}</h2>
+                      </div>
+                    ))}
+
+                    {/* <h2 className="text-bold-600 mt-1 mb-25">
+                            <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
+                          </h2> */}
+                  </div>
+                </div>
+              </div>
+            </TabPane>
+          </TabContent>
+        </CardBody>
+      </Card>
     )
   }
 }
