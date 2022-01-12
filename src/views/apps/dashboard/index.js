@@ -34,30 +34,6 @@ class Index extends React.Component {
     opportunite_count: 0,
     opportunite_amount: 0,
   }
-  // async componentDidMount() {
-  //   const Config = {
-  //     headers: {
-  //       Authorization: "Bearer " + localStorage.getItem("token")
-  //     }
-  //   }
-
-  //   await axios.get(global.config.server_url + "/get_statistics", Config).then(response => {
-  //     this.setState({
-  //       clients_count: response.data.clients_count,
-  //       clients_count_list: response.data.clients_count_list,
-  //       current_total_count: response.data.current_total_count,
-  //       current_total_amount: response.data.current_total_amount,
-  //       total_ended_count: response.data.total_ended_count,
-  //       total_ended_amount: response.data.total_ended_amount,
-  //       current_acompte_count: response.data.current_acompte_count,
-  //       current_acompte_amount: response.data.current_acompte_amount,
-  //       current_solde_count: response.data.current_solde_count,
-  //       current_solde_amount: response.data.current_solde_amount,
-  //       opportunite_count: response.data.opportunite_count,
-  //       opportunite_amount: response.data.opportunite_amount,
-  //     })
-  //   })
-  // }
   render() {
     return (
       <React.Fragment>
