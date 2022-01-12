@@ -1,5 +1,5 @@
 import React from "react"
-import { Compass } from "react-feather"
+import { CheckCircle, Compass, DollarSign, Inbox, Package, Power, TrendingUp } from "react-feather"
 import { Users } from "react-feather"
 import axios from "axios";
 import { default as NumberFormat } from 'react-number-format';
@@ -16,6 +16,7 @@ import {Card,
   TabPane} from "reactstrap";
   import classnames from "classnames"
 import { copyFileSync } from "fs";
+import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteComponent";
 
   const Config = {
     headers: {
@@ -24,12 +25,16 @@ import { copyFileSync } from "fs";
   }
 
   const spacing = "10px 20px";
+  const bubleSize = 30;
   const TodoComponent = {
     width: "100%",
     margin: spacing,
+    marginLeft: "auto",
+    marginRight: "auto",
     padding: spacing,
-    minHeight: "200px",
+    minHeight: "100px",
     boxSizing: "border-box",
+    fontSize: "25px",
     textAlign: "center"
    }
   
@@ -42,10 +47,23 @@ import { copyFileSync } from "fs";
     year: null,
     client_count: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     current_total_amount: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    total_ended_amount: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    total_ended_count: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     current_acompte_amount: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     current_solde_amount: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     opportunite_amount: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    year_client_count: 0,
+    year_current_total_amount: 0,
+    year_total_ended_count: 0,
+    year_current_acompte_amount: 0,
+    year_current_solde_amount: 0,
+    year_opportunite_amount: 0,
+    trim_client_count: 0,
+    trim_current_total_amount: 0,
+    trim_total_ended_count: 0,
+    trim_current_acompte_amount: 0,
+    trim_current_solde_amount: 0,
+    trim_opportunite_amount: 0,
+    trim: "Trimestre 1",
     activeTab: "1",
     rowData:[],
     monthb: 1
@@ -67,29 +85,76 @@ import { copyFileSync } from "fs";
         tmp_account[i] = response.data[i+1]['current_acompte_amount'];
         tmp_sold[i] = response.data[i+1]['current_solde_amount'];
         tmp_opportunite[i] = response.data[i+1]['opportunite_amount'];
-        tmp_ended[i] = response.data[i+1]['total_ended_amount'];
+        tmp_ended[i] = response.data[i+1]['total_ended_count'];
       }
       this.setState({
           client_count: tmp_clients,
           current_total_amount: tmp_total_amount,
-          total_ended_amount: tmp_ended,
+          total_ended_count: tmp_ended,
           current_acompte_amount: tmp_account,
           current_solde_amount: tmp_sold,
           opportunite_amount: tmp_opportunite,
+          rowData: response.data,
         })
     })
+    this.getAllData(tmp.getFullYear())
+    this.getTrimData("Trimestre 1", tmp.getFullYear())
   }
   
-  getTrimData(Trim) {
-    if (Trim == "Trimestre 1") {
-      console.log("Trim 1")
-    } else if (Trim == "Trimestre 2") {
-      console.log("Trim 2")
-    } else if (Trim == "Trimestre 3") {
-      console.log("Trim 3")
-    } else if (Trim == "Trimestre 4"){
-      console.log("Trim 4")
-    }
+  getTrimData(Trim, year) {
+    axios.get(global.config.server_url + "/get_statistics_total_income?year="+year, Config).then(response => {
+      let tmp_clients = 0
+      let tmp_total_amount = 0
+      let tmp_account = 0
+      let tmp_sold = 0
+      let tmp_opportunite = 0
+      let tmp_ended = 0
+      if (Trim == "Trimestre 1") {
+        for (let i = 0; i < 3; i++) {
+          tmp_clients =  tmp_clients + response.data[i+1]['clients_count'];
+          tmp_total_amount = tmp_total_amount + response.data[i+1]['current_total_amount'];
+          tmp_account = tmp_account + response.data[i+1]['current_acompte_amount'];
+          tmp_sold = tmp_sold + response.data[i+1]['current_solde_amount'];
+          tmp_opportunite = tmp_opportunite + response.data[i+1]['opportunite_amount'];
+          tmp_ended = tmp_ended + response.data[i+1]['total_ended_count'];
+        }
+      } else if (Trim == "Trimestre 2") {
+        for (let i = 3; i < 6; i++) {
+          tmp_clients =  tmp_clients + response.data[i+1]['clients_count'];
+          tmp_total_amount = tmp_total_amount + response.data[i+1]['current_total_amount'];
+          tmp_account = tmp_account + response.data[i+1]['current_acompte_amount'];
+          tmp_sold = tmp_sold + response.data[i+1]['current_solde_amount'];
+          tmp_opportunite = tmp_opportunite + response.data[i+1]['opportunite_amount'];
+          tmp_ended = tmp_ended + response.data[i+1]['total_ended_count'];
+        }
+      } else if (Trim == "Trimestre 3") {
+        for (let i = 6; i < 9; i++) {
+          tmp_clients =  tmp_clients + response.data[i+1]['clients_count'];
+          tmp_total_amount = tmp_total_amount + response.data[i+1]['current_total_amount'];
+          tmp_account = tmp_account + response.data[i+1]['current_acompte_amount'];
+          tmp_sold = tmp_sold + response.data[i+1]['current_solde_amount'];
+          tmp_opportunite = tmp_opportunite + response.data[i+1]['opportunite_amount'];
+          tmp_ended = tmp_ended + response.data[i+1]['total_ended_count'];
+        }
+      } else if (Trim == "Trimestre 4"){
+        for (let i = 9; i < 12; i++) {
+          tmp_clients =  tmp_clients + response.data[i+1]['clients_count'];
+          tmp_total_amount = tmp_total_amount + response.data[i+1]['current_total_amount'];
+          tmp_account = tmp_account + response.data[i+1]['current_acompte_amount'];
+          tmp_sold = tmp_sold + response.data[i+1]['current_solde_amount'];
+          tmp_opportunite = tmp_opportunite + response.data[i+1]['opportunite_amount'];
+          tmp_ended = tmp_ended + response.data[i+1]['total_ended_count'];
+        }
+      }
+      this.setState({
+        trim_client_count: tmp_clients,
+        trim_current_total_amount: tmp_total_amount,
+        trim_total_ended_count: tmp_ended,
+        trim_current_acompte_amount: tmp_account,
+        trim_current_solde_amount: tmp_sold,
+        trim_opportunite_amount: tmp_opportunite,
+        })
+    })
   }
 
   getMonthdata(toCompare) {
@@ -103,6 +168,21 @@ import { copyFileSync } from "fs";
     })
   }
 
+  numStr(a, b) {
+    a = '' + a;
+    b = b || ' ';
+    var c = '',
+        d = 0;
+    while (a.match(/^0[0-9]/)) {
+      a = a.substr(1);
+    }
+    for (var i = a.length-1; i >= 0; i--) {
+      c = (d != 0 && d % 3 == 0) ? a[i] + b + c : a[i] + c;
+      d++;
+    }
+    return c;
+  }
+
   toggle = tab => {
     if (this.state.activeTab !== tab) {
       this.setState({
@@ -112,11 +192,29 @@ import { copyFileSync } from "fs";
   }
   getAllData(year) {
     axios.get(global.config.server_url + "/get_statistics_total_income?year="+year, Config).then(response => {
+      let tmp_clients = 0
+      let tmp_total_amount = 0
+      let tmp_account = 0
+      let tmp_sold = 0
+      let tmp_opportunite = 0
+      let tmp_ended = 0
+      for (let i = 0; i < 12; i++) {
+        tmp_clients =  tmp_clients + response.data[i+1]['clients_count'];
+        tmp_total_amount = tmp_total_amount + response.data[i+1]['current_total_amount'];
+        tmp_account = tmp_account + response.data[i+1]['current_acompte_amount'];
+        tmp_sold = tmp_sold + response.data[i+1]['current_solde_amount'];
+        tmp_opportunite = tmp_opportunite + response.data[i+1]['opportunite_amount'];
+        tmp_ended = tmp_ended + response.data[i+1]['total_ended_count'];
+      }
       this.setState({
-          rowData: response.data,
+        year_client_count: tmp_clients,
+        year_current_total_amount: tmp_total_amount,
+        year_total_ended_count: tmp_ended,
+        year_current_acompte_amount: tmp_account,
+        year_current_solde_amount: tmp_sold,
+        year_opportunite_amount: tmp_opportunite,
         })
     })
-    console.log(year);
   }
   render() {
     return (
@@ -131,7 +229,7 @@ import { copyFileSync } from "fs";
                   }`}
               >
                 <div className="avatar-content">
-                  <Compass className="success" size={22} />
+                  <Compass className="success" size={27} />
                 </div>
               </div>
               <CardTitle>Informations</CardTitle>
@@ -208,226 +306,295 @@ import { copyFileSync } from "fs";
                        </Input>
                        </div>
                        </div>
-                      <div className="icon-section form-inline " style={TodoComponent}>
-                        <div className="ml-3 mb-5">
+                      <div className="icon-section form-inline text-bold-600" style={TodoComponent}>
+                        <div className="ml-3">
                           <div style={{display:'inline-block',float:'left'}}>
-                            <div className={`avatar avatar-stats p-50 ${
+                            <div className={`avatar avatar-stats mt-1 p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
                                 <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
-                                  <Users className="success" size={22} />
+                                  <Users className="primary" size={bubleSize} />
                                 </div>
                             </div>
-                            <CardTitle style={{width:'80px',marginLeft:'auto',marginRight:'auto',fontSize:'12px'}}>Nombre de Clients</CardTitle>
-                            <NumberFormat value={this.state.client_count[this.state.monthb - 1]} displayType={'text'}/>
+                          </div>
+                          <div className="mt-1">
+                            <h2>{this.numStr(this.state.client_count[this.state.monthb - 1])}</h2>
+                            <CardTitle style={{width:'135px',marginLeft:'auto',marginRight:'auto'}}>Clients</CardTitle>
                           </div>
                         </div>
-                        <div className="ml-3 mb-5">
+                        <div className="ml-3">
                           <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
-                            <div className={`avatar avatar-stats p-50 ${
-                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
+                            <div className={`avatar avatar-stats p-75 ${
+                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-warning"}`}>
                                 <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
-                                  <Users className="success" size={22} />
+                                  <TrendingUp className="warning" size={bubleSize} />
                                 </div>
                             </div>
-                            <CardTitle style={{width:'80px',marginLeft:'auto',marginRight:'auto',fontSize:'12px'}}>Chiffre d'affaires</CardTitle>
-                            <NumberFormat value={this.state.current_total_amount[this.state.monthb - 1]} displayType={'text'} suffix={'€'}/>
+                          </div>
+                          <div className="ml-1 mt-1">
+                            <h2>{this.numStr(this.state.current_total_amount[this.state.monthb - 1])} €</h2>
+                            <CardTitle style={{width:'220px',marginLeft:'auto',marginRight:'auto'}}>Chiffre d'affaires</CardTitle>
                           </div>
                         </div>
-                        <div className="ml-3 mb-5">
+                        <div className="ml-3">
                           <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
-                            <div className={`avatar avatar-stats p-50 ${
-                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
+                            <div className={`avatar avatar-stats p-75 ${
+                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-info"}`}>
                                 <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
-                                  <Users className="success" size={22} />
+                                  <Inbox className="info" size={bubleSize} />
                                 </div>
                             </div>
-                            <CardTitle style={{width:'80px',marginLeft:'auto',marginRight:'auto',fontSize:'12px'}}>Acompte</CardTitle>
-                            <NumberFormat value={this.state.current_acompte_amount[this.state.monthb - 1]} displayType={'text'} suffix={'€'}/>
+                          </div>
+                          <div className="ml-1 mt-1">
+                              <h2>{this.numStr(this.state.current_acompte_amount[this.state.monthb - 1])} €</h2>
+                              <CardTitle style={{width:'160px',marginLeft:'auto',marginRight:'auto'}}>Acomptes</CardTitle>
+                            </div>
+                        </div>
+                        <div className="ml-3">
+                          <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
+                            <div className={`avatar avatar-stats p-75 ${
+                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-info"}`}>
+                                <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
+                                  <Package className="info" size={bubleSize} />
+                                </div>
+                            </div>
+                          </div>
+                          <div className="mt-1">
+                            <h2>{this.numStr(this.state.current_solde_amount[this.state.monthb - 1])} €</h2>
+                            <CardTitle style={{width:'160px',marginLeft:'auto',marginRight:'auto'}}>Soldes</CardTitle>
                           </div>
                         </div>
-                        <div className="ml-3 mb-5">
+                        <div className="ml-3">
                           <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
-                            <div className={`avatar avatar-stats p-50 ${
-                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
+                            <div className={`avatar avatar-stats p-75 ${
+                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-success"}`}>
                                 <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
-                                  <Users className="success" size={22} />
+                                  <DollarSign className="success" size={bubleSize} />
                                 </div>
                             </div>
-                            <CardTitle style={{width:'80px',marginLeft:'auto',marginRight:'auto',fontSize:'12px'}}>Solde</CardTitle>
-                            <NumberFormat value={this.state.current_solde_amount[this.state.monthb - 1]} displayType={'text'} suffix={'€'}/>
+                          </div>
+                          <div className="ml-1 mt-1">
+                            <h2>{this.numStr(this.state.opportunite_amount[this.state.monthb - 1])} €</h2>
+                            <CardTitle style={{width:'190px',marginLeft:'auto',marginRight:'auto'}}>Opportunités</CardTitle>
                           </div>
                         </div>
-                        <div className="ml-3 mb-5">
+                        <div className="ml-3">
                           <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
-                            <div className={`avatar avatar-stats p-50 ${
-                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
+                            <div className={`avatar avatar-stats p-75 ${
+                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-danger"}`}>
                                 <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
-                                  <Users className="success" size={22} />
+                                  <CheckCircle className="danger" size={bubleSize} />
                                 </div>
                             </div>
-                            <CardTitle style={{width:'100px',marginLeft:'auto',marginRight:'auto',fontSize:'12px'}}>Opportunités</CardTitle>
-                            <NumberFormat value={this.state.opportunite_amount[this.state.monthb - 1]} displayType={'text'} suffix={'€'} />
                           </div>
-                        </div>
-                        <div className="ml-3 mb-5">
-                          <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
-                            <div className={`avatar avatar-stats p-50 ${
-                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
-                                <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
-                                  <Users className="success" size={22} />
-                                </div>
-                            </div>
-                            <CardTitle style={{width:'80px',marginLeft:'auto',marginRight:'auto',fontSize:'12px'}}>Contrat cloturé</CardTitle>
-                            <NumberFormat value={this.state.total_ended_amount[this.state.monthb - 1]} displayType={'text'} suffix={'€'} />
+                          <div className="ml-1 mt-1">
+                            <h2>{this.numStr(this.state.total_ended_count[this.state.monthb - 1])}</h2>
+                            <CardTitle style={{width:'230px',marginLeft:'auto',marginRight:'auto'}}>Contrats cloturés</CardTitle>
                           </div>
                         </div>
                       </div>
                     </TabPane>
                     <TabPane tabId="2">
                       <div className="title-section" style={{textAlign:'center',marginLeft:'auto',marginRight:'auto',marginTop:'10px' ,display:'inline-block',}}>
-                       <div style={{display:'inline-block', marginLeft:'5px'}}>
-                       <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{width:'130px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
-                              onChange={e => this.getTrimData(e.target.value)}>
-                             <option>Trimestre 1</option><option>Trimestre 2</option><option>Trimestre 3</option>
-                             <option>Trimestre 4</option>
-                       </Input>
-                       </div>
-                      </div>
-                      <div className="icon-section form-inline" style={TodoComponent}>
-                        <div style={{display:'inline-block',float:'left'}}>
-                          <div className={`avatar avatar-stats p-50 ${
-                            this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
-                              <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
-                                <Users className="success" size={22} />
-                              </div>
-                          </div>
-                          <CardTitle style={{width:'80px',marginLeft:'auto',marginRight:'auto',fontSize:'12px'}}>Nombre de Clients</CardTitle>
-                          <NumberFormat value={this.state.client_count[this.state.monthb - 1]} displayType={'text'}/>
-                        </div>
-                        <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
-                          <div className={`avatar avatar-stats p-50 ${
-                            this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
-                              <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
-                                <Users className="success" size={22} />
-                              </div>
-                          </div>
-                          <CardTitle style={{width:'80px',marginLeft:'auto',marginRight:'auto',fontSize:'12px'}}>Chiffre d'affaires</CardTitle>
-                          <NumberFormat value={this.state.current_total_amount[this.state.monthb - 1]} displayType={'text'} suffix={'€'}/>
-                        </div>
-                        <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
-                          <div className={`avatar avatar-stats p-50 ${
-                            this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
-                              <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
-                                <Users className="success" size={22} />
-                              </div>
-                          </div>
-                          <CardTitle style={{width:'80px',marginLeft:'auto',marginRight:'auto',fontSize:'12px'}}>Acompte</CardTitle>
-                          <NumberFormat value={this.state.current_acompte_amount[this.state.monthb - 1]} displayType={'text'} suffix={'€'}/>
-                        </div>
-                        <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
-                          <div className={`avatar avatar-stats p-50 ${
-                            this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
-                              <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
-                                <Users className="success" size={22} />
-                              </div>
-                          </div>
-                          <CardTitle style={{width:'80px',marginLeft:'auto',marginRight:'auto',fontSize:'12px'}}>Solde</CardTitle>
-                          <NumberFormat value={this.state.current_solde_amount[this.state.monthb - 1]} displayType={'text'} suffix={'€'}/>
-                        </div>
-                        <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
-                          <div className={`avatar avatar-stats p-50 ${
-                            this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
-                              <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
-                                <Users className="success" size={22} />
-                              </div>
-                          </div>
-                          <CardTitle style={{width:'100px',marginLeft:'auto',marginRight:'auto',fontSize:'12px'}}>Opportunités</CardTitle>
-                          <NumberFormat value={this.state.opportunite_amount[this.state.monthb - 1]} displayType={'text'} suffix={'€'} />
-                        </div>
-                        <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
-                          <div className={`avatar avatar-stats p-50 ${
-                            this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
-                              <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
-                                <Users className="success" size={22} />
-                              </div>
-                          </div>
-                          <CardTitle style={{width:'80px',marginLeft:'auto',marginRight:'auto',fontSize:'12px'}}>Contrat cloturé</CardTitle>
-                          <NumberFormat value={this.state.total_ended_amount[this.state.monthb - 1]} displayType={'text'} thousandSeparator={true} suffix={'€'} />
-                        </div>
-                      </div>
-                    </TabPane>
-                    <TabPane tabId="3">
-                    <div className="title-section" style={{textAlign:'center',marginLeft:'auto',marginRight:'auto',marginTop:'10px' ,display:'inline-block',}}>
-                       <div style={{display:'inline-block', marginLeft:'5px'}}>
+                      <div style={{display:'inline-block', marginLeft:'5px'}}>
                        <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{width:'75px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
-                              onChange={console.log('change')/*e => this.getAllData(e.target.value)*/}>
+                              onChange={e => this.getTrimData(this.state.trim, e.target.value) | this.setState({year: e.target.value})}>
                              <option>2018</option><option>2019</option><option>2020</option>
                              <option>2021</option><option>2022</option><option>2023</option>
                              <option>2024</option><option>2025</option><option>2026</option>
                              <option>2027</option><option>2028</option><option>2029</option><option>2030</option>
                        </Input>
                        </div>
+                       <div style={{display:'inline-block', marginLeft:'5px'}}>
+                       <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{width:'130px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
+                              onChange={e => this.getTrimData(e.target.value, this.state.year) | this.setState({trim: e.target.value})}>
+                             <option>Trimestre 1</option><option>Trimestre 2</option><option>Trimestre 3</option>
+                             <option>Trimestre 4</option>
+                       </Input>
                        </div>
-                       <div className="icon-section form-inline" style={TodoComponent}>
-                        <div style={{display:'inline-block',float:'left'}}>
-                          <div className={`avatar avatar-stats p-50 ${
-                            this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
-                              <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
-                                <Users className="success" size={22} />
-                              </div>
+                      </div>
+                      <div className="icon-section form-inline text-bold-600" style={TodoComponent}>
+                        <div className="ml-3">
+                          <div style={{display:'inline-block',float:'left'}}>
+                            <div className={`avatar avatar-stats mt-1 p-75 ${
+                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
+                                <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
+                                  <Users className="primary" size={bubleSize} />
+                                </div>
+                            </div>
                           </div>
-                          <CardTitle style={{width:'80px',marginLeft:'auto',marginRight:'auto',fontSize:'12px'}}>Nombre de Clients</CardTitle>
-                          <NumberFormat value={this.state.client_count[this.state.monthb - 1]} displayType={'text'}/>
+                          <div className="mt-1">
+                            <h2>{this.numStr(this.state.trim_client_count)}</h2>
+                            <CardTitle style={{width:'135px',marginLeft:'auto',marginRight:'auto'}}>Clients</CardTitle>
+                          </div>
                         </div>
-                        <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
-                          <div className={`avatar avatar-stats p-50 ${
-                            this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
-                              <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
-                                <Users className="success" size={22} />
-                              </div>
+                        <div className="ml-3">
+                          <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
+                            <div className={`avatar avatar-stats p-75 ${
+                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-warning"}`}>
+                                <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
+                                  <TrendingUp className="warning" size={bubleSize} />
+                                </div>
+                            </div>
                           </div>
-                          <CardTitle style={{width:'80px',marginLeft:'auto',marginRight:'auto',fontSize:'12px'}}>Chiffre d'affaires</CardTitle>
-                          <NumberFormat value={this.state.current_total_amount[this.state.monthb - 1]} displayType={'text'} suffix={'€'}/>
+                          <div className="ml-1 mt-1">
+                            <h2>{this.numStr(this.state.trim_current_total_amount)} €</h2>
+                            <CardTitle style={{width:'220px',marginLeft:'auto',marginRight:'auto'}}>Chiffre d'affaires</CardTitle>
+                          </div>
                         </div>
-                        <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
-                          <div className={`avatar avatar-stats p-50 ${
-                            this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
-                              <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
-                                <Users className="success" size={22} />
-                              </div>
+                        <div className="ml-3">
+                          <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
+                            <div className={`avatar avatar-stats p-75 ${
+                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-info"}`}>
+                                <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
+                                  <Inbox className="info" size={bubleSize} />
+                                </div>
+                            </div>
                           </div>
-                          <CardTitle style={{width:'80px',marginLeft:'auto',marginRight:'auto',fontSize:'12px'}}>Acompte</CardTitle>
-                          <NumberFormat value={this.state.current_acompte_amount[this.state.monthb - 1]} displayType={'text'} suffix={'€'}/>
+                          <div className="ml-1 mt-1">
+                              <h2>{this.numStr(this.state.trim_current_acompte_amount)} €</h2>
+                              <CardTitle style={{width:'160px',marginLeft:'auto',marginRight:'auto'}}>Acomptes</CardTitle>
+                            </div>
                         </div>
-                        <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
-                          <div className={`avatar avatar-stats p-50 ${
-                            this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
-                              <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
-                                <Users className="success" size={22} />
-                              </div>
+                        <div className="ml-3">
+                          <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
+                            <div className={`avatar avatar-stats p-75 ${
+                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-info"}`}>
+                                <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
+                                  <Package className="info" size={bubleSize} />
+                                </div>
+                            </div>
                           </div>
-                          <CardTitle style={{width:'80px',marginLeft:'auto',marginRight:'auto',fontSize:'12px'}}>Solde</CardTitle>
-                          <NumberFormat value={this.state.current_solde_amount[this.state.monthb - 1]} displayType={'text'} suffix={'€'}/>
+                          <div className="mt-1">
+                            <h2>{this.numStr(this.state.trim_current_solde_amount)} €</h2>
+                            <CardTitle style={{width:'160px',marginLeft:'auto',marginRight:'auto'}}>Soldes</CardTitle>
+                          </div>
                         </div>
-                        <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
-                          <div className={`avatar avatar-stats p-50 ${
-                            this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
-                              <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
-                                <Users className="success" size={22} />
-                              </div>
+                        <div className="ml-3">
+                          <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
+                            <div className={`avatar avatar-stats p-75 ${
+                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-success"}`}>
+                                <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
+                                  <DollarSign className="success" size={bubleSize} />
+                                </div>
+                            </div>
                           </div>
-                          <CardTitle style={{width:'100px',marginLeft:'auto',marginRight:'auto',fontSize:'12px'}}>Opportunités</CardTitle>
-                          <NumberFormat value={this.state.opportunite_amount[this.state.monthb - 1]} displayType={'text'} suffix={'€'} />
+                          <div className="ml-1 mt-1">
+                            <h2>{this.numStr(this.state.trim_opportunite_amount)} €</h2>
+                            <CardTitle style={{width:'190px',marginLeft:'auto',marginRight:'auto'}}>Opportunités</CardTitle>
+                          </div>
                         </div>
-                        <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
-                          <div className={`avatar avatar-stats p-50 ${
-                            this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
-                              <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
-                                <Users className="success" size={22} />
-                              </div>
+                        <div className="ml-3">
+                          <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
+                            <div className={`avatar avatar-stats p-75 ${
+                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-danger"}`}>
+                                <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
+                                  <CheckCircle className="danger" size={bubleSize} />
+                                </div>
+                            </div>
                           </div>
-                          <CardTitle style={{width:'80px',marginLeft:'auto',marginRight:'auto',fontSize:'12px'}}>Contrat cloturé</CardTitle>
-                          <NumberFormat value={this.state.total_ended_amount[this.state.monthb - 1]} displayType={'text'} thousandSeparator={true} suffix={'€'} />
+                          <div className="ml-1 mt-1">
+                            <h2>{this.numStr(this.state.trim_total_ended_count)}</h2>
+                            <CardTitle style={{width:'230px',marginLeft:'auto',marginRight:'auto'}}>Contrats cloturés</CardTitle>
+                          </div>
+                        </div>
+                      </div>
+                    </TabPane>
+                    <TabPane tabId="3">
+                    <div className="title-section" style={{textAlign:'center',marginLeft:'auto',marginRight:'auto',marginTop:'10px' ,display:'inline-block',}}>
+                      <div style={{display:'inline-block', marginLeft:'5px'}}>
+                        <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{width:'75px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
+                              onChange={e => this.getAllData(e.target.value)}>
+                             <option>2018</option><option>2019</option><option>2020</option>
+                             <option>2021</option><option>2022</option><option>2023</option>
+                             <option>2024</option><option>2025</option><option>2026</option>
+                             <option>2027</option><option>2028</option><option>2029</option><option>2030</option>
+                        </Input>
+                      </div>
+                      </div>
+                      <div className="icon-section form-inline text-bold-600" style={TodoComponent}>
+                        <div className="ml-3">
+                          <div style={{display:'inline-block',float:'left'}}>
+                            <div className={`avatar avatar-stats mt-1 p-75 ${
+                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
+                                <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
+                                  <Users className="primary" size={bubleSize} />
+                                </div>
+                            </div>
+                          </div>
+                          <div className="mt-1">
+                            <h2>{this.numStr(this.state.year_client_count)}</h2>
+                            <CardTitle style={{width:'135px',marginLeft:'auto',marginRight:'auto'}}>Clients</CardTitle>
+                          </div>
+                        </div>
+                        <div className="ml-3">
+                          <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
+                            <div className={`avatar avatar-stats p-75 ${
+                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-warning"}`}>
+                                <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
+                                  <TrendingUp className="warning" size={bubleSize} />
+                                </div>
+                            </div>
+                          </div>
+                          <div className="ml-1 mt-1">
+                            <h2>{this.numStr(this.state.year_current_total_amount)} €</h2>
+                            <CardTitle style={{width:'220px',marginLeft:'auto',marginRight:'auto'}}>Chiffre d'affaires</CardTitle>
+                          </div>
+                        </div>
+                        <div className="ml-3">
+                          <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
+                            <div className={`avatar avatar-stats p-75 ${
+                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-info"}`}>
+                                <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
+                                  <Inbox className="info" size={bubleSize} />
+                                </div>
+                            </div>
+                          </div>
+                          <div className="ml-1 mt-1">
+                              <h2>{this.numStr(this.state.year_current_acompte_amount)} €</h2>
+                              <CardTitle style={{width:'160px',marginLeft:'auto',marginRight:'auto'}}>Acomptes</CardTitle>
+                            </div>
+                        </div>
+                        <div className="ml-3">
+                          <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
+                            <div className={`avatar avatar-stats p-75 ${
+                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-info"}`}>
+                                <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
+                                  <Package className="info" size={bubleSize} />
+                                </div>
+                            </div>
+                          </div>
+                          <div className="mt-1">
+                            <h2>{this.numStr(this.state.year_current_solde_amount)} €</h2>
+                            <CardTitle style={{width:'160px',marginLeft:'auto',marginRight:'auto'}}>Soldes</CardTitle>
+                          </div>
+                        </div>
+                        <div className="ml-3">
+                          <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
+                            <div className={`avatar avatar-stats p-75 ${
+                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-success"}`}>
+                                <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
+                                  <DollarSign className="success" size={bubleSize} />
+                                </div>
+                            </div>
+                          </div>
+                          <div className="ml-1 mt-1">
+                            <h2>{this.numStr(this.state.year_opportunite_amount)} €</h2>
+                            <CardTitle style={{width:'190px',marginLeft:'auto',marginRight:'auto'}}>Opportunités</CardTitle>
+                          </div>
+                        </div>
+                        <div className="ml-3">
+                          <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
+                            <div className={`avatar avatar-stats p-75 ${
+                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-danger"}`}>
+                                <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
+                                  <CheckCircle className="danger" size={bubleSize} />
+                                </div>
+                            </div>
+                          </div>
+                          <div className="ml-1 mt-1">
+                            <h2>{this.numStr(this.state.year_total_ended_count)}</h2>
+                            <CardTitle style={{width:'230px',marginLeft:'auto',marginRight:'auto'}}>Contrats cloturés</CardTitle>
+                          </div>
                         </div>
                       </div>
                     </TabPane>
