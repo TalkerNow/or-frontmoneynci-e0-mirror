@@ -12,7 +12,7 @@ const Config = {
 class RevenueGraph extends React.Component {
   state = {
     lst_solde_amount: [],
-    lst_acompte_amount:[],
+    lst_acompte_amount: [],
     options: {
       chart: {
         stacked: true,
@@ -101,12 +101,12 @@ class RevenueGraph extends React.Component {
   }
 
   onChangeYear(year) {
-    axios.get(global.config.server_url + "/get_statistics_total_income?year="+year, Config).then(response => {
+    axios.get(global.config.server_url + "/get_statistics_total_income?year=" + year, Config).then(response => {
       let acomptelist = [];
       let soldlist = [];
       for (let i = 0; i < 12; i++) {
-        acomptelist[i] = response.data[i+1]['current_acompte_amount'];
-        soldlist[i] = - response.data[i+1]['current_solde_amount'];
+        acomptelist[i] = response.data[i + 1]['current_acompte_amount'];
+        soldlist[i] = - response.data[i + 1]['current_solde_amount'];
       }
       this.setState({
         series: [
@@ -129,8 +129,8 @@ class RevenueGraph extends React.Component {
       let acomptelist = [];
       let soldlist = [];
       for (let i = 0; i < 12; i++) {
-        acomptelist[i] = response.data[i+1]['current_acompte_amount'];
-        soldlist[i] = - response.data[i+1]['current_solde_amount'];
+        acomptelist[i] = response.data[i + 1]['current_acompte_amount'];
+        soldlist[i] = - response.data[i + 1]['current_solde_amount'];
       }
       this.setState({
         series: [
@@ -151,17 +151,17 @@ class RevenueGraph extends React.Component {
       <Card>
         <CardHeader>
           <CardTitle>Revenue Report</CardTitle>
-          <div className="title-section" style={{textAlign:'celter',margin:'left' ,display:'inline-block',}}>
-                       <div style={{display:'inline-block', marginLeft:'5px'}}>
-                       <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{width:'75px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
-                              onChange={e => this.onChangeYear(e.target.value)}>   
-                             <option>2018</option><option>2019</option><option>2020</option>
-                             <option>2021</option><option>2022</option><option>2023</option>
-                             <option>2024</option><option>2025</option><option>2026</option>
-                             <option>2027</option><option>2028</option><option>2029</option><option>2030</option>
-                       </Input>
-                       </div>
-                       </div>
+          <div className="title-section" style={{ textAlign: 'celter', margin: 'left', display: 'inline-block', }}>
+            <div style={{ display: 'inline-block', marginLeft: '5px' }}>
+              <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{ width: '75px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
+                onChange={e => this.onChangeYear(e.target.value)}>
+                <option>2018</option><option>2019</option><option>2020</option>
+                <option>2021</option><option>2022</option><option>2023</option>
+                <option>2024</option><option>2025</option><option>2026</option>
+                <option>2027</option><option>2028</option><option>2029</option><option>2030</option>
+              </Input>
+            </div>
+          </div>
         </CardHeader>
         <CardBody>
           <Chart

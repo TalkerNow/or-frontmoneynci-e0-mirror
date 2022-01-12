@@ -4,13 +4,10 @@ import React from "react"
 import { Row, Col } from "reactstrap"
 import OverallCard from "./OverallData"
 import ExpertCard from "./ExpertCard"
-import AcompteCard from "./AcompteCard"
-import SoldeCard from "./SoldeCard"
-import YearRevenue from "./YearRevenue"
+
 import RevenueGraph from "./RevenueGraph"
 import PrestationStatistics from "./Prestations"
 import "../../../assets/scss/plugins/charts/apex-charts.scss"
-import axios from "axios";
 
 let $primary = "#7367F0",
   $success = "#28C76F",
@@ -25,7 +22,7 @@ let $primary = "#7367F0",
 class Index extends React.Component {
   state = {
     clients_count: 0,
-    clients_count_list:[],
+    clients_count_list: [],
     current_total_count: 0,
     current_total_amount: 0,
     total_ended_count: 0,
@@ -35,61 +32,37 @@ class Index extends React.Component {
     current_solde_count: 0,
     current_solde_amount: 0,
     opportunite_count: 0,
-    opportunite_amount:0,
+    opportunite_amount: 0,
   }
-  // async componentDidMount() {
-  //   const Config = {
-  //     headers: {
-  //       Authorization: "Bearer " + localStorage.getItem("token")
-  //     }
-  //   }
-
-  //   await axios.get(global.config.server_url + "/get_statistics", Config).then(response => {
-  //     this.setState({
-  //       clients_count: response.data.clients_count,
-  //       clients_count_list: response.data.clients_count_list,
-  //       current_total_count: response.data.current_total_count,
-  //       current_total_amount: response.data.current_total_amount,
-  //       total_ended_count: response.data.total_ended_count,
-  //       total_ended_amount: response.data.total_ended_amount,
-  //       current_acompte_count: response.data.current_acompte_count,
-  //       current_acompte_amount: response.data.current_acompte_amount,
-  //       current_solde_count: response.data.current_solde_count,
-  //       current_solde_amount: response.data.current_solde_amount,
-  //       opportunite_count: response.data.opportunite_count,
-  //       opportunite_amount: response.data.opportunite_amount,
-  //     })
-  //   })
-  // }
   render() {
     return (
       <React.Fragment>
         <Row className="match-height">
-        <Col lg="12" md="6" sm="6">
+          <Col lg="12" md="6" sm="6">
             <OverallCard
-                clients_count={this.state.clients_count}
-                clients_count_list={this.state.clients_count_list}
-                primary={$primary}
-                dangerLight={$danger_light}
-                strokeColor={$stroke_color}
-                labelColor={$label_color}
+              clients_count={this.state.clients_count}
+              clients_count_list={this.state.clients_count_list}
+              primary={$primary}
+              dangerLight={$danger_light}
+              strokeColor={$stroke_color}
+              labelColor={$label_color}
             />
           </Col>
           <Col lg="8" md="6" sm="6">
-          <RevenueGraph
-                strokeColor={$stroke_color}
-                primary={$primary}
-                danger={$danger}
-                labelColor={$label_color}
+            <RevenueGraph
+              strokeColor={$stroke_color}
+              primary={$primary}
+              danger={$danger}
+              labelColor={$label_color}
             />
-            
+
           </Col>
           <Col lg="4" md="6" sm="6">
-          <PrestationStatistics
-                primary={$primary}
-                dangerLight={$danger_light}
-                strokeColor={$stroke_color}
-                labelColor={$label_color}
+            <PrestationStatistics
+              primary={$primary}
+              dangerLight={$danger_light}
+              strokeColor={$stroke_color}
+              labelColor={$label_color}
             />
           </Col>
           <Col>
@@ -97,13 +70,13 @@ class Index extends React.Component {
         </Row>
         <Row className="match-height">
           <Col lg="12" md="6" sm="12">
-          <ExpertCard
-                clients_count={this.state.clients_count}
-                clients_count_list={this.state.clients_count_list}
-                primary={$primary}
-                dangerLight={$danger_light}
-                strokeColor={$stroke_color}
-                labelColor={$label_color}
+            <ExpertCard
+              clients_count={this.state.clients_count}
+              clients_count_list={this.state.clients_count_list}
+              primary={$primary}
+              dangerLight={$danger_light}
+              strokeColor={$stroke_color}
+              labelColor={$label_color}
             />
           </Col>
         </Row>

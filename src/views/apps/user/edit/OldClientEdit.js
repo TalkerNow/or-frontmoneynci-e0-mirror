@@ -11,7 +11,7 @@ import {
   TabPane
 } from "reactstrap"
 import classnames from "classnames"
-import {User, Info, Folder} from "react-feather"
+import { User, Info, Folder } from "react-feather"
 import AccountTab from "./oldInformations"
 //import NotesTab from "./Notes"
 //import CommentsTab from "./Comments"
@@ -20,12 +20,12 @@ import axios from "axios";
 //import Contracts from "./Contracts";
 //import Documents from "./Documents";
 //import Task from "./clientTask/Task";
-import {history} from "../../../../history";
+import { history } from "../../../../history";
 class UserEdit extends React.Component {
   state = {
     rowData: [],
-    persoData:[],
-    members:[],
+    persoData: [],
+    members: [],
     activeTab: "1"
   }
 
@@ -35,7 +35,7 @@ class UserEdit extends React.Component {
         Authorization: "Bearer " + localStorage.getItem("token")
       }
     }
-    this.setState({ activeTab: this.props.match.params.tab});
+    this.setState({ activeTab: this.props.match.params.tab });
 
     await axios.get(global.config.server_url + "/users?kind=oldclient", Config).then(response => {
       console.log(response)
@@ -83,11 +83,11 @@ class UserEdit extends React.Component {
               <TabContent activeTab={this.state.activeTab}>
                 <TabPane tabId="1">
                   <AccountTab
-                      data={this.state.rowData}
-                      perso={this.state.persoData}
-                      members={this.state.members}
-                      id={this.props.location.state}
-                      dob={this.state.persoData["birth_date"]}
+                    data={this.state.rowData}
+                    perso={this.state.persoData}
+                    members={this.state.members}
+                    id={this.props.location.state}
+                    dob={this.state.persoData["birth_date"]}
                   />
                 </TabPane>
               </TabContent>
