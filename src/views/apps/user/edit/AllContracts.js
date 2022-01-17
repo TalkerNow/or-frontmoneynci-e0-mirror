@@ -51,19 +51,12 @@ class AllContracts extends React.Component {
     department: "All",
     defaultColDef: {
       resizable: true,
-      sortable: true
+      sortable: true,
+
     },
+
     searchVal: "",
     columnDefs: [
-      // {
-      //   headerName: "ID",
-      //   field: "id",
-      //   width: 150,
-      //   filter: true,
-      //   checkboxSelection: true,
-      //   headerCheckboxSelectionFilteredOnly: true,
-      //   headerCheckboxSelection: true
-      // },
       {
         headerName: "contrat",
         field: "comment",
@@ -234,10 +227,11 @@ class AllContracts extends React.Component {
         field: "updated_at",
         filter: true,
         width: 200,
+        sort: 'desc',
         cellRendererFramework: params => {
           return (
             <div>
-              <Moment format="DD-MM-YYYY HH:mm" date={params.data.created_at} utc />
+              <Moment format="DD-MM-YYYY HH:mm" date={params.data.updated_at} utc />
             </div>
           )
         }
@@ -369,6 +363,16 @@ class AllContracts extends React.Component {
       this.gridApi.updateRowData({ remove: SelectedData })
     }
   }
+  ConsultantsSort = () => {
+    this.gridApi.setFilterModel({
+      comment: {
+        type: "text",
+        values: "Contract de Jean-Pierre LASSALE",
+      },
+    });
+    this.gridApi.onFilterChanged(); 
+  };
+
 
   render() {
     const { rowData, columnDefs, defaultColDef, pageSize } = this.state
@@ -625,23 +629,9 @@ class AllContracts extends React.Component {
                         value={this.state.searchVal}
                       />
                       <div>
-                        <Button.Ripple className="mr-1 mb-1" outline color="light" onClick={() => history.push("/app/contract/handleServices/" + this.props.id)}>
-                          <FolderPlus size={15} />
+                        <Button.Ripple className="mr-1 mb-1" outline color="light" onClick={() => this.ConsultantsSort()}>
+                          tris
                         </Button.Ripple>
-                      </div>
-                      <div className="dropdown actions-dropdown">
-                        <UncontrolledButtonDropdown>
-                          <DropdownToggle className="px-2 py-75" color="white">
-                            Actions
-                            <ChevronDown className="ml-50" size={15} />
-                          </DropdownToggle>
-                          <DropdownMenu right>
-                            <DropdownItem tag="a">
-                              <Home size={15} />
-                              <span className="align-middle ml-50">Exemple d'action</span>
-                            </DropdownItem>
-                          </DropdownMenu>
-                        </UncontrolledButtonDropdown>
                       </div>
                     </div>
                   </div>
