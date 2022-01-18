@@ -44,8 +44,16 @@ var input_values = {
     "p2": "1500", "p3": "1500", "p4": "1500", "p5": "1500", "p6": "1500", "p7": "1500",
     "TVAP": "20", "fp1": '75', "fp2": '25'
 };
+
+const Config = {
+    headers: {
+        Authorization: "Bearer " + localStorage.getItem("token")
+    }
+}
+
 class CreateContract extends React.Component {
     state = {
+        creator_id: null,
         rowData: [],
         perso: [],
         services: [],
@@ -184,16 +192,14 @@ class CreateContract extends React.Component {
         })
     }
     async componentDidMount() {
-        const Config = {
-            headers: {
-                Authorization: "Bearer " + localStorage.getItem("token")
-            }
-        }
         this.setState(
             {
                 user_id: this.props.match.params.id
             }
         );
+        this.setState({
+            creator_id: localStorage.getItem('userid').toString()
+        });
         this.setState(
             {
                 parent_id: this.props.match.params.parent_id
@@ -258,6 +264,7 @@ class CreateContract extends React.Component {
         parameters['end_payment'] = parseFloat(this.state.formValues['FINAL25']) ? parseFloat(this.state.formValues['FINAL25']) : 0;
         parameters['user_id'] = userid;
         parameters['parent_id'] = parentid.toString();
+        parameters['creator_id'] = this.state.creator_id;
         parameters['values'] = JSON.stringify(input_values);
         //-------- save Contract ---------
         axios.post(global.config.server_url + "/documents", parameters, Config)
@@ -348,6 +355,7 @@ class CreateContract extends React.Component {
         parameters['advanced_payment'] = this.state.formValues['TOTALTTC'] ? this.state.formValues['TOTALTTC'] : 0;
         parameters['user_id'] = userid;
         parameters['parent_id'] = parentid.toString();//parentid;//localStorage.getItem("userid");
+        parameters['creator_id'] = this.state.creator_id;
         parameters['values'] = JSON.stringify(input_values);
 
         axios.post(global.config.server_url + "/documents", parameters, Config)
