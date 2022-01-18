@@ -9,7 +9,7 @@ const navigationConfig = [
     type: "item",
     icon: <Icon.Home size={20}/>,
     permissions: ["admin", 'Consultant'],
-    navLink: "/dasboard"
+    navLink: "/dashboard"
     //badge: "warning",
     //badgeText: "2"
    },
