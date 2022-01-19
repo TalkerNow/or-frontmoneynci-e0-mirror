@@ -98,7 +98,7 @@
     "eject": "react-app-rewired eject"
   },
   "devDependencies": {
-    "gulp-sass": "^5.0.0",
+    "gulp-sass": "^5.1.0",
     "node-sass": "^4.13.1",
     "react-app-rewire-postcss": "^3.0.2",
     "react-app-rewired": "^2.1.5"
