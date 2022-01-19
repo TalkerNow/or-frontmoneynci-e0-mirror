@@ -237,6 +237,42 @@ class AllContracts extends React.Component {
         }
       },
       {
+        headerName: "Date acompte",
+        field: "deposit_date",
+        filter: true,
+        width: 200,
+        cellRendererFramework: params => {
+          if (params.data.deposit_date !== null) {
+            return (
+              <div>
+                <Moment format="DD-MM-YYYY" date={params.data.deposit_date} utc />
+              </div>
+            )
+          } else
+            return (
+              <div></div>
+            )
+        }
+      },
+      {
+        headerName: "Date solde",
+        field: "sold_date",
+        filter: true,
+        width: 200,
+        cellRendererFramework: params => {
+          if (params.data.sold_date !== null) {
+            return (
+              <div>
+                <Moment format="DD-MM-YYYY" date={params.data.sold_date} utc />
+              </div>
+            )
+          } else
+            return (
+              <div></div>
+            )
+        }
+      },
+      {
         headerName: "Actions",
         field: "transactions",
         width: 150,
@@ -370,7 +406,7 @@ class AllContracts extends React.Component {
         values: "Contract de Jean-Pierre LASSALE",
       },
     });
-    this.gridApi.onFilterChanged(); 
+    this.gridApi.onFilterChanged();
   };
 
 
