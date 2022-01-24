@@ -24,6 +24,7 @@ import "../../../../assets/scss/pages/users.scss"
 import Moment from "react-moment";
 import SweetAlert from "react-bootstrap-sweetalert";
 import Chip from "../../../../../src/components/@vuexy/chips/ChipComponent"
+import { param } from "jquery";
 
 const chipColors = {
   CH: "warning",
@@ -33,8 +34,11 @@ const chipColors = {
   ACTU: 'primary',
   RAC: 'warning'
 }
+var consultant_id = -1;
+
 class AllContracts extends React.Component {
   state = {
+    filter: false, 
     defaultAlert: false,
     confirmAlert: false,
     cancelAlert: false,
@@ -52,7 +56,7 @@ class AllContracts extends React.Component {
     defaultColDef: {
       resizable: true,
       sortable: true,
-
+      filter: true,
     },
 
     searchVal: "",
@@ -60,7 +64,6 @@ class AllContracts extends React.Component {
       {
         headerName: "contrat",
         field: "comment",
-        filter: true,
         width: 300,
         cellRendererFramework: params => {
           return (
@@ -74,9 +77,23 @@ class AllContracts extends React.Component {
         }
       },
       {
+        headerName: "creator_id",
+        field: "creator_id",
+        width: 150,
+        hide: true,
+        cellRendererFramework: params => {
+          return (
+            <div
+              className="d-flex align-items-center cursor-pointer"
+            >
+              <span>{params.data.creator_id}</span>
+            </div>
+          )
+        }
+      },
+      {
         headerName: "Prestation",
         field: "subscribe_services",
-        filter: true,
         width: 220,
         cellRendererFramework: params => {
           return (
@@ -107,7 +124,6 @@ class AllContracts extends React.Component {
       {
         headerName: "Montant",
         field: "advanced_payment",
-        filter: true,
         width: 150,
         cellRendererFramework: params => {
           return (
@@ -123,7 +139,6 @@ class AllContracts extends React.Component {
       {
         headerName: "Acompte",
         field: "pre_payment",
-        filter: true,
         width: 150,
         cellRendererFramework: params => {
           if ((params.data.document_state === "En cours" || params.data.document_state === "Termine") && params.data.status_payment >= 1) {
@@ -159,7 +174,6 @@ class AllContracts extends React.Component {
       {
         headerName: "solde",
         field: "end_payment",
-        filter: true,
         width: 150,
         cellRendererFramework: params => {
           if ((params.data.document_state === "En cours" || params.data.document_state === "Termine") && params.data.status_payment === 2) {
@@ -195,7 +209,6 @@ class AllContracts extends React.Component {
       {
         headerName: "Etat",
         field: "document_state",
-        filter: true,
         width: 170,
         cellRendererFramework: params => {
           return (
@@ -212,7 +225,6 @@ class AllContracts extends React.Component {
       {
         headerName: "Date de Création",
         field: "created_at",
-        filter: true,
         width: 200,
         cellRendererFramework: params => {
           return (
@@ -225,7 +237,6 @@ class AllContracts extends React.Component {
       {
         headerName: "Date de Modification",
         field: "updated_at",
-        filter: true,
         width: 200,
         sort: 'desc',
         cellRendererFramework: params => {
@@ -239,7 +250,6 @@ class AllContracts extends React.Component {
       {
         headerName: "Date acompte",
         field: "deposit_date",
-        filter: true,
         width: 200,
         cellRendererFramework: params => {
           if (params.data.deposit_date !== null) {
@@ -257,7 +267,6 @@ class AllContracts extends React.Component {
       {
         headerName: "Date solde",
         field: "sold_date",
-        filter: true,
         width: 200,
         cellRendererFramework: params => {
           if (params.data.sold_date !== null) {
@@ -301,6 +310,22 @@ class AllContracts extends React.Component {
       this.setState({ rowData })
     })
   }
+  isExternalFilterPresent = () => {
+    if (consultant_id != -1) {  
+      return true;
+    }
+    return false;
+  };
+  externalFilterChanged = (newValue) => {
+    console.log(newValue)
+    consultant_id = newValue;
+    this.setState({filter: !this.state.filter});
+    //this.setState({ consultant_id: newValue })
+    this.gridApi.onFilterChanged();
+  };
+  doesExternalFilterPass = (node) => {
+    return node.data.creator_id == consultant_id;
+  };
 
   deleteDoc(id) {
     const Config = {
@@ -399,16 +424,6 @@ class AllContracts extends React.Component {
       this.gridApi.updateRowData({ remove: SelectedData })
     }
   }
-  ConsultantsSort = () => {
-    this.gridApi.setFilterModel({
-      comment: {
-        type: "text",
-        values: "Contract de Jean-Pierre LASSALE",
-      },
-    });
-    this.gridApi.onFilterChanged();
-  };
-
 
   render() {
     const { rowData, columnDefs, defaultColDef, pageSize } = this.state
@@ -459,165 +474,6 @@ class AllContracts extends React.Component {
         </SweetAlert>
         <Row className="app-user-list">
           <Col sm="12">
-            <Card
-              className={classnames("card-action card-reload", {
-                "d-none": this.state.isVisible === false,
-                "card-collapsed": this.state.status === "Closed",
-                closing: this.state.status === "Closing...",
-                opening: this.state.status === "Opening...",
-                refreshing: this.state.reload
-              })}
-            >
-              <CardHeader>
-                <h4>Contrats</h4>
-                <div className="actions">
-                  <ChevronDown
-                    className="collapse-icon mr-50"
-                    size={15}
-                    onClick={this.toggleCollapse}
-                  />
-                  <RotateCw
-                    className="mr-50"
-                    size={15}
-                    onClick={() => {
-                      this.refreshCard()
-                      this.gridApi.setFilterModel(null)
-                    }}
-                  />
-                  <X size={15} onClick={this.removeCard} />
-                </div>
-              </CardHeader>
-              <Collapse
-                isOpen={this.state.collapse}
-                onExited={this.onExited}
-                onEntered={this.onEntered}
-                onExiting={this.onExiting}
-                onEntering={this.onEntering}
-              >
-                <CardBody>
-                  {this.state.reload ? (
-                    <Spinner color="primary" className="reload-spinner" />
-                  ) : (
-                    ""
-                  )}
-                  <Row>
-                    <Col lg="3" md="6" sm="12">
-                      <FormGroup className="mb-0">
-                        <Label for="role">Role</Label>
-                        <Input
-                          type="select"
-                          name="role"
-                          id="role"
-                          value={this.state.role}
-                          onChange={e => {
-                            this.setState(
-                              {
-                                role: e.target.value
-                              },
-                              () =>
-                                this.filterData(
-                                  "role",
-                                  this.state.role.toLowerCase()
-                                )
-                            )
-                          }}
-                        >
-                          <option value="All">All</option>
-                          <option value="User">User</option>
-                          <option value="Staff">Staff</option>
-                          <option value="Admin">Admin</option>
-                        </Input>
-                      </FormGroup>
-                    </Col>
-                    <Col lg="3" md="6" sm="12">
-                      <FormGroup className="mb-0">
-                        <Label for="status">Status</Label>
-                        <Input
-                          type="select"
-                          name="status"
-                          id="status"
-                          value={this.state.selectStatus}
-                          onChange={e => {
-                            this.setState(
-                              {
-                                selectStatus: e.target.value
-                              },
-                              () =>
-                                this.filterData(
-                                  "status",
-                                  this.state.selectStatus.toLowerCase()
-                                )
-                            )
-                          }}
-                        >
-                          <option value="All">All</option>
-                          <option value="Active">Active</option>
-                          <option value="Blocked">Blocked</option>
-                          <option value="Deactivated">Deactivated</option>
-                        </Input>
-                      </FormGroup>
-                    </Col>
-                    <Col lg="3" md="6" sm="12">
-                      <FormGroup className="mb-0">
-                        <Label for="verified">Verified</Label>
-                        <Input
-                          type="select"
-                          name="verified"
-                          id="verified"
-                          value={this.state.verified}
-                          onChange={e => {
-                            this.setState(
-                              {
-                                verified: e.target.value
-                              },
-                              () =>
-                                this.filterData(
-                                  "is_verified",
-                                  this.state.verified.toLowerCase()
-                                )
-                            )
-                          }}
-                        >
-                          <option value="All">All</option>
-                          <option value="True">True</option>
-                          <option value="False">False</option>
-                        </Input>
-                      </FormGroup>
-                    </Col>
-                    <Col lg="3" md="6" sm="12">
-                      <FormGroup className="mb-0">
-                        <Label for="department">Department</Label>
-                        <Input
-                          type="select"
-                          name="department"
-                          id="department"
-                          value={this.state.department}
-                          onChange={e => {
-                            this.setState(
-                              {
-                                department: e.target.value
-                              },
-                              () =>
-                                this.filterData(
-                                  "department",
-                                  this.state.department.toLowerCase()
-                                )
-                            )
-                          }}
-                        >
-                          <option value="All">All</option>
-                          <option value="Sales">Sales</option>
-                          <option value="Development">Development</option>
-                          <option value="Management">Management</option>
-                        </Input>
-                      </FormGroup>
-                    </Col>
-                  </Row>
-                </CardBody>
-              </Collapse>
-            </Card>
-          </Col>
-          <Col sm="12">
             <Card>
               <CardBody>
                 <div className="ag-theme-material ag-grid-table">
@@ -665,9 +521,21 @@ class AllContracts extends React.Component {
                         value={this.state.searchVal}
                       />
                       <div>
-                        <Button.Ripple className="mr-1 mb-1" outline color="light" onClick={() => this.ConsultantsSort()}>
-                          tris
-                        </Button.Ripple>
+                        {(consultant_id !== -1  && this.state.filter === true) &&
+                          <>
+                            <Button className="mr-1 mb-1" outline color="primary" onClick={() => this.externalFilterChanged(-1)}>
+                              mes contrats
+                            </Button>
+                          </>
+                        }
+                        {(consultant_id === -1 && this.state.filter === false) &&
+                          <>
+                            <Button className="mr-1 mb-1" outline color="primary" onClick={() => this.externalFilterChanged(localStorage.getItem('userid'))}>
+                            tous les contrats
+                            </Button>
+                          </>
+                        }
+
                       </div>
                     </div>
                   </div>
@@ -676,7 +544,9 @@ class AllContracts extends React.Component {
                       {context => (
                         <AgGridReact
                           gridOptions={{}}
-                          rowSelection="multiple"
+                          //rowSelection="multiple"
+                          doesExternalFilterPass={this.doesExternalFilterPass}
+                          isExternalFilterPresent={this.isExternalFilterPresent}
                           defaultColDef={defaultColDef}
                           columnDefs={columnDefs}
                           rowData={rowData}
@@ -698,7 +568,7 @@ class AllContracts extends React.Component {
             </Card>
           </Col>
         </Row>
-      </div>
+      </div >
     )
   }
 }
