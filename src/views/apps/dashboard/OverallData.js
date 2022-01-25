@@ -51,18 +51,21 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
     current_acompte_amount: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     current_solde_amount: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     opportunite_amount: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    opportunite_count: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     year_client_count: 0,
     year_current_total_amount: 0,
     year_total_ended_count: 0,
     year_current_acompte_amount: 0,
     year_current_solde_amount: 0,
     year_opportunite_amount: 0,
+    year_opportunite_count: 0,
     trim_client_count: 0,
     trim_current_total_amount: 0,
     trim_total_ended_count: 0,
     trim_current_acompte_amount: 0,
     trim_current_solde_amount: 0,
     trim_opportunite_amount: 0,
+    trim_opportunite_count: 0,
     trim: "Trimestre 1",
     activeTab: "1",
     rowData:[],
@@ -78,13 +81,15 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
       let tmp_account = []
       let tmp_sold = []
       let tmp_opportunite = []
+      let tmp_opportunite_c = []
       let tmp_ended = []
       for (let i = 0; i < 12; i++) {
-        tmp_clients[i] = response.data[i+1]['clients_count'];
+        tmp_clients[i] = response.data[i+1]['current_acompte_count'];
         tmp_total_amount[i] = response.data[i+1]['current_total_amount'];
         tmp_account[i] = response.data[i+1]['current_acompte_amount'];
         tmp_sold[i] = response.data[i+1]['current_solde_amount'];
         tmp_opportunite[i] = response.data[i+1]['opportunite_amount'];
+        tmp_opportunite_c[i] = response.data[i+1]['opportunite_count'];
         tmp_ended[i] = response.data[i+1]['total_ended_count'];
       }
       this.setState({
@@ -94,6 +99,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
           current_acompte_amount: tmp_account,
           current_solde_amount: tmp_sold,
           opportunite_amount: tmp_opportunite,
+          opportunite_count: tmp_opportunite_c,
           rowData: response.data,
         })
     })
@@ -121,7 +127,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
       }
       let j = i + 3
       while (i != j) {
-        tmp_clients =  tmp_clients + response.data[i+1]['clients_count'];
+        tmp_clients =  tmp_clients + response.data[i+1]['current_acompte_count'];
         tmp_total_amount = tmp_total_amount + response.data[i+1]['current_total_amount'];
         tmp_account = tmp_account + response.data[i+1]['current_acompte_amount'];
         tmp_sold = tmp_sold + response.data[i+1]['current_solde_amount'];
@@ -152,13 +158,15 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
       let tmp_account = []
       let tmp_sold = []
       let tmp_opportunite = []
+      let tmp_opportunite_c = []
       let tmp_ended = []
       for (let i = 0; i < 12; i++) {
-        tmp_clients[i] = response.data[i+1]['clients_count'];
+        tmp_clients[i] = response.data[i+1]['current_acompte_count'];
         tmp_total_amount[i] = response.data[i+1]['current_total_amount'];
         tmp_account[i] = response.data[i+1]['current_acompte_amount'];
         tmp_sold[i] = response.data[i+1]['current_solde_amount'];
         tmp_opportunite[i] = response.data[i+1]['opportunite_amount'];
+        tmp_opportunite_c[i] = response.data[i+1]['opportunite_count'];
         tmp_ended[i] = response.data[i+1]['total_ended_count'];
       }
       this.setState({
@@ -168,6 +176,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
           current_acompte_amount: tmp_account,
           current_solde_amount: tmp_sold,
           opportunite_amount: tmp_opportunite,
+          opportunite_count: tmp_opportunite_c,
           month: toCompare,
           year: newYear,
           monthb: i,
@@ -206,7 +215,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
       let tmp_opportunite = 0
       let tmp_ended = 0
       for (let i = 0; i < 12; i++) {
-        tmp_clients =  tmp_clients + response.data[i+1]['clients_count'];
+        tmp_clients =  tmp_clients + response.data[i+1]['current_acompte_count'];
         tmp_total_amount = tmp_total_amount + response.data[i+1]['current_total_amount'];
         tmp_account = tmp_account + response.data[i+1]['current_acompte_amount'];
         tmp_sold = tmp_sold + response.data[i+1]['current_solde_amount'];
@@ -315,20 +324,6 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                        </div>
                       <div className="icon-section form-inline text-bold-600" style={TodoComponent}>
                         <div className="ml-3">
-                          <div style={{display:'inline-block',float:'left'}}>
-                            <div className={`avatar avatar-stats mt-1 p-75 ${
-                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
-                                <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
-                                  <Users className="primary" size={bubleSize} />
-                                </div>
-                            </div>
-                          </div>
-                          <div className="mt-1">
-                            <h2>{this.numStr(this.state.client_count[this.state.monthb - 1])}</h2>
-                            <CardTitle style={{width:'135px',marginLeft:'auto',marginRight:'auto'}}>Clients</CardTitle>
-                          </div>
-                        </div>
-                        <div className="ml-3">
                           <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-warning"}`}>
@@ -339,7 +334,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                           </div>
                           <div className="ml-1 mt-1">
                             <h2>{this.numStr(this.state.current_total_amount[this.state.monthb - 1])} €</h2>
-                            <CardTitle style={{width:'220px',marginLeft:'auto',marginRight:'auto'}}>Chiffre d'affaires</CardTitle>
+                            <CardTitle style={{width:'285px',marginLeft:'auto',marginRight:'auto'}}>Chiffre d'affaires</CardTitle>
                           </div>
                         </div>
                         <div className="ml-3">
@@ -353,7 +348,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                           </div>
                           <div className="ml-1 mt-1">
                               <h2>{this.numStr(this.state.current_acompte_amount[this.state.monthb - 1])} €</h2>
-                              <CardTitle style={{width:'160px',marginLeft:'auto',marginRight:'auto'}}>Acomptes</CardTitle>
+                              <CardTitle style={{width:'285px',marginLeft:'auto',marginRight:'auto'}}>Acomptes</CardTitle>
                             </div>
                         </div>
                         <div className="ml-3">
@@ -367,7 +362,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                           </div>
                           <div className="mt-1">
                             <h2>{this.numStr(this.state.current_solde_amount[this.state.monthb - 1])} €</h2>
-                            <CardTitle style={{width:'160px',marginLeft:'auto',marginRight:'auto'}}>Soldes</CardTitle>
+                            <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Soldes</CardTitle>
                           </div>
                         </div>
                         <div className="ml-3">
@@ -381,7 +376,35 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                           </div>
                           <div className="ml-1 mt-1">
                             <h2>{this.numStr(this.state.opportunite_amount[this.state.monthb - 1])} €</h2>
-                            <CardTitle style={{width:'190px',marginLeft:'auto',marginRight:'auto'}}>Opportunités</CardTitle>
+                            <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Opportunités</CardTitle>
+                          </div>
+                        </div>
+                        <div className="ml-3">
+                          <div style={{display:'inline-block',float:'left'}}>
+                            <div className={`avatar avatar-stats mt-1 p-75 ${
+                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
+                                <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
+                                  <Users className="primary" size={bubleSize} />
+                                </div>
+                            </div>
+                          </div>
+                          <div className="mt-1">
+                            <h2>{this.numStr(this.state.client_count[this.state.monthb - 1])}</h2>
+                            <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Clients signés</CardTitle>
+                          </div>
+                        </div>
+                        <div className="ml-3">
+                          <div style={{display:'inline-block',float:'left'}}>
+                            <div className={`avatar avatar-stats mt-1 p-75 ${
+                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
+                                <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
+                                  <Users className="primary" size={bubleSize} />
+                                </div>
+                            </div>
+                          </div>
+                          <div className="mt-1">
+                            <h2>{this.numStr(this.state.opportunite_count[this.state.monthb - 1])}</h2>
+                            <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Clients prospects</CardTitle>
                           </div>
                         </div>
                         <div className="ml-3">
@@ -395,7 +418,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                           </div>
                           <div className="ml-1 mt-1">
                             <h2>{this.numStr(this.state.total_ended_count[this.state.monthb - 1])}</h2>
-                            <CardTitle style={{width:'230px',marginLeft:'auto',marginRight:'auto'}}>Contrats cloturés</CardTitle>
+                            <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Contrats cloturés</CardTitle>
                           </div>
                         </div>
                       </div>
