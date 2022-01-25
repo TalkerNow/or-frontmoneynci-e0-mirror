@@ -3,11 +3,14 @@ import { Card, CardHeader, CardTitle, CardBody, Input } from "reactstrap"
 import Chart from "react-apexcharts"
 import axios from "axios";
 
+
 const Config = {
   headers: {
     Authorization: "Bearer " + localStorage.getItem("token")
   }
 }
+
+
 
 class RevenueGraph extends React.Component {
   state = {
@@ -15,12 +18,12 @@ class RevenueGraph extends React.Component {
     lst_acompte_amount: [],
     options: {
       chart: {
-        stacked: true,
-        toolbar: { show: false }
+        stacked: false,
+        toolbar: { show: true }
       },
       plotOptions: {
         bar: {
-          columnWidth: '17%',
+          columnWidth: '50%',
           endingShape: 'rounded'
         },
         distributed: true
@@ -77,13 +80,14 @@ class RevenueGraph extends React.Component {
         }
       },
       yaxis: {
-        tickAmount: 5,
+        tickAmount: 8,
         labels: {
           style: {
             color: this.props.strokeColor
           }
         }
       },
+
       tooltip: {
         x: { show: false }
       }
@@ -91,11 +95,13 @@ class RevenueGraph extends React.Component {
     series: [
       {
         name: "Acomptes",
+        type: 'column',
         data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
       },
       {
         name: "Soldes",
-        data: [-0, -0, -0, -0, -0, -0, -0, -0, -0, -0, -0, -0]
+        type: 'column',
+        data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
       }
     ]
   }
@@ -106,7 +112,7 @@ class RevenueGraph extends React.Component {
       let soldlist = [];
       for (let i = 0; i < 12; i++) {
         acomptelist[i] = response.data[i + 1]['current_acompte_amount'];
-        soldlist[i] = - response.data[i + 1]['current_solde_amount'];
+        soldlist[i] = response.data[i + 1]['current_solde_amount'];
       }
       this.setState({
         series: [
@@ -130,7 +136,7 @@ class RevenueGraph extends React.Component {
       let soldlist = [];
       for (let i = 0; i < 12; i++) {
         acomptelist[i] = response.data[i + 1]['current_acompte_amount'];
-        soldlist[i] = - response.data[i + 1]['current_solde_amount'];
+        soldlist[i] = response.data[i + 1]['current_solde_amount'];
       }
       this.setState({
         series: [
