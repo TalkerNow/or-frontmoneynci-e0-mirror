@@ -311,22 +311,27 @@ class EditContract extends React.Component {
     setStatusPayment(value) {
         if (value == 1) {
             if (this.state.status_payment == 0) {
-                this.setState({ status_payment: 1 })
-                this.setState({ deposit_date: moment().format("YYYY-MM-DD HH:mm:ss") })
+                this.setState({ status_payment: 1 });
+                this.setState({ deposit_date: moment().format("YYYY-MM-DD HH:mm:ss") });
             }
             else {
-                this.setState({ status_payment: 0 })
-                this.setState({ sold_date: null })
-                this.setState({ deposit_date: null })
+                this.setState({ status_payment: 0 });
+                this.setState({ sold_date: null });
+                this.setState({ deposit_date: null });
             }
         } else if (value == 2) {
-            if (this.state.status_payment <= 1) {
+            if (this.state.status_payment == 1) {
                 this.setState({ status_payment: 2 })
-                this.setState({ sold_date: moment().format("YYYY-MM-DD HH:mm:ss") })
+                this.setState({ sold_date: moment().format("YYYY-MM-DD HH:mm:ss") });
+            }
+            else if (this.state.status_payment == 0) {
+                this.setState({ status_payment: 2 })
+                this.setState({ deposit_date: moment().format("YYYY-MM-DD HH:mm:ss") });
+                this.setState({ sold_date: moment().format("YYYY-MM-DD HH:mm:ss") });
             }
             else {
-                this.setState({ status_payment: 1 })
-                this.setState({ sold_date: null })
+                this.setState({ status_payment: 1 });
+                this.setState({ sold_date: null });
             }
         }
     }

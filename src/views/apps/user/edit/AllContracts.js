@@ -1,22 +1,18 @@
 import React from "react"
 import {
-  FormGroup,
-  Label,
   Input,
   Row,
   Col,
   Button,
   Card,
   CardHeader,
-  Collapse,
-  CardBody, Spinner, UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem, UncontrolledButtonDropdown
+  CardBody, UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem,
 } from "reactstrap"
 import {
-  Trash2, ChevronDown, RotateCw, X, Home, FolderPlus
+  Trash2, ChevronDown,
 } from "react-feather"
 import { history } from "../../../../history";
 import axios from "axios";
-import classnames from "classnames";
 import { ContextLayout } from "../../../../utility/context/Layout";
 import { AgGridReact } from "ag-grid-react";
 import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss"
@@ -24,7 +20,6 @@ import "../../../../assets/scss/pages/users.scss"
 import Moment from "react-moment";
 import SweetAlert from "react-bootstrap-sweetalert";
 import Chip from "../../../../../src/components/@vuexy/chips/ChipComponent"
-import { param } from "jquery";
 
 const chipColors = {
   CH: "warning",
@@ -38,7 +33,7 @@ var consultant_id = -1;
 
 class AllContracts extends React.Component {
   state = {
-    filter: false, 
+    filter: false,
     defaultAlert: false,
     confirmAlert: false,
     cancelAlert: false,
@@ -129,7 +124,6 @@ class AllContracts extends React.Component {
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
-            //onClick={() => history.push("/app/user/edit/" + params.data.id)}
             >
               <span>{params.data.advanced_payment + " €"}</span>
             </div>
@@ -145,7 +139,6 @@ class AllContracts extends React.Component {
             return (
               <div
                 className="d-flex align-items-center cursor-pointer text-success"
-              //onClick={() => history.push("/app/user/edit/" + params.data.id)}
               >
                 <span>{params.data.pre_payment + " €"}</span>
               </div>
@@ -154,7 +147,6 @@ class AllContracts extends React.Component {
             return (
               <div
                 className="d-flex align-items-center cursor-pointer text-danger"
-              //onClick={() => history.push("/app/user/edit/" + params.data.id)}
               >
                 <span>{params.data.pre_payment + " €"}</span>
               </div>
@@ -163,7 +155,6 @@ class AllContracts extends React.Component {
             return (
               <div
                 className="d-flex align-items-center cursor-pointer"
-              //onClick={() => history.push("/app/user/edit/" + params.data.id)}
               >
                 <span>{params.data.pre_payment + " €"}</span>
               </div>
@@ -180,7 +171,6 @@ class AllContracts extends React.Component {
             return (
               <div
                 className="d-flex align-items-center cursor-pointer text-success"
-              //onClick={() => history.push("/app/user/edit/" + params.data.id)}
               >
                 <span>{params.data.end_payment + " €"}</span>
               </div>
@@ -189,7 +179,6 @@ class AllContracts extends React.Component {
             return (
               <div
                 className="d-flex align-items-center cursor-pointer text-danger"
-              //onClick={() => history.push("/app/user/edit/" + params.data.id)}
               >
                 <span>{params.data.end_payment + " €"}</span>
               </div>
@@ -198,7 +187,6 @@ class AllContracts extends React.Component {
             return (
               <div
                 className="d-flex align-items-center cursor-pointer"
-              //onClick={() => history.push("/app/user/edit/" + params.data.id)}
               >
                 <span>{params.data.end_payment + " €"}</span>
               </div>
@@ -215,7 +203,6 @@ class AllContracts extends React.Component {
             params.data.user &&
             <div
               className="d-flex align-items-center cursor-pointer"
-            //onClick={() => history.push("/app/user/edit/" + params.data.id)}
             >
               <span>{params.data.document_state}</span>
             </div>
@@ -311,16 +298,14 @@ class AllContracts extends React.Component {
     })
   }
   isExternalFilterPresent = () => {
-    if (consultant_id != -1) {  
+    if (consultant_id != -1) {
       return true;
     }
     return false;
   };
   externalFilterChanged = (newValue) => {
-    console.log(newValue)
     consultant_id = newValue;
-    this.setState({filter: !this.state.filter});
-    //this.setState({ consultant_id: newValue })
+    this.setState({ filter: !this.state.filter });
     this.gridApi.onFilterChanged();
   };
   doesExternalFilterPass = (node) => {
@@ -521,17 +506,17 @@ class AllContracts extends React.Component {
                         value={this.state.searchVal}
                       />
                       <div>
-                        {(consultant_id !== -1  && this.state.filter === true) &&
+                        {(consultant_id !== -1 && this.state.filter === true) &&
                           <>
                             <Button className="mr-1 mb-1" outline color="primary" onClick={() => this.externalFilterChanged(-1)}>
-                              mes contrats
+                            tous les contrats
                             </Button>
                           </>
                         }
                         {(consultant_id === -1 && this.state.filter === false) &&
                           <>
                             <Button className="mr-1 mb-1" outline color="primary" onClick={() => this.externalFilterChanged(localStorage.getItem('userid'))}>
-                            tous les contrats
+                            mes contrats
                             </Button>
                           </>
                         }
@@ -544,7 +529,7 @@ class AllContracts extends React.Component {
                       {context => (
                         <AgGridReact
                           gridOptions={{}}
-                          //rowSelection="multiple"
+                          rowSelection="multiple"
                           doesExternalFilterPass={this.doesExternalFilterPass}
                           isExternalFilterPresent={this.isExternalFilterPresent}
                           defaultColDef={defaultColDef}
