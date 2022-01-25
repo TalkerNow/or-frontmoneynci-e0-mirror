@@ -100,12 +100,9 @@ class PrestationStatistics extends React.Component {
     year: null,
     total_amount: 0,
     activeTab: '1',
-    month: 'janvier',
+    month: null,
     monthb: 1,
     prestation: null,
-    waiting: [],
-    onGoing: [],
-    finish: [],
     chipdataW: {
       CH: 1,
       SIMU: 2,
@@ -190,11 +187,11 @@ class PrestationStatistics extends React.Component {
     
   async componentDidMount() {
     let tmp = new Date();
+    this.setState({ month: FrenchMonth[tmp.getMonth()]})
     this.setState({ year: tmp.getFullYear()})
     await axios.get(global.config.server_url + "/getPrestation", Config).then(response => {
       this.setState({
         prestation: response.data,
-        waiting: response.data[0],
         chipdataW: {
           CH: response.data[0][this.state.monthb]['CH'],
           SIMU: response.data[0][this.state.monthb]['SIMU'],
@@ -219,8 +216,6 @@ class PrestationStatistics extends React.Component {
           ACTU: response.data[2][this.state.monthb]['ACTU'],
           RAC: response.data[2][this.state.monthb]['RAC']
         },
-        onGoing: response.data[1],
-        finish: response.data[2],
       })
     })
   }
@@ -289,7 +284,8 @@ class PrestationStatistics extends React.Component {
           TFD: tmp_e_y_TFD,
           ACTU: tmp_e_y_ACTU,
           RAC: tmp_e_y_RAC
-        }
+        },
+        year: newYear,
       })
     })
   }
@@ -314,72 +310,20 @@ class PrestationStatistics extends React.Component {
       let tmp_e_TFD = 0
       let tmp_e_ACTU = 0
       let tmp_e_RAC = 0
+      let i = 0
       if (Trim == "Trimestre 1") {
-        for (let i = 0; i < 3; i++) {
-          tmp_w_CH = tmp_w_CH + response.data[0][i+1]['CH'],
-          tmp_w_SIMU = tmp_w_SIMU + response.data[0][i+1]['SIMU'],
-          tmp_w_AR = tmp_w_AR + response.data[0][i+1]['AR'],
-          tmp_w_TFD = tmp_w_TFD + response.data[0][i+1]['TFD'],
-          tmp_w_ACTU = tmp_w_ACTU + response.data[0][i+1]['ACTU'],
-          tmp_w_RAC = tmp_w_RAC + response.data[0][i+1]['RAC'],
-          tmp_o_CH = tmp_o_CH + response.data[1][i+1]['CH'],
-          tmp_o_SIMU = tmp_o_SIMU + response.data[1][i+1]['SIMU'],
-          tmp_o_AR = tmp_o_AR + response.data[1][i+1]['AR'],
-          tmp_o_TFD = tmp_o_TFD + response.data[1][i+1]['TFD'],
-          tmp_o_ACTU = tmp_o_ACTU + response.data[1][i+1]['ACTU'],
-          tmp_o_RAC = tmp_o_RAC + response.data[1][i+1]['RAC'],
-          tmp_e_CH = tmp_e_CH + response.data[2][i+1]['CH'],
-          tmp_e_SIMU = tmp_e_SIMU + response.data[2][i+1]['SIMU'],
-          tmp_e_AR = tmp_e_AR + response.data[2][i+1]['AR'],
-          tmp_e_TFD = tmp_e_TFD + response.data[2][i+1]['TFD'],
-          tmp_e_ACTU = tmp_e_ACTU + response.data[2][i+1]['ACTU'],
-          tmp_e_RAC = tmp_e_RAC + response.data[2][i+1]['RAC']
-        }
+        i = 0
       } else if (Trim == "Trimestre 2") {
-        for (let i = 3; i < 6; i++) {
-          tmp_w_CH = tmp_w_CH + response.data[0][i+1]['CH'],
-          tmp_w_SIMU = tmp_w_SIMU + response.data[0][i+1]['SIMU'],
-          tmp_w_AR = tmp_w_AR + response.data[0][i+1]['AR'],
-          tmp_w_TFD = tmp_w_TFD + response.data[0][i+1]['TFD'],
-          tmp_w_ACTU = tmp_w_ACTU + response.data[0][i+1]['ACTU'],
-          tmp_w_RAC = tmp_w_RAC + response.data[0][i+1]['RAC'],
-          tmp_o_CH = tmp_o_CH + response.data[1][i+1]['CH'],
-          tmp_o_SIMU = tmp_o_SIMU + response.data[1][i+1]['SIMU'],
-          tmp_o_AR = tmp_o_AR + response.data[1][i+1]['AR'],
-          tmp_o_TFD = tmp_o_TFD + response.data[1][i+1]['TFD'],
-          tmp_o_ACTU = tmp_o_ACTU + response.data[1][i+1]['ACTU'],
-          tmp_o_RAC = tmp_o_RAC + response.data[1][i+1]['RAC'],
-          tmp_e_CH = tmp_e_CH + response.data[2][i+1]['CH'],
-          tmp_e_SIMU = tmp_e_SIMU + response.data[2][i+1]['SIMU'],
-          tmp_e_AR = tmp_e_AR + response.data[2][i+1]['AR'],
-          tmp_e_TFD = tmp_e_TFD + response.data[2][i+1]['TFD'],
-          tmp_e_ACTU = tmp_e_ACTU + response.data[2][i+1]['ACTU'],
-          tmp_e_RAC = tmp_e_RAC + response.data[2][i+1]['RAC']
-        }
+        i = 3
       } else if (Trim == "Trimestre 3") {
-        for (let i = 6; i < 9; i++) {
-          tmp_w_CH = tmp_w_CH + response.data[0][i+1]['CH'],
-          tmp_w_SIMU = tmp_w_SIMU + response.data[0][i+1]['SIMU'],
-          tmp_w_AR = tmp_w_AR + response.data[0][i+1]['AR'],
-          tmp_w_TFD = tmp_w_TFD + response.data[0][i+1]['TFD'],
-          tmp_w_ACTU = tmp_w_ACTU + response.data[0][i+1]['ACTU'],
-          tmp_w_RAC = tmp_w_RAC + response.data[0][i+1]['RAC'],
-          tmp_o_CH = tmp_o_CH + response.data[1][i+1]['CH'],
-          tmp_o_SIMU = tmp_o_SIMU + response.data[1][i+1]['SIMU'],
-          tmp_o_AR = tmp_o_AR + response.data[1][i+1]['AR'],
-          tmp_o_TFD = tmp_o_TFD + response.data[1][i+1]['TFD'],
-          tmp_o_ACTU = tmp_o_ACTU + response.data[1][i+1]['ACTU'],
-          tmp_o_RAC = tmp_o_RAC + response.data[1][i+1]['RAC'],
-          tmp_e_CH = tmp_e_CH + response.data[2][i+1]['CH'],
-          tmp_e_SIMU = tmp_e_SIMU + response.data[2][i+1]['SIMU'],
-          tmp_e_AR = tmp_e_AR + response.data[2][i+1]['AR'],
-          tmp_e_TFD = tmp_e_TFD + response.data[2][i+1]['TFD'],
-          tmp_e_ACTU = tmp_e_ACTU + response.data[2][i+1]['ACTU'],
-          tmp_e_RAC = tmp_e_RAC + response.data[2][i+1]['RAC']
-        }
+        i = 6
       } else if (Trim == "Trimestre 4"){
-        for (let i = 9; i < 12; i++) {
-          tmp_w_CH = tmp_w_CH + response.data[0][i+1]['CH'],
+        i = 9
+      }
+      let j = i + 3
+      while (i != j) 
+      {
+        tmp_w_CH = tmp_w_CH + response.data[0][i+1]['CH'],
           tmp_w_SIMU = tmp_w_SIMU + response.data[0][i+1]['SIMU'],
           tmp_w_AR = tmp_w_AR + response.data[0][i+1]['AR'],
           tmp_w_TFD = tmp_w_TFD + response.data[0][i+1]['TFD'],
@@ -397,7 +341,7 @@ class PrestationStatistics extends React.Component {
           tmp_e_TFD = tmp_e_TFD + response.data[2][i+1]['TFD'],
           tmp_e_ACTU = tmp_e_ACTU + response.data[2][i+1]['ACTU'],
           tmp_e_RAC = tmp_e_RAC + response.data[2][i+1]['RAC']
-        }
+          i++
       }
       this.setState({
         chipdataWTrim: {
@@ -423,18 +367,20 @@ class PrestationStatistics extends React.Component {
           TFD: tmp_e_TFD,
           ACTU: tmp_e_ACTU,
           RAC: tmp_e_RAC,
-        }
+        },
+        year: newYear,
+        trim: Trim,
       })
     })
   }
 
-  getMonthdata(toCompare) {
+  getMonthdata(toCompare, newYear) {
     let i = 0;
     while (toCompare != FrenchMonth[i]) {
       i++;
     }
     i++;
-    axios.get(global.config.server_url + "/getPrestation?year=" + this.state.year, Config).then(response => {
+    axios.get(global.config.server_url + "/getPrestation?year=" + newYear, Config).then(response => {
       this.setState({
         chipdataW: {
           CH: response.data[0][i]['CH'],
@@ -460,8 +406,8 @@ class PrestationStatistics extends React.Component {
           ACTU: response.data[2][i]['ACTU'],
           RAC: response.data[2][i]['RAC']
         },
-        onGoing: response.data[1],
-        finish: response.data[2],
+        year: newYear,
+        month: FrenchMonth[i-1],
         monthb: i,
       })
     })
@@ -498,7 +444,7 @@ class PrestationStatistics extends React.Component {
                   active: this.state.activeTab === "1"
                 })}
                 onClick={() => {
-                  this.getMonthdata(this.state.month)
+                  this.getMonthdata(this.state.month, this.state.year)
                   this.toggle("1")
                 }}
               >
@@ -548,7 +494,7 @@ class PrestationStatistics extends React.Component {
               <div className="title-section" style={{ textAlign: 'center', marginLeft: 'auto', marginRight: 'auto', marginTop: '10px', display: 'inline-block', }}>
                 <div style={{ display: 'inline-block', marginLeft: '5px' }}>
                   <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{ width: '75px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
-                    onChange={e => this.getPrestation(e.target.value)}>
+                    onChange={e => this.getMonthdata(this.state.month, e.target.value)}>
                     <option>2018</option><option>2019</option><option>2020</option>
                     <option>2021</option><option>2022</option><option>2023</option>
                     <option>2024</option><option>2025</option><option>2026</option>
@@ -557,7 +503,7 @@ class PrestationStatistics extends React.Component {
                 </div>
                 <div style={{ display: 'inline-block', marginLeft: '5px' }}>
                   <Input type="select" name="select" id="role" defaultValue={FrenchMonth[new Date().getMonth()]} style={{ width: '120px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
-                    onChange={e => this.getMonthdata(e.target.value) | this.setState({month: e.target.value})}>
+                    onChange={e => this.getMonthdata(e.target.value, this.state.year)}>
                     <option>janvier</option><option>février</option><option>mars</option>
                     <option>avril</option><option>mai</option><option>juin</option>
                     <option>juillet</option><option>août</option><option>septembre</option>
@@ -631,7 +577,7 @@ class PrestationStatistics extends React.Component {
               <div className="title-section" style={{ textAlign: 'center', marginLeft: 'auto', marginRight: 'auto', marginTop: '10px', display: 'inline-block', }}>
                 <div style={{ display: 'inline-block', marginLeft: '5px' }}>
                   <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{ width: '75px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
-                    onChange={e => this.getPrestation(e.target.value) | this.setState({year: e.target.value})}>
+                    onChange={e => this.getTrimData(this.state.trim, e.target.value)}>
                     <option>2018</option><option>2019</option><option>2020</option>
                     <option>2021</option><option>2022</option><option>2023</option>
                     <option>2024</option><option>2025</option><option>2026</option>
@@ -640,7 +586,7 @@ class PrestationStatistics extends React.Component {
                 </div>
                 <div style={{ display: 'inline-block', marginLeft: '5px' }}>
                   <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{ width: '130px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
-                    onChange={e => this.getTrimData(e.target.value, this.state.year) | this.setState({trim: e.target.value})}>
+                    onChange={e => this.getTrimData(e.target.value, this.state.year)}>
                     <option>Trimestre 1</option><option>Trimestre 2</option><option>Trimestre 3</option>
                     <option>Trimestre 4</option>
                   </Input>
@@ -713,7 +659,7 @@ class PrestationStatistics extends React.Component {
               <div className="title-section" style={{ textAlign: 'center', marginLeft: 'auto', marginRight: 'auto', marginTop: '10px', display: 'inline-block', }}>
                 <div style={{ display: 'inline-block', marginLeft: '5px' }}>
                   <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{ width: '75px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
-                    onChange={e => this.getYearData(e.target.value) | this.setState({year: e.target.value})}>
+                    onChange={e => this.getYearData(e.target.value)}>
                     <option>2018</option><option>2019</option><option>2020</option>
                     <option>2021</option><option>2022</option><option>2023</option>
                     <option>2024</option><option>2025</option><option>2026</option>

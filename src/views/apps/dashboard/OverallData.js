@@ -70,7 +70,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
   }
   async componentDidMount() {
     let tmp = new Date();
-    this.setState({ month: tmp.getMonth()})
+    this.setState({ month: FrenchMonth[tmp.getMonth()]})
     this.setState({ year: tmp.getFullYear()})
     await axios.get(global.config.server_url + "/get_statistics_total_income?year="+tmp.getFullYear(), Config).then(response => {
       let tmp_clients = []
@@ -109,42 +109,25 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
       let tmp_sold = 0
       let tmp_opportunite = 0
       let tmp_ended = 0
+      let i = 0
       if (Trim == "Trimestre 1") {
-        for (let i = 0; i < 3; i++) {
-          tmp_clients =  tmp_clients + response.data[i+1]['clients_count'];
-          tmp_total_amount = tmp_total_amount + response.data[i+1]['current_total_amount'];
-          tmp_account = tmp_account + response.data[i+1]['current_acompte_amount'];
-          tmp_sold = tmp_sold + response.data[i+1]['current_solde_amount'];
-          tmp_opportunite = tmp_opportunite + response.data[i+1]['opportunite_amount'];
-          tmp_ended = tmp_ended + response.data[i+1]['total_ended_count'];
-        }
+        i = 0
       } else if (Trim == "Trimestre 2") {
-        for (let i = 3; i < 6; i++) {
-          tmp_clients =  tmp_clients + response.data[i+1]['clients_count'];
-          tmp_total_amount = tmp_total_amount + response.data[i+1]['current_total_amount'];
-          tmp_account = tmp_account + response.data[i+1]['current_acompte_amount'];
-          tmp_sold = tmp_sold + response.data[i+1]['current_solde_amount'];
-          tmp_opportunite = tmp_opportunite + response.data[i+1]['opportunite_amount'];
-          tmp_ended = tmp_ended + response.data[i+1]['total_ended_count'];
-        }
+        i = 3
       } else if (Trim == "Trimestre 3") {
-        for (let i = 6; i < 9; i++) {
-          tmp_clients =  tmp_clients + response.data[i+1]['clients_count'];
-          tmp_total_amount = tmp_total_amount + response.data[i+1]['current_total_amount'];
-          tmp_account = tmp_account + response.data[i+1]['current_acompte_amount'];
-          tmp_sold = tmp_sold + response.data[i+1]['current_solde_amount'];
-          tmp_opportunite = tmp_opportunite + response.data[i+1]['opportunite_amount'];
-          tmp_ended = tmp_ended + response.data[i+1]['total_ended_count'];
-        }
+        i = 6
       } else if (Trim == "Trimestre 4"){
-        for (let i = 9; i < 12; i++) {
-          tmp_clients =  tmp_clients + response.data[i+1]['clients_count'];
-          tmp_total_amount = tmp_total_amount + response.data[i+1]['current_total_amount'];
-          tmp_account = tmp_account + response.data[i+1]['current_acompte_amount'];
-          tmp_sold = tmp_sold + response.data[i+1]['current_solde_amount'];
-          tmp_opportunite = tmp_opportunite + response.data[i+1]['opportunite_amount'];
-          tmp_ended = tmp_ended + response.data[i+1]['total_ended_count'];
-        }
+        i = 9
+      }
+      let j = i + 3
+      while (i != j) {
+        tmp_clients =  tmp_clients + response.data[i+1]['clients_count'];
+        tmp_total_amount = tmp_total_amount + response.data[i+1]['current_total_amount'];
+        tmp_account = tmp_account + response.data[i+1]['current_acompte_amount'];
+        tmp_sold = tmp_sold + response.data[i+1]['current_solde_amount'];
+        tmp_opportunite = tmp_opportunite + response.data[i+1]['opportunite_amount'];
+        tmp_ended = tmp_ended + response.data[i+1]['total_ended_count'];
+        i++
       }
       this.setState({
         trim_client_count: tmp_clients,
@@ -157,14 +140,38 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
     })
   }
 
-  getMonthdata(toCompare) {
+  getMonthdata(toCompare, newYear) {
     let i = 0;
     while (toCompare != FrenchMonth[i]) {
       i++;
     }
     i++;
-    this.setState({
-      monthb: i,
+    axios.get(global.config.server_url + "/get_statistics_total_income?year="+newYear, Config).then(response => {
+      let tmp_clients = []
+      let tmp_total_amount = []
+      let tmp_account = []
+      let tmp_sold = []
+      let tmp_opportunite = []
+      let tmp_ended = []
+      for (let i = 0; i < 12; i++) {
+        tmp_clients[i] = response.data[i+1]['clients_count'];
+        tmp_total_amount[i] = response.data[i+1]['current_total_amount'];
+        tmp_account[i] = response.data[i+1]['current_acompte_amount'];
+        tmp_sold[i] = response.data[i+1]['current_solde_amount'];
+        tmp_opportunite[i] = response.data[i+1]['opportunite_amount'];
+        tmp_ended[i] = response.data[i+1]['total_ended_count'];
+      }
+      this.setState({
+          client_count: tmp_clients,
+          current_total_amount: tmp_total_amount,
+          total_ended_count: tmp_ended,
+          current_acompte_amount: tmp_account,
+          current_solde_amount: tmp_sold,
+          opportunite_amount: tmp_opportunite,
+          month: toCompare,
+          year: newYear,
+          monthb: i,
+        })
     })
   }
 
@@ -289,7 +296,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                       <div className="title-section" style={{textAlign:'center',marginLeft:'auto',marginRight:'auto',marginTop:'10px' ,display:'inline-block',}}>
                       <div style={{display:'inline-block', marginLeft:'5px'}}>
                        <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{width:'75px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
-                              onChange={e => this.getAllData(e.target.value)}>   
+                              onChange={e => this.getMonthdata(this.state.month, e.target.value)}>
                              <option>2018</option><option>2019</option><option>2020</option>
                              <option>2021</option><option>2022</option><option>2023</option>
                              <option>2024</option><option>2025</option><option>2026</option>
@@ -298,7 +305,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                        </div>
                        <div style={{display:'inline-block'}}>
                        <Input type="select" name="select" id="role" defaultValue={FrenchMonth[new Date().getMonth()]} style={{width:'120px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
-                              onChange={e => this.getMonthdata(e.target.value)}>
+                              onChange={e => this.getMonthdata(e.target.value, this.state.year)}>
                              <option>janvier</option><option>février</option><option>mars</option>
                              <option>avril</option><option>mai</option><option>juin</option>
                              <option>juillet</option><option>août</option><option>septembre</option>
