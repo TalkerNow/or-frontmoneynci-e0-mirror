@@ -114,6 +114,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
       let tmp_account = 0
       let tmp_sold = 0
       let tmp_opportunite = 0
+      let tmp_opportunite_c = 0
       let tmp_ended = 0
       let i = 0
       if (Trim == "Trimestre 1") {
@@ -132,6 +133,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
         tmp_account = tmp_account + response.data[i+1]['current_acompte_amount'];
         tmp_sold = tmp_sold + response.data[i+1]['current_solde_amount'];
         tmp_opportunite = tmp_opportunite + response.data[i+1]['opportunite_amount'];
+        tmp_opportunite_c = tmp_opportunite_c + response.data[i+1]['opportunite_count'];
         tmp_ended = tmp_ended + response.data[i+1]['total_ended_count'];
         i++
       }
@@ -142,6 +144,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
         trim_current_acompte_amount: tmp_account,
         trim_current_solde_amount: tmp_sold,
         trim_opportunite_amount: tmp_opportunite,
+        trim_opportunite_count: tmp_opportunite_c,
         })
     })
   }
@@ -213,6 +216,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
       let tmp_account = 0
       let tmp_sold = 0
       let tmp_opportunite = 0
+      let tmp_opportunite_c = 0
       let tmp_ended = 0
       for (let i = 0; i < 12; i++) {
         tmp_clients =  tmp_clients + response.data[i+1]['current_acompte_count'];
@@ -220,6 +224,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
         tmp_account = tmp_account + response.data[i+1]['current_acompte_amount'];
         tmp_sold = tmp_sold + response.data[i+1]['current_solde_amount'];
         tmp_opportunite = tmp_opportunite + response.data[i+1]['opportunite_amount'];
+        tmp_opportunite_c = tmp_opportunite_c + response.data[i+1]['opportunite_count'];
         tmp_ended = tmp_ended + response.data[i+1]['total_ended_count'];
       }
       this.setState({
@@ -229,6 +234,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
         year_current_acompte_amount: tmp_account,
         year_current_solde_amount: tmp_sold,
         year_opportunite_amount: tmp_opportunite,
+        year_opportunite_count: tmp_opportunite_c,
         })
     })
   }
@@ -284,7 +290,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                           this.toggle("3")
                         }}
                       >
-                        Annes
+                        Années
                       </NavLink>
                     </NavItem>
                   </Nav>
@@ -404,7 +410,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                           </div>
                           <div className="mt-1">
                             <h2>{this.numStr(this.state.opportunite_count[this.state.monthb - 1])}</h2>
-                            <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Clients prospects</CardTitle>
+                            <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Prospects</CardTitle>
                           </div>
                         </div>
                         <div className="ml-3">
@@ -444,20 +450,6 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                       </div>
                       <div className="icon-section form-inline text-bold-600" style={TodoComponent}>
                         <div className="ml-3">
-                          <div style={{display:'inline-block',float:'left'}}>
-                            <div className={`avatar avatar-stats mt-1 p-75 ${
-                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
-                                <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
-                                  <Users className="primary" size={bubleSize} />
-                                </div>
-                            </div>
-                          </div>
-                          <div className="mt-1">
-                            <h2>{this.numStr(this.state.trim_client_count)}</h2>
-                            <CardTitle style={{width:'135px',marginLeft:'auto',marginRight:'auto'}}>Clients</CardTitle>
-                          </div>
-                        </div>
-                        <div className="ml-3">
                           <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-warning"}`}>
@@ -468,7 +460,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                           </div>
                           <div className="ml-1 mt-1">
                             <h2>{this.numStr(this.state.trim_current_total_amount)} €</h2>
-                            <CardTitle style={{width:'220px',marginLeft:'auto',marginRight:'auto'}}>Chiffre d'affaires</CardTitle>
+                            <CardTitle style={{width:'285px',marginLeft:'auto',marginRight:'auto'}}>Chiffre d'affaires</CardTitle>
                           </div>
                         </div>
                         <div className="ml-3">
@@ -482,7 +474,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                           </div>
                           <div className="ml-1 mt-1">
                               <h2>{this.numStr(this.state.trim_current_acompte_amount)} €</h2>
-                              <CardTitle style={{width:'160px',marginLeft:'auto',marginRight:'auto'}}>Acomptes</CardTitle>
+                              <CardTitle style={{width:'285px',marginLeft:'auto',marginRight:'auto'}}>Acomptes</CardTitle>
                             </div>
                         </div>
                         <div className="ml-3">
@@ -496,7 +488,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                           </div>
                           <div className="mt-1">
                             <h2>{this.numStr(this.state.trim_current_solde_amount)} €</h2>
-                            <CardTitle style={{width:'160px',marginLeft:'auto',marginRight:'auto'}}>Soldes</CardTitle>
+                            <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Soldes</CardTitle>
                           </div>
                         </div>
                         <div className="ml-3">
@@ -510,7 +502,35 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                           </div>
                           <div className="ml-1 mt-1">
                             <h2>{this.numStr(this.state.trim_opportunite_amount)} €</h2>
-                            <CardTitle style={{width:'190px',marginLeft:'auto',marginRight:'auto'}}>Opportunités</CardTitle>
+                            <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Opportunités</CardTitle>
+                          </div>
+                        </div>
+                        <div className="ml-3">
+                          <div style={{display:'inline-block',float:'left'}}>
+                            <div className={`avatar avatar-stats mt-1 p-75 ${
+                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
+                                <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
+                                  <Users className="primary" size={bubleSize} />
+                                </div>
+                            </div>
+                          </div>
+                          <div className="mt-1">
+                            <h2>{this.numStr(this.state.trim_client_count)}</h2>
+                            <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Clients signés</CardTitle>
+                          </div>
+                        </div>
+                        <div className="ml-3">
+                          <div style={{display:'inline-block',float:'left'}}>
+                            <div className={`avatar avatar-stats mt-1 p-75 ${
+                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
+                                <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
+                                  <Users className="primary" size={bubleSize} />
+                                </div>
+                            </div>
+                          </div>
+                          <div className="mt-1">
+                            <h2>{this.numStr(this.state.trim_opportunite_count)}</h2>
+                            <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Prospects</CardTitle>
                           </div>
                         </div>
                         <div className="ml-3">
@@ -524,7 +544,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                           </div>
                           <div className="ml-1 mt-1">
                             <h2>{this.numStr(this.state.trim_total_ended_count)}</h2>
-                            <CardTitle style={{width:'230px',marginLeft:'auto',marginRight:'auto'}}>Contrats cloturés</CardTitle>
+                            <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Contrats cloturés</CardTitle>
                           </div>
                         </div>
                       </div>
@@ -543,20 +563,6 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                       </div>
                       <div className="icon-section form-inline text-bold-600" style={TodoComponent}>
                         <div className="ml-3">
-                          <div style={{display:'inline-block',float:'left'}}>
-                            <div className={`avatar avatar-stats mt-1 p-75 ${
-                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
-                                <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
-                                  <Users className="primary" size={bubleSize} />
-                                </div>
-                            </div>
-                          </div>
-                          <div className="mt-1">
-                            <h2>{this.numStr(this.state.year_client_count)}</h2>
-                            <CardTitle style={{width:'135px',marginLeft:'auto',marginRight:'auto'}}>Clients</CardTitle>
-                          </div>
-                        </div>
-                        <div className="ml-3">
                           <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-warning"}`}>
@@ -567,7 +573,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                           </div>
                           <div className="ml-1 mt-1">
                             <h2>{this.numStr(this.state.year_current_total_amount)} €</h2>
-                            <CardTitle style={{width:'220px',marginLeft:'auto',marginRight:'auto'}}>Chiffre d'affaires</CardTitle>
+                            <CardTitle style={{width:'285px',marginLeft:'auto',marginRight:'auto'}}>Chiffre d'affaires</CardTitle>
                           </div>
                         </div>
                         <div className="ml-3">
@@ -581,7 +587,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                           </div>
                           <div className="ml-1 mt-1">
                               <h2>{this.numStr(this.state.year_current_acompte_amount)} €</h2>
-                              <CardTitle style={{width:'160px',marginLeft:'auto',marginRight:'auto'}}>Acomptes</CardTitle>
+                              <CardTitle style={{width:'285px',marginLeft:'auto',marginRight:'auto'}}>Acomptes</CardTitle>
                             </div>
                         </div>
                         <div className="ml-3">
@@ -595,7 +601,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                           </div>
                           <div className="mt-1">
                             <h2>{this.numStr(this.state.year_current_solde_amount)} €</h2>
-                            <CardTitle style={{width:'160px',marginLeft:'auto',marginRight:'auto'}}>Soldes</CardTitle>
+                            <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Soldes</CardTitle>
                           </div>
                         </div>
                         <div className="ml-3">
@@ -609,7 +615,35 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                           </div>
                           <div className="ml-1 mt-1">
                             <h2>{this.numStr(this.state.year_opportunite_amount)} €</h2>
-                            <CardTitle style={{width:'190px',marginLeft:'auto',marginRight:'auto'}}>Opportunités</CardTitle>
+                            <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Opportunités</CardTitle>
+                          </div>
+                        </div>
+                        <div className="ml-3">
+                          <div style={{display:'inline-block',float:'left'}}>
+                            <div className={`avatar avatar-stats mt-1 p-75 ${
+                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
+                                <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
+                                  <Users className="primary" size={bubleSize} />
+                                </div>
+                            </div>
+                          </div>
+                          <div className="mt-1">
+                            <h2>{this.numStr(this.state.year_client_count)}</h2>
+                            <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Clients signés</CardTitle>
+                          </div>
+                        </div>
+                        <div className="ml-3">
+                          <div style={{display:'inline-block',float:'left'}}>
+                            <div className={`avatar avatar-stats mt-1 p-75 ${
+                              this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
+                                <div className="avatar-content" style={{marginLeft:'auto',marginRight:'auto'}}>
+                                  <Users className="primary" size={bubleSize} />
+                                </div>
+                            </div>
+                          </div>
+                          <div className="mt-1">
+                            <h2>{this.numStr(this.state.year_opportunite_count)}</h2>
+                            <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Prospects</CardTitle>
                           </div>
                         </div>
                         <div className="ml-3">
@@ -623,7 +657,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                           </div>
                           <div className="ml-1 mt-1">
                             <h2>{this.numStr(this.state.year_total_ended_count)}</h2>
-                            <CardTitle style={{width:'230px',marginLeft:'auto',marginRight:'auto'}}>Contrats cloturés</CardTitle>
+                            <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Contrats cloturés</CardTitle>
                           </div>
                         </div>
                       </div>
