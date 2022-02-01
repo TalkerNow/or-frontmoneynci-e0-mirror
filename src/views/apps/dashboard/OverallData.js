@@ -75,7 +75,6 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
     let tmp = new Date();
     this.setState({ month: FrenchMonth[tmp.getMonth()]})
     this.setState({ monthb: tmp.getMonth()})
-    console.log(FrenchMonth[tmp.getMonth()])
     this.setState({ year: tmp.getFullYear()})
     await axios.get(global.config.server_url + "/get_statistics_total_income?year="+tmp.getFullYear(), Config).then(response => {
       let tmp_clients = []
@@ -154,7 +153,6 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
     while (toCompare != FrenchMonth[i]) {
       i++;
     }
-    i++;
     axios.get(global.config.server_url + "/get_statistics_total_income?year="+newYear, Config).then(response => {
       let tmp_clients = []
       let tmp_total_amount = []
@@ -342,7 +340,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                             </div>
                           </div>
                           <div className="ml-1 mt-1">
-                            <h2>{this.numStr(this.state.current_total_amount[this.state.monthb - 1])} €</h2>
+                            <h2>{this.numStr(this.state.current_total_amount[this.state.monthb])} €</h2>
                             <CardTitle style={{width:'285px',marginLeft:'auto',marginRight:'auto'}}>Chiffre d'affaires</CardTitle>
                           </div>
                         </div>
@@ -356,7 +354,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                             </div>
                           </div>
                           <div className="ml-1 mt-1">
-                              <h2>{this.numStr(this.state.current_acompte_amount[this.state.monthb - 1])} €</h2>
+                              <h2>{this.numStr(this.state.current_acompte_amount[this.state.monthb])} €</h2>
                               <CardTitle style={{width:'285px',marginLeft:'auto',marginRight:'auto'}}>Acomptes</CardTitle>
                             </div>
                         </div>
@@ -370,7 +368,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                             </div>
                           </div>
                           <div className="mt-1">
-                            <h2>{this.numStr(this.state.current_solde_amount[this.state.monthb - 1])} €</h2>
+                            <h2>{this.numStr(this.state.current_solde_amount[this.state.monthb])} €</h2>
                             <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Soldes</CardTitle>
                           </div>
                         </div>
@@ -384,7 +382,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                             </div>
                           </div>
                           <div className="ml-1 mt-1">
-                            <h2>{this.numStr(this.state.opportunite_amount[this.state.monthb - 1])} €</h2>
+                            <h2>{this.numStr(this.state.opportunite_amount[this.state.monthb])} €</h2>
                             <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Opportunités</CardTitle>
                           </div>
                         </div>
@@ -398,7 +396,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                             </div>
                           </div>
                           <div className="mt-1">
-                            <h2>{this.numStr(this.state.client_count[this.state.monthb - 1])}</h2>
+                            <h2>{this.numStr(this.state.client_count[this.state.monthb])}</h2>
                             <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Clients signés</CardTitle>
                           </div>
                         </div>
@@ -412,7 +410,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                             </div>
                           </div>
                           <div className="mt-1">
-                            <h2>{this.numStr(this.state.opportunite_count[this.state.monthb - 1])}</h2>
+                            <h2>{this.numStr(this.state.opportunite_count[this.state.monthb])}</h2>
                             <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Prospects</CardTitle>
                           </div>
                         </div>
@@ -426,7 +424,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                             </div>
                           </div>
                           <div className="ml-1 mt-1">
-                            <h2>{this.numStr(this.state.total_ended_count[this.state.monthb - 1])}</h2>
+                            <h2>{this.numStr(this.state.total_ended_count[this.state.monthb])}</h2>
                             <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Contrats cloturés</CardTitle>
                           </div>
                         </div>
