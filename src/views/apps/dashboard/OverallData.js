@@ -105,8 +105,6 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
           rowData: response.data,
         })
     })
-    this.getAllData(tmp.getFullYear())
-    this.getTrimData("Trimestre 1", tmp.getFullYear())
   }
   
   getTrimData(Trim, year) {
@@ -265,6 +263,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                           active: this.state.activeTab === "1"
                         })}
                         onClick={() => {
+                          this.getMonthdata(this.state.month, this.state.year)
                           this.toggle("1")
                         }}
                       >
@@ -277,6 +276,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                           active: this.state.activeTab === "2"
                         })}
                         onClick={() => {
+                          this.getTrimData(this.state.trim, this.state.year)
                           this.toggle("2")
                         }}
                       >
@@ -289,6 +289,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                           active: this.state.activeTab === "3"
                         })}
                         onClick={() => {
+                          this.getAllData(this.state.year)
                           this.toggle("3")
                         }}
                       >
