@@ -69,11 +69,13 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
     trim: "Trimestre 1",
     activeTab: "1",
     rowData:[],
-    monthb: 1
+    monthb: 0
   }
   async componentDidMount() {
     let tmp = new Date();
     this.setState({ month: FrenchMonth[tmp.getMonth()]})
+    this.setState({ monthb: tmp.getMonth()})
+    console.log(FrenchMonth[tmp.getMonth()])
     this.setState({ year: tmp.getFullYear()})
     await axios.get(global.config.server_url + "/get_statistics_total_income?year="+tmp.getFullYear(), Config).then(response => {
       let tmp_clients = []
