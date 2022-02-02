@@ -509,14 +509,14 @@ class AllContracts extends React.Component {
                         {(consultant_id !== -1 && this.state.filter === true) &&
                           <>
                             <Button className="mr-1 mb-1" outline color="primary" onClick={() => this.externalFilterChanged(-1)}>
-                            tous les contrats
+                              tous les contrats
                             </Button>
                           </>
                         }
                         {(consultant_id === -1 && this.state.filter === false) &&
                           <>
                             <Button className="mr-1 mb-1" outline color="primary" onClick={() => this.externalFilterChanged(localStorage.getItem('userid'))}>
-                            mes contrats
+                              mes contrats
                             </Button>
                           </>
                         }
