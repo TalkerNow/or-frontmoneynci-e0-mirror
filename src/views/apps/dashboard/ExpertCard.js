@@ -82,19 +82,19 @@ class ExpertCard extends React.Component {
         headerName: "CA En attente",
         field: "total CA En attente",
         filter: true,
-        with: 200,
+        with: 150,
       },
       {
         headerName: "CA En cours",
         field: "total CA En cours",
         filter: true,
-        with: 200,
+        with: 150,
       },
       {
         headerName: "CA Termine",
         field: "total CA Terminer",
         filter: true,
-        with: 200,
+        with: 150,
       },
     ]
   }
@@ -154,9 +154,9 @@ class ExpertCard extends React.Component {
         this.state.prestation[i]['total En attente'] = tmp_Waiting;
         this.state.prestation[i]['total En cours'] = tmp_En_cours;
         this.state.prestation[i]['total Termine'] = tmp_Finish;
-        this.state.prestation[i]['CA En attente'] = tmp_CA_Waiting;
-        this.state.prestation[i]['CA En cours'] = tmp_CA_En_cours;
-        this.state.prestation[i]['CA Termine'] = tmp_CA_Finish;
+        this.state.prestation[i]['total CA En attente'] = tmp_CA_Waiting;
+        this.state.prestation[i]['total CA En cours'] = tmp_CA_En_cours;
+        this.state.prestation[i]['total CA Termine'] = tmp_CA_Finish;
       }
     })
   }
