@@ -73,14 +73,14 @@ class ClientsList extends React.Component {
       {
         headerName: "Technicien Nom",
         field: "tech",
-        filter: true,
+        filter: false,
         width: 250,
         cellRendererFramework: params => {
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
             >
-              <span>{params.data.parent.name}</span>
+              <span>{params.data.parent? params.data.parent.name:""}</span>
             </div>
           )
         }
@@ -254,7 +254,7 @@ class ClientsList extends React.Component {
                     <div className="sort-dropdown">
                       <UncontrolledDropdown className="ag-dropdown p-1">
                         <DropdownToggle tag="div">
-                          1 - {pageSize} of 150
+                          1 - {pageSize} of 50
                           <ChevronDown className="ml-50" size={20} />
                         </DropdownToggle>
                         <DropdownMenu right>
@@ -269,18 +269,6 @@ class ClientsList extends React.Component {
                             onClick={() => this.filterSize(50)}
                           >
                             50
-                          </DropdownItem>
-                          <DropdownItem
-                            tag="div"
-                            onClick={() => this.filterSize(100)}
-                          >
-                            100
-                          </DropdownItem>
-                          <DropdownItem
-                            tag="div"
-                            onClick={() => this.filterSize(150)}
-                          >
-                            150
                           </DropdownItem>
                         </DropdownMenu>
                       </UncontrolledDropdown>
@@ -318,15 +306,16 @@ class ClientsList extends React.Component {
                     <ContextLayout.Consumer>
                       {context => (
                         <AgGridReact
+                        rowBuffer={10}
                           height={'autoHeight'}
                           gridOptions={{}}
-                          rowSelection="multiple"
+                          // rowSelection="multiple"
                           defaultColDef={defaultColDef}
                           columnDefs={columnDefs}
                           rowData={rowData}
                           onGridReady={this.onGridReady}
                           colResizeDefault={"shift"}
-                          animateRows={true}
+                          animateRows={false}
                           floatingFilter={true}
                           pagination={true}
                           pivotPanelShow="always"
