@@ -73,7 +73,7 @@ class ClientsList extends React.Component {
       {
         headerName: "Technicien Nom",
         field: "tech",
-        filter: true,
+        filter: false,
         width: 250,
         cellRendererFramework: params => {
           return (
@@ -318,15 +318,16 @@ class ClientsList extends React.Component {
                     <ContextLayout.Consumer>
                       {context => (
                         <AgGridReact
+                        rowBuffer={10}
                           height={'autoHeight'}
                           gridOptions={{}}
-                          rowSelection="multiple"
+                          // rowSelection="multiple"
                           defaultColDef={defaultColDef}
                           columnDefs={columnDefs}
                           rowData={rowData}
                           onGridReady={this.onGridReady}
                           colResizeDefault={"shift"}
-                          animateRows={true}
+                          animateRows={false}
                           floatingFilter={true}
                           pagination={true}
                           pivotPanelShow="always"
