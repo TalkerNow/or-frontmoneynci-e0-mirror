@@ -92,7 +92,7 @@ class ExpertCard extends React.Component {
       },
       {
         headerName: "CA Termine",
-        field: "total CA Terminer",
+        field: "total CA Termine",
         filter: true,
         with: 150,
       },
