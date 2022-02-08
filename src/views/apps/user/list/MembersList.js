@@ -1,5 +1,5 @@
 import React from "react"
-import {Button} from "reactstrap"
+import { Button } from "reactstrap"
 import {
   Card,
   CardBody,
@@ -27,7 +27,7 @@ import {
   ChevronDown,
   //RotateCw,
   //X,
-   UserPlus, Home,
+  UserPlus, Home,
 } from "react-feather"
 //import classnames from "classnames"
 import { history } from "../../../../history"
@@ -35,7 +35,7 @@ import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss"
 import "../../../../assets/scss/pages/users.scss"
 import SweetAlert from "react-bootstrap-sweetalert";
 import Moment from "react-moment";
-import {toast} from "react-toastify";
+import { toast } from "react-toastify";
 //import swal from 'sweetalert';
 // import Chip from "../../../../components/@vuexy/chips/ChipComponent";
 // const chipColors = {
@@ -48,9 +48,9 @@ import {toast} from "react-toastify";
 // }
 class MembersList extends React.Component {
   state = {
-    defaultAlert : false,
-    confirmAlert : false,
-    cancelAlert : false,
+    defaultAlert: false,
+    confirmAlert: false,
+    cancelAlert: false,
     IdToDelete: 0,
     rowData: null,
     pageSize: 50,
@@ -106,9 +106,9 @@ class MembersList extends React.Component {
         width: 200,
         cellRendererFramework: params => {
           return (
-              <div>
-                <Moment format="DD-MM-YYYY" date={params.data.created_at} utc/>
-              </div>
+            <div>
+              <Moment format="DD-MM-YYYY" date={params.data.created_at} utc />
+            </div>
           )
         }
       },
@@ -132,7 +132,7 @@ class MembersList extends React.Component {
               />
               <Trash2
                 size={15}
-                onClick={() => { this.handleAlert("defaultAlert", true, params.data.id)}}
+                onClick={() => { this.handleAlert("defaultAlert", true, params.data.id) }}
               />
             </div>
           )
@@ -141,16 +141,15 @@ class MembersList extends React.Component {
     ]
   }
 
-  createContract(id, name)
-  {
+  createContract(id, name) {
     const Config = {
       headers: {
         Authorization: "Bearer " + localStorage.getItem("token")
       }
     }
-    axios.post(global.config.server_url + "/documents",{
+    axios.post(global.config.server_url + "/documents", {
       name: "abc",
-      link_to_documents : "N/a",
+      link_to_documents: "N/a",
       type: "contrat",
       document_state: "Pending...",
       date: "2010-10-10",
@@ -158,12 +157,12 @@ class MembersList extends React.Component {
       advanced_payment: "0",
       user_id: id
     }, Config)
-        .then(function(result) {
-          history.push("/app/contract/handleServices/" + result.data.id)
-        })
-        .catch(function(error) {
-          toast.error("API injoignable" + error)
-        })
+      .then(function (result) {
+        history.push("/app/contract/handleServices/" + result.data.id)
+      })
+      .catch(function (error) {
+        toast.error("API injoignable" + error)
+      })
   }
 
   async componentDidMount() {
@@ -179,14 +178,14 @@ class MembersList extends React.Component {
     })
   }
 
-  deleteUser(id){
-      const Config = {
-          headers: { Authorization: "Bearer " + localStorage.getItem("token") }
-      }
-      axios.delete(global.config.server_url + "/users/" + id, Config).then(response => {
-          var SelectedData = this.gridApi.getSelectedRows();
-          this.gridApi.updateRowData({remove: SelectedData})
-      })
+  deleteUser(id) {
+    const Config = {
+      headers: { Authorization: "Bearer " + localStorage.getItem("token") }
+    }
+    axios.delete(global.config.server_url + "/users/" + id, Config).then(response => {
+      var SelectedData = this.gridApi.getSelectedRows();
+      this.gridApi.updateRowData({ remove: SelectedData })
+    })
   }
   onGridReady = params => {
     this.gridApi = params.api
@@ -253,62 +252,62 @@ class MembersList extends React.Component {
     this.setState({ isVisible: false })
   }
   handleAlert = (state, value, id) => {
-      this.setState({ [state] : value })
-      if (id !== 0)
-          this.setState({ IdToDelete : id })
-      if (state === "confirmAlert" && value === true) {
-          this.deleteUser(this.state.IdToDelete)
-      }
+    this.setState({ [state]: value })
+    if (id !== 0)
+      this.setState({ IdToDelete: id })
+    if (state === "confirmAlert" && value === true) {
+      this.deleteUser(this.state.IdToDelete)
+    }
   }
   render() {
     const { rowData, columnDefs, defaultColDef, pageSize } = this.state
     return (
-    <div>
+      <div>
         <SweetAlert title="Êtes vous sûrs?"
-                    warning
-                    show={this.state.defaultAlert}
-                    showCancel
-                    reverseButtons
-                    cancelBtnBsStyle="danger"
-                    confirmBtnText="Oui, supprimer"
-                    cancelBtnText="Annuler"
-                    onConfirm={() => {
-                        this.handleAlert("basicAlert", false, 0)
-                        this.handleAlert("confirmAlert", true, 0)
-                    }}
-                    onCancel={() => {
-                        this.handleAlert("basicAlert", false, 0)
-                        this.handleAlert("cancelAlert", true, 0)
-                    }}
+          warning
+          show={this.state.defaultAlert}
+          showCancel
+          reverseButtons
+          cancelBtnBsStyle="danger"
+          confirmBtnText="Oui, supprimer"
+          cancelBtnText="Annuler"
+          onConfirm={() => {
+            this.handleAlert("basicAlert", false, 0)
+            this.handleAlert("confirmAlert", true, 0)
+          }}
+          onCancel={() => {
+            this.handleAlert("basicAlert", false, 0)
+            this.handleAlert("cancelAlert", true, 0)
+          }}
         >
-            Vous ne pourrez pas revenir en arrière
+          Vous ne pourrez pas revenir en arrière
         </SweetAlert>
 
         <SweetAlert success title="Supprimé!"
-                    confirmBtnBsStyle="success"
-                    show={this.state.confirmAlert}
-                    onConfirm={() => {
-                        this.handleAlert("defaultAlert", false, 0)
-                        this.handleAlert("confirmAlert", false, 0)
-                    }}
+          confirmBtnBsStyle="success"
+          show={this.state.confirmAlert}
+          onConfirm={() => {
+            this.handleAlert("defaultAlert", false, 0)
+            this.handleAlert("confirmAlert", false, 0)
+          }}
         >
-            <p className="sweet-alert-text">Your file has been deleted.</p>
+          <p className="sweet-alert-text">Your file has been deleted.</p>
         </SweetAlert>
 
         <SweetAlert error title="Annulé!"
-                    confirmBtnBsStyle="success"
-                    show={this.state.cancelAlert}
-                    onConfirm={() =>{
-                        this.handleAlert("defaultAlert", false, 0)
-                        this.handleAlert("cancelAlert", false, 0)
-                    }}
+          confirmBtnBsStyle="success"
+          show={this.state.cancelAlert}
+          onConfirm={() => {
+            this.handleAlert("defaultAlert", false, 0)
+            this.handleAlert("cancelAlert", false, 0)
+          }}
         >
-            <p className="sweet-alert-text">
-                L'action est annulé
-            </p>
+          <p className="sweet-alert-text">
+            L'action est annulé
+          </p>
         </SweetAlert>
-      <Row className="app-user-list">
-        {/* <Col sm="12">
+        <Row className="app-user-list">
+          {/* <Col sm="12">
           <Card
             className={classnames("card-action card-reload", {
               "d-none": this.state.isVisible === false,
@@ -467,103 +466,103 @@ class MembersList extends React.Component {
             </Collapse>
           </Card>
         </Col> */}
-        <Col sm="12">
-          <Card style={{minHeight:'3000px'}}>
-            <CardBody>
-              <div className="ag-theme-material ag-grid-table">
-                <div className="ag-grid-actions d-flex justify-content-between flex-wrap mb-1">
-                  <div className="sort-dropdown">
-                    <UncontrolledDropdown className="ag-dropdown p-1">
-                      <DropdownToggle tag="div">
-                        1 - {pageSize} of 150
-                        <ChevronDown className="ml-50" size={20} />
-                      </DropdownToggle>
-                      <DropdownMenu right>
-                        <DropdownItem
-                          tag="div"
-                          onClick={() => this.filterSize(20)}
-                        >
-                          20
-                        </DropdownItem>
-                        <DropdownItem
-                          tag="div"
-                          onClick={() => this.filterSize(50)}
-                        >
-                          50
-                        </DropdownItem>
-                        <DropdownItem
-                          tag="div"
-                          onClick={() => this.filterSize(100)}
-                        >
-                          100
-                        </DropdownItem>
-                        <DropdownItem
-                          tag="div"
-                          onClick={() => this.filterSize(150)}
-                        >
-                          150
-                        </DropdownItem>
-                      </DropdownMenu>
-                    </UncontrolledDropdown>
-                  </div>
-                  <div className="filter-actions d-flex">
-                    <Input
-                      className="w-50 mr-1 mb-1 mb-sm-0"
-                      type="text"
-                      placeholder="search..."
-                      onChange={e => this.updateSearchQuery(e.target.value)}
-                      value={this.state.searchVal}
-                    />
-                    <div>
-                      <Button.Ripple className="mr-1 mb-1" outline color="primary" onClick={() => history.push("/app/member/createUser")}>
-                        <UserPlus size={15} />
-                      </Button.Ripple>
-                    </div>
-                    <div className="dropdown mr-1 mb-1 d-inline-block">
-                      <UncontrolledButtonDropdown>
-                        <DropdownToggle color="primary" caret>
-                          Actions
-                          <ChevronDown size={15} />
+          <Col sm="12">
+            <Card style={{ minHeight: '3000px' }}>
+              <CardBody>
+                <div className="ag-theme-material ag-grid-table">
+                  <div className="ag-grid-actions d-flex justify-content-between flex-wrap mb-1">
+                    <div className="sort-dropdown">
+                      <UncontrolledDropdown className="ag-dropdown p-1">
+                        <DropdownToggle tag="div">
+                          1 - {pageSize} of 150
+                          <ChevronDown className="ml-50" size={20} />
                         </DropdownToggle>
-                        <DropdownMenu>
-                          <DropdownItem tag="a">
-                            <Home size={15} />
-                            <span className="align-middle ml-50">Exemple d'action</span>
+                        <DropdownMenu right>
+                          <DropdownItem
+                            tag="div"
+                            onClick={() => this.filterSize(20)}
+                          >
+                            20
+                          </DropdownItem>
+                          <DropdownItem
+                            tag="div"
+                            onClick={() => this.filterSize(50)}
+                          >
+                            50
+                          </DropdownItem>
+                          <DropdownItem
+                            tag="div"
+                            onClick={() => this.filterSize(100)}
+                          >
+                            100
+                          </DropdownItem>
+                          <DropdownItem
+                            tag="div"
+                            onClick={() => this.filterSize(150)}
+                          >
+                            150
                           </DropdownItem>
                         </DropdownMenu>
-                      </UncontrolledButtonDropdown>
+                      </UncontrolledDropdown>
+                    </div>
+                    <div className="filter-actions d-flex">
+                      <Input
+                        className="w-50 mr-1 mb-1 mb-sm-0"
+                        type="text"
+                        placeholder="search..."
+                        onChange={e => this.updateSearchQuery(e.target.value)}
+                        value={this.state.searchVal}
+                      />
+                      <div>
+                        <Button.Ripple className="mr-1 mb-1" outline color="primary" onClick={() => history.push("/app/member/createUser")}>
+                          <UserPlus size={15} />
+                        </Button.Ripple>
+                      </div>
+                      <div className="dropdown mr-1 mb-1 d-inline-block">
+                        <UncontrolledButtonDropdown>
+                          <DropdownToggle color="primary" caret>
+                            Actions
+                            <ChevronDown size={15} />
+                          </DropdownToggle>
+                          <DropdownMenu>
+                            <DropdownItem tag="a">
+                              <Home size={15} />
+                              <span className="align-middle ml-50">Exemple d'action</span>
+                            </DropdownItem>
+                          </DropdownMenu>
+                        </UncontrolledButtonDropdown>
+                      </div>
                     </div>
                   </div>
+                  {this.state.rowData !== null ? (
+                    <ContextLayout.Consumer>
+                      {context => (
+                        <AgGridReact
+                          height={'autoHeight'}
+                          gridOptions={{}}
+                          rowSelection="multiple"
+                          defaultColDef={defaultColDef}
+                          columnDefs={columnDefs}
+                          rowData={rowData}
+                          onGridReady={this.onGridReady}
+                          colResizeDefault={"shift"}
+                          animateRows={true}
+                          floatingFilter={true}
+                          pagination={true}
+                          pivotPanelShow="always"
+                          paginationPageSize={pageSize}
+                          resizable={true}
+                          enableRtl={context.state.direction === "rtl"}
+                        />
+                      )}
+                    </ContextLayout.Consumer>
+                  ) : null}
                 </div>
-                {this.state.rowData !== null ? (
-                  <ContextLayout.Consumer>
-                    {context => (
-                      <AgGridReact
-                        height={'autoHeight'}
-                        gridOptions={{}}
-                        rowSelection="multiple"
-                        defaultColDef={defaultColDef}
-                        columnDefs={columnDefs}
-                        rowData={rowData}
-                        onGridReady={this.onGridReady}
-                        colResizeDefault={"shift"}
-                        animateRows={true}
-                        floatingFilter={true}
-                        pagination={true}
-                        pivotPanelShow="always"
-                        paginationPageSize={pageSize}
-                        resizable={true}
-                        enableRtl={context.state.direction === "rtl"}
-                      />
-                    )}
-                  </ContextLayout.Consumer>
-                ) : null}
-              </div>
-            </CardBody>
-          </Card>
-        </Col>
-      </Row>
-    </div>
+              </CardBody>
+            </Card>
+          </Col>
+        </Row>
+      </div>
     )
   }
 }

@@ -27,7 +27,8 @@ import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss"
 import "../../../../assets/scss/pages/users.scss"
 import SweetAlert from "react-bootstrap-sweetalert";
 import Moment from "react-moment";
-import { toast } from "react-toastify";
+
+var consultant_id = -1;
 
 class ClientsList extends React.Component {
   state = {
@@ -35,6 +36,7 @@ class ClientsList extends React.Component {
     confirmAlert: false,
     cancelAlert: false,
     IdToDelete: 0,
+    filter: false,
     rowData: null,
     pageSize: 50,
     isVisible: true,
@@ -71,6 +73,11 @@ class ClientsList extends React.Component {
         }
       },
       {
+        field: "parent_id",
+        filter: true,
+        hide: true,
+      },
+      {
         headerName: "Technicien Nom",
         field: "tech",
         filter: false,
@@ -80,7 +87,7 @@ class ClientsList extends React.Component {
             <div
               className="d-flex align-items-center cursor-pointer"
             >
-              <span>{params.data.parent? params.data.parent.name:""}</span>
+              <span>{params.data.parent ? params.data.parent.name : ""}</span>
             </div>
           )
         }
@@ -148,6 +155,21 @@ class ClientsList extends React.Component {
       this.setState({ rowData })
     })
   }
+
+  isExternalFilterPresent = () => {
+    if (consultant_id != -1) {
+      return true;
+    }
+    return false;
+  };
+  externalFilterChanged = (newValue) => {
+    consultant_id = newValue;
+    this.setState({ filter: !this.state.filter });
+    this.gridApi.onFilterChanged();
+  };
+  doesExternalFilterPass = (node) => {
+    return node.data.parent_id == consultant_id;
+  };
 
   deleteUser(id) {
     const Config = {
@@ -282,6 +304,23 @@ class ClientsList extends React.Component {
                         value={this.state.searchVal}
                       />
                       <div>
+                        {(consultant_id !== -1 && this.state.filter === true) &&
+                          <>
+                            <Button className="mr-1 mb-1" outline color="primary" onClick={() => this.externalFilterChanged(-1)}>
+                              tous les clients
+                            </Button>
+                          </>
+                        }
+                        {(consultant_id === -1 && this.state.filter === false) &&
+                          <>
+                            <Button className="mr-1 mb-1" outline color="primary" onClick={() => this.externalFilterChanged(localStorage.getItem('userid'))}>
+                              mes clients
+                            </Button>
+                          </>
+                        }
+
+                      </div>
+                      <div>
                         <Button.Ripple className="mr-1 mb-1" outline color="primary" onClick={() => history.push("/app/user/createUser")}>
                           <UserPlus size={15} />
                         </Button.Ripple>
@@ -306,10 +345,12 @@ class ClientsList extends React.Component {
                     <ContextLayout.Consumer>
                       {context => (
                         <AgGridReact
-                        rowBuffer={10}
+                          rowBuffer={10}
                           height={'autoHeight'}
                           gridOptions={{}}
                           // rowSelection="multiple"
+                          doesExternalFilterPass={this.doesExternalFilterPass}
+                          isExternalFilterPresent={this.isExternalFilterPresent}
                           defaultColDef={defaultColDef}
                           columnDefs={columnDefs}
                           rowData={rowData}
