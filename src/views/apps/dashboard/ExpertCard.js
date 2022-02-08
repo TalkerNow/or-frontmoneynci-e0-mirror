@@ -129,8 +129,17 @@ class ExpertCard extends React.Component {
     await axios.get(global.config.server_url + "/getMembersPrestation", Config).then(response => {
       this.setState({
         prestation: response.data,
-        tot_att: response.data[0]['monthArray'][1]['En attente'],
       })
+      console.log(response.data)
+      for (let j = 0; j < response.data.length; j += 1) {
+        console.log(this.state.monthb)
+        this.state.prestation[j]['total En attente'] = response.data[j]['monthArray'][this.state.monthb+1]['En attente'];
+        this.state.prestation[j]['total En cours'] = response.data[j]['monthArray'][this.state.monthb+1]['En cours'];
+        this.state.prestation[j]['total Termine'] = response.data[j]['monthArray'][this.state.monthb+1]['Termine'];
+        this.state.prestation[j]['total CA En attente'] = response.data[j]['monthArray'][this.state.monthb+1]['CA En attente'];
+        this.state.prestation[j]['total CA En cours'] = response.data[j]['monthArray'][this.state.monthb+1]['CA En cours'];
+        this.state.prestation[j]['total CA Termine'] = response.data[j]['monthArray'][this.state.monthb+1]['CA Termine'];  
+      }
     })
   }
 
@@ -158,6 +167,27 @@ class ExpertCard extends React.Component {
         this.state.prestation[i]['total CA En cours'] = tmp_CA_En_cours;
         this.state.prestation[i]['total CA Termine'] = tmp_CA_Finish;
       }
+    })
+  }
+
+  getMonthData(toCompare, newYear) {
+    let i = 0;
+    while (toCompare != FrenchMonth[i]) {
+      i+=1;
+    }
+    axios.get(global.config.server_url + "/getMembersPrestation?year=" + newYear, Config).then(response => {
+      for (let j = 0; j < response.data.length; j += 1) {
+        this.state.prestation[j]['total En attente'] = response.data[j]['monthArray'][i+1]['En attente'];
+        this.state.prestation[j]['total En cours'] = response.data[j]['monthArray'][i+1]['En cours'];
+        this.state.prestation[j]['total Termine'] = response.data[j]['monthArray'][i+1]['Termine'];
+        this.state.prestation[j]['total CA En attente'] = response.data[j]['monthArray'][i+1]['CA En attente'];
+        this.state.prestation[j]['total CA En cours'] = response.data[j]['monthArray'][i+1]['CA En cours'];
+        this.state.prestation[j]['total CA Termine'] = response.data[j]['monthArray'][i+1]['CA Termine'];  
+      }
+    })
+    this.setState({
+      month: toCompare,
+      year: newYear,
     })
   }
 
@@ -209,6 +239,7 @@ class ExpertCard extends React.Component {
                   active: this.state.activeTab === "1"
                 })}
                 onClick={() => {
+                  this.getMonthData(this.state.month, this.state.year)
                   this.toggle("1")
                 }}
               >
@@ -263,7 +294,7 @@ class ExpertCard extends React.Component {
                           <div className="title-section" style={{ textAlign: 'center', marginRight: 'auto', display: 'inline-block', }}>
                             <div style={{ display: 'inline-block' }}>
                               <Input type="select" name="select" id="role" defaultValue={FrenchMonth[new Date().getMonth()]} style={{ width: '120px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
-                                onChange={console.log(this.state.prestation)}>
+                                onChange={e => this.getMonthData(e.target.value, this.state.year)}>
                                 <option>janvier</option><option>février</option><option>mars</option>
                                 <option>avril</option><option>mai</option><option>juin</option>
                                 <option>juillet</option><option>août</option><option>septembre</option>
@@ -272,7 +303,7 @@ class ExpertCard extends React.Component {
                             </div>
                             <div style={{ display: 'inline-block', marginLeft: '5px' }}>
                               <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{ width: '75px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
-                                onChange={e => this.getMembersPrestation(e.target.value)}>
+                                onChange={e => this.getMonthData(this.state.month, e.target.value)}>
                                 <option>2018</option><option>2019</option><option>2020</option>
                                 <option>2021</option><option>2022</option><option>2023</option>
                                 <option>2024</option><option>2025</option><option>2026</option>
