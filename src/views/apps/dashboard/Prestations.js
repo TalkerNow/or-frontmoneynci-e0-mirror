@@ -101,7 +101,7 @@ class PrestationStatistics extends React.Component {
     total_amount: 0,
     activeTab: '1',
     month: null,
-    monthb: 1,
+    monthb: 0,
     prestation: null,
     chipdataW: {
       CH: 1,
@@ -188,33 +188,34 @@ class PrestationStatistics extends React.Component {
   async componentDidMount() {
     let tmp = new Date();
     this.setState({ month: FrenchMonth[tmp.getMonth()]})
+    this.setState({ monthb: tmp.getMonth()})
     this.setState({ year: tmp.getFullYear()})
     await axios.get(global.config.server_url + "/getPrestation", Config).then(response => {
       this.setState({
         prestation: response.data,
         chipdataW: {
-          CH: response.data[0][this.state.monthb]['CH'],
-          SIMU: response.data[0][this.state.monthb]['SIMU'],
-          AR: response.data[0][this.state.monthb]['AR'],
-          TFD: response.data[0][this.state.monthb]['TFD'],
-          ACTU: response.data[0][this.state.monthb]['ACTU'],
-          RAC: response.data[0][this.state.monthb]['RAC']
+          CH: response.data[0][this.state.monthb+1]['CH'],
+          SIMU: response.data[0][this.state.monthb+1]['SIMU'],
+          AR: response.data[0][this.state.monthb+1]['AR'],
+          TFD: response.data[0][this.state.monthb+1]['TFD'],
+          ACTU: response.data[0][this.state.monthb+1]['ACTU'],
+          RAC: response.data[0][this.state.monthb+1]['RAC']
         },
         chipdataOg: {
-          CH: response.data[1][this.state.monthb]['CH'],
-          SIMU: response.data[1][this.state.monthb]['SIMU'],
-          AR: response.data[1][this.state.monthb]['AR'],
-          TFD: response.data[1][this.state.monthb]['TFD'],
+          CH: response.data[1][this.state.monthb+1]['CH'],
+          SIMU: response.data[1][this.state.monthb+1]['SIMU'],
+          AR: response.data[1][this.state.monthb+1]['AR'],
+          TFD: response.data[1][this.state.monthb+1]['TFD'],
           ACTU: response.data[1][this.state.monthb]['ACTU'],
-          RAC: response.data[1][this.state.monthb]['RAC']
+          RAC: response.data[1][this.state.monthb+1]['RAC']
         },
         chipdataf: {
-          CH: response.data[2][this.state.monthb]['CH'],
-          SIMU: response.data[2][this.state.monthb]['SIMU'],
-          AR: response.data[2][this.state.monthb]['AR'],
-          TFD: response.data[2][this.state.monthb]['TFD'],
-          ACTU: response.data[2][this.state.monthb]['ACTU'],
-          RAC: response.data[2][this.state.monthb]['RAC']
+          CH: response.data[2][this.state.monthb+1]['CH'],
+          SIMU: response.data[2][this.state.monthb+1]['SIMU'],
+          AR: response.data[2][this.state.monthb+1]['AR'],
+          TFD: response.data[2][this.state.monthb+1]['TFD'],
+          ACTU: response.data[2][this.state.monthb+1]['ACTU'],
+          RAC: response.data[2][this.state.monthb+1]['RAC']
         },
       })
     })
@@ -377,37 +378,36 @@ class PrestationStatistics extends React.Component {
   getMonthdata(toCompare, newYear) {
     let i = 0;
     while (toCompare != FrenchMonth[i]) {
-      i++;
+      i+=1;
     }
-    i++;
     axios.get(global.config.server_url + "/getPrestation?year=" + newYear, Config).then(response => {
       this.setState({
         chipdataW: {
-          CH: response.data[0][i]['CH'],
-          SIMU: response.data[0][i]['SIMU'],
-          AR: response.data[0][i]['AR'],
-          TFD: response.data[0][i]['TFD'],
-          ACTU: response.data[0][i]['ACTU'],
-          RAC: response.data[0][i]['RAC']
+          CH: response.data[0][i+1]['CH'],
+          SIMU: response.data[0][i+1]['SIMU'],
+          AR: response.data[0][i+1]['AR'],
+          TFD: response.data[0][i+1]['TFD'],
+          ACTU: response.data[0][i+1]['ACTU'],
+          RAC: response.data[0][i+1]['RAC']
         },
         chipdataOg: {
-          CH: response.data[1][i]['CH'],
-          SIMU: response.data[1][i]['SIMU'],
-          AR: response.data[1][i]['AR'],
-          TFD: response.data[1][i]['TFD'],
-          ACTU: response.data[1][i]['ACTU'],
-          RAC: response.data[1][i]['RAC']
+          CH: response.data[1][i+1]['CH'],
+          SIMU: response.data[1][i+1]['SIMU'],
+          AR: response.data[1][i+1]['AR'],
+          TFD: response.data[1][i+1]['TFD'],
+          ACTU: response.data[1][i+1]['ACTU'],
+          RAC: response.data[1][i+1]['RAC']
         },
         chipdataf: {
-          CH: response.data[2][i]['CH'],
-          SIMU: response.data[2][i]['SIMU'],
-          AR: response.data[2][i]['AR'],
-          TFD: response.data[2][i]['TFD'],
-          ACTU: response.data[2][i]['ACTU'],
-          RAC: response.data[2][i]['RAC']
+          CH: response.data[2][i+1]['CH'],
+          SIMU: response.data[2][i+1]['SIMU'],
+          AR: response.data[2][i+1]['AR'],
+          TFD: response.data[2][i+1]['TFD'],
+          ACTU: response.data[2][i+1]['ACTU'],
+          RAC: response.data[2][i+1]['RAC']
         },
         year: newYear,
-        month: FrenchMonth[i-1],
+        month: FrenchMonth[i],
         monthb: i,
       })
     })
