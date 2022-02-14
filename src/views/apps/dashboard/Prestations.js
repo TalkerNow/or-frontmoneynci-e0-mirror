@@ -474,7 +474,7 @@ class PrestationStatistics extends React.Component {
                   this.toggle("3")
                 }}
               >
-                Annes
+                Années
               </NavLink>
             </NavItem>
           </Nav>

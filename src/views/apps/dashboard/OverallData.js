@@ -106,7 +106,6 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
           current_solde_amount: tmp_sold,
           opportunite_amount: tmp_opportunite,
           opportunite_count: tmp_opportunite_c,
-          total_ended_count: tmp_total_client,
           total_client: tmp_total_client,
           rowData: response.data,
         })

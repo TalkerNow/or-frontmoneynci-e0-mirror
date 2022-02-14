@@ -1,5 +1,5 @@
 import React from "react"
-import { Users } from "react-feather"
+import { TrendingUp, Users } from "react-feather"
 import axios from "axios";
 import { ContextLayout } from "../../../utility/context/Layout"
 import { AgGridReact } from "ag-grid-react"
@@ -38,6 +38,7 @@ class ExpertCard extends React.Component {
     activeTab: "1",
     prestation: null,
     tot_att: null,
+    trim: 'Trimestre 1',
     defaultColDef: {
       editable: true,
       sortable: true,
@@ -170,6 +171,52 @@ class ExpertCard extends React.Component {
     })
   }
 
+  getTrimData(Trim, newYear) {
+    this.setState({
+      trim: Trim,
+      year: newYear,
+    })
+    let i = 0
+    if (Trim == "Trimestre 1") {
+      i = 1
+    } else if (Trim == "Trimestre 2") {
+      i = 4
+    } else if (Trim == "Trimestre 3") {
+      i = 7
+    } else if (Trim == "Trimestre 4"){
+      i = 10
+    }
+    let j = i + 3
+    let tmpi = i
+    axios.get(global.config.server_url + "/getMembersPrestation?year=" + newYear, Config).then(response => {
+      for (let k = 0; k < response.data.length; k +=1) {
+        let tmp_Waiting = 0;
+        let tmp_En_cours = 0;
+        let tmp_Finish = 0;
+        let tmp_CA_Waiting = 0;
+        let tmp_CA_En_cours = 0;
+        let tmp_CA_Finish = 0;
+        while (i != j) {
+          tmp_Waiting = tmp_Waiting + response.data[k]['monthArray'][i+1]['En attente'];
+          tmp_En_cours = tmp_En_cours + response.data[k]['monthArray'][i+1]['En cours'];
+          tmp_Finish = tmp_Finish + response.data[k]['monthArray'][i+1]['Termine'];
+          tmp_CA_Waiting = tmp_CA_Waiting + response.data[k]['monthArray'][i+1]['CA En attente'];
+          tmp_CA_En_cours = tmp_CA_En_cours + response.data[k]['monthArray'][i+1]['CA En cours'];
+          tmp_CA_Finish = tmp_CA_Finish + response.data[k]['monthArray'][i+1]['CA Termine'];
+          i+=1;
+        }
+        this.state.prestation[j]['total En attente'] = tmp_Waiting;
+        this.state.prestation[j]['total En cours'] = tmp_En_cours;
+        this.state.prestation[j]['total Termine'] = tmp_Finish;
+        this.state.prestation[j]['total CA En attente'] = tmp_CA_Waiting;
+        this.state.prestation[j]['total CA En cours'] = tmp_CA_En_cours;
+        this.state.prestation[j]['total CA Termine'] = tmp_CA_Finish;
+        i = tmpi;
+      }
+    })
+    this.gridApi.updateRowData({ update: this.state.prestation })
+  }
+
   getMonthData(toCompare, newYear) {
     let i = 0;
     while (toCompare != FrenchMonth[i]) {
@@ -252,6 +299,7 @@ class ExpertCard extends React.Component {
                   active: this.state.activeTab === "2"
                 })}
                 onClick={() => {
+                  this.getTrimData(this.state.trim, this.state.year)
                   this.toggle("2")
                 }}
               >
@@ -268,7 +316,7 @@ class ExpertCard extends React.Component {
                   this.toggle("3")
                 }}
               >
-                Annes
+                Années
               </NavLink>
             </NavItem>
           </Nav>
@@ -347,14 +395,14 @@ class ExpertCard extends React.Component {
                           <div className="title-section" style={{ textAlign: 'center', marginRight: 'auto', display: 'inline-block', }}>
                             <div style={{ display: 'inline-block', marginLeft: '5px' }}>
                               <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{ width: '130px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
-                                onChange={console.log('change')}>
+                                onChange={e => this.getTrimData(e.target.value, this.state.year)}>
                                 <option>Trimestre 1</option><option>Trimestre 2</option><option>Trimestre 3</option>
                                 <option>Trimestre 4</option>
                               </Input>
                             </div>
                             <div style={{ display: 'inline-block', marginLeft: '5px' }}>
                               <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{ width: '75px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
-                                onChange={e => this.getMembersPrestation(e.target.value)}>
+                                onChange={e => this.getTrimData(this.state.trim, e.target.value)}>
                                 <option>2018</option><option>2019</option><option>2020</option>
                                 <option>2021</option><option>2022</option><option>2023</option>
                                 <option>2024</option><option>2025</option><option>2026</option>
