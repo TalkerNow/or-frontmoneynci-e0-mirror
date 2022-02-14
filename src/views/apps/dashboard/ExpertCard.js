@@ -131,9 +131,7 @@ class ExpertCard extends React.Component {
       this.setState({
         prestation: response.data,
       })
-      console.log(response.data)
       for (let j = 0; j < response.data.length; j += 1) {
-        console.log(this.state.monthb)
         this.state.prestation[j]['total En attente'] = response.data[j]['monthArray'][this.state.monthb+1]['En attente'];
         this.state.prestation[j]['total En cours'] = response.data[j]['monthArray'][this.state.monthb+1]['En cours'];
         this.state.prestation[j]['total Termine'] = response.data[j]['monthArray'][this.state.monthb+1]['Termine'];
@@ -214,7 +212,6 @@ class ExpertCard extends React.Component {
         i = tmpi;
       }
     })
-    this.gridApi.updateRowData({ update: this.state.prestation })
   }
 
   getMonthData(toCompare, newYear) {
@@ -229,7 +226,7 @@ class ExpertCard extends React.Component {
         this.state.prestation[j]['total Termine'] = response.data[j]['monthArray'][i+1]['Termine'];
         this.state.prestation[j]['total CA En attente'] = response.data[j]['monthArray'][i+1]['CA En attente'];
         this.state.prestation[j]['total CA En cours'] = response.data[j]['monthArray'][i+1]['CA En cours'];
-        this.state.prestation[j]['total CA Termine'] = response.data[j]['monthArray'][i+1]['CA Termine'];  
+        this.state.prestation[j]['total CA Termine'] = response.data[j]['monthArray'][i+1]['CA Termine'];
       }
     })
     this.setState({
@@ -241,6 +238,7 @@ class ExpertCard extends React.Component {
   onGridReady = params => {
     this.gridApi = params.api
     this.gridColumnApi = params.columnApi
+    this.gridApi.updateRowData({ update: this.state.prestation })
   }
 
   getMembersPrestation(year) {
@@ -415,18 +413,18 @@ class ExpertCard extends React.Component {
                           <ContextLayout.Consumer>
                             {context => (
                               <AgGridReact
-
-                                height={'autoHeight'}
-                                defaultColDef={defaultColDef}
-                                columnDefs={columnDefs}
-                                rowData={prestation}
-                                colResizeDefault={"shift"}
-                                animateRows={true}
-                                floatingFilter={true}
-                                pagination={true}
-                                pivotPanelShow="always"
-                                enableRangeSelection={false}
-                              />
+                              height={'autoHeight'}
+                              defaultColDef={defaultColDef}
+                              columnDefs={columnDefs}
+                              rowData={prestation}
+                              colResizeDefault={"shift"}
+                              animateRows={true}
+                              onGridReady={this.onGridReady}
+                              floatingFilter={true}
+                              pagination={true}
+                              pivotPanelShow="always"
+                              enableRangeSelection={true}
+                            />
                             )}
                           </ContextLayout.Consumer>
                         ) : null}
@@ -459,18 +457,18 @@ class ExpertCard extends React.Component {
                           <ContextLayout.Consumer>
                             {context => (
                               <AgGridReact
-
-                                height={'autoHeight'}
-                                defaultColDef={defaultColDef}
-                                columnDefs={columnDefs}
-                                rowData={prestation}
-                                colResizeDefault={"shift"}
-                                animateRows={true}
-                                floatingFilter={true}
-                                pagination={true}
-                                pivotPanelShow="always"
-                                enableRangeSelection={false}
-                              />
+                              height={'autoHeight'}
+                              defaultColDef={defaultColDef}
+                              columnDefs={columnDefs}
+                              rowData={prestation}
+                              colResizeDefault={"shift"}
+                              animateRows={true}
+                              onGridReady={this.onGridReady}
+                              floatingFilter={true}
+                              pagination={true}
+                              pivotPanelShow="always"
+                              enableRangeSelection={true}
+                            />
                             )}
                           </ContextLayout.Consumer>
                         ) : null}
