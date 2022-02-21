@@ -13,6 +13,8 @@ import {
   TabPane
 } from "reactstrap";
 import classnames from "classnames"
+import ReactApexChart from "react-apexcharts";
+import { ReactDOM } from "react";
 //import Chart from "react-apexcharts";
 import { default as NumberFormat } from 'react-number-format';
 import { history } from "../../../history";
@@ -23,7 +25,7 @@ import Chip from "../../../../src/components/@vuexy/chips/ChipComponent"
 const chipColors = {
   CH: "warning",
   SIMU: "success",
-  AR: "primary",
+  AR: "black",
   TFD: "danger",
   ACTU: 'primary',
   RAC: 'warning'
@@ -103,78 +105,34 @@ class PrestationStatistics extends React.Component {
     month: null,
     monthb: 0,
     prestation: null,
-    chipdataW: {
-      CH: 1,
-      SIMU: 2,
-      AR: 3,
-      TFD: 4,
-      ACTU: 5,
-      RAC: 6
+    options: {
+      chart: {
+        width: 100,
+        type: 'pie',
+      },
+      colors: ['#FF502B', '#FFE82B', '#56EC01','#01ECD6','#0121EC','#E501EC'],
+      labels: ['CH', 'SIMU', 'AR', 'TFD', 'ACTU', 'RAC'],
+      responsive: [{
+        breakpoint: 480,
+        options: {
+          chart: {
+            width: 200
+          },
+          legend: {
+            position: 'bottom',
+          }
+        }
+      }]
     },
-    chipdataOg: {
-      CH: 1,
-      SIMU: 2,
-      AR: 3,
-      TFD: 4,
-      ACTU: 5,
-      RAC: 6
-    },
-    chipdataf: {
-      CH: 1,
-      SIMU: 2,
-      AR: 3,
-      TFD: 4,
-      ACTU: 5,
-      RAC: 6
-    },
-    chipdataWTrim: {
-      CH: 1,
-      SIMU: 2,
-      AR: 3,
-      TFD: 4,
-      ACTU: 5,
-      RAC: 6
-    },
-    chipdataOgTrim: {
-      CH: 1,
-      SIMU: 2,
-      AR: 3,
-      TFD: 4,
-      ACTU: 5,
-      RAC: 6
-    },
-    chipdatafTrim: {
-      CH: 1,
-      SIMU: 2,
-      AR: 3,
-      TFD: 4,
-      ACTU: 5,
-      RAC: 6
-    },
-    chipdataWY: {
-      CH: 1,
-      SIMU: 2,
-      AR: 3,
-      TFD: 4,
-      ACTU: 5,
-      RAC: 6
-    },
-    chipdataOgY: {
-      CH: 1,
-      SIMU: 2,
-      AR: 3,
-      TFD: 4,
-      ACTU: 5,
-      RAC: 6
-    },
-    chipdatafY: {
-      CH: 1,
-      SIMU: 2,
-      AR: 3,
-      TFD: 4,
-      ACTU: 5,
-      RAC: 6
-    },
+    seriesW: [0, 0, 0, 0, 0, 0],
+    seriesOg: [0, 0, 0, 0, 0, 0],
+    seriesF: [0, 0, 0, 0, 0, 0],
+    seriesTW: [0, 0, 0, 0, 0, 0],
+    seriesTOg: [0, 0, 0, 0, 0, 0],
+    seriesTF: [0, 0, 0, 0, 0, 0],
+    seriesYW: [0, 0, 0, 0, 0, 0],
+    seriesYOg: [0, 0, 0, 0, 0, 0],
+    seriesYF: [0, 0, 0, 0, 0, 0],
     trim: "Trimestre 1",
   }
   toggle = tab => {
@@ -193,30 +151,30 @@ class PrestationStatistics extends React.Component {
     await axios.get(global.config.server_url + "/getPrestation", Config).then(response => {
       this.setState({
         prestation: response.data,
-        chipdataW: {
-          CH: response.data[0][this.state.monthb+1]['CH'],
-          SIMU: response.data[0][this.state.monthb+1]['SIMU'],
-          AR: response.data[0][this.state.monthb+1]['AR'],
-          TFD: response.data[0][this.state.monthb+1]['TFD'],
-          ACTU: response.data[0][this.state.monthb+1]['ACTU'],
-          RAC: response.data[0][this.state.monthb+1]['RAC']
-        },
-        chipdataOg: {
-          CH: response.data[1][this.state.monthb+1]['CH'],
-          SIMU: response.data[1][this.state.monthb+1]['SIMU'],
-          AR: response.data[1][this.state.monthb+1]['AR'],
-          TFD: response.data[1][this.state.monthb+1]['TFD'],
-          ACTU: response.data[1][this.state.monthb]['ACTU'],
-          RAC: response.data[1][this.state.monthb+1]['RAC']
-        },
-        chipdataf: {
-          CH: response.data[2][this.state.monthb+1]['CH'],
-          SIMU: response.data[2][this.state.monthb+1]['SIMU'],
-          AR: response.data[2][this.state.monthb+1]['AR'],
-          TFD: response.data[2][this.state.monthb+1]['TFD'],
-          ACTU: response.data[2][this.state.monthb+1]['ACTU'],
-          RAC: response.data[2][this.state.monthb+1]['RAC']
-        },
+        seriesW: [
+          response.data[0][this.state.monthb+1]['CH'],
+          response.data[0][this.state.monthb+1]['SIMU'],
+          response.data[0][this.state.monthb+1]['AR'],
+          response.data[0][this.state.monthb+1]['TFD'],
+          response.data[0][this.state.monthb+1]['ACTU'],
+          response.data[0][this.state.monthb+1]['RAC']
+        ],
+        seriesOg: [
+          response.data[1][this.state.monthb+1]['CH'],
+          response.data[1][this.state.monthb+1]['SIMU'],
+          response.data[1][this.state.monthb+1]['AR'],
+          response.data[1][this.state.monthb+1]['TFD'],
+          response.data[1][this.state.monthb+1]['ACTU'],
+          response.data[1][this.state.monthb+1]['RAC']
+        ],
+        seriesF: [
+          response.data[2][this.state.monthb+1]['CH'],
+          response.data[2][this.state.monthb+1]['SIMU'],
+          response.data[2][this.state.monthb+1]['AR'],
+          response.data[2][this.state.monthb+1]['TFD'],
+          response.data[2][this.state.monthb+1]['ACTU'],
+          response.data[2][this.state.monthb+1]['RAC']
+        ],
       })
     })
   }
@@ -262,32 +220,33 @@ class PrestationStatistics extends React.Component {
         tmp_e_y_RAC = tmp_e_y_RAC + response.data[2][i+1]['RAC']
       }
       this.setState({
-        chipdataWY: {
-          CH: tmp_w_y_CH,
-          SIMU: tmp_w_y_SIMU,
-          AR: tmp_w_y_AR,
-          TFD: tmp_w_y_TFD,
-          ACTU: tmp_w_y_ACTU,
-          RAC: tmp_w_y_RAC
-        },
-        chipdataOgY: {
-          CH: tmp_o_y_CH,
-          SIMU: tmp_o_y_SIMU,
-          AR: tmp_o_y_AR,
-          TFD: tmp_o_y_TFD,
-          ACTU: tmp_o_y_ACTU,
-          RAC: tmp_o_y_RAC
-        },
-        chipdatafY: {
-          CH: tmp_e_y_CH,
-          SIMU: tmp_e_y_SIMU,
-          AR: tmp_e_y_AR,
-          TFD: tmp_e_y_TFD,
-          ACTU: tmp_e_y_ACTU,
-          RAC: tmp_e_y_RAC
-        },
+        seriesYW: [
+          tmp_w_y_CH,
+          tmp_w_y_SIMU,
+          tmp_w_y_AR,
+          tmp_w_y_TFD,
+          tmp_w_y_ACTU,
+          tmp_w_y_RAC
+        ],
+        seriesYOg: [
+          tmp_o_y_CH,
+          tmp_o_y_SIMU,
+          tmp_o_y_AR,
+          tmp_o_y_TFD,
+          tmp_o_y_ACTU,
+          tmp_o_y_RAC
+        ],
+        seriesYF: [
+          tmp_e_y_CH,
+          tmp_e_y_SIMU,
+          tmp_e_y_AR,
+          tmp_e_y_TFD,
+          tmp_e_y_ACTU,
+          tmp_e_y_RAC,
+        ],
         year: newYear,
       })
+      console.log(this.state.seriesYF)
     })
   }
 
@@ -345,30 +304,30 @@ class PrestationStatistics extends React.Component {
           i++
       }
       this.setState({
-        chipdataWTrim: {
-          CH: tmp_w_CH,
-          SIMU: tmp_w_SIMU,
-          AR: tmp_w_AR,
-          TFD: tmp_w_TFD,
-          ACTU: tmp_w_ACTU,
-          RAC: tmp_w_RAC
-        },
-        chipdataOgTrim: {
-          CH: tmp_o_CH,
-          SIMU: tmp_o_SIMU,
-          AR: tmp_o_AR,
-          TFD: tmp_o_TFD,
-          ACTU: tmp_o_ACTU,
-          RAC: tmp_o_RAC
-        },
-        chipdatafTrim: {
-          CH: tmp_e_CH,
-          SIMU: tmp_e_SIMU,
-          AR: tmp_e_AR,
-          TFD: tmp_e_TFD,
-          ACTU: tmp_e_ACTU,
-          RAC: tmp_e_RAC,
-        },
+        seriesTW: [
+          tmp_w_CH,
+          tmp_w_SIMU,
+          tmp_w_AR,
+          tmp_w_TFD,
+          tmp_w_ACTU,
+          tmp_w_RAC
+        ],
+        seriesTOg: [
+          tmp_o_CH,
+          tmp_o_SIMU,
+          tmp_o_AR,
+          tmp_o_TFD,
+          tmp_o_ACTU,
+          tmp_o_RAC
+        ],
+        seriesTF: [
+          tmp_e_CH,
+          tmp_e_SIMU,
+          tmp_e_AR,
+          tmp_e_TFD,
+          tmp_e_ACTU,
+          tmp_e_RAC,
+        ],
         year: newYear,
         trim: Trim,
       })
@@ -382,30 +341,30 @@ class PrestationStatistics extends React.Component {
     }
     axios.get(global.config.server_url + "/getPrestation?year=" + newYear, Config).then(response => {
       this.setState({
-        chipdataW: {
-          CH: response.data[0][i+1]['CH'],
-          SIMU: response.data[0][i+1]['SIMU'],
-          AR: response.data[0][i+1]['AR'],
-          TFD: response.data[0][i+1]['TFD'],
-          ACTU: response.data[0][i+1]['ACTU'],
-          RAC: response.data[0][i+1]['RAC']
-        },
-        chipdataOg: {
-          CH: response.data[1][i+1]['CH'],
-          SIMU: response.data[1][i+1]['SIMU'],
-          AR: response.data[1][i+1]['AR'],
-          TFD: response.data[1][i+1]['TFD'],
-          ACTU: response.data[1][i+1]['ACTU'],
-          RAC: response.data[1][i+1]['RAC']
-        },
-        chipdataf: {
-          CH: response.data[2][i+1]['CH'],
-          SIMU: response.data[2][i+1]['SIMU'],
-          AR: response.data[2][i+1]['AR'],
-          TFD: response.data[2][i+1]['TFD'],
-          ACTU: response.data[2][i+1]['ACTU'],
-          RAC: response.data[2][i+1]['RAC']
-        },
+        seriesW: [
+          response.data[0][i+1]['CH'],
+          response.data[0][i+1]['SIMU'],
+          response.data[0][i+1]['AR'],
+          response.data[0][i+1]['TFD'],
+          response.data[0][i+1]['ACTU'],
+          response.data[0][i+1]['RAC']
+        ],
+        seriesOg: [
+          response.data[1][i+1]['CH'],
+          response.data[1][i+1]['SIMU'],
+          response.data[1][i+1]['AR'],
+          response.data[1][i+1]['TFD'],
+          response.data[1][i+1]['ACTU'],
+          response.data[1][i+1]['RAC']
+        ],
+        seriesF: [
+          response.data[2][i+1]['CH'],
+          response.data[2][i+1]['SIMU'],
+          response.data[2][i+1]['AR'],
+          response.data[2][i+1]['TFD'],
+          response.data[2][i+1]['ACTU'],
+          response.data[2][i+1]['RAC']
+        ],
         year: newYear,
         month: FrenchMonth[i],
         monthb: i,
@@ -446,6 +405,7 @@ class PrestationStatistics extends React.Component {
                 onClick={() => {
                   this.getMonthdata(this.state.month, this.state.year)
                   this.toggle("1")
+                  console.log(this.state.seriesF)
                 }}
               >
                 Mois
@@ -459,6 +419,7 @@ class PrestationStatistics extends React.Component {
                 onClick={() => {
                   this.getTrimData(this.state.trim, this.state.year)
                   this.toggle("2")
+                  console.log(this.state.seriesTF)
                 }}
               >
                 Trimestre
@@ -472,6 +433,7 @@ class PrestationStatistics extends React.Component {
                 onClick={() => {
                   this.getYearData(this.state.year)
                   this.toggle("3")
+                  console.log(this.state.seriesYF)
                 }}
               >
                 Années
@@ -511,64 +473,23 @@ class PrestationStatistics extends React.Component {
                   </Input>
                 </div>
               </div>
-              <div style={{ width: '100%' }} className='form-inline mt-1'>
-                <div>
+              <div style={{ width: '100%' }} className='form-inline mt-1 mb-1'>
+                <div className='ml-3'>
                   <h4>En Attente</h4>
-                  <div className="title-section" style={{ textAlign: 'center', marginTop: '10px', display: 'inline-block', float: 'left' }}>
-                    {chipType.map(data => (
-                      <div className='form-inline mt-1'>
-                        <Chip
-                          className="d-flex text-center ml-2"
-                          width='40px'
-                          color={chipColors[data.type]}
-                          text={data.type}
-                        />
-                        <h2 className="text-bold-600 d-flex text-center ml-2">{this.state.chipdataW[data.type]}</h2>
-                      </div>
-                    ))}
-
-                    {/* <h2 className="text-bold-600 mt-1 mb-25">
-                            <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
-                          </h2> */}
+                  <div id="chart">
+                    <ReactApexChart options={this.state.options} series={this.state.seriesW} type="pie" width={400} />
                   </div>
                 </div>
                 <div className='ml-3'>
                   <h4>En Cours</h4>
-                  <div className="title-section" style={{ textAlign: 'center', marginTop: '10px', display: 'inline-block', float: 'left' }}>
-                    {chipType.map(data => (
-                      <div className='form-inline mt-1'>
-                        <Chip
-                          className="d-flex text-center ml-2"
-                          color={chipColors[data.type]}
-                          text={data.type}
-                        />
-
-                        <h2 className="text-bold-600 d-flex text-center ml-2">{this.state.chipdataOg[data.type]}</h2>
-                      </div>
-                    ))}
-
-                    {/* <h2 className="text-bold-600 mt-1 mb-25">
-                            <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
-                          </h2> */}
+                  <div id="chart">
+                    <ReactApexChart options={this.state.options} series={this.state.seriesOg} type="pie" width={400} />
                   </div>
                 </div>
                 <div className='ml-3'>
                   <h4>Termine</h4>
-                  <div className="title-section" style={{ textAlign: 'center', marginTop: '10px', display: 'inline-block', float: 'left' }}>
-                    {chipType.map(data => (
-                      <div className='form-inline mt-1'>
-                        <Chip
-                          className="d-flex text-center ml-2"
-                          width='40px'
-                          color={chipColors[data.type]}
-                          text={data.type}
-                        />
-                        <h2 className="text-bold-600 d-flex text-center ml-2">{this.state.chipdataf[data.type]}</h2>
-                      </div>
-                    ))}
-                    {/* <h2 className="text-bold-600 mt-1 mb-25">
-                            <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
-                          </h2> */}
+                  <div id="chart">
+                    <ReactApexChart options={this.state.options} series={this.state.seriesF} type="pie" width={400} />
                   </div>
                 </div>
               </div>
@@ -592,71 +513,29 @@ class PrestationStatistics extends React.Component {
                   </Input>
                 </div>
               </div>
-              <div style={{ width: '100%' }} className='form-inline mt-1'>
-                <div>
+              <div style={{ width: '100%' }} className='form-inline mt-1 mb-1'>
+                <div className='ml-3'>
                   <h4>En Attente</h4>
-                  <div className="title-section" style={{ textAlign: 'center', marginTop: '10px', display: 'inline-block', float: 'left' }}>
-                    {chipType.map(data => (
-                      <div className='form-inline mt-1'>
-                        <Chip
-                          className="d-flex text-center ml-2"
-                          width='40px'
-                          color={chipColors[data.type]}
-                          text={data.type}
-                        />
-                        <h2 className="text-bold-600 d-flex text-center ml-2">{this.state.chipdataWTrim[data.type]}</h2>
-                      </div>
-                    ))}
-
-                    {/* <h2 className="text-bold-600 mt-1 mb-25">
-                            <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
-                          </h2> */}
+                  <div id="chart">
+                    <ReactApexChart options={this.state.options} series={this.state.seriesTW} type="pie" width={400} />
                   </div>
                 </div>
                 <div className='ml-3'>
                   <h4>En Cours</h4>
-                  <div className="title-section" style={{ textAlign: 'center', marginTop: '10px', display: 'inline-block', float: 'left' }}>
-                    {chipType.map(data => (
-                      <div className='form-inline mt-1'>
-                        <Chip
-                          className="d-flex text-center ml-2"
-                          color={chipColors[data.type]}
-                          text={data.type}
-                        />
-
-                        <h2 className="text-bold-600 d-flex text-center ml-2">{this.state.chipdataOgTrim[data.type]}</h2>
-                      </div>
-                    ))}
-
-                    {/* <h2 className="text-bold-600 mt-1 mb-25">
-                            <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
-                          </h2> */}
+                  <div id="chart">
+                    <ReactApexChart options={this.state.options} series={this.state.seriesTOg} type="pie" width={400} />
                   </div>
                 </div>
                 <div className='ml-3'>
                   <h4>Termine</h4>
-                  <div className="title-section" style={{ textAlign: 'center', marginTop: '10px', display: 'inline-block', float: 'left' }}>
-                    {chipType.map(data => (
-                      <div className='form-inline mt-1'>
-                        <Chip
-                          className="d-flex text-center ml-2"
-                          width='40px'
-                          color={chipColors[data.type]}
-                          text={data.type}
-                        />
-                        <h2 className="text-bold-600 d-flex text-center ml-2">{this.state.chipdatafTrim[data.type]}</h2>
-                      </div>
-                    ))}
-
-                    {/* <h2 className="text-bold-600 mt-1 mb-25">
-                            <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
-                          </h2> */}
+                  <div id="chart">
+                    <ReactApexChart options={this.state.options} series={this.state.seriesTF} type="pie" width={400} />
                   </div>
                 </div>
               </div>
             </TabPane>
             <TabPane tabId="3">
-              <div className="title-section" style={{ textAlign: 'center', marginLeft: 'auto', marginRight: 'auto', marginTop: '10px', display: 'inline-block', }}>
+              <div className="title-section" style={{ textAlign: 'center', marginLeft: 'auto', marginRight: 'auto', marginTop: '10px', display: 'inline-block'}}>
                 <div style={{ display: 'inline-block', marginLeft: '5px' }}>
                   <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{ width: '75px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
                     onChange={e => this.getYearData(e.target.value)}>
@@ -667,65 +546,24 @@ class PrestationStatistics extends React.Component {
                   </Input>
                 </div>
               </div>
-              <div style={{ width: '100%' }} className='form-inline mt-1'>
-                <div>
+              <div style={{ width: '100%' }} className='form-inline mt-1 mb-1'>
+                <div className='ml-3'>
                   <h4>En Attente</h4>
-                  <div className="title-section" style={{ textAlign: 'center', marginTop: '10px', display: 'inline-block', float: 'left' }}>
-                    {chipType.map(data => (
-                      <div className='form-inline mt-1'>
-                        <Chip
-                          className="d-flex text-center ml-2"
-                          width='40px'
-                          color={chipColors[data.type]}
-                          text={data.type}
-                        />
-                        <h2 className="text-bold-600 d-flex text-center ml-2">{this.state.chipdataWY[data.type]}</h2>
-                      </div>
-                    ))}
-
-                    {/* <h2 className="text-bold-600 mt-1 mb-25">
-                            <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
-                          </h2> */}
+                  <div id="chart">
+                    <ReactApexChart options={this.state.options} series={this.state.seriesYW} type="pie" width={400} />
                   </div>
                 </div>
                 <div className='ml-3'>
                   <h4>En Cours</h4>
-                  <div className="title-section" style={{ textAlign: 'center', marginTop: '10px', display: 'inline-block', float: 'left' }}>
-                    {chipType.map(data => (
-                      <div className='form-inline mt-1'>
-                        <Chip
-                          className="d-flex text-center ml-2"
-                          color={chipColors[data.type]}
-                          text={data.type}
-                        />
-
-                        <h2 className="text-bold-600 d-flex text-center ml-2">{this.state.chipdataOgY[data.type]}</h2>
-                      </div>
-                    ))}
-
-                    {/* <h2 className="text-bold-600 mt-1 mb-25">
-                            <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
-                          </h2> */}
+                  <div id="chart">
+                    <ReactApexChart options={this.state.options} series={this.state.seriesYOg} type="pie" width={400} />
                   </div>
                 </div>
                 <div className='ml-3'>
                   <h4>Termine</h4>
-                  <div className="title-section" style={{ textAlign: 'center', marginTop: '10px', display: 'inline-block', float: 'left' }}>
-                    {chipType.map(data => (
-                      <div className='form-inline mt-1'>
-                        <Chip
-                          className="d-flex text-center ml-2"
-                          width='40px'
-                          color={chipColors[data.type]}
-                          text={data.type}
-                        />
-                        <h2 className="text-bold-600 d-flex text-center ml-2">{this.state.chipdatafY[data.type]}</h2>
-                      </div>
-                    ))}
-
-                    {/* <h2 className="text-bold-600 mt-1 mb-25">
-                            <NumberFormat value={this.state.prestation} displayType={'text'} thousandSeparator={true} suffix={'€'} />
-                          </h2> */}
+                  <div id="chart">
+                    <ReactApexChart options={this.state.options} series={this.state.seriesYF} type="pie" width={400} />
+                    <h4>{console.log(this.state.seriesF)}</h4>
                   </div>
                 </div>
               </div>
