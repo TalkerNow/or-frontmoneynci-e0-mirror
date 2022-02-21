@@ -5,6 +5,7 @@ import { ContextLayout } from "../../../utility/context/Layout"
 import { AgGridReact } from "ag-grid-react"
 import {
   Nav,
+  Button,
   NavItem,
   NavLink,
   TabContent,
@@ -27,18 +28,21 @@ const Config = {
   }
 }
 
+var creator = -1;
+
 const FrenchMonth = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août',
   'septembre', 'octobre', 'novembre', 'décembre'];
 class ExpertCard extends React.Component {
   state = {
-    month: 'janvier',
+    creator: false,
+    month: null,
     monthb: 0,
     year: null,
     pageSize: 50,
     activeTab: "1",
     prestation: null,
     tot_att: null,
-    trim: 'Trimestre 1',
+    trim: null,
     defaultColDef: {
       editable: true,
       sortable: true,
@@ -259,6 +263,20 @@ class ExpertCard extends React.Component {
       searchVal: val
     })
   }
+
+  setDataExecutants = () => {
+    // TODO les calcules pour data executants
+    creator = 1;
+    this.setState({creator : true})
+    this.gridApi.setColumnDefs(this.state.columnDefs);
+  };
+  setDataCreators = () => {
+    // TODO les calcules pour data creator
+    creator = -1;
+    this.setState({creator : false})
+    this.gridApi.setColumnDefs(this.state.columnDefs);
+  };
+
   render() {
     const { prestation, columnDefs, defaultColDef, pageSize } = this.state
     return (
@@ -278,6 +296,23 @@ class ExpertCard extends React.Component {
             <CardTitle>Experts</CardTitle>
           </div>
           <Nav tabs className="px-2">
+          <div>
+                        {(creator !== -1 && this.state.creator === true) &&
+                          <>
+                            <Button className="mr-1 mb-2 mr-1" outline color="primary" onClick={() => this.setDataCreators()}>
+                              executants
+                            </Button>
+                          </>
+                        }
+                        {(creator === -1 && this.state.creator === false) &&
+                          <>
+                            <Button className="mr-1 mb-2 mr-1" outline color="primary" onClick={() => this.setDataExecutants()}>
+                              createurs
+                            </Button>
+                          </>
+                        }
+
+                      </div>
             <NavItem>
               <NavLink
                 className={classnames({
