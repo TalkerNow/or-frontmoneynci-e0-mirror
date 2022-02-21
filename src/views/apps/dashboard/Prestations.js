@@ -474,20 +474,20 @@ class PrestationStatistics extends React.Component {
                 </div>
               </div>
               <div style={{ width: '100%' }} className='form-inline mt-1 mb-1'>
-                <div className='ml-3'>
-                  <h4>En Attente</h4>
+                <div className='ml-3 mt-1'>
+                  <h4 className='w-50 ml-4 d-flex justify-content-sm-center'>En Attente</h4>
                   <div id="chart">
                     <ReactApexChart options={this.state.options} series={this.state.seriesW} type="pie" width={400} />
                   </div>
                 </div>
-                <div className='ml-3'>
-                  <h4>En Cours</h4>
+                <div className='ml-3 mt-1'>
+                  <h4 className='w-50 ml-4 d-flex justify-content-sm-center'>En Cours</h4>
                   <div id="chart">
                     <ReactApexChart options={this.state.options} series={this.state.seriesOg} type="pie" width={400} />
                   </div>
                 </div>
-                <div className='ml-3'>
-                  <h4>Termine</h4>
+                <div className='ml-3 mt-1'>
+                  <h4 className='w-50 ml-5 d-flex justify-content-sm-center'>Termine</h4>
                   <div id="chart">
                     <ReactApexChart options={this.state.options} series={this.state.seriesF} type="pie" width={400} />
                   </div>
@@ -514,20 +514,20 @@ class PrestationStatistics extends React.Component {
                 </div>
               </div>
               <div style={{ width: '100%' }} className='form-inline mt-1 mb-1'>
-                <div className='ml-3'>
-                  <h4>En Attente</h4>
+                <div className='ml-3  mt-1'>
+                  <h4 className='w-50 ml-4 d-flex justify-content-sm-center'>En Attente</h4>
                   <div id="chart">
                     <ReactApexChart options={this.state.options} series={this.state.seriesTW} type="pie" width={400} />
                   </div>
                 </div>
-                <div className='ml-3'>
-                  <h4>En Cours</h4>
+                <div className='ml-3 mt-1'>
+                  <h4 className='w-50 ml-4 d-flex justify-content-sm-center'>En Cours</h4>
                   <div id="chart">
                     <ReactApexChart options={this.state.options} series={this.state.seriesTOg} type="pie" width={400} />
                   </div>
                 </div>
-                <div className='ml-3'>
-                  <h4>Termine</h4>
+                <div className='ml-3 mt-1'>
+                  <h4 className='w-50 ml-5 d-flex justify-content-sm-center'>Termine</h4>
                   <div id="chart">
                     <ReactApexChart options={this.state.options} series={this.state.seriesTF} type="pie" width={400} />
                   </div>
@@ -547,20 +547,20 @@ class PrestationStatistics extends React.Component {
                 </div>
               </div>
               <div style={{ width: '100%' }} className='form-inline mt-1 mb-1'>
-                <div className='ml-3'>
-                  <h4>En Attente</h4>
+                <div className='ml-3 mt-1'>
+                  <h4 className='w-50 ml-4 d-flex justify-content-sm-center'>En Attente</h4>
                   <div id="chart">
                     <ReactApexChart options={this.state.options} series={this.state.seriesYW} type="pie" width={400} />
                   </div>
                 </div>
-                <div className='ml-3'>
-                  <h4>En Cours</h4>
+                <div className='ml-3 mt-1'>
+                  <h4 className='w-50 ml-4 d-flex justify-content-sm-center'>En Cours</h4>
                   <div id="chart">
                     <ReactApexChart options={this.state.options} series={this.state.seriesYOg} type="pie" width={400} />
                   </div>
                 </div>
-                <div className='ml-3'>
-                  <h4>Termine</h4>
+                <div className='ml-3 mt-1'>
+                  <h4 className='w-50 ml-5 d-flex justify-content-sm-center'>Termine</h4>
                   <div id="chart">
                     <ReactApexChart options={this.state.options} series={this.state.seriesYF} type="pie" width={400} />
                     <h4>{console.log(this.state.seriesF)}</h4>
