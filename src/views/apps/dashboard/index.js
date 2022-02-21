@@ -48,7 +48,7 @@ class Index extends React.Component {
               labelColor={$label_color}
             />
           </Col>
-          <Col lg="8" md="6" sm="6">
+          <Col lg="12" md="6" sm="6">
             <RevenueGraph
               strokeColor={$stroke_color}
               primary={$primary}
@@ -57,7 +57,7 @@ class Index extends React.Component {
             />
 
           </Col>
-          <Col lg="4" md="6" sm="6">
+          <Col lg="12" md="6" sm="6">
             <PrestationStatistics
               primary={$primary}
               dangerLight={$danger_light}
