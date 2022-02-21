@@ -1,5 +1,5 @@
 import React from "react"
-import { Users } from "react-feather"
+import { TrendingUp, Users } from "react-feather"
 import axios from "axios";
 import { ContextLayout } from "../../../utility/context/Layout"
 import { AgGridReact } from "ag-grid-react"
@@ -31,9 +31,14 @@ const FrenchMonth = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'jui
   'septembre', 'octobre', 'novembre', 'décembre'];
 class ExpertCard extends React.Component {
   state = {
+    month: 'janvier',
+    monthb: 0,
+    year: null,
     pageSize: 50,
     activeTab: "1",
     prestation: null,
+    tot_att: null,
+    trim: 'Trimestre 1',
     defaultColDef: {
       editable: true,
       sortable: true,
@@ -58,23 +63,40 @@ class ExpertCard extends React.Component {
       },
       {
         headerName: "En Attente",
-        field: "role",
+        field: "total En attente",
         filter: true,
-        width: 250,
+        width: 150,
       },
       {
         headerName: "En Cours",
-        field: "role",
+        field: "total En cours",
         filter: true,
-        width: 250,
+        width: 150,
       },
       {
         headerName: "Termine",
-        field: "role",
+        field: "total Termine",
         filter: true,
-        width: 250,
+        width: 150,
       },
-
+      {
+        headerName: "CA En attente",
+        field: "total CA En attente",
+        filter: true,
+        with: 150,
+      },
+      {
+        headerName: "CA En cours",
+        field: "total CA En cours",
+        filter: true,
+        with: 150,
+      },
+      {
+        headerName: "CA Termine",
+        field: "total CA Termine",
+        filter: true,
+        with: 150,
+      },
     ]
   }
 
@@ -101,11 +123,122 @@ class ExpertCard extends React.Component {
   }
 
   async componentDidMount() {
+    let tmp = new Date();
+    this.setState({ month: FrenchMonth[tmp.getMonth()]})
+    this.setState({monthb: tmp.getMonth()})
+    this.setState({ year: tmp.getFullYear()})
     await axios.get(global.config.server_url + "/getMembersPrestation", Config).then(response => {
       this.setState({
         prestation: response.data,
       })
+      for (let j = 0; j < response.data.length; j += 1) {
+        this.state.prestation[j]['total En attente'] = response.data[j]['monthArray'][this.state.monthb+1]['En attente'];
+        this.state.prestation[j]['total En cours'] = response.data[j]['monthArray'][this.state.monthb+1]['En cours'];
+        this.state.prestation[j]['total Termine'] = response.data[j]['monthArray'][this.state.monthb+1]['Termine'];
+        this.state.prestation[j]['total CA En attente'] = response.data[j]['monthArray'][this.state.monthb+1]['CA En attente'];
+        this.state.prestation[j]['total CA En cours'] = response.data[j]['monthArray'][this.state.monthb+1]['CA En cours'];
+        this.state.prestation[j]['total CA Termine'] = response.data[j]['monthArray'][this.state.monthb+1]['CA Termine'];  
+      }
     })
+  }
+
+  getYearData(newYear) {
+    axios.get(global.config.server_url + "/getMembersPrestation?year=" + newYear, Config).then(response => {
+      for (let i = 0; i < response.data.length; i += 1) {
+        let tmp_Waiting = 0;
+        let tmp_En_cours = 0;
+        let tmp_Finish = 0;
+        let tmp_CA_Waiting = 0;
+        let tmp_CA_En_cours = 0;
+        let tmp_CA_Finish = 0;
+        for (let j = 0;j < 12; j += 1) {
+          tmp_Waiting = tmp_Waiting + response.data[i]['monthArray'][j+1]['En attente'];
+          tmp_En_cours = tmp_En_cours + response.data[i]['monthArray'][j+1]['En cours'];
+          tmp_Finish = tmp_Finish + response.data[i]['monthArray'][j+1]['Termine'];
+          tmp_CA_Waiting = tmp_CA_Waiting + response.data[i]['monthArray'][j+1]['CA En attente'];
+          tmp_CA_En_cours = tmp_CA_En_cours + response.data[i]['monthArray'][j+1]['CA En cours'];
+          tmp_CA_Finish = tmp_CA_Finish + response.data[i]['monthArray'][j+1]['CA Termine'];
+        }
+        this.state.prestation[i]['total En attente'] = tmp_Waiting;
+        this.state.prestation[i]['total En cours'] = tmp_En_cours;
+        this.state.prestation[i]['total Termine'] = tmp_Finish;
+        this.state.prestation[i]['total CA En attente'] = tmp_CA_Waiting;
+        this.state.prestation[i]['total CA En cours'] = tmp_CA_En_cours;
+        this.state.prestation[i]['total CA Termine'] = tmp_CA_Finish;
+      }
+    })
+  }
+
+  getTrimData(Trim, newYear) {
+    this.setState({
+      trim: Trim,
+      year: newYear,
+    })
+    let i = 0
+    if (Trim == "Trimestre 1") {
+      i = 1
+    } else if (Trim == "Trimestre 2") {
+      i = 4
+    } else if (Trim == "Trimestre 3") {
+      i = 7
+    } else if (Trim == "Trimestre 4"){
+      i = 10
+    }
+    let j = i + 3
+    let tmpi = i
+    axios.get(global.config.server_url + "/getMembersPrestation?year=" + newYear, Config).then(response => {
+      for (let k = 0; k < response.data.length; k +=1) {
+        let tmp_Waiting = 0;
+        let tmp_En_cours = 0;
+        let tmp_Finish = 0;
+        let tmp_CA_Waiting = 0;
+        let tmp_CA_En_cours = 0;
+        let tmp_CA_Finish = 0;
+        while (i != j) {
+          tmp_Waiting = tmp_Waiting + response.data[k]['monthArray'][i+1]['En attente'];
+          tmp_En_cours = tmp_En_cours + response.data[k]['monthArray'][i+1]['En cours'];
+          tmp_Finish = tmp_Finish + response.data[k]['monthArray'][i+1]['Termine'];
+          tmp_CA_Waiting = tmp_CA_Waiting + response.data[k]['monthArray'][i+1]['CA En attente'];
+          tmp_CA_En_cours = tmp_CA_En_cours + response.data[k]['monthArray'][i+1]['CA En cours'];
+          tmp_CA_Finish = tmp_CA_Finish + response.data[k]['monthArray'][i+1]['CA Termine'];
+          i+=1;
+        }
+        this.state.prestation[j]['total En attente'] = tmp_Waiting;
+        this.state.prestation[j]['total En cours'] = tmp_En_cours;
+        this.state.prestation[j]['total Termine'] = tmp_Finish;
+        this.state.prestation[j]['total CA En attente'] = tmp_CA_Waiting;
+        this.state.prestation[j]['total CA En cours'] = tmp_CA_En_cours;
+        this.state.prestation[j]['total CA Termine'] = tmp_CA_Finish;
+        i = tmpi;
+      }
+    })
+  }
+
+  getMonthData(toCompare, newYear) {
+    let i = 0;
+    while (toCompare != FrenchMonth[i]) {
+      i+=1;
+    }
+    axios.get(global.config.server_url + "/getMembersPrestation?year=" + newYear, Config).then(response => {
+      for (let j = 0; j < response.data.length; j += 1) {
+        this.state.prestation[j]['total En attente'] = response.data[j]['monthArray'][i+1]['En attente'];
+        this.state.prestation[j]['total En cours'] = response.data[j]['monthArray'][i+1]['En cours'];
+        this.state.prestation[j]['total Termine'] = response.data[j]['monthArray'][i+1]['Termine'];
+        this.state.prestation[j]['total CA En attente'] = response.data[j]['monthArray'][i+1]['CA En attente'];
+        this.state.prestation[j]['total CA En cours'] = response.data[j]['monthArray'][i+1]['CA En cours'];
+        this.state.prestation[j]['total CA Termine'] = response.data[j]['monthArray'][i+1]['CA Termine'];
+      }
+    })
+    this.setState({
+      month: toCompare,
+      year: newYear,
+    })
+  }
+
+  onGridReady = params => {
+    this.gridApi = params.api
+    this.gridColumnApi = params.columnApi
+    this.gridApi.updateRowData({ update: this.state.prestation })
   }
 
   getMembersPrestation(year) {
@@ -113,7 +246,12 @@ class ExpertCard extends React.Component {
       this.setState({
         prestation: response.data,
       })
-    })
+    }).then(
+      this.state.prestation[0]['total Termine'] = 10
+    ).then(
+      console.log(this.state.prestation[0]['total Termine']),
+      this.gridApi.refreshCells()
+      ).then(console.log(this.state.prestation[0]['total Termine']))
   }
   updateSearchQuery = val => {
     this.gridApi.setQuickFilter(val)
@@ -146,6 +284,7 @@ class ExpertCard extends React.Component {
                   active: this.state.activeTab === "1"
                 })}
                 onClick={() => {
+                  this.getMonthData(this.state.month, this.state.year)
                   this.toggle("1")
                 }}
               >
@@ -158,6 +297,7 @@ class ExpertCard extends React.Component {
                   active: this.state.activeTab === "2"
                 })}
                 onClick={() => {
+                  this.getTrimData(this.state.trim, this.state.year)
                   this.toggle("2")
                 }}
               >
@@ -170,10 +310,11 @@ class ExpertCard extends React.Component {
                   active: this.state.activeTab === "3"
                 })}
                 onClick={() => {
+                  this.getYearData(this.state.year)
                   this.toggle("3")
                 }}
               >
-                Annes
+                Années
               </NavLink>
             </NavItem>
           </Nav>
@@ -199,7 +340,7 @@ class ExpertCard extends React.Component {
                           <div className="title-section" style={{ textAlign: 'center', marginRight: 'auto', display: 'inline-block', }}>
                             <div style={{ display: 'inline-block' }}>
                               <Input type="select" name="select" id="role" defaultValue={FrenchMonth[new Date().getMonth()]} style={{ width: '120px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
-                                onChange={console.log('change')}>
+                                onChange={e => this.getMonthData(e.target.value, this.state.year)}>
                                 <option>janvier</option><option>février</option><option>mars</option>
                                 <option>avril</option><option>mai</option><option>juin</option>
                                 <option>juillet</option><option>août</option><option>septembre</option>
@@ -208,7 +349,7 @@ class ExpertCard extends React.Component {
                             </div>
                             <div style={{ display: 'inline-block', marginLeft: '5px' }}>
                               <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{ width: '75px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
-                                onChange={e => this.getMembersPrestation(e.target.value)}>
+                                onChange={e => this.getMonthData(this.state.month, e.target.value)}>
                                 <option>2018</option><option>2019</option><option>2020</option>
                                 <option>2021</option><option>2022</option><option>2023</option>
                                 <option>2024</option><option>2025</option><option>2026</option>
@@ -227,10 +368,11 @@ class ExpertCard extends React.Component {
                                 rowData={prestation}
                                 colResizeDefault={"shift"}
                                 animateRows={true}
+                                onGridReady={this.onGridReady}
                                 floatingFilter={true}
                                 pagination={true}
                                 pivotPanelShow="always"
-                                enableRangeSelection={false}
+                                enableRangeSelection={true}
                               />
                             )}
                           </ContextLayout.Consumer>
@@ -251,14 +393,14 @@ class ExpertCard extends React.Component {
                           <div className="title-section" style={{ textAlign: 'center', marginRight: 'auto', display: 'inline-block', }}>
                             <div style={{ display: 'inline-block', marginLeft: '5px' }}>
                               <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{ width: '130px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
-                                onChange={console.log('change')}>
+                                onChange={e => this.getTrimData(e.target.value, this.state.year)}>
                                 <option>Trimestre 1</option><option>Trimestre 2</option><option>Trimestre 3</option>
                                 <option>Trimestre 4</option>
                               </Input>
                             </div>
                             <div style={{ display: 'inline-block', marginLeft: '5px' }}>
                               <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{ width: '75px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
-                                onChange={e => this.getMembersPrestation(e.target.value)}>
+                                onChange={e => this.getTrimData(this.state.trim, e.target.value)}>
                                 <option>2018</option><option>2019</option><option>2020</option>
                                 <option>2021</option><option>2022</option><option>2023</option>
                                 <option>2024</option><option>2025</option><option>2026</option>
@@ -271,18 +413,18 @@ class ExpertCard extends React.Component {
                           <ContextLayout.Consumer>
                             {context => (
                               <AgGridReact
-
-                                height={'autoHeight'}
-                                defaultColDef={defaultColDef}
-                                columnDefs={columnDefs}
-                                rowData={prestation}
-                                colResizeDefault={"shift"}
-                                animateRows={true}
-                                floatingFilter={true}
-                                pagination={true}
-                                pivotPanelShow="always"
-                                enableRangeSelection={false}
-                              />
+                              height={'autoHeight'}
+                              defaultColDef={defaultColDef}
+                              columnDefs={columnDefs}
+                              rowData={prestation}
+                              colResizeDefault={"shift"}
+                              animateRows={true}
+                              onGridReady={this.onGridReady}
+                              floatingFilter={true}
+                              pagination={true}
+                              pivotPanelShow="always"
+                              enableRangeSelection={true}
+                            />
                             )}
                           </ContextLayout.Consumer>
                         ) : null}
@@ -302,7 +444,7 @@ class ExpertCard extends React.Component {
                           <div className="title-section" style={{ textAlign: 'center', marginRight: 'auto', display: 'inline-block', }}>
                             <div style={{ display: 'inline-block', marginLeft: '5px' }}>
                               <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{ width: '75px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
-                                onChange={e => this.getMembersPrestation(e.target.value)}>
+                                onChange={e => this.getYearData(e.target.value)}>
                                 <option>2018</option><option>2019</option><option>2020</option>
                                 <option>2021</option><option>2022</option><option>2023</option>
                                 <option>2024</option><option>2025</option><option>2026</option>
@@ -315,18 +457,18 @@ class ExpertCard extends React.Component {
                           <ContextLayout.Consumer>
                             {context => (
                               <AgGridReact
-
-                                height={'autoHeight'}
-                                defaultColDef={defaultColDef}
-                                columnDefs={columnDefs}
-                                rowData={prestation}
-                                colResizeDefault={"shift"}
-                                animateRows={true}
-                                floatingFilter={true}
-                                pagination={true}
-                                pivotPanelShow="always"
-                                enableRangeSelection={false}
-                              />
+                              height={'autoHeight'}
+                              defaultColDef={defaultColDef}
+                              columnDefs={columnDefs}
+                              rowData={prestation}
+                              colResizeDefault={"shift"}
+                              animateRows={true}
+                              onGridReady={this.onGridReady}
+                              floatingFilter={true}
+                              pagination={true}
+                              pivotPanelShow="always"
+                              enableRangeSelection={true}
+                            />
                             )}
                           </ContextLayout.Consumer>
                         ) : null}
