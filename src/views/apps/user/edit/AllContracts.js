@@ -5,7 +5,6 @@ import {
   Col,
   Button,
   Card,
-  CardHeader,
   CardBody, UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem,
 } from "reactstrap"
 import {
@@ -298,7 +297,7 @@ class AllContracts extends React.Component {
     })
   }
   isExternalFilterPresent = () => {
-    if (consultant_id != -1) {
+    if (consultant_id !== -1) {
       return true;
     }
     return false;
@@ -309,7 +308,7 @@ class AllContracts extends React.Component {
     this.gridApi.onFilterChanged();
   };
   doesExternalFilterPass = (node) => {
-    return node.data.creator_id == consultant_id;
+    return node.data.creator_id === consultant_id;
   };
 
   deleteDoc(id) {
