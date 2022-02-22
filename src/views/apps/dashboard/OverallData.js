@@ -1,9 +1,7 @@
 import React from "react"
-import { CheckCircle, Compass, DollarSign, Inbox, Package, Power, TrendingUp } from "react-feather"
+import { CheckCircle, Compass, DollarSign, Inbox, Package, TrendingUp } from "react-feather"
 import { Users } from "react-feather"
 import axios from "axios";
-import { default as NumberFormat } from 'react-number-format';
-
 
 import {Card,
   CardBody,
@@ -15,8 +13,6 @@ import {Card,
   CardHeader, CardTitle,
   TabPane} from "reactstrap";
   import classnames from "classnames"
-import { copyFileSync } from "fs";
-import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteComponent";
 
   const Config = {
     headers: {
@@ -122,17 +118,17 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
       let tmp_opportunite_c = 0
       let tmp_ended = 0
       let i = 0
-      if (Trim == "Trimestre 1") {
+      if (Trim === "Trimestre 1") {
         i = 0
-      } else if (Trim == "Trimestre 2") {
+      } else if (Trim === "Trimestre 2") {
         i = 3
-      } else if (Trim == "Trimestre 3") {
+      } else if (Trim === "Trimestre 3") {
         i = 6
-      } else if (Trim == "Trimestre 4"){
+      } else if (Trim === "Trimestre 4"){
         i = 9
       }
       let j = i + 3
-      while (i != j) {
+      while (i !== j) {
         tmp_clients =  tmp_clients + response.data[i+1]['current_acompte_count'];
         tmp_total_amount = tmp_total_amount + response.data[i+1]['current_total_amount'];
         tmp_account = tmp_account + response.data[i+1]['current_acompte_amount'];
@@ -157,7 +153,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
 
   getMonthdata(toCompare, newYear) {
     let i = 0;
-    while (toCompare != FrenchMonth[i]) {
+    while (toCompare !== FrenchMonth[i]) {
       i++;
     }
     axios.get(global.config.server_url + "/get_statistics_total_income?year="+newYear, Config).then(response => {
@@ -204,7 +200,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
       a = a.substr(1);
     }
     for (var i = a.length-1; i >= 0; i--) {
-      c = (d != 0 && d % 3 == 0) ? a[i] + b + c : a[i] + c;
+      c = (d !== 0 && d % 3 === 0) ? a[i] + b + c : a[i] + c;
       d++;
     }
     return c;
@@ -343,7 +339,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                        </div>
                        </div>
                       <div className="icon-section form-inline text-bold-600" style={TodoComponent}>
-                        <div class="mx-auto">
+                        <div className="mx-auto">
                           <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-warning"}`}>
@@ -357,7 +353,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                             <CardTitle style={{width:'285px',marginLeft:'auto',marginRight:'auto'}}>Chiffre d'affaires</CardTitle>
                           </div>
                         </div>
-                        <div class="mx-auto">
+                        <div className="mx-auto">
                           <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-info"}`}>
@@ -371,7 +367,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                               <CardTitle style={{width:'285px',marginLeft:'auto',marginRight:'auto'}}>Acomptes</CardTitle>
                             </div>
                         </div>
-                        <div class="mx-auto">
+                        <div className="mx-auto">
                           <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-info"}`}>
@@ -385,7 +381,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                             <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Soldes</CardTitle>
                           </div>
                         </div>
-                        <div class="mx-auto">
+                        <div className="mx-auto">
                           <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-success"}`}>
@@ -399,7 +395,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                             <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Opportunités</CardTitle>
                           </div>
                         </div>
-                        <div class="mx-auto">
+                        <div className="mx-auto">
                           <div style={{display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats mt-1 p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
@@ -413,7 +409,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                             <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Clients signés</CardTitle>
                           </div>
                         </div>
-                        <div class="mx-auto">
+                        <div className="mx-auto">
                           <div style={{display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats mt-1 p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
@@ -427,7 +423,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                             <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Prospects</CardTitle>
                           </div>
                         </div>
-                        <div class="mx-auto">
+                        <div className="mx-auto">
                           <div style={{display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats mt-1 p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
@@ -441,7 +437,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                             <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Total clients</CardTitle>
                           </div>
                         </div>
-                        <div class="mx-auto">
+                        <div className="mx-auto">
                           <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-danger"}`}>
@@ -477,7 +473,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                        </div>
                       </div>
                       <div className="icon-section form-inline text-bold-600" style={TodoComponent}>
-                        <div class="mx-auto">
+                        <div className="mx-auto">
                           <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-warning"}`}>
@@ -491,7 +487,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                             <CardTitle style={{width:'285px',marginLeft:'auto',marginRight:'auto'}}>Chiffre d'affaires</CardTitle>
                           </div>
                         </div>
-                        <div class="mx-auto">
+                        <div className="mx-auto">
                           <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-info"}`}>
@@ -505,7 +501,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                               <CardTitle style={{width:'285px',marginLeft:'auto',marginRight:'auto'}}>Acomptes</CardTitle>
                             </div>
                         </div>
-                        <div class="mx-auto">
+                        <div className="mx-auto">
                           <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-info"}`}>
@@ -519,7 +515,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                             <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Soldes</CardTitle>
                           </div>
                         </div>
-                        <div class="mx-auto">
+                        <div className="mx-auto">
                           <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-success"}`}>
@@ -533,7 +529,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                             <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Opportunités</CardTitle>
                           </div>
                         </div>
-                        <div class="mx-auto">
+                        <div className="mx-auto">
                           <div style={{display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats mt-1 p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
@@ -547,7 +543,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                             <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Clients signés</CardTitle>
                           </div>
                         </div>
-                        <div class="mx-auto">
+                        <div className="mx-auto">
                           <div style={{display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats mt-1 p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
@@ -561,7 +557,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                             <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Prospects</CardTitle>
                           </div>
                         </div>
-                        <div class="mx-auto">
+                        <div className="mx-auto">
                           <div style={{display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats mt-1 p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
@@ -575,7 +571,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                             <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Total clients</CardTitle>
                           </div>
                         </div>
-                        <div class="mx-auto">
+                        <div className="mx-auto">
                           <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-danger"}`}>
@@ -604,7 +600,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                       </div>
                       </div>
                       <div className="icon-section form-inline text-bold-600" style={TodoComponent}>
-                        <div class="mx-auto">
+                        <div className="mx-auto">
                           <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-warning"}`}>
@@ -618,7 +614,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                             <CardTitle style={{width:'285px',marginLeft:'auto',marginRight:'auto'}}>Chiffre d'affaires</CardTitle>
                           </div>
                         </div>
-                        <div class="mx-auto">
+                        <div className="mx-auto">
                           <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-info"}`}>
@@ -632,7 +628,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                               <CardTitle style={{width:'285px',marginLeft:'auto',marginRight:'auto'}}>Acomptes</CardTitle>
                             </div>
                         </div>
-                        <div class="mx-auto">
+                        <div className="mx-auto">
                           <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-info"}`}>
@@ -646,7 +642,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                             <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Soldes</CardTitle>
                           </div>
                         </div>
-                        <div class="mx-auto">
+                        <div className="mx-auto">
                           <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-success"}`}>
@@ -660,7 +656,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                             <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Opportunités</CardTitle>
                           </div>
                         </div>
-                        <div class="mx-auto">
+                        <div className="mx-auto">
                           <div style={{display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats mt-1 p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
@@ -674,7 +670,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                             <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Clients signés</CardTitle>
                           </div>
                         </div>
-                        <div class="mx-auto">
+                        <div className="mx-auto">
                           <div style={{display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats mt-1 p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
@@ -688,7 +684,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                             <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Prospects</CardTitle>
                           </div>
                         </div>
-                        <div class="mx-auto">
+                        <div className="mx-auto">
                           <div style={{display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats mt-1 p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-primary"}`}>
@@ -702,7 +698,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                             <CardTitle style={{width:'300px',marginLeft:'auto',marginRight:'auto'}}>Total clients</CardTitle>
                           </div>
                         </div>
-                        <div class="mx-auto">
+                        <div className="mx-auto">
                           <div style={{marginTop:'10px',display:'inline-block',float:'left'}}>
                             <div className={`avatar avatar-stats p-75 ${
                               this.props.iconBg ? `bg-rgba-${this.props.iconBg}`: "bg-rgba-danger"}`}>
