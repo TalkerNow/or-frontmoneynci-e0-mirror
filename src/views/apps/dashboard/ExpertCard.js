@@ -150,25 +150,45 @@ class ExpertCard extends React.Component {
     axios.get(global.config.server_url + "/getMembersPrestation?year=" + newYear, Config).then(response => {
       for (let i = 0; i < response.data.length; i += 1) {
         let tmp_Waiting = 0;
+        let tmp_C_Waiting = 0;
         let tmp_En_cours = 0;
+        let tmp_C_En_cours = 0;
         let tmp_Finish = 0;
+        let tmp_C_Finish = 0;
         let tmp_CA_Waiting = 0;
+        let tmp_C_CA_Waiting = 0;
         let tmp_CA_En_cours = 0;
+        let tmp_C_CA_En_cours = 0;
         let tmp_CA_Finish = 0;
+        let tmp_C_CA_Finish = 0;
         for (let j = 0;j < 12; j += 1) {
           tmp_Waiting = tmp_Waiting + response.data[i]['monthArray'][j+1]['En attente'];
+          tmp_C_Waiting = tmp_C_Waiting + response.data[i]['monthArray'][j+1]['creer En attente'];
           tmp_En_cours = tmp_En_cours + response.data[i]['monthArray'][j+1]['En cours'];
+          tmp_C_En_cours = tmp_C_En_cours + response.data[i]['monthArray'][j+1]['creer En cours'];
           tmp_Finish = tmp_Finish + response.data[i]['monthArray'][j+1]['Termine'];
+          tmp_C_Finish = tmp_C_Finish + response.data[i]['monthArray'][j+1]['creer Termine'];
           tmp_CA_Waiting = tmp_CA_Waiting + response.data[i]['monthArray'][j+1]['CA En attente'];
+          tmp_C_CA_Waiting = tmp_C_CA_Waiting + response.data[i]['monthArray'][j+1]['CA creer En attente'];
           tmp_CA_En_cours = tmp_CA_En_cours + response.data[i]['monthArray'][j+1]['CA En cours'];
+          tmp_C_CA_En_cours = tmp_C_CA_En_cours + response.data[i]['monthArray'][j+1]['CA creer En cours'];
           tmp_CA_Finish = tmp_CA_Finish + response.data[i]['monthArray'][j+1]['CA Termine'];
+          tmp_C_CA_Finish = tmp_C_CA_Finish + response.data[i]['monthArray'][j+1]['CA creer Termine'];
         }
-        this.state.prestation[i]['total En attente'] = tmp_Waiting;
-        this.state.prestation[i]['total En cours'] = tmp_En_cours;
-        this.state.prestation[i]['total Termine'] = tmp_Finish;
-        this.state.prestation[i]['total CA En attente'] = tmp_CA_Waiting;
-        this.state.prestation[i]['total CA En cours'] = tmp_CA_En_cours;
-        this.state.prestation[i]['total CA Termine'] = tmp_CA_Finish;
+        let tmp_presta = this.state.prestation
+        tmp_presta[i]['total En attente'] = tmp_Waiting;
+        tmp_presta[i]['total creer En attente'] = tmp_C_Waiting;
+        tmp_presta[i]['total En cours'] = tmp_En_cours;
+        tmp_presta[i]['total creer En cours'] = tmp_C_En_cours;
+        tmp_presta[i]['total Termine'] = tmp_Finish;
+        tmp_presta[i]['total creer Termine'] = tmp_C_Finish;
+        tmp_presta[i]['total CA En attente'] = tmp_CA_Waiting;
+        tmp_presta[i]['total CA creer En attente'] = tmp_C_CA_Waiting;
+        tmp_presta[i]['total CA En cours'] = tmp_CA_En_cours;
+        tmp_presta[i]['total CA creer En cours'] = tmp_C_CA_En_cours;
+        tmp_presta[i]['total CA Termine'] = tmp_CA_Finish;
+        tmp_presta[i]['total CA creer Termine'] = tmp_C_CA_Finish;
+        this.setState({ prestation: tmp_presta })
       }
     })
   }
@@ -179,13 +199,13 @@ class ExpertCard extends React.Component {
       year: newYear,
     })
     let i = 0
-    if (Trim == "Trimestre 1") {
+    if (Trim === "Trimestre 1") {
       i = 1
-    } else if (Trim == "Trimestre 2") {
+    } else if (Trim === "Trimestre 2") {
       i = 4
-    } else if (Trim == "Trimestre 3") {
+    } else if (Trim === "Trimestre 3") {
       i = 7
-    } else if (Trim == "Trimestre 4"){
+    } else if (Trim === "Trimestre 4"){
       i = 10
     }
     let j = i + 3
@@ -198,7 +218,7 @@ class ExpertCard extends React.Component {
         let tmp_CA_Waiting = 0;
         let tmp_CA_En_cours = 0;
         let tmp_CA_Finish = 0;
-        while (i != j) {
+        while (i !== j) {
           tmp_Waiting = tmp_Waiting + response.data[k]['monthArray'][i+1]['En attente'];
           tmp_En_cours = tmp_En_cours + response.data[k]['monthArray'][i+1]['En cours'];
           tmp_Finish = tmp_Finish + response.data[k]['monthArray'][i+1]['Termine'];
@@ -207,12 +227,14 @@ class ExpertCard extends React.Component {
           tmp_CA_Finish = tmp_CA_Finish + response.data[k]['monthArray'][i+1]['CA Termine'];
           i+=1;
         }
-        this.state.prestation[j]['total En attente'] = tmp_Waiting;
-        this.state.prestation[j]['total En cours'] = tmp_En_cours;
-        this.state.prestation[j]['total Termine'] = tmp_Finish;
-        this.state.prestation[j]['total CA En attente'] = tmp_CA_Waiting;
-        this.state.prestation[j]['total CA En cours'] = tmp_CA_En_cours;
-        this.state.prestation[j]['total CA Termine'] = tmp_CA_Finish;
+        let tmp_presta = this.state.prestation
+        tmp_presta[j]['total En attente'] = tmp_Waiting;
+        tmp_presta[j]['total En cours'] = tmp_En_cours;
+        tmp_presta[j]['total Termine'] = tmp_Finish;
+        tmp_presta[j]['total CA En attente'] = tmp_CA_Waiting;
+        tmp_presta[j]['total CA En cours'] = tmp_CA_En_cours;
+        tmp_presta[j]['total CA Termine'] = tmp_CA_Finish;
+        this.setState({ prestation: tmp_presta })
         i = tmpi;
       }
     })
@@ -220,17 +242,19 @@ class ExpertCard extends React.Component {
 
   getMonthData(toCompare, newYear) {
     let i = 0;
-    while (toCompare != FrenchMonth[i]) {
+    while (toCompare !== FrenchMonth[i]) {
       i+=1;
     }
     axios.get(global.config.server_url + "/getMembersPrestation?year=" + newYear, Config).then(response => {
       for (let j = 0; j < response.data.length; j += 1) {
-        this.state.prestation[j]['total En attente'] = response.data[j]['monthArray'][i+1]['En attente'];
-        this.state.prestation[j]['total En cours'] = response.data[j]['monthArray'][i+1]['En cours'];
-        this.state.prestation[j]['total Termine'] = response.data[j]['monthArray'][i+1]['Termine'];
-        this.state.prestation[j]['total CA En attente'] = response.data[j]['monthArray'][i+1]['CA En attente'];
-        this.state.prestation[j]['total CA En cours'] = response.data[j]['monthArray'][i+1]['CA En cours'];
-        this.state.prestation[j]['total CA Termine'] = response.data[j]['monthArray'][i+1]['CA Termine'];
+        let tmp_presta = this.state.prestation
+        tmp_presta[j]['total En attente'] = response.data[j]['monthArray'][i+1]['En attente'];
+        tmp_presta[j]['total En cours'] = response.data[j]['monthArray'][i+1]['En cours'];
+        tmp_presta[j]['total Termine'] = response.data[j]['monthArray'][i+1]['Termine'];
+        tmp_presta[j]['total CA En attente'] = response.data[j]['monthArray'][i+1]['CA En attente'];
+        tmp_presta[j]['total CA En cours'] = response.data[j]['monthArray'][i+1]['CA En cours'];
+        tmp_presta[j]['total CA Termine'] = response.data[j]['monthArray'][i+1]['CA Termine'];
+        this.setState({ prestation: tmp_presta})
       }
     })
     this.setState({
@@ -245,18 +269,6 @@ class ExpertCard extends React.Component {
     this.gridApi.updateRowData({ update: this.state.prestation })
   }
 
-  getMembersPrestation(year) {
-    axios.get(global.config.server_url + "/getMembersPrestation?year=" + year, Config).then(response => {
-      this.setState({
-        prestation: response.data,
-      })
-    }).then(
-      this.state.prestation[0]['total Termine'] = 10
-    ).then(
-      console.log(this.state.prestation[0]['total Termine']),
-      this.gridApi.refreshCells()
-      ).then(console.log(this.state.prestation[0]['total Termine']))
-  }
   updateSearchQuery = val => {
     this.gridApi.setQuickFilter(val)
     this.setState({
@@ -273,6 +285,13 @@ class ExpertCard extends React.Component {
   setDataCreators = () => {
     // TODO les calcules pour data creator
     creator = -1;
+    if (this.state.activeTab === "1") {
+
+    } else if (this.state.activeTab === "2") {
+
+    } else if (this.state.activeTab === "3") {
+
+    }
     this.setState({creator : false})
     this.gridApi.setColumnDefs(this.state.columnDefs);
   };
