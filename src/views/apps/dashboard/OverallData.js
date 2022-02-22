@@ -155,11 +155,18 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
     })
   }
 
-  getMonthdata(toCompare, newYear) {
+  getMonthPlacement(toCompare) {
     let i = 0;
     while (toCompare != FrenchMonth[i]) {
-      i++;
+      i+=1;
     }
+    this.setState({
+      month: toCompare,
+      monthb: i
+    })
+  }
+
+  getMonthdata(newYear) {
     axios.get(global.config.server_url + "/get_statistics_total_income?year="+newYear, Config).then(response => {
       let tmp_clients = []
       let tmp_total_amount = []
@@ -188,9 +195,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
           opportunite_amount: tmp_opportunite,
           opportunite_count: tmp_opportunite_c,
           total_client: tmp_total_client,
-          month: toCompare,
           year: newYear,
-          monthb: i,
         })
     })
   }
@@ -324,8 +329,8 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                     <TabPane tabId="1">
                       <div className="title-section" style={{textAlign:'center',marginLeft:'auto',marginRight:'auto',marginTop:'10px' ,display:'inline-block',}}>
                       <div style={{display:'inline-block', marginLeft:'5px'}}>
-                       <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{width:'75px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
-                              onChange={e => this.getMonthdata(this.state.month, e.target.value)}>
+                       <Input type="select" name="select" id="role" defaultValue={this.state.year} style={{width:'75px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
+                              onChange={e => this.getMonthdata(e.target.value)}>
                              <option>2018</option><option>2019</option><option>2020</option>
                              <option>2021</option><option>2022</option><option>2023</option>
                              <option>2024</option><option>2025</option><option>2026</option>
@@ -334,7 +339,7 @@ import Autocomplete from "../../../components/@vuexy/autoComplete/AutoCompleteCo
                        </div>
                        <div style={{display:'inline-block', marginLeft:'5px'}}>
                        <Input type="select" name="select" id="role" defaultValue={FrenchMonth[new Date().getMonth()]} style={{width:'120px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
-                              onChange={e => this.getMonthdata(e.target.value, this.state.year)}>
+                              onChange={e => this.getMonthPlacement(e.target.value)}>
                              <option>janvier</option><option>février</option><option>mars</option>
                              <option>avril</option><option>mai</option><option>juin</option>
                              <option>juillet</option><option>août</option><option>septembre</option>
