@@ -15,9 +15,11 @@ import {
 import classnames from "classnames"
 import ReactApexChart from "react-apexcharts";
 
+
+
 const FrenchMonth = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août',
   'septembre', 'octobre', 'novembre', 'décembre'];
-
+/* eslint-disable */
 const card_properties = {
   chart: {
     id: "Clients",
