@@ -148,7 +148,7 @@ class ClientsList extends React.Component {
   }
 
   isExternalFilterPresent = () => {
-    if (consultant_id != -1) {
+    if (consultant_id !== -1) {
       return true;
     }
     return false;
@@ -159,7 +159,7 @@ class ClientsList extends React.Component {
     this.gridApi.onFilterChanged();
   };
   doesExternalFilterPass = (node) => {
-    return node.data.parent_id == consultant_id;
+    return node.data.parent_id === consultant_id;
   };
 
   deleteUser(id) {
