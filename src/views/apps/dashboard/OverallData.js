@@ -275,7 +275,7 @@ import {Card,
                           active: this.state.activeTab === "1"
                         })}
                         onClick={() => {
-                          this.getMonthdata(this.state.year)
+                          this.getMonthdata( this.state.year)
                           this.toggle("1")
                         }}
                       >
