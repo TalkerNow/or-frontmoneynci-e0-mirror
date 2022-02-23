@@ -275,7 +275,7 @@ import {Card,
                           active: this.state.activeTab === "1"
                         })}
                         onClick={() => {
-                          this.getMonthdata(this.state.month, this.state.year)
+                          this.getMonthdata( this.state.year)
                           this.toggle("1")
                         }}
                       >
@@ -325,7 +325,7 @@ import {Card,
                     <TabPane tabId="1">
                       <div className="title-section" style={{textAlign:'center',marginLeft:'auto',marginRight:'auto',marginTop:'10px' ,display:'inline-block',}}>
                       <div style={{display:'inline-block', marginLeft:'5px'}}>
-                       <Input type="select" name="select" id="role" defaultValue={this.state.year} style={{width:'75px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
+                       <Input type="select" name="select" id="role" defaultValue={this.state.year} key={this.state.year} style={{width:'75px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
                               onChange={e => this.getMonthdata(e.target.value)}>
                              <option>2018</option><option>2019</option><option>2020</option>
                              <option>2021</option><option>2022</option><option>2023</option>
@@ -461,7 +461,7 @@ import {Card,
                     <TabPane tabId="2">
                       <div className="title-section" style={{textAlign:'center',marginLeft:'auto',marginRight:'auto',marginTop:'10px' ,display:'inline-block',}}>
                       <div style={{display:'inline-block', marginLeft:'5px'}}>
-                       <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{width:'75px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
+                       <Input type="select" name="select" id="role" defaultValue={this.state.year} key={this.state.year} style={{width:'75px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
                               onChange={e => this.getTrimData(this.state.trim, e.target.value) | this.setState({year: e.target.value})}>
                              <option>2018</option><option>2019</option><option>2020</option>
                              <option>2021</option><option>2022</option><option>2023</option>
@@ -595,7 +595,7 @@ import {Card,
                     <TabPane tabId="3">
                     <div className="title-section" style={{textAlign:'center',marginLeft:'auto',marginRight:'auto',marginTop:'10px' ,display:'inline-block',}}>
                       <div style={{display:'inline-block', marginLeft:'5px'}}>
-                        <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{width:'75px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
+                        <Input type="select" name="select" id="role" defaultValue={this.state.year} key={this.state.year} style={{width:'75px',marginLeft:'auto',marginRight:'auto',fontSize:'17px'}}
                               onChange={e => this.getAllData(e.target.value)}>
                              <option>2018</option><option>2019</option><option>2020</option>
                              <option>2021</option><option>2022</option><option>2023</option>
