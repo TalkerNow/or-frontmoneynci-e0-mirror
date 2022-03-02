@@ -403,47 +403,27 @@ class ExpertCard extends React.Component {
                   </Button>
                 </>
               }
-
             </div>
-            <NavItem>
-              <NavLink
-                className={classnames({
-                  active: this.state.activeTab === "1"
-                })}
-                onClick={() => {
-                  this.getMonthData(this.state.month, this.state.year)
-                  this.toggle("1")
-                }}
-              >
+            <div>
+              <Button className="mr-1 mb-2 mr-1" outline color="primary" onClick={() => {
+                this.getMonthData(this.state.month, this.state.year)
+                this.toggle("1")
+              }}>
                 Mois
-              </NavLink>
-            </NavItem>
-            <NavItem>
-              <NavLink
-                className={classnames({
-                  active: this.state.activeTab === "2"
-                })}
-                onClick={() => {
-                  this.getTrimData(this.state.trim, this.state.year)
-                  this.toggle("2")
-                }}
-              >
+              </Button>
+              <Button className="mr-1 mb-2 mr-1" outline color="primary" onClick={() => {
+                this.getTrimData(this.state.trim, this.state.year)
+                this.toggle("2")
+              }}>
                 Trimestre
-              </NavLink>
-            </NavItem>
-            <NavItem>
-              <NavLink
-                className={classnames({
-                  active: this.state.activeTab === "3"
-                })}
-                onClick={() => {
-                  this.getYearData(this.state.year)
-                  this.toggle("3")
-                }}
-              >
+              </Button>
+              <Button className="mr-1 mb-2 mr-1" outline color="primary" onClick={() => {
+                this.getYearData(this.state.year)
+                this.toggle("3")
+              }}>
                 Années
-              </NavLink>
-            </NavItem>
+              </Button>
+            </div>
           </Nav>
         </CardHeader>
         <CardBody
@@ -457,13 +437,13 @@ class ExpertCard extends React.Component {
             } ${!this.props.hideChart ? "pb-0" : "pb-2"} pt-2`}
         >
           <TabContent activeTab={this.state.activeTab}>
-            <TabPane tabId="1">
-              <Row>
-                <Col sm="12">
-                  <Card style={{ minHeight: '500px', minWidth: '1500px' }}>
-                    <CardBody>
-                      <div className="ag-theme-material ag-grid-table">
-                        <div className="ag-grid-actions d-flex justify-content-between flex-wrap mb-1">
+            <Row>
+              <Col sm="12">
+                <Card style={{ minHeight: '500px', minWidth: '1500px' }}>
+                  <CardBody>
+                    <div className="ag-theme-material ag-grid-table">
+                      <div className="ag-grid-actions d-flex justify-content-between flex-wrap mb-1">
+                        {this.state.activeTab === '1' ? (
                           <div className="title-section" style={{ textAlign: 'center', marginRight: 'auto', display: 'inline-block', }}>
                             <div style={{ display: 'inline-block', marginLeft: '5px' }}>
                               <Input type="select" name="select" id="role" defaultValue={this.state.year} key={this.state.year} style={{ width: '75px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
@@ -484,29 +464,63 @@ class ExpertCard extends React.Component {
                               </Input>
                             </div>
                           </div>
-                        </div>
-                        {this.state.prestation !== null ? (
-                          <AgGridReact
-                            height={'autoHeight'}
-                            defaultColDef={defaultColDef}
-                            columnDefs={columnDefs}
-                            rowData={prestation}
-                            colResizeDefault={"shift"}
-                            animateRows={true}
-                            onGridReady={this.onGridReady}
-                            floatingFilter={true}
-                            pagination={true}
-                            pivotPanelShow="always"
-                            enableRangeSelection={true}
-                          />
+                        ) : null}
+                        {this.state.activeTab === '2' ? (
+                          <div className="title-section" style={{ textAlign: 'center', marginRight: 'auto', display: 'inline-block', }}>
+                            <div style={{ display: 'inline-block', marginLeft: '5px' }}>
+                              <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{ width: '130px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
+                                onChange={e => this.getTrimData(e.target.value, this.state.year)}>
+                                <option>Trimestre 1</option><option>Trimestre 2</option><option>Trimestre 3</option>
+                                <option>Trimestre 4</option>
+                              </Input>
+                            </div>
+                            <div style={{ display: 'inline-block', marginLeft: '5px' }}>
+                              <Input type="select" name="select" id="role" defaultValue={this.state.year} key={this.state.year} style={{ width: '75px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
+                                onChange={e => this.getTrimData(this.state.trim, e.target.value)}>
+                                <option>2018</option><option>2019</option><option>2020</option>
+                                <option>2021</option><option>2022</option><option>2023</option>
+                                <option>2024</option><option>2025</option><option>2026</option>
+                                <option>2027</option><option>2028</option><option>2029</option><option>2030</option>
+                              </Input>
+                            </div>
+                          </div>
+                        ) : null}
+                        {this.state.activeTab === '3' ? (
+                          <div className="title-section" style={{ textAlign: 'center', marginRight: 'auto', display: 'inline-block', }}>
+                            <div style={{ display: 'inline-block', marginLeft: '5px' }}>
+                              <Input type="select" name="select" id="role" defaultValue={this.state.year} key={this.state.year} style={{ width: '75px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
+                                onChange={e => this.getYearData(e.target.value)}>
+                                <option>2018</option><option>2019</option><option>2020</option>
+                                <option>2021</option><option>2022</option><option>2023</option>
+                                <option>2024</option><option>2025</option><option>2026</option>
+                                <option>2027</option><option>2028</option><option>2029</option><option>2030</option>
+                              </Input>
+                            </div>
+                          </div>
                         ) : null}
                       </div>
-                    </CardBody>
-                  </Card>
-                </Col>
-              </Row>
-            </TabPane>
-            <TabPane tabId="2">
+
+                      {this.state.prestation !== null ? (
+                        <AgGridReact
+                          height={'autoHeight'}
+                          defaultColDef={defaultColDef}
+                          columnDefs={columnDefs}
+                          rowData={prestation}
+                          colResizeDefault={"shift"}
+                          animateRows={true}
+                          onGridReady={this.onGridReady}
+                          floatingFilter={true}
+                          pagination={true}
+                          pivotPanelShow="always"
+                          enableRangeSelection={true}
+                        />
+                      ) : null}
+                    </div>
+                  </CardBody>
+                </Card>
+              </Col>
+            </Row>
+            {/* <TabPane tabId="2">
               <Row>
                 <Col sm="12">
                   <Card style={{ minHeight: '500px', minWidth: '1500px' }}>
@@ -592,7 +606,7 @@ class ExpertCard extends React.Component {
                   </Card>
                 </Col>
               </Row>
-            </TabPane>
+            </TabPane> */}
           </TabContent>
         </CardBody>
       </Card>
