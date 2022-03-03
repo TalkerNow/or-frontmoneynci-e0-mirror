@@ -252,6 +252,7 @@ class ExpertCard extends React.Component {
         tmp_presta[i]['total CA creer Termine'] = tmp_C_CA_Finish;
       }
       this.setState({ prestation: tmp_presta });
+      this.gridApi.redrawRows();
     })
   }
 
@@ -270,7 +271,7 @@ class ExpertCard extends React.Component {
     } else if (Trim === "Trimestre 4") {
       i = 9
     }
-    let j = i + 2
+    let j = i + 3
     let tmpi = i
     axios.get(global.config.server_url + "/getMembersPrestation?year=" + newYear, Config).then(response => {
       let tmp_presta = this.state.prestation
@@ -287,7 +288,7 @@ class ExpertCard extends React.Component {
         let tmp_C_CA_En_cours = 0;
         let tmp_CA_Finish = 0;
         let tmp_C_CA_Finish = 0;
-        while (i <= j) {
+        while (i < j) {
           tmp_Waiting = tmp_Waiting + response.data[k]['monthArray'][i + 1]['En attente'];
           tmp_C_Waiting = tmp_C_Waiting + response.data[k]['monthArray'][i + 1]['creer En attente'];
           tmp_En_cours = tmp_En_cours + response.data[k]['monthArray'][i + 1]['En cours'];
@@ -302,21 +303,22 @@ class ExpertCard extends React.Component {
           tmp_C_CA_Finish = tmp_C_CA_Finish + response.data[k]['monthArray'][i + 1]['CA creer Termine'];
           i += 1;
         }
-        tmp_presta[j]['total En attente'] = tmp_Waiting;
-        tmp_presta[j]['total creer En attente'] = tmp_C_Waiting;
-        tmp_presta[j]['total En cours'] = tmp_En_cours;
-        tmp_presta[j]['total creer En cours'] = tmp_C_En_cours;
-        tmp_presta[j]['total Termine'] = tmp_Finish;
-        tmp_presta[j]['total creer Termine'] = tmp_C_Finish;
-        tmp_presta[j]['total CA En attente'] = tmp_CA_Waiting;
-        tmp_presta[j]['total CA creer En attente'] = tmp_C_CA_Waiting;
-        tmp_presta[j]['total CA En cours'] = tmp_CA_En_cours;
-        tmp_presta[j]['total CA creer En cours'] = tmp_C_CA_En_cours;
-        tmp_presta[j]['total CA Termine'] = tmp_CA_Finish;
-        tmp_presta[j]['total CA creer Termine'] = tmp_C_CA_Finish;
+        tmp_presta[k]['total En attente'] = tmp_Waiting;
+        tmp_presta[k]['total creer En attente'] = tmp_C_Waiting;
+        tmp_presta[k]['total En cours'] = tmp_En_cours;
+        tmp_presta[k]['total creer En cours'] = tmp_C_En_cours;
+        tmp_presta[k]['total Termine'] = tmp_Finish;
+        tmp_presta[k]['total creer Termine'] = tmp_C_Finish;
+        tmp_presta[k]['total CA En attente'] = tmp_CA_Waiting;
+        tmp_presta[k]['total CA creer En attente'] = tmp_C_CA_Waiting;
+        tmp_presta[k]['total CA En cours'] = tmp_CA_En_cours;
+        tmp_presta[k]['total CA creer En cours'] = tmp_C_CA_En_cours;
+        tmp_presta[k]['total CA Termine'] = tmp_CA_Finish;
+        tmp_presta[k]['total CA creer Termine'] = tmp_C_CA_Finish;
         i = tmpi;
       }
       this.setState({ prestation: tmp_presta })
+      this.gridApi.redrawRows();
     })
   }
   getMonthData(newMonth, newYear) {
@@ -344,6 +346,7 @@ class ExpertCard extends React.Component {
         tmp_presta[j]['total CA creer Termine'] = response.data[j]['monthArray'][i + 1]['CA creer Termine'];
       }
       this.setState({ prestation: tmp_presta })
+      this.gridApi.redrawRows();
     })
     this.setState({
       month: newMonth,
@@ -406,19 +409,19 @@ class ExpertCard extends React.Component {
               }
             </div>
             <div>
-              <Button className="mr-1 mb-2 mr-1"  outline color={this.state.activeTab === '1' ? "primary" : "secondary"} onClick={() => {
+              <Button className="mr-1 mb-2 mr-1" outline color={this.state.activeTab === '1' ? "primary" : "secondary"} onClick={() => {
                 this.getMonthData(this.state.month, this.state.year)
                 this.toggle("1")
               }}>
                 Mois
               </Button>
-              <Button className="mr-1 mb-2 mr-1"  outline color={this.state.activeTab === '2' ? "primary" : "secondary"} onClick={() => {
+              <Button className="mr-1 mb-2 mr-1" outline color={this.state.activeTab === '2' ? "primary" : "secondary"} onClick={() => {
                 this.getTrimData(this.state.trim, this.state.year)
                 this.toggle("2")
               }}>
                 Trimestre
               </Button>
-              <Button className="mr-1 mb-2 mr-1"  outline color={this.state.activeTab === '3' ? "primary" : "secondary"} onClick={() => {
+              <Button className="mr-1 mb-2 mr-1" outline color={this.state.activeTab === '3' ? "primary" : "secondary"} onClick={() => {
                 this.getYearData(this.state.year)
                 this.toggle("3")
               }}>
