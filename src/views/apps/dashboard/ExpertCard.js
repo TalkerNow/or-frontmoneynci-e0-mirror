@@ -252,6 +252,7 @@ class ExpertCard extends React.Component {
         tmp_presta[i]['total CA creer Termine'] = tmp_C_CA_Finish;
       }
       this.setState({ prestation: tmp_presta });
+      this.gridApi.redrawRows();
     })
   }
 
@@ -317,6 +318,7 @@ class ExpertCard extends React.Component {
         i = tmpi;
       }
       this.setState({ prestation: tmp_presta })
+      this.gridApi.redrawRows();
     })
   }
   getMonthData(newMonth, newYear) {
@@ -344,6 +346,7 @@ class ExpertCard extends React.Component {
         tmp_presta[j]['total CA creer Termine'] = response.data[j]['monthArray'][i + 1]['CA creer Termine'];
       }
       this.setState({ prestation: tmp_presta })
+      this.gridApi.redrawRows();
     })
     this.setState({
       month: newMonth,
