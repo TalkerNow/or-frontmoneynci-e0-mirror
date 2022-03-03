@@ -49,7 +49,7 @@ class ExpertCard extends React.Component {
       resizable: true,
       filter: true,
       flex: 1,
-      minWidth: 100,
+      minWidth: 150,
     },
     searchVal: "",
     columnDefs: this.getExecutantsCols(),
@@ -67,43 +67,44 @@ class ExpertCard extends React.Component {
         headerName: "Role",
         field: "role",
         filter: true,
-        width: 100,
+        width: 200,
       },
       {
         headerName: "En Attente",
         field: "total En attente",
         filter: true,
-        width: 150,
+        width: 250,
+
       },
       {
         headerName: "En Cours",
         field: "total En cours",
         filter: true,
-        width: 150,
+        width: 250,
       },
       {
         headerName: "Termine",
         field: "total Termine",
         filter: true,
-        width: 150,
+        width: 250,
       },
       {
         headerName: "CA En attente",
         field: "total CA En attente",
         filter: true,
-        width: 150,
+        width: 250,
       },
       {
         headerName: "CA En cours",
         field: "total CA En cours",
         filter: true,
-        width: 150,
+        width: 250,
       },
       {
         headerName: "CA Termine",
         field: "total CA Termine",
         filter: true,
-        width: 150,
+        width: 250,
       },
     ];
   }
@@ -126,37 +127,37 @@ class ExpertCard extends React.Component {
         headerName: "Creer En Attente",
         field: "total creer En attente",
         filter: true,
-        width: 150,
+        width: 250,
       },
       {
         headerName: "Creer en Cours",
         field: "total creer En cours",
         filter: true,
-        width: 150,
+        width: 200,
       },
       {
         headerName: "Creer termine",
         field: "total creer Termine",
         filter: true,
-        width: 150,
+        width: 200,
       },
       {
         headerName: "CA Creer en attente",
         field: "total CA creer En attente",
         filter: true,
-        width: 150,
+        width: 250,
       },
       {
         headerName: "CA Creer en cours",
         field: "total CA creer En cours",
         filter: true,
-        width: 150,
+        width: 250,
       },
       {
         headerName: "CA Creer termine",
         field: "total CA creer Termine",
         filter: true,
-        width: 150,
+        width: 250,
       },
     ];
   }
@@ -391,33 +392,33 @@ class ExpertCard extends React.Component {
             <div>
               {(creator !== -1 && this.state.creator === true) &&
                 <>
-                  <Button className="mr-1 mb-2 mr-1" outline color="primary" onClick={() => this.setDataCreators()}>
+                  <Button className="mr-1 mb-2 mr-4" outline color="primary" onClick={() => this.setDataCreators()}>
                     executants
                   </Button>
                 </>
               }
               {(creator === -1 && this.state.creator === false) &&
                 <>
-                  <Button className="mr-1 mb-2 mr-1" outline color="primary" onClick={() => this.setDataExecutants()}>
+                  <Button className="mr-1 mb-2 mr-4" outline color="primary" onClick={() => this.setDataExecutants()}>
                     createurs
                   </Button>
                 </>
               }
             </div>
             <div>
-              <Button className="mr-1 mb-2 mr-1" outline color="primary" onClick={() => {
+              <Button className="mr-1 mb-2 mr-1"  outline color={this.state.activeTab === '1' ? "primary" : "secondary"} onClick={() => {
                 this.getMonthData(this.state.month, this.state.year)
                 this.toggle("1")
               }}>
                 Mois
               </Button>
-              <Button className="mr-1 mb-2 mr-1" outline color="primary" onClick={() => {
+              <Button className="mr-1 mb-2 mr-1"  outline color={this.state.activeTab === '2' ? "primary" : "secondary"} onClick={() => {
                 this.getTrimData(this.state.trim, this.state.year)
                 this.toggle("2")
               }}>
                 Trimestre
               </Button>
-              <Button className="mr-1 mb-2 mr-1" outline color="primary" onClick={() => {
+              <Button className="mr-1 mb-2 mr-1"  outline color={this.state.activeTab === '3' ? "primary" : "secondary"} onClick={() => {
                 this.getYearData(this.state.year)
                 this.toggle("3")
               }}>
@@ -520,93 +521,6 @@ class ExpertCard extends React.Component {
                 </Card>
               </Col>
             </Row>
-            {/* <TabPane tabId="2">
-              <Row>
-                <Col sm="12">
-                  <Card style={{ minHeight: '500px', minWidth: '1500px' }}>
-                    <CardBody>
-                      <div className="ag-theme-material ag-grid-table">
-                        <div className="ag-grid-actions d-flex justify-content-between flex-wrap mb-1">
-                          <div className="title-section" style={{ textAlign: 'center', marginRight: 'auto', display: 'inline-block', }}>
-                            <div style={{ display: 'inline-block', marginLeft: '5px' }}>
-                              <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{ width: '130px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
-                                onChange={e => this.getTrimData(e.target.value, this.state.year)}>
-                                <option>Trimestre 1</option><option>Trimestre 2</option><option>Trimestre 3</option>
-                                <option>Trimestre 4</option>
-                              </Input>
-                            </div>
-                            <div style={{ display: 'inline-block', marginLeft: '5px' }}>
-                              <Input type="select" name="select" id="role" defaultValue={this.state.year} key={this.state.year} style={{ width: '75px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
-                                onChange={e => this.getTrimData(this.state.trim, e.target.value)}>
-                                <option>2018</option><option>2019</option><option>2020</option>
-                                <option>2021</option><option>2022</option><option>2023</option>
-                                <option>2024</option><option>2025</option><option>2026</option>
-                                <option>2027</option><option>2028</option><option>2029</option><option>2030</option>
-                              </Input>
-                            </div>
-                          </div>
-                        </div>
-                        {this.state.prestation !== null ? (
-                          <AgGridReact
-                            height={'autoHeight'}
-                            defaultColDef={defaultColDef}
-                            columnDefs={columnDefs}
-                            rowData={prestation}
-                            colResizeDefault={"shift"}
-                            animateRows={true}
-                            onGridReady={this.onGridReady}
-                            floatingFilter={true}
-                            pagination={true}
-                            pivotPanelShow="always"
-                            enableRangeSelection={true}
-                          />
-                        ) : null}
-                      </div>
-                    </CardBody>
-                  </Card>
-                </Col>
-              </Row>
-            </TabPane>
-            <TabPane tabId="3">
-              <Row>
-                <Col sm="12">
-                  <Card style={{ minHeight: '500px', minWidth: '1500px' }}>
-                    <CardBody>
-                      <div className="ag-theme-material ag-grid-table">
-                        <div className="ag-grid-actions d-flex justify-content-between flex-wrap mb-1">
-                          <div className="title-section" style={{ textAlign: 'center', marginRight: 'auto', display: 'inline-block', }}>
-                            <div style={{ display: 'inline-block', marginLeft: '5px' }}>
-                              <Input type="select" name="select" id="role" defaultValue={this.state.year} key={this.state.year} style={{ width: '75px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
-                                onChange={e => this.getYearData(e.target.value)}>
-                                <option>2018</option><option>2019</option><option>2020</option>
-                                <option>2021</option><option>2022</option><option>2023</option>
-                                <option>2024</option><option>2025</option><option>2026</option>
-                                <option>2027</option><option>2028</option><option>2029</option><option>2030</option>
-                              </Input>
-                            </div>
-                          </div>
-                        </div>
-                        {this.state.prestation !== null ? (
-                          <AgGridReact
-                            height={'autoHeight'}
-                            defaultColDef={defaultColDef}
-                            columnDefs={columnDefs}
-                            rowData={prestation}
-                            colResizeDefault={"shift"}
-                            animateRows={true}
-                            onGridReady={this.onGridReady}
-                            floatingFilter={true}
-                            pagination={true}
-                            pivotPanelShow="always"
-                            enableRangeSelection={true}
-                          />
-                        ) : null}
-                      </div>
-                    </CardBody>
-                  </Card>
-                </Col>
-              </Row>
-            </TabPane> */}
           </TabContent>
         </CardBody>
       </Card>
