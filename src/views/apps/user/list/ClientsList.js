@@ -50,16 +50,36 @@ class ClientsList extends React.Component {
         headerName: "Nom",
         filter: true,
         width: 250,
-        valueGetter: params => {
-          return params.data.personal_informations.last_name;
+        // valueGetter: params => {
+        //   return params.data.personal_informations.last_name;
+        // }
+        cellRendererFramework: params => {
+          return (
+            <div
+              className="d-flex align-items-center cursor-pointer"
+              onClick={() => history.push("/app/member/edit/" + params.data.id + "/1")}
+            >
+              <span>{params.data.personal_informations.last_name}</span>
+            </div>
+          )
         }
       },
       {
         headerName: "Prenom",
         filter: true,
         width: 250,
-        valueGetter: params => {
-          return params.data.personal_informations.first_name;
+        // valueGetter: params => {
+        //   return params.data.personal_informations.first_name;
+        // }
+        cellRendererFramework: params => {
+          return (
+            <div
+              className="d-flex align-items-center cursor-pointer"
+              onClick={() => history.push("/app/member/edit/" + params.data.id + "/1")}
+            >
+              <span>{params.data.personal_informations.first_name}</span>
+            </div>
+          )
         }
       },
       {
