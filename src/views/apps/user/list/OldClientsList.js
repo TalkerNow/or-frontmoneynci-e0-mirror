@@ -1,6 +1,8 @@
 
 import React from "react"
+import { Download } from "react-feather"
 import {
+  Button,
   Card,
   CardBody,
   CardHeader,
@@ -11,7 +13,6 @@ import {
   Row,
   Col,
   UncontrolledDropdown,
-  UncontrolledButtonDropdown,
   DropdownMenu,
   DropdownItem,
   DropdownToggle,
@@ -23,8 +24,6 @@ import { ContextLayout } from "../../../../utility/context/Layout"
 import { AgGridReact } from "ag-grid-react"
 import {
   ChevronDown,
-  RotateCw,
-  X, Home,
 } from "react-feather"
 import classnames from "classnames"
 import { history } from "../../../../history"
@@ -59,7 +58,7 @@ class OldClientsList extends React.Component {
     cancelAlert: false,
     IdToDelete: 0,
     rowData: null,
-    pageSize: 50,
+    pageSize: 20,
     isVisible: true,
     reload: false,
     collapse: false,
@@ -101,6 +100,19 @@ class OldClientsList extends React.Component {
               className="d-flex align-items-center cursor-pointer"
               onClick={() => this.onCopyName(rowData.data.cl_nom, rowData.data.cl_prenom)}
             ><span>{rowData.data.cl_prenom}</span></div>
+          )
+        }
+      },
+      {
+        headerName: "civilité",
+        field: "cl_civilite",
+        filter: true,
+        width: 250,
+        cellRendererFramework: rowData => {
+          return (
+            <div
+              className="d-flex align-items-center cursor-pointer"
+            ><span>{rowData.data.cl_civilite}</span></div>
           )
         }
       },
@@ -195,20 +207,6 @@ class OldClientsList extends React.Component {
         filter: true,
         width: 200,
       },
-      {
-        headerName: "N° de sécurité sociale",
-        field: "cl_ss1",
-        filter: true,
-        width: 230,
-        cellRendererFramework: rowData => {
-          return (
-            <div
-              className="d-flex align-items-center cursor-pointer"
-              onClick={() => this.onCopy(rowData.data.cl_ssl)}
-            ><span>{rowData.data.cl_ssl}</span></div>
-          )
-        }
-      }
     ]
   }
 
@@ -242,14 +240,14 @@ class OldClientsList extends React.Component {
         Authorization: "Bearer " + localStorage.getItem("token")
       }
     }
-
     await axios.get(global.config.server_url + "/users?kind=oldclient", Config).then(response => {
-      console.log(response)
       let rowData = response.data.data
       this.setState({ rowData })
     })
   }
-
+  onBtExport = () => {
+    this.gridApi.exportDataAsCsv();
+  };
   deleteUser(id) {
     const Config = {
       headers: { Authorization: "Bearer " + localStorage.getItem("token") }
@@ -391,27 +389,8 @@ class OldClientsList extends React.Component {
             >
               <CardHeader>
                 <CardTitle>
-                  Cette page permet de recenser les clients provenant d'Optionretraite.net
+                  Cette page permet de recenser les clients provenant de l'ancien site Optionretraite.net
                 </CardTitle>
-              </CardHeader>
-              <CardHeader>
-                <CardTitle>Filters</CardTitle>
-                <div className="actions">
-                  <ChevronDown
-                    className="collapse-icon mr-50"
-                    size={15}
-                    onClick={this.toggleCollapse}
-                  />
-                  <RotateCw
-                    className="mr-50"
-                    size={15}
-                    onClick={() => {
-                      this.refreshCard()
-                      this.gridApi.setFilterModel(null)
-                    }}
-                  />
-                  <X size={15} onClick={this.removeCard} />
-                </div>
               </CardHeader>
               <Collapse
                 isOpen={this.state.collapse}
@@ -590,19 +569,10 @@ class OldClientsList extends React.Component {
                         onChange={e => this.updateSearchQuery(e.target.value)}
                         value={this.state.searchVal}
                       />
-                      <div className="dropdown mr-1 mb-1 d-inline-block">
-                        <UncontrolledButtonDropdown>
-                          <DropdownToggle color="primary" caret>
-                            Actions
-                            <ChevronDown size={15} />
-                          </DropdownToggle>
-                          <DropdownMenu>
-                            <DropdownItem tag="a">
-                              <Home size={15} />
-                              <span className="align-middle ml-50">Exemple d'action</span>
-                            </DropdownItem>
-                          </DropdownMenu>
-                        </UncontrolledButtonDropdown>
+                      <div className="dropdown mb-1 d-inline-block">
+                        <Button className="mb-2" outline color="primary" onClick={() => this.onBtExport()}>
+                          <Download className="primary" size={15} />
+                        </Button>
                       </div>
                     </div>
                   </div>

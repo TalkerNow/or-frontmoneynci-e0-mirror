@@ -1,14 +1,11 @@
 import React from "react"
-import { Users } from "react-feather"
+import { Users, Download } from "react-feather"
 import axios from "axios";
 import { AgGridReact } from "ag-grid-react"
 import {
   Nav,
   Button,
-  NavItem,
-  NavLink,
   TabContent,
-  TabPane,
   Card,
   CardBody,
   CardHeader,
@@ -17,7 +14,6 @@ import {
   Row,
   Col,
 } from "reactstrap"
-import classnames from "classnames"
 import "../../../assets/scss/plugins/tables/_agGridStyleOverride.scss"
 import "../../../assets/scss/pages/users.scss"
 
@@ -321,6 +317,7 @@ class ExpertCard extends React.Component {
       this.gridApi.redrawRows();
     })
   }
+
   getMonthData(newMonth, newYear) {
     let i = 0;
     while (newMonth !== FrenchMonth[i]) {
@@ -365,6 +362,9 @@ class ExpertCard extends React.Component {
     creator = 1;
     this.setState({ creator: true })
     this.gridApi.setColumnDefs(this.getCreatorsCols());
+  };
+  onBtExport = () => {
+    this.gridApi.exportDataAsCsv();
   };
 
   setDataCreators = () => {
@@ -426,6 +426,9 @@ class ExpertCard extends React.Component {
                 this.toggle("3")
               }}>
                 Années
+              </Button>
+              <Button className="mb-2 ml-2" outline color="primary" onClick={() => this.onBtExport()}>
+                <Download className="primary" size={12} />
               </Button>
             </div>
           </Nav>
