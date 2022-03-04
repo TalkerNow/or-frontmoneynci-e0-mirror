@@ -363,6 +363,7 @@ class ExpertCard extends React.Component {
     this.setState({ creator: true })
     this.gridApi.setColumnDefs(this.getCreatorsCols());
   };
+  
   onBtExport = () => {
     this.gridApi.exportDataAsCsv();
   };

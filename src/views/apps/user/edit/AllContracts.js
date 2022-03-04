@@ -8,7 +8,7 @@ import {
   CardBody, UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem,
 } from "reactstrap"
 import {
-  Trash2, ChevronDown,
+  Trash2, ChevronDown, Download,
 } from "react-feather"
 import { history } from "../../../../history";
 import axios from "axios";
@@ -296,17 +296,20 @@ class AllContracts extends React.Component {
       this.setState({ rowData })
     })
   }
+
   isExternalFilterPresent = () => {
     if (consultant_id !== -1) {
       return true;
     }
     return false;
   };
+
   externalFilterChanged = (newValue) => {
     consultant_id = newValue;
     this.setState({ filter: !this.state.filter });
     this.gridApi.onFilterChanged();
   };
+
   doesExternalFilterPass = (node) => {
     return node.data.creator_id === consultant_id;
   };
@@ -318,12 +321,16 @@ class AllContracts extends React.Component {
       }
     }
     axios.delete(global.config.server_url + "/documents/" + id, Config).then(response => { })
-  }
+  };
+
+  onBtExport = () => {
+    this.gridApi.exportDataAsCsv();
+  };
 
   onGridReady = params => {
     this.gridApi = params.api
     this.gridColumnApi = params.columnApi
-  }
+  };
 
   filterData = (column, val) => {
     var filter = this.gridApi.getFilterInstance(column)
@@ -336,7 +343,7 @@ class AllContracts extends React.Component {
     }
     filter.setModel(modelObj)
     this.gridApi.onFilterChanged()
-  }
+  };
 
   filterSize = val => {
     if (this.gridApi) {
@@ -345,13 +352,15 @@ class AllContracts extends React.Component {
         pageSize: val
       })
     }
-  }
+  };
+
   updateSearchQuery = val => {
     this.gridApi.setQuickFilter(val)
     this.setState({
       searchVal: val
     })
-  }
+  };
+
 
   refreshCard = () => {
     this.setState({ reload: true })
@@ -519,8 +528,10 @@ class AllContracts extends React.Component {
                             </Button>
                           </>
                         }
-
                       </div>
+                      <Button className="mb-2 ml-2" outline color="primary" onClick={() => this.onBtExport()}>
+                        <Download className="primary" size={12} />
+                      </Button>
                     </div>
                   </div>
                   {this.state.rowData !== null ? (
