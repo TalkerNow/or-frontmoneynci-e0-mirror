@@ -1,13 +1,13 @@
 import React from "react"
-import { Button } from "reactstrap"
+import { Download } from "react-feather"
 import {
+  Button,
   Card,
   CardBody,
   Input,
   Row,
   Col,
   UncontrolledDropdown,
-  UncontrolledButtonDropdown,
   DropdownMenu,
   DropdownItem,
   DropdownToggle,
@@ -20,7 +20,6 @@ import {
   Trash2,
   ChevronDown,
   UserPlus,
-  Home
 } from "react-feather"
 import { history } from "../../../../history"
 import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss"
@@ -38,7 +37,7 @@ class ClientsList extends React.Component {
     IdToDelete: 0,
     filter: false,
     rowData: null,
-    pageSize: 50,
+    pageSize: 20,
     isVisible: true,
     collapse: false,
     defaultColDef: {
@@ -49,6 +48,22 @@ class ClientsList extends React.Component {
     columnDefs: [
       {
         headerName: "Nom",
+        field: "Nom",
+        filter: true,
+        width: 250,
+        cellRendererFramework: params => {
+          return (
+            <div
+              className="d-flex align-items-center cursor-pointer"
+              onClick={() => history.push("/app/user/edit/" + params.data.id + "/1")}
+            >
+              <span>{params.data.personal_informations.last_name}</span>
+            </div>
+          )
+        }
+      },
+      {
+        headerName: "Prenom",
         field: "name",
         filter: true,
         width: 250,
@@ -58,7 +73,7 @@ class ClientsList extends React.Component {
               className="d-flex align-items-center cursor-pointer"
               onClick={() => history.push("/app/user/edit/" + params.data.id + "/1")}
             >
-              <span>{params.data.personal_informations.first_name + " " + params.data.personal_informations.last_name}</span>
+              <span>{params.data.personal_informations.first_name}</span>
             </div>
           )
         }
@@ -152,6 +167,9 @@ class ClientsList extends React.Component {
       return true;
     }
     return false;
+  };
+  onBtExport = () => {
+    this.gridApi.exportDataAsCsv();
   };
   externalFilterChanged = (newValue) => {
     consultant_id = newValue;
@@ -312,23 +330,14 @@ class ClientsList extends React.Component {
 
                       </div>
                       <div>
-                        <Button.Ripple className="mr-1 mb-1" outline color="primary" onClick={() => history.push("/app/user/createUser")}>
+                        <Button className="mr-1 mb-1" outline color="primary" onClick={() => history.push("/app/user/createUser")}>
                           <UserPlus size={15} />
-                        </Button.Ripple>
+                        </Button>
                       </div>
                       <div className="dropdown mr-1 mb-1 d-inline-block">
-                        <UncontrolledButtonDropdown>
-                          <DropdownToggle color="primary" caret>
-                            Actions
-                            <ChevronDown size={15} />
-                          </DropdownToggle>
-                          <DropdownMenu>
-                            <DropdownItem tag="a">
-                              <Home size={15} />
-                              <span className="align-middle ml-50">Exemple d'action</span>
-                            </DropdownItem>
-                          </DropdownMenu>
-                        </UncontrolledButtonDropdown>
+                        <Button className="mb-2" outline color="primary" onClick={() => this.onBtExport()}>
+                          <Download className="primary" size={15} />
+                        </Button>
                       </div>
                     </div>
                   </div>
