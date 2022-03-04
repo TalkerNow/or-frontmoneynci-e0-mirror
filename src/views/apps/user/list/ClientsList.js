@@ -57,7 +57,7 @@ class ClientsList extends React.Component {
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
-              onClick={() => history.push("/app/member/edit/" + params.data.id + "/1")}
+              onClick={() => history.push("/app/user/edit/" + params.data.id + "/1")}
             >
               <span>{params.data.personal_informations.last_name}</span>
             </div>
@@ -75,7 +75,7 @@ class ClientsList extends React.Component {
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
-              onClick={() => history.push("/app/member/edit/" + params.data.id + "/1")}
+              onClick={() => history.push("/app/user/edit/" + params.data.id + "/1")}
             >
               <span>{params.data.personal_informations.first_name}</span>
             </div>
