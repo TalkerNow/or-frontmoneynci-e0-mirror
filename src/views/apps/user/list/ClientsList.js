@@ -50,45 +50,25 @@ class ClientsList extends React.Component {
         headerName: "Nom",
         filter: true,
         width: 250,
-        cellRendererFramework: params => {
-          return (
-            <div
-              className="d-flex align-items-center cursor-pointer"
-              onClick={() => history.push("/app/user/edit/" + params.data.id + "/1")}
-            >
-              <span>{params.data.personal_informations.last_name}</span>
-            </div>
-          )
+        valueGetter: params => {
+          return params.data.personal_informations.last_name;
         }
       },
       {
         headerName: "Prenom",
         filter: true,
         width: 250,
-        cellRendererFramework: params => {
-          return (
-            <div
-              className="d-flex align-items-center cursor-pointer"
-              onClick={() => history.push("/app/user/edit/" + params.data.id + "/1")}
-            >
-              <span>{params.data.personal_informations.first_name}</span>
-            </div>
-          )
+        valueGetter: params => {
+          return params.data.personal_informations.first_name;
         }
       },
       {
         headerName: "Civilité",
         filter: true,
         width: 250,
-        cellRendererFramework: params => {
-          return (
-            <div
-              className="d-flex align-items-center cursor-pointer"
-            >
-              <span>{params.data.personal_informations.civility}</span>
-            </div>
-          )
-        }
+        valueGetter: params => {
+          return params.data.personal_informations.civility;
+        },
       },
       {
         field: "parent_id",
@@ -99,18 +79,13 @@ class ClientsList extends React.Component {
         headerName: "Technicien Nom",
         filter: false,
         width: 250,
-        cellRendererFramework: params => {
-          return (
-            <div
-              className="d-flex align-items-center cursor-pointer"
-            >
-              <span>{params.data.parent ? params.data.parent.name : ""}</span>
-            </div>
-          )
+        valueGetter: params => {
+          return params.data.parent ? params.data.parent.name : '';
         }
       },
       {
         headerName: "Email",
+        field: "email",
         filter: true,
         width: 250,
         cellRendererFramework: rowData => {
