@@ -48,7 +48,6 @@ class ClientsList extends React.Component {
     columnDefs: [
       {
         headerName: "Nom",
-        field: "Nom",
         filter: true,
         width: 250,
         cellRendererFramework: params => {
@@ -64,7 +63,6 @@ class ClientsList extends React.Component {
       },
       {
         headerName: "Prenom",
-        field: "name",
         filter: true,
         width: 250,
         cellRendererFramework: params => {
@@ -79,13 +77,26 @@ class ClientsList extends React.Component {
         }
       },
       {
+        headerName: "Civilité",
+        filter: true,
+        width: 250,
+        cellRendererFramework: params => {
+          return (
+            <div
+              className="d-flex align-items-center cursor-pointer"
+            >
+              <span>{params.data.personal_informations.civility}</span>
+            </div>
+          )
+        }
+      },
+      {
         field: "parent_id",
         filter: true,
         hide: true,
       },
       {
         headerName: "Technicien Nom",
-        field: "tech",
         filter: false,
         width: 250,
         cellRendererFramework: params => {
@@ -100,7 +111,6 @@ class ClientsList extends React.Component {
       },
       {
         headerName: "Email",
-        field: "email",
         filter: true,
         width: 250,
         cellRendererFramework: rowData => {
@@ -114,8 +124,7 @@ class ClientsList extends React.Component {
         }
       },
       {
-        headerName: "Date de Création",
-        field: "created_at",
+        headerName: "Création",
         filter: true,
         width: 150,
         cellRendererFramework: params => {
@@ -128,7 +137,6 @@ class ClientsList extends React.Component {
       },
       {
         headerName: "Actions",
-        field: "transactions",
         width: 150,
         cellRendererFramework: params => {
           return (
