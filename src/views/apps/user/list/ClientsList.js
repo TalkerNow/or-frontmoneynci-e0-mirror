@@ -45,41 +45,25 @@ class ClientsList extends React.Component {
       sortable: true
     },
     searchVal: "",
+    gridOptions : {
+      // Add event handlers
+      onCellClicked: (params) => history.push("/app/user/edit/" + params.data.id + "/1"),
+    },
     columnDefs: [
       {
         headerName: "Nom",
         filter: true,
         width: 250,
-        // valueGetter: params => {
-        //   return params.data.personal_informations.last_name;
-        // }
-        cellRendererFramework: params => {
-          return (
-            <div
-              className="d-flex align-items-center cursor-pointer"
-              onClick={() => history.push("/app/user/edit/" + params.data.id + "/1")}
-            >
-              <span>{params.data.personal_informations.last_name}</span>
-            </div>
-          )
+        valueGetter: params => {
+          return params.data.personal_informations.last_name;
         }
       },
       {
         headerName: "Prenom",
         filter: true,
         width: 250,
-        // valueGetter: params => {
-        //   return params.data.personal_informations.first_name;
-        // }
-        cellRendererFramework: params => {
-          return (
-            <div
-              className="d-flex align-items-center cursor-pointer"
-              onClick={() => history.push("/app/user/edit/" + params.data.id + "/1")}
-            >
-              <span>{params.data.personal_informations.first_name}</span>
-            </div>
-          )
+        valueGetter: params => {
+          return params.data.personal_informations.first_name;
         }
       },
       {
@@ -217,6 +201,7 @@ class ClientsList extends React.Component {
       })
     }
   }
+
   updateSearchQuery = val => {
     this.gridApi.setQuickFilter(val)
     this.setState({
@@ -350,7 +335,7 @@ class ClientsList extends React.Component {
                         <AgGridReact
                           rowBuffer={10}
                           height={'autoHeight'}
-                          gridOptions={{}}
+                          gridOptions={this.state.gridOptions}
                           // rowSelection="multiple"
                           doesExternalFilterPass={this.doesExternalFilterPass}
                           isExternalFilterPresent={this.isExternalFilterPresent}
