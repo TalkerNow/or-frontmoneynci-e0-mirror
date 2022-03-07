@@ -363,7 +363,7 @@ class ExpertCard extends React.Component {
     this.setState({ creator: true })
     this.gridApi.setColumnDefs(this.getCreatorsCols());
   };
-  
+
   onBtExport = () => {
     this.gridApi.exportDataAsCsv();
   };
@@ -476,19 +476,19 @@ class ExpertCard extends React.Component {
                         {this.state.activeTab === '2' ? (
                           <div className="title-section" style={{ textAlign: 'center', marginRight: 'auto', display: 'inline-block', }}>
                             <div style={{ display: 'inline-block', marginLeft: '5px' }}>
-                              <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{ width: '130px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
-                                onChange={e => this.getTrimData(e.target.value, this.state.year)}>
-                                <option>Trimestre 1</option><option>Trimestre 2</option><option>Trimestre 3</option>
-                                <option>Trimestre 4</option>
-                              </Input>
-                            </div>
-                            <div style={{ display: 'inline-block', marginLeft: '5px' }}>
                               <Input type="select" name="select" id="role" defaultValue={this.state.year} key={this.state.year} style={{ width: '75px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
                                 onChange={e => this.getTrimData(this.state.trim, e.target.value)}>
                                 <option>2018</option><option>2019</option><option>2020</option>
                                 <option>2021</option><option>2022</option><option>2023</option>
                                 <option>2024</option><option>2025</option><option>2026</option>
                                 <option>2027</option><option>2028</option><option>2029</option><option>2030</option>
+                              </Input>
+                            </div>
+                            <div style={{ display: 'inline-block', marginLeft: '5px' }}>
+                              <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{ width: '130px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}
+                                onChange={e => this.getTrimData(e.target.value, this.state.year)}>
+                                <option>Trimestre 1</option><option>Trimestre 2</option><option>Trimestre 3</option>
+                                <option>Trimestre 4</option>
                               </Input>
                             </div>
                           </div>
