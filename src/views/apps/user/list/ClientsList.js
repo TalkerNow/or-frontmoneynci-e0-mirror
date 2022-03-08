@@ -45,11 +45,27 @@ class ClientsList extends React.Component {
       sortable: true
     },
     searchVal: "",
-    gridOptions : {
+    gridOptions: {
       // Add event handlers
-      onCellClicked: (params) => history.push("/app/user/edit/" + params.data.id + "/1"),
+      onCellClicked: (params) => {
+        if (params.colDef.headerName === 'Nom' || params.colDef.field === 'Prenom') {
+          history.push("/app/user/edit/" + params.data.id + "/1")
+        }
+      },
     },
     columnDefs: [
+      {
+        headerName: "Création",
+        filter: true,
+        width: 150,
+        cellRendererFramework: params => {
+          return (
+            <div>
+              <Moment format="DD-MM-YYYY HH:mm" date={params.data.created_at} utc />
+            </div>
+          )
+        }
+      },
       {
         headerName: "Nom",
         filter: true,
@@ -69,9 +85,13 @@ class ClientsList extends React.Component {
       {
         headerName: "Civilité",
         filter: true,
-        width: 250,
+        width: 150,
         valueGetter: params => {
-          return params.data.personal_informations.civility;
+          if (params.data.personal_informations.civility === 'Monsieur') {
+            return 'Mr'
+          } else if (params.data.personal_informations.civility === 'Madame') {
+            return 'Mm'
+          }
         },
       },
       {
@@ -99,18 +119,6 @@ class ClientsList extends React.Component {
               className="d-flex align-items-center cursor-pointer"
               onClick={() => window.location.href = "mailto:" + email + "?subject=Subject&body=message%20goes%20here"}
             ><span>{rowData.data.email}</span></div>
-          )
-        }
-      },
-      {
-        headerName: "Création",
-        filter: true,
-        width: 150,
-        cellRendererFramework: params => {
-          return (
-            <div>
-              <Moment format="DD-MM-YYYY HH:mm" date={params.data.created_at} utc />
-            </div>
           )
         }
       },
@@ -191,7 +199,7 @@ class ClientsList extends React.Component {
       }
     }
     filter.setModel(modelObj)
-    this.gridApi.onFilterChanged()
+    this.gridApi.onFilterChanged();
   }
   filterSize = val => {
     if (this.gridApi) {
@@ -303,19 +311,18 @@ class ClientsList extends React.Component {
                       <div>
                         {(consultant_id !== -1 && this.state.filter === true) &&
                           <>
-                            <Button className="mr-1 mb-1" outline color="primary" onClick={() => this.externalFilterChanged(-1)}>
+                            <Button className="mr-1 mb-1" style={{ width: 170, height:40 }} outline color="primary" onClick={() => this.externalFilterChanged(-1)}>
                               tous les clients
                             </Button>
                           </>
                         }
                         {(consultant_id === -1 && this.state.filter === false) &&
                           <>
-                            <Button className="mr-1 mb-1" outline color="primary" onClick={() => this.externalFilterChanged(localStorage.getItem('userid'))}>
+                            <Button className="mr-1 mb-1" style={{ width: 140, height:40 }} outline color="primary" onClick={() => this.externalFilterChanged(localStorage.getItem('userid'))}>
                               mes clients
                             </Button>
                           </>
                         }
-
                       </div>
                       <div>
                         <Button className="mr-1 mb-1" outline color="primary" onClick={() => history.push("/app/user/createUser")}>
