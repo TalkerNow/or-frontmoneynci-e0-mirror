@@ -396,14 +396,14 @@ class ExpertCard extends React.Component {
             <div>
               {(creator !== -1 && this.state.creator === true) &&
                 <>
-                  <Button className="mr-1 mb-2 mr-4" outline color="primary" onClick={() => this.setDataCreators()}>
+                  <Button className="mr-1 mb-2 mr-2" outline color="primary" onClick={() => this.setDataCreators()}>
                     executants
                   </Button>
                 </>
               }
               {(creator === -1 && this.state.creator === false) &&
                 <>
-                  <Button className="mr-1 mb-2 mr-4" outline color="primary" onClick={() => this.setDataExecutants()}>
+                  <Button className="mr-1 mb-2 mr-3" outline color="primary" onClick={() => this.setDataExecutants()}>
                     createurs
                   </Button>
                 </>
@@ -428,7 +428,7 @@ class ExpertCard extends React.Component {
               }}>
                 Années
               </Button>
-              <Button className="mb-2 ml-2" outline color="primary" onClick={() => this.onBtExport()}>
+              <Button className="mb-2 ml-1" outline color="primary" onClick={() => this.onBtExport()}>
                 <Download className="primary" size={12} />
               </Button>
             </div>

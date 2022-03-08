@@ -516,20 +516,20 @@ class AllContracts extends React.Component {
                       <div>
                         {(consultant_id !== -1 && this.state.filter === true) &&
                           <>
-                            <Button className="mr-1 mb-1" outline color="primary" onClick={() => this.externalFilterChanged(-1)}>
+                            <Button className="mb-1" style={{ width: 180, height: 40 }} outline color="primary" onClick={() => this.externalFilterChanged(-1)}>
                               tous les contrats
                             </Button>
                           </>
                         }
                         {(consultant_id === -1 && this.state.filter === false) &&
                           <>
-                            <Button className="mr-1 mb-1" outline color="primary" onClick={() => this.externalFilterChanged(localStorage.getItem('userid'))}>
+                            <Button className="mb-1" style={{ width: 170, height: 40 }} outline color="primary" onClick={() => this.externalFilterChanged(localStorage.getItem('userid'))}>
                               mes contrats
                             </Button>
                           </>
                         }
                       </div>
-                      <Button className="mb-2 ml-2" outline color="primary" onClick={() => this.onBtExport()}>
+                      <Button className="mb-2 ml-1" outline color="primary" onClick={() => this.onBtExport()}>
                         <Download className="primary" size={12} />
                       </Button>
                     </div>
