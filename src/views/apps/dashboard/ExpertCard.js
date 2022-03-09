@@ -204,6 +204,28 @@ class ExpertCard extends React.Component {
     })
   }
 
+  getTotalData(newYear) {
+    axios.get(global.config.server_url + "/getMembersPrestation?year=" + newYear, Config).then(response => {
+      let tmp_presta = this.state.prestation;
+      for (let i = 0; i < response.data.length; i += 1) {
+        tmp_presta[i]['total En attente'] = response.data[i]['totalData']['En attente'];
+        tmp_presta[i]['total creer En attente'] = response.data[i]['totalData']['creer En attente'];
+        tmp_presta[i]['total En cours'] = response.data[i]['totalData']['En cours'];
+        tmp_presta[i]['total creer En cours'] = response.data[i]['totalData']['creer En cours'];
+        tmp_presta[i]['total Termine'] = response.data[i]['totalData']['Termine'];
+        tmp_presta[i]['total creer Termine'] = response.data[i]['totalData']['creer Termine'];
+        tmp_presta[i]['total CA En attente'] = response.data[i]['totalData']['CA En attente'];
+        tmp_presta[i]['total CA creer En attente'] = response.data[i]['totalData']['CA creer En attente'];
+        tmp_presta[i]['total CA En cours'] = response.data[i]['totalData']['CA En cours'];
+        tmp_presta[i]['total CA creer En cours'] = response.data[i]['totalData']['CA creer En cours'];
+        tmp_presta[i]['total CA Termine'] = response.data[i]['totalData']['CA Termine'];
+        tmp_presta[i]['total CA creer Termine'] = response.data[i]['totalData']['CA creer Termine'];
+      }
+      this.setState({ prestation: tmp_presta });
+      this.gridApi.redrawRows();
+    })
+  }
+
   getYearData(newYear) {
     axios.get(global.config.server_url + "/getMembersPrestation?year=" + newYear, Config).then(response => {
       let tmp_presta = this.state.prestation;
@@ -417,16 +439,22 @@ class ExpertCard extends React.Component {
                 Mois
               </Button>
               <Button className="mr-1 mb-2 mr-1" outline color={this.state.activeTab === '2' ? "primary" : "secondary"} onClick={() => {
-                this.getTrimData(this.state.trim, this.state.year)
+                this.getTrimData(this.state.trim, this.state.year);
                 this.toggle("2")
               }}>
                 Trimestre
               </Button>
               <Button className="mr-1 mb-2 mr-1" outline color={this.state.activeTab === '3' ? "primary" : "secondary"} onClick={() => {
-                this.getYearData(this.state.year)
+                this.getYearData(this.state.year);
                 this.toggle("3")
               }}>
                 Années
+              </Button>
+              <Button className="mr-1 mb-2 mr-1" outline color={this.state.activeTab === '4' ? "primary" : "secondary"} onClick={() => {
+                this.getTotalData(this.state.year);
+                this.toggle("4")
+              }}>
+                Total
               </Button>
               <Button className="mb-2 ml-1" outline color="primary" onClick={() => this.onBtExport()}>
                 <Download className="primary" size={12} />
