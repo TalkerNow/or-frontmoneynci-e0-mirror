@@ -561,14 +561,7 @@ export const searchResult = [
     icon: "Users",
     starred: false
   },
-  {
-    id: 74,
-    target: "",
-    title: "FAQ",
-    link: "/pages/faq",
-    icon: "Zap",
-    starred: false
-  },
+
   {
     id: 75,
     target: "KnowledgeBase",
