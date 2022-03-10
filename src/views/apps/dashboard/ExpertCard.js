@@ -45,7 +45,7 @@ class ExpertCard extends React.Component {
       resizable: true,
       filter: true,
       flex: 1,
-      minWidth: 150,
+      //minWidth: 150,
     },
     searchVal: "",
     columnDefs: this.getExecutantsCols(),
@@ -63,44 +63,56 @@ class ExpertCard extends React.Component {
         headerName: "Role",
         field: "role",
         filter: true,
-        width: 200,
+        width: 100,
       },
       {
         headerName: "En Attente",
         field: "total En attente",
         filter: true,
-        width: 250,
+        width: 200,
 
       },
       {
-        headerName: "En Cours",
+        headerName: "en Cours",
         field: "total En cours",
         filter: true,
-        width: 250,
+        width: 200,
       },
       {
         headerName: "Termine",
         field: "total Termine",
         filter: true,
-        width: 250,
+        width: 200,
+      },
+      {
+        headerName: "Balance",
+        field: "total Balance Clients",
+        filter: true,
+        width: 200,
       },
       {
         headerName: "CA En attente",
         field: "total CA En attente",
         filter: true,
-        width: 250,
+        width: 200,
       },
       {
         headerName: "CA En cours",
         field: "total CA En cours",
         filter: true,
-        width: 250,
+        width: 200,
       },
       {
         headerName: "CA Termine",
         field: "total CA Termine",
         filter: true,
-        width: 250,
+        width: 200,
+      },
+      {
+        headerName: "CA Balance",
+        field: "total CA Balance Clients",
+        filter: true,
+        width: 200,
       },
     ];
   }
@@ -120,40 +132,52 @@ class ExpertCard extends React.Component {
         width: 100,
       },
       {
-        headerName: "Creer En Attente",
+        headerName: "En Attente",
         field: "total creer En attente",
         filter: true,
-        width: 250,
+        width: 200,
       },
       {
-        headerName: "Creer en Cours",
+        headerName: "en Cours",
         field: "total creer En cours",
         filter: true,
         width: 200,
       },
       {
-        headerName: "Creer termine",
+        headerName: "Termine",
         field: "total creer Termine",
         filter: true,
         width: 200,
       },
       {
-        headerName: "CA Creer en attente",
+        headerName: "Balance",
+        field: "total creer Balance Clients",
+        filter: true,
+        width: 200,
+      },
+      {
+        headerName: "CA en attente",
         field: "total CA creer En attente",
         filter: true,
-        width: 250,
+        width: 200,
       },
       {
-        headerName: "CA Creer en cours",
+        headerName: "CA en cours",
         field: "total CA creer En cours",
         filter: true,
-        width: 250,
+        width: 200,
       },
       {
-        headerName: "CA Creer termine",
+        headerName: "CA termine",
         field: "total CA creer Termine",
         filter: true,
-        width: 250,
+        width: 200,
+      },
+      {
+        headerName: "CA Balance",
+        field: "total CA creer Balance Clients",
+        filter: true,
+        width: 200,
       },
     ];
   }
@@ -418,7 +442,7 @@ class ExpertCard extends React.Component {
             <div>
               {(creator !== -1 && this.state.creator === true) &&
                 <>
-                  <Button className="mr-1 mb-2 mr-2" outline color="primary" onClick={() => this.setDataCreators()}>
+                  <Button className="mr-1 mb-2 mr-3" outline color="primary" onClick={() => this.setDataCreators()}>
                     executants
                   </Button>
                 </>
