@@ -216,6 +216,8 @@ class ExpertCard extends React.Component {
         tmp_presta[j]['total En cours'] = response.data[j]['monthArray'][this.state.monthb + 1]['En cours'];
         tmp_presta[j]['total creer En cours'] = response.data[j]['monthArray'][this.state.monthb + 1]['creer En cours'];
         tmp_presta[j]['total Termine'] = response.data[j]['monthArray'][this.state.monthb + 1]['Termine'];
+        tmp_presta[j]['total Balance Clients'] = response.data[j]['monthArray'][this.state.monthb + 1]['Balance Clients'];
+        tmp_presta[j]['total creer Balance Clients'] = response.data[j]['monthArray'][this.state.monthb + 1]['creer Balance Clients'];
         tmp_presta[j]['total creer Termine'] = response.data[j]['monthArray'][this.state.monthb + 1]['creer Termine'];
         tmp_presta[j]['total CA En attente'] = response.data[j]['monthArray'][this.state.monthb + 1]['CA En attente'];
         tmp_presta[j]['total CA creer En attente'] = response.data[j]['monthArray'][this.state.monthb + 1]['CA creer En attente'];
@@ -223,6 +225,8 @@ class ExpertCard extends React.Component {
         tmp_presta[j]['total CA creer En cours'] = response.data[j]['monthArray'][this.state.monthb + 1]['CA creer En cours'];
         tmp_presta[j]['total CA Termine'] = response.data[j]['monthArray'][this.state.monthb + 1]['CA Termine'];
         tmp_presta[j]['total CA creer Termine'] = response.data[j]['monthArray'][this.state.monthb + 1]['CA creer Termine'];
+        tmp_presta[j]['total CA Balance Clients'] = response.data[j]['monthArray'][this.state.monthb + 1]['CA Balance Clients'];
+        tmp_presta[j]['total CA creer Balance Clients'] = response.data[j]['monthArray'][this.state.monthb + 1]['CA creer Balance Clients'];
       }
       this.setState({ prestation: tmp_presta })
     })
@@ -238,12 +242,16 @@ class ExpertCard extends React.Component {
         tmp_presta[i]['total creer En cours'] = response.data[i]['totalData']['creer En cours'];
         tmp_presta[i]['total Termine'] = response.data[i]['totalData']['Termine'];
         tmp_presta[i]['total creer Termine'] = response.data[i]['totalData']['creer Termine'];
+        tmp_presta[i]['total Balance Clients'] = response.data[i]['totalData']['Balance Clients'];
+        tmp_presta[i]['total creer Balance Clients'] = response.data[i]['totalData']['creer Balance Clients'];
         tmp_presta[i]['total CA En attente'] = response.data[i]['totalData']['CA En attente'];
         tmp_presta[i]['total CA creer En attente'] = response.data[i]['totalData']['CA creer En attente'];
         tmp_presta[i]['total CA En cours'] = response.data[i]['totalData']['CA En cours'];
         tmp_presta[i]['total CA creer En cours'] = response.data[i]['totalData']['CA creer En cours'];
         tmp_presta[i]['total CA Termine'] = response.data[i]['totalData']['CA Termine'];
         tmp_presta[i]['total CA creer Termine'] = response.data[i]['totalData']['CA creer Termine'];
+        tmp_presta[i]['total CA Balance Clients'] = response.data[i]['totalData']['CA Balance Clients'];
+        tmp_presta[i]['total CA creer Balance Clients'] = response.data[i]['totalData']['CA creer Balance Clients'];
       }
       this.setState({ prestation: tmp_presta });
       this.gridApi.redrawRows();
@@ -260,12 +268,16 @@ class ExpertCard extends React.Component {
         let tmp_C_En_cours = 0;
         let tmp_Finish = 0;
         let tmp_C_Finish = 0;
+        let tmp_BC = 0;
+        let tmp_C_BC = 0;
         let tmp_CA_Waiting = 0;
         let tmp_C_CA_Waiting = 0;
         let tmp_CA_En_cours = 0;
         let tmp_C_CA_En_cours = 0;
         let tmp_CA_Finish = 0;
         let tmp_C_CA_Finish = 0;
+        let tmp_CA_BC = 0;
+        let tmp_CA_C_BC = 0;
         for (let j = 0; j < 12; j += 1) {
           tmp_Waiting = tmp_Waiting + response.data[i]['monthArray'][j + 1]['En attente'];
           tmp_C_Waiting = tmp_C_Waiting + response.data[i]['monthArray'][j + 1]['creer En attente'];
@@ -273,12 +285,16 @@ class ExpertCard extends React.Component {
           tmp_C_En_cours = tmp_C_En_cours + response.data[i]['monthArray'][j + 1]['creer En cours'];
           tmp_Finish = tmp_Finish + response.data[i]['monthArray'][j + 1]['Termine'];
           tmp_C_Finish = tmp_C_Finish + response.data[i]['monthArray'][j + 1]['creer Termine'];
+          tmp_BC = tmp_BC + response.data[i]['monthArray'][j + 1]['Balance Clients'];
+          tmp_C_BC = tmp_C_BC + response.data[i]['monthArray'][j + 1]['creer Balance Clients'];
           tmp_CA_Waiting = tmp_CA_Waiting + response.data[i]['monthArray'][j + 1]['CA En attente'];
           tmp_C_CA_Waiting = tmp_C_CA_Waiting + response.data[i]['monthArray'][j + 1]['CA creer En attente'];
           tmp_CA_En_cours = tmp_CA_En_cours + response.data[i]['monthArray'][j + 1]['CA En cours'];
           tmp_C_CA_En_cours = tmp_C_CA_En_cours + response.data[i]['monthArray'][j + 1]['CA creer En cours'];
           tmp_CA_Finish = tmp_CA_Finish + response.data[i]['monthArray'][j + 1]['CA Termine'];
           tmp_C_CA_Finish = tmp_C_CA_Finish + response.data[i]['monthArray'][j + 1]['CA creer Termine'];
+          tmp_CA_BC = tmp_CA_BC + response.data[i]['monthArray'][j + 1]['CA Balance Clients'];
+          tmp_CA_C_BC = tmp_CA_C_BC + response.data[i]['monthArray'][j + 1]['CA creer Balance Clients'];
         }
         tmp_presta[i]['total En attente'] = tmp_Waiting;
         tmp_presta[i]['total creer En attente'] = tmp_C_Waiting;
@@ -286,12 +302,16 @@ class ExpertCard extends React.Component {
         tmp_presta[i]['total creer En cours'] = tmp_C_En_cours;
         tmp_presta[i]['total Termine'] = tmp_Finish;
         tmp_presta[i]['total creer Termine'] = tmp_C_Finish;
+        tmp_presta[i]['total Balance Clients'] = tmp_BC;
+        tmp_presta[i]['total creer Balance Clients'] = tmp_C_BC;
         tmp_presta[i]['total CA En attente'] = tmp_CA_Waiting;
         tmp_presta[i]['total CA creer En attente'] = tmp_C_CA_Waiting;
         tmp_presta[i]['total CA En cours'] = tmp_CA_En_cours;
         tmp_presta[i]['total CA creer En cours'] = tmp_C_CA_En_cours;
         tmp_presta[i]['total CA Termine'] = tmp_CA_Finish;
         tmp_presta[i]['total CA creer Termine'] = tmp_C_CA_Finish;
+        tmp_presta[i]['total CA Balance Clients'] = tmp_CA_BC;
+        tmp_presta[i]['total CA creer Balance Clients'] = tmp_CA_C_BC;
       }
       this.setState({ prestation: tmp_presta });
       this.gridApi.redrawRows();
@@ -324,12 +344,16 @@ class ExpertCard extends React.Component {
         let tmp_C_En_cours = 0;
         let tmp_Finish = 0;
         let tmp_C_Finish = 0;
+        let tmp_BC = 0;
+        let tmp_C_BC = 0;
         let tmp_CA_Waiting = 0;
         let tmp_C_CA_Waiting = 0;
         let tmp_CA_En_cours = 0;
         let tmp_C_CA_En_cours = 0;
         let tmp_CA_Finish = 0;
         let tmp_C_CA_Finish = 0;
+        let tmp_CA_BC = 0;
+        let tmp_CA_C_BC = 0;
         while (i < j) {
           tmp_Waiting = tmp_Waiting + response.data[k]['monthArray'][i + 1]['En attente'];
           tmp_C_Waiting = tmp_C_Waiting + response.data[k]['monthArray'][i + 1]['creer En attente'];
@@ -337,12 +361,16 @@ class ExpertCard extends React.Component {
           tmp_C_En_cours = tmp_C_En_cours + response.data[k]['monthArray'][i + 1]['creer En cours'];
           tmp_Finish = tmp_Finish + response.data[k]['monthArray'][i + 1]['Termine'];
           tmp_C_Finish = tmp_C_Finish + response.data[k]['monthArray'][i + 1]['creer Termine'];
+          tmp_BC = tmp_BC + response.data[k]['monthArray'][i + 1]['Balance Clients'];
+          tmp_C_BC = tmp_C_BC + response.data[k]['monthArray'][i + 1]['creer Balance Clients'];
           tmp_CA_Waiting = tmp_CA_Waiting + response.data[k]['monthArray'][i + 1]['CA En attente'];
           tmp_C_CA_Waiting = tmp_C_CA_Waiting + response.data[k]['monthArray'][i + 1]['CA creer En attente'];
           tmp_CA_En_cours = tmp_CA_En_cours + response.data[k]['monthArray'][i + 1]['CA En cours'];
           tmp_C_CA_En_cours = tmp_C_CA_En_cours + response.data[k]['monthArray'][i + 1]['CA creer En cours'];
           tmp_CA_Finish = tmp_CA_Finish + response.data[k]['monthArray'][i + 1]['CA Termine'];
           tmp_C_CA_Finish = tmp_C_CA_Finish + response.data[k]['monthArray'][i + 1]['CA creer Termine'];
+          tmp_CA_BC = tmp_CA_BC + response.data[k]['monthArray'][i + 1]['CA Balance Clients'];
+          tmp_CA_C_BC = tmp_CA_C_BC + response.data[k]['monthArray'][i + 1]['CA creer Balance Clients'];
           i += 1;
         }
         tmp_presta[k]['total En attente'] = tmp_Waiting;
@@ -351,12 +379,16 @@ class ExpertCard extends React.Component {
         tmp_presta[k]['total creer En cours'] = tmp_C_En_cours;
         tmp_presta[k]['total Termine'] = tmp_Finish;
         tmp_presta[k]['total creer Termine'] = tmp_C_Finish;
+        tmp_presta[k]['total Balance Clients'] = tmp_BC;
+        tmp_presta[k]['total creer Balance Clients'] = tmp_C_BC;
         tmp_presta[k]['total CA En attente'] = tmp_CA_Waiting;
         tmp_presta[k]['total CA creer En attente'] = tmp_C_CA_Waiting;
         tmp_presta[k]['total CA En cours'] = tmp_CA_En_cours;
         tmp_presta[k]['total CA creer En cours'] = tmp_C_CA_En_cours;
         tmp_presta[k]['total CA Termine'] = tmp_CA_Finish;
         tmp_presta[k]['total CA creer Termine'] = tmp_C_CA_Finish;
+        tmp_presta[k]['total CA Balance Clients'] = tmp_CA_BC;
+        tmp_presta[k]['total CA creer Balance Clients'] = tmp_CA_C_BC;
         i = tmpi;
       }
       this.setState({ prestation: tmp_presta })
@@ -381,12 +413,16 @@ class ExpertCard extends React.Component {
         tmp_presta[j]['total creer En cours'] = response.data[j]['monthArray'][i + 1]['creer En cours'];
         tmp_presta[j]['total Termine'] = response.data[j]['monthArray'][i + 1]['Termine'];
         tmp_presta[j]['total creer Termine'] = response.data[j]['monthArray'][i + 1]['creer Termine'];
+        tmp_presta[j]['total Balance Clients'] = response.data[j]['monthArray'][i + 1]['Balance Clients'];
+        tmp_presta[j]['total creer Balance Clients'] = response.data[j]['monthArray'][i + 1]['creer Balance Clients'];
         tmp_presta[j]['total CA En attente'] = response.data[j]['monthArray'][i + 1]['CA En attente'];
         tmp_presta[j]['total CA creer En attente'] = response.data[j]['monthArray'][i + 1]['CA creer En attente'];
         tmp_presta[j]['total CA En cours'] = response.data[j]['monthArray'][i + 1]['CA En cours'];
         tmp_presta[j]['total CA creer En cours'] = response.data[j]['monthArray'][i + 1]['CA creer En cours'];
         tmp_presta[j]['total CA Termine'] = response.data[j]['monthArray'][i + 1]['CA Termine'];
         tmp_presta[j]['total CA creer Termine'] = response.data[j]['monthArray'][i + 1]['CA creer Termine'];
+        tmp_presta[j]['total CA Balance Clients'] = response.data[j]['monthArray'][i + 1]['CA Balance Clients'];
+        tmp_presta[j]['total CA creer Balance Clients'] = response.data[j]['monthArray'][i + 1]['CA creer Balance Clients'];
       }
       this.setState({ prestation: tmp_presta })
       this.gridApi.redrawRows();
