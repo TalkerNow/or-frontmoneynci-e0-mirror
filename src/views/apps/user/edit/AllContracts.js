@@ -103,6 +103,7 @@ class AllContracts extends React.Component {
                     if (service !== '') {
                       tags.push(<Chip
                         className="m-0 text-center ml-1"
+                        key={service}
                         color={chipColors[service.trim()]}
                         text={service}
                       />);
