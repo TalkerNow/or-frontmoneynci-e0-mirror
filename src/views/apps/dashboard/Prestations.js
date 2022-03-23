@@ -163,8 +163,8 @@ class PrestationStatistics extends React.Component {
       let tmp_w_y_SIMU = 0
       let tmp_w_y_AR = 0
       let tmp_w_y_TFD = 0
-      let tmp_w_y_ACTU = 12
-      let tmp_w_y_RAC = 12
+      let tmp_w_y_ACTU = 0
+      let tmp_w_y_RAC = 0
       let tmp_o_y_CH = 0
       let tmp_o_y_SIMU = 0
       let tmp_o_y_AR = 0
