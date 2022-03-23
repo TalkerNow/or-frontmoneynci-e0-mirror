@@ -87,7 +87,7 @@ class PrestationStatistics extends React.Component {
         type: 'pie',
         responsive: true,
       },
-      colors: ['#FF502B', '#FFE82B', '#56EC01', '#01ECD6', '#0121EC', '#E501EC'],
+      colors: ['#f39130', '#28c76f', '#7367f0', '#ea5455', '#44d9e6', '#ffdf5d'],
       labels: ['CH', 'SIMU', 'AR', 'TFD', 'ACTU', 'RAC'],
       responsive: [{
         breakpoint: 480,
@@ -163,8 +163,8 @@ class PrestationStatistics extends React.Component {
       let tmp_w_y_SIMU = 0
       let tmp_w_y_AR = 0
       let tmp_w_y_TFD = 0
-      let tmp_w_y_ACTU = 0
-      let tmp_w_y_RAC = 0
+      let tmp_w_y_ACTU = 12
+      let tmp_w_y_RAC = 12
       let tmp_o_y_CH = 0
       let tmp_o_y_SIMU = 0
       let tmp_o_y_AR = 0
