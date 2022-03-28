@@ -104,6 +104,19 @@ class OldClientsList extends React.Component {
         }
       },
       {
+        headerName: "Expert",
+        field: "expert_name",
+        filter: true,
+        width: 250,
+        cellRendererFramework: rowData => {
+          return (
+            <div
+              className="d-flex align-items-center cursor-pointer"
+            ><span>{rowData.data.expert_name}</span></div>
+          )
+        }
+      },
+      {
         headerName: "civilité",
         field: "cl_civilite",
         filter: true,
