@@ -735,7 +735,7 @@ class EditContract extends React.Component {
                                                             <div style={{ display: 'inline-block' }}>
                                                                 {this.state.formValues['title1']}
                                                             </div>
-                                                            <div style={{ display: 'inline-block' }}>(</div>
+                                                            <div style={{ display: 'inline-block', paddingLeft:'5px' }}>(</div>
                                                             <div style={{ display: 'inline-block' }}>
                                                                 {this.state.formValues['nb1-price']}
                                                             </div>
@@ -869,7 +869,7 @@ class EditContract extends React.Component {
                                                                 {this.state.formValues['subcontent2-2']}
                                                             </div>
                                                             <div style={{ display: 'inline-block' }}>
-                                                                <div style={{ display: 'inline-block' }}>(</div>
+                                                                <div style={{ display: 'inline-block', paddingLeft:'5px' }}>(</div>
                                                                 <div style={{ display: 'inline-block' }}>
                                                                     {this.state.formValues['nb2-price']}
                                                                 </div>
@@ -1098,7 +1098,7 @@ class EditContract extends React.Component {
                                                                 {this.state.formValues['subcontent4-7']}
                                                             </div>
                                                             <div style={{ display: 'inline-block' }}>
-                                                                <div style={{ display: 'inline-block' }}>(</div>
+                                                                <div style={{ display: 'inline-block', paddingLeft:'5px' }}>(</div>
                                                                 <div style={{ display: 'inline-block' }}>
                                                                     {this.state.formValues['nb4-price']}
                                                                 </div>
@@ -1240,7 +1240,7 @@ class EditContract extends React.Component {
                                                                 {this.state.formValues['subcontent5-2']}
                                                             </div>
                                                             <div style={{ display: 'inline-block' }}>
-                                                                <div style={{ display: 'inline-block' }}>(</div>
+                                                                <div style={{ display: 'inline-block', paddingLeft:'5px' }}>(</div>
                                                                 <div style={{ display: 'inline-block' }}>
                                                                     {this.state.formValues['nb5-price']}
                                                                 </div>

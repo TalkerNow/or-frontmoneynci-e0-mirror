@@ -274,7 +274,7 @@ class TemplateContract extends React.Component {
                                                                 />
                                                             </div>
                                                             <div style={{ width: '30%', display: 'inline-block' }}>
-                                                                <div style={{ display: 'inline-block' }}>(</div>
+                                                                <div style={{ display: 'inline-block', paddingLeft:'5px' }}>(</div>
                                                                 <div style={{ display: 'inline-block' }}>
                                                                     <Input
                                                                         type="number"
@@ -421,7 +421,7 @@ class TemplateContract extends React.Component {
                                                                 />
                                                             </div>
                                                             <div style={{ width: '30%', display: 'inline-block' }}>
-                                                                <div style={{ display: 'inline-block' }}>(</div>
+                                                                <div style={{ display: 'inline-block', paddingLeft:'5px' }}>(</div>
                                                                 <div style={{ display: 'inline-block' }}>
                                                                     <Input
                                                                         type="number"
@@ -655,7 +655,7 @@ class TemplateContract extends React.Component {
                                                                 />
                                                             </div>
                                                             <div style={{ width: '30%', display: 'inline-block' }}>
-                                                                <div style={{ display: 'inline-block' }}>(</div>
+                                                                <div style={{ display: 'inline-block', paddingLeft:'5px' }}>(</div>
                                                                 <div style={{ display: 'inline-block' }}>
                                                                     <Input
                                                                         type="number"
@@ -785,7 +785,7 @@ class TemplateContract extends React.Component {
                                                                 />
                                                             </div>
                                                             <div style={{ width: '30%', display: 'inline-block' }}>
-                                                                <div style={{ display: 'inline-block' }}>(</div>
+                                                                <div style={{ display: 'inline-block', paddingLeft:'5px' }}>(</div>
                                                                 <div style={{ display: 'inline-block' }}>
                                                                     <Input
                                                                         type="number"
