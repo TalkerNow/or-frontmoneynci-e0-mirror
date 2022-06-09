@@ -744,7 +744,7 @@ class EditContract extends React.Component {
                                                     </Col>
                                                     <Col md="3" sm="12" style={{ paddingLeft: 0, marginTop: '-5px' }}>
                                                         <div className="bold-black" style={{ display: 'inline-block' }}>
-                                                            Nb mm:
+                                                            Nb mn:
                                                         </div>
                                                         <div style={{ display: 'inline-block' }}>
                                                             <Input
@@ -1531,7 +1531,7 @@ class EditContract extends React.Component {
                                     </table>
                                 </div>
                                 {/******* table3 ********/}
-                                <div style={{ display: 'flex' }} style={{ marginBottom: '50px' }}>
+                                <div style={{ display: 'flex', marginBottom: '50px' }}>
                                     <table className="tableCSS" style={{ textAlign: 'left', fontSize: '15px', marginTop: '30px' }}>
                                         <tr>
                                             <td width="75%" style={{ paddingTop: '20px', borderRight: '2px solid #8d8d8d' }}>

@@ -1,8 +1,8 @@
 import mock from "../mock"
 const data = [
   {
-    name: "CONSULTATION RETRAITE",
-    variable: "Nbr mm",
+    name: "CONSULTATION RETRAITE ",
+    variable: "Nbr mn",
     value: "260",
     variable1: "",
     value1: "1",
@@ -55,7 +55,7 @@ const data = [
     total_ttc: "0.00 €"
   },
   {
-    name: "RACHAT DE TRIMESTRE à facturer",
+    name: "RACHAT DE TRIMESTRES à facturer",
     variable: "€ HT",
     value: "750",
     variable1: "",

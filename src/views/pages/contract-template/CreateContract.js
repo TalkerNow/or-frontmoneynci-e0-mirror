@@ -615,7 +615,7 @@ class CreateContract extends React.Component {
                                                     </Col>
                                                     <Col md="3" sm="12" style={{ paddingLeft: 0, marginTop: '-5px' }}>
                                                         <div className="bold-black" style={{ display: 'inline-block' }}>
-                                                            Nb mm:
+                                                            Nb mn:
                                                         </div>
                                                         <div style={{ display: 'inline-block' }}>
                                                             <Input

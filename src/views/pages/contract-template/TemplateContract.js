@@ -292,7 +292,7 @@ class TemplateContract extends React.Component {
                                                     </Col>
                                                     <Col md="3" sm="12" style={{ paddingLeft: 0, marginTop: '-5px' }}>
                                                         <div className="bold-black" style={{ display: 'inline-block' }}>
-                                                            Nb mm:
+                                                            Nb mn:
                                                         </div>
                                                         <div style={{ display: 'inline-block' }}>
                                                             <Input
@@ -1138,7 +1138,7 @@ class TemplateContract extends React.Component {
                                                         </div>
                                                     </Col>
                                                     <Col md="3" sm="12" style={{ paddingLeft: 0, marginTop: '5px' }}>
-                                                        <div style={{ display: 'inline-block' }} className="contract-div" style={{ width: '85px' }}>
+                                                        <div style={{ display: 'inline-block', width: '85px' }} className="contract-div">
                                                             {this.state.formValues['FINAL25']} €
                                                         </div>
                                                     </Col>
