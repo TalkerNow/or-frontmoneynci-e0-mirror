@@ -68,7 +68,7 @@ const navigationConfig = [
     title: "Modèle de contrat",
     type: "item",
     icon: <Icon.List size={20}/>,
-    permissions: ["admin"],
+    permissions: ["admin", "Consultant"],
     navLink: "/app/contractTemplate"
     //badge: "warning",
     //badgeText: "2"
