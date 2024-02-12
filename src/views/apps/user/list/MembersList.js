@@ -1,4 +1,4 @@
-import React from "react"
+import React from "react";
 import {
   Button,
   Card,
@@ -10,21 +10,15 @@ import {
   DropdownMenu,
   DropdownItem,
   DropdownToggle,
-} from "reactstrap"
-import axios from "axios"
-import { ContextLayout } from "../../../../utility/context/Layout"
-import { AgGridReact } from "ag-grid-react"
-import {
-  Edit,
-  Trash2,
-  ChevronDown,
-  UserPlus,
-  Download
-} from "react-feather"
+} from "reactstrap";
+import axios from "axios";
+import { ContextLayout } from "../../../../utility/context/Layout";
+import { AgGridReact } from "ag-grid-react";
+import { Edit, Trash2, ChevronDown, UserPlus, Download } from "react-feather";
 
-import { history } from "../../../../history"
-import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss"
-import "../../../../assets/scss/pages/users.scss"
+import { history } from "../../../../history";
+import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss";
+import "../../../../assets/scss/pages/users.scss";
 import SweetAlert from "react-bootstrap-sweetalert";
 import Moment from "react-moment";
 import { toast } from "react-toastify";
@@ -47,7 +41,7 @@ class MembersList extends React.Component {
     department: "All",
     defaultColDef: {
       resizable: true,
-      sortable: true
+      sortable: true,
     },
     searchVal: "",
     columnDefs: [
@@ -58,23 +52,27 @@ class MembersList extends React.Component {
         filter: true,
         checkboxSelection: true,
         headerCheckboxSelectionFilteredOnly: true,
-        headerCheckboxSelection: true
+        headerCheckboxSelection: true,
       },
       {
         headerName: "Nom",
         field: "name",
         filter: true,
         width: 250,
-        cellRendererFramework: params => {
+        cellRendererFramework: (params) => {
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
-              onClick={() => history.push("/app/member/edit/" + params.data.id + "/1")}
+              onClick={() =>
+                history.push("/app/member/edit/" + params.data.id + "/1")
+              }
             >
-              <span>{params.data.personal_informations.first_name + " " + params.data.personal_informations.last_name}</span>
+              <span>
+                {params.data.first_name + " " + params.data.last_name}
+              </span>
             </div>
-          )
-        }
+          );
+        },
       },
       {
         headerName: "Email",
@@ -87,13 +85,13 @@ class MembersList extends React.Component {
         field: "created_at",
         filter: true,
         width: 200,
-        cellRendererFramework: params => {
+        cellRendererFramework: (params) => {
           return (
             <div>
               <Moment format="DD-MM-YYYY" date={params.data.created_at} utc />
             </div>
-          )
-        }
+          );
+        },
       },
       {
         headerName: "Role",
@@ -105,150 +103,163 @@ class MembersList extends React.Component {
         headerName: "Actions",
         field: "transactions",
         width: 150,
-        cellRendererFramework: params => {
+        cellRendererFramework: (params) => {
           return (
             <div className="actions cursor-pointer">
               <Edit
                 className="mr-50"
                 size={15}
-                onClick={() => history.push("/app/member/edit/" + params.data.id + "/1")}
+                onClick={() =>
+                  history.push("/app/member/edit/" + params.data.id + "/1")
+                }
               />
               <Trash2
                 size={15}
-                onClick={() => { this.handleAlert("defaultAlert", true, params.data.id) }}
+                onClick={() => {
+                  this.handleAlert("defaultAlert", true, params.data.id);
+                }}
               />
             </div>
-          )
-        }
-      }
-    ]
-  }
+          );
+        },
+      },
+    ],
+  };
 
   createContract(id, name) {
     const Config = {
       headers: {
-        Authorization: "Bearer " + localStorage.getItem("token")
-      }
-    }
-    axios.post(global.config.server_url + "/documents", {
-      name: "abc",
-      link_to_documents: "N/a",
-      type: "contrat",
-      document_state: "Pending...",
-      date: "2010-10-10",
-      comment: "Contrat de " + name,
-      advanced_payment: "0",
-      user_id: id
-    }, Config)
+        Authorization: "Bearer " + localStorage.getItem("token"),
+      },
+    };
+    axios
+      .post(
+        global.config.server_url + "/documents",
+        {
+          name: "abc",
+          link_to_documents: "N/a",
+          type: "contrat",
+          document_state: "Pending...",
+          date: "2010-10-10",
+          comment: "Contrat de " + name,
+          advanced_payment: "0",
+          user_id: id,
+        },
+        Config
+      )
       .then(function (result) {
-        history.push("/app/contract/handleServices/" + result.data.id)
+        history.push("/app/contract/handleServices/" + result.data.id);
       })
       .catch(function (error) {
-        toast.error("API injoignable" + error)
-      })
+        toast.error("API injoignable" + error);
+      });
   }
 
   async componentDidMount() {
     const Config = {
       headers: {
-        Authorization: "Bearer " + localStorage.getItem("token")
-      }
-    }
+        Authorization: "Bearer " + localStorage.getItem("token"),
+      },
+    };
 
-    await axios.get(global.config.server_url + "/users?kind=member", Config).then(response => {
-      let rowData = response.data
-      this.setState({ rowData })
-    })
+    await axios
+      .get(global.config.server_url + "/users?kind=member", Config)
+      .then((response) => {
+        let rowData = response.data;
+        this.setState({ rowData });
+      });
   }
   onBtExport = () => {
     this.gridApi.exportDataAsCsv();
   };
   deleteUser(id) {
     const Config = {
-      headers: { Authorization: "Bearer " + localStorage.getItem("token") }
-    }
-    axios.delete(global.config.server_url + "/users/" + id, Config).then(response => {
-      var SelectedData = this.gridApi.getSelectedRows();
-      this.gridApi.updateRowData({ remove: SelectedData })
-    })
+      headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+    };
+    axios
+      .delete(global.config.server_url + "/users/" + id, Config)
+      .then((response) => {
+        var SelectedData = this.gridApi.getSelectedRows();
+        this.gridApi.updateRowData({ remove: SelectedData });
+      });
   }
-  onGridReady = params => {
-    this.gridApi = params.api
-    this.gridColumnApi = params.columnApi
+  onGridReady = (params) => {
+    this.gridApi = params.api;
+    this.gridColumnApi = params.columnApi;
     this.gridApi.setDomLayout("autoHeight");
-  }
+  };
   filterData = (column, val) => {
-    var filter = this.gridApi.getFilterInstance(column)
-    var modelObj = null
+    var filter = this.gridApi.getFilterInstance(column);
+    var modelObj = null;
     if (val !== "all") {
       modelObj = {
         type: "equals",
-        filter: val
-      }
+        filter: val,
+      };
     }
-    filter.setModel(modelObj)
-    this.gridApi.onFilterChanged()
-  }
-  filterSize = val => {
+    filter.setModel(modelObj);
+    this.gridApi.onFilterChanged();
+  };
+  filterSize = (val) => {
     if (this.gridApi) {
-      this.gridApi.paginationSetPageSize(Number(val))
+      this.gridApi.paginationSetPageSize(Number(val));
       this.setState({
-        pageSize: val
-      })
+        pageSize: val,
+      });
     }
-  }
-  updateSearchQuery = val => {
-    this.gridApi.setQuickFilter(val)
+  };
+  updateSearchQuery = (val) => {
+    this.gridApi.setQuickFilter(val);
     this.setState({
-      searchVal: val
-    })
-  }
+      searchVal: val,
+    });
+  };
   refreshCard = () => {
-    this.setState({ reload: true })
+    this.setState({ reload: true });
     setTimeout(() => {
       this.setState({
         reload: false,
         role: "All",
         selectStatus: "All",
         verified: "All",
-        department: "All"
-      })
-    }, 500)
-  }
+        department: "All",
+      });
+    }, 500);
+  };
   toggleCollapse = () => {
-    this.setState(state => ({ collapse: !state.collapse }))
-  }
+    this.setState((state) => ({ collapse: !state.collapse }));
+  };
   onEntered = () => {
-    this.setState({ status: "Opened" })
-  }
+    this.setState({ status: "Opened" });
+  };
   onEntering = () => {
-    this.setState({ status: "Opening..." })
-  }
+    this.setState({ status: "Opening..." });
+  };
   onEntered = () => {
-    this.setState({ status: "Opened" })
-  }
+    this.setState({ status: "Opened" });
+  };
   onExiting = () => {
-    this.setState({ status: "Closing..." })
-  }
+    this.setState({ status: "Closing..." });
+  };
   onExited = () => {
-    this.setState({ status: "Closed" })
-  }
+    this.setState({ status: "Closed" });
+  };
   removeCard = () => {
-    this.setState({ isVisible: false })
-  }
+    this.setState({ isVisible: false });
+  };
   handleAlert = (state, value, id) => {
-    this.setState({ [state]: value })
-    if (id !== 0)
-      this.setState({ IdToDelete: id })
+    this.setState({ [state]: value });
+    if (id !== 0) this.setState({ IdToDelete: id });
     if (state === "confirmAlert" && value === true) {
-      this.deleteUser(this.state.IdToDelete)
+      this.deleteUser(this.state.IdToDelete);
     }
-  }
+  };
   render() {
-    const { rowData, columnDefs, defaultColDef, pageSize } = this.state
+    const { rowData, columnDefs, defaultColDef, pageSize } = this.state;
     return (
       <div>
-        <SweetAlert title="Êtes vous sûrs?"
+        <SweetAlert
+          title="Êtes vous sûrs?"
           warning
           show={this.state.defaultAlert}
           showCancel
@@ -257,43 +268,45 @@ class MembersList extends React.Component {
           confirmBtnText="Oui, supprimer"
           cancelBtnText="Annuler"
           onConfirm={() => {
-            this.handleAlert("basicAlert", false, 0)
-            this.handleAlert("confirmAlert", true, 0)
+            this.handleAlert("basicAlert", false, 0);
+            this.handleAlert("confirmAlert", true, 0);
           }}
           onCancel={() => {
-            this.handleAlert("basicAlert", false, 0)
-            this.handleAlert("cancelAlert", true, 0)
+            this.handleAlert("basicAlert", false, 0);
+            this.handleAlert("cancelAlert", true, 0);
           }}
         >
           Vous ne pourrez pas revenir en arrière
         </SweetAlert>
 
-        <SweetAlert success title="Supprimé!"
+        <SweetAlert
+          success
+          title="Supprimé!"
           confirmBtnBsStyle="success"
           show={this.state.confirmAlert}
           onConfirm={() => {
-            this.handleAlert("defaultAlert", false, 0)
-            this.handleAlert("confirmAlert", false, 0)
+            this.handleAlert("defaultAlert", false, 0);
+            this.handleAlert("confirmAlert", false, 0);
           }}
         >
           <p className="sweet-alert-text">Your file has been deleted.</p>
         </SweetAlert>
 
-        <SweetAlert error title="Annulé!"
+        <SweetAlert
+          error
+          title="Annulé!"
           confirmBtnBsStyle="success"
           show={this.state.cancelAlert}
           onConfirm={() => {
-            this.handleAlert("defaultAlert", false, 0)
-            this.handleAlert("cancelAlert", false, 0)
+            this.handleAlert("defaultAlert", false, 0);
+            this.handleAlert("cancelAlert", false, 0);
           }}
         >
-          <p className="sweet-alert-text">
-            L'action est annulé
-          </p>
+          <p className="sweet-alert-text">L'action est annulé</p>
         </SweetAlert>
         <Row className="app-user-list">
           <Col sm="12">
-            <Card style={{ minHeight: '3000px' }}>
+            <Card style={{ minHeight: "3000px" }}>
               <CardBody>
                 <div className="ag-theme-material ag-grid-table">
                   <div className="ag-grid-actions d-flex justify-content-between flex-wrap mb-1">
@@ -336,16 +349,26 @@ class MembersList extends React.Component {
                         className="w-50 mr-1 mb-1 mb-sm-0"
                         type="text"
                         placeholder="search..."
-                        onChange={e => this.updateSearchQuery(e.target.value)}
+                        onChange={(e) => this.updateSearchQuery(e.target.value)}
                         value={this.state.searchVal}
                       />
                       <div>
-                        <Button.Ripple className="mr-1 mb-1" outline color="primary" onClick={() => history.push("/app/member/createUser")}>
+                        <Button.Ripple
+                          className="mr-1 mb-1"
+                          outline
+                          color="primary"
+                          onClick={() => history.push("/app/member/createUser")}
+                        >
                           <UserPlus size={15} />
                         </Button.Ripple>
                       </div>
                       <div className="dropdown mr-1 mb-1 d-inline-block">
-                        <Button className="mb-2" outline color="primary" onClick={() => this.onBtExport()}>
+                        <Button
+                          className="mb-2"
+                          outline
+                          color="primary"
+                          onClick={() => this.onBtExport()}
+                        >
                           <Download className="primary" size={15} />
                         </Button>
                       </div>
@@ -353,9 +376,9 @@ class MembersList extends React.Component {
                   </div>
                   {this.state.rowData !== null ? (
                     <ContextLayout.Consumer>
-                      {context => (
+                      {(context) => (
                         <AgGridReact
-                          height={'autoHeight'}
+                          height={"autoHeight"}
                           gridOptions={{}}
                           rowSelection="multiple"
                           defaultColDef={defaultColDef}
@@ -380,8 +403,8 @@ class MembersList extends React.Component {
           </Col>
         </Row>
       </div>
-    )
+    );
   }
 }
 
-export default MembersList
+export default MembersList;

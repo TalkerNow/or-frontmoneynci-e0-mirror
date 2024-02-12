@@ -1,6 +1,5 @@
-
-import React from "react"
-import { Download } from "react-feather"
+import React from "react";
+import { Download } from "react-feather";
 import {
   Button,
   Card,
@@ -17,40 +16,38 @@ import {
   DropdownItem,
   DropdownToggle,
   Collapse,
-  Spinner
-} from "reactstrap"
-import axios from "axios"
-import { ContextLayout } from "../../../../utility/context/Layout"
-import { AgGridReact } from "ag-grid-react"
-import {
-  ChevronDown,
-} from "react-feather"
-import classnames from "classnames"
-import { history } from "../../../../history"
-import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss"
-import "../../../../assets/scss/pages/users.scss"
+  Spinner,
+} from "reactstrap";
+import axios from "axios";
+import { ContextLayout } from "../../../../utility/context/Layout";
+import { AgGridReact } from "ag-grid-react";
+import { ChevronDown, Trash2 } from "react-feather";
+import classnames from "classnames";
+import { history } from "../../../../history";
+import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss";
+import "../../../../assets/scss/pages/users.scss";
 import SweetAlert from "react-bootstrap-sweetalert";
 import { toast } from "react-toastify";
 
 class OldClientsList extends React.Component {
   onCopy = (information) => {
-    this.setState({ copied: true })
-    navigator.clipboard.writeText(information)
+    this.setState({ copied: true });
+    navigator.clipboard.writeText(information);
     toast.success("Copier dans le presse papier", {
       position: toast.POSITION.TOP_CENTER,
-      autoClose: 2000
-    })
-  }
+      autoClose: 2000,
+    });
+  };
 
   onCopyName = (nom, prenom) => {
-    var info = prenom + " " + nom
-    this.setState({ copied: true })
-    navigator.clipboard.writeText(info)
+    var info = prenom + " " + nom;
+    this.setState({ copied: true });
+    navigator.clipboard.writeText(info);
     toast.success("Copier dans le presse papier", {
       position: toast.POSITION.TOP_CENTER,
-      autoClose: 2000
-    })
-  }
+      autoClose: 2000,
+    });
+  };
 
   state = {
     defaultAlert: false,
@@ -71,7 +68,7 @@ class OldClientsList extends React.Component {
     department: "All",
     defaultColDef: {
       resizable: true,
-      sortable: true
+      sortable: true,
     },
     searchVal: "",
     columnDefs: [
@@ -80,139 +77,165 @@ class OldClientsList extends React.Component {
         field: "cl_nom",
         filter: true,
         width: 250,
-        cellRendererFramework: rowData => {
+        cellRendererFramework: (rowData) => {
+          console.log(rowData);
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
-              onClick={() => this.onCopyName(rowData.data.cl_nom, rowData.data.cl_prenom)}
-            ><span>{rowData.data.cl_nom}</span></div>
-          )
-        }
+              onClick={() =>
+                this.onCopyName(rowData.data.cl_nom, rowData.data.cl_prenom)
+              }
+            >
+              <span>{rowData.data.cl_nom}</span>
+            </div>
+          );
+        },
       },
       {
         headerName: "Prénom",
         field: "cl_prenom",
         filter: true,
         width: 250,
-        cellRendererFramework: rowData => {
+        cellRendererFramework: (rowData) => {
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
-              onClick={() => this.onCopyName(rowData.data.cl_nom, rowData.data.cl_prenom)}
-            ><span>{rowData.data.cl_prenom}</span></div>
-          )
-        }
+              onClick={() =>
+                this.onCopyName(rowData.data.cl_nom, rowData.data.cl_prenom)
+              }
+            >
+              <span>{rowData.data.cl_prenom}</span>
+            </div>
+          );
+        },
       },
       {
         headerName: "Expert",
         field: "expert_name",
         filter: true,
         width: 250,
-        cellRendererFramework: rowData => {
+        cellRendererFramework: (rowData) => {
           return (
-            <div
-              className="d-flex align-items-center cursor-pointer"
-            ><span>{rowData.data.expert_name}</span></div>
-          )
-        }
+            <div className="d-flex align-items-center cursor-pointer">
+              <span>{rowData.data.expert_name}</span>
+            </div>
+          );
+        },
       },
       {
         headerName: "civilité",
         field: "cl_civilite",
         filter: true,
         width: 250,
-        cellRendererFramework: rowData => {
+        cellRendererFramework: (rowData) => {
           return (
-            <div
-              className="d-flex align-items-center cursor-pointer"
-            ><span>{rowData.data.cl_civilite}</span></div>
-          )
-        }
+            <div className="d-flex align-items-center cursor-pointer">
+              <span>{rowData.data.cl_civilite}</span>
+            </div>
+          );
+        },
       },
       {
         headerName: "Date de naissance",
         field: "cl_ne_le",
         filter: true,
         width: 250,
-        cellRendererFramework: rowData => {
+        cellRendererFramework: (rowData) => {
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
               onClick={() => this.onCopy(rowData.data.cl_ne_le)}
-            ><span>{rowData.data.cl_ne_le}</span></div>
-          )
-        }
+            >
+              <span>{rowData.data.cl_ne_le}</span>
+            </div>
+          );
+        },
       },
       {
         headerName: "N° de téléphone",
         field: "cl_tel_port",
         filter: true,
         width: 250,
-        cellRendererFramework: rowData => {
+        cellRendererFramework: (rowData) => {
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
               onClick={() => this.onCopy(rowData.data.cl_tel_port)}
-            ><span>{rowData.data.cl_tel_port}</span></div>
-          )
-        }
+            >
+              <span>{rowData.data.cl_tel_port}</span>
+            </div>
+          );
+        },
       },
       {
         headerName: "Adresse",
         field: "cl_adr",
         filter: true,
         width: 250,
-        cellRendererFramework: rowData => {
+        cellRendererFramework: (rowData) => {
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
               onClick={() => this.onCopy(rowData.data.cl_adr)}
-            ><span>{rowData.data.cl_adr}</span></div>
-          )
-        }
+            >
+              <span>{rowData.data.cl_adr}</span>
+            </div>
+          );
+        },
       },
       {
         headerName: "Ville",
         field: "cl_ville",
         filter: true,
         width: 250,
-        cellRendererFramework: rowData => {
+        cellRendererFramework: (rowData) => {
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
               onClick={() => this.onCopy(rowData.data.cl_ville)}
-            ><span>{rowData.data.cl_ville}</span></div>
-          )
-        }
+            >
+              <span>{rowData.data.cl_ville}</span>
+            </div>
+          );
+        },
       },
       {
         headerName: "Code postal",
         field: "cl_cp",
         filter: true,
         width: 250,
-        cellRendererFramework: rowData => {
+        cellRendererFramework: (rowData) => {
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
               onClick={() => this.onCopy(rowData.data.cl_cp)}
-            ><span>{rowData.data.cl_cp}</span></div>
-          )
-        }
+            >
+              <span>{rowData.data.cl_cp}</span>
+            </div>
+          );
+        },
       },
       {
         headerName: "Email",
         field: "cl_mail",
         filter: true,
         width: 200,
-        cellRendererFramework: rowData => {
+        cellRendererFramework: (rowData) => {
           var email = rowData.data.cl_mail;
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
-              onClick={() => window.location.href = "mailto:" + email + "?subject=Subject&body=message%20goes%20here"}
-            ><span>{rowData.data.cl_mail}</span></div>
-          )
-        }
+              onClick={() =>
+                (window.location.href =
+                  "mailto:" +
+                  email +
+                  "?subject=Subject&body=message%20goes%20here")
+              }
+            >
+              <span>{rowData.data.cl_mail}</span>
+            </div>
+          );
+        },
       },
       {
         headerName: "Date de Création",
@@ -220,133 +243,158 @@ class OldClientsList extends React.Component {
         filter: true,
         width: 200,
       },
-    ]
-  }
+      {
+        headerName: "Actions",
+        width: 150,
+        cellRendererFramework: (params) => {
+          return (
+            <div className="actions cursor-pointer">
+              <Trash2
+                size={15}
+                onClick={() => {
+                  this.handleAlert("defaultAlert", true, params.data.clcleunik);
+                }}
+              />
+            </div>
+          );
+        },
+      },
+    ],
+  };
 
   createContract(id, name) {
     const Config = {
       headers: {
-        Authorization: "Bearer " + localStorage.getItem("token")
-      }
-    }
-    axios.post(global.config.server_url + "/documents", {
-      name: "abc",
-      link_to_documents: "N/a",
-      type: "contrat",
-      document_state: "Pending...",
-      date: "2010-10-10",
-      comment: "Contrat de " + name,
-      advanced_payment: "0",
-      user_id: id
-    }, Config)
+        Authorization: "Bearer " + localStorage.getItem("token"),
+      },
+    };
+    axios
+      .post(
+        global.config.server_url + "/documents",
+        {
+          name: "abc",
+          link_to_documents: "N/a",
+          type: "contrat",
+          document_state: "Pending...",
+          date: "2010-10-10",
+          comment: "Contrat de " + name,
+          advanced_payment: "0",
+          user_id: id,
+        },
+        Config
+      )
       .then(function (result) {
-        history.push("/app/contract/handleServices/" + result.data.id)
+        history.push("/app/contract/handleServices/" + result.data.id);
       })
       .catch(function (error) {
-        toast.error("API injoignable" + error)
-      })
+        toast.error("API injoignable" + error);
+      });
   }
 
   async componentDidMount() {
     const Config = {
       headers: {
-        Authorization: "Bearer " + localStorage.getItem("token")
-      }
-    }
-    await axios.get(global.config.server_url + "/users?kind=oldclient", Config).then(response => {
-      let rowData = response.data.data
-      this.setState({ rowData })
-    })
+        Authorization: "Bearer " + localStorage.getItem("token"),
+      },
+    };
+    await axios
+      .get(global.config.server_url + "/users?kind=oldclient", Config)
+      .then((response) => {
+        let rowData = response.data;
+        this.setState({ rowData });
+      });
   }
   onBtExport = () => {
     this.gridApi.exportDataAsCsv();
   };
   deleteUser(id) {
     const Config = {
-      headers: { Authorization: "Bearer " + localStorage.getItem("token") }
-    }
-    axios.delete(global.config.server_url + "/users/" + id, Config).then(response => {
-      var SelectedData = this.gridApi.getSelectedRows();
-      this.gridApi.updateRowData({ remove: SelectedData })
-    })
+      headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+    };
+    axios
+      .delete(global.config.server_url + "/users/" + id + "?old=true", Config)
+      .then((response) => {
+        var SelectedData = this.gridApi.getSelectedRows();
+        this.gridApi.updateRowData({ remove: SelectedData });
+      });
   }
-  onGridReady = params => {
-    this.gridApi = params.api
-    this.gridColumnApi = params.columnApi
+  onGridReady = (params) => {
+    this.gridApi = params.api;
+    this.gridColumnApi = params.columnApi;
     this.gridApi.setDomLayout("autoHeight");
-  }
+  };
   filterData = (column, val) => {
-    var filter = this.gridApi.getFilterInstance(column)
-    var modelObj = null
+    var filter = this.gridApi.getFilterInstance(column);
+    var modelObj = null;
     if (val !== "all") {
       modelObj = {
         type: "equals",
-        filter: val
-      }
+        filter: val,
+      };
     }
-    filter.setModel(modelObj)
-    this.gridApi.onFilterChanged()
-  }
-  filterSize = val => {
+    filter.setModel(modelObj);
+    this.gridApi.onFilterChanged();
+  };
+  filterSize = (val) => {
     if (this.gridApi) {
-      this.gridApi.paginationSetPageSize(Number(val))
+      this.gridApi.paginationSetPageSize(Number(val));
       this.setState({
-        pageSize: val
-      })
+        pageSize: val,
+      });
     }
-  }
-  updateSearchQuery = val => {
-    this.gridApi.setQuickFilter(val)
+  };
+  updateSearchQuery = (val) => {
+    this.gridApi.setQuickFilter(val);
     this.setState({
-      searchVal: val
-    })
-  }
+      searchVal: val,
+    });
+  };
   refreshCard = () => {
-    this.setState({ reload: true })
+    this.setState({ reload: true });
     setTimeout(() => {
       this.setState({
         reload: false,
         role: "All",
         selectStatus: "All",
         verified: "All",
-        department: "All"
-      })
-    }, 500)
-  }
+        department: "All",
+      });
+    }, 500);
+  };
   toggleCollapse = () => {
-    this.setState(state => ({ collapse: !state.collapse }))
-  }
+    this.setState((state) => ({ collapse: !state.collapse }));
+  };
   onEntered = () => {
-    this.setState({ status: "Opened" })
-  }
+    this.setState({ status: "Opened" });
+  };
   onEntering = () => {
-    this.setState({ status: "Opening..." })
-  }
+    this.setState({ status: "Opening..." });
+  };
   onEntered = () => {
-    this.setState({ status: "Opened" })
-  }
+    this.setState({ status: "Opened" });
+  };
   onExiting = () => {
-    this.setState({ status: "Closing..." })
-  }
+    this.setState({ status: "Closing..." });
+  };
   onExited = () => {
-    this.setState({ status: "Closed" })
-  }
+    this.setState({ status: "Closed" });
+  };
   removeCard = () => {
-    this.setState({ isVisible: false })
-  }
+    this.setState({ isVisible: false });
+  };
   handleAlert = (state, value, id) => {
-    this.setState({ [state]: value })
-    if (id !== 0)
-      this.setState({ IdToDelete: id })
+    this.setState({ [state]: value });
+    if (id !== 0) this.setState({ IdToDelete: id });
     if (state === "confirmAlert" && value === true) {
-      this.deleteUser(this.state.IdToDelete)
+      this.deleteUser(this.state.IdToDelete);
     }
-  }
+  };
   render() {
-    const { rowData, columnDefs, defaultColDef, pageSize } = this.state
+    const { rowData, columnDefs, defaultColDef, pageSize } = this.state;
     return (
       <div>
-        <SweetAlert title="Êtes vous sûrs?"
+        <SweetAlert
+          title="Êtes vous sûrs?"
           warning
           show={this.state.defaultAlert}
           showCancel
@@ -355,39 +403,41 @@ class OldClientsList extends React.Component {
           confirmBtnText="Oui, supprimer"
           cancelBtnText="Annuler"
           onConfirm={() => {
-            this.handleAlert("basicAlert", false, 0)
-            this.handleAlert("confirmAlert", true, 0)
+            this.handleAlert("basicAlert", false, 0);
+            this.handleAlert("confirmAlert", true, 0);
           }}
           onCancel={() => {
-            this.handleAlert("basicAlert", false, 0)
-            this.handleAlert("cancelAlert", true, 0)
+            this.handleAlert("basicAlert", false, 0);
+            this.handleAlert("cancelAlert", true, 0);
           }}
         >
           Vous ne pourrez pas revenir en arrière
         </SweetAlert>
 
-        <SweetAlert success title="Supprimé!"
+        <SweetAlert
+          success
+          title="Supprimé!"
           confirmBtnBsStyle="success"
           show={this.state.confirmAlert}
           onConfirm={() => {
-            this.handleAlert("defaultAlert", false, 0)
-            this.handleAlert("confirmAlert", false, 0)
+            this.handleAlert("defaultAlert", false, 0);
+            this.handleAlert("confirmAlert", false, 0);
           }}
         >
           <p className="sweet-alert-text">Your file has been deleted.</p>
         </SweetAlert>
 
-        <SweetAlert error title="Annulé!"
+        <SweetAlert
+          error
+          title="Annulé!"
           confirmBtnBsStyle="success"
           show={this.state.cancelAlert}
           onConfirm={() => {
-            this.handleAlert("defaultAlert", false, 0)
-            this.handleAlert("cancelAlert", false, 0)
+            this.handleAlert("defaultAlert", false, 0);
+            this.handleAlert("cancelAlert", false, 0);
           }}
         >
-          <p className="sweet-alert-text">
-            L'action est annulé
-          </p>
+          <p className="sweet-alert-text">L'action est annulé</p>
         </SweetAlert>
         <Row className="app-user-list">
           <Col sm="12">
@@ -397,12 +447,13 @@ class OldClientsList extends React.Component {
                 "card-collapsed": this.state.status === "Closed",
                 closing: this.state.status === "Closing...",
                 opening: this.state.status === "Opening...",
-                refreshing: this.state.reload
+                refreshing: this.state.reload,
               })}
             >
               <CardHeader>
                 <CardTitle>
-                  Cette page permet de recenser les clients provenant de l'ancien site Optionretraite.net
+                  Cette page permet de recenser les clients provenant de
+                  l'ancien site Optionretraite.net
                 </CardTitle>
               </CardHeader>
               <Collapse
@@ -427,17 +478,17 @@ class OldClientsList extends React.Component {
                           name="role"
                           id="role"
                           value={this.state.role}
-                          onChange={e => {
+                          onChange={(e) => {
                             this.setState(
                               {
-                                role: e.target.value
+                                role: e.target.value,
                               },
                               () =>
                                 this.filterData(
                                   "role",
                                   this.state.role.toLowerCase()
                                 )
-                            )
+                            );
                           }}
                         >
                           <option value="All">All</option>
@@ -455,17 +506,17 @@ class OldClientsList extends React.Component {
                           name="status"
                           id="status"
                           value={this.state.selectStatus}
-                          onChange={e => {
+                          onChange={(e) => {
                             this.setState(
                               {
-                                selectStatus: e.target.value
+                                selectStatus: e.target.value,
                               },
                               () =>
                                 this.filterData(
                                   "status",
                                   this.state.selectStatus.toLowerCase()
                                 )
-                            )
+                            );
                           }}
                         >
                           <option value="All">All</option>
@@ -483,17 +534,17 @@ class OldClientsList extends React.Component {
                           name="verified"
                           id="verified"
                           value={this.state.verified}
-                          onChange={e => {
+                          onChange={(e) => {
                             this.setState(
                               {
-                                verified: e.target.value
+                                verified: e.target.value,
                               },
                               () =>
                                 this.filterData(
                                   "is_verified",
                                   this.state.verified.toLowerCase()
                                 )
-                            )
+                            );
                           }}
                         >
                           <option value="All">All</option>
@@ -510,17 +561,17 @@ class OldClientsList extends React.Component {
                           name="department"
                           id="department"
                           value={this.state.department}
-                          onChange={e => {
+                          onChange={(e) => {
                             this.setState(
                               {
-                                department: e.target.value
+                                department: e.target.value,
                               },
                               () =>
                                 this.filterData(
                                   "department",
                                   this.state.department.toLowerCase()
                                 )
-                            )
+                            );
                           }}
                         >
                           <option value="All">All</option>
@@ -536,7 +587,7 @@ class OldClientsList extends React.Component {
             </Card>
           </Col>
           <Col sm="12">
-            <Card style={{ minHeight: '3000px' }}>
+            <Card style={{ minHeight: "3000px" }}>
               <CardBody>
                 <div className="ag-theme-material ag-grid-table">
                   <div className="ag-grid-actions d-flex justify-content-between flex-wrap mb-1">
@@ -579,11 +630,16 @@ class OldClientsList extends React.Component {
                         className="w-50 mr-1 mb-1 mb-sm-0"
                         type="text"
                         placeholder="search..."
-                        onChange={e => this.updateSearchQuery(e.target.value)}
+                        onChange={(e) => this.updateSearchQuery(e.target.value)}
                         value={this.state.searchVal}
                       />
                       <div className="dropdown mb-1 d-inline-block">
-                        <Button className="mb-2" outline color="primary" onClick={() => this.onBtExport()}>
+                        <Button
+                          className="mb-2"
+                          outline
+                          color="primary"
+                          onClick={() => this.onBtExport()}
+                        >
                           <Download className="primary" size={15} />
                         </Button>
                       </div>
@@ -591,9 +647,9 @@ class OldClientsList extends React.Component {
                   </div>
                   {this.state.rowData !== null ? (
                     <ContextLayout.Consumer>
-                      {context => (
+                      {(context) => (
                         <AgGridReact
-                          height={'autoHeight'}
+                          height={"autoHeight"}
                           gridOptions={{}}
                           rowSelection="multiple"
                           defaultColDef={defaultColDef}
@@ -619,8 +675,8 @@ class OldClientsList extends React.Component {
           </Col>
         </Row>
       </div>
-    )
+    );
   }
 }
 
-export default OldClientsList
+export default OldClientsList;
