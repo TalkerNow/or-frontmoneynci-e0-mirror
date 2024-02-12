@@ -180,7 +180,9 @@ class ClientsList extends React.Component {
     return false;
   };
   onBtExport = () => {
-    this.gridApi.exportDataAsCsv();
+    this.gridApi.exportDataAsCsv({
+      columnKeys: [3, 1, 2, 5],
+    });
   };
   externalFilterChanged = (newValue) => {
     consultant_id = newValue;

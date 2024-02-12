@@ -1,6 +1,4 @@
-
-
-import React from "react"
+import React from "react";
 import {
   Card,
   CardHeader,
@@ -10,21 +8,16 @@ import {
   Row,
   Button,
   Col,
-} from "reactstrap"
+} from "reactstrap";
 //import { Edit, Trash, Lock, Check } from "react-feather"
 //import { Link } from "react-router-dom"
 //import Checkbox from "../../../components/@vuexy/checkbox/CheckboxesVuexy"
 //import userImg from "../../../assets/img/portrait/small/avatar-s-18.jpg"
-import "../../../assets/scss/pages/users.scss"
-import { history } from "../../../history"
+import "../../../assets/scss/pages/users.scss";
+import { history } from "../../../history";
 //import { useTranslation } from 'react-i18next';
 import axios from "axios";
-import {
-  Globe,
-  Info,
-  MessageCircle,
-  MapPin
-} from "react-feather"
+import { Globe, Info, MessageCircle, MapPin } from "react-feather";
 import moment from "moment";
 
 /*const handleNavigation = (e, path) => {
@@ -35,22 +28,22 @@ import moment from "moment";
 class UserView extends React.Component {
   state = {
     rowData: [],
-    persoData:[],
-  }
+  };
 
   async componentDidMount() {
     const Config = {
       headers: {
-        Authorization: "Bearer " + localStorage.getItem("token")
-      }
-    }
+        Authorization: "Bearer " + localStorage.getItem("token"),
+      },
+    };
     var userid = localStorage.getItem("userid");
 
-    await axios.get(global.config.server_url + "/users/" + userid, Config).then(response => {
-      let rowData = response.data;
-      let persoData = response.data.personal_informations;
-      this.setState({ rowData, persoData })
-    })
+    await axios
+      .get(global.config.server_url + "/users/" + userid, Config)
+      .then((response) => {
+        let rowData = response.data;
+        this.setState({ rowData });
+      });
   }
   render() {
     return (
@@ -59,12 +52,21 @@ class UserView extends React.Component {
           <Col sm="12">
             <Card>
               <CardHeader>
-                <CardTitle><Globe className="primary" size={25} /> Account</CardTitle>
+                <CardTitle>
+                  <Globe className="primary" size={25} /> Account
+                </CardTitle>
                 <Button
-                        color="primary"
-                        disabled={this.state.activeStep === 0}
-                        onClick={() => history.push("/app/member/edit/" + localStorage.getItem("userid") + "/1")}>
-                        Modifier
+                  color="primary"
+                  disabled={this.state.activeStep === 0}
+                  onClick={() =>
+                    history.push(
+                      "/app/member/edit/" +
+                        localStorage.getItem("userid") +
+                        "/1"
+                    )
+                  }
+                >
+                  Modifier
                 </Button>
               </CardHeader>
               <CardBody>
@@ -79,20 +81,22 @@ class UserView extends React.Component {
                                 <div className="user-info-title font-weight-bold">
                                   Civilité
                                 </div>
-                                <div>{this.state.persoData['civility']}</div>
+                                <div>{this.state.rowData["civility"]}</div>
                               </div>
                               <div className="d-flex user-info">
                                 <div className="user-info-title font-weight-bold">
                                   Nom
                                 </div>
-                                <div>{this.state.persoData['last_name']}</div>
+                                <div>{this.state.rowData["last_name"]}</div>
                               </div>
                               <div className="d-flex user-info">
                                 <div className="user-info-title font-weight-bold">
                                   Prénom
                                 </div>
                                 <div className="text-truncate">
-                                  <span>{this.state.persoData['first_name']}</span>
+                                  <span>
+                                    {this.state.rowData["first_name"]}
+                                  </span>
                                 </div>
                               </div>
                               <div className="d-flex user-info">
@@ -100,7 +104,11 @@ class UserView extends React.Component {
                                   Prestation
                                 </div>
                                 <div className="text-truncate">
-                                  <span>{this.state.rowData['subscribe_services']? this.state.rowData['subscribe_services']:'No Subscribe'}</span>
+                                  <span>
+                                    {this.state.rowData["subscribe_services"]
+                                      ? this.state.rowData["subscribe_services"]
+                                      : "No Subscribe"}
+                                  </span>
                                 </div>
                               </div>
                             </div>
@@ -111,20 +119,20 @@ class UserView extends React.Component {
                                 <div className="user-info-title font-weight-bold">
                                   Mot de passe
                                 </div>
-                                <div>{this.state.rowData['p_password']}</div>
+                                <div>{this.state.rowData["p_password"]}</div>
                               </div>
                               <div className="d-flex user-info">
                                 <div className="user-info-title font-weight-bold">
                                   Role
                                 </div>
-                                <div>{this.state.rowData['role']}</div>
+                                <div>{this.state.rowData["role"]}</div>
                               </div>
                               <div className="d-flex user-info">
                                 <div className="user-info-title font-weight-bold">
                                   Email
                                 </div>
                                 <div>
-                                  <span>{this.state.rowData['email']}</span>
+                                  <span>{this.state.rowData["email"]}</span>
                                 </div>
                               </div>
                             </div>
@@ -140,7 +148,9 @@ class UserView extends React.Component {
           <Col sm="12" md="6">
             <Card>
               <CardHeader>
-                <CardTitle><Info className="success" size={25} /> Information</CardTitle>
+                <CardTitle>
+                  <Info className="success" size={25} /> Information
+                </CardTitle>
               </CardHeader>
               <CardBody>
                 <div className="users-page-view-table">
@@ -148,20 +158,25 @@ class UserView extends React.Component {
                     <div className="user-info-title font-weight-bold">
                       Date de Naissance
                     </div>
-                    <div> {moment(this.state.persoData['birth_date']).format("DD/MM/YYYY")}</div>
+                    <div>
+                      {" "}
+                      {moment(this.state.rowData["birth_date"]).format(
+                        "DD/MM/YYYY"
+                      )}
+                    </div>
                   </div>
                   <div className="d-flex user-info">
                     <div className="user-info-title font-weight-bold">
                       Statut Marital
                     </div>
-                    <div>{this.state.persoData['martial_status']}</div>
+                    <div>{this.state.rowData["martial_status"]}</div>
                   </div>
                   <div className="d-flex user-info">
                     <div className="user-info-title font-weight-bold">
                       Service Militaire
                     </div>
                     <div className="text-truncate">
-                      <span>{this.state.persoData['military_service']}</span>
+                      <span>{this.state.rowData["military_service"]}</span>
                     </div>
                   </div>
                   <div className="d-flex user-info">
@@ -169,7 +184,7 @@ class UserView extends React.Component {
                       Nb d'enfant(s)
                     </div>
                     <div className="text-truncate">
-                      <span>{this.state.persoData['children_number']}</span>
+                      <span>{this.state.rowData["children_number"]}</span>
                     </div>
                   </div>
                   <div className="d-flex user-info">
@@ -177,7 +192,7 @@ class UserView extends React.Component {
                       Numéro de sécurité Sociale
                     </div>
                     <div className="text-truncate">
-                      <span>{this.state.persoData['secu_social']}</span>
+                      <span>{this.state.rowData["secu_social"]}</span>
                     </div>
                   </div>
                   <div className="d-flex user-info">
@@ -185,7 +200,7 @@ class UserView extends React.Component {
                       Clé de sécurité Sociale
                     </div>
                     <div className="text-truncate">
-                      <span>{this.state.persoData['secu_social_key']}</span>
+                      <span>{this.state.rowData["secu_social_key"]}</span>
                     </div>
                   </div>
                   <div className="d-flex user-info">
@@ -193,7 +208,7 @@ class UserView extends React.Component {
                       Tel mob
                     </div>
                     <div className="text-truncate">
-                      <span>{this.state.persoData['mobile_number']}</span>
+                      <span>{this.state.rowData["mobile_number"]}</span>
                     </div>
                   </div>
                   <div className="d-flex user-info">
@@ -201,7 +216,7 @@ class UserView extends React.Component {
                       Tel bur
                     </div>
                     <div className="text-truncate">
-                      <span>{this.state.persoData['office_number']}</span>
+                      <span>{this.state.rowData["office_number"]}</span>
                     </div>
                   </div>
                 </div>
@@ -209,17 +224,27 @@ class UserView extends React.Component {
             </Card>
           </Col>
           <Col sm="12" md="6">
-            <Card style={{minHeight:'360px'}}>
+            <Card style={{ minHeight: "360px" }}>
               <CardHeader>
-                <CardTitle><MessageCircle className="warning" size={25} /> Notes</CardTitle>
+                <CardTitle>
+                  <MessageCircle className="warning" size={25} /> Notes
+                </CardTitle>
               </CardHeader>
               <CardBody>
                 <div className="users-page-view-table">
                   <div className="d-flex user-info">
                     <div>
-                      {this.state.persoData['notes'] && this.state.persoData['notes'].split('\n').map(function(item) {
-                        return (<>{item}<br/></>)
-                      })}
+                      {this.state.rowData["notes"] &&
+                        this.state.rowData["notes"]
+                          .split("\n")
+                          .map(function (item) {
+                            return (
+                              <>
+                                {item}
+                                <br />
+                              </>
+                            );
+                          })}
                     </div>
                   </div>
                 </div>
@@ -229,7 +254,9 @@ class UserView extends React.Component {
           <Col sm="12" md="6">
             <Card>
               <CardHeader>
-                <CardTitle><MapPin className="info" size={25} /> Personnel</CardTitle>
+                <CardTitle>
+                  <MapPin className="info" size={25} /> Personnel
+                </CardTitle>
               </CardHeader>
               <CardBody>
                 <div className="users-page-view-table">
@@ -237,20 +264,20 @@ class UserView extends React.Component {
                     <div className="user-info-title font-weight-bold">
                       Adresse1
                     </div>
-                    <div> {this.state.persoData['personal_address']}</div>
+                    <div> {this.state.rowData["personal_address"]}</div>
                   </div>
                   <div className="d-flex user-info">
                     <div className="user-info-title font-weight-bold">
                       Adresse2
                     </div>
-                    <div>{this.state.persoData['personal_address_2']}</div>
+                    <div>{this.state.rowData["personal_address_2"]}</div>
                   </div>
                   <div className="d-flex user-info">
                     <div className="user-info-title font-weight-bold">
                       Code Postal
                     </div>
                     <div className="text-truncate">
-                      <span>{this.state.persoData['personal_zip_code']}</span>
+                      <span>{this.state.rowData["personal_zip_code"]}</span>
                     </div>
                   </div>
                   <div className="d-flex user-info">
@@ -258,15 +285,13 @@ class UserView extends React.Component {
                       Ville
                     </div>
                     <div className="text-truncate">
-                      <span>{this.state.persoData['personal_city']}</span>
+                      <span>{this.state.rowData["personal_city"]}</span>
                     </div>
                   </div>
                   <div className="d-flex user-info">
-                    <div className="user-info-title font-weight-bold">
-                      Pays
-                    </div>
+                    <div className="user-info-title font-weight-bold">Pays</div>
                     <div className="text-truncate">
-                      <span>{this.state.persoData['personal_country']}</span>
+                      <span>{this.state.rowData["personal_country"]}</span>
                     </div>
                   </div>
                 </div>
@@ -276,7 +301,10 @@ class UserView extends React.Component {
           <Col sm="12" md="6">
             <Card>
               <CardHeader>
-                <CardTitle><MapPin className="info" size={25} /> Société: {this.state.persoData['society_name']}</CardTitle>
+                <CardTitle>
+                  <MapPin className="info" size={25} /> Société:{" "}
+                  {this.state.rowData["society_name"]}
+                </CardTitle>
               </CardHeader>
               <CardBody>
                 <div className="users-page-view-table">
@@ -284,22 +312,21 @@ class UserView extends React.Component {
                     <div className="user-info-title font-weight-bold">
                       Adresse1
                     </div>
-                    <div> {this.state.persoData['society_address']}</div>
+                    <div> {this.state.rowData["society_address"]}</div>
                   </div>
                   <div className="d-flex user-info">
                     <div className="user-info-title font-weight-bold">
                       Adresse2
                     </div>
-			
-                    <div>{this.state.persoData['society_address_2']}</div>
+
+                    <div>{this.state.rowData["society_address_2"]}</div>
                   </div>
                   <div className="d-flex user-info">
                     <div className="user-info-title font-weight-bold">
                       Code Postal
                     </div>
                     <div className="text-truncate">
-			
-                     <span>{this.state.persoData['society_zip_code']}</span>
+                      <span>{this.state.rowData["society_zip_code"]}</span>
                     </div>
                   </div>
                   <div className="d-flex user-info">
@@ -307,15 +334,13 @@ class UserView extends React.Component {
                       Ville
                     </div>
                     <div className="text-truncate">
-                      <span>{this.state.persoData['society_city']}</span>
+                      <span>{this.state.rowData["society_city"]}</span>
                     </div>
                   </div>
                   <div className="d-flex user-info">
-                    <div className="user-info-title font-weight-bold">
-                      Pays
-                    </div>
+                    <div className="user-info-title font-weight-bold">Pays</div>
                     <div className="text-truncate">
-                      <span>{this.state.persoData['society_country']}</span>
+                      <span>{this.state.rowData["society_country"]}</span>
                     </div>
                   </div>
                 </div>
@@ -324,7 +349,7 @@ class UserView extends React.Component {
           </Col>
         </Row>
       </React.Fragment>
-    )
+    );
   }
 }
-export default UserView
+export default UserView;
