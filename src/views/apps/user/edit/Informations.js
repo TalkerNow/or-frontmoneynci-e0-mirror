@@ -182,7 +182,6 @@ class UserAccountTab extends React.Component {
             Config
           )
           .then((response) => {
-            // history.push("/app/user/conslist")
             toast.info("Modifications enregistrées");
           });
       });
@@ -207,7 +206,6 @@ class UserAccountTab extends React.Component {
 
   handledob = (date) => {
     var lstDate = date.split("/");
-    // var MyDateString = test.getFullYear() + "-" + ('0' + (test.getMonth()+1)).slice(-2) + "-" + ('0' + test.getDate()).slice(-2)
     if (lstDate.length === 3) {
       var MyDateString = lstDate[2] + "-" + lstDate[1] + "-" + lstDate[0];
       this.setState({
@@ -892,7 +890,6 @@ class UserAccountTab extends React.Component {
                 <Button.Ripple className="mr-1" color="primary" type="submit">
                   Modifier
                 </Button.Ripple>
-                {/*<Button.Ripple color="flat-warning">Reset</Button.Ripple>*/}
               </Col>
             </Row>
           </Form>

@@ -275,11 +275,16 @@ class ClientsList extends React.Component {
           confirmBtnBsStyle="success"
           show={this.state.confirmAlert}
           onConfirm={() => {
+            this.setState({
+              rowData: this.state.rowData.filter(
+                (elem) => elem.id !== this.state.IdToDelete
+              ),
+            });
             this.handleAlert("defaultAlert", false, 0);
             this.handleAlert("confirmAlert", false, 0);
           }}
         >
-          <p className="sweet-alert-text">Your file has been deleted.</p>
+          <p className="sweet-alert-text">L'utilisateur à été supprimé.</p>
         </SweetAlert>
 
         <SweetAlert

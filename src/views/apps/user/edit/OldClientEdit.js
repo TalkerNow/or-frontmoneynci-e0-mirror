@@ -1,4 +1,4 @@
-import React from "react"
+import React from "react";
 import {
   Card,
   CardBody,
@@ -8,49 +8,55 @@ import {
   NavItem,
   NavLink,
   TabContent,
-  TabPane
-} from "reactstrap"
-import classnames from "classnames"
-import { User, Info, Folder } from "react-feather"
-import AccountTab from "./oldInformations"
-//import NotesTab from "./Notes"
-//import CommentsTab from "./Comments"
-import "../../../../assets/scss/pages/users.scss"
+  TabPane,
+} from "reactstrap";
+import classnames from "classnames";
+import { User, Info, Folder } from "react-feather";
+import AccountTab from "./oldInformations";
+import "../../../../assets/scss/pages/users.scss";
 import axios from "axios";
-//import Contracts from "./Contracts";
-//import Documents from "./Documents";
-//import Task from "./clientTask/Task";
 import { history } from "../../../../history";
+
 class UserEdit extends React.Component {
   state = {
     rowData: [],
-    persoData: [],
     members: [],
-    activeTab: "1"
-  }
+    activeTab: "1",
+  };
 
   async componentDidMount() {
     const Config = {
       headers: {
-        Authorization: "Bearer " + localStorage.getItem("token")
-      }
-    }
+        Authorization: "Bearer " + localStorage.getItem("token"),
+      },
+    };
     this.setState({ activeTab: this.props.match.params.tab });
 
-    await axios.get(global.config.server_url + "/users?kind=oldclient", Config).then(response => {
-      console.log(response)
-      console.log(this.props.location.state)
-      let rowData = response.data.data
-      this.setState({ rowData })
-    })
+    await axios
+      .get(
+        global.config.server_url +
+          "/users/" +
+          this.props.match.params.id +
+          "?kind=oldclient",
+        Config
+      )
+      .then((response) => {
+        let rowData = response.data;
+        this.setState({ rowData });
+      });
   }
 
-  toggle = tab => {
+  toggle = (tab) => {
     this.setState({
-      activeTab: tab
-    })
-  }
+      activeTab: tab,
+    });
+  };
+
   render() {
+    if (this.state.rowData === undefined || this.state.rowData.length === 0) {
+      return null;
+    }
+
     return (
       <Row>
         <Col sm="12">
@@ -60,23 +66,23 @@ class UserEdit extends React.Component {
                 <NavItem>
                   <NavLink
                     className={classnames({
-                      active: this.state.activeTab === "1"
+                      active: this.state.activeTab === "1",
                     })}
                     onClick={() => {
-                      this.toggle("1")
+                      this.toggle("1");
                     }}
                   >
                     <User size={16} />
-                    {this.state.persoData.first_name &&
+                    {this.state.rowData.first_name && (
                       <span className="align-middle ml-50">
-                        {this.state.persoData.first_name + " " + this.state.persoData.last_name}
+                        {this.state.rowData.first_name +
+                          " " +
+                          this.state.rowData.last_name}
                       </span>
-                    }
-                    {!this.state.persoData.first_name &&
-                      <span className="align-middle ml-50">
-                        Information
-                      </span>
-                    }
+                    )}
+                    {!this.state.rowData.first_name && (
+                      <span className="align-middle ml-50">Information</span>
+                    )}
                   </NavLink>
                 </NavItem>
               </Nav>
@@ -84,10 +90,9 @@ class UserEdit extends React.Component {
                 <TabPane tabId="1">
                   <AccountTab
                     data={this.state.rowData}
-                    perso={this.state.persoData}
                     members={this.state.members}
-                    id={this.props.location.state}
-                    dob={this.state.persoData["birth_date"]}
+                    id={this.props.match.params.id}
+                    dob={this.state.rowData.birth_date}
                   />
                 </TabPane>
               </TabContent>
@@ -95,7 +100,7 @@ class UserEdit extends React.Component {
           </Card>
         </Col>
       </Row>
-    )
+    );
   }
 }
-export default UserEdit
+export default UserEdit;

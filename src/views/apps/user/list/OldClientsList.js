@@ -21,7 +21,7 @@ import {
 import axios from "axios";
 import { ContextLayout } from "../../../../utility/context/Layout";
 import { AgGridReact } from "ag-grid-react";
-import { ChevronDown, Trash2 } from "react-feather";
+import { ChevronDown, Trash2, Edit } from "react-feather";
 import classnames from "classnames";
 import { history } from "../../../../history";
 import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss";
@@ -249,6 +249,15 @@ class OldClientsList extends React.Component {
         cellRendererFramework: (params) => {
           return (
             <div className="actions cursor-pointer">
+              <Edit
+                className="mr-50"
+                size={15}
+                onClick={() =>
+                  history.push(
+                    "/app/olduser/edit/" + params.data.clcleunik + "/1"
+                  )
+                }
+              />
               <Trash2
                 size={15}
                 onClick={() => {
@@ -420,11 +429,16 @@ class OldClientsList extends React.Component {
           confirmBtnBsStyle="success"
           show={this.state.confirmAlert}
           onConfirm={() => {
+            this.setState({
+              rowData: this.state.rowData.filter(
+                (elem) => elem.id !== this.state.IdToDelete
+              ),
+            });
             this.handleAlert("defaultAlert", false, 0);
             this.handleAlert("confirmAlert", false, 0);
           }}
         >
-          <p className="sweet-alert-text">Your file has been deleted.</p>
+          <p className="sweet-alert-text">Le client à été supprimé.</p>
         </SweetAlert>
 
         <SweetAlert
@@ -650,7 +664,21 @@ class OldClientsList extends React.Component {
                       {(context) => (
                         <AgGridReact
                           height={"autoHeight"}
-                          gridOptions={{}}
+                          gridOptions={{
+                            onCellClicked: (params) => {
+                              console.log(params);
+                              if (
+                                params.colDef.headerName === "Nom" ||
+                                params.colDef.field === "Prenom"
+                              ) {
+                                history.push(
+                                  "/app/olduser/edit/" +
+                                    params.data.clcleunik +
+                                    "/1"
+                                );
+                              }
+                            },
+                          }}
                           rowSelection="multiple"
                           defaultColDef={defaultColDef}
                           columnDefs={columnDefs}
