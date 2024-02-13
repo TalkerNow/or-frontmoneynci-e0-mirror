@@ -124,6 +124,7 @@ class OldClientsList extends React.Component {
       },
       {
         headerName: "civilité",
+        hide: true,
         field: "cl_civilite",
         filter: true,
         width: 250,
@@ -138,6 +139,7 @@ class OldClientsList extends React.Component {
       {
         headerName: "Date de naissance",
         field: "cl_ne_le",
+        hide: true,
         filter: true,
         width: 250,
         cellRendererFramework: (rowData) => {
@@ -154,6 +156,7 @@ class OldClientsList extends React.Component {
       {
         headerName: "N° de téléphone",
         field: "cl_tel_port",
+        hide: true,
         filter: true,
         width: 250,
         cellRendererFramework: (rowData) => {
@@ -170,6 +173,7 @@ class OldClientsList extends React.Component {
       {
         headerName: "Adresse",
         field: "cl_adr",
+        hide: true,
         filter: true,
         width: 250,
         cellRendererFramework: (rowData) => {
@@ -186,6 +190,7 @@ class OldClientsList extends React.Component {
       {
         headerName: "Ville",
         field: "cl_ville",
+        hide: true,
         filter: true,
         width: 250,
         cellRendererFramework: (rowData) => {
@@ -202,6 +207,7 @@ class OldClientsList extends React.Component {
       {
         headerName: "Code postal",
         field: "cl_cp",
+        hide: true,
         filter: true,
         width: 250,
         cellRendererFramework: (rowData) => {
