@@ -229,7 +229,7 @@ class UserAccountTab extends React.Component {
                   <span className="align-middle">Civilité</span>
                 </h5>
                 <FormGroup style={{ marginTop: "10px" }}>
-                  {this.props.data["civility"] != null && (
+                  {this.props.data["civility"] !== null && (
                     <>
                       <div className="d-inline-block mr-1">
                         <Radio
@@ -274,7 +274,7 @@ class UserAccountTab extends React.Component {
                       </div>
                     </>
                   )}
-                  {this.props.data["civility"] == null && (
+                  {this.props.data["civility"] === null && (
                     <>
                       <div className="d-inline-block mr-1">
                         <Radio
@@ -375,7 +375,7 @@ class UserAccountTab extends React.Component {
                       <option>admin</option>
                     </Input>
                   )}
-                  {this.ifDataExist("role") == null && (
+                  {this.ifDataExist("role") === null && (
                     <Input
                       type="select"
                       name="select"
@@ -423,7 +423,7 @@ class UserAccountTab extends React.Component {
               </Col>
               <Col md="6" sm="12">
                 <FormGroup style={{ marginBottom: "15px", marginTop: "5px" }}>
-                  {this.props.data["martial_status"] != null && (
+                  {this.props.data["martial_status"] !== null && (
                     <>
                       <div className="d-inline-block mr-1">
                         <Radio
