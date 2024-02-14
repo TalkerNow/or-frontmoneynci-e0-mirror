@@ -184,7 +184,7 @@ export const loginWithJWT = (user) => {
           localStorage.setItem("username", loggedInUser.name);
 
           setTimeout(() => {
-            history.push("/app/dashboard");
+            history.push("/dashboard");
           }, 1000);
         }
       })
