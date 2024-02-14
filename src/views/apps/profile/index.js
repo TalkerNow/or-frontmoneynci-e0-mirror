@@ -69,80 +69,84 @@ class UserView extends React.Component {
                   Modifier
                 </Button>
               </CardHeader>
-              <CardBody>
-                <Row className="mx-0" col="12">
-                  <Col className="pl-0" sm="12">
-                    <Media className="d-sm-flex d-block">
-                      <Media body>
-                        <Row>
-                          <Col sm="9" md="6" lg="5">
-                            <div className="users-page-view-table">
-                              <div className="d-flex user-info">
-                                <div className="user-info-title font-weight-bold">
-                                  Civilité
+              {this.state.rowData !== null && (
+                <CardBody>
+                  <Row className="mx-0" col="12">
+                    <Col className="pl-0" sm="12">
+                      <Media className="d-sm-flex d-block">
+                        <Media body>
+                          <Row>
+                            <Col sm="9" md="6" lg="5">
+                              <div className="users-page-view-table">
+                                <div className="d-flex user-info">
+                                  <div className="user-info-title font-weight-bold">
+                                    Civilité
+                                  </div>
+                                  <div>{this.state.rowData["civility"]}</div>
                                 </div>
-                                <div>{this.state.rowData["civility"]}</div>
-                              </div>
-                              <div className="d-flex user-info">
-                                <div className="user-info-title font-weight-bold">
-                                  Nom
+                                <div className="d-flex user-info">
+                                  <div className="user-info-title font-weight-bold">
+                                    Nom
+                                  </div>
+                                  <div>{this.state.rowData["last_name"]}</div>
                                 </div>
-                                <div>{this.state.rowData["last_name"]}</div>
-                              </div>
-                              <div className="d-flex user-info">
-                                <div className="user-info-title font-weight-bold">
-                                  Prénom
+                                <div className="d-flex user-info">
+                                  <div className="user-info-title font-weight-bold">
+                                    Prénom
+                                  </div>
+                                  <div className="text-truncate">
+                                    <span>
+                                      {this.state.rowData["first_name"]}
+                                    </span>
+                                  </div>
                                 </div>
-                                <div className="text-truncate">
-                                  <span>
-                                    {this.state.rowData["first_name"]}
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="d-flex user-info">
-                                <div className="user-info-title font-weight-bold">
-                                  Prestation
-                                </div>
-                                <div className="text-truncate">
-                                  <span>
-                                    {this.state.rowData["subscribe_services"]
-                                      ? this.state.rowData["subscribe_services"]
-                                      : "No Subscribe"}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          </Col>
-                          <Col md="12" lg="5">
-                            <div className="users-page-view-table">
-                              <div className="d-flex user-info">
-                                <div className="user-info-title font-weight-bold">
-                                  Mot de passe
-                                </div>
-                                <div>{this.state.rowData["p_password"]}</div>
-                              </div>
-                              <div className="d-flex user-info">
-                                <div className="user-info-title font-weight-bold">
-                                  Role
-                                </div>
-                                <div>{this.state.rowData["role"]}</div>
-                              </div>
-                              <div className="d-flex user-info">
-                                <div className="user-info-title font-weight-bold">
-                                  Email
-                                </div>
-                                <div>
-                                  <span>{this.state.rowData["email"]}</span>
+                                <div className="d-flex user-info">
+                                  <div className="user-info-title font-weight-bold">
+                                    Prestation
+                                  </div>
+                                  <div className="text-truncate">
+                                    <span>
+                                      {this.state.rowData["subscribe_services"]
+                                        ? this.state.rowData[
+                                            "subscribe_services"
+                                          ]
+                                        : "No Subscribe"}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </Col>
-                        </Row>
+                            </Col>
+                            <Col md="12" lg="5">
+                              <div className="users-page-view-table">
+                                <div className="d-flex user-info">
+                                  <div className="user-info-title font-weight-bold">
+                                    Mot de passe
+                                  </div>
+                                  <div>{this.state.rowData["p_password"]}</div>
+                                </div>
+                                <div className="d-flex user-info">
+                                  <div className="user-info-title font-weight-bold">
+                                    Role
+                                  </div>
+                                  <div>{this.state.rowData["role"]}</div>
+                                </div>
+                                <div className="d-flex user-info">
+                                  <div className="user-info-title font-weight-bold">
+                                    Email
+                                  </div>
+                                  <div>
+                                    <span>{this.state.rowData["email"]}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </Col>
+                          </Row>
+                        </Media>
                       </Media>
-                    </Media>
-                  </Col>
-                </Row>
-              </CardBody>
+                    </Col>
+                  </Row>
+                </CardBody>
+              )}
             </Card>
           </Col>
           <Col sm="12" md="6">
