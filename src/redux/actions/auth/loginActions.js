@@ -171,18 +171,21 @@ export const loginWithJWT = (user) => {
         if (response.data && !response.data.error) {
           loggedInUser = response.data.user;
 
-          localStorage.setItem("userid", loggedInUser.id);
-          localStorage.setItem("role", loggedInUser.role);
-          localStorage.setItem("token", response.data.accessToken);
-          localStorage.setItem("username", loggedInUser.name);
-
           dispatch({
             type: "LOGIN_WITH_JWT",
             payload: { loggedInUser, loggedInWith: "jwt" },
           });
 
           dispatch({ type: "CHANGE_ROLE", userRole: response.data.user.role });
-          history.push("/app/dashboard");
+
+          localStorage.setItem("userid", loggedInUser.id);
+          localStorage.setItem("role", loggedInUser.role);
+          localStorage.setItem("token", response.data.accessToken);
+          localStorage.setItem("username", loggedInUser.name);
+
+          setTimeout(() => {
+            history.push("/app/dashboard");
+          }, 1000);
         }
       })
       .catch((error) => {
