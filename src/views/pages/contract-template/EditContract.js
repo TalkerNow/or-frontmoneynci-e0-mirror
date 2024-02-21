@@ -245,19 +245,20 @@ class EditContract extends React.Component {
       )
       .then((response) => {
         let rowData = response.data.data;
+        console.log(rowData);
 
         this.setState({
           rowData,
-          user_id: response.data.data.user.id,
-          parent_id: response.data.data.user.parent_id,
-          deposit_date: response.data.data.deposit_date,
-          sold_date: response.data.data.sold_date,
-          status: response.data.data.document_state,
-          status_payment: response.data.data.status_payment,
-          subscribe_services: response.data.data.subscribe_services,
+          user_id: rowData.id,
+          parent_id: rowData.parent_id,
+          deposit_date: rowData.deposit_date,
+          sold_date: rowData.sold_date,
+          status: rowData.document_state,
+          status_payment: rowData.status_payment,
+          subscribe_services: rowData.subscribe_services,
         });
-        if (response.data.data.values != null) {
-          let values = JSON.parse(response.data.data.values);
+        if (rowData.values != null) {
+          let values = JSON.parse(rowData.values);
           this.setState({
             formValues: values,
           });
@@ -1040,7 +1041,7 @@ class EditContract extends React.Component {
                     border: "2px solid #8d8d8d",
                     padding: "30px 20px 230px 20px",
                     marginTop: "30px",
-                    height: "800px",
+                    height: "750px",
                     marginBottom: "50px",
                   }}
                 >

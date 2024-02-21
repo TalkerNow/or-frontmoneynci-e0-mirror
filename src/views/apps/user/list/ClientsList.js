@@ -60,7 +60,7 @@ class ClientsList extends React.Component {
           return (
             <div>
               <Moment
-                format="DD-MM-YYYY HH:mm"
+                format="DD/MM/YYYY HH:mm"
                 date={params.data.created_at}
                 utc
               />

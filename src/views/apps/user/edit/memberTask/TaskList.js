@@ -199,7 +199,7 @@ class TaskList extends React.Component {
                                 this.props.trashTask(this.state.delete_id)
                             }}
                 >
-                    <p className="sweet-alert-text"> tes-vous certain? </p>
+                    <p className="sweet-alert-text"> Êtes-vous certain? </p>
                 </SweetAlert>
                 <div className="todo-app-area">
                     <div className="todo-app-list-wrapper">

@@ -78,7 +78,6 @@ class OldClientsList extends React.Component {
         filter: true,
         width: 250,
         cellRendererFramework: (rowData) => {
-          console.log(rowData);
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
@@ -244,7 +243,11 @@ class OldClientsList extends React.Component {
         },
       },
       {
-        headerName: "Date de Création",
+        headerName: "Date de création",
+        valueFormatter: (element) => {
+          const date = new Date(element.value);
+          return date.toLocaleDateString("FR");
+        },
         field: "cl_date",
         filter: true,
         width: 200,
@@ -316,6 +319,7 @@ class OldClientsList extends React.Component {
       .get(global.config.server_url + "/users?kind=oldclient", Config)
       .then((response) => {
         let rowData = response.data;
+        console.log(rowData);
         this.setState({ rowData });
       });
   }

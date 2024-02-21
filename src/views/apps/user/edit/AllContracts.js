@@ -1,33 +1,35 @@
-import React from "react"
+import React from "react";
 import {
   Input,
   Row,
   Col,
   Button,
   Card,
-  CardBody, UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem,
-} from "reactstrap"
-import {
-  Trash2, ChevronDown, Download,
-} from "react-feather"
+  CardBody,
+  UncontrolledDropdown,
+  DropdownToggle,
+  DropdownMenu,
+  DropdownItem,
+} from "reactstrap";
+import { Trash2, ChevronDown, Download } from "react-feather";
 import { history } from "../../../../history";
 import axios from "axios";
 import { ContextLayout } from "../../../../utility/context/Layout";
 import { AgGridReact } from "ag-grid-react";
-import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss"
-import "../../../../assets/scss/pages/users.scss"
+import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss";
+import "../../../../assets/scss/pages/users.scss";
 import Moment from "react-moment";
 import SweetAlert from "react-bootstrap-sweetalert";
-import Chip from "../../../../../src/components/@vuexy/chips/ChipComponent"
+import Chip from "../../../../../src/components/@vuexy/chips/ChipComponent";
 
 const chipColors = {
   CH: "warning",
   SIMU: "success",
   AR: "primary",
   TFD: "danger",
-  ACTU: 'primary',
-  RAC: 'warning'
-}
+  ACTU: "primary",
+  RAC: "warning",
+};
 var consultant_id = -1;
 
 class AllContracts extends React.Component {
@@ -59,7 +61,7 @@ class AllContracts extends React.Component {
         headerName: "contrat",
         field: "comment",
         width: 300,
-        cellRendererFramework: params => {
+        cellRendererFramework: (params) => {
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
@@ -67,29 +69,27 @@ class AllContracts extends React.Component {
             >
               <span>{params.data.comment}</span>
             </div>
-          )
-        }
+          );
+        },
       },
       {
         headerName: "creator_id",
         field: "creator_id",
         width: 150,
         hide: true,
-        cellRendererFramework: params => {
+        cellRendererFramework: (params) => {
           return (
-            <div
-              className="d-flex align-items-center cursor-pointer"
-            >
+            <div className="d-flex align-items-center cursor-pointer">
               <span>{params.data.creator_id}</span>
             </div>
-          )
-        }
+          );
+        },
       },
       {
         headerName: "Prestation",
         field: "subscribe_services",
         width: 220,
-        cellRendererFramework: params => {
+        cellRendererFramework: (params) => {
           return (
             <>
               {(() => {
@@ -97,205 +97,220 @@ class AllContracts extends React.Component {
                 if (subscribe_service === null || subscribe_service === "") {
                   return <div></div>;
                 } else {
-                  let lst_subscribe_services = subscribe_service.replaceAll('"', '').trim().split('/');
+                  let lst_subscribe_services = subscribe_service
+                    .replaceAll('"', "")
+                    .trim()
+                    .split("/");
                   const tags = [];
                   lst_subscribe_services.forEach(function (service) {
-                    if (service !== '') {
-                      tags.push(<Chip
-                        className="m-0 text-center ml-1"
-                        key={service}
-                        color={chipColors[service.trim()]}
-                        text={service}
-                      />);
+                    if (service !== "") {
+                      tags.push(
+                        <Chip
+                          className="m-0 text-center ml-1"
+                          key={service}
+                          color={chipColors[service.trim()]}
+                          text={service}
+                        />
+                      );
                     }
-                  })
+                  });
                   return tags;
                 }
               })()}
             </>
-          )
-        }
+          );
+        },
       },
       {
         headerName: "Montant",
         field: "advanced_payment",
         width: 150,
-        cellRendererFramework: params => {
+        cellRendererFramework: (params) => {
           return (
-            <div
-              className="d-flex align-items-center cursor-pointer"
-            >
+            <div className="d-flex align-items-center cursor-pointer">
               <span>{params.data.advanced_payment + " €"}</span>
             </div>
-          )
-        }
+          );
+        },
       },
       {
         headerName: "Acompte",
         field: "pre_payment",
         width: 150,
-        cellRendererFramework: params => {
-          if ((params.data.document_state === "En cours" || params.data.document_state === "Termine") && params.data.status_payment >= 1) {
+        cellRendererFramework: (params) => {
+          if (
+            (params.data.document_state === "En cours" ||
+              params.data.document_state === "Termine") &&
+            params.data.status_payment >= 1
+          ) {
             return (
-              <div
-                className="d-flex align-items-center cursor-pointer text-success"
-              >
+              <div className="d-flex align-items-center cursor-pointer text-success">
                 <span>{params.data.pre_payment + " €"}</span>
               </div>
-            )
-          } else if ((params.data.document_state === "En cours" || params.data.document_state === "Termine") && params.data.status_payment < 1) {
+            );
+          } else if (
+            (params.data.document_state === "En cours" ||
+              params.data.document_state === "Termine") &&
+            params.data.status_payment < 1
+          ) {
             return (
-              <div
-                className="d-flex align-items-center cursor-pointer text-danger"
-              >
+              <div className="d-flex align-items-center cursor-pointer text-danger">
                 <span>{params.data.pre_payment + " €"}</span>
               </div>
-            )
+            );
           } else {
             return (
-              <div
-                className="d-flex align-items-center cursor-pointer"
-              >
+              <div className="d-flex align-items-center cursor-pointer">
                 <span>{params.data.pre_payment + " €"}</span>
               </div>
-            )
+            );
           }
-        }
+        },
       },
       {
         headerName: "solde",
         field: "end_payment",
         width: 150,
-        cellRendererFramework: params => {
-          if ((params.data.document_state === "En cours" || params.data.document_state === "Termine") && params.data.status_payment === 2) {
+        cellRendererFramework: (params) => {
+          if (
+            (params.data.document_state === "En cours" ||
+              params.data.document_state === "Termine") &&
+            params.data.status_payment === 2
+          ) {
             return (
-              <div
-                className="d-flex align-items-center cursor-pointer text-success"
-              >
+              <div className="d-flex align-items-center cursor-pointer text-success">
                 <span>{params.data.end_payment + " €"}</span>
               </div>
-            )
-          } else if (params.data.document_state === "Termine" && params.data.status_payment < 2) {
+            );
+          } else if (
+            params.data.document_state === "Termine" &&
+            params.data.status_payment < 2
+          ) {
             return (
-              <div
-                className="d-flex align-items-center cursor-pointer text-danger"
-              >
+              <div className="d-flex align-items-center cursor-pointer text-danger">
                 <span>{params.data.end_payment + " €"}</span>
               </div>
-            )
+            );
           } else {
             return (
-              <div
-                className="d-flex align-items-center cursor-pointer"
-              >
+              <div className="d-flex align-items-center cursor-pointer">
                 <span>{params.data.end_payment + " €"}</span>
               </div>
-            )
+            );
           }
-        }
+        },
       },
       {
         headerName: "Etat",
         field: "document_state",
         width: 170,
-        cellRendererFramework: params => {
+        cellRendererFramework: (params) => {
           return (
-            params.data.user &&
-            <div
-              className="d-flex align-items-center cursor-pointer"
-            >
-              <span>{params.data.document_state}</span>
-            </div>
-          )
-        }
+            params.data.user && (
+              <div className="d-flex align-items-center cursor-pointer">
+                <span>{params.data.document_state}</span>
+              </div>
+            )
+          );
+        },
       },
       {
         headerName: "Date de Création",
         field: "created_at",
         width: 200,
-        cellRendererFramework: params => {
+        cellRendererFramework: (params) => {
           return (
             <div>
-              <Moment format="DD-MM-YYYY HH:mm" date={params.data.created_at} utc />
+              <Moment
+                format="DD/MM/YYYY HH:mm"
+                date={params.data.created_at}
+                utc
+              />
             </div>
-          )
-        }
+          );
+        },
       },
       {
         headerName: "Date de Modification",
         field: "updated_at",
         width: 200,
-        sort: 'desc',
-        cellRendererFramework: params => {
+        sort: "desc",
+        cellRendererFramework: (params) => {
           return (
             <div>
-              <Moment format="DD-MM-YYYY HH:mm" date={params.data.updated_at} utc />
+              <Moment
+                format="DD/MM/YYYY HH:mm"
+                date={params.data.updated_at}
+                utc
+              />
             </div>
-          )
-        }
+          );
+        },
       },
       {
         headerName: "Date acompte",
         field: "deposit_date",
         width: 200,
-        cellRendererFramework: params => {
+        cellRendererFramework: (params) => {
           if (params.data.deposit_date !== null) {
             return (
               <div>
-                <Moment format="DD-MM-YYYY" date={params.data.deposit_date} utc />
+                <Moment
+                  format="DD/MM/YYYY"
+                  date={params.data.deposit_date}
+                  utc
+                />
               </div>
-            )
-          } else
-            return (
-              <div></div>
-            )
-        }
+            );
+          } else return <div></div>;
+        },
       },
       {
         headerName: "Date solde",
         field: "sold_date",
         width: 200,
-        cellRendererFramework: params => {
+        cellRendererFramework: (params) => {
           if (params.data.sold_date !== null) {
             return (
               <div>
-                <Moment format="DD-MM-YYYY" date={params.data.sold_date} utc />
+                <Moment format="DD/MM/YYYY" date={params.data.sold_date} utc />
               </div>
-            )
-          } else
-            return (
-              <div></div>
-            )
-        }
+            );
+          } else return <div></div>;
+        },
       },
       {
         headerName: "Actions",
         field: "transactions",
         width: 150,
-        cellRendererFramework: params => {
+        cellRendererFramework: (params) => {
           return (
             <div className="actions cursor-pointer">
               <Trash2
                 size={15}
-                onClick={() => { this.handleAlert("defaultAlert", true, params.data.id) }}
+                onClick={() => {
+                  this.handleAlert("defaultAlert", true, params.data.id);
+                }}
               />
             </div>
-          )
-        }
-      }
-    ]
-  }
+          );
+        },
+      },
+    ],
+  };
 
   async componentDidMount() {
     const Config = {
       headers: {
-        Authorization: "Bearer " + localStorage.getItem("token")
-      }
-    }
-    await axios.get(global.config.server_url + "/documents", Config).then(response => {
-      let rowData = response.data
-      this.setState({ rowData })
-    })
+        Authorization: "Bearer " + localStorage.getItem("token"),
+      },
+    };
+    await axios
+      .get(global.config.server_url + "/documents", Config)
+      .then((response) => {
+        let rowData = response.data;
+        this.setState({ rowData });
+      });
   }
 
   isExternalFilterPresent = () => {
@@ -318,112 +333,115 @@ class AllContracts extends React.Component {
   deleteDoc(id) {
     const Config = {
       headers: {
-        Authorization: "Bearer " + localStorage.getItem("token")
-      }
-    }
-    axios.delete(global.config.server_url + "/documents/" + id, Config).then(response => { })
-  };
+        Authorization: "Bearer " + localStorage.getItem("token"),
+      },
+    };
+    axios
+      .delete(global.config.server_url + "/documents/" + id, Config)
+      .then((response) => {});
+  }
 
   onBtExport = () => {
     this.gridApi.exportDataAsCsv();
   };
 
-  onGridReady = params => {
-    this.gridApi = params.api
-    this.gridColumnApi = params.columnApi
+  onGridReady = (params) => {
+    this.gridApi = params.api;
+    this.gridColumnApi = params.columnApi;
   };
 
   filterData = (column, val) => {
-    var filter = this.gridApi.getFilterInstance(column)
-    var modelObj = null
+    var filter = this.gridApi.getFilterInstance(column);
+    var modelObj = null;
     if (val !== "all") {
       modelObj = {
         type: "equals",
-        filter: val
-      }
+        filter: val,
+      };
     }
-    filter.setModel(modelObj)
-    this.gridApi.onFilterChanged()
+    filter.setModel(modelObj);
+    this.gridApi.onFilterChanged();
   };
 
-  filterSize = val => {
+  filterSize = (val) => {
     if (this.gridApi) {
-      this.gridApi.paginationSetPageSize(Number(val))
+      this.gridApi.paginationSetPageSize(Number(val));
       this.setState({
-        pageSize: val
-      })
+        pageSize: val,
+      });
     }
   };
 
-  updateSearchQuery = val => {
-    this.gridApi.setQuickFilter(val)
+  updateSearchQuery = (val) => {
+    this.gridApi.setQuickFilter(val);
     this.setState({
-      searchVal: val
-    })
+      searchVal: val,
+    });
   };
-
 
   refreshCard = () => {
-    this.setState({ reload: true })
+    this.setState({ reload: true });
     setTimeout(() => {
       this.setState({
         reload: false,
         role: "All",
         selectStatus: "All",
         verified: "All",
-        department: "All"
-      })
-    }, 500)
-  }
+        department: "All",
+      });
+    }, 500);
+  };
 
   toggleCollapse = () => {
-    this.setState(state => ({ collapse: !state.collapse }))
-  }
+    this.setState((state) => ({ collapse: !state.collapse }));
+  };
   onEntered = () => {
-    this.setState({ status: "Opened" })
-  }
+    this.setState({ status: "Opened" });
+  };
   onEntering = () => {
-    this.setState({ status: "Opening..." })
-  }
+    this.setState({ status: "Opening..." });
+  };
 
   onEntered = () => {
-    this.setState({ status: "Opened" })
-  }
+    this.setState({ status: "Opened" });
+  };
   onExiting = () => {
-    this.setState({ status: "Closing..." })
-  }
+    this.setState({ status: "Closing..." });
+  };
   onExited = () => {
-    this.setState({ status: "Closed" })
-  }
+    this.setState({ status: "Closed" });
+  };
   removeCard = () => {
-    this.setState({ isVisible: false })
-  }
+    this.setState({ isVisible: false });
+  };
   /* eslint-disable */
   deleteDoc(id) {
     const Config = {
       headers: {
-        Authorization: "Bearer " + localStorage.getItem("token")
-      }
-    }
-    axios.delete(global.config.server_url + "/documents/" + id, Config).then(response => { })
+        Authorization: "Bearer " + localStorage.getItem("token"),
+      },
+    };
+    axios
+      .delete(global.config.server_url + "/documents/" + id, Config)
+      .then((response) => {});
   }
 
   handleAlert = (state, value, id) => {
-    this.setState({ [state]: value })
-    if (id !== 0)
-      this.setState({ IdToDelete: id })
+    this.setState({ [state]: value });
+    if (id !== 0) this.setState({ IdToDelete: id });
     if (state === "confirmAlert" && value === true) {
-      this.deleteDoc(this.state.IdToDelete)
+      this.deleteDoc(this.state.IdToDelete);
       var SelectedData = this.gridApi.getSelectedRows();
-      this.gridApi.updateRowData({ remove: SelectedData })
+      this.gridApi.updateRowData({ remove: SelectedData });
     }
-  }
+  };
 
   render() {
-    const { rowData, columnDefs, defaultColDef, pageSize } = this.state
+    const { rowData, columnDefs, defaultColDef, pageSize } = this.state;
     return (
       <div>
-        <SweetAlert title="Êtes vous sûrs?"
+        <SweetAlert
+          title="Êtes vous sûrs?"
           warning
           show={this.state.defaultAlert}
           showCancel
@@ -432,39 +450,41 @@ class AllContracts extends React.Component {
           confirmBtnText="Oui, supprimer"
           cancelBtnText="Annuler"
           onConfirm={() => {
-            this.handleAlert("basicAlert", false, 0)
-            this.handleAlert("confirmAlert", true, 0)
+            this.handleAlert("basicAlert", false, 0);
+            this.handleAlert("confirmAlert", true, 0);
           }}
           onCancel={() => {
-            this.handleAlert("basicAlert", false, 0)
-            this.handleAlert("cancelAlert", true, 0)
+            this.handleAlert("basicAlert", false, 0);
+            this.handleAlert("cancelAlert", true, 0);
           }}
         >
           Vous ne pourrez pas revenir en arrière
         </SweetAlert>
 
-        <SweetAlert success title="Supprimé!"
+        <SweetAlert
+          success
+          title="Supprimé!"
           confirmBtnBsStyle="success"
           show={this.state.confirmAlert}
           onConfirm={() => {
-            this.handleAlert("defaultAlert", false, 0)
-            this.handleAlert("confirmAlert", false, 0)
+            this.handleAlert("defaultAlert", false, 0);
+            this.handleAlert("confirmAlert", false, 0);
           }}
         >
           <p className="sweet-alert-text">Your file has been deleted.</p>
         </SweetAlert>
 
-        <SweetAlert error title="Annulé!"
+        <SweetAlert
+          error
+          title="Annulé!"
           confirmBtnBsStyle="success"
           show={this.state.cancelAlert}
           onConfirm={() => {
-            this.handleAlert("defaultAlert", false, 0)
-            this.handleAlert("cancelAlert", false, 0)
+            this.handleAlert("defaultAlert", false, 0);
+            this.handleAlert("cancelAlert", false, 0);
           }}
         >
-          <p className="sweet-alert-text">
-            L'action est annulé
-          </p>
+          <p className="sweet-alert-text">L'action est annulé</p>
         </SweetAlert>
         <Row className="app-user-list">
           <Col sm="12">
@@ -511,33 +531,55 @@ class AllContracts extends React.Component {
                         className="w-50 mr-1 mb-1 mb-sm-0"
                         type="text"
                         placeholder="search..."
-                        onChange={e => this.updateSearchQuery(e.target.value)}
+                        onChange={(e) => this.updateSearchQuery(e.target.value)}
                         value={this.state.searchVal}
                       />
                       <div>
-                        {(consultant_id !== -1 && this.state.filter === true) &&
+                        {consultant_id !== -1 && this.state.filter === true && (
                           <>
-                            <Button className="mb-1" style={{ width: 180, height: 40 }} outline color="primary" onClick={() => this.externalFilterChanged(-1)}>
+                            <Button
+                              className="mb-1"
+                              style={{ width: 180, height: 40 }}
+                              outline
+                              color="primary"
+                              onClick={() => this.externalFilterChanged(-1)}
+                            >
                               tous les contrats
                             </Button>
                           </>
-                        }
-                        {(consultant_id === -1 && this.state.filter === false) &&
-                          <>
-                            <Button className="mb-1" style={{ width: 170, height: 40 }} outline color="primary" onClick={() => this.externalFilterChanged(localStorage.getItem('userid'))}>
-                              mes contrats
-                            </Button>
-                          </>
-                        }
+                        )}
+                        {consultant_id === -1 &&
+                          this.state.filter === false && (
+                            <>
+                              <Button
+                                className="mb-1"
+                                style={{ width: 170, height: 40 }}
+                                outline
+                                color="primary"
+                                onClick={() =>
+                                  this.externalFilterChanged(
+                                    localStorage.getItem("userid")
+                                  )
+                                }
+                              >
+                                mes contrats
+                              </Button>
+                            </>
+                          )}
                       </div>
-                      <Button className="mb-2 ml-1" outline color="primary" onClick={() => this.onBtExport()}>
+                      <Button
+                        className="mb-2 ml-1"
+                        outline
+                        color="primary"
+                        onClick={() => this.onBtExport()}
+                      >
                         <Download className="primary" size={12} />
                       </Button>
                     </div>
                   </div>
                   {this.state.rowData !== null ? (
                     <ContextLayout.Consumer>
-                      {context => (
+                      {(context) => (
                         <AgGridReact
                           gridOptions={{}}
                           rowSelection="multiple"
@@ -564,8 +606,8 @@ class AllContracts extends React.Component {
             </Card>
           </Col>
         </Row>
-      </div >
-    )
+      </div>
+    );
   }
 }
-export default AllContracts
+export default AllContracts;

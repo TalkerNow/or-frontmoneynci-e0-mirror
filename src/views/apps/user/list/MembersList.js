@@ -88,7 +88,7 @@ class MembersList extends React.Component {
         cellRendererFramework: (params) => {
           return (
             <div>
-              <Moment format="DD-MM-YYYY" date={params.data.created_at} utc />
+              <Moment format="DD/MM/YYYY" date={params.data.created_at} utc />
             </div>
           );
         },
@@ -127,6 +127,7 @@ class MembersList extends React.Component {
   };
 
   createContract(id, name) {
+    console.log(name);
     const Config = {
       headers: {
         Authorization: "Bearer " + localStorage.getItem("token"),
