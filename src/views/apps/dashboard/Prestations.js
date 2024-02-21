@@ -111,12 +111,7 @@ class PrestationStatistics extends React.Component {
 
   async getYearData(newYear) {
     await axios
-      .get(
-        global.config.server_url +
-          "/getPrestation" +
-          (newYear !== undefined ? "?year=" + newYear : ""),
-        Config
-      )
+      .get(global.config.server_url + "/getPrestation?year=" + newYear, Config)
       .then((response) => {
         let responseAsArray = response.data;
         responseAsArray["En attente"] = Object.entries(
@@ -211,7 +206,7 @@ class PrestationStatistics extends React.Component {
               return acc + elem[1]["RAC"];
             }, 0),
           ],
-          year: newYear !== undefined ? newYear : this.state.year,
+          year: newYear,
         });
       });
   }
