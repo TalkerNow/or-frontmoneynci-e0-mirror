@@ -123,7 +123,6 @@ class PrestationStatistics extends React.Component {
         responseAsArray["Termine"] = Object.entries(responseAsArray["Termine"]);
         responseAsArray["Perdu"] = Object.entries(responseAsArray["Perdu"]);
 
-        console.log(responseAsArray);
         this.setState({
           prestation: responseAsArray,
           seriesYW: [
@@ -211,9 +210,9 @@ class PrestationStatistics extends React.Component {
       });
   }
 
-  getTrimData(trimester, newYear) {
+  async getTrimData(trimester, newYear) {
     if (newYear !== this.state.year) {
-      this.getYearData(newYear);
+      await this.getYearData(newYear);
     }
 
     let start = (trimester[trimester.length - 1] - 1) * 3;
@@ -337,6 +336,7 @@ class PrestationStatistics extends React.Component {
         }, 0),
       ],
       trim: trimester,
+      activeTab: "2",
     });
   }
 
@@ -356,6 +356,7 @@ class PrestationStatistics extends React.Component {
       seriesL: Object.values(this.state.prestation["Perdu"][i][1]),
       month: FrenchMonth[i],
       monthb: i,
+      activeTab: "1",
     });
   }
 
@@ -619,9 +620,9 @@ class PrestationStatistics extends React.Component {
                       marginRight: "auto",
                       fontSize: "17px",
                     }}
-                    onChange={(e) =>
-                      this.getTrimData(this.state.trim, e.target.value)
-                    }
+                    onChange={(e) => {
+                      this.getTrimData(this.state.trim, e.target.value);
+                    }}
                   >
                     <option>2018</option>
                     <option>2019</option>
@@ -764,7 +765,9 @@ class PrestationStatistics extends React.Component {
                       marginRight: "auto",
                       fontSize: "17px",
                     }}
-                    onChange={(e) => this.getYearData(e.target.value)}
+                    onChange={(e) => {
+                      this.getYearData(e.target.value);
+                    }}
                   >
                     <option>2018</option>
                     <option>2019</option>
@@ -845,7 +848,6 @@ class PrestationStatistics extends React.Component {
                     Perdu
                   </h4>
                   <div id="chart">
-                    {console.log(this.state.seriesYL)}
                     <ReactApexChart
                       key={this.state.activeTab}
                       options={this.state.options}
