@@ -37,6 +37,7 @@ class UserAccountTab extends React.Component {
     rowData: [],
 
     dob: this.props.data.birth_date,
+    birth_place: this.props.data.birth_place,
     username: this.props.data.username,
     p_password: this.props.data.p_password,
     status: this.props.data.status,
@@ -44,6 +45,7 @@ class UserAccountTab extends React.Component {
 
     civility: this.props.data.civility,
     first_name: this.props.data.first_name,
+    maiden_name: this.props.data.maiden_name,
     last_name: this.props.data.last_name,
     role: this.props.data.role,
     email: this.props.data.email,
@@ -71,7 +73,6 @@ class UserAccountTab extends React.Component {
   };
 
   async componentDidMount() {
-    console.log(this.props);
     const Config = {
       headers: {
         Authorization: "Bearer " + localStorage.getItem("token"),
@@ -81,9 +82,8 @@ class UserAccountTab extends React.Component {
       .get(global.config.server_url + "/users/" + this.props.id, Config)
       .then((response) => {
         let rowData = response.data;
-        console.log(rowData);
 
-        this.setState({ rowData });
+        this.setState({ ...rowData });
       });
   }
 
@@ -94,12 +94,12 @@ class UserAccountTab extends React.Component {
       this.setState({ username: e.first_name + " " + e.last_name });
     } else if (e.first_name != null && e.last_name == null) {
       this.setState({
-        username: e.first_name + " " + this.state.rowData.last_name,
+        username: e.first_name + " " + this.state.last_name,
       });
       this.setState({ first_name: e.first_name });
     } else if (e.first_name == null && e.last_name != null) {
       this.setState({
-        username: this.state.rowData.first_name + " " + e.last_name,
+        username: this.state.first_name + " " + e.last_name,
       });
       this.setState({ last_name: e.last_name });
     } else return;
@@ -149,6 +149,7 @@ class UserAccountTab extends React.Component {
               first_name: information.first_name,
               last_name: information.last_name,
               birth_date: information.dob,
+              birth_place: information.birth_place,
               martial_status: information.martial_status
                 ? information.martial_status
                 : this.props.data.martial_status
@@ -311,21 +312,56 @@ class UserAccountTab extends React.Component {
               </Col>
               <Col md="6" sm="12" style={{ marginTop: "20px" }}></Col>
               <Col md="6" sm="12" style={{ marginTop: "-15px" }}>
-                <FormGroup>
-                  <Label for="name">Nom</Label>
-                  <Input
-                    type="text"
-                    defaultValue={this.ifExist("last_name")}
-                    onChange={(e) =>
-                      this.updateUsername({
-                        last_name: e.target.value,
-                        first_name: null,
-                      })
-                    }
-                    id="name"
-                    placeholder="Nom"
-                  />
-                </FormGroup>
+                <div
+                  style={{
+                    display: "flex",
+                    width: "100%",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <FormGroup
+                    style={{
+                      width: "50%",
+                    }}
+                    className="pr-1"
+                  >
+                    <Label for="name">Nom</Label>
+                    <Input
+                      type="text"
+                      defaultValue={this.ifExist("last_name")}
+                      onChange={(e) =>
+                        this.updateUsername({
+                          last_name: e.target.value,
+                          first_name: null,
+                        })
+                      }
+                      id="name"
+                      placeholder="Nom"
+                    />
+                  </FormGroup>
+                  <FormGroup
+                    style={{
+                      width: "50%",
+                    }}
+                  >
+                    <Label for="ndjf">Nom de jeune fille</Label>
+                    <Input
+                      type="text"
+                      value={this.state.maiden_name}
+                      placeholder="Nom de jeune fille"
+                      required
+                      onChange={(e) =>
+                        this.setState({
+                          data: {
+                            ...this.state.data,
+                            maiden_name: e.target.value,
+                          },
+                        })
+                      }
+                      id="ndjf"
+                    />
+                  </FormGroup>
+                </div>
               </Col>
               <Col md="6" sm="12" style={{ marginTop: "-15px" }}>
                 <FormGroup style={{ marginBottom: "15px" }}>
@@ -392,22 +428,57 @@ class UserAccountTab extends React.Component {
                 </FormGroup>
               </Col>
               <Col md="6" sm="12">
-                <FormGroup>
-                  <Label className="d-block" for="dob">
-                    Date de naissance
-                  </Label>
-                  {this.props.data["birth_date"] != null && (
-                    <InputMaskDate
-                      defaultValue={this.props.data["birth_date"]}
-                      onChange={(e) => this.handledob(e.target.value)}
+                <div
+                  style={{
+                    display: "flex",
+                    width: "100%",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <FormGroup
+                    className="pr-2"
+                    style={{
+                      width: "50%",
+                    }}
+                  >
+                    <Label className="d-block" for="dob">
+                      Date de naissance
+                    </Label>
+                    {this.props.data["birth_date"] != null && (
+                      <InputMaskDate
+                        defaultValue={this.props.data["birth_date"]}
+                        onChange={(e) => this.handledob(e.target.value)}
+                      />
+                    )}
+                    {this.props.data["birth_date"] == null && (
+                      <InputMaskDate
+                        onChange={(e) => this.handledob(e.target.value)}
+                      />
+                    )}
+                  </FormGroup>
+                  <FormGroup
+                    style={{
+                      width: "50%",
+                    }}
+                  >
+                    <Label for="placeofbirth">Lieu de naissance</Label>
+                    <Input
+                      type="text"
+                      value={this.state.birth_place}
+                      placeholder="Lieu de naissance"
+                      required
+                      onChange={(e) =>
+                        this.setState({
+                          data: {
+                            ...this.state.data,
+                            birth_place: e.target.value,
+                          },
+                        })
+                      }
+                      id="placeofbirth"
                     />
-                  )}
-                  {this.props.data["birth_date"] == null && (
-                    <InputMaskDate
-                      onChange={(e) => this.handledob(e.target.value)}
-                    />
-                  )}
-                </FormGroup>
+                  </FormGroup>
+                </div>
               </Col>
               <Col md="6" sm="12">
                 <FormGroup>

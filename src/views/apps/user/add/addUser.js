@@ -48,6 +48,7 @@ class AddUser extends React.Component {
       office_number: null,
       military_service: "Service militaire",
       birth_date: null,
+      birth_place: null,
       personal_address: null,
       personal_address_2: null,
       personal_zip_code: null,
@@ -112,7 +113,6 @@ class AddUser extends React.Component {
         parent_id: data.parent_id,
       })
       .then(function (result) {
-        console.log("register is ok");
         if (result.data.accessToken) {
           axios
             .post(global.config.server_url + "/personal_information", {
@@ -129,6 +129,7 @@ class AddUser extends React.Component {
               office_number: data.office_number,
               military_service: data.military_service,
               birth_date: data.birth_date,
+              birth_place: data.birth_place,
               personal_address: data.personal_address,
               personal_address_2: data.personal_address_2,
               personal_zip_code: data.personal_zip_code,
@@ -296,20 +297,54 @@ class AddUser extends React.Component {
             </Col>
             <Col md="6" sm="12"></Col>
             <Col md="6" sm="12">
-              <FormGroup>
-                <Label for="lastname">Nom</Label>
-                <Input
-                  type="text"
-                  placeholder="Nom"
-                  required
-                  onChange={(e) =>
-                    this.setState({
-                      data: { ...this.state.data, last_name: e.target.value },
-                    })
-                  }
-                  id="lastname"
-                />
-              </FormGroup>
+              <div
+                style={{
+                  display: "flex",
+                  width: "100%",
+                  justifyContent: "space-between",
+                }}
+              >
+                <FormGroup
+                  style={{
+                    width: "50%",
+                  }}
+                  className="pr-1"
+                >
+                  <Label for="lastname">Nom</Label>
+                  <Input
+                    type="text"
+                    placeholder="Nom"
+                    required
+                    onChange={(e) =>
+                      this.setState({
+                        data: { ...this.state.data, last_name: e.target.value },
+                      })
+                    }
+                    id="lastname"
+                  />
+                </FormGroup>
+                <FormGroup
+                  style={{
+                    width: "50%",
+                  }}
+                >
+                  <Label for="ndjf">Nom de jeune fille</Label>
+                  <Input
+                    type="text"
+                    placeholder="Nom de jeune fille"
+                    required
+                    onChange={(e) =>
+                      this.setState({
+                        data: {
+                          ...this.state.data,
+                          maiden_name: e.target.value,
+                        },
+                      })
+                    }
+                    id="ndjf"
+                  />
+                </FormGroup>
+              </div>
             </Col>
             <Col md="6" sm="12">
               <FormGroup>
@@ -366,13 +401,47 @@ class AddUser extends React.Component {
               </FormGroup>
             </Col>
             <Col md="6" sm="12">
-              <FormGroup>
-                <Label for="dateofbirth">Date de naissance</Label>
-                <InputMaskDate
-                  onChange={(e) => this.handledob(e.target.value)}
-                  id="dateofbirth"
-                />
-              </FormGroup>
+              <div
+                style={{
+                  display: "flex",
+                  width: "100%",
+                  justifyContent: "space-between",
+                }}
+              >
+                <FormGroup
+                  className="pr-2"
+                  style={{
+                    width: "50%",
+                  }}
+                >
+                  <Label for="dateofbirth">Date de naissance</Label>
+                  <InputMaskDate
+                    onChange={(e) => this.handledob(e.target.value)}
+                    id="dateofbirth"
+                  />
+                </FormGroup>
+                <FormGroup
+                  style={{
+                    width: "50%",
+                  }}
+                >
+                  <Label for="placeofbirth">Lieu de naissance</Label>
+                  <Input
+                    type="text"
+                    placeholder="Lieu de naissance"
+                    required
+                    onChange={(e) =>
+                      this.setState({
+                        data: {
+                          ...this.state.data,
+                          birth_place: e.target.value,
+                        },
+                      })
+                    }
+                    id="placeofbirth"
+                  />
+                </FormGroup>
+              </div>
             </Col>
             <Col md="6" sm="12">
               <FormGroup>
