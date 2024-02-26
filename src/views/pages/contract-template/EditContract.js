@@ -88,6 +88,7 @@ class EditContract extends React.Component {
     subscribe_services: "",
     status: null,
     status_payment: null,
+    payment_method: null,
     deposit_date: null,
     sold_date: null,
   };
@@ -245,7 +246,7 @@ class EditContract extends React.Component {
       )
       .then((response) => {
         let rowData = response.data.data;
-        console.log(rowData);
+        console.log("ICI", rowData);
 
         this.setState({
           rowData,
@@ -255,6 +256,7 @@ class EditContract extends React.Component {
           sold_date: rowData.sold_date,
           status: rowData.document_state,
           status_payment: rowData.status_payment,
+          payment_method: rowData.payment_method,
           subscribe_services: rowData.subscribe_services,
         });
         if (rowData.values != null) {
@@ -265,7 +267,8 @@ class EditContract extends React.Component {
           input_values = { ...values };
           this.calculate();
         }
-      });
+      })
+      .catch((e) => console.log(e));
   }
 
   sendForm = () => {
@@ -296,6 +299,7 @@ class EditContract extends React.Component {
     parameters["document_state"] = this.state.status;
     parameters["subscribe_services"] = sub_services;
     parameters["status_payment"] = this.state.status_payment;
+    parameters["payment_method"] = this.state.payment_method;
     parameters["values"] = JSON.stringify(input_values);
     parameters["advanced_payment"] = this.state.formValues["TOTALTTC"]
       ? this.state.formValues["TOTALTTC"]
@@ -496,55 +500,80 @@ class EditContract extends React.Component {
                 this.state.subscribe_services != null &&
                 this.state.status_payment != null && (
                   <>
-                    <div className="d-inline-block mr-1">
-                      <Radio
-                        label="En attente"
-                        color="primary"
-                        defaultChecked={
-                          this.state.status == "En attente" ? true : false
-                        }
-                        name="status"
-                        onChange={() => this.setState({ status: "En attente" })}
-                      />
-                    </div>
-                    <div className="d-inline-block mr-1">
-                      <Radio
-                        label="En cours"
-                        color="primary"
-                        defaultChecked={
-                          this.state.status == "En cours" ? true : false
-                        }
-                        name="status"
-                        onChange={() => this.setState({ status: "En cours" })}
-                      />
-                    </div>
-                    <div className="d-inline-block mr-1">
-                      <Radio
-                        label="Termine"
-                        color="primary"
-                        defaultChecked={
-                          this.state.status == "Termine" ? true : false
-                        }
-                        name="status"
-                        onChange={() => this.setState({ status: "Termine" })}
-                      />
-                    </div>
-                    <div className="d-inline-block mr-1">
-                      <Radio
-                        label="Perdu"
-                        color="primary"
-                        defaultChecked={
-                          this.state.status == "Perdu" ? true : false
-                        }
-                        name="status"
-                        onChange={() => this.setState({ status: "Perdu" })}
-                      />
+                    <div
+                      style={{
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <div style={{ display: "inline-block" }} className="mr-1">
+                        <Radio
+                          label="En attente"
+                          color="primary"
+                          defaultChecked={
+                            this.state.status == "En attente" ? true : false
+                          }
+                          name="status"
+                          onChange={() =>
+                            this.setState({ status: "En attente" })
+                          }
+                        />
+                      </div>
+                      <div style={{ display: "inline-block" }} className="mr-1">
+                        <Radio
+                          label="En cours"
+                          color="primary"
+                          defaultChecked={
+                            this.state.status == "En cours" ? true : false
+                          }
+                          name="status"
+                          onChange={() => this.setState({ status: "En cours" })}
+                        />
+                      </div>
+                      <div style={{ display: "inline-block" }} className="mr-1">
+                        <Radio
+                          label="Termine"
+                          color="primary"
+                          defaultChecked={
+                            this.state.status == "Termine" ? true : false
+                          }
+                          name="status"
+                          onChange={() => this.setState({ status: "Termine" })}
+                        />
+                      </div>
+                      <div style={{ display: "inline-block" }} className="mr-1">
+                        <Radio
+                          label="Perdu"
+                          color="primary"
+                          defaultChecked={
+                            this.state.status == "Perdu" ? true : false
+                          }
+                          name="status"
+                          onChange={() => this.setState({ status: "Perdu" })}
+                        />
+                      </div>
+                      <div style={{ display: "inline-block" }}>
+                        <Input
+                          style={{ width: 150, height: 30 }}
+                          defaultValue={
+                            this.state.payment_method !== null
+                              ? this.state.payment_method
+                              : ""
+                          }
+                          color="primary"
+                          type="text"
+                          placeholder="Moyen de payement"
+                          onChange={(e) =>
+                            this.setState({ payment_method: e.target.value })
+                          }
+                        />
+                      </div>
                     </div>
                     <div
                       style={{
                         marginLeft: "20px",
                         display: "inline-block",
-                        paddingTop: "5px",
+                        marginBottom: "5px",
                       }}
                     >
                       <CustomInput
@@ -2562,9 +2591,8 @@ class EditContract extends React.Component {
                             style={{ paddingLeft: 0, marginTop: "5px" }}
                           >
                             <div
-                              style={{ display: "inline-block" }}
+                              style={{ display: "inline-block", width: "80px" }}
                               className="contract-div"
-                              style={{ width: "80px" }}
                             >
                               {this.state.formValues["FINAL75"]} €
                             </div>
@@ -2623,9 +2651,8 @@ class EditContract extends React.Component {
                             style={{ paddingLeft: 0, marginTop: "5px" }}
                           >
                             <div
-                              style={{ display: "inline-block" }}
+                              style={{ display: "inline-block", width: "80px" }}
                               className="contract-div"
-                              style={{ width: "80px" }}
                             >
                               {this.state.formValues["FINAL25"]} €
                             </div>

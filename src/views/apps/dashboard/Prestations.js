@@ -207,8 +207,7 @@ class PrestationStatistics extends React.Component {
           ],
           year: newYear,
         });
-      })
-      .catch((err) => console.log(err));
+      });
   }
 
   async getTrimData(trimester, newYear) {
@@ -792,16 +791,11 @@ class PrestationStatistics extends React.Component {
                     En Attente
                   </h4>
                   <div id="chart">
-                    {console.log("Waiting: ", this.state.seriesYW)}
-                    {console.log("On going: ", this.state.seriesYOg)}
-                    {console.log("Finished : ", this.state.seriesYF)}
-                    {console.log("Lost : ", this.state.seriesYL)}
                     <ReactApexChart
                       key={`waiting-year`}
                       options={this.state.options}
                       series={
                         this.state.seriesYW.some((elem) => {
-                          console.log(elem);
                           return elem > 0;
                         })
                           ? this.state.seriesYW
