@@ -525,7 +525,7 @@ class PrestationStatistics extends React.Component {
                   </h4>
                   <div id="chart">
                     <ReactApexChart
-                      key={`waiting-${this.state.activeTab}`}
+                      key={`waiting-month`}
                       options={this.state.options}
                       series={
                         this.state.seriesW.some((elem) => elem > 0)
@@ -544,7 +544,7 @@ class PrestationStatistics extends React.Component {
                   </h4>
                   <div id="chart">
                     <ReactApexChart
-                      key={`ongoing-${this.state.activeTab}`}
+                      key={`ongoing-month`}
                       options={this.state.options}
                       series={
                         this.state.seriesOg.some((elem) => elem > 0)
@@ -563,7 +563,7 @@ class PrestationStatistics extends React.Component {
                   </h4>
                   <div id="chart">
                     <ReactApexChart
-                      key={`finished-${this.state.activeTab}`}
+                      key={`finished-month`}
                       options={this.state.options}
                       series={
                         this.state.seriesF.some((elem) => elem > 0)
@@ -582,7 +582,7 @@ class PrestationStatistics extends React.Component {
                   </h4>
                   <div id="chart">
                     <ReactApexChart
-                      key={`lost-${this.state.activeTab}`}
+                      key={`lost-month`}
                       options={this.state.options}
                       series={
                         this.state.seriesL.some((elem) => elem > 0)
@@ -670,7 +670,7 @@ class PrestationStatistics extends React.Component {
                   </h4>
                   <div id="chart">
                     <ReactApexChart
-                      key={`waiting-${this.state.activeTab}`}
+                      key={`waiting-trimester`}
                       options={this.state.options}
                       series={
                         this.state.seriesTW.some((elem) => elem > 0)
@@ -689,7 +689,7 @@ class PrestationStatistics extends React.Component {
                   </h4>
                   <div id="chart">
                     <ReactApexChart
-                      key={`ongoing-${this.state.activeTab}`}
+                      key={`ongoing-trimester`}
                       options={this.state.options}
                       series={
                         this.state.seriesTOg.some((elem) => elem > 0)
@@ -708,7 +708,7 @@ class PrestationStatistics extends React.Component {
                   </h4>
                   <div id="chart">
                     <ReactApexChart
-                      key={`finished-${this.state.activeTab}`}
+                      key={`finished-trimester`}
                       options={this.state.options}
                       series={
                         this.state.seriesTF.some((elem) => elem > 0)
@@ -727,7 +727,7 @@ class PrestationStatistics extends React.Component {
                   </h4>
                   <div id="chart">
                     <ReactApexChart
-                      key={`lost-${this.state.activeTab}`}
+                      key={`lost-trimester`}
                       options={this.state.options}
                       series={
                         this.state.seriesTL.some((elem) => elem > 0)
@@ -768,7 +768,6 @@ class PrestationStatistics extends React.Component {
                     }}
                     onChange={(e) => {
                       this.getYearData(e.target.value);
-                      this.toggle(this.state.activeTab);
                     }}
                   >
                     <option>2018</option>
