@@ -792,11 +792,18 @@ class PrestationStatistics extends React.Component {
                     En Attente
                   </h4>
                   <div id="chart">
+                    {console.log("Waiting: ", this.state.seriesYW)}
+                    {console.log("On going: ", this.state.seriesYOg)}
+                    {console.log("Finished : ", this.state.seriesYF)}
+                    {console.log("Lost : ", this.state.seriesYL)}
                     <ReactApexChart
-                      key={`waiting-${this.state.activeTab}`}
+                      key={`waiting-year`}
                       options={this.state.options}
                       series={
-                        this.state.seriesYW.some((elem) => elem > 0)
+                        this.state.seriesYW.some((elem) => {
+                          console.log(elem);
+                          return elem > 0;
+                        })
                           ? this.state.seriesYW
                           : []
                       }
@@ -812,7 +819,7 @@ class PrestationStatistics extends React.Component {
                   </h4>
                   <div id="chart">
                     <ReactApexChart
-                      key={`ongoing-${this.state.activeTab}`}
+                      key={`ongoing-year`}
                       options={this.state.options}
                       series={
                         this.state.seriesYOg.some((elem) => elem > 0)
@@ -831,7 +838,7 @@ class PrestationStatistics extends React.Component {
                   </h4>
                   <div id="chart">
                     <ReactApexChart
-                      key={`finished-${this.state.activeTab}`}
+                      key={`finished-year`}
                       options={this.state.options}
                       series={
                         this.state.seriesYF.some((elem) => elem > 0)
@@ -850,7 +857,7 @@ class PrestationStatistics extends React.Component {
                   </h4>
                   <div id="chart">
                     <ReactApexChart
-                      key={`lost-${this.state.activeTab}`}
+                      key={`lost-year`}
                       options={this.state.options}
                       series={
                         this.state.seriesYL.some((elem) => elem > 0)
