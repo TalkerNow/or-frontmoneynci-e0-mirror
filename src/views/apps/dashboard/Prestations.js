@@ -207,7 +207,8 @@ class PrestationStatistics extends React.Component {
           ],
           year: newYear,
         });
-      });
+      })
+      .catch((err) => console.log(err));
   }
 
   async getTrimData(trimester, newYear) {
