@@ -767,6 +767,7 @@ class PrestationStatistics extends React.Component {
                     }}
                     onChange={(e) => {
                       this.getYearData(e.target.value);
+                      this.toggle(this.state.activeTab);
                     }}
                   >
                     <option>2018</option>
