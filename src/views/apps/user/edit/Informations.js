@@ -134,6 +134,7 @@ class UserAccountTab extends React.Component {
             ? this.props.data.status_fa
             : false,
           parent_id: information.parent_id,
+          business_introducer_id: information.business_introducer_id,
         },
         Config
       )

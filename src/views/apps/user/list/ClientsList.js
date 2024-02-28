@@ -117,7 +117,9 @@ class ClientsList extends React.Component {
         width: 250,
         valueGetter: (params) => {
           console.log(params.data);
-          return params.data.parent ? params.data.parent.name : "";
+          return params.data.business_introducer
+            ? params.data.business_introducer.name
+            : "-";
         },
       },
       {
