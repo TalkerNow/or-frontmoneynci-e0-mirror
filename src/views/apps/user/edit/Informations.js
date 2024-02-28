@@ -17,7 +17,6 @@ import { User, MapPin, Aperture } from "react-feather";
 import "flatpickr/dist/themes/light.css";
 import "../../../../assets/scss/plugins/forms/flatpickr/flatpickr.scss";
 import InputMaskDate from "./InputMaskDate";
-// import { updateUsersInformation } from "../../../../redux/actions/form/informationsFormActions"
 import axios from "axios";
 //import moment from "moment"
 import { toast } from "react-toastify";
@@ -70,9 +69,11 @@ class UserAccountTab extends React.Component {
     society_country: this.props.data.society_country,
 
     parent_id: this.props.data.parent_id,
+    business_introducer_id: this.props.data.business_introducer_id,
   };
 
   async componentDidMount() {
+    console.log(this.props);
     const Config = {
       headers: {
         Authorization: "Bearer " + localStorage.getItem("token"),
@@ -150,6 +151,7 @@ class UserAccountTab extends React.Component {
               last_name: information.last_name,
               birth_date: information.dob,
               birth_place: information.birth_place,
+              maiden_name: information.maiden_name,
               martial_status: information.martial_status
                 ? information.martial_status
                 : this.props.data.martial_status
@@ -177,8 +179,8 @@ class UserAccountTab extends React.Component {
                 : this.props.data.military_service
                 ? this.props.data.military_service
                 : "oui",
-
               parent_id: information.parent_id,
+              business_introducer_id: information.business_introducer_id,
             },
             Config
           )
@@ -216,6 +218,7 @@ class UserAccountTab extends React.Component {
   };
   updateData = (e) => {
     e.preventDefault();
+    console.log(this.state);
     this.updateUsersInformation(this.state);
   };
   render() {
@@ -347,15 +350,12 @@ class UserAccountTab extends React.Component {
                     <Label for="ndjf">Nom de jeune fille</Label>
                     <Input
                       type="text"
-                      value={this.state.maiden_name}
+                      defaultValue={this.ifExist("maiden_name")}
                       placeholder="Nom de jeune fille"
                       required
                       onChange={(e) =>
                         this.setState({
-                          data: {
-                            ...this.state.data,
-                            maiden_name: e.target.value,
-                          },
+                          maiden_name: e.target.value,
                         })
                       }
                       id="ndjf"
@@ -464,15 +464,12 @@ class UserAccountTab extends React.Component {
                     <Label for="placeofbirth">Lieu de naissance</Label>
                     <Input
                       type="text"
-                      value={this.state.birth_place}
+                      defaultValue={this.ifExist("birth_place")}
                       placeholder="Lieu de naissance"
                       required
                       onChange={(e) =>
                         this.setState({
-                          data: {
-                            ...this.state.data,
-                            birth_place: e.target.value,
-                          },
+                          birth_place: e.target.value,
                         })
                       }
                       id="placeofbirth"
@@ -953,7 +950,33 @@ class UserAccountTab extends React.Component {
                   </CustomInput>
                 </FormGroup>
               </Col>
-
+              <Col md="6" sm="12">
+                <FormGroup>
+                  <Label for="business_introducer">Apporteur d'affaire</Label>
+                  <CustomInput
+                    type="select"
+                    name="business_introducer"
+                    value={
+                      this.state.business_introducer_id != null
+                        ? this.state.business_introducer_id
+                        : this.ifDataExist("business_introducer_id")
+                    }
+                    id="business_introducer"
+                    onChange={(e) =>
+                      this.setState({ business_introducer_id: e.target.value })
+                    }
+                  >
+                    {this.props.members &&
+                      [<option value={null}>Aucun</option>].concat(
+                        this.props.members.map((member, index) => (
+                          <option value={member.id}>
+                            {member.first_name + " " + member.last_name}
+                          </option>
+                        ))
+                      )}
+                  </CustomInput>
+                </FormGroup>
+              </Col>
               <Col
                 className="d-flex justify-content-end flex-wrap mt-2"
                 sm="12"
