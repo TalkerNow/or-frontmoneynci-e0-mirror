@@ -88,6 +88,7 @@ class ClientsList extends React.Component {
       {
         headerName: "Civilité",
         filter: true,
+        hide: true,
         width: 150,
         valueGetter: (params) => {
           if (params.data.civility === "Monsieur") {
@@ -103,11 +104,22 @@ class ClientsList extends React.Component {
         hide: true,
       },
       {
-        headerName: "Technicien Nom",
+        headerName: "Nom du technicien",
         filter: false,
         width: 250,
         valueGetter: (params) => {
           return params.data.parent ? params.data.parent.name : "";
+        },
+      },
+      {
+        headerName: "Apport commercial",
+        filter: false,
+        width: 250,
+        valueGetter: (params) => {
+          console.log(params.data);
+          return params.data.business_introducer
+            ? params.data.business_introducer.name
+            : "-";
         },
       },
       {

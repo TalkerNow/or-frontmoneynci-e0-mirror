@@ -333,6 +333,7 @@ class AddUser extends React.Component {
                     type="text"
                     placeholder="Nom de jeune fille"
                     required
+                    defaultValue={this.state.maiden_name}
                     onChange={(e) =>
                       this.setState({
                         data: {
