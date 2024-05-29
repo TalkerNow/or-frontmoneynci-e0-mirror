@@ -73,7 +73,6 @@ class UserAccountTab extends React.Component {
   };
 
   async componentDidMount() {
-    console.log(this.props);
     const Config = {
       headers: {
         Authorization: "Bearer " + localStorage.getItem("token"),
@@ -120,19 +119,19 @@ class UserAccountTab extends React.Component {
           role: information.role
             ? information.role
             : this.props.data.role
-            ? this.props.data.role
-            : "Client",
+              ? this.props.data.role
+              : "Client",
           p_password: information.p_password,
           status: information.status
             ? information.status
             : this.props.data.status
-            ? this.props.data.status
-            : "En attente",
+              ? this.props.data.status
+              : "En attente",
           status_fa: information.status_fa
             ? information.status_fa
             : this.props.data.status_fa
-            ? this.props.data.status_fa
-            : false,
+              ? this.props.data.status_fa
+              : false,
           parent_id: information.parent_id,
           business_introducer_id: information.business_introducer_id,
         },
@@ -146,8 +145,8 @@ class UserAccountTab extends React.Component {
               civility: information.civility
                 ? information.civility
                 : this.props.data.civility
-                ? this.props.data.civility
-                : "Monsieur",
+                  ? this.props.data.civility
+                  : "",
               first_name: information.first_name,
               last_name: information.last_name,
               birth_date: information.dob,
@@ -156,8 +155,8 @@ class UserAccountTab extends React.Component {
               martial_status: information.martial_status
                 ? information.martial_status
                 : this.props.data.martial_status
-                ? this.props.data.martial_status
-                : "Célibataire",
+                  ? this.props.data.martial_status
+                  : "Célibataire",
               children_number: information.children_number,
               secu_social: information.secu_social,
               secu_social_key: information.secu_social_key,
@@ -178,8 +177,8 @@ class UserAccountTab extends React.Component {
               military_service: information.military_service
                 ? information.military_service
                 : this.props.data.military_service
-                ? this.props.data.military_service
-                : "oui",
+                  ? this.props.data.military_service
+                  : "oui",
               parent_id: information.parent_id,
               business_introducer_id: information.business_introducer_id,
             },
@@ -208,6 +207,21 @@ class UserAccountTab extends React.Component {
     } else return "";
   }
 
+  ifCiviliteExist(civ) {
+    if (this.ifExist("civility") === civ) {
+      return true;
+    }
+    else {
+      return false;
+    }
+  }
+
+  test(civ) {
+    if (civ !== this.ifExist("civility"))
+      return false;
+    return true;
+  }
+
   handledob = (date) => {
     var lstDate = date.split("/");
     if (lstDate.length === 3) {
@@ -219,7 +233,6 @@ class UserAccountTab extends React.Component {
   };
   updateData = (e) => {
     e.preventDefault();
-    console.log(this.state);
     this.updateUsersInformation(this.state);
   };
   render() {
@@ -231,7 +244,7 @@ class UserAccountTab extends React.Component {
               <Col md="6" sm="12" style={{ marginTop: "20px" }}>
                 <h5 style={{ marginBottom: "5px" }}>
                   <User className="mr-50" size={16} />
-                  <span className="align-middle">Civilité</span>
+                  <span className="align-middle">Civilité ( {this.ifExist("civility")} )</span>
                 </h5>
                 <FormGroup style={{ marginTop: "10px" }}>
                   {this.props.data["civility"] !== null && (
@@ -241,9 +254,7 @@ class UserAccountTab extends React.Component {
                           label="Monsieur"
                           color="primary"
                           defaultChecked={
-                            this.props.data["civility"] === "Monsieur"
-                              ? true
-                              : false
+                            this.ifCiviliteExist("Monsieur")
                           }
                           name="civility"
                           onChange={() =>
@@ -256,9 +267,7 @@ class UserAccountTab extends React.Component {
                           label="Madame"
                           color="primary"
                           defaultChecked={
-                            this.props.data["civility"] === "Madame"
-                              ? true
-                              : false
+                            this.ifCiviliteExist("Madame")
                           }
                           name="civility"
                           onChange={() => this.setState({ civility: "Madame" })}
@@ -269,9 +278,7 @@ class UserAccountTab extends React.Component {
                           label="Mlle"
                           color="primary"
                           defaultChecked={
-                            this.props.data["civility"] === "Mlle"
-                              ? true
-                              : false
+                            this.ifCiviliteExist("Mlle")
                           }
                           name="civility"
                           onChange={() => this.setState({ civility: "Mlle" })}
@@ -285,7 +292,7 @@ class UserAccountTab extends React.Component {
                         <Radio
                           label="Monsieur"
                           color="primary"
-                          defaultChecked={true}
+                          defaultChecked={false}
                           name="civility"
                           onChange={() =>
                             this.setState({ civility: "Monsieur" })
@@ -353,7 +360,6 @@ class UserAccountTab extends React.Component {
                       type="text"
                       defaultValue={this.ifExist("maiden_name")}
                       placeholder="Nom de jeune fille"
-                      required
                       onChange={(e) =>
                         this.setState({
                           maiden_name: e.target.value,
@@ -467,7 +473,6 @@ class UserAccountTab extends React.Component {
                       type="text"
                       defaultValue={this.ifExist("birth_place")}
                       placeholder="Lieu de naissance"
-                      required
                       onChange={(e) =>
                         this.setState({
                           birth_place: e.target.value,
@@ -491,6 +496,10 @@ class UserAccountTab extends React.Component {
                 </FormGroup>
               </Col>
               <Col md="6" sm="12">
+                <h5 style={{ marginBottom: "5px" }}>
+                  <User className="mr-50" size={16} />
+                  <span className="align-middle">Statut marital ( {this.ifExist("martial_status")} )</span>
+                </h5>
                 <FormGroup style={{ marginBottom: "15px", marginTop: "5px" }}>
                   {this.props.data["martial_status"] !== null && (
                     <>
@@ -633,6 +642,10 @@ class UserAccountTab extends React.Component {
                 </FormGroup>
               </Col>
               <Col md="6" sm="12">
+                <h5 style={{ marginBottom: "5px" }}>
+                  <User className="mr-50" size={16} />
+                  <span className="align-middle">Service militaire ( {this.ifExist("military_service")} )</span>
+                </h5>
                 <FormGroup style={{ marginBottom: "15px", marginTop: "5px" }}>
                   {this.props.data["military_service"] != null && (
                     <>
