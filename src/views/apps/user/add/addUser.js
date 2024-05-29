@@ -41,7 +41,7 @@ class AddUser extends React.Component {
       email: null,
       role: "Client",
       password: generator.generate({ length: 10, numbers: true }),
-      civility: "Monsieur",
+      civility: "",
       martial_status: "Célibataire",
       children_number: null,
       mobile_number: null,
@@ -98,6 +98,10 @@ class AddUser extends React.Component {
     this.setState({ Alert: value });
   };
   sendForm = (data, type) => {
+    if (data.civility === "") {
+      toast.error("Civilité est obligatoire.");
+      return;
+    }
     const Config = {
       headers: {
         Authorization: "Bearer " + localStorage.getItem("token"),
@@ -223,8 +227,8 @@ class AddUser extends React.Component {
     axios
       .get(
         global.config.server_url +
-          "/duplicated_email?email=" +
-          this.state.data.email,
+        "/duplicated_email?email=" +
+        this.state.data.email,
         Config
       )
       .then((response) => {
@@ -233,7 +237,11 @@ class AddUser extends React.Component {
         } else this.sendForm(this.state.data, type);
       });
   };
-
+  ifExist(name) {
+    if (this.props.data) {
+      return this.props.data[name];
+    } else return "";
+  }
   render() {
     return (
       <Card>
@@ -258,7 +266,7 @@ class AddUser extends React.Component {
                   <Radio
                     label="Monsieur"
                     color="primary"
-                    defaultChecked={true}
+                    defaultChecked={false}
                     name="civility"
                     onChange={() =>
                       this.setState({

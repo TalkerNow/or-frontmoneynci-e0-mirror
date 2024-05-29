@@ -130,9 +130,9 @@ const AppRoute = connect(mapStateToProps)(RouteConfig);
 
 class AppRouter extends React.Component {
   render() {
-    const basic_acess = ["admin", "Consultant", "Expert", "Client"];
-    const employee_acess = ["admin", "Consultant", "Expert"];
-    const reduced_acess = ["admin", "Consultant"];
+    const basic_acess = ["admin", "Admin", "Consultant", "Expert", "Client"];
+    const employee_acess = ["admin", "Admin", "Consultant", "Expert"];
+    const reduced_acess = ["admin", "Consultant", "Admin"];
 
     return (
       // Set the directory path if you are deploying in sub-folder
