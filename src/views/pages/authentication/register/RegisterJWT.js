@@ -36,53 +36,53 @@ class RegisterJWT extends React.Component {
             value={this.state.last_name}
             onChange={e => this.setState({ last_name: e.target.value })}
           />
-          <Label>Name</Label>
+          <Label>Nom</Label>
         </FormGroup>
-          <FormGroup className="form-label-group">
-              <Input
-                  type="text"
-                  placeholder="Prénom"
-                  required
-                  value={this.state.first_name}
-                  onChange={e => this.setState({ first_name: e.target.value })}
-              />
-              <Label>Name</Label>
-          </FormGroup>
+        <FormGroup className="form-label-group">
+          <Input
+            type="text"
+            placeholder="Prénom"
+            required
+            value={this.state.first_name}
+            onChange={e => this.setState({ first_name: e.target.value })}
+          />
+          <Label>Prénom</Label>
+        </FormGroup>
         <FormGroup className="form-label-group">
           <Input
             type="email"
-            placeholder="Email"
+            placeholder="E-mail"
             required
             value={this.state.email}
             onChange={e => this.setState({ email: e.target.value })}
           />
-          <Label>Email</Label>
+          <Label>E-mail</Label>
         </FormGroup>
         <FormGroup className="form-label-group">
           <Input
             type="password"
-            placeholder="Password"
+            placeholder="Mot de passe"
             required
             value={this.state.password}
             onChange={e => this.setState({ password: e.target.value })}
           />
-          <Label>Password</Label>
+          <Label>Mot de passe</Label>
         </FormGroup>
         <FormGroup className="form-label-group">
           <Input
             type="password"
-            placeholder="Confirm Password"
+            placeholder="Confirmer le mot de passe"
             required
             value={this.state.confirmPass}
             onChange={e => this.setState({ confirmPass: e.target.value })}
           />
-          <Label>Confirm Password</Label>
+          <Label>Confirmer le mot de passe</Label>
         </FormGroup>
         <FormGroup>
           <Checkbox
             color="primary"
             icon={<Check className="vx-icon" size={16} />}
-            label=" I accept the terms & conditions."
+            label="J'accepte les termes et conditions."
             defaultChecked={true}
           />
         </FormGroup>
@@ -94,10 +94,10 @@ class RegisterJWT extends React.Component {
               history.push("/pages/login")
             }}
           >
-            Login
+            Se connecter
           </Button.Ripple>
           <Button.Ripple color="primary" type="submit">
-            Register
+            Créer un compte
           </Button.Ripple>
         </div>
       </Form>
