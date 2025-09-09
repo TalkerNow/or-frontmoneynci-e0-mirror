@@ -266,7 +266,7 @@ import {Card,
                   <Compass className="success" size={27} />
                 </div>
               </div>
-              <CardTitle>Information</CardTitle>
+              <CardTitle>Informations</CardTitle>
             </div>
           <Nav tabs className="px-2">
                     <NavItem>

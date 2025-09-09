@@ -11,11 +11,10 @@ import {
   TabPane,
 } from "reactstrap";
 import classnames from "classnames";
-import { User, Info, Folder } from "react-feather";
+import { User} from "react-feather";
 import AccountTab from "./oldInformations";
 import "../../../../assets/scss/pages/users.scss";
 import axios from "axios";
-import { history } from "../../../../history";
 
 class UserEdit extends React.Component {
   state = {
