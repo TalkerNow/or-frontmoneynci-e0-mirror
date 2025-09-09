@@ -1,5 +1,5 @@
 import React from "react";
-import { Download } from "react-feather";
+import { Download, Edit, Trash2, ChevronDown, UserPlus } from "react-feather";
 import {
   Button,
   Card,
@@ -13,9 +13,9 @@ import {
   DropdownToggle,
 } from "reactstrap";
 import axios from "axios";
+import * as XLSX from "xlsx";
 import { ContextLayout } from "../../../../utility/context/Layout";
 import { AgGridReact } from "ag-grid-react";
-import { Edit, Trash2, ChevronDown, UserPlus } from "react-feather";
 import { history } from "../../../../history";
 import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss";
 import "../../../../assets/scss/pages/users.scss";
@@ -41,7 +41,6 @@ class ClientsList extends React.Component {
     },
     searchVal: "",
     gridOptions: {
-      // Add event handlers
       onCellClicked: (params) => {
         if (
           params.colDef.headerName === "Nom" ||
@@ -73,7 +72,6 @@ class ClientsList extends React.Component {
         filter: true,
         width: 250,
         valueGetter: (params) => {
-          console.log(params.data);
           return params.data.last_name;
         },
       },
@@ -91,11 +89,9 @@ class ClientsList extends React.Component {
         hide: true,
         width: 150,
         valueGetter: (params) => {
-          if (params.data.civility === "Monsieur") {
-            return "Mr";
-          } else if (params.data.civility === "Madame") {
-            return "Mm";
-          }
+          if (params.data.civility === "Monsieur") return "M.";
+          if (params.data.civility === "Madame") return "Mme";
+          return params.data.civility || "";
         },
       },
       {
@@ -116,9 +112,8 @@ class ClientsList extends React.Component {
         filter: false,
         width: 250,
         valueGetter: (params) => {
-          console.log(params.data);
           return params.data.business_introducer
-            ? params.data.business_introducer.name
+            ? params.data.business_introducer.name || params.data.business_introducer
             : "-";
         },
       },
@@ -185,17 +180,139 @@ class ClientsList extends React.Component {
       });
   }
 
+  // ======= EXPORT EXCEL (XLSX) =======
+
+  // Ordre de colonnes voulu dans l'Excel
+  getExportHeaders = () => [
+    "ID",
+    "Créé le",
+    "Civilité",
+    "Nom",
+    "Prénom",
+    "Email",
+    "Téléphone mobile",
+    "Téléphone bureau",
+    "Statut",
+    "Mise à jour du statut",
+    "Technicien (parent)",
+    "Apport commercial",
+    "Date de naissance",
+    "Lieu de naissance",
+    "Nombre d’enfants",
+    "Situation maritale",
+    "Adresse perso",
+    "Adresse perso 2",
+    "Ville perso",
+    "Code postal perso",
+    "Pays perso",
+    "Société",
+    "Adresse société",
+    "Adresse société 2",
+    "Ville société",
+    "Code postal société",
+    "Pays société",
+    "Notes",
+    "Services souscrits",
+    "Compte valide",
+    "Utilisateur (ID)",
+    "ID parent (numérique)",
+  ];
+
+  // Format date simple et robuste
+  formatDateForExcel = (d) => {
+    if (!d) return "";
+    // Garde un format lisible par Excel sans dépendances (#stabilité)
+    return String(d).replace("T", " ").replace("Z", "");
+  };
+
+  // Nettoie les sauts de ligne / espaces longs
+  sanitizeText = (t) => {
+    if (!t) return "";
+    return String(t).replace(/\r?\n/g, " ").replace(/\s\s+/g, " ").trim();
+  };
+
+  // Construit une ligne "propre" depuis l'objet brut
+  buildClientRow = (c) => {
+    const civ =
+      c.civility === "Monsieur" ? "M." : c.civility === "Madame" ? "Mme" : (c.civility || "");
+    const apport =
+      c.business_introducer ? (c.business_introducer.name || c.business_introducer) : "";
+
+    return {
+      "ID": c.id ?? "",
+      "Créé le": this.formatDateForExcel(c.created_at),
+      "Civilité": civ,
+      "Nom": c.last_name ?? "",
+      "Prénom": c.first_name ?? "",
+      "Email": c.email ?? "",
+      "Téléphone mobile": c.mobile_number ?? "",
+      "Téléphone bureau": c.office_number ?? "",
+      "Statut": c.status ?? "",
+      "Mise à jour du statut": c.status_update_date ?? "",
+      "Technicien (parent)": c.parent ? c.parent.name : "",
+      "Apport commercial": apport,
+      "Date de naissance": this.formatDateForExcel(c.birth_date),
+      "Lieu de naissance": c.birth_place ?? "",
+      "Nombre d’enfants": c.children_number ?? "",
+      "Situation maritale": c.martial_status ?? "",
+      "Adresse perso": c.personal_address ?? "",
+      "Adresse perso 2": c.personal_address_2 ?? "",
+      "Ville perso": c.personal_city ?? "",
+      "Code postal perso": c.personal_zip_code ?? "",
+      "Pays perso": c.personal_country ?? "",
+      "Société": c.society_name ?? "",
+      "Adresse société": c.society_address ?? "",
+      "Adresse société 2": c.society_address_2 ?? "",
+      "Ville société": c.society_city ?? "",
+      "Code postal société": c.society_zip_code ?? "",
+      "Pays société": c.society_country ?? "",
+      "Notes": this.sanitizeText(c.notes),
+      "Services souscrits": this.sanitizeText(c.subscribe_services),
+      "Compte valide": c.valid_account ? "Oui" : "Non",
+      "Utilisateur (ID)": c.user_id ?? "",
+      "ID parent (numérique)": c.parent_id ?? "",
+    };
+  };
+
+  onBtExportXLSX = () => {
+    const { rowData } = this.state;
+    if (!rowData || !rowData.length) return;
+
+    const headers = this.getExportHeaders();
+    const data = rowData.map(this.buildClientRow);
+
+    // Construit la feuille avec l'ordre de colonnes fixé
+    const ws = XLSX.utils.json_to_sheet(data, { header: headers, skipHeader: true });
+    // Ajoute les en-têtes en A1
+    XLSX.utils.sheet_add_aoa(ws, [headers], { origin: "A1" });
+
+    // Ajuste la largeur des colonnes (basique)
+    const colWidths = headers.map((h) => ({ wch: Math.max(14, h.length + 2) }));
+    ws["!cols"] = colWidths;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Clients");
+
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    XLSX.writeFile(wb, `export_clients_${today}.xlsx`);
+  };
+
+  // ======= FIN EXPORT EXCEL =======
+
   isExternalFilterPresent = () => {
     if (consultant_id !== -1) {
       return true;
     }
     return false;
   };
+
+  // Ancien export CSV (gardé si besoin, mais non utilisé par le bouton)
   onBtExport = () => {
     this.gridApi.exportDataAsCsv({
       columnKeys: [3, 1, 2, 5],
     });
   };
+
   externalFilterChanged = (newValue) => {
     consultant_id = newValue;
     this.setState({ filter: !this.state.filter });
@@ -216,11 +333,13 @@ class ClientsList extends React.Component {
         this.gridApi.updateRowData({ remove: SelectedData });
       });
   }
+
   onGridReady = (params) => {
     this.gridApi = params.api;
     this.gridColumnApi = params.columnApi;
     this.gridApi.setDomLayout("autoHeight");
   };
+
   filterData = (column, val) => {
     var filter = this.gridApi.getFilterInstance(column);
     var modelObj = null;
@@ -233,6 +352,7 @@ class ClientsList extends React.Component {
     filter.setModel(modelObj);
     this.gridApi.onFilterChanged();
   };
+
   filterSize = (val) => {
     if (this.gridApi) {
       this.gridApi.paginationSetPageSize(Number(val));
@@ -256,6 +376,7 @@ class ClientsList extends React.Component {
       this.deleteUser(this.state.IdToDelete);
     }
   };
+
   render() {
     const { rowData, columnDefs, defaultColDef, pageSize } = this.state;
     return (
@@ -311,6 +432,7 @@ class ClientsList extends React.Component {
         >
           <p className="sweet-alert-text">L'action est annulé</p>
         </SweetAlert>
+
         <Row className="app-user-list">
           <Col sm="12">
             <Card style={{ minHeight: "3000px" }}>
@@ -395,13 +517,14 @@ class ClientsList extends React.Component {
                           className="mb-2"
                           outline
                           color="primary"
-                          onClick={() => this.onBtExport()}
+                          onClick={this.onBtExportXLSX}
                         >
                           <Download className="primary" size={15} />
                         </Button>
                       </div>
                     </div>
                   </div>
+
                   {this.state.rowData !== null ? (
                     <ContextLayout.Consumer>
                       {(context) => (
@@ -409,7 +532,6 @@ class ClientsList extends React.Component {
                           rowBuffer={10}
                           height={"autoHeight"}
                           gridOptions={this.state.gridOptions}
-                          // rowSelection="multiple"
                           doesExternalFilterPass={this.doesExternalFilterPass}
                           isExternalFilterPresent={this.isExternalFilterPresent}
                           defaultColDef={defaultColDef}
