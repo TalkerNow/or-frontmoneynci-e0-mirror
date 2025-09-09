@@ -33,14 +33,14 @@ export const searchResult = [
     icon: "MessageSquare",
     starred: true
   },*/
-  {
-    id: 5,
-    target: "Email",
-    title: "Email",
-    link: "/email/inbox",
-    icon: "Mail",
-    starred: true
-  },
+  // {
+  //   id: 5,
+  //   target: "Email",
+  //   title: "Email",
+  //   link: "/email/inbox",
+  //   icon: "Mail",
+  //   starred: true
+  // },
   // {
   //   id: 6,
   //   target: "Calender",
