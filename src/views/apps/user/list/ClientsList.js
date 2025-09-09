@@ -24,6 +24,14 @@ import Moment from "react-moment";
 
 var consultant_id = -1;
 
+// ======= WHITELIST FRONT (modifier la liste ci-dessous) =======
+const ALLOWED_EMAILS = [
+  "remi@phocus1.com",
+  "jfc@eor.fr",
+  "martin.six@phocus1.com",
+  "sebastien@eor.fr"
+];
+
 class ClientsList extends React.Component {
   state = {
     defaultAlert: false,
@@ -40,6 +48,7 @@ class ClientsList extends React.Component {
       sortable: true,
     },
     searchVal: "",
+    currentUserEmail: "", // <-- ajouté
     gridOptions: {
       onCellClicked: (params) => {
         if (
@@ -178,6 +187,18 @@ class ClientsList extends React.Component {
         let rowData = response.data;
         this.setState({ rowData });
       });
+
+    // ======= Récupérer l'email de l'utilisateur courant (pour le contrôle front) =======
+    const userId = localStorage.getItem("userid");
+    if (userId) {
+      try {
+        const meRes = await axios.get(`${global.config.server_url}/users/${userId}`, Config);
+        const currentUserEmail = (meRes?.data?.email || "").toLowerCase();
+        this.setState({ currentUserEmail });
+      } catch (e) {
+        console.error("Impossible de récupérer l'utilisateur courant", e);
+      }
+    }
   }
 
   // ======= EXPORT EXCEL (XLSX) =======
@@ -274,7 +295,16 @@ class ClientsList extends React.Component {
     };
   };
 
+  // ======= Vérification d'autorisation côté front =======
+  canDownload = () => {
+    const email = (this.state.currentUserEmail || "").toLowerCase();
+    return ALLOWED_EMAILS.map(e => e.toLowerCase()).includes(email);
+  };
+
   onBtExportXLSX = () => {
+    // Garde de sécurité front
+    if (!this.canDownload()) return;
+
     const { rowData } = this.state;
     if (!rowData || !rowData.length) return;
 
@@ -427,7 +457,7 @@ class ClientsList extends React.Component {
           show={this.state.cancelAlert}
           onConfirm={() => {
             this.handleAlert("defaultAlert", false, 0);
-            this.handleAlert("cancelAlert", false, 0);
+            this.handleAlert("cancelAlert", true, 0);
           }}
         >
           <p className="sweet-alert-text">L'action est annulé</p>
@@ -513,14 +543,16 @@ class ClientsList extends React.Component {
                         </Button>
                       </div>
                       <div className="dropdown mr-1 mb-1 d-inline-block">
-                        <Button
-                          className="mb-2"
-                          outline
-                          color="primary"
-                          onClick={this.onBtExportXLSX}
-                        >
-                          <Download className="primary" size={15} />
-                        </Button>
+                        {this.canDownload() && (
+                          <Button
+                            className="mb-2"
+                            outline
+                            color="primary"
+                            onClick={this.onBtExportXLSX}
+                          >
+                            <Download className="primary" size={15} />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
