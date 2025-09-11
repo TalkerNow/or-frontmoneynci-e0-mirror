@@ -4,3 +4,20 @@
 @import "./colors.scss";
 @import "./iconfont.scss";
 @import "./custom-rtl.scss";
+
+.has-icon-right input {
+  padding-right: 2.5rem; /* espace pour l’icône droite */
+}
+
+.form-control-position.right {
+  right: 0.75rem;
+  left: auto;
+  cursor: pointer;
+}
+
+.btn-reset {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  line-height: 0;
+}
