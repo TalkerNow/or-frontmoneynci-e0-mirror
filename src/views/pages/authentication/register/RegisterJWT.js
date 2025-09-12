@@ -1,7 +1,7 @@
 import React from "react"
 import { Form, FormGroup, Input, Label, Button } from "reactstrap"
 import Checkbox from "../../../../components/@vuexy/checkbox/CheckboxesVuexy"
-import { Check } from "react-feather"
+import { Check, Eye, EyeOff } from "react-feather"
 import { connect } from "react-redux"
 import { signupWithJWT } from "../../../../redux/actions/auth/registerActions"
 import { history } from "../../../../history"
@@ -12,11 +12,22 @@ class RegisterJWT extends React.Component {
     password: "",
     first_name: "",
     last_name: "",
-    confirmPass: ""
+    confirmPass: "",
+    showPassword: false,
+    showConfirm: false,
   }
+  toggleShowPassword = () =>
+    this.setState(prev => ({ showPassword: !prev.showPassword }))
+
+  toggleShowConfirm = () =>
+    this.setState(prev => ({ showConfirm: !prev.showConfirm }))
 
   handleRegister = e => {
     e.preventDefault()
+    if (this.state.password !== this.state.confirmPass) {
+      alert("Les mots de passe ne correspondent pas.")
+      return
+    }
     this.props.signupWithJWT(
       this.state.email,
       this.state.password,
@@ -58,26 +69,48 @@ class RegisterJWT extends React.Component {
           />
           <Label>E-mail</Label>
         </FormGroup>
-        <FormGroup className="form-label-group">
+        {/* Mot de passe */}
+        <FormGroup className="form-label-group position-relative has-icon-right">
           <Input
-            type="password"
+            type={this.state.showPassword ? "text" : "password"}
             placeholder="Mot de passe"
             required
             value={this.state.password}
             onChange={e => this.setState({ password: e.target.value })}
           />
+          <button
+            type="button"
+            className="form-control-position right btn-reset"
+            onClick={this.toggleShowPassword}
+            aria-label={this.state.showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+            title={this.state.showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+          >
+            {this.state.showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
           <Label>Mot de passe</Label>
         </FormGroup>
-        <FormGroup className="form-label-group">
+
+        {/* Confirmer le mot de passe */}
+        <FormGroup className="form-label-group position-relative has-icon-right">
           <Input
-            type="password"
+            type={this.state.showConfirm ? "text" : "password"}
             placeholder="Confirmer le mot de passe"
             required
             value={this.state.confirmPass}
             onChange={e => this.setState({ confirmPass: e.target.value })}
           />
+          <button
+            type="button"
+            className="form-control-position right btn-reset"
+            onClick={this.toggleShowConfirm}
+            aria-label={this.state.showConfirm ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+            title={this.state.showConfirm ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+          >
+            {this.state.showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
           <Label>Confirmer le mot de passe</Label>
         </FormGroup>
+
         <FormGroup>
           <Checkbox
             color="primary"

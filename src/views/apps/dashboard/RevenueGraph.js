@@ -79,13 +79,17 @@ class RevenueGraph extends React.Component {
           show: false
         }
       },
-      yaxis: {
-        tickAmount: 8,
-        labels: {
-          style: {
-            color: this.props.strokeColor
+        yaxis: {
+          tickAmount: 8,
+          labels: {
+            style: { color: this.props.strokeColor },
+            formatter: (val) =>
+              new Intl.NumberFormat("fr-FR", {
+                style: "currency",
+                currency: "EUR",
+                maximumFractionDigits: 0 // mets 2 si tu veux des centimes
+              }).format(val)
           }
-        }
       },
 
       tooltip: {
@@ -156,7 +160,7 @@ class RevenueGraph extends React.Component {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Revenue Report</CardTitle>
+          <CardTitle>Rapport de revenus</CardTitle>
           <div className="title-section" style={{ textAlign: 'celter', margin: 'left', display: 'inline-block', }}>
             <div style={{ display: 'inline-block', marginLeft: '5px' }}>
               <Input type="select" name="select" id="role" defaultValue={new Date().getFullYear()} style={{ width: '75px', marginLeft: 'auto', marginRight: 'auto', fontSize: '17px' }}

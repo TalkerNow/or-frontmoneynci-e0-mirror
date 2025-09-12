@@ -2,7 +2,7 @@ import React from "react"
 import { Link } from "react-router-dom"
 import { CardBody, FormGroup, Form, Input, Button, Label } from "reactstrap"
 import Checkbox from "../../../../components/@vuexy/checkbox/CheckboxesVuexy"
-import { Mail, Lock, Check } from "react-feather"
+import { Mail, Lock, Check, Eye, EyeOff } from "react-feather"
 import { loginWithJWT } from "../../../../redux/actions/auth/loginActions"
 import { connect } from "react-redux"
 import { history } from "../../../../history"
@@ -15,8 +15,13 @@ class LoginJWT extends React.Component {
   state = {
     email: "",
     password: "",
-    remember: false
+    remember: false,
+    showPassword: false
   }
+
+  toggleShowPassword = () => {
+    this.setState(prev => ({ showPassword: !prev.showPassword }))
+  };
 
   handleLogin = e => {
     e.preventDefault()
@@ -41,10 +46,10 @@ class LoginJWT extends React.Component {
               </div>
               <Label>Email</Label>
             </FormGroup>
-            <FormGroup className="form-label-group position-relative has-icon-left">
+            <FormGroup className="form-label-group position-relative has-icon-left has-icon-right">
               <Input
-                type="password"
-                placeholder="Password"
+                type={this.state.showPassword ? "text" : "password"}
+                placeholder="Mot de passe"
                 value={this.state.password}
                 onChange={e => this.setState({ password: e.target.value })}
                 required
@@ -52,6 +57,16 @@ class LoginJWT extends React.Component {
               <div className="form-control-position">
                 <Lock size={15} />
               </div>
+              <button
+                type="button"
+                className="form-control-position right btn-reset"
+                onClick={this.toggleShowPassword}
+                aria-label={this.state.showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                title={this.state.showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+              >
+                {this.state.showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+
               <Label>Mot de passe</Label>
             </FormGroup>
             <FormGroup className="d-flex justify-content-between align-items-center">

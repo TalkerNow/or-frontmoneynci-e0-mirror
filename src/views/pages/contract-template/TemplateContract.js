@@ -210,11 +210,11 @@ class TemplateContract extends React.Component {
     render() {
         return (
             <React.Fragment>
-                <Breadcrumbs
-                    breadCrumbTitle="Contract Template"
-                    breadCrumbParent="Pages"
-                    breadCrumbActive="Contract template"
-                />
+                <Row>
+                    <Col sm="12">
+                        <h2 className="content-header">Modèle de contrat</h2>
+                    </Col>
+                </Row>
                 <Row>
                     <Col className="mb-1 contract-header" md="5" sm="12">
                         <InputGroup>
@@ -238,7 +238,7 @@ class TemplateContract extends React.Component {
                                 this.sendForm()
                             }}
                         >
-                            Save Contract Template
+                            Sauvegarder le contrat
                         </Button>
                     </Col>
                     <Col className="contract-wrapper" sm="10" style={{ marginLeft: 'auto', marginRight: 'auto', marginTop: '30px' }}>
@@ -1107,7 +1107,7 @@ class TemplateContract extends React.Component {
                                                         </div>
                                                     </Col>
                                                     <Col md="3" sm="12" style={{ paddingLeft: 0, marginTop: '5px' }}>
-                                                        <div style={{ display: 'inline-block' }} className="contract-div" style={{ width: '80px' }}>
+                                                        <div style={{ display: 'inline-block', width: '80px' }} className="contract-div">
                                                             {this.state.formValues['FINAL75']} €
                                                         </div>
                                                     </Col>
@@ -1179,5 +1179,4 @@ class TemplateContract extends React.Component {
 }
 
 export default TemplateContract
-/* eslint-disable */
 
