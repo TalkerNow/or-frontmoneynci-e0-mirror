@@ -61,6 +61,10 @@ class AddUser extends React.Component {
       society_city: null,
       society_country: null,
 
+      // ✅ Nouveaux champs
+      secu_social: null,
+      secu_social_key: null,
+
       parent_id: null,
     },
     members: [],
@@ -145,6 +149,11 @@ class AddUser extends React.Component {
               society_zip_code: data.society_zip_code,
               society_city: data.society_city,
               society_country: data.society_country,
+
+              // ✅ Envoi au back
+              secu_social: data.secu_social,
+              secu_social_key: data.secu_social_key,
+
               notes: data.notes,
               parent_id: data.parent_id,
             })
@@ -227,8 +236,8 @@ class AddUser extends React.Component {
     axios
       .get(
         global.config.server_url +
-        "/duplicated_email?email=" +
-        this.state.data.email,
+          "/duplicated_email?email=" +
+          this.state.data.email,
         Config
       )
       .then((response) => {
@@ -452,6 +461,41 @@ class AddUser extends React.Component {
                 </FormGroup>
               </div>
             </Col>
+            {/* ✅ Sécurité Sociale & Clé */}
+            <Col md="6" sm="12">
+              <FormGroup>
+                <Label for="secu_social">Sécurité Sociale</Label>
+                <Input
+                  type="text"
+                  placeholder="Sécurité Sociale"
+                  onChange={(e) =>
+                    this.setState({
+                      data: { ...this.state.data, secu_social: e.target.value },
+                    })
+                  }
+                  id="secu_social"
+                />
+              </FormGroup>
+            </Col>
+            <Col md="6" sm="12">
+              <FormGroup>
+                <Label for="secu_social_key">Clé de Sécurité Sociale</Label>
+                <Input
+                  type="text"
+                  placeholder="Clé de Sécurité Sociale"
+                  onChange={(e) =>
+                    this.setState({
+                      data: {
+                        ...this.state.data,
+                        secu_social_key: e.target.value,
+                      },
+                    })
+                  }
+                  id="secu_social_key"
+                />
+              </FormGroup>
+            </Col>
+            {/* fin nouveaux champs */}
             <Col md="6" sm="12">
               <FormGroup>
                 <Label for="email">Adresse mail</Label>

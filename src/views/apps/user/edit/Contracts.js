@@ -55,16 +55,12 @@ class Contracts extends React.Component {
       sortable: true
     },
     searchVal: "",
+    // Nouveaux états pour la signature DocuSign
+    requestingSignature: false,
+    signatureAlertSuccess: false,
+    signatureAlertError: { show: false, message: "" },
+
     columnDefs: [
-      // {
-      //   headerName: "ID",
-      //   field: "id",
-      //   width: 150,
-      //   filter: true,
-      //   checkboxSelection: true,
-      //   headerCheckboxSelectionFilteredOnly: true,
-      //   headerCheckboxSelection: true
-      // },
       {
         headerName: "contrat",
         field: "comment",
@@ -102,6 +98,7 @@ class Contracts extends React.Component {
                         className="m-0 text-center ml-1"
                         color={chipColors[service.trim()]}
                         text={service}
+                        key={service + params.data.id}
                       />);
                     }
                   })
@@ -119,10 +116,7 @@ class Contracts extends React.Component {
         width: 150,
         cellRendererFramework: params => {
           return (
-            <div
-              className="d-flex align-items-center cursor-pointer"
-            //onClick={() => history.push("/app/user/edit/" + params.data.id)}
-            >
+            <div className="d-flex align-items-center cursor-pointer">
               <span>{params.data.advanced_payment + " €"}</span>
             </div>
           )
@@ -136,28 +130,19 @@ class Contracts extends React.Component {
         cellRendererFramework: params => {
           if ((params.data.document_state === "En cours" || params.data.document_state === "Termine") && params.data.status_payment >= 1) {
             return (
-              <div
-                className="d-flex align-items-center cursor-pointer text-success"
-              //onClick={() => history.push("/app/user/edit/" + params.data.id)}
-              >
+              <div className="d-flex align-items-center cursor-pointer text-success">
                 <span>{params.data.pre_payment + " €"}</span>
               </div>
             )
           } else if ((params.data.document_state === "En cours" || params.data.document_state === "Termine") && params.data.status_payment < 1) {
             return (
-              <div
-                className="d-flex align-items-center cursor-pointer text-danger"
-              //onClick={() => history.push("/app/user/edit/" + params.data.id)}
-              >
+              <div className="d-flex align-items-center cursor-pointer text-danger">
                 <span>{params.data.pre_payment + " €"}</span>
               </div>
             )
           } else {
             return (
-              <div
-                className="d-flex align-items-center cursor-pointer"
-              //onClick={() => history.push("/app/user/edit/" + params.data.id)}
-              >
+              <div className="d-flex align-items-center cursor-pointer">
                 <span>{params.data.pre_payment + " €"}</span>
               </div>
             )
@@ -172,28 +157,19 @@ class Contracts extends React.Component {
         cellRendererFramework: params => {
           if ((params.data.document_state === "En cours" || params.data.document_state === "Termine") && params.data.status_payment == 2) {
             return (
-              <div
-                className="d-flex align-items-center cursor-pointer text-success"
-              //onClick={() => history.push("/app/user/edit/" + params.data.id)}
-              >
+              <div className="d-flex align-items-center cursor-pointer text-success">
                 <span>{params.data.end_payment + " €"}</span>
               </div>
             )
           } else if (params.data.document_state == "Termine" && params.data.status_payment < 2) {
             return (
-              <div
-                className="d-flex align-items-center cursor-pointer text-danger"
-              //onClick={() => history.push("/app/user/edit/" + params.data.id)}
-              >
+              <div className="d-flex align-items-center cursor-pointer text-danger">
                 <span>{params.data.end_payment + " €"}</span>
               </div>
             )
           } else {
             return (
-              <div
-                className="d-flex align-items-center cursor-pointer"
-              //onClick={() => history.push("/app/user/edit/" + params.data.id)}
-              >
+              <div className="d-flex align-items-center cursor-pointer">
                 <span>{params.data.end_payment + " €"}</span>
               </div>
             )
@@ -208,10 +184,7 @@ class Contracts extends React.Component {
         cellRendererFramework: params => {
           return (
             params.data.user &&
-            <div
-              className="d-flex align-items-center cursor-pointer"
-            //onClick={() => history.push("/app/user/edit/" + params.data.id)}
-            >
+            <div className="d-flex align-items-center cursor-pointer">
               <span>{params.data.document_state}</span>
             </div>
           )
@@ -259,6 +232,67 @@ class Contracts extends React.Component {
       this.setState({ rowData })
     })
   }
+
+  // ======= NEW: envoyer la demande de signature DocuSign =======
+  requestSignature = async () => {
+    this.setState({ requestingSignature: true, signatureAlertError: { show: false, message: "" } })
+    const Config = {
+      headers: {
+        Authorization: "Bearer " + localStorage.getItem("token")
+      }
+    }
+
+    try {
+      // 1) Récupérer les infos du user
+      const userRes = await axios.get(
+        global.config.server_url + "/users/" + this.props.id,
+        Config
+      )
+      const u = userRes.data || {}
+
+      // 2) Construire le payload
+      const payload = {
+        kind: "procuration",
+        embedded: false,
+        user_id: u.id,
+        birth_date: u.birth_date || "",
+        nir_body: (u.secu_social || "").toString(),
+        nir_key: (u.secu_social_key || "").toString(),
+        address: u.personal_address || "",
+        address2: u.personal_address_2 || "",
+        zip: (u.personal_zip_code !== null && u.personal_zip_code !== undefined) ? String(u.personal_zip_code) : "",
+        city: u.personal_city || "",
+        country: u.personal_country || ""
+      }
+
+      // (Optionnel) petite validation locale minimale
+      const requiredFields = ["user_id", "birth_date", "nir_body", "nir_key", "address", "zip", "city", "country"]
+      const missing = requiredFields.filter(k => !payload[k] || String(payload[k]).trim() === "")
+      if (missing.length) {
+        throw new Error("Champs manquants: " + missing.join(", "))
+      }
+
+      // 3) POST vers l’endpoint DocuSign
+      await axios.post(
+        // même base que le reste de l'app pour respecter la config env
+        global.config.server_url + "/docusign/request-signature",
+        payload,
+        Config
+      )
+
+      // 4) Succès
+      this.setState({ signatureAlertSuccess: true })
+    } catch (err) {
+      const message =
+        (err && err.response && err.response.data && (err.response.data.message || err.response.data.error)) ||
+        err.message ||
+        "Erreur inconnue"
+      this.setState({ signatureAlertError: { show: true, message } })
+    } finally {
+      this.setState({ requestingSignature: false })
+    }
+  }
+  // =============================================================
 
   deleteDoc(id) {
     const Config = {
@@ -362,6 +396,7 @@ class Contracts extends React.Component {
     const { rowData, columnDefs, defaultColDef, pageSize } = this.state
     return (
       <div>
+        {/* Alerte delete existante */}
         <SweetAlert title="Êtes vous sûrs?"
           warning
           show={this.state.defaultAlert}
@@ -379,6 +414,26 @@ class Contracts extends React.Component {
         >
           Vous ne pourrez pas revenir en arrière
         </SweetAlert>
+
+        {/* NEW: Alertes pour la demande de signature */}
+        <SweetAlert
+          success
+          title="Demande envoyée"
+          show={this.state.signatureAlertSuccess}
+          onConfirm={() => this.setState({ signatureAlertSuccess: false })}
+        >
+          La demande de signature DocuSign a bien été envoyée.
+        </SweetAlert>
+
+        <SweetAlert
+          danger
+          title="Erreur lors de l'envoi"
+          show={this.state.signatureAlertError.show}
+          onConfirm={() => this.setState({ signatureAlertError: { show: false, message: "" } })}
+        >
+          {this.state.signatureAlertError.message}
+        </SweetAlert>
+
         <Row className="app-user-list">
           <Col sm="12">
             <Card
@@ -433,14 +488,8 @@ class Contracts extends React.Component {
                           value={this.state.role}
                           onChange={e => {
                             this.setState(
-                              {
-                                role: e.target.value
-                              },
-                              () =>
-                                this.filterData(
-                                  "role",
-                                  this.state.role.toLowerCase()
-                                )
+                              { role: e.target.value },
+                              () => this.filterData("role", this.state.role.toLowerCase())
                             )
                           }}
                         >
@@ -461,14 +510,8 @@ class Contracts extends React.Component {
                           value={this.state.selectStatus}
                           onChange={e => {
                             this.setState(
-                              {
-                                selectStatus: e.target.value
-                              },
-                              () =>
-                                this.filterData(
-                                  "status",
-                                  this.state.selectStatus.toLowerCase()
-                                )
+                              { selectStatus: e.target.value },
+                              () => this.filterData("status", this.state.selectStatus.toLowerCase())
                             )
                           }}
                         >
@@ -489,14 +532,8 @@ class Contracts extends React.Component {
                           value={this.state.verified}
                           onChange={e => {
                             this.setState(
-                              {
-                                verified: e.target.value
-                              },
-                              () =>
-                                this.filterData(
-                                  "is_verified",
-                                  this.state.verified.toLowerCase()
-                                )
+                              { verified: e.target.value },
+                              () => this.filterData("is_verified", this.state.verified.toLowerCase())
                             )
                           }}
                         >
@@ -516,14 +553,8 @@ class Contracts extends React.Component {
                           value={this.state.department}
                           onChange={e => {
                             this.setState(
-                              {
-                                department: e.target.value
-                              },
-                              () =>
-                                this.filterData(
-                                  "department",
-                                  this.state.department.toLowerCase()
-                                )
+                              { department: e.target.value },
+                              () => this.filterData("department", this.state.department.toLowerCase())
                             )
                           }}
                         >
@@ -539,6 +570,7 @@ class Contracts extends React.Component {
               </Collapse>
             </Card>
           </Col>
+
           <Col sm="12">
             <Card>
               <CardBody>
@@ -546,12 +578,29 @@ class Contracts extends React.Component {
                   <div className="ag-grid-actions d-flex justify-content-between flex-wrap mb-1">
                     <div className="filter-actions d-flex">
                       <div>
-                        <Button.Ripple className="mr-1 mb-1" outline color="primary"
-                          style={{}}
-                          onClick={() => history.push("/pages/create-contract/" + this.props.id)}>
+                        <Button.Ripple
+                          className="mr-1 mb-1"
+                          outline
+                          color="primary"
+                          onClick={() => history.push("/pages/create-contract/" + this.props.id)}
+                        >
                           <FolderPlus size={15} /> contrat
                         </Button.Ripple>
                       </div>
+
+                      {/* NEW: Bouton pour envoyer la demande de signature */}
+                      <div>
+                        <Button.Ripple
+                          className="mr-1 mb-1"
+                          color="success"
+                          onClick={this.requestSignature}
+                          disabled={this.state.requestingSignature}
+                        >
+                          {this.state.requestingSignature && <Spinner size="sm" className="mr-50" />}
+                          DocuSign procuration EOR
+                        </Button.Ripple>
+                      </div>
+
                       <div className="dropdown mr-1 mb-1 d-inline-block">
                         <UncontrolledButtonDropdown>
                           <DropdownToggle color="primary" caret>
@@ -568,6 +617,7 @@ class Contracts extends React.Component {
                       </div>
                     </div>
                   </div>
+
                   {this.state.rowData !== null ? (
                     <ContextLayout.Consumer>
                       {context => (
@@ -601,4 +651,3 @@ class Contracts extends React.Component {
 }
 export default Contracts
 /* eslint-disable */
-
