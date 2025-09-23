@@ -2329,8 +2329,7 @@ class CreateContract extends React.Component {
                 </div>
                 {/******* table3 ********/}
                 <div
-                  style={{ display: "flex" }}
-                  style={{ marginBottom: "50px" }}
+                  style={{ display: "flex", marginBottom: "50px" }}
                 >
                   <table
                     className="tableCSS"
@@ -2407,9 +2406,8 @@ class CreateContract extends React.Component {
                             style={{ paddingLeft: 0, marginTop: "5px" }}
                           >
                             <div
-                              style={{ display: "inline-block" }}
+                              style={{ display: "inline-block", width: "80px" }}
                               className="contract-div"
-                              style={{ width: "80px" }}
                             >
                               {this.state.formValues["FINAL75"]} €
                             </div>
