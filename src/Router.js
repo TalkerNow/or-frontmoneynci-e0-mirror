@@ -15,7 +15,7 @@ const authorized = lazy(() => import("./views/pages/misc/NotAuthorized"));
 
 //-------- current active -----------------
 const profile = lazy(() => import("./views/apps/profile"));
-
+const kpi = lazy(() => import("./views/apps/kpi"));
 // const payment = lazy(() => import("./views/apps/payment/PaymentList"))
 
 const task = lazy(() => import("./views/apps/task/Task"));
@@ -281,7 +281,12 @@ class AppRouter extends React.Component {
             isAuth={mapStateToProps()}
             authorisation={employee_acess}
           />
-
+          <ProtectedRoute
+            path="/kpi"
+            component={kpi}
+            isAuth={mapStateToProps()}
+            authorisation={employee_acess}
+          />
           {/* <AppRoute path="/app/user/userlist" component={AdmUserList} /> */}
           {/* <AppRoute path="/app/contract/handleServices/:id" component={handleServices} /> */}
           {/* <AppRoute path="/app/user/createService" component={createService} /> */}

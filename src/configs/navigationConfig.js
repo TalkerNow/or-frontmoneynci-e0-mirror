@@ -53,6 +53,14 @@ const navigationConfig = [
     filterBase: "/task/all"
   },
   {
+    id: "kpi",
+    title: "kpi",
+    type: "item",
+    icon: <Icon.BarChart2 size={20} />,
+    permissions: ["admin","Consultant", "Expert"],
+    navLink: "/kpi",
+  },
+  {
     id: "document",
     title: "Documents",
     type: "item",
