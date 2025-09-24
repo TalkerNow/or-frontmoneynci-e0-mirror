@@ -15,6 +15,10 @@ import {
   DropdownMenu,
   DropdownItem,
   DropdownToggle,
+  Modal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
 } from "reactstrap";
 import {
   BarChart,
@@ -26,6 +30,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { Trash2 } from "react-feather"; // icône poubelle
 
 /** =============================
  *  Helpers (token, admin id, date)
@@ -166,6 +171,11 @@ export default function KpiPage() {
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear); // filtre d'année pour la vue
   const [actionFilter, setActionFilter] = useState("all"); // "all" | ACTIONS_ALL
+
+  // Suppression
+  const [deletingId, setDeletingId] = useState(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [toDelete, setToDelete] = useState(null);
 
   // Charger la TABLE paginée
   useEffect(() => {
@@ -311,6 +321,47 @@ export default function KpiPage() {
       );
     } finally {
       setCreating(false);
+    }
+  }
+
+  function openConfirmModal(kpiRow) {
+    setToDelete(kpiRow);
+    setConfirmOpen(true);
+  }
+
+  function closeConfirmModal() {
+    if (deletingId) return; // évite la fermeture pendant la suppression
+    setConfirmOpen(false);
+    setToDelete(null);
+  }
+
+  // Suppression après confirmation (modale)
+  async function deleteKpi(id) {
+    if (!id) return;
+    try {
+      setDeletingId(id);
+      setError("");
+      await API.delete(`/kpis/${id}`);
+
+      // Mise à jour optimiste
+      setItems((prev) => prev.filter((x) => x.id !== id));
+      setAllItems((prev) => prev.filter((x) => x.id !== id));
+
+      // Rechargement pour garder pagination & graph synchronisés
+      await fetchKpis(page);
+      await fetchAllKpis();
+
+      // Ferme la modale si ouverte
+      closeConfirmModal();
+    } catch (e) {
+      console.error(e);
+      setError(
+        e?.response?.data?.message ||
+          e?.response?.data?.error ||
+          "Impossible de supprimer le KPI."
+      );
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -547,13 +598,12 @@ export default function KpiPage() {
                   />
                   <Legend />
 
-                  {/* Colonnes empilées (plus lisible pour comparer semaine par semaine ET voir le total) */}
+                  {/* Colonnes empilées */}
                   {actionFilter === "all"
                     ? ACTIONS_ALL.map((a) => (
                         <Bar key={a} dataKey={a} stackId="total" fill={ACTION_FILLS[a]} />
                       ))
-                    : // Sinon, n'afficher que la série filtrée (sans stackId)
-                      [
+                    : [
                         <Bar
                           key={actionFilter}
                           dataKey={actionFilter}
@@ -563,7 +613,7 @@ export default function KpiPage() {
                 </BarChart>
               </ResponsiveContainer>
             )}
-            {(!loadingChart && chartDataMulti.length === 0) ? (
+            {!loadingChart && chartDataMulti.length === 0 ? (
               <div className="text-center mt-1" style={{ opacity: 0.7 }}>
                 Aucune donnée pour le filtre courant.
               </div>
@@ -607,12 +657,13 @@ export default function KpiPage() {
                   <th>Objet</th>
                   <th>Action</th>
                   <th>Admin</th>
+                  <th className="text-right" style={{ width: 40 }}></th>
                 </tr>
               </thead>
               <tbody>
                 {loadingList ? (
                   <tr>
-                    <td colSpan="5">Chargement…</td>
+                    <td colSpan="6">Chargement…</td>
                   </tr>
                 ) : items?.length ? (
                   items.map((k) => (
@@ -625,14 +676,30 @@ export default function KpiPage() {
                         {k.admin_id == null ? (
                           <em style={{ opacity: 0.6 }}>(null)</em>
                         ) : (
-                          usersById[k.admin_id] || k.admin_name || k.admin || String(k.admin_id)
+                          usersById[k.admin_id] ||
+                          k.admin_name ||
+                          k.admin ||
+                          String(k.admin_id)
                         )}
+                      </td>
+                      <td className="text-right" style={{ width: 40 }}>
+                        <Button
+                          color="link"
+                          className="p-0"
+                          style={{ color: "#dc3545" }}
+                          onClick={() => openConfirmModal(k)}
+                          disabled={deletingId === k.id}
+                          aria-label={`Supprimer KPI ${k.id}`}
+                          title="Supprimer"
+                        >
+                          <Trash2 size={18} />
+                        </Button>
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="5">Aucun KPI.</td>
+                    <td colSpan="6">Aucun KPI.</td>
                   </tr>
                 )}
               </tbody>
@@ -640,6 +707,66 @@ export default function KpiPage() {
           </CardBody>
         </Card>
       </div>
+
+      {/* ====== Modale de confirmation ====== */}
+      <Modal
+        isOpen={confirmOpen}
+        toggle={closeConfirmModal}
+        centered
+        size="md"
+        backdrop="static"          // évite le clic extérieur
+        keyboard={!deletingId}     // bloque ESC pendant la suppression
+      >
+        <ModalHeader toggle={closeConfirmModal} className="border-0">
+          <div className="d-flex align-items-center">
+            <Trash2 size={18} className="mr-1" />
+            Confirmer la suppression
+          </div>
+        </ModalHeader>
+        <ModalBody className="pt-0">
+          <div
+            style={{
+              background: "#fff5f5",
+              border: "1px solid #ffd6d6",
+              color: "#8a1f1f",
+              padding: 12,
+              borderRadius: 8,
+            }}
+            className="mb-2"
+          >
+            Cette action est irréversible.
+          </div>
+          {toDelete && (
+            <div className="small" style={{ lineHeight: 1.6 }}>
+              <div>
+                <strong>ID :</strong> #{toDelete.id}
+              </div>
+              <div>
+                <strong>Date :</strong>{" "}
+                {formatDate(toDelete.kpi_date || toDelete.created_at || toDelete.updated_at)}
+              </div>
+              <div>
+                <strong>Objet :</strong> {toDelete.objet || <em>(vide)</em>}
+              </div>
+              <div>
+                <strong>Action :</strong> {toDelete.action || <em>(vide)</em>}
+              </div>
+            </div>
+          )}
+        </ModalBody>
+        <ModalFooter className="border-0">
+          <Button color="secondary" onClick={closeConfirmModal} disabled={!!deletingId}>
+            Annuler
+          </Button>
+          <Button
+            color="danger"
+            onClick={() => deleteKpi(toDelete?.id)}
+            disabled={!toDelete || deletingId === toDelete?.id}
+          >
+            {deletingId === toDelete?.id ? "Suppression..." : "Supprimer"}
+          </Button>
+        </ModalFooter>
+      </Modal>
     </div>
   );
 }
