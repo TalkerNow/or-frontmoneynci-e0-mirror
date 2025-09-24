@@ -527,7 +527,7 @@ export default function KpiPage() {
             <div className="d-flex align-items-center">
               {/* GroupBy */}
               <UncontrolledButtonDropdown className="mr-1">
-                <DropdownToggle caret color="light">
+                <DropdownToggle caret color="primary">
                   {groupBy === "week" ? "Par semaine" : "Par mois"}
                 </DropdownToggle>
                 <DropdownMenu right>
@@ -542,7 +542,7 @@ export default function KpiPage() {
 
               {/* Year filter */}
               <UncontrolledButtonDropdown className="mr-1">
-                <DropdownToggle caret color="light">
+                <DropdownToggle caret color="primary">
                   Année : {year}
                 </DropdownToggle>
                 <DropdownMenu right>
@@ -556,7 +556,7 @@ export default function KpiPage() {
 
               {/* Action filter */}
               <UncontrolledButtonDropdown>
-                <DropdownToggle caret color="light">
+                <DropdownToggle caret color="primary">
                   {actionFilter === "all" ? "Toutes actions" : actionFilter}
                 </DropdownToggle>
                 <DropdownMenu right>
