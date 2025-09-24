@@ -24,19 +24,45 @@ import {
   Tooltip,
   CartesianGrid,
   ResponsiveContainer,
+  Legend,
 } from "recharts";
 
 /** =============================
  *  Helpers (token, admin id, date)
  *  =============================*/
-const API_BASE =
-  process.env.REACT_APP_API_BASE?.replace(/\/$/, "") || ""; // ex: "" (même domaine) ou "https://mon-vps"
+const API_BASE = process.env.REACT_APP_API_BASE?.replace(/\/$/, "") || ""; // ex: "" (même domaine) ou "https://mon-vps"
 const API = axios.create({
   baseURL: `${global.config.server_url}`,
   headers: {
     Accept: "application/json",
   },
 });
+
+// Catégories d'actions (avec "autre")
+const ACTIONS_BASE = [
+  "Rdv pris",
+  "mail proposition envoyé",
+  "affaire signée",
+  "échec",
+];
+const ACTION_OTHER = "autre";
+const ACTIONS_ALL = [...ACTIONS_BASE, ACTION_OTHER];
+
+const ACTION_FILLS = {
+  "Rdv pris": "#28a745", // success
+  "mail proposition envoyé": "#17a2b8", // info
+  "affaire signée": "#007bff", // primary
+  "échec": "#dc3545", // danger
+  [ACTION_OTHER]: "#6c757d", // secondary/gris
+};
+
+const ACTION_COLORS = {
+  "Rdv pris": "success",
+  "mail proposition envoyé": "info",
+  "affaire signée": "primary",
+  "échec": "danger",
+  [ACTION_OTHER]: "secondary",
+};
 
 API.interceptors.request.use((config) => {
   const token =
@@ -47,7 +73,6 @@ API.interceptors.request.use((config) => {
   return config;
 });
 
-
 function todayStr() {
   const d = new Date();
   const yyyy = d.getFullYear();
@@ -56,21 +81,54 @@ function todayStr() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+// Formatage lisible des dates (gère YYYY-MM-DD et ISO)
+function formatDate(input) {
+  if (!input) return "";
+  try {
+    const str = String(input);
+    const d = new Date(str.length === 10 ? `${str}T00:00:00` : str);
+    if (isNaN(d.getTime())) return str; // fallback brut si invalide
+    return new Intl.DateTimeFormat("fr-FR", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(d);
+  } catch (e) {
+    return String(input);
+  }
+}
+
 /** ISO week utils */
-function isoWeekKey(dateInput) {
+function isoWeekInfo(dateInput) {
   const d = new Date(dateInput);
-  // ISO: lundi=1..dim=7
-  const day = (d.getDay() + 6) % 7;
+  // Transforme en jeudi de la semaine correspondante
+  const day = (d.getDay() + 6) % 7; // 0=lundi ... 6=dimanche
   const thursday = new Date(d);
   thursday.setDate(d.getDate() - day + 3);
   const isoYear = thursday.getFullYear();
+
+  // Jeudi de la 1ère semaine ISO de l'année
   const firstThursday = new Date(isoYear, 0, 4);
   const firstThursdayDay = (firstThursday.getDay() + 6) % 7;
   firstThursday.setDate(firstThursday.getDate() - firstThursdayDay + 3);
+
   const week =
     1 + Math.round((thursday - firstThursday) / (7 * 24 * 3600 * 1000));
-  return `${isoYear}-W${String(week).padStart(2, "0")}`;
+
+  return { isoYear, isoWeek: week };
 }
+
+function isoWeekKey(dateInput) {
+  const { isoYear, isoWeek } = isoWeekInfo(dateInput);
+  return `${isoYear}-W${String(isoWeek).padStart(2, "0")}`;
+}
+
+function isoWeeksInYear(isoYear) {
+  // Le nombre de semaines ISO d'une année = le n° de semaine de la date du 28 décembre.
+  const dec28 = new Date(isoYear, 11, 28);
+  return isoWeekInfo(dec28).isoWeek;
+}
+
 function monthKey(dateInput) {
   const d = new Date(dateInput);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -80,12 +138,6 @@ function monthKey(dateInput) {
  *  UI bits
  *  =============================*/
 const OBJETS = ["appel entrant", "appel sortant"];
-const ACTIONS = [
-  "Rdv pris",
-  "mail proposition envoyé",
-  "affaire signée",
-  "échec",
-];
 
 export default function KpiPage() {
   // Création KPI
@@ -96,59 +148,143 @@ export default function KpiPage() {
   const [error, setError] = useState("");
 
   // Liste KPI (pagination API)
-  const [items, setItems] = useState([]);
+  const [items, setItems] = useState([]); // éléments pour la TABLE (page courante)
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
   const [loadingList, setLoadingList] = useState(false);
 
+  // Utilisateurs (admin -> nom/prénom)
+  const [usersById, setUsersById] = useState({});
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
+  // Données complètes pour le GRAPHIQUE
+  const [allItems, setAllItems] = useState([]);
+  const [loadingChart, setLoadingChart] = useState(false);
+
   // Graph controls
   const [groupBy, setGroupBy] = useState("week"); // "week" | "month"
-  const [actionFilter, setActionFilter] = useState("all"); // "all" | ACTION
+  const currentYear = new Date().getFullYear();
+  const [year, setYear] = useState(currentYear); // filtre d'année pour la vue
+  const [actionFilter, setActionFilter] = useState("all"); // "all" | ACTIONS_ALL
 
+  // Charger la TABLE paginée
   useEffect(() => {
     fetchKpis(page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
-    async function fetchKpis(p = 1) {
+  // Charger TOUTES les données pour le GRAPHIQUE (toutes pages)
+  useEffect(() => {
+    fetchAllKpis();
+    fetchMembers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function fetchKpis(p = 1) {
     try {
-        setLoadingList(true);
-        setError("");
+      setLoadingList(true);
+      setError("");
 
-        // envoie ?page=p uniquement si p > 1 (et via axios params)
-        const res = await API.get("/kpis", {
+      const res = await API.get("/kpis", {
         params: p > 1 ? { page: p } : {},
-        });
+      });
 
-        const payload = res.data;
-
-        // supporte les 2 formats:
-        // - paginate: { data: [...], last_page: N } ou { data: [...], meta: { last_page: N } }
-        // - array simple: [...]
-        const data = Array.isArray(payload?.data)
+      const payload = res.data;
+      const data = Array.isArray(payload?.data)
         ? payload.data
         : Array.isArray(payload)
         ? payload
         : [];
 
-        setItems(data);
+      setItems(data);
 
-        const lp =
-        payload?.last_page ||
-        payload?.meta?.last_page ||
-        1; // si pas de pagination, on reste à 1
-        setLastPage(lp);
+      const lp = payload?.last_page || payload?.meta?.last_page || 1;
+      setLastPage(lp);
     } catch (e) {
-        console.error(e);
-        setError(
+      console.error(e);
+      setError(
         e?.response?.data?.message ||
-            "Erreur lors du chargement des KPI. Vérifie l'API."
-        );
+          "Erreur lors du chargement des KPI. Vérifie l'API."
+      );
     } finally {
-        setLoadingList(false);
+      setLoadingList(false);
     }
-    }
+  }
 
+  async function fetchAllKpis() {
+    try {
+      setLoadingChart(true);
+      setError("");
+
+      let p = 1;
+      let aggregated = [];
+      let maxPage = 1;
+
+      do {
+        const res = await API.get("/kpis", { params: p > 1 ? { page: p } : {} });
+        const payload = res.data;
+        const data = Array.isArray(payload?.data)
+          ? payload.data
+          : Array.isArray(payload)
+          ? payload
+          : [];
+
+        aggregated = aggregated.concat(data);
+
+        maxPage = payload?.last_page || payload?.meta?.last_page || 1;
+        p += 1;
+      } while (p <= maxPage);
+
+      setAllItems(aggregated);
+    } catch (e) {
+      console.error(e);
+      setError(
+        e?.response?.data?.message ||
+          e?.response?.data?.error ||
+          "Erreur lors du chargement complet des KPI pour le graphique."
+      );
+    } finally {
+      setLoadingChart(false);
+    }
+  }
+
+  async function fetchMembers() {
+    try {
+      setLoadingUsers(true);
+      const token =
+        localStorage.getItem("token") ||
+        localStorage.getItem("access_token") ||
+        localStorage.getItem("jwt");
+
+      const res = await axios.get("https://api.optionretraite.net/api/users", {
+        params: { kind: "member" },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+
+      const payload = res.data;
+      const list = Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload)
+        ? payload
+        : [];
+
+      const map = {};
+      list.forEach((u) => {
+        const id = u.id ?? u.user_id ?? u._id;
+        if (!id) return;
+        const first = u.first_name ?? u.firstname ?? u.firstName ?? u.prenom ?? "";
+        const last = u.last_name ?? u.lastname ?? u.lastName ?? u.nom ?? "";
+        const fallback = u.name ?? u.username ?? u.email ?? String(id);
+        const name = (`${first} ${last}`.trim()) || fallback;
+        map[id] = name;
+      });
+      setUsersById(map);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingUsers(false);
+    }
+  }
 
   async function createKpi() {
     try {
@@ -159,12 +295,13 @@ export default function KpiPage() {
         action: action || null,
         kpi_date: todayStr(),
       };
-      if (adminId) body.admin_id = adminId; // sinon on n’envoie pas
+      if (adminId) body.admin_id = adminId;
 
       await API.post("/kpis", body);
-      // refresh la 1ère page (ou la page courante si tu préfères)
+      // Refresh table ET graph
       setPage(1);
       await fetchKpis(1);
+      await fetchAllKpis();
     } catch (e) {
       console.error(e);
       setError(
@@ -177,21 +314,74 @@ export default function KpiPage() {
     }
   }
 
-  /** Agrégation des KPI pour le graph */
-  const chartData = useMemo(() => {
-    const counts = new Map();
-    (items || []).forEach((k) => {
+  // Années disponibles dans les données (ISO année, utile pour la vue semaine)
+  const availableYears = useMemo(() => {
+    const years = new Set();
+    (allItems || []).forEach((k) => {
       const dateStr = k.kpi_date || k.created_at || k.updated_at;
       if (!dateStr) return;
-      if (actionFilter !== "all" && k.action !== actionFilter) return;
-      const key = groupBy === "week" ? isoWeekKey(dateStr) : monthKey(dateStr);
-      counts.set(key, (counts.get(key) || 0) + 1);
+      const { isoYear } = isoWeekInfo(dateStr);
+      years.add(isoYear);
     });
-    const arr = Array.from(counts.entries())
-      .map(([period, count]) => ({ period, count }))
+    if (years.size === 0) years.add(currentYear);
+    return Array.from(years).sort((a, b) => a - b);
+  }, [allItems, currentYear]);
+
+  const chartDataMulti = useMemo(() => {
+    const byPeriod = new Map();
+
+    // Initialisation des périodes en fonction du groupBy pour couvrir TOUTE L'ANNÉE sélectionnée
+    if (groupBy === "week") {
+      const totalWeeks = isoWeeksInYear(year);
+      for (let w = 1; w <= totalWeeks; w++) {
+        const period = `${year}-W${String(w).padStart(2, "0")}`;
+        const base = {};
+        ACTIONS_ALL.forEach((a) => (base[a] = 0));
+        byPeriod.set(period, base);
+      }
+    } else {
+      // month
+      for (let m = 1; m <= 12; m++) {
+        const period = `${year}-${String(m).padStart(2, "0")}`;
+        const base = {};
+        ACTIONS_ALL.forEach((a) => (base[a] = 0));
+        byPeriod.set(period, base);
+      }
+    }
+
+    // Remplissage avec les données
+    (allItems || []).forEach((k) => {
+      const dateStr = k.kpi_date || k.created_at || k.updated_at;
+      if (!dateStr) return;
+
+      const cat = ACTIONS_BASE.includes(k.action) ? k.action : ACTION_OTHER;
+
+      if (groupBy === "week") {
+        const { isoYear, isoWeek } = isoWeekInfo(dateStr);
+        if (isoYear !== year) return; // on limite à l'année sélectionnée
+        const periodKey = `${isoYear}-W${String(isoWeek).padStart(2, "0")}`;
+        const row = byPeriod.get(periodKey);
+        if (!row) return;
+        row[cat] = (row[cat] || 0) + 1;
+      } else {
+        // month (calendaire)
+        const d = new Date(dateStr);
+        if (d.getFullYear() !== year) return;
+        const periodKey = monthKey(dateStr);
+        const row = byPeriod.get(periodKey);
+        if (!row) return;
+        row[cat] = (row[cat] || 0) + 1;
+      }
+    });
+
+    // Conversion en tableau ordonné
+    const ordered = Array.from(byPeriod.entries())
+      .map(([period, counts]) => ({ period, ...counts }))
       .sort((a, b) => (a.period > b.period ? 1 : -1));
-    return arr;
-  }, [items, groupBy, actionFilter]);
+
+    // Filtre d'action au NIVEAU DU RENDU (on garde toutes les clés pour la légende/tooltip)
+    return ordered;
+  }, [allItems, groupBy, year]);
 
   return (
     <div className="vx-row">
@@ -200,9 +390,6 @@ export default function KpiPage() {
         <Card>
           <CardHeader className="d-flex align-items-center justify-content-between">
             <h4 className="mb-0">Créer un KPI</h4>
-            <Badge color="light-secondary">
-              {adminId ? `admin_id: ${adminId}` : "admin_id: (auto non trouvé)"}
-            </Badge>
           </CardHeader>
           <CardBody>
             {error ? (
@@ -239,28 +426,40 @@ export default function KpiPage() {
                   ))}
                 </div>
               </Col>
-
               {/* ACTION */}
               <Col md="6" xs="12" className="mb-2">
                 <Label className="d-block" style={{ fontWeight: 600 }}>
                   Action
                 </Label>
-                <div className="d-flex flex-wrap gap-1">
-                  {ACTIONS.map((a) => (
-                    <Button
-                      key={a}
-                      color={action === a ? "success" : "light"}
-                      className="mr-1 mb-1"
-                      onClick={() => setAction(a)}
-                    >
-                      {a}
-                    </Button>
-                  ))}
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(2, 1fr)",
+                    gap: 8,
+                  }}
+                >
+                  {ACTIONS_BASE.map((a) => {
+                    const isSelected = action === a;
+                    const color = ACTION_COLORS[a] || "secondary";
+                    return (
+                      <Button
+                        key={a}
+                        color={color}
+                        outline={!isSelected} // non sélectionné = outline, sélectionné = plein
+                        onClick={() => setAction(a)}
+                        style={{ width: "100%" }}
+                        aria-pressed={isSelected}
+                      >
+                        {a}
+                      </Button>
+                    );
+                  })}
                 </div>
               </Col>
             </Row>
             <div className="d-flex mt-2">
-              <Button color="primary" onClick={createKpi} disabled={creating}>
+              <Button color="success" onClick={createKpi} disabled={creating}>
                 {creating ? "Création..." : "Créer le KPI"}
               </Button>
             </div>
@@ -290,6 +489,20 @@ export default function KpiPage() {
                 </DropdownMenu>
               </UncontrolledButtonDropdown>
 
+              {/* Year filter */}
+              <UncontrolledButtonDropdown className="mr-1">
+                <DropdownToggle caret color="light">
+                  Année : {year}
+                </DropdownToggle>
+                <DropdownMenu right>
+                  {availableYears.map((y) => (
+                    <DropdownItem key={y} onClick={() => setYear(y)}>
+                      {y}
+                    </DropdownItem>
+                  ))}
+                </DropdownMenu>
+              </UncontrolledButtonDropdown>
+
               {/* Action filter */}
               <UncontrolledButtonDropdown>
                 <DropdownToggle caret color="light">
@@ -299,7 +512,7 @@ export default function KpiPage() {
                   <DropdownItem onClick={() => setActionFilter("all")}>
                     Toutes actions
                   </DropdownItem>
-                  {ACTIONS.map((a) => (
+                  {ACTIONS_ALL.map((a) => (
                     <DropdownItem key={a} onClick={() => setActionFilter(a)}>
                       {a}
                     </DropdownItem>
@@ -308,17 +521,49 @@ export default function KpiPage() {
               </UncontrolledButtonDropdown>
             </div>
           </CardHeader>
-          <CardBody style={{ height: 360 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="period" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="count" />
-              </BarChart>
-            </ResponsiveContainer>
-            {chartData.length === 0 ? (
+          <CardBody style={{ height: 420 }}>
+            {loadingChart ? (
+              <div className="text-center" style={{ opacity: 0.7 }}>
+                Chargement du graphique…
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={chartDataMulti}
+                  margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="period"
+                    tickFormatter={(v) =>
+                      groupBy === "week" ? v.replace(/^\d{4}-/, "") : v
+                    }
+                  />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip
+                    labelFormatter={(label) =>
+                      groupBy === "week" ? `Semaine ${label.split("-")[1]}` : label
+                    }
+                  />
+                  <Legend />
+
+                  {/* Colonnes empilées (plus lisible pour comparer semaine par semaine ET voir le total) */}
+                  {actionFilter === "all"
+                    ? ACTIONS_ALL.map((a) => (
+                        <Bar key={a} dataKey={a} stackId="total" fill={ACTION_FILLS[a]} />
+                      ))
+                    : // Sinon, n'afficher que la série filtrée (sans stackId)
+                      [
+                        <Bar
+                          key={actionFilter}
+                          dataKey={actionFilter}
+                          fill={ACTION_FILLS[actionFilter]}
+                        />,
+                      ]}
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+            {(!loadingChart && chartDataMulti.length === 0) ? (
               <div className="text-center mt-1" style={{ opacity: 0.7 }}>
                 Aucune donnée pour le filtre courant.
               </div>
@@ -361,7 +606,7 @@ export default function KpiPage() {
                   <th>Date</th>
                   <th>Objet</th>
                   <th>Action</th>
-                  <th>Admin ID</th>
+                  <th>Admin</th>
                 </tr>
               </thead>
               <tbody>
@@ -373,10 +618,16 @@ export default function KpiPage() {
                   items.map((k) => (
                     <tr key={k.id}>
                       <td>{k.id}</td>
-                      <td>{k.kpi_date || (k.created_at || "").slice(0, 10)}</td>
+                      <td>{formatDate(k.kpi_date || k.created_at || k.updated_at)}</td>
                       <td>{k.objet || <em style={{ opacity: 0.6 }}>(vide)</em>}</td>
                       <td>{k.action || <em style={{ opacity: 0.6 }}>(vide)</em>}</td>
-                      <td>{k.admin_id ?? <em style={{ opacity: 0.6 }}>(null)</em>}</td>
+                      <td>
+                        {k.admin_id == null ? (
+                          <em style={{ opacity: 0.6 }}>(null)</em>
+                        ) : (
+                          usersById[k.admin_id] || k.admin_name || k.admin || String(k.admin_id)
+                        )}
+                      </td>
                     </tr>
                   ))
                 ) : (
