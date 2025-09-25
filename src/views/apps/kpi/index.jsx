@@ -30,7 +30,13 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { Trash2 } from "react-feather"; // icône poubelle
+import {
+  Trash2,
+  Mail as MailIcon,
+  PhoneIncoming,
+  PhoneOutgoing,
+  PhoneCall,
+} from "react-feather"; // icônes
 
 /** =============================
  *  Helpers (token, admin id, date)
@@ -110,6 +116,25 @@ function formatDate(input) {
   }
 }
 
+// Date + heure (fr-FR)
+function formatDateTime(input) {
+  if (!input) return "";
+  try {
+    const str = String(input);
+    const d = new Date(str.length === 10 ? `${str}T00:00:00` : str);
+    if (isNaN(d.getTime())) return str;
+    return new Intl.DateTimeFormat("fr-FR", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(d);
+  } catch (e) {
+    return String(input);
+  }
+}
+
 /** ISO week utils */
 function isoWeekInfo(dateInput) {
   const d = new Date(dateInput);
@@ -153,6 +178,48 @@ function getAdminEmailFromLocal() {
   } catch {
     return null;
   }
+}
+
+/** Icônes pour l'objet */
+const OBJET_ICON = {
+  Email: MailIcon,
+  "appel entrant": PhoneIncoming,
+  "appel sortant": PhoneOutgoing,
+};
+function renderObjetCell(value) {
+  const v = value || "";
+  const Icon = OBJET_ICON[v] || PhoneCall;
+  return (
+    <span className="d-inline-flex align-items-center">
+      <Icon size={16} style={{ marginRight: 6, opacity: 0.9 }} />
+      {v || <em style={{ opacity: 0.6 }}>(vide)</em>}
+    </span>
+  );
+}
+
+/** Badge d'action (light) + puce couleur */
+function renderActionBadge(action) {
+  const key = ACTIONS_KNOWN.includes(action) ? action : (action ? ACTION_OTHER : null);
+  if (!key) {
+    return <em style={{ opacity: 0.6 }}>(vide)</em>;
+  }
+  const context = ACTION_COLORS[key] || "secondary";
+  const dot = ACTION_FILLS[key] || "#6c757d";
+  return (
+    <Badge color={`light-${context}`} pill>
+      <span
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: 4,
+          backgroundColor: dot,
+          display: "inline-block",
+          marginRight: 6,
+        }}
+      />
+      {action}
+    </Badge>
+  );
 }
 
 /** =============================
@@ -340,23 +407,23 @@ export default function KpiPage() {
         localStorage.getItem("access_token") ||
         localStorage.getItem("jwt");
 
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const params = adminId ? { id: adminId } : undefined;
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const params = adminId ? { id: adminId } : undefined;
 
-      const res = await axios.get(
-        `https://api.optionretraite.net/api/users/${adminId}`,
-        { headers, params }
-      );
+    const res = await axios.get(
+      `https://api.optionretraite.net/api/users/${adminId}`,
+      { headers, params }
+    );
 
-      // On tente plusieurs chemins possibles (selon structure renvoyée)
-      const payload = res.data || {};
-      const email =
-        payload.email ||
-        payload?.data?.email ||
-        payload?.user?.email ||
-        null;
+    // On tente plusieurs chemins possibles (selon structure renvoyée)
+    const payload = res.data || {};
+    const email =
+      payload.email ||
+      payload?.data?.email ||
+      payload?.user?.email ||
+      null;
 
-      if (email) setAdminEmailApi(email);
+    if (email) setAdminEmailApi(email);
     } catch (e) {
       console.error("fetchAdminEmailFromApi error:", e);
       // on garde le fallback local si l'API échoue
@@ -577,61 +644,61 @@ export default function KpiPage() {
                   </div>
                 </div>
                 {/* ACTIONS */}
-                  <div className="mb-1 mt-auto">
-                    <Label className="d-block" style={{ fontWeight: 600 }}>
-                      Action {actionsDisabled && <small className="text-muted">(désactivé pour Email)</small>}
-                    </Label>
+                <div className="mb-1 mt-auto">
+                  <Label className="d-block" style={{ fontWeight: 600 }}>
+                    Action {actionsDisabled && <small className="text-muted">(désactivé pour Email)</small>}
+                  </Label>
 
-                    {/* Grille d’actions à taille égale */}
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                        gap: 8,
-                      }}
-                    >
-                      {CALL_ACTIONS.map((a) => {
-                        const isSelected = action === a;
-                        const color = ACTION_COLORS[a] || "secondary";
-                        return (
-                          <Button
-                            key={a}
-                            color={color}
-                            outline={!isSelected}
-                            onClick={() => !actionsDisabled && setAction(a)}
-                            disabled={actionsDisabled}
-                            title={actionsDisabled ? "Les actions sont actives uniquement pour les appels" : undefined}
-                            className="w-100"
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              textAlign: "center",
-                              whiteSpace: "normal",         // permet 2 lignes si besoin
-                              lineHeight: 0.8,
-                              padding: "10px 12px",
-                            }}
-                          >
-                            {a}
-                          </Button>
-                        );
-                      })}
-
-                      {actionsDisabled && (
-                        <Badge color="light-secondary" className="ml-1" style={{ alignSelf: "center" }}>
-                          Action par défaut&nbsp;: {EMAIL_ACTION}
-                        </Badge>
-                      )}
-                    </div>
-
-                    <div className="d-flex align-items-center mt-1">
-                      <div className="ml-auto">
-                        <Button color="success" onClick={createKpi} disabled={creating}>
-                          {creating ? "Création..." : "Créer le KPI"}
+                  {/* Grille d’actions à taille égale */}
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                      gap: 8,
+                    }}
+                  >
+                    {CALL_ACTIONS.map((a) => {
+                      const isSelected = action === a;
+                      const color = ACTION_COLORS[a] || "secondary";
+                      return (
+                        <Button
+                          key={a}
+                          color={color}
+                          outline={!isSelected}
+                          onClick={() => !actionsDisabled && setAction(a)}
+                          disabled={actionsDisabled}
+                          title={actionsDisabled ? "Les actions sont actives uniquement pour les appels" : undefined}
+                          className="w-100"
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            textAlign: "center",
+                            whiteSpace: "normal", // 2 lignes si besoin
+                            lineHeight: 0.8,
+                            padding: "10px 12px",
+                          }}
+                        >
+                          {a}
                         </Button>
-                      </div>
+                      );
+                    })}
+
+                    {actionsDisabled && (
+                      <Badge color="light-secondary" className="ml-1" style={{ alignSelf: "center" }}>
+                        Action par défaut&nbsp;: {EMAIL_ACTION}
+                      </Badge>
+                    )}
+                  </div>
+
+                  <div className="d-flex align-items-center mt-1">
+                    <div className="ml-auto">
+                      <Button color="success" onClick={createKpi} disabled={creating}>
+                        {creating ? "Création..." : "Créer le KPI"}
+                      </Button>
                     </div>
                   </div>
+                </div>
 
               </CardBody>
             </Card>
@@ -649,7 +716,6 @@ export default function KpiPage() {
                 </Label>
                 <Input
                   type="text"
-                  rows="6"
                   placeholder="Email du client"
                   value={emailBody}
                   onChange={(e) => setEmailBody(e.target.value)}
@@ -823,7 +889,7 @@ export default function KpiPage() {
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Date</th>
+                  <th>Date / heure</th>
                   <th>Objet</th>
                   <th>Action</th>
                   <th>Admin</th>
@@ -836,37 +902,41 @@ export default function KpiPage() {
                     <td colSpan="6">Chargement…</td>
                   </tr>
                 ) : items?.length ? (
-                  items.map((k) => (
-                    <tr key={k.id}>
-                      <td>{k.id}</td>
-                      <td>{formatDate(k.kpi_date || k.created_at || k.updated_at)}</td>
-                      <td>{k.objet || <em style={{ opacity: 0.6 }}>(vide)</em>}</td>
-                      <td>{k.action || <em style={{ opacity: 0.6 }}>(vide)</em>}</td>
-                      <td>
-                        {k.admin_id == null ? (
-                          <em style={{ opacity: 0.6 }}>(null)</em>
-                        ) : (
-                          usersById[k.admin_id] ||
-                          k.admin_name ||
-                          k.admin ||
-                          String(k.admin_id)
-                        )}
-                      </td>
-                      <td className="text-right" style={{ width: 40 }}>
-                        <Button
-                          color="link"
-                          className="p-0"
-                          style={{ color: "#dc3545" }}
-                          onClick={() => openConfirmModal(k)}
-                          disabled={deletingId === k.id}
-                          aria-label={`Supprimer KPI ${k.id}`}
-                          title="Supprimer"
-                        >
-                          <Trash2 size={18} />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))
+                  items.map((k) => {
+                    const dt =
+                      k.created_at || k.updated_at || k.kpi_date; // privilégie un champ avec heure
+                    return (
+                      <tr key={k.id}>
+                        <td>{k.id}</td>
+                        <td>{formatDateTime(dt)}</td>
+                        <td>{renderObjetCell(k.objet)}</td>
+                        <td>{renderActionBadge(k.action)}</td>
+                        <td>
+                          {k.admin_id == null ? (
+                            <em style={{ opacity: 0.6 }}>(null)</em>
+                          ) : (
+                            usersById[k.admin_id] ||
+                            k.admin_name ||
+                            k.admin ||
+                            String(k.admin_id)
+                          )}
+                        </td>
+                        <td className="text-right" style={{ width: 40 }}>
+                          <Button
+                            color="link"
+                            className="p-0"
+                            style={{ color: "#dc3545" }}
+                            onClick={() => openConfirmModal(k)}
+                            disabled={deletingId === k.id}
+                            aria-label={`Supprimer KPI ${k.id}`}
+                            title="Supprimer"
+                          >
+                            <Trash2 size={18} />
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
                     <td colSpan="6">Aucun KPI.</td>
