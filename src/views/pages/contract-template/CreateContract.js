@@ -71,6 +71,7 @@ const Config = {
 };
 
 class CreateContract extends React.Component {
+  pdfRef = React.createRef();
   state = {
     recipientEmail: "",
     creator_id: null,
@@ -97,30 +98,67 @@ class CreateContract extends React.Component {
   };
   sendViaDocusign = async () => {
     try {
-      // Assure-toi que les formules viennent d’être recalculées
+      // 1) Assure-toi que les totaux sont à jour
       this.calculate();
 
+      // 2) Fabrique le PDF (exactement ce qui est affiché)
+      const pdfBase64 = await this.generatePdfBase64();
+
+      // 3) Coordonnées de signature DocuSign (pixels @72dpi)
+      //    Tu ajusteras après 1 test: +20/-20 sur X ou Y si besoin.
+      const SIGN_PAGE = 2;  // la page où il y a “Date & signature du client:”
+      const SIGN_X    = 420;
+      const SIGN_Y    = 740;
+      const DATE_PAGE = 2;
+      const DATE_X    = 120;
+      const DATE_Y    = 740;
+
+      // 4) Prépare le payload pour ton endpoint backend
       const payload = {
         user_id: this.state.user_id,
-        parentId: this.state.rowData?.parent_id,
-        creatorId: this.state.creator_id,
         recipient_email: this.state.recipientEmail || this.ifExist("email"),
         recipient_name: `${this.ifExist("first_name")} ${this.ifExist("last_name")}`.trim(),
-        rowData: this.state.rowData,
-        formValues: this.state.formValues,   // IMPORTANT : on enverra les valeurs pour régénérer côté serveur
-        generalCondition: this.state.general_condition,
+        embedded: true, // ou false si tu veux que DocuSign envoie l'email
+
+        // 🎯 LE PDF EXACT généré côté front
+        exact_pdf_base64: pdfBase64,
+
+        // 📍 Positions des champs DocuSign (ton back les lit et pose les tabs en coordonnées)
+        sign_page: SIGN_PAGE, sign_x: SIGN_X, sign_y: SIGN_Y,
+        date_page: DATE_PAGE, date_x: DATE_X, date_y: DATE_Y,
       };
 
-      const res = await axios.post(
-        `${global.config.server_url}/contracts/send-docusign`,
-        payload,
-        Config
-      );
+      // 5) Envoie à ton API (route que tu utilises déjà)
+      await axios.post(`${global.config.server_url}/contracts/send-docusign`, payload, {
+        headers: { Authorization: "Bearer " + localStorage.getItem("token") }
+      });
+
       toast.success("Contrat envoyé via DocuSign !");
     } catch (e) {
       console.error(e);
       toast.error("Échec envoi DocuSign");
     }
+  };
+
+  generatePdfBase64 = async () => {
+    if (!window.html2pdf) throw new Error("html2pdf non chargé (script manquant dans public/index.html)");
+
+    const node = this.pdfRef.current;
+    if (!node) throw new Error("pdf-root introuvable");
+
+    const opt = {
+      margin: 0,
+      filename: "contrat.pdf",
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: "pt", format: "a4", orientation: "portrait" },
+      pagebreak: { mode: ["css", "legacy"] },
+    };
+
+    // renvoie "data:application/pdf;base64,AAAA..."
+    const dataUri = await window.html2pdf().set(opt).from(node).toPdf().output("datauristring");
+    // on retourne juste la partie base64
+    return dataUri.split(",")[1];
   };
 
   ifExist(name) {
@@ -144,14 +182,20 @@ class CreateContract extends React.Component {
     });
     this.calculate();
   };
-  handleCheckChange = (check, field) => {
-    input_values[field] = check;
-    this.state.formValues[field] = check;
-    this.setState({
-      formValues: this.state.formValues,
-    });
-    this.calculate();
+  handleCheckChange = (eOrBool, field) => {
+    // Accepte soit un booléen direct, soit un event React
+    const checked =
+      typeof eOrBool === "boolean"
+        ? eOrBool
+        : !!(eOrBool && eOrBool.target && eOrBool.target.checked);
+
+    input_values[field] = checked;
+    this.setState(
+      prev => ({ formValues: { ...prev.formValues, [field]: checked } }),
+      this.calculate
+    );
   };
+
   calculate = () => {
     var VTA = 1 + input_values["TVAP"] / 100;
 
@@ -503,10 +547,6 @@ class CreateContract extends React.Component {
               <FileText size="15" />
               <span className="align-middle ml-50">Print</span>
             </Button>
-            {/*<Button.Ripple color="primary" outline>*/}
-            {/*<Download size="15" />*/}
-            {/*<span className="align-middle ml-50">Download</span>*/}
-            {/*</Button.Ripple>*/}
           </Col>
           <Col
             className="contract-wrapper"
@@ -517,6 +557,7 @@ class CreateContract extends React.Component {
               width: "80%",
             }}
           >
+              <div id="pdf-root" ref={this.pdfRef}>
             <Card
               className="contract-page"
               style={{ padding: "0.5rem 5.5rem 2.2rem 5.5rem" }}
@@ -525,7 +566,7 @@ class CreateContract extends React.Component {
               <CardBody>
                 <Row>
                   <Col md="12" sm="12">
-                    <img src={logo} alt="logo" style={{ height: "130px" }} />
+                    <img src={logo} alt="logo" style={{ height: "130px" }} crossOrigin="anonymous" />
                   </Col>
                 </Row>
                 <Row style={{ marginTop: "20px" }}>
@@ -928,17 +969,13 @@ class CreateContract extends React.Component {
                     <u>NOTES :</u>
                   </h5>
                   <h5 style={{ marginTop: "20px" }}>
-                    {this.ifExist("notes") &&
-                      this.ifExist("notes")
-                        .split("\n")
-                        .map(function (item) {
-                          return (
-                            <>
-                              {item}
-                              <br />
-                            </>
-                          );
-                        })}
+                  {this.ifExist("notes") &&
+                    this.ifExist("notes").split("\n").map((item, idx) => (
+                      <React.Fragment key={idx}>
+                        {item}
+                        <br />
+                      </React.Fragment>
+                  ))}
                   </h5>
                 </div>
                 <div
@@ -952,6 +989,7 @@ class CreateContract extends React.Component {
                 </div>
               </CardBody>
             </Card>
+            <div className="html2pdf__page-break" />
             <Card
               className="contract-page"
               style={{
@@ -962,7 +1000,7 @@ class CreateContract extends React.Component {
               <CardBody>
                 <Row>
                   <Col md="12" sm="12">
-                    <img src={logo} alt="logo" style={{ height: "130px" }} />
+                    <img src={logo} alt="logo" style={{ height: "130px" }} crossOrigin="anonymous" />
                   </Col>
                 </Row>
                 <div
@@ -2541,6 +2579,7 @@ class CreateContract extends React.Component {
                 </div>
               </CardBody>
             </Card>
+            <div className="html2pdf__page-break" />
             <Card
               className="contract-page"
               style={{ padding: "0.5rem 5.5rem 2.2rem 5.5rem" }}
@@ -2548,7 +2587,7 @@ class CreateContract extends React.Component {
               <CardBody>
                 <Row>
                   <Col md="12" sm="12">
-                    <img src={logo} alt="logo" style={{ height: "130px" }} />
+                    <img src={logo} alt="logo" style={{ height: "130px" }} crossOrigin="anonymous"/>
                   </Col>
                 </Row>
                 <div className="text-left pt-3 contract-footer">
@@ -2579,6 +2618,7 @@ class CreateContract extends React.Component {
                 </div>
               </CardBody>
             </Card>
+              </div>
           </Col>
         </Row>
       </React.Fragment>
