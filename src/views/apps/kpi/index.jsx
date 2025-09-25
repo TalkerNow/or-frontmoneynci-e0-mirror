@@ -30,7 +30,13 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { Trash2 } from "react-feather"; // icône poubelle
+import {
+  Trash2,
+  Mail as MailIcon,
+  PhoneIncoming,
+  PhoneOutgoing,
+  PhoneCall,
+} from "react-feather"; // icônes
 
 /** =============================
  *  Helpers (token, admin id, date)
@@ -43,22 +49,28 @@ const API = axios.create({
   },
 });
 
-// Catégories d'actions (avec "autre")
-const ACTIONS_BASE = [
-  "Rdv pris",
-  "mail proposition envoyé",
-  "affaire signée",
-  "échec",
-];
+// Webhook simple pour envoyer l'email (contenu)
+const WEBHOOK_EMAIL_URL = "https://n8n.srv796541.hstgr.cloud/webhook/0627350c-a362-45dd-adfe-b947bf1c48f5/chat";
+
+// Objets (ajout de "Email")
+const OBJETS = ["appel entrant", "appel sortant", "Email"];
+
+// Actions
+const CALL_ACTIONS = ["Rdv pris", "mail proposition envoyé", "affaire signée", "échec"];
+const EMAIL_ACTION = "Email recu";
 const ACTION_OTHER = "autre";
-const ACTIONS_ALL = [...ACTIONS_BASE, ACTION_OTHER];
+
+// Ensemble des actions à afficher dans le graphique/filtre
+const ACTIONS_ALL = [...CALL_ACTIONS, EMAIL_ACTION, ACTION_OTHER];
+const ACTIONS_KNOWN = [...CALL_ACTIONS, EMAIL_ACTION];
 
 const ACTION_FILLS = {
-  "Rdv pris": "#28a745", // success
-  "mail proposition envoyé": "#17a2b8", // info
-  "affaire signée": "#007bff", // primary
-  "échec": "#dc3545", // danger
-  [ACTION_OTHER]: "#6c757d", // secondary/gris
+  "Rdv pris": "#28a745",
+  "mail proposition envoyé": "#17a2b8",
+  "affaire signée": "#007bff",
+  "échec": "#dc3545",
+  [EMAIL_ACTION]: "#6f42c1",
+  [ACTION_OTHER]: "#6c757d",
 };
 
 const ACTION_COLORS = {
@@ -66,6 +78,7 @@ const ACTION_COLORS = {
   "mail proposition envoyé": "info",
   "affaire signée": "primary",
   "échec": "danger",
+  [EMAIL_ACTION]: "secondary",
   [ACTION_OTHER]: "secondary",
 };
 
@@ -103,16 +116,33 @@ function formatDate(input) {
   }
 }
 
+// Date + heure (fr-FR)
+function formatDateTime(input) {
+  if (!input) return "";
+  try {
+    const str = String(input);
+    const d = new Date(str.length === 10 ? `${str}T00:00:00` : str);
+    if (isNaN(d.getTime())) return str;
+    return new Intl.DateTimeFormat("fr-FR", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(d);
+  } catch (e) {
+    return String(input);
+  }
+}
+
 /** ISO week utils */
 function isoWeekInfo(dateInput) {
   const d = new Date(dateInput);
-  // Transforme en jeudi de la semaine correspondante
   const day = (d.getDay() + 6) % 7; // 0=lundi ... 6=dimanche
   const thursday = new Date(d);
   thursday.setDate(d.getDate() - day + 3);
   const isoYear = thursday.getFullYear();
 
-  // Jeudi de la 1ère semaine ISO de l'année
   const firstThursday = new Date(isoYear, 0, 4);
   const firstThursdayDay = (firstThursday.getDay() + 6) % 7;
   firstThursday.setDate(firstThursday.getDate() - firstThursdayDay + 3);
@@ -123,13 +153,7 @@ function isoWeekInfo(dateInput) {
   return { isoYear, isoWeek: week };
 }
 
-function isoWeekKey(dateInput) {
-  const { isoYear, isoWeek } = isoWeekInfo(dateInput);
-  return `${isoYear}-W${String(isoWeek).padStart(2, "0")}`;
-}
-
 function isoWeeksInYear(isoYear) {
-  // Le nombre de semaines ISO d'une année = le n° de semaine de la date du 28 décembre.
   const dec28 = new Date(isoYear, 11, 28);
   return isoWeekInfo(dec28).isoWeek;
 }
@@ -139,21 +163,92 @@ function monthKey(dateInput) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+// Email admin depuis le storage (simple et silencieux)
+function getAdminEmailFromLocal() {
+  const direct =
+    localStorage.getItem("email") ||
+    localStorage.getItem("user_email") ||
+    localStorage.getItem("admin_email");
+  if (direct) return direct;
+  try {
+    const u =
+      JSON.parse(localStorage.getItem("user") || "null") ||
+      JSON.parse(localStorage.getItem("profile") || "null");
+    return u?.email || u?.user?.email || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Icônes pour l'objet */
+const OBJET_ICON = {
+  Email: MailIcon,
+  "appel entrant": PhoneIncoming,
+  "appel sortant": PhoneOutgoing,
+};
+function renderObjetCell(value) {
+  const v = value || "";
+  const Icon = OBJET_ICON[v] || PhoneCall;
+  return (
+    <span className="d-inline-flex align-items-center">
+      <Icon size={16} style={{ marginRight: 6, opacity: 0.9 }} />
+      {v || <em style={{ opacity: 0.6 }}>(vide)</em>}
+    </span>
+  );
+}
+
+/** Badge d'action (light) + puce couleur */
+function renderActionBadge(action) {
+  const key = ACTIONS_KNOWN.includes(action) ? action : (action ? ACTION_OTHER : null);
+  if (!key) {
+    return <em style={{ opacity: 0.6 }}>(vide)</em>;
+  }
+  const context = ACTION_COLORS[key] || "secondary";
+  const dot = ACTION_FILLS[key] || "#6c757d";
+  return (
+    <Badge color={`light-${context}`} pill>
+      <span
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: 4,
+          backgroundColor: dot,
+          display: "inline-block",
+          marginRight: 6,
+        }}
+      />
+      {action}
+    </Badge>
+  );
+}
+
 /** =============================
  *  UI bits
  *  =============================*/
-const OBJETS = ["appel entrant", "appel sortant"];
 
 export default function KpiPage() {
   // Création KPI
-  const [objet, setObjet] = useState("appel entrant"); // par défaut pour aller vite
-  const [action, setAction] = useState(""); // pas obligatoire
+  const [objet, setObjet] = useState("appel entrant");
+  const [action, setAction] = useState("");
   const [creating, setCreating] = useState(false);
-  var adminId = localStorage.getItem("userid");
+  const adminId = localStorage.getItem("userid");
   const [error, setError] = useState("");
 
+  // Mini fenetre email (simple)
+  const [emailBody, setEmailBody] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendMsg, setSendMsg] = useState(""); // success / error text
+
+  // Email admin (local + API)
+  const adminEmailLocal = useMemo(() => getAdminEmailFromLocal(), []);
+  const [adminEmailApi, setAdminEmailApi] = useState(null);
+  const adminEmailFinal = useMemo(
+    () => adminEmailApi || adminEmailLocal || null,
+    [adminEmailApi, adminEmailLocal]
+  );
+
   // Liste KPI (pagination API)
-  const [items, setItems] = useState([]); // éléments pour la TABLE (page courante)
+  const [items, setItems] = useState([]);
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
   const [loadingList, setLoadingList] = useState(false);
@@ -167,15 +262,22 @@ export default function KpiPage() {
   const [loadingChart, setLoadingChart] = useState(false);
 
   // Graph controls
-  const [groupBy, setGroupBy] = useState("week"); // "week" | "month"
+  const [groupBy, setGroupBy] = useState("week");
   const currentYear = new Date().getFullYear();
-  const [year, setYear] = useState(currentYear); // filtre d'année pour la vue
-  const [actionFilter, setActionFilter] = useState("all"); // "all" | ACTIONS_ALL
+  const [year, setYear] = useState(currentYear);
+  const [actionFilter, setActionFilter] = useState("all");
 
   // Suppression
   const [deletingId, setDeletingId] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [toDelete, setToDelete] = useState(null);
+
+  // Désactiver actions pour "Email"
+  useEffect(() => {
+    if (objet === "Email") setAction(EMAIL_ACTION);
+    else if (!CALL_ACTIONS.includes(action)) setAction("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [objet]);
 
   // Charger la TABLE paginée
   useEffect(() => {
@@ -187,6 +289,7 @@ export default function KpiPage() {
   useEffect(() => {
     fetchAllKpis();
     fetchMembers();
+    fetchAdminEmailFromApi(); // <<< récup email admin (API)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -296,19 +399,49 @@ export default function KpiPage() {
     }
   }
 
+  // NEW: récup email admin via API
+  async function fetchAdminEmailFromApi() {
+    try {
+      const token =
+        localStorage.getItem("token") ||
+        localStorage.getItem("access_token") ||
+        localStorage.getItem("jwt");
+
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const params = adminId ? { id: adminId } : undefined;
+
+    const res = await axios.get(
+      `https://api.optionretraite.net/api/users/${adminId}`,
+      { headers, params }
+    );
+
+    // On tente plusieurs chemins possibles (selon structure renvoyée)
+    const payload = res.data || {};
+    const email =
+      payload.email ||
+      payload?.data?.email ||
+      payload?.user?.email ||
+      null;
+
+    if (email) setAdminEmailApi(email);
+    } catch (e) {
+      console.error("fetchAdminEmailFromApi error:", e);
+      // on garde le fallback local si l'API échoue
+    }
+  }
+
   async function createKpi() {
     try {
       setCreating(true);
       setError("");
       const body = {
         objet: objet || null,
-        action: action || null,
+        action: objet === "Email" ? EMAIL_ACTION : action || null,
         kpi_date: todayStr(),
       };
       if (adminId) body.admin_id = adminId;
 
       await API.post("/kpis", body);
-      // Refresh table ET graph
       setPage(1);
       await fetchKpis(1);
       await fetchAllKpis();
@@ -324,13 +457,50 @@ export default function KpiPage() {
     }
   }
 
+  // Envoi TRÈS SIMPLE au webhook (corps + adminEmailFinal + adminId)
+  async function sendEmailWebhook() {
+    setSendMsg("");
+    const content = emailBody.trim();
+    if (!content) {
+      setSendMsg("⚠️ Le message est vide.");
+      return;
+    }
+    try {
+      setSending(true);
+      const res = await fetch(WEBHOOK_EMAIL_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chatInput: content,           // cohérent avec ton autre flow
+          adminEmail: adminEmailFinal,  // << email priorité API
+          adminEmailFallback: adminEmailLocal || null,
+          adminEmailSource: adminEmailApi ? "api" : (adminEmailLocal ? "localStorage" : "unknown"),
+          adminId: adminId || null,
+          source: "kpi-mini-email",
+          sentAt: new Date().toISOString(),
+        }),
+      });
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        throw new Error(`HTTP ${res.status} ${res.statusText} ${t}`);
+      }
+      setEmailBody("");
+      setSendMsg("✅ Message envoyé au webhook.");
+    } catch (err) {
+      console.error(err);
+      setSendMsg("❌ Échec d'envoi au webhook.");
+    } finally {
+      setSending(false);
+    }
+  }
+
   function openConfirmModal(kpiRow) {
     setToDelete(kpiRow);
     setConfirmOpen(true);
   }
 
   function closeConfirmModal() {
-    if (deletingId) return; // évite la fermeture pendant la suppression
+    if (deletingId) return;
     setConfirmOpen(false);
     setToDelete(null);
   }
@@ -343,15 +513,12 @@ export default function KpiPage() {
       setError("");
       await API.delete(`/kpis/${id}`);
 
-      // Mise à jour optimiste
       setItems((prev) => prev.filter((x) => x.id !== id));
       setAllItems((prev) => prev.filter((x) => x.id !== id));
 
-      // Rechargement pour garder pagination & graph synchronisés
       await fetchKpis(page);
       await fetchAllKpis();
 
-      // Ferme la modale si ouverte
       closeConfirmModal();
     } catch (e) {
       console.error(e);
@@ -365,7 +532,7 @@ export default function KpiPage() {
     }
   }
 
-  // Années disponibles dans les données (ISO année, utile pour la vue semaine)
+  // Années disponibles
   const availableYears = useMemo(() => {
     const years = new Set();
     (allItems || []).forEach((k) => {
@@ -381,7 +548,7 @@ export default function KpiPage() {
   const chartDataMulti = useMemo(() => {
     const byPeriod = new Map();
 
-    // Initialisation des périodes en fonction du groupBy pour couvrir TOUTE L'ANNÉE sélectionnée
+    // Couvrir toute l'année
     if (groupBy === "week") {
       const totalWeeks = isoWeeksInYear(year);
       for (let w = 1; w <= totalWeeks; w++) {
@@ -391,7 +558,6 @@ export default function KpiPage() {
         byPeriod.set(period, base);
       }
     } else {
-      // month
       for (let m = 1; m <= 12; m++) {
         const period = `${year}-${String(m).padStart(2, "0")}`;
         const base = {};
@@ -400,23 +566,20 @@ export default function KpiPage() {
       }
     }
 
-    // Remplissage avec les données
     (allItems || []).forEach((k) => {
       const dateStr = k.kpi_date || k.created_at || k.updated_at;
       if (!dateStr) return;
-
-      const cat = ACTIONS_BASE.includes(k.action) ? k.action : ACTION_OTHER;
+      const d = new Date(dateStr);
+      const cat = ACTIONS_KNOWN.includes(k.action) ? k.action : ACTION_OTHER;
 
       if (groupBy === "week") {
         const { isoYear, isoWeek } = isoWeekInfo(dateStr);
-        if (isoYear !== year) return; // on limite à l'année sélectionnée
+        if (isoYear !== year) return;
         const periodKey = `${isoYear}-W${String(isoWeek).padStart(2, "0")}`;
         const row = byPeriod.get(periodKey);
         if (!row) return;
         row[cat] = (row[cat] || 0) + 1;
       } else {
-        // month (calendaire)
-        const d = new Date(dateStr);
         if (d.getFullYear() !== year) return;
         const periodKey = monthKey(dateStr);
         const row = byPeriod.get(periodKey);
@@ -425,97 +588,171 @@ export default function KpiPage() {
       }
     });
 
-    // Conversion en tableau ordonné
     const ordered = Array.from(byPeriod.entries())
       .map(([period, counts]) => ({ period, ...counts }))
       .sort((a, b) => (a.period > b.period ? 1 : -1));
 
-    // Filtre d'action au NIVEAU DU RENDU (on garde toutes les clés pour la légende/tooltip)
     return ordered;
   }, [allItems, groupBy, year]);
 
+  const actionsDisabled = objet === "Email";
+
   return (
     <div className="vx-row">
-      {/* ====== Carte création KPI ====== */}
+      {/* ====== Ligne: Création KPI + Mini fenêtre email ====== */}
+      {/* Equal height: on étire les colonnes et les cards */}
       <div className="vx-col w-100">
-        <Card>
-          <CardHeader className="d-flex align-items-center justify-content-between">
-            <h4 className="mb-0">Créer un KPI</h4>
-          </CardHeader>
-          <CardBody>
-            {error ? (
-              <div
-                style={{
-                  background: "#ffe9e9",
-                  border: "1px solid #ffb3b3",
-                  color: "#b10000",
-                  padding: 10,
-                  borderRadius: 6,
-                  marginBottom: 14,
-                }}
-              >
-                {error}
-              </div>
-            ) : null}
+        <Row className="align-items-stretch">
+          {/* Col gauche: Création KPI */}
+          <Col xs="12" lg="8" className="d-flex">
+            <Card className="flex-fill d-flex flex-column">
+              <CardHeader className="d-flex align-items-center justify-content-between">
+                <h4 className="mb-0">Créer un KPI</h4>
+              </CardHeader>
+              <CardBody className="d-flex flex-column">
+                {error ? (
+                  <div
+                    style={{
+                      background: "#ffe9e9",
+                      border: "1px solid #ffb3b3",
+                      color: "#b10000",
+                      padding: 10,
+                      borderRadius: 6,
+                      marginBottom: 14,
+                    }}
+                  >
+                    {error}
+                  </div>
+                ) : null}
 
-            <Row>
-              {/* OBJET */}
-              <Col md="6" xs="12" className="mb-2">
-                <Label className="d-block" style={{ fontWeight: 600 }}>
-                  Objet
-                </Label>
-                <div className="d-flex gap-1">
-                  {OBJETS.map((o) => (
-                    <Button
-                      key={o}
-                      color={objet === o ? "primary" : "light"}
-                      className="mr-1"
-                      onClick={() => setObjet(o)}
-                    >
-                      {o}
-                    </Button>
-                  ))}
-                </div>
-              </Col>
-              {/* ACTION */}
-              <Col md="6" xs="12" className="mb-2">
-                <Label className="d-block" style={{ fontWeight: 600 }}>
-                  Action
-                </Label>
-
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(2, 1fr)",
-                    gap: 8,
-                  }}
-                >
-                  {ACTIONS_BASE.map((a) => {
-                    const isSelected = action === a;
-                    const color = ACTION_COLORS[a] || "secondary";
-                    return (
+                {/* OBJET */}
+                <div className="mb-2">
+                  <Label className="d-block" style={{ fontWeight: 600 }}>
+                    Objet
+                  </Label>
+                  <div className="d-flex align-items-center" style={{ gap: 8 }}>
+                    {OBJETS.map((o) => (
                       <Button
-                        key={a}
-                        color={color}
-                        outline={!isSelected} // non sélectionné = outline, sélectionné = plein
-                        onClick={() => setAction(a)}
-                        style={{ width: "100%" }}
-                        aria-pressed={isSelected}
+                        key={o}
+                        color={objet === o ? "primary" : "light"}
+                        className="mr-1"
+                        onClick={() => setObjet(o)}
                       >
-                        {a}
+                        {o}
                       </Button>
-                    );
-                  })}
+                    ))}
+                  </div>
                 </div>
-              </Col>
-            </Row>
-            <div className="d-flex mt-2">
-              <Button color="success" onClick={createKpi} disabled={creating}>
-                {creating ? "Création..." : "Créer le KPI"}
-              </Button>
-            </div>
-          </CardBody>
-        </Card>
+                {/* ACTIONS */}
+                <div className="mb-1 mt-auto">
+                  <Label className="d-block" style={{ fontWeight: 600 }}>
+                    Action {actionsDisabled && <small className="text-muted">(désactivé pour Email)</small>}
+                  </Label>
+
+                  {/* Grille d’actions à taille égale */}
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                      gap: 8,
+                    }}
+                  >
+                    {CALL_ACTIONS.map((a) => {
+                      const isSelected = action === a;
+                      const color = ACTION_COLORS[a] || "secondary";
+                      return (
+                        <Button
+                          key={a}
+                          color={color}
+                          outline={!isSelected}
+                          onClick={() => !actionsDisabled && setAction(a)}
+                          disabled={actionsDisabled}
+                          title={actionsDisabled ? "Les actions sont actives uniquement pour les appels" : undefined}
+                          className="w-100"
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            textAlign: "center",
+                            whiteSpace: "normal", // 2 lignes si besoin
+                            lineHeight: 0.8,
+                            padding: "10px 12px",
+                          }}
+                        >
+                          {a}
+                        </Button>
+                      );
+                    })}
+
+                    {actionsDisabled && (
+                      <Badge color="light-secondary" className="ml-1" style={{ alignSelf: "center" }}>
+                        Action par défaut&nbsp;: {EMAIL_ACTION}
+                      </Badge>
+                    )}
+                  </div>
+
+                  <div className="d-flex align-items-center mt-1">
+                    <div className="ml-auto">
+                      <Button color="success" onClick={createKpi} disabled={creating}>
+                        {creating ? "Création..." : "Créer le KPI"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+              </CardBody>
+            </Card>
+          </Col>
+
+          {/* Col droite: MINI fenêtre email (simple) */}
+          <Col xs="12" lg="4" className="d-flex">
+            <Card className="flex-fill d-flex flex-column">
+              <CardHeader className="d-flex align-items-center justify-content-between">
+                <h5 className="mb-0">Récupérer simulateur difficulté</h5>
+              </CardHeader>
+              <CardBody className="d-flex flex-column">
+                <Label className="d-block" style={{ fontWeight: 600 }}>
+                  Email du client
+                </Label>
+                <Input
+                  type="text"
+                  placeholder="Email du client"
+                  value={emailBody}
+                  onChange={(e) => setEmailBody(e.target.value)}
+                />
+
+                {sendMsg && (
+                  <div
+                    className="mt-1"
+                    style={{
+                      fontSize: 13,
+                      color: sendMsg.startsWith("✅") ? "#0f5132" : sendMsg.startsWith("⚠️") ? "#8a6d3b" : "#b10000",
+                    }}
+                  >
+                    {sendMsg}
+                  </div>
+                )}
+
+                <div className="d-flex mt-auto">
+                  <Button color="primary" onClick={sendEmailWebhook} disabled={sending || !emailBody.trim()}>
+                    {sending ? "Envoi..." : "Envoyer"}
+                  </Button>
+                  <Button
+                    color="light"
+                    className="ml-1"
+                    onClick={() => {
+                      setEmailBody("");
+                      setSendMsg("");
+                    }}
+                    disabled={sending}
+                  >
+                    Effacer
+                  </Button>
+                </div>
+              </CardBody>
+            </Card>
+          </Col>
+        </Row>
       </div>
 
       {/* ====== Graph ====== */}
@@ -598,7 +835,6 @@ export default function KpiPage() {
                   />
                   <Legend />
 
-                  {/* Colonnes empilées */}
                   {actionFilter === "all"
                     ? ACTIONS_ALL.map((a) => (
                         <Bar key={a} dataKey={a} stackId="total" fill={ACTION_FILLS[a]} />
@@ -653,7 +889,7 @@ export default function KpiPage() {
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Date</th>
+                  <th>Date / heure</th>
                   <th>Objet</th>
                   <th>Action</th>
                   <th>Admin</th>
@@ -666,37 +902,41 @@ export default function KpiPage() {
                     <td colSpan="6">Chargement…</td>
                   </tr>
                 ) : items?.length ? (
-                  items.map((k) => (
-                    <tr key={k.id}>
-                      <td>{k.id}</td>
-                      <td>{formatDate(k.kpi_date || k.created_at || k.updated_at)}</td>
-                      <td>{k.objet || <em style={{ opacity: 0.6 }}>(vide)</em>}</td>
-                      <td>{k.action || <em style={{ opacity: 0.6 }}>(vide)</em>}</td>
-                      <td>
-                        {k.admin_id == null ? (
-                          <em style={{ opacity: 0.6 }}>(null)</em>
-                        ) : (
-                          usersById[k.admin_id] ||
-                          k.admin_name ||
-                          k.admin ||
-                          String(k.admin_id)
-                        )}
-                      </td>
-                      <td className="text-right" style={{ width: 40 }}>
-                        <Button
-                          color="link"
-                          className="p-0"
-                          style={{ color: "#dc3545" }}
-                          onClick={() => openConfirmModal(k)}
-                          disabled={deletingId === k.id}
-                          aria-label={`Supprimer KPI ${k.id}`}
-                          title="Supprimer"
-                        >
-                          <Trash2 size={18} />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))
+                  items.map((k) => {
+                    const dt =
+                      k.created_at || k.updated_at || k.kpi_date; // privilégie un champ avec heure
+                    return (
+                      <tr key={k.id}>
+                        <td>{k.id}</td>
+                        <td>{formatDateTime(dt)}</td>
+                        <td>{renderObjetCell(k.objet)}</td>
+                        <td>{renderActionBadge(k.action)}</td>
+                        <td>
+                          {k.admin_id == null ? (
+                            <em style={{ opacity: 0.6 }}>(null)</em>
+                          ) : (
+                            usersById[k.admin_id] ||
+                            k.admin_name ||
+                            k.admin ||
+                            String(k.admin_id)
+                          )}
+                        </td>
+                        <td className="text-right" style={{ width: 40 }}>
+                          <Button
+                            color="link"
+                            className="p-0"
+                            style={{ color: "#dc3545" }}
+                            onClick={() => openConfirmModal(k)}
+                            disabled={deletingId === k.id}
+                            aria-label={`Supprimer KPI ${k.id}`}
+                            title="Supprimer"
+                          >
+                            <Trash2 size={18} />
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
                     <td colSpan="6">Aucun KPI.</td>
@@ -714,8 +954,8 @@ export default function KpiPage() {
         toggle={closeConfirmModal}
         centered
         size="md"
-        backdrop="static"          // évite le clic extérieur
-        keyboard={!deletingId}     // bloque ESC pendant la suppression
+        backdrop="static"
+        keyboard={!deletingId}
       >
         <ModalHeader toggle={closeConfirmModal} className="border-0">
           <div className="d-flex align-items-center">
