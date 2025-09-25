@@ -72,6 +72,7 @@ const Config = {
 
 class CreateContract extends React.Component {
   state = {
+    recipientEmail: "",
     creator_id: null,
     rowData: [],
     services: [],
@@ -93,6 +94,33 @@ class CreateContract extends React.Component {
     subscribe_services: "",
     status: "",
     status_payment: 0,
+  };
+  sendViaDocusign = async () => {
+    try {
+      // Assure-toi que les formules viennent d’être recalculées
+      this.calculate();
+
+      const payload = {
+        user_id: this.state.user_id,
+        parentId: this.state.rowData?.parent_id,
+        creatorId: this.state.creator_id,
+        recipient_email: this.state.recipientEmail || this.ifExist("email"),
+        recipient_name: `${this.ifExist("first_name")} ${this.ifExist("last_name")}`.trim(),
+        rowData: this.state.rowData,
+        formValues: this.state.formValues,   // IMPORTANT : on enverra les valeurs pour régénérer côté serveur
+        generalCondition: this.state.general_condition,
+      };
+
+      const res = await axios.post(
+        `${global.config.server_url}/contracts/send-docusign`,
+        payload,
+        Config
+      );
+      toast.success("Contrat envoyé via DocuSign !");
+    } catch (e) {
+      console.error(e);
+      toast.error("Échec envoi DocuSign");
+    }
   };
 
   ifExist(name) {
@@ -426,14 +454,22 @@ class CreateContract extends React.Component {
             sm="12"
             id="send_contract_section"
           >
-            <InputGroup>
-              <Input placeholder="Email" />
-              <InputGroupAddon addonType="append">
-                <Button.Ripple color="primary" outline>
-                  Send Contract
-                </Button.Ripple>
-              </InputGroupAddon>
-            </InputGroup>
+          <InputGroup>
+            <Input
+              placeholder="Email"
+              value={this.state.recipientEmail}
+              onChange={(e) => this.setState({ recipientEmail: e.target.value })}
+            />
+            <InputGroupAddon addonType="append">
+              <Button.Ripple
+                color="primary"
+                outline
+                onClick={this.sendViaDocusign} // nouveau handler
+              >
+                Envoyer via DocuSign
+              </Button.Ripple>
+            </InputGroupAddon>
+          </InputGroup>
           </Col>
           <Col
             className="d-flex flex-column flex-md-row justify-content-end contract-header mb-1"
