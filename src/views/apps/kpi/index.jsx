@@ -6,6 +6,7 @@ import {
   CardHeader,
   Button,
   Row,
+  ButtonGroup,
   Col,
   Input,
   Label,
@@ -59,7 +60,13 @@ const OBJETS = ["appel entrant", "appel sortant", "Email"];
 const CALL_ACTIONS = ["Rdv pris", "mail proposition envoyé", "affaire signée", "échec"];
 const EMAIL_ACTION = "Email recu";
 const ACTION_OTHER = "autre";
+const DAY_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
+
+function weekdayIndexMondayFirst(dateInput) {
+  const d = new Date(dateInput);
+  return (d.getDay() + 6) % 7; // 0 = lundi ... 6 = dimanche
+}
 // Ensemble des actions à afficher dans le graphique/filtre
 const ACTIONS_ALL = [...CALL_ACTIONS, EMAIL_ACTION, ACTION_OTHER];
 const ACTIONS_KNOWN = [...CALL_ACTIONS, EMAIL_ACTION];
@@ -97,6 +104,53 @@ function todayStr() {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
+}
+// Retourne le lundi d'une semaine ISO (Date)
+function isoWeekStart(isoYear, isoWeek) {
+  const simple = new Date(isoYear, 0, 1 + (isoWeek - 1) * 7);
+  const dow = (simple.getDay() + 6) % 7; // 0 = lundi
+  const monday = new Date(simple);
+  monday.setDate(simple.getDate() - dow);
+  return monday;
+}
+
+// Début/fin (lundi → dimanche) d'une semaine ISO
+function weekStartEnd(isoYear, isoWeek) {
+  const start = isoWeekStart(isoYear, isoWeek);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  return { start, end };
+}
+
+// Libellé lisible : "Sem. 39 • 23 sept → 29 sept 2025"
+function formatWeekRangeLabel(isoYear, isoWeek) {
+  const { start, end } = weekStartEnd(isoYear, isoWeek);
+  const day2 = new Intl.DateTimeFormat("fr-FR", { day: "2-digit" });
+  const dm = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short" });
+  const yfmt = new Intl.DateTimeFormat("fr-FR", { year: "numeric" });
+
+  const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
+  const range = sameMonth
+    ? `${dm.format(start)}–${day2.format(end)} ${yfmt.format(end)}`
+    : `${dm.format(start)} → ${dm.format(end)} ${yfmt.format(end)}`;
+
+  return `Sem. ${String(isoWeek).padStart(2, "0")} • ${range}`;
+}
+
+// Construit une petite liste de raccourcis (semaines récentes)
+function buildQuickWeeks(anchorYear, anchorWeek, count = 10) {
+  const out = [];
+  let y = anchorYear;
+  let w = anchorWeek;
+  for (let i = 0; i < count; i++) {
+    out.push({ year: y, week: w, label: formatWeekRangeLabel(y, w) });
+    w -= 1;
+    if (w < 1) {
+      y -= 1;
+      w = isoWeeksInYear(y);
+    }
+  }
+  return out;
 }
 
 // Formatage lisible des dates (gère YYYY-MM-DD et ISO)
@@ -262,11 +316,30 @@ export default function KpiPage() {
   const [loadingChart, setLoadingChart] = useState(false);
 
   // Graph controls
-  const [groupBy, setGroupBy] = useState("week");
+  const [groupBy, setGroupBy] = useState("day");
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
   const [actionFilter, setActionFilter] = useState("all");
+  const [week, setWeek] = useState(() => isoWeekInfo(new Date()).isoWeek);
+  function stepWeek(delta) {
+      let y = year;
+      let w = week + delta;
+      let max = isoWeeksInYear(y);
+      if (w < 1) {
+        y -= 1;
+        w = isoWeeksInYear(y);
+      } else if (w > max) {
+        y += 1;
+        w = 1;
+      }
+      setYear(y);
+      setWeek(w);
+    }
 
+    // Libellé clair "Sem. XX • 23 sept → 29 sept 2025"
+  const weekLabel = useMemo(() => formatWeekRangeLabel(year, week), [year, week]);
+    // Raccourcis: ~10 semaines récentes pour un saut rapide
+  const quickWeeks = useMemo(() => buildQuickWeeks(year, week, 10), [year, week]);
   // Suppression
   const [deletingId, setDeletingId] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -284,7 +357,10 @@ export default function KpiPage() {
     fetchKpis(page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
-
+  useEffect(() => {
+    const max = isoWeeksInYear(year);
+    if (week > max) setWeek(max);
+  }, [year]);
   // Charger TOUTES les données pour le GRAPHIQUE (toutes pages)
   useEffect(() => {
     fetchAllKpis();
@@ -548,7 +624,6 @@ export default function KpiPage() {
   const chartDataMulti = useMemo(() => {
     const byPeriod = new Map();
 
-    // Couvrir toute l'année
     if (groupBy === "week") {
       const totalWeeks = isoWeeksInYear(year);
       for (let w = 1; w <= totalWeeks; w++) {
@@ -557,12 +632,19 @@ export default function KpiPage() {
         ACTIONS_ALL.forEach((a) => (base[a] = 0));
         byPeriod.set(period, base);
       }
-    } else {
+    } else if (groupBy === "month") {
       for (let m = 1; m <= 12; m++) {
         const period = `${year}-${String(m).padStart(2, "0")}`;
         const base = {};
         ACTIONS_ALL.forEach((a) => (base[a] = 0));
         byPeriod.set(period, base);
+      }
+    } else {
+      // NEW: vue "jour" -> 7 jours, lundi...dimanche
+      for (let di = 0; di < 7; di++) {
+        const base = {};
+        ACTIONS_ALL.forEach((a) => (base[a] = 0));
+        byPeriod.set(di, base);
       }
     }
 
@@ -579,21 +661,36 @@ export default function KpiPage() {
         const row = byPeriod.get(periodKey);
         if (!row) return;
         row[cat] = (row[cat] || 0) + 1;
-      } else {
+      } else if (groupBy === "month") {
         if (d.getFullYear() !== year) return;
         const periodKey = monthKey(dateStr);
         const row = byPeriod.get(periodKey);
         if (!row) return;
         row[cat] = (row[cat] || 0) + 1;
+      } else {
+        // NEW: vue "jour" filtrée sur (année, semaine)
+        const { isoYear, isoWeek } = isoWeekInfo(dateStr);
+        if (isoYear !== year || isoWeek !== week) return;
+        const di = weekdayIndexMondayFirst(dateStr); // 0..6
+        const row = byPeriod.get(di);
+        if (!row) return;
+        row[cat] = (row[cat] || 0) + 1;
       }
     });
+
+    if (groupBy === "day") {
+      return Array.from(byPeriod.entries())
+        .sort((a, b) => a[0] - b[0]) // ordre Lun -> Dim
+        .map(([di, counts]) => ({ period: DAY_LABELS[di], ...counts }));
+    }
 
     const ordered = Array.from(byPeriod.entries())
       .map(([period, counts]) => ({ period, ...counts }))
       .sort((a, b) => (a.period > b.period ? 1 : -1));
 
     return ordered;
-  }, [allItems, groupBy, year]);
+  }, [allItems, groupBy, year, week]);
+
 
   const actionsDisabled = objet === "Email";
 
@@ -765,17 +862,20 @@ export default function KpiPage() {
               {/* GroupBy */}
               <UncontrolledButtonDropdown className="mr-1">
                 <DropdownToggle caret color="primary">
-                  {groupBy === "week" ? "Par semaine" : "Par mois"}
+                  {groupBy === "week"
+                    ? "Par semaine"
+                    : groupBy === "month"
+                    ? "Par mois"
+                    : "Par jour (semaine)"}
                 </DropdownToggle>
                 <DropdownMenu right>
-                  <DropdownItem onClick={() => setGroupBy("week")}>
-                    Par semaine
-                  </DropdownItem>
-                  <DropdownItem onClick={() => setGroupBy("month")}>
-                    Par mois
-                  </DropdownItem>
+                  <DropdownItem onClick={() => setGroupBy("week")}>Par semaine</DropdownItem>
+                  <DropdownItem onClick={() => setGroupBy("month")}>Par mois</DropdownItem>
+                  {/* NEW */}
+                  <DropdownItem onClick={() => setGroupBy("day")}>Par jour (semaine)</DropdownItem>
                 </DropdownMenu>
               </UncontrolledButtonDropdown>
+
 
               {/* Year filter */}
               <UncontrolledButtonDropdown className="mr-1">
@@ -790,6 +890,50 @@ export default function KpiPage() {
                   ))}
                 </DropdownMenu>
               </UncontrolledButtonDropdown>
+            {groupBy === "day" && (
+              <ButtonGroup className="mr-1">
+                <Button
+                  color="primary"
+                  onClick={() => stepWeek(-1)}
+                  title="Semaine précédente"
+                >
+                  ‹
+                </Button>
+
+                <UncontrolledButtonDropdown>
+                  <DropdownToggle
+                    color="primary"
+                    caret={false}
+                    className="px-3"
+                    style={{ minWidth: 260, whiteSpace: "nowrap" }}
+                  >
+                    {weekLabel}
+                  </DropdownToggle>
+                  <DropdownMenu right style={{ maxHeight: 320, overflowY: "auto" }}>
+                    {quickWeeks.map(({ year: y, week: w, label }) => (
+                      <DropdownItem
+                        key={`${y}-${w}`}
+                        onClick={() => {
+                          setYear(y);
+                          setWeek(w);
+                        }}
+                      >
+                        {label}
+                      </DropdownItem>
+                    ))}
+                  </DropdownMenu>
+                </UncontrolledButtonDropdown>
+
+                <Button
+                  color="primary"
+                  onClick={() => stepWeek(1)}
+                  title="Semaine suivante"
+                >
+                  ›
+                </Button>
+              </ButtonGroup>
+            )}
+
 
               {/* Action filter */}
               <UncontrolledButtonDropdown>
@@ -830,7 +974,11 @@ export default function KpiPage() {
                   <YAxis allowDecimals={false} />
                   <Tooltip
                     labelFormatter={(label) =>
-                      groupBy === "week" ? `Semaine ${label.split("-")[1]}` : label
+                      groupBy === "week"
+                        ? `Semaine ${label.split("-")[1]}`
+                        : groupBy === "day"
+                        ? `${label} – ${formatWeekRangeLabel(year, week)}`
+                        : label
                     }
                   />
                   <Legend />
@@ -888,7 +1036,6 @@ export default function KpiPage() {
             <Table responsive hover>
               <thead>
                 <tr>
-                  <th>#</th>
                   <th>Date / heure</th>
                   <th>Objet</th>
                   <th>Action</th>
@@ -907,7 +1054,6 @@ export default function KpiPage() {
                       k.created_at || k.updated_at || k.kpi_date; // privilégie un champ avec heure
                     return (
                       <tr key={k.id}>
-                        <td>{k.id}</td>
                         <td>{formatDateTime(dt)}</td>
                         <td>{renderObjetCell(k.objet)}</td>
                         <td>{renderActionBadge(k.action)}</td>
