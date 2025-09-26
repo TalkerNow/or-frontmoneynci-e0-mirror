@@ -118,7 +118,7 @@ class CreateContract extends React.Component {
         user_id: this.state.user_id,
         recipient_email: this.state.recipientEmail || this.ifExist("email"),
         recipient_name: `${this.ifExist("first_name")} ${this.ifExist("last_name")}`.trim(),
-        embedded: true, // ou false si tu veux que DocuSign envoie l'email
+        embedded: false, // ou false si tu veux que DocuSign envoie l'email
 
         // 🎯 LE PDF EXACT généré côté front
         exact_pdf_base64: pdfBase64,
@@ -142,7 +142,6 @@ class CreateContract extends React.Component {
 
   generatePdfBase64 = async () => {
     if (!window.html2pdf) throw new Error("html2pdf non chargé (script manquant dans public/index.html)");
-
     const node = this.pdfRef.current;
     if (!node) throw new Error("pdf-root introuvable");
 
@@ -150,16 +149,15 @@ class CreateContract extends React.Component {
       margin: 0,
       filename: "contrat.pdf",
       image: { type: "jpeg", quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
+      html2canvas: { scale: 1, useCORS: true }, // <= était 2
       jsPDF: { unit: "pt", format: "a4", orientation: "portrait" },
       pagebreak: { mode: ["css", "legacy"] },
     };
 
-    // renvoie "data:application/pdf;base64,AAAA..."
     const dataUri = await window.html2pdf().set(opt).from(node).toPdf().output("datauristring");
-    // on retourne juste la partie base64
     return dataUri.split(",")[1];
   };
+
 
   ifExist(name) {
     if (this.state.rowData) return this.state.rowData[name];
@@ -557,7 +555,11 @@ class CreateContract extends React.Component {
               width: "80%",
             }}
           >
-              <div id="pdf-root" ref={this.pdfRef}>
+            <div
+              id="pdf-root"
+              ref={this.pdfRef}
+              style={{ width: "794px", margin: "0 auto" }} // 210mm ≈ 794px @96dpi
+            >
             <Card
               className="contract-page"
               style={{ padding: "0.5rem 5.5rem 2.2rem 5.5rem" }}
