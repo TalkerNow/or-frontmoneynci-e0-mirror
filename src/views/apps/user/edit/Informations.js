@@ -995,7 +995,7 @@ class UserAccountTab extends React.Component {
                 className="d-flex justify-content-end flex-wrap mt-2"
                 sm="12"
               >
-                <Button.Ripple className="mr-1" color="primary" type="submit">
+                <Button.Ripple className="mr-1" color="success" type="submit">
                   Modifier
                 </Button.Ripple>
               </Col>
