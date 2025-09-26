@@ -31,12 +31,14 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { useHistory } from "react-router-dom";
 import {
   Trash2,
   Mail as MailIcon,
   PhoneIncoming,
   PhoneOutgoing,
   PhoneCall,
+  UserPlus,
 } from "react-feather"; // icônes
 
 /** =============================
@@ -56,12 +58,11 @@ const WEBHOOK_EMAIL_URL = "https://n8n.srv796541.hstgr.cloud/webhook/0627350c-a3
 // Objets (ajout de "Email")
 const OBJETS = ["appel entrant", "appel sortant", "Email"];
 
-// Actions
-const CALL_ACTIONS = ["Rdv pris", "mail proposition envoyé", "affaire signée", "échec"];
+// Actions (RETIRE: "affaire signée")
+const CALL_ACTIONS = ["Rdv pris", "mail proposition envoyé", "échec"];
 const EMAIL_ACTION = "Email recu";
 const ACTION_OTHER = "autre";
 const DAY_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
-
 
 function weekdayIndexMondayFirst(dateInput) {
   const d = new Date(dateInput);
@@ -74,7 +75,6 @@ const ACTIONS_KNOWN = [...CALL_ACTIONS, EMAIL_ACTION];
 const ACTION_FILLS = {
   "Rdv pris": "#28a745",
   "mail proposition envoyé": "#17a2b8",
-  "affaire signée": "#007bff",
   "échec": "#dc3545",
   [EMAIL_ACTION]: "#6f42c1",
   [ACTION_OTHER]: "#6c757d",
@@ -83,7 +83,6 @@ const ACTION_FILLS = {
 const ACTION_COLORS = {
   "Rdv pris": "success",
   "mail proposition envoyé": "info",
-  "affaire signée": "primary",
   "échec": "danger",
   [EMAIL_ACTION]: "secondary",
   [ACTION_OTHER]: "secondary",
@@ -251,6 +250,19 @@ function renderObjetCell(value) {
   );
 }
 
+/** Renders v or (vide) */
+function renderNullable(v) {
+  return v ? v : <em style={{ opacity: 0.6 }}>(vide)</em>;
+}
+function renderEmail(v) {
+  return v ? <a href={`mailto:${v}`}>{v}</a> : <em style={{ opacity: 0.6 }}>(vide)</em>;
+}
+function renderPhone(v) {
+  if (!v) return <em style={{ opacity: 0.6 }}>(vide)</em>;
+  const href = `tel:${String(v).replace(/\s+/g, "")}`;
+  return <a href={href}>{v}</a>;
+}
+
 /** Badge d'action (light) + puce couleur */
 function renderActionBadge(action) {
   const key = ACTIONS_KNOWN.includes(action) ? action : (action ? ACTION_OTHER : null);
@@ -282,11 +294,18 @@ function renderActionBadge(action) {
 
 export default function KpiPage() {
   // Création KPI
+  const history = useHistory();
   const [objet, setObjet] = useState("appel entrant");
   const [action, setAction] = useState("");
   const [creating, setCreating] = useState(false);
   const adminId = localStorage.getItem("userid");
   const [error, setError] = useState("");
+  const [kpiDate, setKpiDate] = useState(todayStr());
+
+  // >>> Nouveaux champs contact (optionnels)
+  const [nomPrenom, setNomPrenom] = useState("");
+  const [email, setEmail] = useState("");
+  const [telephone, setTelephone] = useState("");
 
   // Mini fenetre email (simple)
   const [emailBody, setEmailBody] = useState("");
@@ -322,23 +341,23 @@ export default function KpiPage() {
   const [actionFilter, setActionFilter] = useState("all");
   const [week, setWeek] = useState(() => isoWeekInfo(new Date()).isoWeek);
   function stepWeek(delta) {
-      let y = year;
-      let w = week + delta;
-      let max = isoWeeksInYear(y);
-      if (w < 1) {
-        y -= 1;
-        w = isoWeeksInYear(y);
-      } else if (w > max) {
-        y += 1;
-        w = 1;
-      }
-      setYear(y);
-      setWeek(w);
+    let y = year;
+    let w = week + delta;
+    let max = isoWeeksInYear(y);
+    if (w < 1) {
+      y -= 1;
+      w = isoWeeksInYear(y);
+    } else if (w > max) {
+      y += 1;
+      w = 1;
     }
+    setYear(y);
+    setWeek(w);
+  }
 
-    // Libellé clair "Sem. XX • 23 sept → 29 sept 2025"
+  // Libellé clair "Sem. XX • 23 sept → 29 sept 2025"
   const weekLabel = useMemo(() => formatWeekRangeLabel(year, week), [year, week]);
-    // Raccourcis: ~10 semaines récentes pour un saut rapide
+  // Raccourcis: ~10 semaines récentes pour un saut rapide
   const quickWeeks = useMemo(() => buildQuickWeeks(year, week, 10), [year, week]);
   // Suppression
   const [deletingId, setDeletingId] = useState(null);
@@ -346,6 +365,9 @@ export default function KpiPage() {
   const [toDelete, setToDelete] = useState(null);
 
   // Désactiver actions pour "Email"
+  const actionsDisabled = objet === "Email";
+
+  // Forcer l'action par défaut si Email
   useEffect(() => {
     if (objet === "Email") setAction(EMAIL_ACTION);
     else if (!CALL_ACTIONS.includes(action)) setAction("");
@@ -357,10 +379,12 @@ export default function KpiPage() {
     fetchKpis(page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
+
   useEffect(() => {
     const max = isoWeeksInYear(year);
     if (week > max) setWeek(max);
   }, [year]);
+
   // Charger TOUTES les données pour le GRAPHIQUE (toutes pages)
   useEffect(() => {
     fetchAllKpis();
@@ -483,23 +507,23 @@ export default function KpiPage() {
         localStorage.getItem("access_token") ||
         localStorage.getItem("jwt");
 
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
-    const params = adminId ? { id: adminId } : undefined;
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const params = adminId ? { id: adminId } : undefined;
 
-    const res = await axios.get(
-      `https://api.optionretraite.net/api/users/${adminId}`,
-      { headers, params }
-    );
+      const res = await axios.get(
+        `https://api.optionretraite.net/api/users/${adminId}`,
+        { headers, params }
+      );
 
-    // On tente plusieurs chemins possibles (selon structure renvoyée)
-    const payload = res.data || {};
-    const email =
-      payload.email ||
-      payload?.data?.email ||
-      payload?.user?.email ||
-      null;
+      // On tente plusieurs chemins possibles (selon structure renvoyée)
+      const payload = res.data || {};
+      const email =
+        payload.email ||
+        payload?.data?.email ||
+        payload?.user?.email ||
+        null;
 
-    if (email) setAdminEmailApi(email);
+      if (email) setAdminEmailApi(email);
     } catch (e) {
       console.error("fetchAdminEmailFromApi error:", e);
       // on garde le fallback local si l'API échoue
@@ -513,7 +537,11 @@ export default function KpiPage() {
       const body = {
         objet: objet || null,
         action: objet === "Email" ? EMAIL_ACTION : action || null,
-        kpi_date: todayStr(),
+        kpi_date: kpiDate || todayStr(), // <- ne garder qu'une seule clé kpi_date
+        // >>> nouveaux champs optionnels
+        nom_prenom: nomPrenom || null,
+        email: email || null,
+        telephone: telephone || null,
       };
       if (adminId) body.admin_id = adminId;
 
@@ -521,6 +549,9 @@ export default function KpiPage() {
       setPage(1);
       await fetchKpis(1);
       await fetchAllKpis();
+
+      // (optionnel) reset des champs contact
+      // setNomPrenom(""); setEmail(""); setTelephone("");
     } catch (e) {
       console.error(e);
       setError(
@@ -691,9 +722,6 @@ export default function KpiPage() {
     return ordered;
   }, [allItems, groupBy, year, week]);
 
-
-  const actionsDisabled = objet === "Email";
-
   return (
     <div className="vx-row">
       {/* ====== Ligne: Création KPI + Mini fenêtre email ====== */}
@@ -703,9 +731,21 @@ export default function KpiPage() {
           {/* Col gauche: Création KPI */}
           <Col xs="12" lg="8" className="d-flex">
             <Card className="flex-fill d-flex flex-column">
-              <CardHeader className="d-flex align-items-center justify-content-between">
-                <h4 className="mb-0">Créer un KPI</h4>
-              </CardHeader>
+            <CardHeader className="d-flex align-items-center justify-content-between">
+              <h4 className="mb-0">Créer un KPI</h4>
+              <div>
+                <Button
+                  className="mr-1 mb-1"
+                  // outline
+                  color="primary"
+                  onClick={() => history.push("/app/user/createUser")}
+                  title="Créer un utilisateur"
+                  aria-label="Créer un utilisateur"
+                >
+                  <UserPlus size={15} />
+                </Button>
+              </div>
+            </CardHeader>
               <CardBody className="d-flex flex-column">
                 {error ? (
                   <div
@@ -722,81 +762,134 @@ export default function KpiPage() {
                   </div>
                 ) : null}
 
-                {/* OBJET */}
-                <div className="mb-2">
-                  <Label className="d-block" style={{ fontWeight: 600 }}>
-                    Objet
-                  </Label>
-                  <div className="d-flex align-items-center" style={{ gap: 8 }}>
-                    {OBJETS.map((o) => (
-                      <Button
-                        key={o}
-                        color={objet === o ? "primary" : "light"}
-                        className="mr-1"
-                        onClick={() => setObjet(o)}
-                      >
-                        {o}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-                {/* ACTIONS */}
-                <div className="mb-1 mt-auto">
-                  <Label className="d-block" style={{ fontWeight: 600 }}>
-                    Action {actionsDisabled && <small className="text-muted">(désactivé pour Email)</small>}
-                  </Label>
-
-                  {/* Grille d’actions à taille égale */}
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                      gap: 8,
-                    }}
-                  >
-                    {CALL_ACTIONS.map((a) => {
-                      const isSelected = action === a;
-                      const color = ACTION_COLORS[a] || "secondary";
+                {/* OBJET + Date sur la même ligne */}
+                <div
+                  className="d-flex align-items-center flex-wrap"
+                  style={{ gap: 8 }}
+                >
+                  {/* Boutons objet */}
+                  <div className="d-inline-flex align-items-center" style={{ gap: 8 }}>
+                    {OBJETS.map((o) => {
+                      const Icon = OBJET_ICON[o] || PhoneCall;
+                      const selected = objet === o;
+                      const isEmail = o === "Email";
                       return (
                         <Button
-                          key={a}
-                          color={color}
-                          outline={!isSelected}
-                          onClick={() => !actionsDisabled && setAction(a)}
-                          disabled={actionsDisabled}
-                          title={actionsDisabled ? "Les actions sont actives uniquement pour les appels" : undefined}
-                          className="w-100"
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            textAlign: "center",
-                            whiteSpace: "normal", // 2 lignes si besoin
-                            lineHeight: 0.8,
-                            padding: "10px 12px",
-                          }}
+                          key={o}
+                          color={selected ? "primary" : "light"}
+                          className="d-inline-flex align-items-center"
+                          onClick={() => setObjet(o)}
+                          title={o}
+                          aria-label={o}
+                          style={{ gap: 6, padding: "8px 12px" }}
                         >
-                          {a}
+                          <Icon size={16} style={{ opacity: 0.9 }} />
+                          {!isEmail && <span>{o}</span>}
                         </Button>
                       );
                     })}
-
-                    {actionsDisabled && (
-                      <Badge color="light-secondary" className="ml-1" style={{ alignSelf: "center" }}>
-                        Action par défaut&nbsp;: {EMAIL_ACTION}
-                      </Badge>
-                    )}
                   </div>
 
-                  <div className="d-flex align-items-center mt-1">
-                    <div className="ml-auto">
-                      <Button color="success" onClick={createKpi} disabled={creating}>
-                        {creating ? "Création..." : "Créer le KPI"}
-                      </Button>
+                  {/* Sélecteur de date à droite, sans libellé visible */}
+                  <Input
+                    type="date"
+                    value={kpiDate}
+                    onChange={(e) => setKpiDate(e.target.value)}
+                    max={todayStr()}            // retire ce max si tu veux autoriser le futur
+                    aria-label="Date du KPI"    // accessibilité, pas de texte visible
+                    style={{ width: 170, marginLeft: "auto" }}
+                  />
+                </div>
+
+
+                {/* >>> Infos contact (optionnels) */}
+                <div className="mt-2">
+                  <div className="d-flex" style={{ gap: 8, flexWrap: "wrap" }}>
+                    <div style={{ minWidth: 220, flex: 1 }}>
+                      <Label className="mb-1" style={{ fontWeight: 600, fontSize: 13 }}>
+                        Nom / Prénom
+                      </Label>
+                      <Input
+                        type="text"
+                        placeholder="Nom Prénom"
+                        value={nomPrenom}
+                        onChange={(e) => setNomPrenom(e.target.value)}
+                      />
+                    </div>
+                    <div style={{ minWidth: 220, flex: 1 }}>
+                      <Label className="mb-1" style={{ fontWeight: 600, fontSize: 13 }}>
+                        Email
+                      </Label>
+                      <Input
+                        type="text"
+                        placeholder="email@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                      />
+                    </div>
+                    <div style={{ minWidth: 180, flex: 1 }}>
+                      <Label className="mb-1" style={{ fontWeight: 600, fontSize: 13 }}>
+                        Téléphone
+                      </Label>
+                      <Input
+                        type="text"
+                        placeholder="06 12 34 56 78"
+                        value={telephone}
+                        onChange={(e) => setTelephone(e.target.value)}
+                      />
                     </div>
                   </div>
                 </div>
 
+                {/* ACTIONS — totalement cachées si objet = Email */}
+                {!actionsDisabled && (
+                  <div className="mb-2 mt-2">
+                    <Label className="d-block" style={{ fontWeight: 600 }}>
+                      Action
+                    </Label>
+
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                        gap: 8,
+                      }}
+                    >
+                      {CALL_ACTIONS.map((a) => {
+                        const isSelected = action === a;
+                        const color = ACTION_COLORS[a] || "secondary";
+                        return (
+                          <Button
+                            key={a}
+                            color={color}
+                            outline={!isSelected}
+                            onClick={() => setAction(a)}
+                            className="w-100"
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              textAlign: "center",
+                              whiteSpace: "normal",
+                              lineHeight: 0.8,
+                              padding: "10px 12px",
+                            }}
+                          >
+                            {a}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div className="d-flex align-items-center mt-1">
+                  <div className="ml-auto">
+                    <Button color="success" onClick={createKpi} disabled={creating}>
+                      {creating ? "Création..." : "Créer le KPI"}
+                    </Button>
+                  </div>
+                </div>
               </CardBody>
             </Card>
           </Col>
@@ -834,17 +927,7 @@ export default function KpiPage() {
                   <Button color="primary" onClick={sendEmailWebhook} disabled={sending || !emailBody.trim()}>
                     {sending ? "Envoi..." : "Envoyer"}
                   </Button>
-                  <Button
-                    color="light"
-                    className="ml-1"
-                    onClick={() => {
-                      setEmailBody("");
-                      setSendMsg("");
-                    }}
-                    disabled={sending}
-                  >
-                    Effacer
-                  </Button>
+                  {/* Bouton Effacer SUPPRIMÉ */}
                 </div>
               </CardBody>
             </Card>
@@ -876,7 +959,6 @@ export default function KpiPage() {
                 </DropdownMenu>
               </UncontrolledButtonDropdown>
 
-
               {/* Year filter */}
               <UncontrolledButtonDropdown className="mr-1">
                 <DropdownToggle caret color="primary">
@@ -890,50 +972,50 @@ export default function KpiPage() {
                   ))}
                 </DropdownMenu>
               </UncontrolledButtonDropdown>
-            {groupBy === "day" && (
-              <ButtonGroup className="mr-1">
-                <Button
-                  color="primary"
-                  onClick={() => stepWeek(-1)}
-                  title="Semaine précédente"
-                >
-                  ‹
-                </Button>
 
-                <UncontrolledButtonDropdown>
-                  <DropdownToggle
+              {groupBy === "day" && (
+                <ButtonGroup className="mr-1">
+                  <Button
                     color="primary"
-                    caret={false}
-                    className="px-3"
-                    style={{ minWidth: 260, whiteSpace: "nowrap" }}
+                    onClick={() => stepWeek(-1)}
+                    title="Semaine précédente"
                   >
-                    {weekLabel}
-                  </DropdownToggle>
-                  <DropdownMenu right style={{ maxHeight: 320, overflowY: "auto" }}>
-                    {quickWeeks.map(({ year: y, week: w, label }) => (
-                      <DropdownItem
-                        key={`${y}-${w}`}
-                        onClick={() => {
-                          setYear(y);
-                          setWeek(w);
-                        }}
-                      >
-                        {label}
-                      </DropdownItem>
-                    ))}
-                  </DropdownMenu>
-                </UncontrolledButtonDropdown>
+                    ‹
+                  </Button>
 
-                <Button
-                  color="primary"
-                  onClick={() => stepWeek(1)}
-                  title="Semaine suivante"
-                >
-                  ›
-                </Button>
-              </ButtonGroup>
-            )}
+                  <UncontrolledButtonDropdown>
+                    <DropdownToggle
+                      color="primary"
+                      caret={false}
+                      className="px-3"
+                      style={{ minWidth: 260, whiteSpace: "nowrap" }}
+                    >
+                      {weekLabel}
+                    </DropdownToggle>
+                    <DropdownMenu right style={{ maxHeight: 320, overflowY: "auto" }}>
+                      {quickWeeks.map(({ year: y, week: w, label }) => (
+                        <DropdownItem
+                          key={`${y}-${w}`}
+                          onClick={() => {
+                            setYear(y);
+                            setWeek(w);
+                          }}
+                        >
+                          {label}
+                        </DropdownItem>
+                      ))}
+                    </DropdownMenu>
+                  </UncontrolledButtonDropdown>
 
+                  <Button
+                    color="primary"
+                    onClick={() => stepWeek(1)}
+                    title="Semaine suivante"
+                  >
+                    ›
+                  </Button>
+                </ButtonGroup>
+              )}
 
               {/* Action filter */}
               <UncontrolledButtonDropdown>
@@ -1039,6 +1121,9 @@ export default function KpiPage() {
                   <th>Date / heure</th>
                   <th>Objet</th>
                   <th>Action</th>
+                  <th>Nom / Prénom</th>
+                  <th>Téléphone</th>
+                  <th>Email</th>
                   <th>Admin</th>
                   <th className="text-right" style={{ width: 40 }}></th>
                 </tr>
@@ -1046,7 +1131,7 @@ export default function KpiPage() {
               <tbody>
                 {loadingList ? (
                   <tr>
-                    <td colSpan="6">Chargement…</td>
+                    <td colSpan="8">Chargement…</td>
                   </tr>
                 ) : items?.length ? (
                   items.map((k) => {
@@ -1054,9 +1139,16 @@ export default function KpiPage() {
                       k.created_at || k.updated_at || k.kpi_date; // privilégie un champ avec heure
                     return (
                       <tr key={k.id}>
-                        <td>{formatDateTime(dt)}</td>
+                      <td>
+                        {k.kpi_date
+                          ? formatDate(k.kpi_date)                          // date choisie (YYYY-MM-DD)
+                          : formatDateTime(k.created_at || k.updated_at)}
+                      </td>
                         <td>{renderObjetCell(k.objet)}</td>
                         <td>{renderActionBadge(k.action)}</td>
+                        <td>{renderNullable(k.nom_prenom)}</td>
+                        <td>{renderPhone(k.telephone)}</td>
+                        <td>{renderEmail(k.email)}</td>
                         <td>
                           {k.admin_id == null ? (
                             <em style={{ opacity: 0.6 }}>(null)</em>
@@ -1085,7 +1177,7 @@ export default function KpiPage() {
                   })
                 ) : (
                   <tr>
-                    <td colSpan="6">Aucun KPI.</td>
+                    <td colSpan="8">Aucun KPI.</td>
                   </tr>
                 )}
               </tbody>
@@ -1137,6 +1229,7 @@ export default function KpiPage() {
               <div>
                 <strong>Action :</strong> {toDelete.action || <em>(vide)</em>}
               </div>
+              {/* on n'affiche pas les infos contact ici, mais je peux les ajouter si tu veux */}
             </div>
           )}
         </ModalBody>
