@@ -59,8 +59,8 @@ const WEBHOOK_EMAIL_URL = "https://n8n.srv796541.hstgr.cloud/webhook/0627350c-a3
 const OBJETS = ["appel entrant", "appel sortant", "Email"];
 
 // Actions (RETIRE: "affaire signée")
-const CALL_ACTIONS = ["Rdv pris", "mail proposition envoyé", "échec"];
-const EMAIL_ACTION = "Email recu";
+const CALL_ACTIONS = ["Rdv pris", "Mail prestation envoyé", "NUL"];
+const EMAIL_ACTION = "Email reçu";
 const ACTION_OTHER = "autre";
 const DAY_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
@@ -74,16 +74,16 @@ const ACTIONS_KNOWN = [...CALL_ACTIONS, EMAIL_ACTION];
 
 const ACTION_FILLS = {
   "Rdv pris": "#28a745",
-  "mail proposition envoyé": "#17a2b8",
-  "échec": "#dc3545",
+  "Mail prestation envoyé": "#17a2b8",
+  "NUL": "#dc3545",
   [EMAIL_ACTION]: "#6f42c1",
   [ACTION_OTHER]: "#6c757d",
 };
 
 const ACTION_COLORS = {
   "Rdv pris": "success",
-  "mail proposition envoyé": "info",
-  "échec": "danger",
+  "Mail prestation envoyé": "info",
+  "NUL": "danger",
   [EMAIL_ACTION]: "secondary",
   [ACTION_OTHER]: "secondary",
 };
@@ -96,7 +96,53 @@ API.interceptors.request.use((config) => {
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+function formatFRPhoneDisplay(input) {
+  if (!input) return "";
+  const raw = String(input).replace(/\D/g, "");
 
+  // gère 0033 / +33 / 33
+  const startsWith0033 = /^0033/.test(input);
+  const startsWithPlus33 = /^\+33/.test(input);
+  let digits = raw;
+
+  if (startsWith0033) {
+    // 0033 + 9 chiffres (on remet un 0 devant)
+    digits = "0" + raw.slice(4, 13);
+  } else if (startsWithPlus33 || raw.startsWith("33")) {
+    // +33XXXXXXXXX ou 33XXXXXXXXX  -> 0XXXXXXXXX
+    const after33 = raw.replace(/^33/, "");
+    digits = "0" + after33.slice(0, 9);
+  } else if (raw.length === 9 && raw[0] !== "0") {
+    // numéro sans 0 initial -> on le remet
+    digits = "0" + raw;
+  } else {
+    // cas normal FR -> on limite à 10
+    digits = raw.slice(0, 10);
+  }
+
+  return digits.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
+}
+
+// Pour le href "tel:" propre (E.164)
+function formatTelHref(input) {
+  if (!input) return "";
+  const raw = String(input).replace(/\D/g, "");
+
+  if (/^\+33/.test(input) || raw.startsWith("33")) {
+    const n = raw.replace(/^33/, "").slice(0, 9);
+    return `+33${n}`;
+  }
+  if (/^0033/.test(input)) {
+    const n = raw.slice(4, 13);
+    return `+33${n}`;
+  }
+  if (raw.startsWith("0")) {
+    // 0X XX XX XX XX -> +33 XXXXXXXXX
+    return `+33${raw.slice(1, 10)}`;
+  }
+  // fallback (déjà international)
+  return input.toString().startsWith("+") ? input.toString() : `+${raw}`;
+}
 function todayStr() {
   const d = new Date();
   const yyyy = d.getFullYear();
@@ -259,9 +305,11 @@ function renderEmail(v) {
 }
 function renderPhone(v) {
   if (!v) return <em style={{ opacity: 0.6 }}>(vide)</em>;
-  const href = `tel:${String(v).replace(/\s+/g, "")}`;
-  return <a href={href}>{v}</a>;
+  const display = formatFRPhoneDisplay(v);
+  const href = `tel:${formatTelHref(v)}`;
+  return <a href={href}>{display}</a>;
 }
+
 
 /** Badge d'action (light) + puce couleur */
 function renderActionBadge(action) {
@@ -306,6 +354,7 @@ export default function KpiPage() {
   const [nomPrenom, setNomPrenom] = useState("");
   const [email, setEmail] = useState("");
   const [telephone, setTelephone] = useState("");
+  const [note, setNote] = useState(""); // << ajout
 
   // Mini fenetre email (simple)
   const [emailBody, setEmailBody] = useState("");
@@ -542,6 +591,7 @@ export default function KpiPage() {
         nom_prenom: nomPrenom || null,
         email: email || null,
         telephone: telephone || null,
+        note: note || null, 
       };
       if (adminId) body.admin_id = adminId;
 
@@ -831,11 +881,24 @@ export default function KpiPage() {
                       <Label className="mb-1" style={{ fontWeight: 600, fontSize: 13 }}>
                         Téléphone
                       </Label>
+                        <Input
+                          type="text"
+                          placeholder="06 12 34 56 78"
+                          value={telephone}
+                          onChange={(e) => setTelephone(formatFRPhoneDisplay(e.target.value))}
+                        />
+
+                    </div>
+                    <div style={{ minWidth: 220, flex: 1 }}>
+                      <Label className="mb-1" style={{ fontWeight: 600, fontSize: 13 }}>
+                        Note
+                      </Label>
                       <Input
                         type="text"
-                        placeholder="06 12 34 56 78"
-                        value={telephone}
-                        onChange={(e) => setTelephone(e.target.value)}
+                        placeholder="Quelques notes…"
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
+                        maxLength={255} // (optionnel, aligné avec VARCHAR(255))
                       />
                     </div>
                   </div>
@@ -1124,6 +1187,7 @@ export default function KpiPage() {
                   <th>Nom / Prénom</th>
                   <th>Téléphone</th>
                   <th>Email</th>
+                  <th>Note</th>
                   <th>Admin</th>
                   <th className="text-right" style={{ width: 40 }}></th>
                 </tr>
@@ -1131,7 +1195,7 @@ export default function KpiPage() {
               <tbody>
                 {loadingList ? (
                   <tr>
-                    <td colSpan="8">Chargement…</td>
+                    <td colSpan="9">Chargement…</td>
                   </tr>
                 ) : items?.length ? (
                   items.map((k) => {
@@ -1149,6 +1213,7 @@ export default function KpiPage() {
                         <td>{renderNullable(k.nom_prenom)}</td>
                         <td>{renderPhone(k.telephone)}</td>
                         <td>{renderEmail(k.email)}</td>
+                        <td>{renderNullable(k.note)}</td>
                         <td>
                           {k.admin_id == null ? (
                             <em style={{ opacity: 0.6 }}>(null)</em>
@@ -1177,7 +1242,7 @@ export default function KpiPage() {
                   })
                 ) : (
                   <tr>
-                    <td colSpan="8">Aucun KPI.</td>
+                    <td colSpan="9">Aucun KPI.</td>
                   </tr>
                 )}
               </tbody>
