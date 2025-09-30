@@ -19,7 +19,7 @@ import "../../../../assets/scss/pages/users.scss";
 import axios from "axios";
 import Contracts from "./Contracts";
 import Documents from "./Documents";
-//import Task from "./clientTask/Task";
+import Task from "./clientTask/Task";
 import { history } from "../../../../history";
 class UserEdit extends React.Component {
   state = {

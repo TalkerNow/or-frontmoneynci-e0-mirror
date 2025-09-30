@@ -20,7 +20,7 @@ import SweetAlert from "react-bootstrap-sweetalert";
 import "flatpickr/dist/themes/light.css";
 import "../../../../assets/scss/plugins/forms/flatpickr/flatpickr.scss";
 import InputMaskDate from "../edit/InputMaskDate";
-import { MapPin, User } from "react-feather";
+import { MapPin, Home, User } from "react-feather";
 import Radio from "../../../../components/@vuexy/radio/RadioVuexy";
 import moment from "moment";
 import { waiterHide, waiterShow } from "../../../../helpers/waiter";
@@ -268,14 +268,18 @@ class AddUser extends React.Component {
           </p>
         </SweetAlert>
         <CardBody>
+          {/* Civilité */}
           <Row>
-            <Col md="6" sm="12">
+            <Col md="12" sm="12">
+              <h5 className="mb-1">
+                <User className="mr-50" size={16} />
+                <span className="align-middle">Civilité</span>
+              </h5>
               <FormGroup style={{ marginBottom: "15px" }}>
                 <div className="d-inline-block mr-1">
                   <Radio
                     label="Monsieur"
                     color="primary"
-                    defaultChecked={false}
                     name="civility"
                     onChange={() =>
                       this.setState({
@@ -287,8 +291,7 @@ class AddUser extends React.Component {
                 <div className="d-inline-block mr-1">
                   <Radio
                     label="Madame"
-                    color="success"
-                    defaultChecked={false}
+                    color="primary"
                     name="civility"
                     onChange={() =>
                       this.setState({
@@ -300,8 +303,7 @@ class AddUser extends React.Component {
                 <div className="d-inline-block mr-1">
                   <Radio
                     label="Mlle"
-                    color="info"
-                    defaultChecked={false}
+                    color="primary"
                     name="civility"
                     onChange={() =>
                       this.setState({
@@ -312,65 +314,107 @@ class AddUser extends React.Component {
                 </div>
               </FormGroup>
             </Col>
-            <Col md="6" sm="12"></Col>
+          </Row>
+
+          {/* Nom / Prénom */}
+          <Row>
             <Col md="6" sm="12">
-              <div
-                style={{
-                  display: "flex",
-                  width: "100%",
-                  justifyContent: "space-between",
-                }}
-              >
-                <FormGroup
-                  style={{
-                    width: "50%",
-                  }}
-                  className="pr-1"
-                >
-                  <Label for="lastname">Nom</Label>
-                  <Input
-                    type="text"
-                    placeholder="Nom"
-                    required
-                    onChange={(e) =>
-                      this.setState({
-                        data: { ...this.state.data, last_name: e.target.value },
-                      })
-                    }
-                    id="lastname"
-                  />
-                </FormGroup>
-                <FormGroup
-                  style={{
-                    width: "50%",
-                  }}
-                >
-                  <Label for="ndjf">Nom de jeune fille</Label>
-                  <Input
-                    type="text"
-                    placeholder="Nom de jeune fille"
-                    required
-                    defaultValue={this.state.maiden_name}
-                    onChange={(e) =>
-                      this.setState({
-                        data: {
-                          ...this.state.data,
-                          maiden_name: e.target.value,
-                        },
-                      })
-                    }
-                    id="ndjf"
-                  />
-                </FormGroup>
-              </div>
+              <FormGroup>
+                <Label for="lastname">Nom</Label>
+                <Input
+                  type="text"
+                  placeholder="Nom"
+                  onChange={(e) =>
+                    this.setState({
+                      data: { ...this.state.data, last_name: e.target.value },
+                    })
+                  }
+                  id="lastname"
+                />
+              </FormGroup>
             </Col>
+            <Col md="6" sm="12">
+              <FormGroup>
+                <Label for="firstname">Prénom</Label>
+                <Input
+                  type="text"
+                  placeholder="Prénom"
+                  onChange={(e) =>
+                    this.setState({
+                      data: { ...this.state.data, first_name: e.target.value },
+                    })
+                  }
+                  id="firstname"
+                />
+              </FormGroup>
+            </Col>
+          </Row>
+
+          {/* Email / Téléphone */}
+          <Row>
+            <Col md="6" sm="12">
+              <FormGroup>
+                <Label for="email">Email</Label>
+                <Input
+                  type="email"
+                  placeholder="Email"
+                  onChange={(e) =>
+                    this.setState({
+                      data: { ...this.state.data, email: e.target.value },
+                    })
+                  }
+                  id="email"
+                />
+              </FormGroup>
+            </Col>
+            <Col md="6" sm="12">
+              <FormGroup>
+                <Label for="phone">Numéro de téléphone</Label>
+                <Input
+                  type="text"
+                  placeholder="Téléphone"
+                  onChange={(e) =>
+                    this.setState({
+                      data: {
+                        ...this.state.data,
+                        mobile_number: e.target.value,
+                      },
+                    })
+                  }
+                  id="phone"
+                />
+              </FormGroup>
+            </Col>
+          </Row>
+
+          {/* Notes */}
+          <Row>
+            <Col md="12" sm="12">
+              <FormGroup>
+                <Label for="notes">Notes</Label>
+                <Input
+                  type="textarea"
+                  rows="4"
+                  placeholder="Notes"
+                  onChange={(e) =>
+                    this.setState({
+                      data: { ...this.state.data, notes: e.target.value },
+                    })
+                  }
+                  id="notes"
+                />
+              </FormGroup>
+            </Col>
+          </Row>
+
+          {/* Mot de passe / Rôle */}
+          <Row>
             <Col md="6" sm="12">
               <FormGroup>
                 <Label for="password">Mot de passe</Label>
                 <Input
-                  type="pass"
+                  type="text"
                   placeholder="Mot de passe"
-                  required
                   value={this.state.data.password}
                   onChange={(e) =>
                     this.setState({
@@ -383,27 +427,10 @@ class AddUser extends React.Component {
             </Col>
             <Col md="6" sm="12">
               <FormGroup>
-                <Label for="firstname">Prénom</Label>
-                <Input
-                  type="text"
-                  placeholder="Prénom"
-                  required
-                  onChange={(e) =>
-                    this.setState({
-                      data: { ...this.state.data, first_name: e.target.value },
-                    })
-                  }
-                  id="firstname"
-                />
-              </FormGroup>
-            </Col>
-            <Col md="6" sm="12">
-              <FormGroup>
                 <Label for="role">Rôle</Label>
                 <CustomInput
                   type="select"
                   name="role"
-                  required
                   id="role"
                   onChange={(e) =>
                     this.setState({
@@ -418,50 +445,38 @@ class AddUser extends React.Component {
                 </CustomInput>
               </FormGroup>
             </Col>
+          </Row>
+
+          {/* Date et lieu de naissance */}
+          <Row>
             <Col md="6" sm="12">
-              <div
-                style={{
-                  display: "flex",
-                  width: "100%",
-                  justifyContent: "space-between",
-                }}
-              >
-                <FormGroup
-                  className="pr-2"
-                  style={{
-                    width: "50%",
-                  }}
-                >
-                  <Label for="dateofbirth">Date de naissance</Label>
-                  <InputMaskDate
-                    onChange={(e) => this.handledob(e.target.value)}
-                    id="dateofbirth"
-                  />
-                </FormGroup>
-                <FormGroup
-                  style={{
-                    width: "50%",
-                  }}
-                >
-                  <Label for="placeofbirth">Lieu de naissance</Label>
-                  <Input
-                    type="text"
-                    placeholder="Lieu de naissance"
-                    required
-                    onChange={(e) =>
-                      this.setState({
-                        data: {
-                          ...this.state.data,
-                          birth_place: e.target.value,
-                        },
-                      })
-                    }
-                    id="placeofbirth"
-                  />
-                </FormGroup>
-              </div>
+              <FormGroup>
+                <Label for="dateofbirth">Date de naissance</Label>
+                <InputMaskDate
+                  onChange={(e) => this.handledob(e.target.value)}
+                  id="dateofbirth"
+                />
+              </FormGroup>
             </Col>
-            {/* ✅ Sécurité Sociale & Clé */}
+            <Col md="6" sm="12">
+              <FormGroup>
+                <Label for="placeofbirth">Lieu de naissance</Label>
+                <Input
+                  type="text"
+                  placeholder="Lieu de naissance"
+                  onChange={(e) =>
+                    this.setState({
+                      data: { ...this.state.data, birth_place: e.target.value },
+                    })
+                  }
+                  id="placeofbirth"
+                />
+              </FormGroup>
+            </Col>
+          </Row>
+
+          {/* Sécurité Sociale */}
+          <Row>
             <Col md="6" sm="12">
               <FormGroup>
                 <Label for="secu_social">Sécurité Sociale</Label>
@@ -495,30 +510,21 @@ class AddUser extends React.Component {
                 />
               </FormGroup>
             </Col>
-            {/* fin nouveaux champs */}
+          </Row>
+
+          {/* Statut marital & Service militaire */}
+          <Row>
+            {/* Statut marital */}
             <Col md="6" sm="12">
-              <FormGroup>
-                <Label for="email">Adresse mail</Label>
-                <Input
-                  type="email"
-                  placeholder="Email"
-                  required
-                  onChange={(e) =>
-                    this.setState({
-                      data: { ...this.state.data, email: e.target.value },
-                    })
-                  }
-                  id="email"
-                />
-              </FormGroup>
-            </Col>
-            <Col md="6" sm="12">
+              <h5 className="mb-1">
+                <User className="mr-50" size={16} />
+                <span className="align-middle">Statut marital</span>
+              </h5>
               <FormGroup style={{ marginBottom: "15px", marginTop: "5px" }}>
                 <div className="d-inline-block mr-1">
                   <Radio
                     label="Célibataire"
                     color="primary"
-                    defaultChecked={true}
                     name="martial_status"
                     onChange={() =>
                       this.setState({
@@ -534,7 +540,6 @@ class AddUser extends React.Component {
                   <Radio
                     label="Pacsé"
                     color="success"
-                    defaultChecked={false}
                     name="martial_status"
                     onChange={() =>
                       this.setState({
@@ -547,7 +552,6 @@ class AddUser extends React.Component {
                   <Radio
                     label="Marié"
                     color="info"
-                    defaultChecked={false}
                     name="martial_status"
                     onChange={() =>
                       this.setState({
@@ -560,7 +564,6 @@ class AddUser extends React.Component {
                   <Radio
                     label="Veuf"
                     color="warning"
-                    defaultChecked={false}
                     name="martial_status"
                     onChange={() =>
                       this.setState({
@@ -573,7 +576,6 @@ class AddUser extends React.Component {
                   <Radio
                     label="Divorcé"
                     color="danger"
-                    defaultChecked={false}
                     name="martial_status"
                     onChange={() =>
                       this.setState({
@@ -584,19 +586,18 @@ class AddUser extends React.Component {
                 </div>
               </FormGroup>
             </Col>
+
+            {/* Service militaire */}
             <Col md="6" sm="12">
-              <FormGroup style={{ marginBottom: "15px", marginTop: "5px" }}>
-                <div
-                  className="d-inline-block mr-1"
-                  style={{ verticalAlign: "top", paddingTop: "3px" }}
-                >
-                  Service militaire:
-                </div>
+              <h5 className="mb-1">
+                <User className="mr-50" size={16} />
+                <span className="align-middle">Service militaire</span>
+              </h5>
+              <FormGroup>
                 <div className="d-inline-block mr-1">
                   <Radio
-                    label="oui"
+                    label="Oui"
                     color="success"
-                    defaultChecked={false}
                     name="military_service"
                     onChange={() =>
                       this.setState({
@@ -607,9 +608,8 @@ class AddUser extends React.Component {
                 </div>
                 <div className="d-inline-block mr-1">
                   <Radio
-                    label="non"
+                    label="Non"
                     color="info"
-                    defaultChecked={false}
                     name="military_service"
                     onChange={() =>
                       this.setState({
@@ -620,42 +620,10 @@ class AddUser extends React.Component {
                 </div>
               </FormGroup>
             </Col>
-            <Col md="6" sm="12">
-              <FormGroup>
-                <Label for="officenumber">N° de Téléphone</Label>
-                <Input
-                  type="Input-Number"
-                  placeholder="Téléphone fixe"
-                  onChange={(e) =>
-                    this.setState({
-                      data: {
-                        ...this.state.data,
-                        office_number: e.target.value,
-                      },
-                    })
-                  }
-                  id="officenumber"
-                />
-              </FormGroup>
-            </Col>
-            <Col md="6" sm="12">
-              <FormGroup>
-                <Label for="contactnumber">Téléphone portable</Label>
-                <Input
-                  type="Input-Number"
-                  placeholder="Téléphone portable"
-                  onChange={(e) =>
-                    this.setState({
-                      data: {
-                        ...this.state.data,
-                        mobile_number: e.target.value,
-                      },
-                    })
-                  }
-                  id="contactnumber"
-                />
-              </FormGroup>
-            </Col>
+          </Row>
+
+          {/* Enfants / Société */}
+          <Row>
             <Col md="6" sm="12">
               <FormGroup>
                 <Label for="nb_child">Nombre D'enfants</Label>
@@ -693,10 +661,12 @@ class AddUser extends React.Component {
               </FormGroup>
             </Col>
           </Row>
+
+          {/* Adresse du client */}
           <Row>
             <Col className="mt-1" md="6" sm="12">
               <h5 className="mb-1">
-                <User className="mr-50" size={16} />
+                <Home className="mr-50" size={16} />
                 <span className="align-middle">Adresse du client</span>
               </h5>
               <FormGroup>
@@ -767,7 +737,7 @@ class AddUser extends React.Component {
                 <Label for="country">Pays</Label>
                 <Input
                   type="text"
-                  placeholder="Pays "
+                  placeholder="Pays"
                   onChange={(e) =>
                     this.setState({
                       data: {
@@ -780,6 +750,8 @@ class AddUser extends React.Component {
                 />
               </FormGroup>
             </Col>
+
+            {/* Adresse société */}
             <Col className="mt-1" md="6" sm="12">
               <h5 className="mb-1">
                 <MapPin className="mr-50" size={16} />
@@ -867,6 +839,8 @@ class AddUser extends React.Component {
               </FormGroup>
             </Col>
           </Row>
+
+          {/* Expert */}
           <Row>
             <Col md="6" sm="12">
               <FormGroup>
@@ -874,7 +848,6 @@ class AddUser extends React.Component {
                 <CustomInput
                   type="select"
                   name="member"
-                  required
                   id="member"
                   onChange={(e) =>
                     this.setState({
@@ -891,35 +864,23 @@ class AddUser extends React.Component {
               </FormGroup>
             </Col>
           </Row>
-          <h4>Notes</h4>
-          <Row>
-            <Col md="12" sm="12">
-              <FormGroup>
-                <Label for="notes">Notes</Label>
-                <Input
-                  type="textarea"
-                  rows="5"
-                  placeholder="Notes"
-                  onChange={(e) =>
-                    this.setState({
-                      data: { ...this.state.data, notes: e.target.value },
-                    })
-                  }
-                  id="notes"
-                />
-              </FormGroup>
-            </Col>
-            <Col md={{ size: 8, offset: 4 }}>
+
+          {/* Boutons */}
+          <Row className="mt-2">
+            <Col
+              xs="12"
+              className="d-flex flex-column flex-md-row justify-content-center"
+            >
               <Button.Ripple
                 color="primary"
-                className="mr-1 mb-1"
+                className="mb-1 mb-md-0 mr-md-1 w-100 w-md-auto"
                 onClick={() => this.handleSubmit(0)}
               >
                 Enregistrer
               </Button.Ripple>
               <Button.Ripple
                 color="primary"
-                className="mr-1 mb-1"
+                className="w-100 w-md-auto"
                 onClick={() => this.handleSubmit(1)}
               >
                 Prestations
