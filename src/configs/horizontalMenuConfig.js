@@ -803,14 +803,6 @@ const horizontalMenuConfig = [
         permissions: ["admin", "editor"]
       },
       {
-        id: "faq",
-        title: "FAQ",
-        type: "item",
-        icon: <Icon.HelpCircle size={16} />,
-        navLink: "/pages/faq",
-        permissions: ["admin", "editor"]
-      },
-      {
         id: "knowledgeBase",
         title: "Knowledge Base",
         type: "item",

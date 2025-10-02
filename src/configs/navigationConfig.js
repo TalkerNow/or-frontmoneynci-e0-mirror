@@ -9,7 +9,7 @@ const navigationConfig = [
     type: "item",
     icon: <Icon.Home size={20}/>,
     permissions: ["admin", 'Consultant'],
-    navLink: "/dasboard"
+    navLink: "/dashboard"
     //badge: "warning",
     //badgeText: "2"
    },
@@ -53,6 +53,14 @@ const navigationConfig = [
     filterBase: "/task/all"
   },
   {
+    id: "kpi",
+    title: "CRM",
+    type: "item",
+    icon: <Icon.BarChart2 size={20} />,
+    permissions: ["admin","Consultant", "Expert"],
+    navLink: "/kpi",
+  },
+  {
     id: "document",
     title: "Documents",
     type: "item",
@@ -68,7 +76,7 @@ const navigationConfig = [
     title: "Modèle de contrat",
     type: "item",
     icon: <Icon.List size={20}/>,
-    permissions: ["admin"],
+    permissions: ["admin", "Consultant"],
     navLink: "/app/contractTemplate"
     //badge: "warning",
     //badgeText: "2"

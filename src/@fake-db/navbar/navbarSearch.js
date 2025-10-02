@@ -495,13 +495,7 @@ export const searchResult = [
         link: "/pages/profile",
         icon: "Users"
       },
-      {
-        id: 74,
-        target: "",
-        title: "FAQ",
-        link: "/pages/faq",
-        icon: "Zap"
-      },
+
       {
         id: 75,
         target: "KnowledgeBase",

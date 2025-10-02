@@ -1,661 +1,595 @@
-/* eslint-disable */
-
-import React from "react"
-import {Button} from "reactstrap"
+import React from "react";
+import { Download, Edit, Trash2, ChevronDown, UserPlus } from "react-feather";
 import {
+  Button,
   Card,
   CardBody,
-  CardHeader,
-  CardTitle,
-  FormGroup,
-  Label,
   Input,
   Row,
   Col,
   UncontrolledDropdown,
-  UncontrolledButtonDropdown,
   DropdownMenu,
   DropdownItem,
   DropdownToggle,
-  Collapse,
-  Spinner
-} from "reactstrap"
-import axios from "axios"
-import Chip from "../../../../../src/components/@vuexy/chips/ChipComponent"
-import { ContextLayout } from "../../../../utility/context/Layout"
-import { AgGridReact } from "ag-grid-react"
-import {
-  Edit,
-  Trash2,
-  ChevronDown,
-  RotateCw,
-  X, UserPlus, PlusSquare, Home, FolderPlus
-} from "react-feather"
-import classnames from "classnames"
-import { history } from "../../../../history"
-import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss"
-import "../../../../assets/scss/pages/users.scss"
+} from "reactstrap";
+import axios from "axios";
+import * as XLSX from "xlsx";
+import { ContextLayout } from "../../../../utility/context/Layout";
+import { AgGridReact } from "ag-grid-react";
+import { history } from "../../../../history";
+import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss";
+import "../../../../assets/scss/pages/users.scss";
 import SweetAlert from "react-bootstrap-sweetalert";
 import Moment from "react-moment";
-import {toast} from "react-toastify";
-import swal from 'sweetalert';
-const chipColors = {
-  CH: "warning",
-  SIMU: "success",
-  AR: "primary",
-  TFD: "danger",
-  ACTU: 'primary',
-  RAC: 'warning'
-}
+
+var consultant_id = -1;
+
+// ======= WHITELIST FRONT (modifier la liste ci-dessous) =======
+const ALLOWED_EMAILS = [
+  "remi@phocus1.com",
+  "jfc@eor.fr",
+  "martin.six@phocus1.com",
+  "sebastien@eor.fr"
+];
+
 class ClientsList extends React.Component {
   state = {
-    defaultAlert : false,
-    confirmAlert : false,
-    cancelAlert : false,
+    defaultAlert: false,
+    confirmAlert: false,
+    cancelAlert: false,
     IdToDelete: 0,
+    filter: false,
     rowData: null,
-    pageSize: 50,
+    pageSize: 20,
     isVisible: true,
-    reload: false,
     collapse: false,
-    status: "Opened",
-    role: "All",
-    selectStatus: "All",
-    verified: "All",
-    department: "All",
     defaultColDef: {
       resizable: true,
-      sortable: true
+      sortable: true,
     },
     searchVal: "",
-    columnDefs: [
-      // {
-      //   headerName: "ID",
-      //   field: "id",
-      //   width: 150,
-      //   filter: true,
-      //   checkboxSelection: true,
-      //   headerCheckboxSelectionFilteredOnly: true,
-      //   headerCheckboxSelection: true
-      // },
-      {
-        headerName: "Nom",
-        field: "name",
-        filter: true,
-        width: 250,
-        cellRendererFramework: params => {
-          return (
-            <div
-              className="d-flex align-items-center cursor-pointer"
-              onClick={() => history.push("/app/user/edit/" + params.data.id + "/1")}
-            >
-              <span>{params.data.personal_informations.first_name + " " + params.data.personal_informations.last_name}</span>
-            </div>
-          )
+    currentUserEmail: "", // <-- ajouté
+    gridOptions: {
+      onCellClicked: (params) => {
+        if (
+          params.colDef.headerName === "Nom" ||
+          params.colDef.field === "Prenom"
+        ) {
+          history.push("/app/user/edit/" + params.data.id + "/1");
         }
       },
-      // {
-      //   headerName: "Prestation",
-      //   field: "subscribe_services",
-      //   filter: true,
-      //   width: 220,
-      //   cellRendererFramework: params => {
-      //     return (
-      //         <>
-      //           {(() => {
-      //             let subscribe_service = params.data.subscribe_services;
-      //             if(subscribe_service == null || subscribe_service == ""){
-      //               return <div></div>;
-      //             }else{
-      //               let lst_subscribe_services = subscribe_service.replaceAll('"','').trim().split('/');
-      //               const tags = [];
-      //               lst_subscribe_services.forEach(function(service) {
-      //                 if(service != ''){
-      //                   tags.push(<Chip
-      //                       className="m-0 text-center ml-1"
-      //                       color={chipColors[service.trim()]}
-      //                       text={service}
-      //                   />);
-      //                 }
-      //               })
-      //               return tags;
-      //             }
-      //           })()}
-      //         </>
-      //     )
-      //   }
-      // },
+    },
+    columnDefs: [
       {
-        headerName: "Technicien Nom",
-        field: "technician_name",
+        headerName: "Création",
+        filter: true,
+        width: 150,
+        cellRendererFramework: (params) => {
+          return (
+            <div>
+              <Moment
+                format="DD/MM/YYYY HH:mm"
+                date={params.data.created_at}
+                utc
+              />
+            </div>
+          );
+        },
+      },
+      {
+        headerName: "Nom",
         filter: true,
         width: 250,
-        cellRendererFramework: params => {
-          return (
-              <div
-                  className="d-flex align-items-center cursor-pointer"
-              >
-                <span>{params.data.parent? params.data.parent.name:""}</span>
-              </div>
-          )
-        }
+        valueGetter: (params) => {
+          return params.data.last_name;
+        },
+      },
+      {
+        headerName: "Prenom",
+        filter: true,
+        width: 250,
+        valueGetter: (params) => {
+          return params.data.first_name;
+        },
+      },
+      {
+        headerName: "Civilité",
+        filter: true,
+        hide: true,
+        width: 150,
+        valueGetter: (params) => {
+          if (params.data.civility === "Monsieur") return "M.";
+          if (params.data.civility === "Madame") return "Mme";
+          return params.data.civility || "";
+        },
+      },
+      {
+        field: "parent_id",
+        filter: true,
+        hide: true,
+      },
+      {
+        headerName: "Nom du technicien",
+        filter: false,
+        width: 250,
+        valueGetter: (params) => {
+          return params.data.parent ? params.data.parent.name : "";
+        },
+      },
+      {
+        headerName: "Apport commercial",
+        filter: false,
+        width: 250,
+        valueGetter: (params) => {
+          return params.data.business_introducer
+            ? params.data.business_introducer.name || params.data.business_introducer
+            : "-";
+        },
       },
       {
         headerName: "Email",
         field: "email",
         filter: true,
-        width: 200,
-        cellRendererFramework: rowData => {
+        width: 250,
+        cellRendererFramework: (rowData) => {
           var email = rowData.data.email;
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
-              onClick={() => window.location.href = "mailto:"+email+"?subject=Subject&body=message%20goes%20here"}
-            ><span>{rowData.data.email}</span></div>
-          )
-        }
-      },
-      {
-        headerName: "Date de Création",
-        field: "created_at",
-        filter: true,
-        width: 150,
-        cellRendererFramework: params => {
-          return (
-              <div>
-                <Moment format="DD-MM-YYYY HH:mm" date={params.data.created_at} utc/>
-              </div>
-          )
-        }
-      },
-      // {
-      //   headerName: "Statut",
-      //   field: "status",
-      //   filter: true,
-      //   width: 130,
-      // },
-      {
-        headerName: "Sécutité Social",
-        field: "SS1",
-        filter: true,
-        width: 220,
-        cellRendererFramework: params => {
-          return (
-            <div className="d-flex align-items-center cursor-pointer">
-                <span>{params.data.personal_informations.secu_social? params.data.personal_informations.secu_social:""}</span>
-                </div>
-          )
-        }
-      },
-      {
-        headerName: "FA (depreciate)",
-        field: "status_fa",
-        filter: true,
-        width: 130,
-        cellRendererFramework: params => {
-          return (
-            <>
-              {(params.data.status == "En cours" || params.data.status == "Termine" ) &&
-                  <Chip
-                      className="m-0 text-center ml-1"
-                      color={params.data.status_fa == 1 ? "success" : "warning"}
-                      text={params.data.status_fa == 1 ? "Paid" : "Not Paid"}
-                  />
+              onClick={() =>
+                (window.location.href =
+                  "mailto:" +
+                  email +
+                  "?subject=Subject&body=message%20goes%20here")
               }
-            </>
-          )
-        }
+            >
+              <span>{rowData.data.email}</span>
+            </div>
+          );
+        },
       },
       {
         headerName: "Actions",
-        field: "transactions",
         width: 150,
-        cellRendererFramework: params => {
+        cellRendererFramework: (params) => {
           return (
             <div className="actions cursor-pointer">
               <Edit
                 className="mr-50"
                 size={15}
-                onClick={() => history.push("/app/user/edit/" + params.data.id + "/1")}
+                onClick={() =>
+                  history.push("/app/user/edit/" + params.data.id + "/1")
+                }
               />
               <Trash2
                 size={15}
-                onClick={() => { this.handleAlert("defaultAlert", true, params.data.id)}}
+                onClick={() => {
+                  this.handleAlert("defaultAlert", true, params.data.id);
+                }}
               />
             </div>
-          )
-        }
-      }
-    ]
-  }
-
-  createContract(id, name)
-  {
-    const Config = {
-      headers: {
-        Authorization: "Bearer " + localStorage.getItem("token")
-      }
-    }
-    axios.post(global.config.server_url + "/documents",{
-      name: "abc",
-      link_to_documents : "N/a",
-      type: "contrat",
-      document_state: "Pending...",
-      date: "2010-10-10",
-      comment: "Contrat de " + name,
-      advanced_payment: "0",
-      user_id: id
-    }, Config)
-        .then(function(result) {
-          history.push("/app/contract/handleServices/" + result.data.id)
-        })
-        .catch(function(error) {
-          toast.error("API injoignable" + error)
-        })
-  }
+          );
+        },
+      },
+    ],
+  };
 
   async componentDidMount() {
     const Config = {
       headers: {
-        Authorization: "Bearer " + localStorage.getItem("token")
+        Authorization: "Bearer " + localStorage.getItem("token"),
+      },
+    };
+
+    await axios
+      .get(global.config.server_url + "/users?kind=client", Config)
+      .then((response) => {
+        let rowData = response.data;
+        this.setState({ rowData });
+      });
+
+    // ======= Récupérer l'email de l'utilisateur courant (pour le contrôle front) =======
+    const userId = localStorage.getItem("userid");
+    if (userId) {
+      try {
+        const meRes = await axios.get(`${global.config.server_url}/users/${userId}`, Config);
+        const currentUserEmail = (meRes?.data?.email || "").toLowerCase();
+        this.setState({ currentUserEmail });
+      } catch (e) {
+        console.error("Impossible de récupérer l'utilisateur courant", e);
       }
     }
-
-    await axios.get(global.config.server_url + "/users?kind=client", Config).then(response => {
-      let rowData = response.data
-      this.setState({ rowData })
-    })
   }
 
-  deleteUser(id){
-      const Config = {
-          headers: { Authorization: "Bearer " + localStorage.getItem("token") }
-      }
-      axios.delete(global.config.server_url + "/users/" + id, Config).then(response => {
-          var SelectedData = this.gridApi.getSelectedRows();
-          this.gridApi.updateRowData({remove: SelectedData})
-      })
+  // ======= EXPORT EXCEL (XLSX) =======
+
+  // Ordre de colonnes voulu dans l'Excel
+  getExportHeaders = () => [
+    "ID",
+    "Créé le",
+    "Civilité",
+    "Nom",
+    "Prénom",
+    "Email",
+    "Téléphone mobile",
+    "Téléphone bureau",
+    "Statut",
+    "Mise à jour du statut",
+    "Technicien (parent)",
+    "Apport commercial",
+    "Date de naissance",
+    "Lieu de naissance",
+    "Nombre d’enfants",
+    "Situation maritale",
+    "Adresse perso",
+    "Adresse perso 2",
+    "Ville perso",
+    "Code postal perso",
+    "Pays perso",
+    "Société",
+    "Adresse société",
+    "Adresse société 2",
+    "Ville société",
+    "Code postal société",
+    "Pays société",
+    "Notes",
+    "Services souscrits",
+    "Compte valide",
+    "Utilisateur (ID)",
+    "ID parent (numérique)",
+  ];
+
+  // Format date simple et robuste
+  formatDateForExcel = (d) => {
+    if (!d) return "";
+    // Garde un format lisible par Excel sans dépendances (#stabilité)
+    return String(d).replace("T", " ").replace("Z", "");
+  };
+
+  // Nettoie les sauts de ligne / espaces longs
+  sanitizeText = (t) => {
+    if (!t) return "";
+    return String(t).replace(/\r?\n/g, " ").replace(/\s\s+/g, " ").trim();
+  };
+
+  // Construit une ligne "propre" depuis l'objet brut
+  buildClientRow = (c) => {
+    const civ =
+      c.civility === "Monsieur" ? "M." : c.civility === "Madame" ? "Mme" : (c.civility || "");
+    const apport =
+      c.business_introducer ? (c.business_introducer.name || c.business_introducer) : "";
+
+    return {
+      "ID": c.id ?? "",
+      "Créé le": this.formatDateForExcel(c.created_at),
+      "Civilité": civ,
+      "Nom": c.last_name ?? "",
+      "Prénom": c.first_name ?? "",
+      "Email": c.email ?? "",
+      "Téléphone mobile": c.mobile_number ?? "",
+      "Téléphone bureau": c.office_number ?? "",
+      "Statut": c.status ?? "",
+      "Mise à jour du statut": c.status_update_date ?? "",
+      "Technicien (parent)": c.parent ? c.parent.name : "",
+      "Apport commercial": apport,
+      "Date de naissance": this.formatDateForExcel(c.birth_date),
+      "Lieu de naissance": c.birth_place ?? "",
+      "Nombre d’enfants": c.children_number ?? "",
+      "Situation maritale": c.martial_status ?? "",
+      "Adresse perso": c.personal_address ?? "",
+      "Adresse perso 2": c.personal_address_2 ?? "",
+      "Ville perso": c.personal_city ?? "",
+      "Code postal perso": c.personal_zip_code ?? "",
+      "Pays perso": c.personal_country ?? "",
+      "Société": c.society_name ?? "",
+      "Adresse société": c.society_address ?? "",
+      "Adresse société 2": c.society_address_2 ?? "",
+      "Ville société": c.society_city ?? "",
+      "Code postal société": c.society_zip_code ?? "",
+      "Pays société": c.society_country ?? "",
+      "Notes": this.sanitizeText(c.notes),
+      "Services souscrits": this.sanitizeText(c.subscribe_services),
+      "Compte valide": c.valid_account ? "Oui" : "Non",
+      "Utilisateur (ID)": c.user_id ?? "",
+      "ID parent (numérique)": c.parent_id ?? "",
+    };
+  };
+
+  // ======= Vérification d'autorisation côté front =======
+  canDownload = () => {
+    const email = (this.state.currentUserEmail || "").toLowerCase();
+    return ALLOWED_EMAILS.map(e => e.toLowerCase()).includes(email);
+  };
+
+  onBtExportXLSX = () => {
+    // Garde de sécurité front
+    if (!this.canDownload()) return;
+
+    const { rowData } = this.state;
+    if (!rowData || !rowData.length) return;
+
+    const headers = this.getExportHeaders();
+    const data = rowData.map(this.buildClientRow);
+
+    // Construit la feuille avec l'ordre de colonnes fixé
+    const ws = XLSX.utils.json_to_sheet(data, { header: headers, skipHeader: true });
+    // Ajoute les en-têtes en A1
+    XLSX.utils.sheet_add_aoa(ws, [headers], { origin: "A1" });
+
+    // Ajuste la largeur des colonnes (basique)
+    const colWidths = headers.map((h) => ({ wch: Math.max(14, h.length + 2) }));
+    ws["!cols"] = colWidths;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Clients");
+
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    XLSX.writeFile(wb, `export_clients_${today}.xlsx`);
+  };
+
+  // ======= FIN EXPORT EXCEL =======
+
+  isExternalFilterPresent = () => {
+    if (consultant_id !== -1) {
+      return true;
+    }
+    return false;
+  };
+
+  // Ancien export CSV (gardé si besoin, mais non utilisé par le bouton)
+  onBtExport = () => {
+    this.gridApi.exportDataAsCsv({
+      columnKeys: [3, 1, 2, 5],
+    });
+  };
+
+  externalFilterChanged = (newValue) => {
+    consultant_id = newValue;
+    this.setState({ filter: !this.state.filter });
+    this.gridApi.onFilterChanged();
+  };
+  doesExternalFilterPass = (node) => {
+    return node.data.parent_id === consultant_id;
+  };
+
+  deleteUser(id) {
+    const Config = {
+      headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+    };
+    axios
+      .delete(global.config.server_url + "/users/" + id, Config)
+      .then((response) => {
+        var SelectedData = this.gridApi.getSelectedRows();
+        this.gridApi.updateRowData({ remove: SelectedData });
+      });
   }
-  onGridReady = params => {
-    this.gridApi = params.api
-    this.gridColumnApi = params.columnApi
+
+  onGridReady = (params) => {
+    this.gridApi = params.api;
+    this.gridColumnApi = params.columnApi;
     this.gridApi.setDomLayout("autoHeight");
-  }
+  };
+
   filterData = (column, val) => {
-    var filter = this.gridApi.getFilterInstance(column)
-    var modelObj = null
+    var filter = this.gridApi.getFilterInstance(column);
+    var modelObj = null;
     if (val !== "all") {
       modelObj = {
         type: "equals",
-        filter: val
-      }
+        filter: val,
+      };
     }
-    filter.setModel(modelObj)
-    this.gridApi.onFilterChanged()
-  }
-  filterSize = val => {
+    filter.setModel(modelObj);
+    this.gridApi.onFilterChanged();
+  };
+
+  filterSize = (val) => {
     if (this.gridApi) {
-      this.gridApi.paginationSetPageSize(Number(val))
+      this.gridApi.paginationSetPageSize(Number(val));
       this.setState({
-        pageSize: val
-      })
+        pageSize: val,
+      });
     }
-  }
-  updateSearchQuery = val => {
-    this.gridApi.setQuickFilter(val)
+  };
+
+  updateSearchQuery = (val) => {
+    this.gridApi.setQuickFilter(val);
     this.setState({
-      searchVal: val
-    })
-  }
-  refreshCard = () => {
-    this.setState({ reload: true })
-    setTimeout(() => {
-      this.setState({
-        reload: false,
-        role: "All",
-        selectStatus: "All",
-        verified: "All",
-        department: "All"
-      })
-    }, 500)
-  }
-  toggleCollapse = () => {
-    this.setState(state => ({ collapse: !state.collapse }))
-  }
-  onEntered = () => {
-    this.setState({ status: "Opened" })
-  }
-  onEntering = () => {
-    this.setState({ status: "Opening..." })
-  }
-  onEntered = () => {
-    this.setState({ status: "Opened" })
-  }
-  onExiting = () => {
-    this.setState({ status: "Closing..." })
-  }
-  onExited = () => {
-    this.setState({ status: "Closed" })
-  }
-  removeCard = () => {
-    this.setState({ isVisible: false })
-  }
+      searchVal: val,
+    });
+  };
+
   handleAlert = (state, value, id) => {
-      this.setState({ [state] : value })
-      if (id != 0)
-          this.setState({ IdToDelete : id })
-      if (state === "confirmAlert" && value === true) {
-          this.deleteUser(this.state.IdToDelete)
-      }
-  }
+    this.setState({ [state]: value });
+    if (id !== 0) this.setState({ IdToDelete: id });
+    if (state === "confirmAlert" && value === true) {
+      this.deleteUser(this.state.IdToDelete);
+    }
+  };
+
   render() {
-    const { rowData, columnDefs, defaultColDef, pageSize } = this.state
+    const { rowData, columnDefs, defaultColDef, pageSize } = this.state;
     return (
-    <div>
-        <SweetAlert title="Êtes vous sûrs?"
-                    warning
-                    show={this.state.defaultAlert}
-                    showCancel
-                    reverseButtons
-                    cancelBtnBsStyle="danger"
-                    confirmBtnText="Oui, supprimer"
-                    cancelBtnText="Annuler"
-                    onConfirm={() => {
-                        this.handleAlert("basicAlert", false, 0)
-                        this.handleAlert("confirmAlert", true, 0)
-                    }}
-                    onCancel={() => {
-                        this.handleAlert("basicAlert", false, 0)
-                        this.handleAlert("cancelAlert", true, 0)
-                    }}
+      <div>
+        <SweetAlert
+          title="Êtes vous sûrs?"
+          warning
+          show={this.state.defaultAlert}
+          showCancel
+          reverseButtons
+          cancelBtnBsStyle="danger"
+          confirmBtnText="Oui, supprimer"
+          cancelBtnText="Annuler"
+          onConfirm={() => {
+            this.handleAlert("basicAlert", false, 0);
+            this.handleAlert("confirmAlert", true, 0);
+          }}
+          onCancel={() => {
+            this.handleAlert("basicAlert", false, 0);
+            this.handleAlert("cancelAlert", true, 0);
+          }}
         >
-            Vous ne pourrez pas revenir en arrière
+          Vous ne pourrez pas revenir en arrière
         </SweetAlert>
 
-        <SweetAlert success title="Supprimé!"
-                    confirmBtnBsStyle="success"
-                    show={this.state.confirmAlert}
-                    onConfirm={() => {
-                        this.handleAlert("defaultAlert", false, 0)
-                        this.handleAlert("confirmAlert", false, 0)
-                    }}
+        <SweetAlert
+          success
+          title="Supprimé!"
+          confirmBtnBsStyle="success"
+          show={this.state.confirmAlert}
+          onConfirm={() => {
+            this.setState({
+              rowData: this.state.rowData.filter(
+                (elem) => elem.id !== this.state.IdToDelete
+              ),
+            });
+            this.handleAlert("defaultAlert", false, 0);
+            this.handleAlert("confirmAlert", false, 0);
+          }}
         >
-            <p className="sweet-alert-text">Your file has been deleted.</p>
+          <p className="sweet-alert-text">L'utilisateur à été supprimé.</p>
         </SweetAlert>
 
-        <SweetAlert error title="Annulé!"
-                    confirmBtnBsStyle="success"
-                    show={this.state.cancelAlert}
-                    onConfirm={() =>{
-                        this.handleAlert("defaultAlert", false, 0)
-                        this.handleAlert("cancelAlert", false, 0)
-                    }}
+        <SweetAlert
+          error
+          title="Annulé!"
+          confirmBtnBsStyle="success"
+          show={this.state.cancelAlert}
+          onConfirm={() => {
+            this.handleAlert("defaultAlert", false, 0);
+            this.handleAlert("cancelAlert", true, 0);
+          }}
         >
-            <p className="sweet-alert-text">
-                L'action est annulé
-            </p>
+          <p className="sweet-alert-text">L'action est annulé</p>
         </SweetAlert>
-      <Row className="app-user-list">
-        {/* <Col sm="12">
-          <Card
-            className={classnames("card-action card-reload", {
-              "d-none": this.state.isVisible === false,
-              "card-collapsed": this.state.status === "Closed",
-              closing: this.state.status === "Closing...",
-              opening: this.state.status === "Opening...",
-              refreshing: this.state.reload
-            })}
-          >
-            <CardHeader>
-              <CardTitle>Filters</CardTitle>
-              <div className="actions">
-                <ChevronDown
-                  className="collapse-icon mr-50"
-                  size={15}
-                  onClick={this.toggleCollapse}
-                />
-                <RotateCw
-                  className="mr-50"
-                  size={15}
-                  onClick={() => {
-                    this.refreshCard()
-                    this.gridApi.setFilterModel(null)
-                  }}
-                />
-                <X size={15} onClick={this.removeCard} />
-              </div>
-            </CardHeader>
-            <Collapse
-              isOpen={this.state.collapse}
-              onExited={this.onExited}
-              onEntered={this.onEntered}
-              onExiting={this.onExiting}
-              onEntering={this.onEntering}
-            >
+
+        <Row className="app-user-list">
+          <Col sm="12">
+            <Card style={{ minHeight: "3000px" }}>
               <CardBody>
-                {this.state.reload ? (
-                  <Spinner color="primary" className="reload-spinner" />
-                ) : (
-                  ""
-                )}
-                <Row>
-                  <Col lg="3" md="6" sm="12">
-                    <FormGroup className="mb-0">
-                      <Label for="role">Role</Label>
-                      <Input
-                        type="select"
-                        name="role"
-                        id="role"
-                        value={this.state.role}
-                        onChange={e => {
-                          this.setState(
-                            {
-                              role: e.target.value
-                            },
-                            () =>
-                              this.filterData(
-                                "role",
-                                this.state.role.toLowerCase()
-                              )
-                          )
-                        }}
-                      >
-                        <option value="All">All</option>
-                        <option value="User">User</option>
-                        <option value="Staff">Staff</option>
-                        <option value="Admin">Admin</option>
-                      </Input>
-                    </FormGroup>
-                  </Col>
-                  <Col lg="3" md="6" sm="12">
-                    <FormGroup className="mb-0">
-                      <Label for="status">Status</Label>
-                      <Input
-                        type="select"
-                        name="status"
-                        id="status"
-                        value={this.state.selectStatus}
-                        onChange={e => {
-                          this.setState(
-                            {
-                              selectStatus: e.target.value
-                            },
-                            () =>
-                              this.filterData(
-                                "status",
-                                this.state.selectStatus.toLowerCase()
-                              )
-                          )
-                        }}
-                      >
-                        <option value="All">All</option>
-                        <option value="Active">Active</option>
-                        <option value="Blocked">Blocked</option>
-                        <option value="Deactivated">Deactivated</option>
-                      </Input>
-                    </FormGroup>
-                  </Col>
-                  <Col lg="3" md="6" sm="12">
-                    <FormGroup className="mb-0">
-                      <Label for="verified">Verified</Label>
-                      <Input
-                        type="select"
-                        name="verified"
-                        id="verified"
-                        value={this.state.verified}
-                        onChange={e => {
-                          this.setState(
-                            {
-                              verified: e.target.value
-                            },
-                            () =>
-                              this.filterData(
-                                "is_verified",
-                                this.state.verified.toLowerCase()
-                              )
-                          )
-                        }}
-                      >
-                        <option value="All">All</option>
-                        <option value="True">True</option>
-                        <option value="False">False</option>
-                      </Input>
-                    </FormGroup>
-                  </Col>
-                  <Col lg="3" md="6" sm="12">
-                    <FormGroup className="mb-0">
-                      <Label for="department">Department</Label>
-                      <Input
-                        type="select"
-                        name="department"
-                        id="department"
-                        value={this.state.department}
-                        onChange={e => {
-                          this.setState(
-                            {
-                              department: e.target.value
-                            },
-                            () =>
-                              this.filterData(
-                                "department",
-                                this.state.department.toLowerCase()
-                              )
-                          )
-                        }}
-                      >
-                        <option value="All">All</option>
-                        <option value="Sales">Sales</option>
-                        <option value="Development">Development</option>
-                        <option value="Management">Management</option>
-                      </Input>
-                    </FormGroup>
-                  </Col>
-                </Row>
-              </CardBody>
-            </Collapse>
-          </Card>
-        </Col> */}
-        <Col sm="12">
-          <Card style={{minHeight:'3000px'}}>
-            <CardBody>
-              <div className="ag-theme-material ag-grid-table">
-                <div className="ag-grid-actions d-flex justify-content-between flex-wrap mb-1">
-                  <div className="sort-dropdown">
-                    <UncontrolledDropdown className="ag-dropdown p-1">
-                      <DropdownToggle tag="div">
-                        1 - {pageSize} of 150
-                        <ChevronDown className="ml-50" size={20} />
-                      </DropdownToggle>
-                      <DropdownMenu right>
-                        <DropdownItem
-                          tag="div"
-                          onClick={() => this.filterSize(20)}
-                        >
-                          20
-                        </DropdownItem>
-                        <DropdownItem
-                          tag="div"
-                          onClick={() => this.filterSize(50)}
-                        >
-                          50
-                        </DropdownItem>
-                        <DropdownItem
-                          tag="div"
-                          onClick={() => this.filterSize(100)}
-                        >
-                          100
-                        </DropdownItem>
-                        <DropdownItem
-                          tag="div"
-                          onClick={() => this.filterSize(150)}
-                        >
-                          150
-                        </DropdownItem>
-                      </DropdownMenu>
-                    </UncontrolledDropdown>
-                  </div>
-                  <div className="filter-actions d-flex">
-                    <Input
-                      className="w-50 mr-1 mb-1 mb-sm-0"
-                      type="text"
-                      placeholder="search..."
-                      onChange={e => this.updateSearchQuery(e.target.value)}
-                      value={this.state.searchVal}
-                    />
-                    <div>
-                      <Button.Ripple className="mr-1 mb-1" outline color="primary" onClick={() => history.push("/app/user/createUser")}>
-                        <UserPlus size={15} />
-                      </Button.Ripple>
-                    </div>
-                    <div className="dropdown mr-1 mb-1 d-inline-block">
-                      <UncontrolledButtonDropdown>
-                        <DropdownToggle color="primary" caret>
-                          Actions
-                          <ChevronDown size={15} />
+                <div className="ag-theme-material ag-grid-table">
+                  <div className="ag-grid-actions d-flex justify-content-between flex-wrap mb-1">
+                    <div className="sort-dropdown">
+                      <UncontrolledDropdown className="ag-dropdown p-1">
+                        <DropdownToggle tag="div">
+                          1 - {pageSize} of 50
+                          <ChevronDown className="ml-50" size={20} />
                         </DropdownToggle>
-                        <DropdownMenu>
-                          <DropdownItem tag="a">
-                            <Home size={15} />
-                            <span className="align-middle ml-50">Exemple d'action</span>
+                        <DropdownMenu right>
+                          <DropdownItem
+                            tag="div"
+                            onClick={() => this.filterSize(20)}
+                          >
+                            20
+                          </DropdownItem>
+                          <DropdownItem
+                            tag="div"
+                            onClick={() => this.filterSize(50)}
+                          >
+                            50
                           </DropdownItem>
                         </DropdownMenu>
-                      </UncontrolledButtonDropdown>
+                      </UncontrolledDropdown>
+                    </div>
+                    <div className="filter-actions d-flex">
+                      <Input
+                        className="w-50 mr-1 mb-1 mb-sm-0"
+                        type="text"
+                        placeholder="search..."
+                        onChange={(e) => this.updateSearchQuery(e.target.value)}
+                        value={this.state.searchVal}
+                      />
+                      <div>
+                        {consultant_id !== -1 && this.state.filter === true && (
+                          <>
+                            <Button
+                              className="mr-1 mb-1"
+                              style={{ width: 170, height: 40 }}
+                              outline
+                              color="primary"
+                              onClick={() => this.externalFilterChanged(-1)}
+                            >
+                              tous les clients
+                            </Button>
+                          </>
+                        )}
+                        {consultant_id === -1 &&
+                          this.state.filter === false && (
+                            <>
+                              <Button
+                                className="mr-1 mb-1"
+                                style={{ width: 140, height: 40 }}
+                                outline
+                                color="primary"
+                                onClick={() =>
+                                  this.externalFilterChanged(
+                                    localStorage.getItem("userid")
+                                  )
+                                }
+                              >
+                                mes clients
+                              </Button>
+                            </>
+                          )}
+                      </div>
+                      <div>
+                        <Button
+                          className="mr-1 mb-1"
+                          outline
+                          color="primary"
+                          onClick={() => history.push("/app/user/createUser")}
+                        >
+                          <UserPlus size={15} />
+                        </Button>
+                      </div>
+                      <div className="dropdown mr-1 mb-1 d-inline-block">
+                        {this.canDownload() && (
+                          <Button
+                            className="mb-2"
+                            outline
+                            color="primary"
+                            onClick={this.onBtExportXLSX}
+                          >
+                            <Download className="primary" size={15} />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
+
+                  {this.state.rowData !== null ? (
+                    <ContextLayout.Consumer>
+                      {(context) => (
+                        <AgGridReact
+                          rowBuffer={10}
+                          height={"autoHeight"}
+                          gridOptions={this.state.gridOptions}
+                          doesExternalFilterPass={this.doesExternalFilterPass}
+                          isExternalFilterPresent={this.isExternalFilterPresent}
+                          defaultColDef={defaultColDef}
+                          columnDefs={columnDefs}
+                          rowData={rowData}
+                          onGridReady={this.onGridReady}
+                          colResizeDefault={"shift"}
+                          animateRows={false}
+                          floatingFilter={true}
+                          pagination={true}
+                          pivotPanelShow="always"
+                          paginationPageSize={pageSize}
+                          resizable={true}
+                          enableRtl={context.state.direction === "rtl"}
+                        />
+                      )}
+                    </ContextLayout.Consumer>
+                  ) : null}
                 </div>
-                {this.state.rowData !== null ? (
-                  <ContextLayout.Consumer>
-                    {context => (
-                      <AgGridReact
-                        height={'autoHeight'}
-                        gridOptions={{}}
-                        rowSelection="multiple"
-                        defaultColDef={defaultColDef}
-                        columnDefs={columnDefs}
-                        rowData={rowData}
-                        onGridReady={this.onGridReady}
-                        colResizeDefault={"shift"}
-                        animateRows={true}
-                        floatingFilter={true}
-                        pagination={true}
-                        pivotPanelShow="always"
-                        paginationPageSize={pageSize}
-                        resizable={true}
-                        enableRtl={context.state.direction === "rtl"}
-                      />
-                    )}
-                  </ContextLayout.Consumer>
-                ) : null}
-              </div>
-            </CardBody>
-          </Card>
-        </Col>
-      </Row>
-    </div>
-    )
+              </CardBody>
+            </Card>
+          </Col>
+        </Row>
+      </div>
+    );
   }
 }
 
-export default ClientsList
-/* eslint-disable */
-
+export default ClientsList;
