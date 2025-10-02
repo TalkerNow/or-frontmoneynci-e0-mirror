@@ -56,7 +56,7 @@ const API = axios.create({
 const WEBHOOK_EMAIL_URL = "https://n8n.srv796541.hstgr.cloud/webhook/0627350c-a362-45dd-adfe-b947bf1c48f5/chat";
 
 // Objets (ajout de "Email")
-const OBJETS = ["appel entrant", "appel sortant", "Email"];
+const OBJETS = ["Appel entrant", "Appel sortant", "Email"];
 
 // Actions (RETIRE: "affaire signée")
 const CALL_ACTIONS = ["Rdv pris", "Mail prestation envoyé", "NUL"];
@@ -282,8 +282,8 @@ function getAdminEmailFromLocal() {
 /** Icônes pour l'objet */
 const OBJET_ICON = {
   Email: MailIcon,
-  "appel entrant": PhoneIncoming,
-  "appel sortant": PhoneOutgoing,
+  "Appel entrant": PhoneIncoming,
+  "Appel sortant": PhoneOutgoing,
 };
 function renderObjetCell(value) {
   const v = value || "";
@@ -343,7 +343,7 @@ function renderActionBadge(action) {
 export default function KpiPage() {
   // Création KPI
   const history = useHistory();
-  const [objet, setObjet] = useState("appel entrant");
+  const [objet, setObjet] = useState("Appel entrant");
   const [action, setAction] = useState("");
   const [creating, setCreating] = useState(false);
   const adminId = localStorage.getItem("userid");
@@ -354,12 +354,12 @@ export default function KpiPage() {
   const [nomPrenom, setNomPrenom] = useState("");
   const [email, setEmail] = useState("");
   const [telephone, setTelephone] = useState("");
-  const [note, setNote] = useState(""); // << ajout
+  const [note, setNote] = useState("");
 
   // Mini fenetre email (simple)
   const [emailBody, setEmailBody] = useState("");
   const [sending, setSending] = useState(false);
-  const [sendMsg, setSendMsg] = useState(""); // success / error text
+  const [sendMsg, setSendMsg] = useState("");
 
   // Email admin (local + API)
   const adminEmailLocal = useMemo(() => getAdminEmailFromLocal(), []);
@@ -404,10 +404,10 @@ export default function KpiPage() {
     setWeek(w);
   }
 
-  // Libellé clair "Sem. XX • 23 sept → 29 sept 2025"
+  // Libellé clair
   const weekLabel = useMemo(() => formatWeekRangeLabel(year, week), [year, week]);
-  // Raccourcis: ~10 semaines récentes pour un saut rapide
   const quickWeeks = useMemo(() => buildQuickWeeks(year, week, 10), [year, week]);
+
   // Suppression
   const [deletingId, setDeletingId] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -434,11 +434,11 @@ export default function KpiPage() {
     if (week > max) setWeek(max);
   }, [year]);
 
-  // Charger TOUTES les données pour le GRAPHIQUE (toutes pages)
+  // Charger TOUTES les données pour le GRAPHIQUE
   useEffect(() => {
     fetchAllKpis();
     fetchMembers();
-    fetchAdminEmailFromApi(); // <<< récup email admin (API)
+    fetchAdminEmailFromApi();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -548,7 +548,6 @@ export default function KpiPage() {
     }
   }
 
-  // NEW: récup email admin via API
   async function fetchAdminEmailFromApi() {
     try {
       const token =
@@ -564,7 +563,6 @@ export default function KpiPage() {
         { headers, params }
       );
 
-      // On tente plusieurs chemins possibles (selon structure renvoyée)
       const payload = res.data || {};
       const email =
         payload.email ||
@@ -575,10 +573,10 @@ export default function KpiPage() {
       if (email) setAdminEmailApi(email);
     } catch (e) {
       console.error("fetchAdminEmailFromApi error:", e);
-      // on garde le fallback local si l'API échoue
     }
   }
 
+  // ✅ createKpi modifié
   async function createKpi() {
     try {
       setCreating(true);
@@ -586,12 +584,11 @@ export default function KpiPage() {
       const body = {
         objet: objet || null,
         action: objet === "Email" ? EMAIL_ACTION : action || null,
-        kpi_date: kpiDate || todayStr(), // <- ne garder qu'une seule clé kpi_date
-        // >>> nouveaux champs optionnels
+        kpi_date: kpiDate || todayStr(),
         nom_prenom: nomPrenom || null,
         email: email || null,
         telephone: telephone || null,
-        note: note || null, 
+        note: note || null,
       };
       if (adminId) body.admin_id = adminId;
 
@@ -600,8 +597,14 @@ export default function KpiPage() {
       await fetchKpis(1);
       await fetchAllKpis();
 
-      // (optionnel) reset des champs contact
-      // setNomPrenom(""); setEmail(""); setTelephone("");
+      // reset des champs
+      setObjet("Apppel rentrant");
+      setAction("");
+      setKpiDate(todayStr());
+      setNomPrenom("");
+      setEmail("");
+      setTelephone("");
+      setNote("");
     } catch (e) {
       console.error(e);
       setError(
@@ -655,14 +658,11 @@ export default function KpiPage() {
     setToDelete(kpiRow);
     setConfirmOpen(true);
   }
-
   function closeConfirmModal() {
     if (deletingId) return;
     setConfirmOpen(false);
     setToDelete(null);
   }
-
-  // Suppression après confirmation (modale)
   async function deleteKpi(id) {
     if (!id) return;
     try {
@@ -689,7 +689,6 @@ export default function KpiPage() {
     }
   }
 
-  // Années disponibles
   const availableYears = useMemo(() => {
     const years = new Set();
     (allItems || []).forEach((k) => {
@@ -721,7 +720,6 @@ export default function KpiPage() {
         byPeriod.set(period, base);
       }
     } else {
-      // NEW: vue "jour" -> 7 jours, lundi...dimanche
       for (let di = 0; di < 7; di++) {
         const base = {};
         ACTIONS_ALL.forEach((a) => (base[a] = 0));
@@ -749,10 +747,9 @@ export default function KpiPage() {
         if (!row) return;
         row[cat] = (row[cat] || 0) + 1;
       } else {
-        // NEW: vue "jour" filtrée sur (année, semaine)
         const { isoYear, isoWeek } = isoWeekInfo(dateStr);
         if (isoYear !== year || isoWeek !== week) return;
-        const di = weekdayIndexMondayFirst(dateStr); // 0..6
+        const di = weekdayIndexMondayFirst(dateStr);
         const row = byPeriod.get(di);
         if (!row) return;
         row[cat] = (row[cat] || 0) + 1;
@@ -761,41 +758,36 @@ export default function KpiPage() {
 
     if (groupBy === "day") {
       return Array.from(byPeriod.entries())
-        .sort((a, b) => a[0] - b[0]) // ordre Lun -> Dim
+        .sort((a, b) => a[0] - b[0])
         .map(([di, counts]) => ({ period: DAY_LABELS[di], ...counts }));
     }
 
-    const ordered = Array.from(byPeriod.entries())
+    return Array.from(byPeriod.entries())
       .map(([period, counts]) => ({ period, ...counts }))
       .sort((a, b) => (a.period > b.period ? 1 : -1));
-
-    return ordered;
   }, [allItems, groupBy, year, week]);
 
   return (
     <div className="vx-row">
-      {/* ====== Ligne: Création KPI + Mini fenêtre email ====== */}
-      {/* Equal height: on étire les colonnes et les cards */}
       <div className="vx-col w-100">
         <Row className="align-items-stretch">
           {/* Col gauche: Création KPI */}
           <Col xs="12" lg="8" className="d-flex">
             <Card className="flex-fill d-flex flex-column">
-            <CardHeader className="d-flex align-items-center justify-content-between">
-              <h4 className="mb-0">Créer un KPI</h4>
-              <div>
-                <Button
-                  className="mr-1 mb-1"
-                  // outline
-                  color="primary"
-                  onClick={() => history.push("/app/user/createUser")}
-                  title="Créer un utilisateur"
-                  aria-label="Créer un utilisateur"
-                >
-                  <UserPlus size={15} />
-                </Button>
-              </div>
-            </CardHeader>
+              <CardHeader className="d-flex align-items-center justify-content-between">
+                <h4 className="mb-0">Créer un KPI</h4>
+                <div>
+                  <Button
+                    className="mr-1 mb-1"
+                    color="primary"
+                    onClick={() => history.push("/app/user/createUser")}
+                    title="Créer un utilisateur"
+                    aria-label="Créer un utilisateur"
+                  >
+                    <UserPlus size={15} />
+                  </Button>
+                </div>
+              </CardHeader>
               <CardBody className="d-flex flex-column">
                 {error ? (
                   <div
@@ -812,12 +804,8 @@ export default function KpiPage() {
                   </div>
                 ) : null}
 
-                {/* OBJET + Date sur la même ligne */}
-                <div
-                  className="d-flex align-items-center flex-wrap"
-                  style={{ gap: 8 }}
-                >
-                  {/* Boutons objet */}
+                {/* OBJET + Date */}
+                <div className="d-flex align-items-center flex-wrap" style={{ gap: 8 }}>
                   <div className="d-inline-flex align-items-center" style={{ gap: 8 }}>
                     {OBJETS.map((o) => {
                       const Icon = OBJET_ICON[o] || PhoneCall;
@@ -839,20 +827,17 @@ export default function KpiPage() {
                       );
                     })}
                   </div>
-
-                  {/* Sélecteur de date à droite, sans libellé visible */}
                   <Input
                     type="date"
                     value={kpiDate}
                     onChange={(e) => setKpiDate(e.target.value)}
-                    max={todayStr()}            // retire ce max si tu veux autoriser le futur
-                    aria-label="Date du KPI"    // accessibilité, pas de texte visible
+                    max={todayStr()}
+                    aria-label="Date du KPI"
                     style={{ width: 170, marginLeft: "auto" }}
                   />
                 </div>
 
-
-                {/* >>> Infos contact (optionnels) */}
+                {/* Champs contact */}
                 <div className="mt-2">
                   <div className="d-flex" style={{ gap: 8, flexWrap: "wrap" }}>
                     <div style={{ minWidth: 220, flex: 1 }}>
@@ -881,13 +866,12 @@ export default function KpiPage() {
                       <Label className="mb-1" style={{ fontWeight: 600, fontSize: 13 }}>
                         Téléphone
                       </Label>
-                        <Input
-                          type="text"
-                          placeholder="06 12 34 56 78"
-                          value={telephone}
-                          onChange={(e) => setTelephone(formatFRPhoneDisplay(e.target.value))}
-                        />
-
+                      <Input
+                        type="text"
+                        placeholder="06 12 34 56 78"
+                        value={telephone}
+                        onChange={(e) => setTelephone(formatFRPhoneDisplay(e.target.value))}
+                      />
                     </div>
                     <div style={{ minWidth: 220, flex: 1 }}>
                       <Label className="mb-1" style={{ fontWeight: 600, fontSize: 13 }}>
@@ -898,23 +882,18 @@ export default function KpiPage() {
                         placeholder="Quelques notes…"
                         value={note}
                         onChange={(e) => setNote(e.target.value)}
-                        style={{
-                          height: "38px",
-                          paddingTop: "7px",
-                          lineHeight: "1.5"
-                        }}
+                        style={{ height: "38px", paddingTop: "7px", lineHeight: "1.5" }}
                       />
                     </div>
                   </div>
                 </div>
 
-                {/* ACTIONS — totalement cachées si objet = Email */}
+                {/* Actions */}
                 {!actionsDisabled && (
                   <div className="mb-2 mt-2">
                     <Label className="d-block" style={{ fontWeight: 600 }}>
                       Action
                     </Label>
-
                     <div
                       style={{
                         display: "grid",
