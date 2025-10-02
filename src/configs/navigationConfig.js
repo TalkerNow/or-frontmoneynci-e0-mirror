@@ -54,7 +54,7 @@ const navigationConfig = [
   },
   {
     id: "kpi",
-    title: "kpi",
+    title: "CRM",
     type: "item",
     icon: <Icon.BarChart2 size={20} />,
     permissions: ["admin","Consultant", "Expert"],
