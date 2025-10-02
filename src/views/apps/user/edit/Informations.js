@@ -546,7 +546,7 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="oui"
+                          label="Oui"
                           color="primary"
                           defaultChecked={
                             this.props.data["military_service"] == "oui"
@@ -561,16 +561,16 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="non"
+                          label="Non"
                           color="primary"
                           defaultChecked={
-                            this.props.data["military_service"] == "non"
+                            this.props.data["military_service"] == "Non"
                               ? true
                               : false
                           }
                           name="military_service"
                           onChange={() =>
-                            this.setState({ military_service: "non" })
+                            this.setState({ military_service: "Non" })
                           }
                         />
                       </div>
@@ -585,23 +585,23 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="oui"
+                          label="Oui"
                           color="primary"
                           defaultChecked={false}
                           name="military_service"
                           onChange={() =>
-                            this.setState({ military_service: "oui" })
+                            this.setState({ military_service: "Oui" })
                           }
                         />
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="non"
+                          label="Non"
                           color="primary"
                           defaultChecked={false}
                           name="military_service"
                           onChange={() =>
-                            this.setState({ military_service: "non" })
+                            this.setState({ military_service: "Non" })
                           }
                         />
                       </div>
@@ -706,7 +706,7 @@ class UserAccountTab extends React.Component {
                   />
                 </FormGroup>
               </Col>
-              <Col md="6" sm="12">
+              {/* <Col md="6" sm="12">
                 <FormGroup>
                   <Label for="officenumber">
                     Numéro de Téléphone de la société
@@ -721,7 +721,7 @@ class UserAccountTab extends React.Component {
                     }
                   />
                 </FormGroup>
-              </Col>
+              </Col> */}
 
               {/* Nombre d’enfants / Nom société */}
               <Col md="6" sm="12">
@@ -734,20 +734,6 @@ class UserAccountTab extends React.Component {
                     defaultValue={this.ifExist("children_number")}
                     onChange={(e) =>
                       this.setState({ children_number: e.target.value })
-                    }
-                  />
-                </FormGroup>
-              </Col>
-              <Col md="6" sm="12">
-                <FormGroup>
-                  <Label for="society_name">Nom Société</Label>
-                  <Input
-                    type="text"
-                    id="society_name"
-                    placeholder="Nom Société"
-                    defaultValue={this.ifExist("society_name")}
-                    onChange={(e) =>
-                      this.setState({ society_name: e.target.value })
                     }
                   />
                 </FormGroup>
@@ -858,11 +844,23 @@ class UserAccountTab extends React.Component {
                   <span className="align-middle">Adresse de sa société</span>
                 </h5>
                 <FormGroup>
-                  <Label for="address1">Adresse1</Label>
+                  <Label for="society_name">Nom Société</Label>
+                  <Input
+                    type="text"
+                    id="society_name"
+                    placeholder="Nom Société"
+                    defaultValue={this.ifExist("society_name")}
+                    onChange={(e) =>
+                      this.setState({ society_name: e.target.value })
+                    }
+                  />
+                </FormGroup>
+                <FormGroup>
+                  <Label for="address1">Adresse 1</Label>
                   <Input
                     type="text"
                     id="address1"
-                    placeholder="Adresse société1"
+                    placeholder="Adresse société 1"
                     defaultValue={this.ifExist("society_address")}
                     onChange={(e) =>
                       this.setState({ society_address: e.target.value })
@@ -870,11 +868,11 @@ class UserAccountTab extends React.Component {
                   />
                 </FormGroup>
                 <FormGroup>
-                  <Label for="address2">Adresse2</Label>
+                  <Label for="address2">Adresse 2</Label>
                   <Input
                     type="text"
                     id="address2"
-                    placeholder="Adresse société2"
+                    placeholder="Adresse société 2"
                     defaultValue={this.ifExist("society_address_2")}
                     onChange={(e) =>
                       this.setState({ society_address_2: e.target.value })
@@ -915,6 +913,20 @@ class UserAccountTab extends React.Component {
                     }
                     id="Country"
                     placeholder="Pays de la société"
+                  />
+                </FormGroup>
+                <FormGroup>
+                  <Label for="officenumber">
+                    Numéro de Téléphone de la société
+                  </Label>
+                  <Input
+                    type="text"
+                    id="officenumber"
+                    defaultValue={this.ifExist("office_number")}
+                    placeholder="Numéro de Téléphone de la société"
+                    onChange={(e) =>
+                      this.setState({ office_number: e.target.value })
+                    }
                   />
                 </FormGroup>
               </Col>

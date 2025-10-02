@@ -408,7 +408,7 @@ class AddUser extends React.Component {
           </Row>
 
           {/* Mot de passe / Rôle */}
-          <Row>
+          {/* <Row>
             <Col md="6" sm="12">
               <FormGroup>
                 <Label for="password">Mot de passe</Label>
@@ -445,7 +445,7 @@ class AddUser extends React.Component {
                 </CustomInput>
               </FormGroup>
             </Col>
-          </Row>
+          </Row> */}
 
           {/* Date et lieu de naissance */}
           <Row>
@@ -644,6 +644,27 @@ class AddUser extends React.Component {
             </Col>
             <Col md="6" sm="12">
               <FormGroup>
+                <Label for="member">Expert</Label>
+                <CustomInput
+                  type="select"
+                  name="member"
+                  id="member"
+                  onChange={(e) =>
+                    this.setState({
+                      data: { ...this.state.data, parent_id: e.target.value },
+                    })
+                  }
+                >
+                  {this.state.members.map((member, index) => (
+                    <option key={index}>
+                      {member.first_name + " " + member.last_name}
+                    </option>
+                  ))}
+                </CustomInput>
+              </FormGroup>
+            </Col>
+            {/* <Col md="6" sm="12">
+              <FormGroup>
                 <Label for="officename">Nom de la Société</Label>
                 <Input
                   type="text"
@@ -659,7 +680,7 @@ class AddUser extends React.Component {
                   id="officename"
                 />
               </FormGroup>
-            </Col>
+            </Col> */}
           </Row>
 
           {/* Adresse du client */}
@@ -758,6 +779,22 @@ class AddUser extends React.Component {
                 <span className="align-middle">Adresse de sa société</span>
               </h5>
               <FormGroup>
+                <Label for="officename">Nom de la Société</Label>
+                <Input
+                  type="text"
+                  placeholder="Nom Société"
+                  onChange={(e) =>
+                    this.setState({
+                      data: {
+                        ...this.state.data,
+                        society_name: e.target.value,
+                      },
+                    })
+                  }
+                  id="officename"
+                />
+              </FormGroup>
+              <FormGroup>
                 <Label for="officeadress1">Adresse 1</Label>
                 <Input
                   type="text"
@@ -840,9 +877,25 @@ class AddUser extends React.Component {
             </Col>
           </Row>
 
-          {/* Expert */}
+          {/* Expert + Mot de passe + Rôle */}
           <Row>
             <Col md="6" sm="12">
+              <FormGroup>
+                <Label for="password">Mot de passe</Label>
+                <Input
+                  type="text"
+                  placeholder="Mot de passe"
+                  value={this.state.data.password}
+                  onChange={(e) =>
+                    this.setState({
+                      data: { ...this.state.data, password: e.target.value },
+                    })
+                  }
+                  id="password"
+                />
+              </FormGroup>
+            </Col>
+            {/* <Col md="4" sm="12">
               <FormGroup>
                 <Label for="member">Expert</Label>
                 <CustomInput
@@ -860,6 +913,27 @@ class AddUser extends React.Component {
                       {member.first_name + " " + member.last_name}
                     </option>
                   ))}
+                </CustomInput>
+              </FormGroup>
+            </Col> */}
+
+            <Col md="6" sm="12">
+              <FormGroup>
+                <Label for="role">Rôle</Label>
+                <CustomInput
+                  type="select"
+                  name="role"
+                  id="role"
+                  onChange={(e) =>
+                    this.setState({
+                      data: { ...this.state.data, role: e.target.value },
+                    })
+                  }
+                >
+                  <option>Client</option>
+                  <option>Consultant</option>
+                  <option>Expert</option>
+                  <option>admin</option>
                 </CustomInput>
               </FormGroup>
             </Col>
