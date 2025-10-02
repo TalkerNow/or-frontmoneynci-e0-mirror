@@ -894,11 +894,15 @@ export default function KpiPage() {
                         Note
                       </Label>
                       <Input
-                        type="text"
+                        type="textarea"
                         placeholder="Quelques notes…"
                         value={note}
                         onChange={(e) => setNote(e.target.value)}
-                        maxLength={255} // (optionnel, aligné avec VARCHAR(255))
+                        style={{
+                          height: "38px",
+                          paddingTop: "7px",
+                          lineHeight: "1.5"
+                        }}
                       />
                     </div>
                   </div>
