@@ -44,7 +44,6 @@ import {
 /** =============================
  *  Helpers (token, admin id, date)
  *  =============================*/
-const API_BASE = process.env.REACT_APP_API_BASE?.replace(/\/$/, "") || ""; // ex: "" (même domaine) ou "https://mon-vps"
 const API = axios.create({
   baseURL: `${global.config.server_url}`,
   headers: {
@@ -53,15 +52,16 @@ const API = axios.create({
 });
 
 // Webhook simple pour envoyer l'email (contenu)
-const WEBHOOK_EMAIL_URL = "https://n8n.srv796541.hstgr.cloud/webhook/0627350c-a362-45dd-adfe-b947bf1c48f5/chat";
+const WEBHOOK_EMAIL_URL =
+  "https://n8n.srv796541.hstgr.cloud/webhook/0627350c-a362-45dd-adfe-b947bf1c48f5/chat";
 
 // Objets (ajout de "Email")
 const OBJETS = ["Appel entrant", "Appel sortant", "Email"];
 
 // Actions (RETIRE: "affaire signée")
-const CALL_ACTIONS = ["Rdv pris", "Mail prestation envoyé", "NUL"];
+const CALL_ACTIONS = ["Rdv pris", "Mail prestation envoyé", "NUL", "Autre"];
 const EMAIL_ACTION = "Email reçu";
-const ACTION_OTHER = "autre";
+const ACTION_OTHER = "Autre";
 const DAY_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
 function weekdayIndexMondayFirst(dateInput) {
@@ -75,15 +75,15 @@ const ACTIONS_KNOWN = [...CALL_ACTIONS, EMAIL_ACTION];
 const ACTION_FILLS = {
   "Rdv pris": "#28a745",
   "Mail prestation envoyé": "#17a2b8",
-  "NUL": "#dc3545",
+  NUL: "#dc3545",
   [EMAIL_ACTION]: "#6f42c1",
-  [ACTION_OTHER]: "#6c757d",
+  [ACTION_OTHER]: "#495057",
 };
 
 const ACTION_COLORS = {
   "Rdv pris": "success",
   "Mail prestation envoyé": "info",
-  "NUL": "danger",
+  NUL: "danger",
   [EMAIL_ACTION]: "secondary",
   [ACTION_OTHER]: "secondary",
 };
@@ -96,6 +96,7 @@ API.interceptors.request.use((config) => {
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+
 function formatFRPhoneDisplay(input) {
   if (!input) return "";
   const raw = String(input).replace(/\D/g, "");
@@ -121,6 +122,33 @@ function formatFRPhoneDisplay(input) {
   }
 
   return digits.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
+}
+
+function formatPhone(val) {
+  // On enlève tout sauf chiffres et +
+  val = val.replace(/[^0-9+]/g, "");
+
+  // --- France (commence par 0) ---
+  if (val.startsWith("0")) {
+    // applique des espaces tous les 2 chiffres, même si incomplet
+    return val.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
+  }
+
+  // --- Belgique (+32) ---
+  if (val.startsWith("+32")) {
+    // applique seulement si assez de chiffres après +32
+    if (val.length > 3) {
+      return val
+        .replace(/^\+32/, "+32 ")
+        .replace(/(\d)(\d{3})(\d{0,2})(\d{0,2})$/, (m, p1, p2, p3, p4) =>
+          [p1, p2, p3, p4].filter(Boolean).join(" ")
+        );
+    }
+    return val; // si juste "+32", on laisse tel quel
+  }
+
+  // --- Par défaut ---
+  return val;
 }
 
 // Pour le href "tel:" propre (E.164)
@@ -171,10 +199,15 @@ function weekStartEnd(isoYear, isoWeek) {
 function formatWeekRangeLabel(isoYear, isoWeek) {
   const { start, end } = weekStartEnd(isoYear, isoWeek);
   const day2 = new Intl.DateTimeFormat("fr-FR", { day: "2-digit" });
-  const dm = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short" });
+  const dm = new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "short",
+  });
   const yfmt = new Intl.DateTimeFormat("fr-FR", { year: "numeric" });
 
-  const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
+  const sameMonth =
+    start.getMonth() === end.getMonth() &&
+    start.getFullYear() === end.getFullYear();
   const range = sameMonth
     ? `${dm.format(start)}–${day2.format(end)} ${yfmt.format(end)}`
     : `${dm.format(start)} → ${dm.format(end)} ${yfmt.format(end)}`;
@@ -301,7 +334,11 @@ function renderNullable(v) {
   return v ? v : <em style={{ opacity: 0.6 }}>(vide)</em>;
 }
 function renderEmail(v) {
-  return v ? <a href={`mailto:${v}`}>{v}</a> : <em style={{ opacity: 0.6 }}>(vide)</em>;
+  return v ? (
+    <a href={`mailto:${v}`}>{v}</a>
+  ) : (
+    <em style={{ opacity: 0.6 }}>(vide)</em>
+  );
 }
 function renderPhone(v) {
   if (!v) return <em style={{ opacity: 0.6 }}>(vide)</em>;
@@ -310,10 +347,13 @@ function renderPhone(v) {
   return <a href={href}>{display}</a>;
 }
 
-
 /** Badge d'action (light) + puce couleur */
 function renderActionBadge(action) {
-  const key = ACTIONS_KNOWN.includes(action) ? action : (action ? ACTION_OTHER : null);
+  const key = ACTIONS_KNOWN.includes(action)
+    ? action
+    : action
+    ? ACTION_OTHER
+    : null;
   if (!key) {
     return <em style={{ opacity: 0.6 }}>(vide)</em>;
   }
@@ -377,7 +417,7 @@ export default function KpiPage() {
 
   // Utilisateurs (admin -> nom/prénom)
   const [usersById, setUsersById] = useState({});
-  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [, setLoadingUsers] = useState(false);
 
   // Données complètes pour le GRAPHIQUE
   const [allItems, setAllItems] = useState([]);
@@ -405,8 +445,14 @@ export default function KpiPage() {
   }
 
   // Libellé clair
-  const weekLabel = useMemo(() => formatWeekRangeLabel(year, week), [year, week]);
-  const quickWeeks = useMemo(() => buildQuickWeeks(year, week, 10), [year, week]);
+  const weekLabel = useMemo(
+    () => formatWeekRangeLabel(year, week),
+    [year, week]
+  );
+  const quickWeeks = useMemo(
+    () => buildQuickWeeks(year, week, 10),
+    [year, week]
+  );
 
   // Suppression
   const [deletingId, setDeletingId] = useState(null);
@@ -432,7 +478,7 @@ export default function KpiPage() {
   useEffect(() => {
     const max = isoWeeksInYear(year);
     if (week > max) setWeek(max);
-  }, [year]);
+  }, [year, week]);
 
   // Charger TOUTES les données pour le GRAPHIQUE
   useEffect(() => {
@@ -483,7 +529,9 @@ export default function KpiPage() {
       let maxPage = 1;
 
       do {
-        const res = await API.get("/kpis", { params: p > 1 ? { page: p } : {} });
+        const res = await API.get("/kpis", {
+          params: p > 1 ? { page: p } : {},
+        });
         const payload = res.data;
         const data = Array.isArray(payload?.data)
           ? payload.data
@@ -534,10 +582,11 @@ export default function KpiPage() {
       list.forEach((u) => {
         const id = u.id ?? u.user_id ?? u._id;
         if (!id) return;
-        const first = u.first_name ?? u.firstname ?? u.firstName ?? u.prenom ?? "";
+        const first =
+          u.first_name ?? u.firstname ?? u.firstName ?? u.prenom ?? "";
         const last = u.last_name ?? u.lastname ?? u.lastName ?? u.nom ?? "";
         const fallback = u.name ?? u.username ?? u.email ?? String(id);
-        const name = (`${first} ${last}`.trim()) || fallback;
+        const name = `${first} ${last}`.trim() || fallback;
         map[id] = name;
       });
       setUsersById(map);
@@ -565,10 +614,7 @@ export default function KpiPage() {
 
       const payload = res.data || {};
       const email =
-        payload.email ||
-        payload?.data?.email ||
-        payload?.user?.email ||
-        null;
+        payload.email || payload?.data?.email || payload?.user?.email || null;
 
       if (email) setAdminEmailApi(email);
     } catch (e) {
@@ -581,15 +627,22 @@ export default function KpiPage() {
     try {
       setCreating(true);
       setError("");
+
       const body = {
         objet: objet || null,
-        action: objet === "Email" ? EMAIL_ACTION : action || null,
+        action:
+          objet === "Email"
+            ? EMAIL_ACTION
+            : action && action.trim() !== ""
+            ? action
+            : "Autre", // <<--- ICI ajout de "Autre" par défaut
         kpi_date: kpiDate || todayStr(),
         nom_prenom: nomPrenom || null,
         email: email || null,
         telephone: telephone || null,
         note: note || null,
       };
+
       if (adminId) body.admin_id = adminId;
 
       await API.post("/kpis", body);
@@ -598,7 +651,7 @@ export default function KpiPage() {
       await fetchAllKpis();
 
       // reset des champs
-      setObjet("Apppel rentrant");
+      setObjet("Appel entrant");
       setAction("");
       setKpiDate(todayStr());
       setNomPrenom("");
@@ -631,10 +684,14 @@ export default function KpiPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          chatInput: content,           // cohérent avec ton autre flow
-          adminEmail: adminEmailFinal,  // << email priorité API
+          chatInput: content, // cohérent avec ton autre flow
+          adminEmail: adminEmailFinal, // << email priorité API
           adminEmailFallback: adminEmailLocal || null,
-          adminEmailSource: adminEmailApi ? "api" : (adminEmailLocal ? "localStorage" : "unknown"),
+          adminEmailSource: adminEmailApi
+            ? "api"
+            : adminEmailLocal
+            ? "localStorage"
+            : "unknown",
           adminId: adminId || null,
           source: "kpi-mini-email",
           sentAt: new Date().toISOString(),
@@ -769,217 +826,247 @@ export default function KpiPage() {
 
   return (
     <div className="vx-row">
-      <div className="vx-col w-100">
-        <Row className="align-items-stretch">
-          {/* Col gauche: Création KPI */}
-          <Col xs="12" lg="8" className="d-flex">
-            <Card className="flex-fill d-flex flex-column">
-              <CardHeader className="d-flex align-items-center justify-content-between">
-                <h4 className="mb-0">Créer un KPI</h4>
-                <div>
-                  <Button
-                    className="mr-1 mb-1"
-                    color="primary"
-                    onClick={() => history.push("/app/user/createUser")}
-                    title="Créer un utilisateur"
-                    aria-label="Créer un utilisateur"
-                  >
-                    <UserPlus size={15} />
-                  </Button>
+      <Row className="align-items-stretch">
+        <Col xs="12" className="d-flex">
+          <Card className="flex-fill d-flex flex-column" style={{ padding: "10px 16px" }}>
+            <CardHeader className="d-flex align-items-center justify-content-between">
+              <h4 className="mb-0">Créer un KPI</h4>
+              <div>
+                <Button
+                  className="mr-1 mb-1"
+                  color="primary"
+                  onClick={() => history.push("/app/user/createUser")}
+                  title="Créer un utilisateur"
+                  aria-label="Créer un utilisateur"
+                >
+                  <UserPlus size={15} />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardBody className="d-flex flex-column">
+              {error ? (
+                <div
+                  style={{
+                    background: "#ffe9e9",
+                    border: "1px solid #ffb3b3",
+                    color: "#b10000",
+                    padding: 10,
+                    borderRadius: 6,
+                    marginBottom: 14,
+                  }}
+                >
+                  {error}
                 </div>
-              </CardHeader>
-              <CardBody className="d-flex flex-column">
-                {error ? (
+              ) : null}
+
+              {/* OBJET + Date */}
+              <div
+                className="d-flex align-items-center flex-wrap"
+                style={{ gap: 8 }}
+              >
+                <div
+                  className="d-inline-flex align-items-center"
+                  style={{ gap: 8 }}
+                >
+                  {OBJETS.map((o) => {
+                    const Icon = OBJET_ICON[o] || PhoneCall;
+                    const selected = objet === o;
+                    const isEmail = o === "Email";
+                    return (
+                      <Button
+                        key={o}
+                        color={selected ? "primary" : "light"}
+                        className="d-inline-flex align-items-center"
+                        onClick={() => setObjet(o)}
+                        title={o}
+                        aria-label={o}
+                        style={{ gap: 6, padding: "8px 12px" }}
+                      >
+                        <Icon size={16} style={{ opacity: 0.9 }} />
+                        {!isEmail && <span>{o}</span>}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <Input
+                  type="date"
+                  value={kpiDate}
+                  onChange={(e) => setKpiDate(e.target.value)}
+                  max={todayStr()}
+                  aria-label="Date du KPI"
+                  style={{ width: 170, marginLeft: "auto" }}
+                />
+              </div>
+
+              {/* Bloc Récupérer le diagnostic - affiché seulement pour Appel sortant */}
+              {objet === "Appel sortant" && (
+                <div className="mt-1" style={{ marginBottom: 8 }}>
+                  <h6 style={{ fontWeight: 600, marginBottom: 4 }}>
+                    Récupérer le diagnostic
+                  </h6>
+                  <div className="d-flex align-items-center" style={{ gap: 6 }}>
+                    <Input
+                      type="text"
+                      placeholder="Email du client"
+                      value={emailBody}
+                      onChange={(e) => setEmailBody(e.target.value)}
+                      style={{ width: 260, fontSize: 13, height: 36 }}
+                    />
+                    <Button
+                      color="primary"
+                      onClick={sendEmailWebhook}
+                      disabled={sending || !emailBody.trim()}
+                      style={{ height: 36, fontSize: 13, padding: "0 14px" }}
+                    >
+                      {sending ? "Envoi..." : "Recevoir"}
+                    </Button>
+                  </div>
+
+                  {sendMsg && (
+                    <div
+                      className="mt-1"
+                      style={{
+                        fontSize: 12,
+                        color: sendMsg.startsWith("✅")
+                          ? "#0f5132"
+                          : sendMsg.startsWith("⚠️")
+                          ? "#8a6d3b"
+                          : "#b10000",
+                      }}
+                    >
+                      {sendMsg.replace(/^[✅⚠️]/, "")}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Champs contact */}
+              <div className="mt-2">
+                <div className="d-flex" style={{ gap: 8, flexWrap: "wrap" }}>
+                  <div style={{ minWidth: 220, flex: 1 }}>
+                    <Label
+                      className="mb-1"
+                      style={{ fontWeight: 600, fontSize: 13 }}
+                    >
+                      Nom / Prénom
+                    </Label>
+                    <Input
+                      type="text"
+                      placeholder="Nom Prénom"
+                      value={nomPrenom}
+                      onChange={(e) => setNomPrenom(e.target.value)}
+                    />
+                  </div>
+                  <div style={{ minWidth: 220, flex: 1 }}>
+                    <Label
+                      className="mb-1"
+                      style={{ fontWeight: 600, fontSize: 13 }}
+                    >
+                      Email
+                    </Label>
+                    <Input
+                      type="text"
+                      placeholder="email@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                  <div style={{ minWidth: 180, flex: 1 }}>
+                    <Label
+                      className="mb-1"
+                      style={{ fontWeight: 600, fontSize: 13 }}
+                    >
+                      Téléphone
+                    </Label>
+                    <Input
+                      type="text"
+                      placeholder="Téléphone"
+                      value={telephone}
+                      onChange={(e) =>
+                        setTelephone(formatPhone(e.target.value))
+                      }
+                    />
+                  </div>
+                  <div style={{ minWidth: 220, flex: 1 }}>
+                    <Label
+                      className="mb-1"
+                      style={{ fontWeight: 600, fontSize: 13 }}
+                    >
+                      Note
+                    </Label>
+                    <Input
+                      type="textarea"
+                      placeholder="Quelques notes…"
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                      style={{
+                        height: "38px",
+                        paddingTop: "7px",
+                        lineHeight: "1.5",
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              {!actionsDisabled && (
+                <div className="mb-2 mt-2">
+                  <Label className="d-block" style={{ fontWeight: 600 }}>
+                    Action
+                  </Label>
                   <div
                     style={{
-                      background: "#ffe9e9",
-                      border: "1px solid #ffb3b3",
-                      color: "#b10000",
-                      padding: 10,
-                      borderRadius: 6,
-                      marginBottom: 14,
+                      display: "grid",
+                      gridTemplateColumns:
+                        "repeat(auto-fit, minmax(160px, 1fr))",
+                      gap: 8,
                     }}
                   >
-                    {error}
-                  </div>
-                ) : null}
-
-                {/* OBJET + Date */}
-                <div className="d-flex align-items-center flex-wrap" style={{ gap: 8 }}>
-                  <div className="d-inline-flex align-items-center" style={{ gap: 8 }}>
-                    {OBJETS.map((o) => {
-                      const Icon = OBJET_ICON[o] || PhoneCall;
-                      const selected = objet === o;
-                      const isEmail = o === "Email";
+                    {CALL_ACTIONS.map((a) => {
+                      const isSelected = action === a;
+                      const color = ACTION_COLORS[a] || "secondary";
                       return (
                         <Button
-                          key={o}
-                          color={selected ? "primary" : "light"}
-                          className="d-inline-flex align-items-center"
-                          onClick={() => setObjet(o)}
-                          title={o}
-                          aria-label={o}
-                          style={{ gap: 6, padding: "8px 12px" }}
+                          key={a}
+                          color={color}
+                          outline={!isSelected}
+                          onClick={() => setAction(a)}
+                          className="w-100"
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            textAlign: "center",
+                            whiteSpace: "normal",
+                            lineHeight: 0.8,
+                            padding: "10px 12px",
+                          }}
                         >
-                          <Icon size={16} style={{ opacity: 0.9 }} />
-                          {!isEmail && <span>{o}</span>}
+                          {a}
                         </Button>
                       );
                     })}
                   </div>
-                  <Input
-                    type="date"
-                    value={kpiDate}
-                    onChange={(e) => setKpiDate(e.target.value)}
-                    max={todayStr()}
-                    aria-label="Date du KPI"
-                    style={{ width: 170, marginLeft: "auto" }}
-                  />
                 </div>
+              )}
 
-                {/* Champs contact */}
-                <div className="mt-2">
-                  <div className="d-flex" style={{ gap: 8, flexWrap: "wrap" }}>
-                    <div style={{ minWidth: 220, flex: 1 }}>
-                      <Label className="mb-1" style={{ fontWeight: 600, fontSize: 13 }}>
-                        Nom / Prénom
-                      </Label>
-                      <Input
-                        type="text"
-                        placeholder="Nom Prénom"
-                        value={nomPrenom}
-                        onChange={(e) => setNomPrenom(e.target.value)}
-                      />
-                    </div>
-                    <div style={{ minWidth: 220, flex: 1 }}>
-                      <Label className="mb-1" style={{ fontWeight: 600, fontSize: 13 }}>
-                        Email
-                      </Label>
-                      <Input
-                        type="text"
-                        placeholder="email@example.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                      />
-                    </div>
-                    <div style={{ minWidth: 180, flex: 1 }}>
-                      <Label className="mb-1" style={{ fontWeight: 600, fontSize: 13 }}>
-                        Téléphone
-                      </Label>
-                      <Input
-                        type="text"
-                        placeholder="06 12 34 56 78"
-                        value={telephone}
-                        onChange={(e) => setTelephone(formatFRPhoneDisplay(e.target.value))}
-                      />
-                    </div>
-                    <div style={{ minWidth: 220, flex: 1 }}>
-                      <Label className="mb-1" style={{ fontWeight: 600, fontSize: 13 }}>
-                        Note
-                      </Label>
-                      <Input
-                        type="textarea"
-                        placeholder="Quelques notes…"
-                        value={note}
-                        onChange={(e) => setNote(e.target.value)}
-                        style={{ height: "38px", paddingTop: "7px", lineHeight: "1.5" }}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                {!actionsDisabled && (
-                  <div className="mb-2 mt-2">
-                    <Label className="d-block" style={{ fontWeight: 600 }}>
-                      Action
-                    </Label>
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                        gap: 8,
-                      }}
-                    >
-                      {CALL_ACTIONS.map((a) => {
-                        const isSelected = action === a;
-                        const color = ACTION_COLORS[a] || "secondary";
-                        return (
-                          <Button
-                            key={a}
-                            color={color}
-                            outline={!isSelected}
-                            onClick={() => setAction(a)}
-                            className="w-100"
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              textAlign: "center",
-                              whiteSpace: "normal",
-                              lineHeight: 0.8,
-                              padding: "10px 12px",
-                            }}
-                          >
-                            {a}
-                          </Button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                <div className="d-flex align-items-center mt-1">
-                  <div className="ml-auto">
-                    <Button color="success" onClick={createKpi} disabled={creating}>
-                      {creating ? "Création..." : "Créer le KPI"}
-                    </Button>
-                  </div>
-                </div>
-              </CardBody>
-            </Card>
-          </Col>
-
-          {/* Col droite: MINI fenêtre email (simple) */}
-          <Col xs="12" lg="4" className="d-flex">
-            <Card className="flex-fill d-flex flex-column">
-              <CardHeader className="d-flex align-items-center justify-content-between">
-                <h5 className="mb-0">Récupérer simulateur difficulté</h5>
-              </CardHeader>
-              <CardBody className="d-flex flex-column">
-                <Label className="d-block" style={{ fontWeight: 600 }}>
-                  Email du client
-                </Label>
-                <Input
-                  type="text"
-                  placeholder="Email du client"
-                  value={emailBody}
-                  onChange={(e) => setEmailBody(e.target.value)}
-                />
-
-                {sendMsg && (
-                  <div
-                    className="mt-1"
-                    style={{
-                      fontSize: 13,
-                      color: sendMsg.startsWith("✅") ? "#0f5132" : sendMsg.startsWith("⚠️") ? "#8a6d3b" : "#b10000",
-                    }}
+              <div className="d-flex align-items-center mt-1">
+                <div className="ml-auto">
+                  <Button
+                    color="success"
+                    onClick={createKpi}
+                    disabled={creating}
                   >
-                    {sendMsg}
-                  </div>
-                )}
-
-                <div className="d-flex mt-auto">
-                  <Button color="primary" onClick={sendEmailWebhook} disabled={sending || !emailBody.trim()}>
-                    {sending ? "Envoi..." : "Envoyer"}
+                    {creating ? "Création..." : "Créer le KPI"}
                   </Button>
-                  {/* Bouton Effacer SUPPRIMÉ */}
                 </div>
-              </CardBody>
-            </Card>
-          </Col>
-        </Row>
-      </div>
+              </div>
+            </CardBody>
+          </Card>
+        </Col>
+      </Row>
+      {/* </div> */}
 
       {/* ====== Graph ====== */}
       <div className="vx-col w-100">
@@ -998,10 +1085,16 @@ export default function KpiPage() {
                     : "Par jour (semaine)"}
                 </DropdownToggle>
                 <DropdownMenu right>
-                  <DropdownItem onClick={() => setGroupBy("week")}>Par semaine</DropdownItem>
-                  <DropdownItem onClick={() => setGroupBy("month")}>Par mois</DropdownItem>
+                  <DropdownItem onClick={() => setGroupBy("week")}>
+                    Par semaine
+                  </DropdownItem>
+                  <DropdownItem onClick={() => setGroupBy("month")}>
+                    Par mois
+                  </DropdownItem>
                   {/* NEW */}
-                  <DropdownItem onClick={() => setGroupBy("day")}>Par jour (semaine)</DropdownItem>
+                  <DropdownItem onClick={() => setGroupBy("day")}>
+                    Par jour (semaine)
+                  </DropdownItem>
                 </DropdownMenu>
               </UncontrolledButtonDropdown>
 
@@ -1038,7 +1131,10 @@ export default function KpiPage() {
                     >
                       {weekLabel}
                     </DropdownToggle>
-                    <DropdownMenu right style={{ maxHeight: 320, overflowY: "auto" }}>
+                    <DropdownMenu
+                      right
+                      style={{ maxHeight: 320, overflowY: "auto" }}
+                    >
                       {quickWeeks.map(({ year: y, week: w, label }) => (
                         <DropdownItem
                           key={`${y}-${w}`}
@@ -1113,7 +1209,12 @@ export default function KpiPage() {
 
                   {actionFilter === "all"
                     ? ACTIONS_ALL.map((a) => (
-                        <Bar key={a} dataKey={a} stackId="total" fill={ACTION_FILLS[a]} />
+                        <Bar
+                          key={a}
+                          dataKey={a}
+                          stackId="total"
+                          fill={ACTION_FILLS[a]}
+                        />
                       ))
                     : [
                         <Bar
@@ -1182,15 +1283,13 @@ export default function KpiPage() {
                   </tr>
                 ) : items?.length ? (
                   items.map((k) => {
-                    const dt =
-                      k.created_at || k.updated_at || k.kpi_date; // privilégie un champ avec heure
                     return (
                       <tr key={k.id}>
-                      <td>
-                        {k.kpi_date
-                          ? formatDate(k.kpi_date)                          // date choisie (YYYY-MM-DD)
-                          : formatDateTime(k.created_at || k.updated_at)}
-                      </td>
+                        <td>
+                          {k.kpi_date
+                            ? formatDate(k.kpi_date) // date choisie (YYYY-MM-DD)
+                            : formatDateTime(k.created_at || k.updated_at)}
+                        </td>
                         <td>{renderObjetCell(k.objet)}</td>
                         <td>{renderActionBadge(k.action)}</td>
                         <td>{renderNullable(k.nom_prenom)}</td>
@@ -1269,7 +1368,11 @@ export default function KpiPage() {
               </div>
               <div>
                 <strong>Date :</strong>{" "}
-                {formatDate(toDelete.kpi_date || toDelete.created_at || toDelete.updated_at)}
+                {formatDate(
+                  toDelete.kpi_date ||
+                    toDelete.created_at ||
+                    toDelete.updated_at
+                )}
               </div>
               <div>
                 <strong>Objet :</strong> {toDelete.objet || <em>(vide)</em>}
@@ -1282,7 +1385,11 @@ export default function KpiPage() {
           )}
         </ModalBody>
         <ModalFooter className="border-0">
-          <Button color="secondary" onClick={closeConfirmModal} disabled={!!deletingId}>
+          <Button
+            color="secondary"
+            onClick={closeConfirmModal}
+            disabled={!!deletingId}
+          >
             Annuler
           </Button>
           <Button

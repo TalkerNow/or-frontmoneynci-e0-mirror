@@ -422,11 +422,11 @@ class OldClientsList extends React.Component {
           confirmBtnText="Oui, supprimer"
           cancelBtnText="Annuler"
           onConfirm={() => {
-            this.handleAlert("basicAlert", false, 0);
+            this.handleAlert("defaultAlert", false, 0);
             this.handleAlert("confirmAlert", true, 0);
           }}
           onCancel={() => {
-            this.handleAlert("basicAlert", false, 0);
+            this.handleAlert("defaultAlert", false, 0);
             this.handleAlert("cancelAlert", true, 0);
           }}
         >
@@ -653,7 +653,7 @@ class OldClientsList extends React.Component {
                       <Input
                         className="w-50 mr-1 mb-1 mb-sm-0"
                         type="text"
-                        placeholder="search..."
+                        placeholder="Search..."
                         onChange={(e) => this.updateSearchQuery(e.target.value)}
                         value={this.state.searchVal}
                       />

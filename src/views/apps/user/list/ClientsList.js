@@ -50,14 +50,16 @@ class ClientsList extends React.Component {
     searchVal: "",
     currentUserEmail: "", // <-- ajouté
     gridOptions: {
+      // Click only on non-email, non-actions cells should open the client sheet
       onCellClicked: (params) => {
-        if (
-          params.colDef.headerName === "Nom" ||
-          params.colDef.field === "Prenom"
-        ) {
-          history.push("/app/user/edit/" + params.data.id + "/1");
-        }
+        const colKey = params?.colDef?.field || params?.colDef?.colId;
+        if (!params?.data?.id) return;
+        if (colKey === "email" || colKey === "actions") return; // do not navigate on Email or Actions
+        history.push("/app/user/edit/" + params.data.id + "/1");
       },
+      // Add a class on each row for hover + cursor styling
+      getRowClass: () => "client-row",
+      suppressRowClickSelection: true,
     },
     columnDefs: [
       {
@@ -136,12 +138,13 @@ class ClientsList extends React.Component {
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
-              onClick={() =>
-                (window.location.href =
+              onClick={(e) => {
+                e.stopPropagation();
+                window.location.href =
                   "mailto:" +
                   email +
-                  "?subject=Subject&body=message%20goes%20here")
-              }
+                  "?subject=Subject&body=message%20goes%20here";
+              }}
             >
               <span>{rowData.data.email}</span>
             </div>
@@ -150,20 +153,27 @@ class ClientsList extends React.Component {
       },
       {
         headerName: "Actions",
+        colId: "actions",
         width: 150,
         cellRendererFramework: (params) => {
           return (
-            <div className="actions cursor-pointer">
+            <div
+              className="actions"
+              style={{ cursor: "default" }}
+              onClick={(e) => e.stopPropagation()}
+            >
               <Edit
                 className="mr-50"
                 size={15}
-                onClick={() =>
-                  history.push("/app/user/edit/" + params.data.id + "/1")
-                }
+                onClick={(e) => {
+                  e.stopPropagation();
+                  history.push("/app/user/edit/" + params.data.id + "/1");
+                }}
               />
               <Trash2
                 size={15}
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   this.handleAlert("defaultAlert", true, params.data.id);
                 }}
               />
@@ -421,11 +431,11 @@ class ClientsList extends React.Component {
           confirmBtnText="Oui, supprimer"
           cancelBtnText="Annuler"
           onConfirm={() => {
-            this.handleAlert("basicAlert", false, 0);
+            this.handleAlert("defaultAlert", false, 0);
             this.handleAlert("confirmAlert", true, 0);
           }}
           onCancel={() => {
-            this.handleAlert("basicAlert", false, 0);
+            this.handleAlert("defaultAlert", false, 0);
             this.handleAlert("cancelAlert", true, 0);
           }}
         >
@@ -456,8 +466,7 @@ class ClientsList extends React.Component {
           confirmBtnBsStyle="success"
           show={this.state.cancelAlert}
           onConfirm={() => {
-            this.handleAlert("defaultAlert", false, 0);
-            this.handleAlert("cancelAlert", true, 0);
+            this.handleAlert("cancelAlert", false, 0);
           }}
         >
           <p className="sweet-alert-text">L'action est annulé</p>
@@ -495,7 +504,7 @@ class ClientsList extends React.Component {
                       <Input
                         className="w-50 mr-1 mb-1 mb-sm-0"
                         type="text"
-                        placeholder="search..."
+                        placeholder="Search..."
                         onChange={(e) => this.updateSearchQuery(e.target.value)}
                         value={this.state.searchVal}
                       />
@@ -527,7 +536,7 @@ class ClientsList extends React.Component {
                                   )
                                 }
                               >
-                                mes clients
+                                Mes clients
                               </Button>
                             </>
                           )}

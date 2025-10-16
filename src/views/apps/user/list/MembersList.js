@@ -349,7 +349,7 @@ class MembersList extends React.Component {
                       <Input
                         className="w-50 mr-1 mb-1 mb-sm-0"
                         type="text"
-                        placeholder="search..."
+                        placeholder="Search..."
                         onChange={(e) => this.updateSearchQuery(e.target.value)}
                         value={this.state.searchVal}
                       />

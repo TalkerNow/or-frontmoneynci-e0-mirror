@@ -5,14 +5,22 @@ import * as Icon from "react-feather"
 const navigationConfig = [
   {
     id: "dashboard",
-    title: "Dashboard",
+    title: "KPI",
     type: "item",
     icon: <Icon.Home size={20}/>,
     permissions: ["admin", 'Consultant'],
     navLink: "/dashboard"
     //badge: "warning",
     //badgeText: "2"
-   },
+  },
+  {
+    id: "kpi",
+    title: "CRM",
+    type: "item",
+    icon: <Icon.BarChart2 size={20} />,
+    permissions: ["admin","Consultant", "Expert"],
+    navLink: "/kpi",
+  },
   {
     id: "profile",
     title: "Profile",
@@ -53,16 +61,8 @@ const navigationConfig = [
     filterBase: "/task/all"
   },
   {
-    id: "kpi",
-    title: "CRM",
-    type: "item",
-    icon: <Icon.BarChart2 size={20} />,
-    permissions: ["admin","Consultant", "Expert"],
-    navLink: "/kpi",
-  },
-  {
     id: "document",
-    title: "Documents",
+    title: "Mes documents",
     type: "item",
     icon: <Icon.Folder size={20} />,
     permissions: ["admin", "Client","Ancient Client", "Consultant", "Expert"],

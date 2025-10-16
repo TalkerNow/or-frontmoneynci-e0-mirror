@@ -562,7 +562,7 @@ class AllContracts extends React.Component {
                                   )
                                 }
                               >
-                                mes contrats
+                                Mes contrats
                               </Button>
                             </>
                           )}

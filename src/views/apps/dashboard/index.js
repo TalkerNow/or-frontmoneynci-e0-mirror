@@ -1,13 +1,14 @@
 /* eslint-disable */
 
-import React from "react"
-import { Row, Col } from "reactstrap"
-import OverallCard from "./OverallData"
-import ExpertCard from "./ExpertCard"
+import React from "react";
+import { Row, Col } from "reactstrap";
+import OverallCard from "./OverallData";
+import ExpertCard from "./ExpertCard";
+import KpiStats from "./KpiStats"; // nouvel import
 
-import RevenueGraph from "./RevenueGraph"
-import PrestationStatistics from "./Prestations"
-import "../../../assets/scss/plugins/charts/apex-charts.scss"
+import RevenueGraph from "./RevenueGraph";
+import PrestationStatistics from "./Prestations";
+import "../../../assets/scss/plugins/charts/apex-charts.scss";
 
 let $primary = "#7367F0",
   $success = "#28C76F",
@@ -17,7 +18,7 @@ let $primary = "#7367F0",
   $warning_light = "#FFC085",
   $danger_light = "#f29292",
   $stroke_color = "#b9c3cd",
-  $label_color = "#e7eef7"
+  $label_color = "#e7eef7";
 
 class Index extends React.Component {
   state = {
@@ -33,7 +34,7 @@ class Index extends React.Component {
     current_solde_amount: 0,
     opportunite_count: 0,
     opportunite_amount: 0,
-  }
+  };
   render() {
     return (
       <React.Fragment>
@@ -48,15 +49,17 @@ class Index extends React.Component {
               labelColor={$label_color}
             />
           </Col>
-          <Col lg="12" md="6" sm="6">
+          <Col lg="12">
+            <KpiStats />
+          </Col>
+          {/* <Col lg="12" md="6" sm="6">
             <RevenueGraph
               strokeColor={$stroke_color}
               primary={$primary}
               danger={$danger}
               labelColor={$label_color}
             />
-
-          </Col>
+          </Col> */}
           <Col lg="12" md="6" sm="6">
             <PrestationStatistics
               primary={$primary}
@@ -65,8 +68,7 @@ class Index extends React.Component {
               labelColor={$label_color}
             />
           </Col>
-          <Col>
-          </Col>
+          <Col></Col>
         </Row>
         <Row className="match-height">
           <Col lg="12" md="6" sm="12">
@@ -81,10 +83,9 @@ class Index extends React.Component {
           </Col>
         </Row>
       </React.Fragment>
-    )
+    );
   }
 }
 
-export default Index
+export default Index;
 /* eslint-disable */
-
