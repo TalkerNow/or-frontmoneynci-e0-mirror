@@ -17,6 +17,49 @@ import classnames from "classnames";
 import ReactApexChart from "react-apexcharts";
 import TabDropdown from "../../../components/TabDropdown";
 
+// CSS du style violet arrondi pour les TabDropdown
+const DROPDOWN_CSS = `
+  .tab-dd .nav-link {
+    cursor: pointer;
+    border-radius: 9999px;
+    padding: 0.3rem 0.55rem 0.3rem 0.6rem; /* reduce right padding */
+    border: 1px solid rgba(115,103,240,.25);
+    background: rgba(115,103,240,.08);
+    transition: background .15s ease, box-shadow .15s ease, border-color .15s ease, color .15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem; /* tighter gap between text and chevron */
+    text-decoration: none !important;
+    white-space: nowrap;
+  }
+  .tab-dd .nav-link:hover,
+  .tab-dd .nav-link:focus {
+    background: rgba(115,103,240,.16);
+    border-color: rgba(115,103,240,.45);
+    box-shadow: 0 2px 8px rgba(115,103,240,.20);
+    color: #212529;
+    outline: none;
+  }
+  .tab-dd .nav-link.active {
+    background: rgba(115,103,240,.22);
+    border-color: rgba(115,103,240,.55);
+    font-weight: 600;
+  }
+  .tab-dd .chev { transition: transform .2s ease; }
+  .tab-dd .nav-link.active .chev { transform: rotate(180deg); }
+  .tab-dd .dropdown-menu {
+    border-radius: 8px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.12);
+    padding: 6px;
+    max-height: 320px;
+    overflow-y: auto;
+  }
+  .tab-dd .dropdown-item { color: #212529 !important; border-radius: 6px; }
+  .tab-dd .dropdown-item:hover,
+  .tab-dd .dropdown-item:focus { background: rgba(34,41,47,.06) !important; color: #212529 !important; }
+  .tab-dd .dropdown-item.active { background: rgba(115,103,240,.12) !important; color: #212529 !important; font-weight: 600; }
+`;
+
 // ==== Helpers ISO week ====
 function isoWeekInfo(dateInput) {
   const d = new Date(dateInput)
@@ -469,6 +512,8 @@ class PrestationStatistics extends React.Component {
   }
   render() {
     return (
+      <>
+      <style>{DROPDOWN_CSS}</style>
       <Card>
         <CardHeader>
           <div className="icon-section form-inline">
@@ -571,7 +616,7 @@ class PrestationStatistics extends React.Component {
                       minWidth={70}
                     >
                       {Array.from({ length: 13 }, (_, i) => 2018 + i).map((y) => (
-                        <DropdownItem
+                        <DropdownItem toggle={false}
                           key={y}
                           active={y === this.state.year}
                           onClick={() => {
@@ -591,7 +636,7 @@ class PrestationStatistics extends React.Component {
                       valueLabel={this.state.month || FrenchMonth[new Date().getMonth()]}
                       isOpen={this.state.openMonth}
                       toggle={() => this.setState({ openMonth: !this.state.openMonth })}
-                      minWidth={110}
+                      minWidth={90}
                     >
                       {FrenchMonth.map((m) => (
                         <DropdownItem
@@ -709,7 +754,7 @@ class PrestationStatistics extends React.Component {
                       minWidth={70}
                     >
                       {Array.from({ length: 13 }, (_, i) => 2018 + i).map((y) => (
-                        <DropdownItem key={y} active={y === this.state.year} onClick={() => { this.setState({ openYear: false }); this.getTrimData(this.state.trim, y); }}>{y}</DropdownItem>
+                        <DropdownItem toggle={false} key={y} active={y === this.state.year} onClick={() => { this.setState({ openYear: false }); this.getTrimData(this.state.trim, y); }}>{y}</DropdownItem>
                       ))}
                     </TabDropdown>
                   </NavItem>
@@ -828,7 +873,7 @@ class PrestationStatistics extends React.Component {
                       minWidth={70}
                     >
                       {Array.from({ length: 13 }, (_, i) => 2018 + i).map((y) => (
-                        <DropdownItem key={y} active={y === this.state.year} onClick={() => { this.setState({ openYear: false }); this.getYearData(y); }}>{y}</DropdownItem>
+                        <DropdownItem toggle={false} key={y} active={y === this.state.year} onClick={() => { this.setState({ openYear: false }); this.getYearData(y); }}>{y}</DropdownItem>
                       ))}
                     </TabDropdown>
                   </NavItem>
@@ -936,7 +981,7 @@ class PrestationStatistics extends React.Component {
                       minWidth={70}
                     >
                       {Array.from({ length: 13 }, (_, i) => 2018 + i).map((y) => (
-                        <DropdownItem key={y} active={y === this.state.year} onClick={() => { this.setState({ openYear: false }); this.getWeekData(this.state.currentWeek, y); }}>{y}</DropdownItem>
+                        <DropdownItem toggle={false} key={y} active={y === this.state.year} onClick={() => { this.setState({ openYear: false }); this.getWeekData(this.state.currentWeek, y); }}>{y}</DropdownItem>
                       ))}
                     </TabDropdown>
                   </NavItem>
@@ -1031,6 +1076,7 @@ class PrestationStatistics extends React.Component {
           </TabContent>
         </CardBody>
       </Card>
+      </>
     );
   }
 }

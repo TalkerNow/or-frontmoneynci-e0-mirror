@@ -88,26 +88,28 @@ const DROPDOWN_CSS = `
   /* ---------- Boutons pilule violet (ancien style) ---------- */
   .tab-dd .nav-link {
     cursor: pointer;
-    border-radius: 8px;
-    padding: 0.35rem 0.75rem;
-    border: 1px solid #c4b5fd;           /* violet clair */
-    background: linear-gradient(180deg, #faf5ff 0%, #ede9fe 100%);
-    color: #6d28d9;                       /* texte violet */
-    transition: all .15s ease;
+    border-radius: 9999px;
+    padding: 0.3rem 0.55rem 0.3rem 0.6rem; /* reduce right padding */
+    border: 1px solid rgba(115,103,240,.25);
+    background: rgba(115,103,240,.08);
+    transition: background .15s ease, box-shadow .15s ease, border-color .15s ease, color .15s ease;
     display: inline-flex;
     align-items: center;
-    gap: .35rem;
+    gap: .25rem; /* tighter gap between text and chevron */
     text-decoration: none !important;
     white-space: nowrap;
-    box-shadow: none;                     /* pas d'ombre */
   }
-  .tab-dd button:hover {                 /* survol */
-    background: linear-gradient(180deg, #f3e8ff 0%, #e9d5ff 100%) !important;
-    border-color: #a78bfa !important;
+  .tab-dd .nav-link:hover,
+  .tab-dd .nav-link:focus {
+    background: rgba(115,103,240,.16);
+    border-color: rgba(115,103,240,.45);
+    box-shadow: 0 2px 8px rgba(115,103,240,.20);
+    color: #212529;
+    outline: none;
   }
-  .tab-dd .dropdown-item.active {        /* actif dans menu */
-    background-color: #ede9fe !important;
-    color: #5b21b6 !important;
+  .tab-dd .nav-link.active {
+    background: rgba(115,103,240,.22);
+    border-color: rgba(115,103,240,.55);
     font-weight: 600;
   }
   .tab-dd .chev { transition: transform .2s ease; }
@@ -115,11 +117,10 @@ const DROPDOWN_CSS = `
 
   .tab-dd .dropdown-menu {
     border-radius: 8px;
-    box-shadow: none;                /* pas d'ombre */
+    box-shadow: 0 6px 24px rgba(0,0,0,.12);
     padding: 6px;
-    max-height: 280px;               /* scroll si long (ex: semaines) */
+    max-height: 320px;
     overflow-y: auto;
-    min-width: 8rem;                 /* largeur raisonnable */
   }
   .tab-dd .dropdown-item { color: #212529 !important; border-radius: 6px; }
   .tab-dd .dropdown-item:hover,
@@ -342,11 +343,11 @@ export default function OverallCard() {
           label="Année"
           valueLabel={String(year)}
           isOpen={openYear}
-          toggle={() => setOpenYear((v) => !v)}
+          toggle={() => setOpenYear(!openYear)}
           minWidth={70}
         >
           {yearOptions.map((y) => (
-            <DropdownItem key={y} active={y === year} onClick={() => { setYear(y); setOpenYear(true); }}>
+            <DropdownItem key={y} active={y === year} onClick={() => { setYear(y); setOpenYear(false); }}>
               {y}
             </DropdownItem>
           ))}
@@ -359,11 +360,11 @@ export default function OverallCard() {
             label="Mois"
             valueLabel={FRENCH_MONTHS[monthIndex]}
             isOpen={openMonth}
-            toggle={() => setOpenMonth((v) => !v)}
+            toggle={() => setOpenMonth(!openMonth)}
             minWidth={90}
           >
             {FRENCH_MONTHS.map((m, idx) => (
-              <DropdownItem key={m} active={idx === monthIndex} onClick={() => { setMonthIndex(idx); setOpenMonth(true); }}>
+              <DropdownItem key={m} active={idx === monthIndex} onClick={() => { setMonthIndex(idx); setOpenMonth(false); }}>
                 {m}
               </DropdownItem>
             ))}
@@ -377,8 +378,8 @@ export default function OverallCard() {
             label="Trimestre"
             valueLabel={`Trimestre ${trimIndex + 1}`}
             isOpen={openTrim}
-            toggle={() => setOpenTrim((v) => !v)}
-            minWidth={100}
+            toggle={() => setOpenTrim(!openTrim)}
+            minWidth={120}
           >
             {[1, 2, 3, 4].map((t, i) => (
               <DropdownItem key={t} active={i === trimIndex} onClick={() => { setTrimIndex(i); setOpenTrim(false); }}>
@@ -395,11 +396,11 @@ export default function OverallCard() {
             label="Semaine"
             valueLabel={currentWeek}
             isOpen={openWeek}
-            toggle={() => setOpenWeek((v) => !v)}
-            minWidth={100}
+            toggle={() => setOpenWeek(!openWeek)}
+            minWidth={90}
           >
             {Array.from({ length: (year === new Date().getFullYear() ? isoWeekInfo(new Date()).isoWeek : isoWeeksInYear(year)) }, (_, i) => `W${i + 1}`).map((w) => (
-              <DropdownItem key={w} active={w === currentWeek} onClick={() => setCurrentWeek(w)}>
+              <DropdownItem key={w} active={w === currentWeek} onClick={() => { setCurrentWeek(w); setOpenWeek(false); }}>
                 {w}
               </DropdownItem>
             ))}
@@ -429,7 +430,7 @@ export default function OverallCard() {
         </NavItem>
         <NavItem>
           <NavLink className={classNames({ active: activeTab === "3" })} onClick={() => setActiveTab("3")}>
-            Année
+            Années
           </NavLink>
         </NavItem>
       </Nav>

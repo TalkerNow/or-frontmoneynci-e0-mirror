@@ -126,7 +126,7 @@ class UserView extends React.Component {
                                 </div>
                                 <div className="d-flex user-info">
                                   <div className="user-info-title font-weight-bold">
-                                    Role
+                                    Rôle
                                   </div>
                                   <div>{this.state.rowData["role"]}</div>
                                 </div>
@@ -153,7 +153,7 @@ class UserView extends React.Component {
             <Card>
               <CardHeader>
                 <CardTitle>
-                  <Info className="success" size={25} /> Information
+                  <Info className="success" size={25} /> Informations:
                 </CardTitle>
               </CardHeader>
               <CardBody>
@@ -231,7 +231,7 @@ class UserView extends React.Component {
             <Card style={{ minHeight: "360px" }}>
               <CardHeader>
                 <CardTitle>
-                  <MessageCircle className="warning" size={25} /> Notes
+                  <MessageCircle className="warning" size={25} /> Notes:
                 </CardTitle>
               </CardHeader>
               <CardBody>
@@ -259,7 +259,7 @@ class UserView extends React.Component {
             <Card>
               <CardHeader>
                 <CardTitle>
-                  <MapPin className="info" size={25} /> Personnel
+                  <MapPin className="info" size={25} /> Personnel:
                 </CardTitle>
               </CardHeader>
               <CardBody>

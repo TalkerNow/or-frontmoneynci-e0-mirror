@@ -313,7 +313,7 @@ class ExpertCard extends React.Component {
             <div>
               {this.state.creator ? (
                 <Button className="mr-1 mb-2 mr-3" outline color="primary" onClick={this.setDataCreators}>
-                  executants
+                  Exécutants
                 </Button>
               ) : (
                 <Button className="mr-1 mb-2 mr-3" outline color="primary" onClick={this.setDataExecutants}>
@@ -332,7 +332,7 @@ class ExpertCard extends React.Component {
               </Button>
               <Button className="mr-1 mb-2 mr-1" outline color={this.state.activeTab === "3" ? "primary" : "secondary"}
                 onClick={() => { this.getYearData(this.state.year); this.toggle("3") }}>
-                Année
+                Années
               </Button>
               <Button className="mr-1 mb-2 mr-1" outline color={this.state.activeTab === "4" ? "primary" : "secondary"}
                 onClick={() => { this.getTotalData(this.state.year); this.toggle("4") }}>
