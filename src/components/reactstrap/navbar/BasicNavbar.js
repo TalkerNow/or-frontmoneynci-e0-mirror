@@ -406,7 +406,7 @@ class NavbarBasic extends React.Component {
                                 <span className="user-name text-bold-600">
                                   John Doe
                                 </span>
-                                <span className="user-status">Available</span>
+                                <span className="user-status">Disponible</span>
                               </div>
                               <span>
                                 <img
@@ -431,7 +431,7 @@ class NavbarBasic extends React.Component {
                               </DropdownItem>
                               <DropdownItem tag="a" href="#">
                                 <CheckSquare size={14} className="mr-50" />
-                                <span>Tasks</span>
+                                <span>Tâches</span>
                               </DropdownItem>
                               <DropdownItem tag="a" href="#">
                                 <MessageSquare size={14} className="mr-50" />

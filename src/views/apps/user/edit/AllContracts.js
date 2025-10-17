@@ -58,7 +58,7 @@ class AllContracts extends React.Component {
     searchVal: "",
     columnDefs: [
       {
-        headerName: "contrat",
+        headerName: "Contrat",
         field: "comment",
         width: 300,
         cellRendererFramework: (params) => {
@@ -168,7 +168,7 @@ class AllContracts extends React.Component {
         },
       },
       {
-        headerName: "solde",
+        headerName: "Solde",
         field: "end_payment",
         width: 150,
         cellRendererFramework: (params) => {
@@ -530,7 +530,7 @@ class AllContracts extends React.Component {
                       <Input
                         className="w-50 mr-1 mb-1 mb-sm-0"
                         type="text"
-                        placeholder="search..."
+                        placeholder="Rechercher..."
                         onChange={(e) => this.updateSearchQuery(e.target.value)}
                         value={this.state.searchVal}
                       />
@@ -544,7 +544,7 @@ class AllContracts extends React.Component {
                               color="primary"
                               onClick={() => this.externalFilterChanged(-1)}
                             >
-                              tous les contrats
+                              Tous les contrats
                             </Button>
                           </>
                         )}

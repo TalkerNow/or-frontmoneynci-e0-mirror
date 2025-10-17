@@ -70,7 +70,7 @@ class MembersList extends React.Component {
             <div
               className="d-flex align-items-center cursor-pointer"
               onClick={() =>
-                history.push("/app/member/edit/" + params.data.id + "/1")
+                history.push("/app/member/edit/" + params.data.id + "/2")
               }
             >
               <span>
@@ -377,7 +377,7 @@ class MembersList extends React.Component {
                       <Input
                         className="w-50 mr-1 mb-1 mb-sm-0"
                         type="text"
-                        placeholder="Search..."
+                        placeholder="Rechercher..."
                         onChange={(e) => this.updateSearchQuery(e.target.value)}
                         value={this.state.searchVal}
                       />

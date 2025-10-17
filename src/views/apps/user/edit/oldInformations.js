@@ -18,6 +18,7 @@ import "../../../../assets/scss/plugins/forms/flatpickr/flatpickr.scss";
 import InputMaskDate from "./InputMaskDate";
 import axios from "axios";
 import { toast } from "react-toastify";
+import { history } from "../../../../history";
 import Radio from "../../../../components/@vuexy/radio/RadioVuexy";
 const chipColors = {
   CH: "warning",
@@ -155,6 +156,9 @@ class UserAccountTab extends React.Component {
       )
       .then((response) => {
         toast.info("Modifications enregistrées");
+        if (this.props && this.props.backTo) {
+          setTimeout(() => history.push(this.props.backTo), 100);
+        }
       });
   };
 

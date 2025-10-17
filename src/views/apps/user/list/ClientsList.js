@@ -52,12 +52,12 @@ class ClientsList extends React.Component {
     searchVal: "",
     currentUserEmail: "", // <-- ajouté
     gridOptions: {
-      // Click only on non-email, non-actions cells should open the client sheet
+      // Click only on non-email, non-actions cells should open the client sheet (fiche)
       onCellClicked: (params) => {
         const colKey = params?.colDef?.field || params?.colDef?.colId;
         if (!params?.data?.id) return;
         if (colKey === "email" || colKey === "actions") return; // do not navigate on Email or Actions
-        history.push("/app/user/edit/" + params.data.id + "/1");
+        history.push("/app/user/edit/" + params.data.id + "/2");
       },
       // Add a class on each row for hover + cursor styling
       getRowClass: () => "client-row",
@@ -533,7 +533,7 @@ class ClientsList extends React.Component {
                       <Input
                         className="w-50 mr-1 mb-1 mb-sm-0"
                         type="text"
-                        placeholder="Search..."
+                        placeholder="Rechercher..."
                         onChange={(e) => this.updateSearchQuery(e.target.value)}
                         value={this.state.searchVal}
                       />

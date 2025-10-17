@@ -21,7 +21,7 @@ import {
 import axios from "axios";
 import { ContextLayout } from "../../../../utility/context/Layout";
 import { AgGridReact } from "ag-grid-react";
-import { ChevronDown, Trash2, Edit } from "react-feather";
+import { ChevronDown, Trash2, Edit, CheckSquare } from "react-feather";
 import classnames from "classnames";
 import { history } from "../../../../history";
 import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss";
@@ -85,9 +85,7 @@ class OldClientsList extends React.Component {
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
-              onClick={() =>
-                this.onCopyName(rowData.data.cl_nom, rowData.data.cl_prenom)
-              }
+              onClick={() => history.push(`/app/olduser/edit/${rowData.data.clcleunik}/2`)}
             >
               <span>{rowData.data.cl_nom}</span>
             </div>
@@ -105,9 +103,7 @@ class OldClientsList extends React.Component {
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
-              onClick={() =>
-                this.onCopyName(rowData.data.cl_nom, rowData.data.cl_prenom)
-              }
+              onClick={() => history.push(`/app/olduser/edit/${rowData.data.clcleunik}/2`)}
             >
               <span>{rowData.data.cl_prenom}</span>
             </div>
@@ -280,6 +276,16 @@ class OldClientsList extends React.Component {
                     "/app/olduser/edit/" + params.data.clcleunik + "/1"
                   )
                 }
+              />
+              <CheckSquare
+                className="mr-50"
+                size={20}
+                onClick={() =>
+                  history.push(
+                    "/app/user/clientTask/" + params.data.clcleunik + "/all"
+                  )
+                }
+                title="Tâches"
               />
               <Trash2
                 size={20}
@@ -684,7 +690,7 @@ class OldClientsList extends React.Component {
                       <Input
                         className="w-50 mr-1 mb-1 mb-sm-0"
                         type="text"
-                        placeholder="Search..."
+                        placeholder="Rechercher..."
                         onChange={(e) => this.updateSearchQuery(e.target.value)}
                         value={this.state.searchVal}
                       />
@@ -706,17 +712,11 @@ class OldClientsList extends React.Component {
                         <AgGridReact
                           gridOptions={{
                             onCellClicked: (params) => {
-                              console.log(params);
-                              if (
-                                params.colDef.headerName === "Nom" ||
-                                params.colDef.field === "Prenom"
-                              ) {
-                                history.push(
-                                  "/app/olduser/edit/" +
-                                    params.data.clcleunik +
-                                    "/1"
-                                );
-                              }
+                              const field = params?.colDef?.field;
+                              const header = params?.colDef?.headerName;
+                              if (!params?.data?.clcleunik) return;
+                              if (field === 'cl_mail' || header === 'Actions') return;
+                              history.push(`/app/olduser/edit/${params.data.clcleunik}/2`);
                             },
                           }}
                           onFirstDataRendered={this.sizeToFit}

@@ -93,27 +93,31 @@ const adminOrder = [
   "dashboard",
   "kpi",
   "profile",
+  // Group clients-related entries together in this exact order
   "users",
   "oldUsers",
+  "members",
+  // Rest of the app entries
   "tasks",
   "document",
   "contractTemplate",
   "contracts",
-  "members",
 ]
 
 // Consultant order: Clients first, then KPI, CRM, etc.
 const consultantOrder = [
+  // Clients-related entries first, in required order
   "users",
+  "oldUsers",
+  "members",
+  // Then the rest
   "dashboard",
   "kpi",
   "profile",
-  "oldUsers",
   "tasks",
   "document",
   "contractTemplate",
   "contracts",
-  "members",
 ]
 
 const buildMenu = (order) => order.map((key) => items[key])

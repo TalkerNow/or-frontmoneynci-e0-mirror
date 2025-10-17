@@ -1,371 +1,169 @@
 import React from "react"
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardBody,
-  Media,
-  Row,
-  Col,
-  Button,
-  Table
-} from "reactstrap"
-import { Edit, Trash, Lock, Check } from "react-feather"
-import { Link } from "react-router-dom"
-import Checkbox from "../../../../components/@vuexy/checkbox/CheckboxesVuexy"
-import userImg from "../../../../assets/img/portrait/small/avatar-s-18.jpg"
+import { Card, CardHeader, CardTitle, CardBody, Row, Col, Button, Input, Label, FormGroup } from "reactstrap"
+import { User as UserIcon, FileText, File, CheckSquare, MessageCircle } from "react-feather"
+import axios from "axios"
+import { toast } from "react-toastify"
 import "../../../../assets/scss/pages/users.scss"
+
 class UserView extends React.Component {
+  state = {
+    client: {},
+    notes: "",
+    contracts: [],
+    tasks: []
+  }
+
+  async componentDidMount() {
+    const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } }
+    const id = (this.props.match && this.props.match.params && this.props.match.params.id) || localStorage.getItem("userid")
+    try {
+      const res = await axios.get(`${global.config.server_url}/users/${id}`, Config)
+      const client = res.data || {}
+      this.setState({ client, notes: client.notes || "" })
+    } catch (e) { console.warn("Impossible de charger le client", e) }
+    try {
+      const resC = await axios.get(`${global.config.server_url}/documents/user/${id}`, Config)
+      this.setState({ contracts: Array.isArray(resC.data) ? resC.data : [] })
+    } catch (e) { console.warn("Impossible de charger les contrats", e) }
+    try {
+      const resT = await axios.get(`${global.config.server_url}/customer_tasks?filter=all&user_id=${id}`, Config)
+      this.setState({ tasks: Array.isArray(resT.data) ? resT.data : [] })
+    } catch (e) { console.warn("Impossible de charger les tâches", e) }
+  }
+
+  handleSaveNotes = async () => {
+    try {
+      const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } }
+      const id = (this.props.match && this.props.match.params && this.props.match.params.id) || localStorage.getItem("userid")
+      await axios.put(`${global.config.server_url}/personal_information/${id}`, { notes: this.state.notes }, Config)
+      toast.info("Modifications enregistrées")
+      this.setState((s) => ({ client: { ...s.client, notes: s.notes } }))
+    } catch (e) { toast.error("Impossible d'enregistrer les notes") }
+  }
+
   render() {
+    const u = this.state.client || {}
+    const fmt = (v) => (v ? String(v) : "—")
+    const fullName = `${u.first_name || ""} ${u.last_name || ""}`.trim() || "Client"
+
     return (
       <React.Fragment>
         <Row>
-          <Col sm="12">
-            <Card>
-              <CardHeader>
-                <CardTitle>Account</CardTitle>
-              </CardHeader>
-              <CardBody>
-                <Row className="mx-0" col="12">
-                  <Col className="pl-0" sm="12">
-                    <Media className="d-sm-flex d-block">
-                      <Media className="mt-md-1 mt-0" left>
-                        <Media
-                          className="rounded mr-2"
-                          object
-                          src={userImg}
-                          alt="Generic placeholder image"
-                          height="112"
-                          width="112"
-                        />
-                      </Media>
-                      <Media body>
-                        <Row>
-                          <Col sm="9" md="6" lg="5">
-                            <div className="users-page-view-table">
-                              <div className="d-flex user-info">
-                                <div className="user-info-title font-weight-bold">
-                                  Username
-                                </div>
-                                <div>crystal</div>
-                              </div>
-                              <div className="d-flex user-info">
-                                <div className="user-info-title font-weight-bold">
-                                  Name
-                                </div>
-                                <div>Crystal Hamilton</div>
-                              </div>
-                              <div className="d-flex user-info">
-                                <div className="user-info-title font-weight-bold">
-                                  Email
-                                </div>
-                                <div className="text-truncate">
-                                  <span>crystalhamilton@gmail.com</span>
-                                </div>
-                              </div>
-                            </div>
-                          </Col>
-                          <Col md="12" lg="5">
-                            <div className="users-page-view-table">
-                              <div className="d-flex user-info">
-                                <div className="user-info-title font-weight-bold">
-                                  Status
-                                </div>
-                                <div>active</div>
-                              </div>
-                              <div className="d-flex user-info">
-                                <div className="user-info-title font-weight-bold">
-                                  Rôle
-                                </div>
-                                <div>admin</div>
-                              </div>
-                              <div className="d-flex user-info">
-                                <div className="user-info-title font-weight-bold">
-                                  Company
-                                </div>
-                                <div>
-                                  <span>North Star Aviation Pvt Ltd</span>
-                                </div>
-                              </div>
-                            </div>
-                          </Col>
-                        </Row>
-                      </Media>
-                    </Media>
-                  </Col>
-                  <Col className="mt-1 pl-0" sm="12">
-                    <Button.Ripple className="mr-1" color="primary" outline>
-                      <Link to="/app/user/edit">
-                        <Edit size={15} />
-                        <span className="align-middle ml-50">Edit</span>
-                      </Link>
-                    </Button.Ripple>
-                    <Button.Ripple color="danger" outline>
-                      <Trash size={15} />
-                      <span className="align-middle ml-50">Delete</span>
-                    </Button.Ripple>
-                  </Col>
-                </Row>
-              </CardBody>
-            </Card>
-          </Col>
-          <Col sm="12" md="6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Information</CardTitle>
-              </CardHeader>
-              <CardBody>
-                <div className="users-page-view-table">
-                  <div className="d-flex user-info">
-                    <div className="user-info-title font-weight-bold">
-                      Birth Date
-                    </div>
-                    <div> 28 January 1998</div>
+          {/* Colonne gauche: informations client */}
+          <Col lg="4" md="5" sm="12" className="mb-1">
+            <Card className="h-100">
+              <CardBody className="d-flex flex-column">
+                <div className="d-flex justify-content-center mb-1">
+                  <div style={{ width:64,height:64,borderRadius:"50%",border:"1px solid #c4b5fd",backgroundColor:"#f5f5ff",display:"flex",alignItems:"center",justifyContent:"center" }}>
+                    <UserIcon size={28} color="#7367f0" />
                   </div>
-                  <div className="d-flex user-info">
-                    <div className="user-info-title font-weight-bold">
-                      Mobile
-                    </div>
-                    <div>+65958951757</div>
-                  </div>
-                  <div className="d-flex user-info">
-                    <div className="user-info-title font-weight-bold">
-                      Website
-                    </div>
-                    <div className="text-truncate">
-                      <span>https://rowboat.com/insititious/Crystal</span>
-                    </div>
-                  </div>
-                  <div className="d-flex user-info">
-                    <div className="user-info-title font-weight-bold">
-                      Languages
-                    </div>
-                    <div className="text-truncate">
-                      <span>English, French</span>
-                    </div>
-                  </div>
-                  <div className="d-flex user-info">
-                    <div className="user-info-title font-weight-bold">
-                      Gender
-                    </div>
-                    <div className="text-truncate">
-                      <span>Female</span>
-                    </div>
-                  </div>
-                  <div className="d-flex user-info">
-                    <div className="user-info-title font-weight-bold">
-                      Contact
-                    </div>
-                    <div className="text-truncate">
-                      <span>email, message, phone</span>
-                    </div>
+                </div>
+                <h4 className="mb-1 text-center">{fullName}</h4>
+                {u.role ? (<div className="d-flex justify-content-center mb-1"><span className="badge badge-pill badge-light-primary">{String(u.role).toUpperCase()}</span></div>):null}
+                <div className="mb-2">
+                  <h5 className="mb-50">Détails</h5>
+                  <div style={{ borderTop: "1px solid #ebe9f1", margin: "0.5rem 0 1rem" }} />
+                  <div className="users-page-view-table">
+                    <div className="d-flex user-info"><div className="user-info-title font-weight-bold">Email</div><div className="text-truncate">{fmt(u.email)}</div></div>
+                    <div className="d-flex user-info"><div className="user-info-title font-weight-bold">Téléphone</div><div className="text-truncate">{fmt(u.mobile_number || u.office_number)}</div></div>
+                    <div className="d-flex user-info"><div className="user-info-title font-weight-bold">Pays</div><div className="text-truncate">{fmt(u.personal_country)}</div></div>
                   </div>
                 </div>
               </CardBody>
             </Card>
           </Col>
-          <Col sm="12" md="6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Social Links</CardTitle>
+
+          {/* Colonne droite: pavés */}
+          <Col lg="8" md="7" sm="12">
+            {/* Contrats */}
+            <Card className="mb-1">
+              <CardHeader className="pb-0 d-flex align-items-center">
+                <CardTitle className="mb-0 d-flex align-items-center"><FileText className="primary mr-50" size={18}/> Contrats</CardTitle>
               </CardHeader>
               <CardBody>
-                <div className="users-page-view-table">
-                  <div className="d-flex user-info">
-                    <div className="user-info-title font-weight-bold">
-                      Twitter
-                    </div>
-                    <div className="text-truncate">
-                      <span>https://twitter.com/crystal</span>
-                    </div>
-                  </div>
-                  <div className="d-flex user-info">
-                    <div className="user-info-title font-weight-bold">
-                      Facebook
-                    </div>
-                    <div className="text-truncate">
-                      <span>https://www.facebook.com/crystal</span>
-                    </div>
-                  </div>
-                  <div className="d-flex user-info">
-                    <div className="user-info-title font-weight-bold">
-                      Instagram
-                    </div>
-                    <div className="text-truncate">
-                      <span>https://www.instagram.com/crystal</span>
-                    </div>
-                  </div>
-                  <div className="d-flex user-info">
-                    <div className="user-info-title font-weight-bold">
-                      Github
-                    </div>
-                    <div className="text-truncate">
-                      <span>https://github.com/crystal</span>
-                    </div>
-                  </div>
-                  <div className="d-flex user-info">
-                    <div className="user-info-title font-weight-bold">
-                      CodePen
-                    </div>
-                    <div className="text-truncate">
-                      <span>https://codepen.io/crystal</span>
-                    </div>
-                  </div>
-                  <div className="d-flex user-info">
-                    <div className="user-info-title font-weight-bold">
-                      Slack
-                    </div>
-                    <div className="text-truncate">
-                      <span>@crystal</span>
-                    </div>
-                  </div>
+                {this.state.contracts.length ? (
+                  <ul className="mb-0" style={{ listStyle:'none', paddingLeft:0 }}>
+                    {this.state.contracts.slice(0,5).map(c => (
+                      <li key={c.id} className="d-flex justify-content-between align-items-center py-25" style={{ borderBottom:'1px solid #f1f1f3' }}>
+                        <div>
+                          <div className="font-weight-bold text-truncate" style={{ maxWidth:360 }}>{fmt(c.comment)}</div>
+                          <small className="text-muted">{fmt(c.document_state)} • {fmt(c.type)}</small>
+                        </div>
+                        <small className="text-muted">{c.created_at ? new Date(c.created_at).toLocaleDateString('fr-FR') : '—'}</small>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (<p className="mb-0 text-muted">Aucun contrat.</p>)}
+              </CardBody>
+            </Card>
+
+            {/* Notes */}
+            <Card className="mb-1">
+              <CardHeader className="pb-0 d-flex align-items-center">
+                <CardTitle className="mb-0 d-flex align-items-center"><UserIcon className="primary mr-50" size={18}/> Notes</CardTitle>
+              </CardHeader>
+              <CardBody>
+                <FormGroup>
+                  <Label for="client-notes">Notes</Label>
+                  <Input type="textarea" id="client-notes" rows="8" placeholder="Notes" value={this.state.notes} onChange={(e)=>this.setState({notes:e.target.value})} />
+                </FormGroup>
+                <div className="d-flex justify-content-end">
+                  <Button color="primary" onClick={this.handleSaveNotes}>Enregistrer</Button>
                 </div>
               </CardBody>
             </Card>
-          </Col>
-          <Col sm="12">
-            <Card>
-              <CardHeader className="border-bottom pb-1 mx-2 px-0">
-                <CardTitle>
-                  <Lock size={18} />
-                  <span className="align-middle ml-50">Permissions</span>
-                </CardTitle>
+
+            {/* Documents (aperçu basé sur contrats) */}
+            <Card className="mb-1">
+              <CardHeader className="pb-0 d-flex align-items-center">
+                <CardTitle className="mb-0 d-flex align-items-center"><File className="primary mr-50" size={18}/> Documents</CardTitle>
               </CardHeader>
               <CardBody>
-                {" "}
-                <Table className="permissions-table" borderless responsive>
-                  <thead>
-                    <tr>
-                      <th>Module</th>
-                      <th>Read</th>
-                      <th>Write</th>
-                      <th>Create</th>
-                      <th>Delete</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>Users</td>
-                      <td>
-                        <Checkbox
-                          disabled
-                          color="primary"
-                          icon={<Check className="vx-icon" size={16} />}
-                          label=""
-                          defaultChecked={true}
-                        />
-                      </td>
-                      <td>
-                        <Checkbox
-                          disabled
-                          color="primary"
-                          icon={<Check className="vx-icon" size={16} />}
-                          label=""
-                          defaultChecked={false}
-                        />
-                      </td>
-                      <td>
-                        <Checkbox
-                          disabled
-                          color="primary"
-                          icon={<Check className="vx-icon" size={16} />}
-                          label=""
-                          defaultChecked={false}
-                        />
-                      </td>
-                      <td>
-                        {" "}
-                        <Checkbox
-                          disabled
-                          color="primary"
-                          icon={<Check className="vx-icon" size={16} />}
-                          label=""
-                          defaultChecked={true}
-                        />
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>Articles</td>
-                      <td>
-                        <Checkbox
-                          disabled
-                          color="primary"
-                          icon={<Check className="vx-icon" size={16} />}
-                          label=""
-                          defaultChecked={false}
-                        />
-                      </td>
-                      <td>
-                        <Checkbox
-                          disabled
-                          color="primary"
-                          icon={<Check className="vx-icon" size={16} />}
-                          label=""
-                          defaultChecked={true}
-                        />
-                      </td>
-                      <td>
-                        <Checkbox
-                          disabled
-                          color="primary"
-                          icon={<Check className="vx-icon" size={16} />}
-                          label=""
-                          defaultChecked={false}
-                        />
-                      </td>
-                      <td>
-                        {" "}
-                        <Checkbox
-                          disabled
-                          color="primary"
-                          icon={<Check className="vx-icon" size={16} />}
-                          label=""
-                          defaultChecked={true}
-                        />
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>Staff</td>
-                      <td>
-                        <Checkbox
-                          disabled
-                          color="primary"
-                          icon={<Check className="vx-icon" size={16} />}
-                          label=""
-                          defaultChecked={true}
-                        />
-                      </td>
-                      <td>
-                        <Checkbox
-                          disabled
-                          color="primary"
-                          icon={<Check className="vx-icon" size={16} />}
-                          label=""
-                          defaultChecked={true}
-                        />
-                      </td>
-                      <td>
-                        <Checkbox
-                          disabled
-                          color="primary"
-                          icon={<Check className="vx-icon" size={16} />}
-                          label=""
-                          defaultChecked={false}
-                        />
-                      </td>
-                      <td>
-                        {" "}
-                        <Checkbox
-                          disabled
-                          color="primary"
-                          icon={<Check className="vx-icon" size={16} />}
-                          label=""
-                          defaultChecked={false}
-                        />
-                      </td>
-                    </tr>
-                  </tbody>
-                </Table>
+                {this.state.contracts.length ? (
+                  <ul className="mb-0" style={{ listStyle:'none', paddingLeft:0 }}>
+                    {this.state.contracts.slice(0,5).map(d => (
+                      <li key={`doc-${d.id}`} className="d-flex justify-content-between align-items-center py-25" style={{ borderBottom:'1px solid #f1f1f3' }}>
+                        <div>
+                          <div className="font-weight-bold text-truncate" style={{ maxWidth:360 }}>{fmt(d.comment)}</div>
+                          <small className="text-muted">{fmt(d.type)}</small>
+                        </div>
+                        <small className="text-muted">{d.updated_at ? new Date(d.updated_at).toLocaleDateString('fr-FR') : '—'}</small>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (<p className="mb-0 text-muted">Aucun document.</p>)}
+              </CardBody>
+            </Card>
+
+            {/* Tasks */}
+            <Card className="mb-1">
+              <CardHeader className="pb-0 d-flex align-items-center">
+                <CardTitle className="mb-0 d-flex align-items-center"><CheckSquare className="primary mr-50" size={18}/>Tâches</CardTitle>
+              </CardHeader>
+              <CardBody>
+                {this.state.tasks.length ? (
+                  <ul className="mb-0" style={{ listStyle:'none', paddingLeft:0 }}>
+                    {this.state.tasks.slice(0,5).map(t => (
+                      <li key={`task-${t.id || t.task_id || Math.random()}`} className="d-flex justify-content-between align-items-center py-25" style={{ borderBottom:'1px solid #f1f1f3' }}>
+                        <div>
+                          <div className="font-weight-bold text-truncate" style={{ maxWidth:360 }}>{fmt(t.title || t.name)}</div>
+                          <small className="text-muted">{fmt(t.status || t.label)}</small>
+                        </div>
+                        <small className="text-muted">{t.created_at ? new Date(t.created_at).toLocaleDateString('fr-FR') : '—'}</small>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (<p className="mb-0 text-muted">Aucune tâche.</p>)}
+              </CardBody>
+            </Card>
+
+            {/* Commentaires */}
+            <Card>
+              <CardHeader className="pb-0 d-flex align-items-center">
+                <CardTitle className="mb-0 d-flex align-items-center"><MessageCircle className="primary mr-50" size={18}/> Commentaires</CardTitle>
+              </CardHeader>
+              <CardBody>
+                <p className="mb-0 text-muted">Aucun commentaire pour le moment.</p>
               </CardBody>
             </Card>
           </Col>
