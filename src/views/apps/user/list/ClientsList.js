@@ -46,6 +46,8 @@ class ClientsList extends React.Component {
     defaultColDef: {
       resizable: true,
       sortable: true,
+      flex: 1,
+      minWidth: 120,
     },
     searchVal: "",
     currentUserEmail: "", // <-- ajouté
@@ -65,7 +67,9 @@ class ClientsList extends React.Component {
       {
         headerName: "Création",
         filter: true,
-        width: 150,
+        width: 120,
+        minWidth: 120,
+        flex: 0,
         cellRendererFramework: (params) => {
           return (
             <div>
@@ -81,7 +85,9 @@ class ClientsList extends React.Component {
       {
         headerName: "Nom",
         filter: true,
-        width: 250,
+        width: 120,
+        minWidth: 120,
+        flex: 1,
         valueGetter: (params) => {
           return params.data.last_name;
         },
@@ -89,7 +95,9 @@ class ClientsList extends React.Component {
       {
         headerName: "Prenom",
         filter: true,
-        width: 250,
+        width: 120,
+        minWidth: 120,
+        flex: 0,
         valueGetter: (params) => {
           return params.data.first_name;
         },
@@ -105,15 +113,17 @@ class ClientsList extends React.Component {
           return params.data.civility || "";
         },
       },
-      {
-        field: "parent_id",
-        filter: true,
-        hide: true,
-      },
+      // {
+      //   field: "parent_id",
+      //   filter: true,
+      //   hide: true,
+      // },
       {
         headerName: "Nom du technicien",
         filter: false,
-        width: 250,
+        width: 140,
+        minWidth: 140,
+        flex: 0,
         valueGetter: (params) => {
           return params.data.parent ? params.data.parent.name : "";
         },
@@ -121,7 +131,9 @@ class ClientsList extends React.Component {
       {
         headerName: "Apport commercial",
         filter: false,
-        width: 250,
+        width: 140,
+        minWidth: 140,
+        flex: 0,
         valueGetter: (params) => {
           return params.data.business_introducer
             ? params.data.business_introducer.name || params.data.business_introducer
@@ -132,7 +144,9 @@ class ClientsList extends React.Component {
         headerName: "Email",
         field: "email",
         filter: true,
-        width: 250,
+        width: 220,
+        minWidth: 200,
+        flex: 0,
         cellRendererFramework: (rowData) => {
           var email = rowData.data.email;
           return (
@@ -154,7 +168,9 @@ class ClientsList extends React.Component {
       {
         headerName: "Actions",
         colId: "actions",
-        width: 150,
+        width: 81,
+        minWidth: 81,
+        flex: 0,
         cellRendererFramework: (params) => {
           return (
             <div
@@ -164,14 +180,14 @@ class ClientsList extends React.Component {
             >
               <Edit
                 className="mr-50"
-                size={15}
+                size={20}
                 onClick={(e) => {
                   e.stopPropagation();
                   history.push("/app/user/edit/" + params.data.id + "/1");
                 }}
               />
               <Trash2
-                size={15}
+                size={20}
                 onClick={(e) => {
                   e.stopPropagation();
                   this.handleAlert("defaultAlert", true, params.data.id);
@@ -210,6 +226,15 @@ class ClientsList extends React.Component {
       }
     }
   }
+
+  // Ajuste les colonnes à la largeur disponible (supprime l'espace droit)
+  sizeToFit = () => {
+    if (this.gridApi) {
+      try {
+        this.gridApi.sizeColumnsToFit();
+      } catch (e) {}
+    }
+  };
 
   // ======= EXPORT EXCEL (XLSX) =======
 
@@ -417,6 +442,10 @@ class ClientsList extends React.Component {
     }
   };
 
+  componentWillUnmount() {
+    window.removeEventListener("resize", this.sizeToFit);
+  }
+
   render() {
     const { rowData, columnDefs, defaultColDef, pageSize } = this.state;
     return (
@@ -474,9 +503,9 @@ class ClientsList extends React.Component {
 
         <Row className="app-user-list">
           <Col sm="12">
-            <Card>
-              <CardBody>
-                <div className="ag-theme-material ag-grid-table" style={{ height: "68vh" }}>
+            <Card style={{ minHeight: "82vh" }}>
+              <CardBody style={{ paddingBottom: "1rem" }}>
+                <div className="ag-theme-material ag-grid-table" style={{ height: "78vh", width: "100%" }}>
                   <div className="ag-grid-actions d-flex justify-content-between flex-wrap mb-1">
                     <div className="sort-dropdown">
                       <UncontrolledDropdown className="ag-dropdown p-1">
@@ -577,7 +606,9 @@ class ClientsList extends React.Component {
                           defaultColDef={defaultColDef}
                           columnDefs={columnDefs}
                           rowData={rowData}
-                          onGridReady={this.onGridReady}
+                          onGridReady={(params) => { this.onGridReady(params); this.sizeToFit(); window.addEventListener("resize", this.sizeToFit); }}
+                          onFirstDataRendered={this.sizeToFit}
+                          onGridSizeChanged={this.sizeToFit}
                           colResizeDefault={"shift"}
                           animateRows={false}
                           floatingFilter={true}

@@ -75,7 +75,7 @@ class UserView extends React.Component {
                               </div>
                               <div className="d-flex user-info">
                                 <div className="user-info-title font-weight-bold">
-                                  Role
+                                  Rôle
                                 </div>
                                 <div>admin</div>
                               </div>

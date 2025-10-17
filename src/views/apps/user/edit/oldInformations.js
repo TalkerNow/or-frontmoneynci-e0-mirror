@@ -306,7 +306,7 @@ class UserAccountTab extends React.Component {
               </Col>
               <Col md="6" sm="12">
                 <FormGroup>
-                  <Label for="role">Role</Label>
+                  <Label for="role">Rôle</Label>
                   {this.ifDataExist("role") != null && (
                     <Input
                       type="select"

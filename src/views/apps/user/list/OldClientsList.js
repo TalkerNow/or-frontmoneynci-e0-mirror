@@ -69,6 +69,8 @@ class OldClientsList extends React.Component {
     defaultColDef: {
       resizable: true,
       sortable: true,
+      flex: 1,
+      minWidth: 120,
     },
     searchVal: "",
     columnDefs: [
@@ -76,7 +78,9 @@ class OldClientsList extends React.Component {
         headerName: "Nom",
         field: "cl_nom",
         filter: true,
-        width: 250,
+        width: 120,
+        minWidth: 120,
+        flex: 1,
         cellRendererFramework: (rowData) => {
           return (
             <div
@@ -94,7 +98,9 @@ class OldClientsList extends React.Component {
         headerName: "Prénom",
         field: "cl_prenom",
         filter: true,
-        width: 250,
+        width: 120,
+        minWidth: 120,
+        flex: 0,
         cellRendererFramework: (rowData) => {
           return (
             <div
@@ -112,7 +118,9 @@ class OldClientsList extends React.Component {
         headerName: "Expert",
         field: "expert_name",
         filter: true,
-        width: 250,
+        width: 120,
+        minWidth: 120,
+        flex: 0,
         cellRendererFramework: (rowData) => {
           return (
             <div className="d-flex align-items-center cursor-pointer">
@@ -224,7 +232,9 @@ class OldClientsList extends React.Component {
         headerName: "Email",
         field: "cl_mail",
         filter: true,
-        width: 200,
+        width: 150,
+        minWidth: 150,
+        flex: 0,
         cellRendererFramework: (rowData) => {
           var email = rowData.data.cl_mail;
           return (
@@ -250,17 +260,21 @@ class OldClientsList extends React.Component {
         },
         field: "cl_date",
         filter: true,
-        width: 200,
+        width: 120,
+        minWidth: 120,
+        flex: 0,
       },
       {
         headerName: "Actions",
-        width: 150,
+        width: 67,
+        minWidth: 67,
+        flex: 0,
         cellRendererFramework: (params) => {
           return (
             <div className="actions cursor-pointer">
               <Edit
                 className="mr-50"
-                size={15}
+                size={20}
                 onClick={() =>
                   history.push(
                     "/app/olduser/edit/" + params.data.clcleunik + "/1"
@@ -268,7 +282,7 @@ class OldClientsList extends React.Component {
                 }
               />
               <Trash2
-                size={15}
+                size={20}
                 onClick={() => {
                   this.handleAlert("defaultAlert", true, params.data.clcleunik);
                 }}
@@ -510,7 +524,7 @@ class OldClientsList extends React.Component {
                   <Row>
                     <Col lg="3" md="6" sm="12">
                       <FormGroup className="mb-0">
-                        <Label for="role">Role</Label>
+                        <Label for="role">Rôle</Label>
                         <Input
                           type="select"
                           name="role"
