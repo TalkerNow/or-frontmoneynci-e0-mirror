@@ -488,14 +488,14 @@ class AllContracts extends React.Component {
         </SweetAlert>
         <Row className="app-user-list">
           <Col sm="12">
-            <Card>
+            <Card style={{ minHeight: "62vh" }}>
               <CardBody>
                 <div className="ag-theme-material ag-grid-table">
                   <div className="ag-grid-actions d-flex justify-content-between flex-wrap mb-1">
                     <div className="sort-dropdown">
                       <UncontrolledDropdown className="ag-dropdown p-1">
                         <DropdownToggle tag="div">
-                          1 - {pageSize} of 150
+                          1 - {pageSize} sur 150
                           <ChevronDown className="ml-50" size={15} />
                         </DropdownToggle>
                         <DropdownMenu right>

@@ -377,7 +377,7 @@ class ClientsList extends React.Component {
   onGridReady = (params) => {
     this.gridApi = params.api;
     this.gridColumnApi = params.columnApi;
-    this.gridApi.setDomLayout("autoHeight");
+    // Use normal layout; container sets a fixed height so grid scrolls inside the card
   };
 
   filterData = (column, val) => {
@@ -474,9 +474,9 @@ class ClientsList extends React.Component {
 
         <Row className="app-user-list">
           <Col sm="12">
-            <Card style={{ minHeight: "3000px" }}>
+            <Card>
               <CardBody>
-                <div className="ag-theme-material ag-grid-table">
+                <div className="ag-theme-material ag-grid-table" style={{ height: "68vh" }}>
                   <div className="ag-grid-actions d-flex justify-content-between flex-wrap mb-1">
                     <div className="sort-dropdown">
                       <UncontrolledDropdown className="ag-dropdown p-1">
@@ -571,7 +571,6 @@ class ClientsList extends React.Component {
                       {(context) => (
                         <AgGridReact
                           rowBuffer={10}
-                          height={"autoHeight"}
                           gridOptions={this.state.gridOptions}
                           doesExternalFilterPass={this.doesExternalFilterPass}
                           isExternalFilterPresent={this.isExternalFilterPresent}

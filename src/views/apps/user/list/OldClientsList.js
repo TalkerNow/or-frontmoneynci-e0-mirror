@@ -280,6 +280,15 @@ class OldClientsList extends React.Component {
     ],
   };
 
+  // Ajuste les colonnes pour occuper toute la largeur (supprime l'espace droit)
+  sizeToFit = () => {
+    if (this.gridApi) {
+      try {
+        this.gridApi.sizeColumnsToFit();
+      } catch (e) {}
+    }
+  };
+
   createContract(id, name) {
     const Config = {
       headers: {
@@ -340,8 +349,13 @@ class OldClientsList extends React.Component {
   onGridReady = (params) => {
     this.gridApi = params.api;
     this.gridColumnApi = params.columnApi;
-    this.gridApi.setDomLayout("autoHeight");
+    // Normal layout; grid scrolls within a fixed-height container
+    this.sizeToFit();
+    window.addEventListener("resize", this.sizeToFit);
   };
+  componentWillUnmount() {
+    window.removeEventListener("resize", this.sizeToFit);
+  }
   filterData = (column, val) => {
     var filter = this.gridApi.getFilterInstance(column);
     var modelObj = null;
@@ -611,14 +625,17 @@ class OldClientsList extends React.Component {
             </Card>
           </Col>
           <Col sm="12">
-            <Card style={{ minHeight: "3000px" }}>
-              <CardBody>
-                <div className="ag-theme-material ag-grid-table">
+            <Card style={{ minHeight: "89vh" }}>
+              <CardBody style={{ paddingBottom: "1rem" }}>
+                <div
+                  className="ag-theme-material ag-grid-table"
+                  style={{ height: "82vh", width: "100%" }}
+                >
                   <div className="ag-grid-actions d-flex justify-content-between flex-wrap mb-1">
                     <div className="sort-dropdown">
                       <UncontrolledDropdown className="ag-dropdown p-1">
                         <DropdownToggle tag="div">
-                          1 - {pageSize} of 150
+                          1 - {pageSize} sur 150
                           <ChevronDown className="ml-50" size={20} />
                         </DropdownToggle>
                         <DropdownMenu right>
@@ -673,7 +690,6 @@ class OldClientsList extends React.Component {
                     <ContextLayout.Consumer>
                       {(context) => (
                         <AgGridReact
-                          height={"autoHeight"}
                           gridOptions={{
                             onCellClicked: (params) => {
                               console.log(params);
@@ -689,6 +705,8 @@ class OldClientsList extends React.Component {
                               }
                             },
                           }}
+                          onFirstDataRendered={this.sizeToFit}
+                          onGridSizeChanged={this.sizeToFit}
                           rowSelection="multiple"
                           defaultColDef={defaultColDef}
                           columnDefs={columnDefs}

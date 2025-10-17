@@ -344,7 +344,7 @@ export default function KpiStats() {
         <Card style={{ borderRadius: "12px", boxShadow: "0 2px 6px rgba(0,0,0,0.05)", marginBottom: "20px" }}>
           <CardBody>
             <h5 style={{ fontWeight: 600, marginBottom: 20 }}>
-              Appels / Mails (sem. {week})
+              Appels (sem. {week})
             </h5>
             <ResponsiveContainer width="100%" height={250}>
               <ComposedChart data={callsData}>
