@@ -1,5 +1,5 @@
 import React from "react";
-import { Card, CardHeader, CardTitle, CardBody, Row, Col, Button, Input, Label, FormGroup, Nav, NavItem, NavLink, TabContent, TabPane, Alert } from "reactstrap";
+import { Card, CardHeader, CardTitle, CardBody, Row, Col, Button, Input, Label, FormGroup, Nav, NavItem, NavLink, TabContent, TabPane, Alert, NavbarToggler } from "reactstrap";
 import classnames from "classnames";
 import UserDetails from "./UserDetails";
 //import { Edit, Trash, Lock, Check } from "react-feather"
@@ -7,11 +7,14 @@ import UserDetails from "./UserDetails";
 //import Checkbox from "../../../components/@vuexy/checkbox/CheckboxesVuexy"
 //import userImg from "../../../assets/img/portrait/small/avatar-s-18.jpg"
 import "../../../assets/scss/pages/users.scss";
+import "./Profile.css";
 import { history } from "../../../history";
 //import { useTranslation } from 'react-i18next';
 import axios from "axios";
 import { toast } from "react-toastify";
-import { Globe, FileText, File, CheckSquare, MessageCircle, Lock } from "react-feather";
+import { Globe, FileText, File, CheckSquare, MessageCircle, Lock, Activity, Disc, Circle } from "react-feather";
+import SimulatorHub from "../user/edit/SimulatorHub";
+import DocumentsHub from "../user/edit/DocumentsHub";
 
 /*const handleNavigation = (e, path) => {
   e.preventDefault()
@@ -25,6 +28,7 @@ class UserView extends React.Component {
     contracts: [],
     tasks: [],
     activeTab: "notes",
+    isCollapsed: false,
     // Security tab state
     showCurrent: false,
     showNew: false,
@@ -33,6 +37,42 @@ class UserView extends React.Component {
     newPassword: "",
     confirmPassword: "",
     alert: null,
+    simuOffset: 0,
+    docsOffset: 0,
+  };
+
+  navRef = null;
+
+  computeSimuOffset = () => {
+    try {
+      const nav = this.navRef;
+      const label = document.getElementById('simulateur-label-profile');
+      if (nav && label) {
+        const delta = label.getBoundingClientRect().left - nav.getBoundingClientRect().left;
+        this.setState({ simuOffset: Math.max(0, Math.round(delta)) });
+      }
+    } catch (e) {}
+  };
+  computeDocsOffset = () => {
+    try {
+      const nav = this.navRef;
+      const label = document.getElementById('documents-label-profile');
+      if (nav && label) {
+        const delta = label.getBoundingClientRect().left - nav.getBoundingClientRect().left;
+        this.setState({ docsOffset: Math.max(0, Math.round(delta)) });
+      }
+    } catch (e) {}
+  };
+
+  computeDocsOffset = () => {
+    try {
+      const nav = this.navRef;
+      const link = document.getElementById('documents-link-profile');
+      if (nav && link) {
+        const delta = link.getBoundingClientRect().left - nav.getBoundingClientRect().left;
+        this.setState({ docsOffset: Math.max(0, Math.round(delta)) });
+      }
+    } catch (e) {}
   };
 
   async componentDidMount() {
@@ -81,7 +121,14 @@ class UserView extends React.Component {
     }
   };
   toggleTab = (tab) => {
-    if (this.state.activeTab !== tab) this.setState({ activeTab: tab });
+    if (this.state.activeTab !== tab) {
+      const next = { activeTab: tab };
+      if (tab === 'simulateur' && !this.state.isCollapsed) next.isCollapsed = true;
+      this.setState(next, () => {
+        if (tab === 'simulateur') setTimeout(this.computeSimuOffset, 0);
+        if (tab === 'documents') setTimeout(this.computeDocsOffset, 0);
+      });
+    }
   };
 
   handleResetPwd = () => {
@@ -123,31 +170,41 @@ class UserView extends React.Component {
   render() {
     return (
       <React.Fragment>
-        <Row>
-          <Col lg="4" md="5" sm="12" className="mb-1">
-            <UserDetails user={this.state.rowData || {}} onEdit={() => history.push(`/app/member/edit/${localStorage.getItem("userid")}/1`)} />
+        <Row className='align-items-start'>
+          <Col md="4" className={classnames('profile-left profile-sidebar-fixed', { collapsed: this.state.isCollapsed })}>
+            <div>
+              <UserDetails
+                user={this.state.rowData || {}}
+                onEdit={() => history.push(`/app/member/edit/${localStorage.getItem("userid")}/1`)}
+                showCollapse
+                onCollapse={() => this.setState({ isCollapsed: true })}
+              />
+            </div>
           </Col>
-          <Col lg="8" md="7" sm="12">
+          <Col md="8" className={classnames('profile-right', { expanded: this.state.isCollapsed })}>
             {/* Onglets */}
-            <Nav tabs className="border-0 d-flex align-items-center gap-3 mb-1">
+            <Nav tabs className="border-0 d-flex align-items-center gap-3 mb-1" ref={el => (this.navRef = el)}>
+              {this.state.isCollapsed && (
+                <NavItem>
+                  <NavLink onClick={() => this.setState({ isCollapsed: false })} className='p-0'>
+                    <Circle className="toggle-icon icon-x font-medium-4 text-primary" size={20} />
+                  </NavLink>
+                </NavItem>
+              )}
               <NavItem>
                 <NavLink className={classnames({ active: this.state.activeTab === 'notes' })} onClick={() => this.toggleTab('notes')}>
                   <Globe className='text-primary mr-50' size={16}/> Notes
                 </NavLink>
               </NavItem>
-              <NavItem>
+              {/* <NavItem>
                 <NavLink className={classnames({ active: this.state.activeTab === 'security' })} onClick={() => this.toggleTab('security')}>
                   <Lock className='text-primary mr-50' size={16}/> Sécurité
                 </NavLink>
-              </NavItem>
+              </NavItem> */}
               <NavItem>
-                <NavLink className={classnames({ active: this.state.activeTab === 'contrats' })} onClick={() => this.toggleTab('contrats')}>
-                  <FileText className='text-primary mr-50' size={16}/> Contrats
-                </NavLink>
-              </NavItem>
-              <NavItem>
-                <NavLink className={classnames({ active: this.state.activeTab === 'documents' })} onClick={() => this.toggleTab('documents')}>
-                  <File className='text-primary mr-50' size={16}/> Documents
+                <NavLink id='documents-link-profile' className={classnames({ active: this.state.activeTab === 'documents' })} onClick={() => this.toggleTab('documents')}>
+                  <File className='text-primary mr-50' size={16}/>
+                  <span id='documents-label-profile'> Documents</span>
                 </NavLink>
               </NavItem>
               <NavItem>
@@ -158,6 +215,12 @@ class UserView extends React.Component {
               <NavItem>
                 <NavLink className={classnames({ active: this.state.activeTab === 'commentaires' })} onClick={() => this.toggleTab('commentaires')}>
                   <MessageCircle className='text-primary mr-50' size={16}/> Commentaires
+                </NavLink>
+              </NavItem>
+              <NavItem>
+                <NavLink id='simulateur-link-profile' className={classnames({ active: this.state.activeTab === 'simulateur' })} onClick={() => this.toggleTab('simulateur')}>
+                  <Activity className='text-primary mr-50' size={16}/>
+                  <span id='simulateur-label-profile'> Simulateur</span>
                 </NavLink>
               </NavItem>
             </Nav>
@@ -226,6 +289,10 @@ class UserView extends React.Component {
                   </CardBody>
                 </Card>
               </TabPane>
+              {/* Simulateur */}
+              <TabPane tabId='simulateur'>
+                <SimulatorHub id={localStorage.getItem('userid')} alignOffset={this.state.simuOffset} />
+              </TabPane>
               {/* Notes */}
               <TabPane tabId='notes'>
                 <Card className='mb-1 shadow-sm rounded-2xl'>
@@ -246,56 +313,10 @@ class UserView extends React.Component {
                 </Card>
               </TabPane>
 
-              {/* Contrats */}
-              <TabPane tabId='contrats'>
-                <Card className='mb-1 shadow-sm rounded-2xl'>
-                  <CardHeader className='pb-0'>
-                    <CardTitle tag='h5' className='d-flex align-items-center'>
-                      <FileText className='text-primary mr-50' size={18}/> Contrats
-                    </CardTitle>
-                  </CardHeader>
-                  <CardBody>
-                    {this.state.contracts && this.state.contracts.length > 0 ? (
-                      <ul className='mb-0' style={{ listStyle:'none', paddingLeft:0 }}>
-                        {this.state.contracts.slice(0,5).map((c)=>(
-                          <li key={c.id} className='d-flex justify-content-between align-items-center py-25' style={{ borderBottom:'1px solid #f1f1f3' }}>
-                            <div>
-                              <div className='font-weight-bold text-truncate' style={{ maxWidth:360 }}>{c.comment || '—'}</div>
-                              <small className='text-muted'>{(c.document_state || '—') + ' • ' + (c.type || 'document')}</small>
-                            </div>
-                            <small className='text-muted'>{c.created_at ? new Date(c.created_at).toLocaleDateString('fr-FR') : '—'}</small>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (<p className='mb-0 text-muted'>Aucun contrat.</p>)}
-                  </CardBody>
-                </Card>
-              </TabPane>
 
               {/* Documents */}
               <TabPane tabId='documents'>
-                <Card className='mb-1 shadow-sm rounded-2xl'>
-                  <CardHeader className='pb-0'>
-                    <CardTitle tag='h5' className='d-flex align-items-center'>
-                      <File className='text-primary mr-50' size={18}/> Documents
-                    </CardTitle>
-                  </CardHeader>
-                  <CardBody>
-                    {this.state.contracts && this.state.contracts.length > 0 ? (
-                      <ul className='mb-0' style={{ listStyle:'none', paddingLeft:0 }}>
-                        {this.state.contracts.slice(0,5).map((d)=>(
-                          <li key={`doc-${d.id}`} className='d-flex justify-content-between align-items-center py-25' style={{ borderBottom:'1px solid #f1f1f3' }}>
-                            <div>
-                              <div className='font-weight-bold text-truncate' style={{ maxWidth:360 }}>{d.comment || '—'}</div>
-                              <small className='text-muted'>{(d.type || 'document')}</small>
-                            </div>
-                            <small className='text-muted'>{d.updated_at ? new Date(d.updated_at).toLocaleDateString('fr-FR') : '—'}</small>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (<p className='mb-0 text-muted'>Aucun document.</p>)}
-                  </CardBody>
-                </Card>
+                <DocumentsHub id={localStorage.getItem('userid')} alignOffset={this.state.docsOffset} />
               </TabPane>
 
               {/* Tasks */}
