@@ -383,6 +383,12 @@ function renderActionBadge(action) {
 export default function KpiPage() {
   // Création KPI
   const history = useHistory();
+  const [winW, setWinW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+  useEffect(() => {
+    const onResize = () => setWinW(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
   const [objet, setObjet] = useState("Appel entrant");
   const [action, setAction] = useState("");
   const [creating, setCreating] = useState(false);
@@ -1071,10 +1077,10 @@ export default function KpiPage() {
       {/* ====== Graph ====== */}
       <div className="vx-col w-100">
         <Card>
-          <CardHeader className="d-flex align-items-center justify-content-between">
+          <CardHeader className="d-flex align-items-center justify-content-between flex-wrap" style={{ gap: 8 }}>
             <h4 className="mb-0">Vue d’ensemble</h4>
 
-            <div className="d-flex align-items-center">
+            <div className="d-flex align-items-center flex-wrap" style={{ gap: 8 }}>
               {/* GroupBy */}
               <UncontrolledButtonDropdown className="mr-1">
                 <DropdownToggle caret color="primary">
@@ -1127,7 +1133,7 @@ export default function KpiPage() {
                       color="primary"
                       caret={false}
                       className="px-3"
-                      style={{ minWidth: 260, whiteSpace: "nowrap" }}
+                      style={{ minWidth: 180, maxWidth: "90vw", whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden" }}
                     >
                       {weekLabel}
                     </DropdownToggle>
@@ -1177,7 +1183,7 @@ export default function KpiPage() {
               </UncontrolledButtonDropdown>
             </div>
           </CardHeader>
-          <CardBody style={{ height: 420 }}>
+          <CardBody style={{ height: winW < 576 ? 280 : winW < 768 ? 320 : 420 }}>
             {loadingChart ? (
               <div className="text-center" style={{ opacity: 0.7 }}>
                 Chargement du graphique…

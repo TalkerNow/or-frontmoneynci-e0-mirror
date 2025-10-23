@@ -995,7 +995,7 @@ class UserAccountTab extends React.Component {
                 sm="12"
               >
                 <Button.Ripple className="mr-1" color="success" type="submit">
-                  Modifier
+                  Valider
                 </Button.Ripple>
               </Col>
             </Row>

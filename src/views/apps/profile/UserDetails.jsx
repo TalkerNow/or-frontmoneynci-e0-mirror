@@ -55,12 +55,8 @@ export default function UserDetails({ user = {}, onEdit, onSuspend }) {
               <div className="text-truncate">{user.role || "—"}</div>
             </div>
             <div className="d-flex user-info">
-              <div className="user-info-title font-weight-bold">Numéro de téléphone:</div>
+              <div className="user-info-title font-weight-bold">N°:</div>
               <div className="text-truncate">{user.mobile_number || user.office_number || "—"}</div>
-            </div>
-            <div className="d-flex user-info">
-              <div className="user-info-title font-weight-bold">Pays:</div>
-              <div className="text-truncate">{user.personal_country || "—"}</div>
             </div>
           </div>
         </div>
