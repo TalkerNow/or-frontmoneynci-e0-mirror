@@ -316,7 +316,7 @@ class UserView extends React.Component {
 
               {/* Documents */}
               <TabPane tabId='documents'>
-                <DocumentsHub id={localStorage.getItem('userid')} alignOffset={this.state.docsOffset} />
+                <DocumentsHub id={localStorage.getItem('userid')} alignOffset={this.state.docsOffset} labelId={'documents-label-profile'} />
               </TabPane>
 
               {/* Tasks */}

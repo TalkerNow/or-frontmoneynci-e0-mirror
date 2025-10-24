@@ -183,7 +183,7 @@ class UserEdit extends React.Component {
               </Card>
             </TabPane>
             <TabPane tabId='documents'>
-              <DocumentsHub id={id} userFullName={`${userView.first_name || ''} ${userView.last_name || ''}`.trim()} alignOffset={this.state.docsOffset} />
+              <DocumentsHub id={id} userFullName={`${userView.first_name || ''} ${userView.last_name || ''}`.trim()} alignOffset={this.state.docsOffset} labelId={`documents-label-old-${id}`} />
             </TabPane>
             <TabPane tabId='commentaires'>
               <Card className='mb-1'>

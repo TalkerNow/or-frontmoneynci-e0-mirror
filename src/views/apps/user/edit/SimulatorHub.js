@@ -7,6 +7,8 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
   const [regimeTab, setRegimeTab] = useState('base')
   const [hypo, setHypo] = useState('sans')
   const [innerOffset, setInnerOffset] = useState(0)
+  const [visible, setVisible] = useState(false)
+  const [innerVisible, setInnerVisible] = useState(false)
   const subNavRef = useRef(null)
   const innerNavRef = useRef(null)
 
@@ -14,25 +16,48 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
     try {
       if (subTab !== 'regimes') { setInnerOffset(0); return }
       const baseSpan = document.getElementById('regimes-label')
-      const innerNav = innerNavRef.current
-      if (baseSpan && innerNav) {
-        const firstLink = innerNav.querySelector('.nav-link')
-        if (!firstLink) { setInnerOffset(0); return }
-        const style = window.getComputedStyle(firstLink)
-        const padLeft = parseFloat(style.paddingLeft || '0')
-        const firstTextLeft = firstLink.getBoundingClientRect().left + padLeft
+      const firstText = document.getElementById('regime-base-text')
+      if (baseSpan && firstText) {
         const baseLeft = baseSpan.getBoundingClientRect().left
-        const delta = baseLeft - firstTextLeft
+        const firstLeft = firstText.getBoundingClientRect().left
+        const delta = baseLeft - firstLeft
         setInnerOffset(Math.round(delta))
       }
     } catch (e) { setInnerOffset(0) }
   }
 
   useEffect(() => { computeInnerOffset() }, [subTab])
+  // Animate outer sub-nav on alignment or section change
+  useEffect(() => {
+    setVisible(false)
+    const raf = requestAnimationFrame(() => setVisible(true))
+    return () => cancelAnimationFrame(raf)
+  }, [alignOffset, subTab])
+  // Animate inner regimes sub-nav each time offset or tab changes
+  useEffect(() => {
+    if (subTab === 'regimes') {
+      setInnerVisible(false)
+      const raf = requestAnimationFrame(() => setInnerVisible(true))
+      return () => cancelAnimationFrame(raf)
+    } else {
+      setInnerVisible(false)
+    }
+  }, [subTab, innerOffset, regimeTab])
 
   return (
     <div>
-      <Nav tabs className="mb-1" style={{ marginLeft: Math.max(0, Number(alignOffset) || 0) }} ref={subNavRef}>
+      <Nav
+        tabs
+        className="mb-1"
+        style={{
+          marginLeft: Math.max(0, Number(alignOffset) || 0),
+          opacity: visible ? 1 : 0,
+          transform: visible ? 'translateY(0)' : 'translateY(-6px)',
+          transition: 'margin-left 220ms cubic-bezier(0.16, 1, 0.3, 1), opacity 140ms ease, transform 220ms cubic-bezier(0.16, 1, 0.3, 1)',
+          willChange: 'margin-left, transform, opacity'
+        }}
+        ref={subNavRef}
+      >
         <NavItem>
           <NavLink className={classnames({ active: subTab === 'carriere' })} onClick={() => setSubTab('carriere')}>
             Carrière
@@ -65,10 +90,21 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
         </TabPane>
 
         <TabPane tabId='regimes'>
-          <Nav tabs className='mb-1' style={{ marginLeft: innerOffset }} ref={innerNavRef}>
+          <Nav
+            tabs
+            className='mb-1'
+            style={{
+              marginLeft: innerOffset,
+              opacity: innerVisible ? 1 : 0,
+              transform: innerVisible ? 'translateY(0)' : 'translateY(-6px)',
+              transition: 'margin-left 220ms cubic-bezier(0.16, 1, 0.3, 1), opacity 140ms ease, transform 220ms cubic-bezier(0.16, 1, 0.3, 1)',
+              willChange: 'margin-left, transform, opacity'
+            }}
+            ref={innerNavRef}
+          >
             <NavItem>
               <NavLink className={classnames({ active: regimeTab === 'base' })} onClick={() => setRegimeTab('base')}>
-                Régime de base
+                <span id='regime-base-text'>Régime de base</span>
               </NavLink>
             </NavItem>
             <NavItem>
@@ -94,7 +130,7 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
           </Nav>
           <TabContent activeTab={regimeTab}>
             <TabPane tabId='base'>
-              <Card className='mb-1'><CardBody><p className='mb-0 text-muted'>Paramètres du Régime de base.</p></CardBody></Card>
+              <Card className='mb-1'><CardBody><p className='mb-0 text-muted'><span id='regime-base-label'>Paramètres du Régime de base.</span></p></CardBody></Card>
             </TabPane>
             <TabPane tabId='arrco'>
               <Card className='mb-1'><CardBody><p className='mb-0 text-muted'>Paramètres ARRCO-AGIRC.</p></CardBody></Card>

@@ -196,7 +196,7 @@ class UserEdit extends React.Component {
               </Card>
             </TabPane>
             <TabPane tabId='documents'>
-              <DocumentsHub id={id} name={this.state.rowData.name} parent_id={this.state.rowData.parent_id} alignOffset={this.state.docsOffset} />
+              <DocumentsHub id={id} name={this.state.rowData.name} parent_id={this.state.rowData.parent_id} alignOffset={this.state.docsOffset} labelId={`documents-label-client-${id}`} />
             </TabPane>
             <TabPane tabId='tasks'>
               <Card className='mb-1'>
