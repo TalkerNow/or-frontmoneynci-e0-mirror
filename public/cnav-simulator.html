@@ -64,7 +64,7 @@
                 <th>Coeff. Revalo</th>
                 <th>Salaires Revalorisés</th>
                 <th>Trimestres</th>
-                <th>Option</th>
+                <th>Déplafonner</th>
               </tr>
             </thead>
             <tbody id="cnav-body"></tbody>
@@ -149,7 +149,7 @@
             <td><span id="e${i}">0</span></td>
             <td>
               <label class="checkbox-label">
-                <input type="checkbox" id="deplafonner_${i}" onchange="simulateur(document.getElementById('sr-${i}').value, ${i}, this.checked)"> Déplafonner
+                <input type="checkbox" id="deplafonner_${i}" onchange="simulateur(document.getElementById('sr-${i}').value, ${i}, this.checked)">
               </label>
             </td>`;
           tb.appendChild(tr);
