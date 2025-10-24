@@ -1,5 +1,5 @@
 import React from "react";
-import { Card, CardHeader, CardTitle, CardBody, Row, Col, Button, Input, Label, FormGroup, Nav, NavItem, NavLink, TabContent, TabPane, Alert, NavbarToggler } from "reactstrap";
+import { Card, CardHeader, CardTitle, CardBody, Row, Col, Button, Input, Label, FormGroup, Nav, NavItem, NavLink, TabContent, TabPane, Alert } from "reactstrap";
 import classnames from "classnames";
 import UserDetails from "./UserDetails";
 //import { Edit, Trash, Lock, Check } from "react-feather"
@@ -12,7 +12,7 @@ import { history } from "../../../history";
 //import { useTranslation } from 'react-i18next';
 import axios from "axios";
 import { toast } from "react-toastify";
-import { Globe, FileText, File, CheckSquare, MessageCircle, Lock, Activity, Disc, Circle } from "react-feather";
+import { Globe, File, CheckSquare, MessageCircle, Lock, Activity, Circle } from "react-feather";
 import SimulatorHub from "../user/edit/SimulatorHub";
 import DocumentsHub from "../user/edit/DocumentsHub";
 

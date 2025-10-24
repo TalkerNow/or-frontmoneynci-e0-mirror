@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Simulateur IRCANTEC</title>
+    <style type="text/css">
+      :root { --border:#ddd; --bg:#fff; --alt:#f7f7fb; --accent:#7367f0; --head: var(--accent); }
+      html, body { margin:0; padding:0; background:transparent; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif; color:#4b4b4b; }
+      .container { padding:12px; }
+      .sim-title { font-weight: 800; text-transform: uppercase; letter-spacing: .02em; margin: 6px 0 8px; font-size: 20px; color:#1f2d3d; }
+      .sim-help { font-size:14px; line-height:1.55; margin: 0 0 12px; }
+      .sim-help strong { color: var(--accent); }
+      table { width:100%; border-collapse:collapse; font-size: 13px; }
+      tbody tr:nth-child(even) { background-color: var(--alt); }
+      tbody tr:nth-child(odd) { background-color: var(--bg); }
+      td { border: 1px solid var(--border); padding: 8px; vertical-align: middle; text-align:center; }
+      th { background-color: var(--head); color: #fff; border: 1px solid var(--border); padding: 8px; text-align:center; }
+      input[type="text"] { width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; outline: none; display: block; }
+      button { border-radius:8px; padding:6px 12px; border:1px solid var(--accent); color:#fff; background:var(--accent); cursor:pointer; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2 class="sim-title">SIMULATEUR DE POINTS IRCANTEC</h2>
+      <div style="margin-bottom:8px;">
+        <button onclick="resetIrcantec()">Réinitialiser</button>
+      </div>
+
+      <table class="tableizer-table">
+        <thead>
+          <tr class="tableizer-firstrow"><th>Année</th><th>Salaire (F/€)</th><th>Taux service Tranche A</th><th>Taux service Tranche B</th><th>Salaire référence (F/€)</th><th>TRANCHE A</th><th>TRANCHE B</th><th>TOTAL</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1963</td><td><input type="text" id="1" placeholder="en Franc" onkeyup="simulateur(this.value,this.id);" ></td><td>2,50%</td><td>9,00%</td><td>1,64 F</td><td><span id="c1"></span></td><td><span id="a1"></span></td><td><span id="z1"></span></td></tr>
+          <tr><td>1964</td><td><input type="text" id="2"  placeholder="en Franc" onkeyup="simulateur(this.value,this.id);"></td><td>2,50%</td><td>9,00%</td><td>1,74 F</td><td><span id="c2"></span></td><td><span id="a2"></span></td><td><span id="z2"></span></td></tr>
+          <tr><td>1965</td><td><input type="text" id="3"  placeholder="en Franc" onkeyup="simulateur(this.value,this.id);"></td><td>2,50%</td><td>9,00%</td><td>1,82 F</td><td><span id="c3"></span></td><td><span id="a3"></span></td><td><span id="z3"></span></td></tr>
+          <tr><td>1966</td><td><input type="text" id="4"  placeholder="en Franc" onkeyup="simulateur(this.value,this.id);"></td><td>2,50%</td><td>9,00%</td><td>1,89 F</td><td><span id="c4"></span></td><td><span id="a4"></span></td><td><span id="z4"></span></td></tr>
+          <tr><td>1967</td><td><input type="text" id="5"  placeholder="en Franc" onkeyup="simulateur(this.value,this.id);"></td><td>2,50%</td><td>9,00%</td><td>1,97 F</td><td><span id="c5"></span></td><td><span id="a5"></span></td><td><span id="z5"></span></td></tr>
+          <tr><td>1968</td><td><input type="text" id="6" placeholder="en Franc"  onkeyup="simulateur(this.value,this.id);"></td><td>3,50%</td><td>12,50%</td><td>2,26 F</td><td><span id="c6"></span></td><td><span id="a6"></span></td><td><span id="z6"></span></td></tr>
+          <tr><td>1969</td><td><input type="text" id="7" placeholder="en Franc"  onkeyup="simulateur(this.value,this.id);"></td><td>3,50%</td><td>12,50%</td><td>2,42 F</td><td><span id="c7"></span></td><td><span id="a7"></span></td><td><span id="z7"></span></td></tr>
+          <tr><td>1970</td><td><input type="text" id="8" placeholder="en Franc"  onkeyup="simulateur(this.value,this.id);"></td><td>3,50%</td><td>12,50%</td><td>2,59 F</td><td><span id="c8"></span></td><td><span id="a8"></span></td><td><span id="z8"></span></td></tr>
+          <tr><td>1971</td><td><input type="text" id="9" placeholder="en Franc"  onkeyup="simulateur(this.value,this.id);"></td><td>3,50%</td><td>12,50%</td><td>2,76 F</td><td><span id="c9"></span></td><td><span id="a9"></span></td><td><span id="z9"></span></td></tr>
+          <tr><td>1972</td><td><input type="text" id="10"  placeholder="en Franc" onkeyup="simulateur(this.value,this.id);"></td><td>3,50%</td><td>12,50%</td><td>2,98 F</td><td><span id="c10"></span></td><td><span id="a10"></span></td><td><span id="z10"></span></td></tr>
+          <tr><td>1973</td><td><input type="text" id="11" placeholder="en Franc"  onkeyup="simulateur(this.value,this.id);"></td><td>3,50%</td><td>12,50%</td><td>3,25 F</td><td><span id="c11"></span></td><td><span id="a11"></span></td><td><span id="z11"></span></td></tr>
+          <tr><td>1974</td><td><input type="text" id="12" placeholder="en Franc"  onkeyup="simulateur(this.value,this.id);"></td><td>3,50%</td><td>12,50%</td><td>3,71 F</td><td><span id="c12"></span></td><td><span id="a12"></span></td><td><span id="z12"></span></td></tr>
+          <tr><td>1975</td><td><input type="text" id="13" placeholder="en Franc"  onkeyup="simulateur(this.value,this.id);"></td><td>3,50%</td><td>12,50%</td><td>4,21 F</td><td><span id="c13"></span></td><td><span id="a13"></span></td><td><span id="z13"></span></td></tr>
+          <tr><td>1976</td><td><input type="text" id="14" placeholder="en Franc"  onkeyup="simulateur(this.value,this.id);"></td><td>3,50%</td><td>12,50%</td><td>4,86 F</td><td><span id="c14"></span></td><td><span id="a14"></span></td><td><span id="z14"></span></td></tr>
+          <tr><td>1977</td><td><input type="text" id="15" placeholder="en Franc"  onkeyup="simulateur(this.value,this.id);"></td><td>3,50%</td><td>12,50%</td><td>5,41 F</td><td><span id="c15"></span></td><td><span id="a15"></span></td><td><span id="z15"></span></td></tr>
+          <tr><td>1978</td><td><input type="text" id="16" placeholder="en Franc"  onkeyup="simulateur(this.value,this.id);"></td><td>3,50%</td><td>12,50%</td><td>5,92 F</td><td><span id="c16"></span></td><td><span id="a16"></span></td><td><span id="z16"></span></td></tr>
+          <tr><td>1979</td><td><input type="text" id="17" placeholder="en Franc"  onkeyup="simulateur(this.value,this.id);"></td><td>3,50%</td><td>12,50%</td><td>6,59 F</td><td><span id="c17"></span></td><td><span id="a17"></span></td><td><span id="z17"></span></td></tr>
+          <tr><td>1980</td><td><input type="text" id="18" placeholder="en Franc"  onkeyup="simulateur(this.value,this.id);"></td><td>3,50%</td><td>12,50%</td><td>7,43 F</td><td><span id="c18"></span></td><td><span id="a18"></span></td><td><span id="z18"></span></td></tr>
+          <tr><td>1981</td><td><input type="text" id="19" placeholder="en Franc"  onkeyup="simulateur(this.value,this.id);"></td><td>3,50%</td><td>12,50%</td><td>8,37 F</td><td><span id="c19"></span></td><td><span id="a19"></span></td><td><span id="z19"></span></td></tr>
+          <tr><td>1982</td><td><input type="text" id="20" placeholder="en Franc" onkeyup="simulateur(this.value,this.id);"></td><td>3,50%</td><td>12,50%</td><td>9,64 F</td><td><span id="c20"></span></td><td><span id="a20"></span></td><td><span id="z20"></span></td></tr>
+          <tr><td>1983</td><td><input type="text" id="21" placeholder="en Franc"  onkeyup="simulateur(this.value,this.id);"></td><td>3,50%</td><td>12,50%</td><td>10,65 F</td><td><span id="c21"></span></td><td><span id="a21"></span></td><td><span id="z21"></span></td></tr>
+          <tr><td>1984</td><td><input type="text" id="22" placeholder="en Franc"  onkeyup="simulateur(this.value,this.id);"></td><td>3,50%</td><td>12,50%</td><td>11,4 F</td><td><span id="c22"></span></td><td><span id="a22"></span></td><td><span id="z22"></span></td></tr>
+          <tr><td>1985</td><td><input type="text" id="23" placeholder="en Franc"  onkeyup="simulateur(this.value,this.id);"></td><td>3,50%</td><td>12,50%</td><td>11,97 F</td><td><span id="c23"></span></td><td><span id="a23"></span></td><td><span id="z23"></span></td></tr>
+          <tr><td>1986</td><td><input type="text" id="24"  placeholder="en Franc" onkeyup="simulateur(this.value,this.id);"></td><td>3,50%</td><td>12,50%</td><td>12,37 F</td><td><span id="c24"></span></td><td><span id="a24"></span></td><td><span id="z24"></span></td></tr>
+          <tr><td>1987</td><td><input type="text" id="25" placeholder="en Franc"  onkeyup="simulateur(this.value,this.id);"></td><td>3,50%</td><td>12,50%</td><td>12,49 F</td><td><span id="c25"></span></td><td><span id="a25"></span></td><td><span id="z25"></span></td></tr>
+          <tr><td>1988</td><td><input type="text" id="26" placeholder="en Franc"  onkeyup="simulateur(this.value,this.id);"></td><td>3,50%</td><td>12,50%</td><td>12,73 F</td><td><span id="c26"></span></td><td><span id="a26"></span></td><td><span id="z26"></span></td></tr>
+          <tr><td>1989</td><td><input type="text" id="27" placeholder="en Franc"  onkeyup="simulateur(this.value,this.id);"></td><td>4,50%</td><td>14,00%</td><td>13,14 F</td><td><span id="c27"></span></td><td><span id="a27"></span></td><td><span id="z27"></span></td></tr>
+          <tr><td>1990</td><td><input type="text" id="28" placeholder="en Franc"  onkeyup="simulateur(this.value,this.id);"></td><td>4,50%</td><td>14,00%</td><td>13,53 F</td><td><span id="c28"></span></td><td><span id="a28"></span></td><td><span id="z28"></span></td></tr>
+          <tr><td>1991</td><td><input type="text" id="29" placeholder="en Franc"  onkeyup="simulateur(this.value,this.id);"></td><td>4,50%</td><td>14,00%</td><td>13,82 F</td><td><span id="c29"></span></td><td><span id="a29"></span></td><td><span id="z29"></span></td></tr>
+          <tr><td>1992</td><td><input type="text" id="30" placeholder="en Franc"  onkeyup="simulateur(this.value,this.id);"></td><td>4,50%</td><td>14,00%</td><td>14,25 F</td><td><span id="c30"></span></td><td><span id="a30"></span></td><td><span id="z30"></span></td></tr>
+          <tr><td>1993</td><td><input type="text" id="31" placeholder="en Franc" onkeyup="simulateur(this.value,this.id);"></td><td>4,50%</td><td>14,00%</td><td>14,68 F</td><td><span id="c31"></span></td><td><span id="a31"></span></td><td><span id="z31"></span></td></tr>
+          <tr><td>1994</td><td><input type="text" id="32" placeholder="en Franc"  onkeyup="simulateur(this.value,this.id);"></td><td>4,50%</td><td>14,00%</td><td>14,88 F</td><td><span id="c32"></span></td><td><span id="a32"></span></td><td><span id="z32"></span></td></tr>
+          <tr><td>1995</td><td><input type="text" id="33" placeholder="en Franc"  onkeyup="simulateur(this.value,this.id);"></td><td>4,50%</td><td>14,00%</td><td>15,18 F</td><td><span id="c33"></span></td><td><span id="a33"></span></td><td><span id="z33"></span></td></tr>
+          <tr><td>1996</td><td><input type="text" id="34" placeholder="en Franc"  onkeyup="simulateur(this.value,this.id);"></td><td>4,50%</td><td>14,00%</td><td>15,47 F</td><td><span id="c34"></span></td><td><span id="a34"></span></td><td><span id="z34"></span></td></tr>
+          <tr><td>1997</td><td><input type="text" id="35"  placeholder="en Franc" onkeyup="simulateur(this.value,this.id);"></td><td>4,50%</td><td>14,00%</td><td>15,53 F</td><td><span id="c35"></span></td><td><span id="a35"></span></td><td><span id="z35"></span></td></tr>
+          <tr><td>1998</td><td><input type="text" id="36" placeholder="en Franc" onkeyup="simulateur(this.value,this.id);"></td><td>4,50%</td><td>14,00%</td><td>15,74 F</td><td><span id="c36"></span></td><td><span id="a36"></span></td><td><span id="z36"></span></td></tr>
+          <tr><td>1999</td><td><input type="text" id="37" placeholder="en Franc" onkeyup="simulateur(this.value,this.id);"></td><td>4,50%</td><td>14,00%</td><td>16,08 F</td><td><span id="c37"></span></td><td><span id="a37"></span></td><td><span id="z37"></span></td></tr>
+          <tr><td>2000</td><td><input type="text" id="38"  placeholder="en Franc" onkeyup="simulateur(this.value,this.id);"></td><td>4,50%</td><td>14,00%</td><td>16,42 F</td><td><span id="c38"></span></td><td><span id="a38"></span></td><td><span id="z38"></span></td></tr>
+          <tr><td>2001</td><td><input type="text" id="39"  placeholder="en Franc" onkeyup="simulateur(this.value,this.id);"></td><td>4,50%</td><td>14,00%</td><td>16,74002264 F</td><td><span id="c39"></span></td><td><span id="a39"></span></td><td><span id="z39"></span></td></tr>
+          <tr><td>2002</td><td><input type="text" id="40" placeholder="en €uro"  onkeyup="simulateur(this.value,this.id);"></td><td>4,50%</td><td>14,00%</td><td> 2,640 € </td><td><span id="c40"></span></td><td><span id="a40"></span></td><td><span id="z40"></span></td></tr>
+          <tr><td>2003</td><td><input type="text" id="41" placeholder="en €uro"  onkeyup="simulateur(this.value,this.id);"></td><td>4,50%</td><td>14,00%</td><td> 2,664 € </td><td><span id="c41"></span></td><td><span id="a41"></span></td><td><span id="z41"></span></td></tr>
+          <tr><td>2004</td><td><input type="text" id="42"  placeholder="en €uro" onkeyup="simulateur(this.value,this.id);"></td><td>4,50%</td><td>14,00%</td><td> 2,709 € </td><td><span id="c42"></span></td><td><span id="a42"></span></td><td><span id="z42"></span></td></tr>
+          <tr><td>2005</td><td><input type="text" id="43"  placeholder="en €uro" onkeyup="simulateur(this.value,this.id);"></td><td>4,50%</td><td>14,00%</td><td> 2,763 € </td><td><span id="c43"></span></td><td><span id="a43"></span></td><td><span id="z43"></span></td></tr>
+          <tr><td>2006</td><td><input type="text" id="44" placeholder="en €uro"  onkeyup="simulateur(this.value,this.id);"></td><td>4,50%</td><td>14,00%</td><td> 2,813 € </td><td><span id="c44"></span></td><td><span id="a44"></span></td><td><span id="z44"></span></td></tr>
+          <tr><td>2007</td><td><input type="text" id="45" placeholder="en €uro"  onkeyup="simulateur(this.value,this.id);"></td><td>4,50%</td><td>14,00%</td><td> 2,864 € </td><td><span id="c45"></span></td><td><span id="a45"></span></td><td><span id="z45"></span></td></tr>
+          <tr><td>2008</td><td><input type="text" id="46" placeholder="en €uro"  onkeyup="simulateur(this.value,this.id);"></td><td>4,50%</td><td>14,00%</td><td> 2,896 € </td><td><span id="c46"></span></td><td><span id="a46"></span></td><td><span id="z46"></span></td></tr>
+          <tr><td>2009</td><td><input type="text" id="47" placeholder="en €uro"  onkeyup="simulateur(this.value,this.id);"></td><td>4,50%</td><td>14,00%</td><td> 3,126 € </td><td><span id="c47"></span></td><td><span id="a47"></span></td><td><span id="z47"></span></td></tr>
+          <tr><td>2010</td><td><input type="text" id="48" placeholder="en €uro"  onkeyup="simulateur(this.value,this.id);"></td><td>4,50%</td><td>14,00%</td><td> 3,345 € </td><td><span id="c48"></span></td><td><span id="a48"></span></td><td><span id="z48"></span></td></tr>
+          <tr><td>2011</td><td><input type="text" id="49" placeholder="en €uro"  onkeyup="simulateur(this.value,this.id);"></td><td>4,55%</td><td>14,08%</td><td> 3,617 € </td><td><span id="c49"></span></td><td><span id="a49"></span></td><td><span id="z49"></span></td></tr>
+          <tr><td>2012</td><td><input type="text" id="50"  placeholder="en €uro" onkeyup="simulateur(this.value,this.id);"></td><td>4,70%</td><td>14,24%</td><td> 3,904 € </td><td><span id="c50"></span></td><td><span id="a50"></span></td><td><span id="z50"></span></td></tr>
+          <tr><td>2013</td><td><input type="text" id="51" placeholder="en €uro"  onkeyup="simulateur(this.value,this.id);"></td><td>4,90%</td><td>14,44%</td><td> 4,172 € </td><td><span id="c51"></span></td><td><span id="a51"></span></td><td><span id="z51"></span></td></tr>
+          <tr><td>2014</td><td><input type="text" id="52" placeholder="en €uro"  onkeyup="simulateur(this.value,this.id);"></td><td>5,07%</td><td>14,68%</td><td> 4,415 € </td><td><span id="c52"></span></td><td><span id="a52"></span></td><td><span id="z52"></span></td></tr>
+          <tr><td>2015</td><td><input type="text" id="53" placeholder="en €uro"  onkeyup="simulateur(this.value,this.id);"></td><td>5,28%</td><td>15,00%</td><td> 4,616 € </td><td><span id="c53"></span></td><td><span id="a53"></span></td><td><span id="z53"></span></td></tr>
+          <tr><td>2016</td><td><input type="text" id="54" placeholder="en €uro"  onkeyup="simulateur(this.value,this.id);"></td><td>5,44%</td><td>15,28%</td><td> 4,766 € </td><td><span id="c54"></span></td><td><span id="a54"></span></td><td><span id="z54"></span></td></tr>
+          <tr><td>2017</td><td><input type="text" id="55" placeholder="en €uro"  onkeyup="simulateur(this.value,this.id);"></td><td>5,60%</td><td>15,60%</td><td> 4,904 € </td><td><span id="c55"></span></td><td><span id="a55"></span></td><td><span id="z55"></span></td></tr>
+          <tr><td>2018</td><td><input type="text" id="56" placeholder="en €uro"  onkeyup="simulateur(this.value,this.id);"></td><td>5,60%</td><td>15,60%</td><td> 4,943 € </td><td><span id="c56"></span></td><td><span id="a56"></span></td><td><span id="z56"></span></td></tr>
+          <tr><td>2019</td><td><input type="text" id="57" placeholder="en €uro"  onkeyup="simulateur(this.value,this.id);"></td><td>5,60%</td><td>15,60%</td><td> 4,958 € </td><td><span id="c57"></span></td><td><span id="a57"></span></td><td><span id="z57"></span></td></tr>
+          <tr><td>2020</td><td><input type="text" id="58" placeholder="en €uro"  onkeyup="simulateur(this.value,this.id);"></td><td>5,60%</td><td>15,60%</td><td> 5,008 € </td><td><span id="c58"></span></td><td><span id="a58"></span></td><td><span id="z58"></span></td></tr>
+          <tr><td>2021</td><td><input type="text" id="59" placeholder="en €uro"  onkeyup="simulateur(this.value,this.id);"></td><td>5,60%</td><td>15,60%</td><td> 5.028 € </td><td><span id="c59"></span></td><td><span id="a59"></span></td><td><span id="z59"></span></td></tr>
+          <tr><td>2022</td><td><input type="text" id="60" placeholder="en €uro"  onkeyup="simulateur(this.value,this.id);"></td><td>5,60%</td><td>15,60%</td><td> 5.083 € </td><td><span id="c60"></span></td><td><span id="a60"></span></td><td><span id="z60"></span></td></tr>
+          <tr><td>2023</td><td><input type="text" id="61" placeholder="en €uro"  onkeyup="simulateur(this.value,this.id);"></td><td>5,60%</td><td>15,60%</td><td> 5.329 € </td><td><span id="c61"></span></td><td><span id="a61"></span></td><td><span id="z61"></span></td></tr>
+          <tr><td>2024</td><td><input type="text" id="62" placeholder="en €uro"  onkeyup="simulateur(this.value,this.id);"></td><td>5,60%</td><td>15,60%</td><td>  5.611 € </td><td><span id="c62"></span></td><td><span id="a62"></span></td><td><span id="z62"></span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <script>
+      const plafonds = {1963:10440,1964:11400,1965:12240,1966:12960,1967:13680,1968:14400,1969:16320,1970:18000,1971:19800,1972:21960,1973:24480,1974:27840,1975:33000,1976:37920,1977:43320,1978:48000,1979:53640,1980:60120,1981:68760,1982:82020,1983:91680,1984:99600,1985:106740,1986:112200,1987:116820,1988:120360,1989:125280,1990:131040,1991:137760,1992:144120,1993:149820,1994:153120,1995:155940,1996:161220,1997:164640,1998:169080,1999:173640,2000:176400,2001:179400,2002:28224,2003:29184,2004:29712,2005:30192,2006:31068,2007:32184,2008:33276,2009:34308,2010:34620,2011:35352,2012:36372,2013:37032,2014:37548,2015:38040,2016:38616,2017:39228,2018:39732,2019:40524,2020:41136,2021:41136,2022:41136,2023:43992,2024:46368};
+      const valeursPoint = {1963:1.64,1964:1.74,1965:1.82,1966:1.89,1967:1.97,1968:2.26,1969:2.42,1970:2.59,1971:2.76,1972:2.98,1973:3.25,1974:3.71,1975:4.21,1976:4.86,1977:5.41,1978:5.92,1979:6.59,1980:7.43,1981:8.37,1982:9.64,1983:10.65,1984:11.4,1985:11.97,1986:12.37,1987:12.49,1988:12.73,1989:13.14,1990:13.53,1991:13.82,1992:14.25,1993:14.68,1994:14.88,1995:15.18,1996:15.47,1997:15.53,1998:15.74,1999:16.08,2000:16.42,2001:16.74,2002:2.64,2003:2.664,2004:2.709,2005:2.763,2006:2.813,2007:2.864,2008:2.896,2009:3.126,2010:3.345,2011:3.617,2012:3.904,2013:4.172,2014:4.415,2015:4.616,2016:4.766,2017:4.904,2018:4.943,2019:4.958,2020:5.008,2021:5.028,2022:5.083,2023:5.329,2024:5.611};
+
+      function simulateur(salaireBrut, id) {
+        const input = document.getElementById(id);
+        const row = input ? input.closest('tr') : null;
+        const annee = row ? parseInt(row.cells[0].innerText, 10) : NaN;
+        const salaire = parseFloat(String(salaireBrut).replace(/\s/g, '').replace(',', '.'));
+        if (!plafonds[annee] || !valeursPoint[annee] || isNaN(salaire)) {
+          const clear = (k)=>{ const el = document.getElementById(k+id); if (el) el.innerHTML=''; };
+          clear('c'); clear('a'); clear('z');
+          return;
+        }
+
+        const plafondAnnuel = plafonds[annee];
+        const valeurPoint = valeursPoint[annee];
+
+        // Tranche A : 7% jusqu'au PASS
+        const TRA = Math.min(salaire, plafondAnnuel) * 0.07;
+        // Tranche B : 19.5% au-delà du PASS, plafonné à 375 936
+        const trancheB = Math.max(0, salaire - plafondAnnuel);
+        const TRB = Math.min(trancheB, 375936 - plafondAnnuel) * 0.195;
+
+        const TOTAL = TRA + TRB;
+        const points = TOTAL / valeurPoint;
+
+        document.getElementById('c'+id).innerHTML = TRA.toFixed(5) + ' points';
+        document.getElementById('a'+id).innerHTML = TRB.toFixed(5) + ' points';
+        document.getElementById('z'+id).innerHTML = points.toFixed(5) + ' points';
+      }
+      function resetIrcantec(){
+        try {
+          document.querySelectorAll('.tableizer-table input[type="text"]').forEach(i=>i.value='');
+          document.querySelectorAll('.tableizer-table span').forEach(s=>s.textContent='');
+        } catch(e){}
+      }
+    </script>
+  </body>
+  </html>

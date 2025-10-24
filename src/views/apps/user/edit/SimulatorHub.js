@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Nav, NavItem, NavLink, Card, CardBody, TabContent, TabPane, FormGroup, Label, Input } from 'reactstrap'
 import classnames from 'classnames'
 
@@ -12,7 +12,7 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
   const subNavRef = useRef(null)
   const innerNavRef = useRef(null)
 
-  const computeInnerOffset = () => {
+  const computeInnerOffset = useCallback(() => {
     try {
       if (subTab !== 'regimes') { setInnerOffset(0); return }
       const baseSpan = document.getElementById('regimes-label')
@@ -24,9 +24,9 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
         setInnerOffset(Math.round(delta))
       }
     } catch (e) { setInnerOffset(0) }
-  }
+  }, [subTab])
 
-  useEffect(() => { computeInnerOffset() }, [subTab])
+  useEffect(() => { computeInnerOffset() }, [computeInnerOffset])
   // Animate outer sub-nav on alignment or section change
   useEffect(() => {
     setVisible(false)
@@ -130,13 +130,40 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
           </Nav>
           <TabContent activeTab={regimeTab}>
             <TabPane tabId='base'>
-              <Card className='mb-1'><CardBody><p className='mb-0 text-muted'><span id='regime-base-label'>Paramètres du Régime de base.</span></p></CardBody></Card>
+              <Card className='mb-1'>
+                <CardBody>
+                  <div className='mb-50 text-muted'>Simulateur CNAV (Régime de base)</div>
+                  <iframe
+                    title='cnav-simulator'
+                    src={`${process.env.PUBLIC_URL || ''}/cnav-simulator.html`}
+                    style={{ width: '100%', height: '1800px', border: '0', borderRadius: '8px', background: 'transparent' }}
+                  />
+                </CardBody>
+              </Card>
             </TabPane>
             <TabPane tabId='arrco'>
-              <Card className='mb-1'><CardBody><p className='mb-0 text-muted'>Paramètres ARRCO-AGIRC.</p></CardBody></Card>
+              <Card className='mb-1'>
+                <CardBody>
+                  <div className='mb-50 text-muted'>Simulateur ARRCO-AGIRC</div>
+                  <iframe
+                    title='arrco-agirc-simulator'
+                    src={`${process.env.PUBLIC_URL || ''}/arrco-simulator.html`}
+                    style={{ width: '100%', height: '1150px', border: '0', borderRadius: '8px', background: 'transparent' }}
+                  />
+                </CardBody>
+              </Card>
             </TabPane>
             <TabPane tabId='ircantec'>
-              <Card className='mb-1'><CardBody><p className='mb-0 text-muted'>Paramètres IRCANTEC.</p></CardBody></Card>
+              <Card className='mb-1'>
+                <CardBody>
+                  <div className='mb-50 text-muted'>Simulateur IRCANTEC</div>
+                  <iframe
+                    title='ircantec-simulator'
+                    src={`${process.env.PUBLIC_URL || ''}/ircantec-simulator.html`}
+                    style={{ width: '100%', height: '1150px', border: '0', borderRadius: '8px', background: 'transparent' }}
+                  />
+                </CardBody>
+              </Card>
             </TabPane>
             <TabPane tabId='rci'>
               <Card className='mb-1'><CardBody><p className='mb-0 text-muted'>Paramètres RCI.</p></CardBody></Card>
@@ -153,25 +180,25 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
               <FormGroup tag='fieldset'>
                 <legend className='h6'>Hypothèses de fin de carrière</legend>
                 <FormGroup check>
-                  <Label check>
+                  <Label check className={classnames({ 'font-weight-bold': hypo === 'carriere_longue' })}>
                     <Input type='radio' name='hypo' checked={hypo==='carriere_longue'} onChange={() => setHypo('carriere_longue')} />
                     Carrière longue
                   </Label>
                 </FormGroup>
                 <FormGroup check>
-                  <Label check>
+                  <Label check className={classnames({ 'font-weight-bold': hypo === 'chomage' })}>
                     <Input type='radio' name='hypo' checked={hypo==='chomage'} onChange={() => setHypo('chomage')} />
                     Chômage
                   </Label>
                 </FormGroup>
                 <FormGroup check>
-                  <Label check>
+                  <Label check className={classnames({ 'font-weight-bold': hypo === 'retraite_progressive' })}>
                     <Input type='radio' name='hypo' checked={hypo==='retraite_progressive'} onChange={() => setHypo('retraite_progressive')} />
                     Retraite progressive
                   </Label>
                 </FormGroup>
                 <FormGroup check>
-                  <Label check>
+                  <Label check className={classnames({ 'font-weight-bold': hypo === 'sans' })}>
                     <Input type='radio' name='hypo' checked={hypo==='sans'} onChange={() => setHypo('sans')} />
                     Sans
                   </Label>

@@ -1,7 +1,7 @@
 import React from "react";
 import { Card, CardBody, Row, Col, Nav, NavItem, NavLink, TabContent, TabPane, Button, UncontrolledTooltip } from "reactstrap";
 import classnames from "classnames";
-import { Info, Folder, CheckSquare, MessageCircle, ArrowLeft, Disc, Circle, Activity } from "react-feather";
+import { Info, Folder, CheckSquare, MessageCircle, ArrowLeft, Circle, Activity } from "react-feather";
 import UserDetails from "../../profile/UserDetails";
 import AccountTab from "./Informations";
 import NotesTab from "./Notes";
@@ -9,7 +9,6 @@ import CommentsTab from "./Comments";
 import "../../../../assets/scss/pages/users.scss";
 import "../../profile/Profile.css";
 import axios from "axios";
-import Documents from "./Documents";
 import DocumentsHub from "./DocumentsHub";
 import SimulatorHub from "./SimulatorHub";
 import { history } from "../../../../history";

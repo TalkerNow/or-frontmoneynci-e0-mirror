@@ -6,7 +6,6 @@ import UserDetails from "../../profile/UserDetails";
 import AccountTab from "./oldInformations";
 import NotesTab from "./Notes";
 import CommentsTab from "./Comments";
-import Documents from "./Documents";
 import DocumentsHub from "./DocumentsHub";
 import SimulatorHub from "./SimulatorHub";
 import { history } from "../../../../history";
