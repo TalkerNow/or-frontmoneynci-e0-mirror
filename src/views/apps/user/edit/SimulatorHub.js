@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, createContext, useContext } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Nav, NavItem, NavLink, Card, CardBody, TabContent, TabPane, FormGroup, Collapse } from 'reactstrap'
 import classnames from 'classnames'
 import ButtonRadioSwitch from '../../../../components/reactstrap/buttons/ButtonRadioSwitch'
@@ -149,20 +149,6 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
     const m = ref.getMonth() - dob.getMonth()
     if (m < 0 || (m === 0 && ref.getDate() < dob.getDate())) age--
     return age
-  }, [])
-
-  const dateForAge = useCallback((dob, targetAge) => {
-    if (!dob) return '-'
-    const d = new Date(dob.getFullYear() + targetAge, dob.getMonth(), dob.getDate())
-    try {
-      return d.toLocaleDateString('fr-FR')
-    } catch {
-      // Fallback formatting
-      const dd = String(d.getDate()).padStart(2, '0')
-      const mm = String(d.getMonth() + 1).padStart(2, '0')
-      const yyyy = d.getFullYear()
-      return `${dd}/${mm}/${yyyy}`
-    }
   }, [])
 
   // Init from stored DOB and compute current age
