@@ -5,7 +5,10 @@ import classnames from 'classnames'
 export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
   const [subTab, setSubTab] = useState('carriere')
   const [regimeTab, setRegimeTab] = useState('base')
-  const [hypo, setHypo] = useState('sans')
+  const [carriereLongueYN, setCarriereLongueYN] = useState(null) // 'oui' | 'non' | null
+  const [chomageYN, setChomageYN] = useState(null) // 'oui' | 'non' | null
+  const [sansYN, setSansYN] = useState(null)
+  const [salaireDefautYN, setSalaireDefautYN] = useState(null)
   const [innerOffset, setInnerOffset] = useState(0)
   const [visible, setVisible] = useState(false)
   const [innerVisible, setInnerVisible] = useState(false)
@@ -66,6 +69,11 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
         <NavItem>
           <NavLink id='regimes-link' className={classnames({ active: subTab === 'regimes' })} onClick={() => setSubTab('regimes')}>
             <span id='regimes-label'>Régimes de retraite</span>
+          </NavLink>
+        </NavItem>
+        <NavItem>
+          <NavLink className={classnames({ active: subTab === 'rachat' })} onClick={() => setSubTab('rachat')}>
+            Rachat de trimestres
           </NavLink>
         </NavItem>
         <NavItem>
@@ -174,35 +182,76 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
           </TabContent>
         </TabPane>
 
+        <TabPane tabId='rachat'>
+          <Card className='mb-1'>
+            <CardBody>
+              <p className='mb-0 text-muted'>Rachat de trimestres — module à compléter.</p>
+            </CardBody>
+          </Card>
+        </TabPane>
+
         <TabPane tabId='hypotheses'>
           <Card className='mb-1'>
             <CardBody>
               <FormGroup tag='fieldset'>
                 <legend className='h6'>Hypothèses de fin de carrière</legend>
-                <FormGroup check>
-                  <Label check className={classnames({ 'font-weight-bold': hypo === 'carriere_longue' })}>
-                    <Input type='radio' name='hypo' checked={hypo==='carriere_longue'} onChange={() => setHypo('carriere_longue')} />
-                    Carrière longue
-                  </Label>
-                </FormGroup>
-                <FormGroup check>
-                  <Label check className={classnames({ 'font-weight-bold': hypo === 'chomage' })}>
-                    <Input type='radio' name='hypo' checked={hypo==='chomage'} onChange={() => setHypo('chomage')} />
-                    Chômage
-                  </Label>
-                </FormGroup>
-                <FormGroup check>
-                  <Label check className={classnames({ 'font-weight-bold': hypo === 'retraite_progressive' })}>
-                    <Input type='radio' name='hypo' checked={hypo==='retraite_progressive'} onChange={() => setHypo('retraite_progressive')} />
-                    Retraite progressive
-                  </Label>
-                </FormGroup>
-                <FormGroup check>
-                  <Label check className={classnames({ 'font-weight-bold': hypo === 'sans' })}>
-                    <Input type='radio' name='hypo' checked={hypo==='sans'} onChange={() => setHypo('sans')} />
-                    Sans
-                  </Label>
-                </FormGroup>
+
+                {/* Sans */}
+                <div className='mb-50 d-flex align-items-center'>
+                  <span className='mb-0 mr-1'>Sans</span>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, marginLeft: 12 }}>
+                    <Label check className='mb-0'>
+                      <Input type='radio' name='sansYN' checked={sansYN==='oui'} onChange={() => setSansYN('oui')} /> Oui
+                    </Label>
+                    <Label check className='mb-0'>
+                      <Input type='radio' name='sansYN' checked={sansYN==='non'} onChange={() => setSansYN('non')} /> Non
+                    </Label>
+                  </div>
+                </div>
+
+                {/* Salaire par défaut jusqu'au départ */}
+                <div className='mb-50 d-flex align-items-center'>
+                  <span className='mb-0 mr-1'>Salaire par défaut jusqu'au départ</span>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, marginLeft: 12 }}>
+                    <Label check className='mb-0'>
+                      <Input type='radio' name='salaireDefautYN' checked={salaireDefautYN==='oui'} onChange={() => setSalaireDefautYN('oui')} /> Oui
+                    </Label>
+                    <Label check className='mb-0'>
+                      <Input type='radio' name='salaireDefautYN' checked={salaireDefautYN==='non'} onChange={() => setSalaireDefautYN('non')} /> Non
+                    </Label>
+                  </div>
+                </div>
+
+                {/* Chômage */}
+                <div className='mb-50 d-flex align-items-center'>
+                  <span className='mb-0 mr-1'>Chômage</span>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, marginLeft: 12 }}>
+                    <Label check className='mb-0'>
+                      <Input type='radio' name='chomageYN' checked={chomageYN==='oui'} onChange={() => setChomageYN('oui')} /> Oui
+                    </Label>
+                    <Label check className='mb-0'>
+                      <Input type='radio' name='chomageYN' checked={chomageYN==='non'} onChange={() => setChomageYN('non')} /> Non
+                    </Label>
+                  </div>
+                </div>
+
+                {/* Carrière longue */}
+                <div className='mb-50 d-flex align-items-center'>
+                  <span className='mb-0 mr-1'>Carrière longue</span>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, marginLeft: 12 }}>
+                    <Label check className='mb-0'>
+                      <Input type='radio' name='carriereLongueYN' checked={carriereLongueYN==='oui'} onChange={() => setCarriereLongueYN('oui')} /> Oui
+                    </Label>
+                    <Label check className='mb-0'>
+                      <Input type='radio' name='carriereLongueYN' checked={carriereLongueYN==='non'} onChange={() => setCarriereLongueYN('non')} /> Non
+                    </Label>
+                  </div>
+                </div>
+
+                {/* Retraite progressive */}
+                <div className='d-flex align-items-center'>
+                  <span className='mb-0 mr-1'>Retraite progressive</span>
+                </div>
               </FormGroup>
             </CardBody>
           </Card>

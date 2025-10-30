@@ -21,9 +21,19 @@
       .grid { display:grid; grid-template-columns: 1fr; gap: 16px; }
       @media (min-width: 1100px) { .grid { grid-template-columns: 3fr 1.2fr; } }
       .note { color:#808080; font-size:13px; margin:6px 0 12px; }
+      .aside { position: relative; }
       .aside table { margin-bottom: 10px; }
       .aside th { background: var(--head); color:#fff; }
       .checkbox-label { display:flex; align-items:center; justify-content:center; gap:.5rem; font-size:12px; }
+      /* Align the trimestre simulator header and columns */
+      #simulateurTable { width: 100%; border-collapse: collapse; table-layout: fixed; }
+      #simulateurTable th, #simulateurTable td { text-align: center; }
+      #simulateurTable input[type="number"] { width: 100%; box-sizing: border-box; padding: 6px 8px; border:1px solid var(--border); border-radius:6px; }
+      #simulateurTable button { width: 100%; box-sizing: border-box; display: block; padding: 6px 8px; }
+      /* Keep cells tidy */
+      #simulateurTable td { vertical-align: middle; }
+      /* Title overlay so it doesn't shift the table down */
+      .simu-title-inline { position: absolute; top: -26px; left: 0; margin: 0; font-size: 14px; font-weight: 600; color: #343a40; }
     </style>
   </head>
   <body>
@@ -50,12 +60,22 @@
         </p>
       </div>
 
+      <div class="controls" style="display:flex; gap:.5rem; margin: 8px 0 8px;">
+        <button onclick="resetSim()">Réinitialiser</button>
+      </div>
+
       <div class="grid">
         <div class="main">
-          <div style="display:flex; gap:.5rem; margin-bottom:8px;">
-            <button onclick="resetSim()">Réinitialiser</button>
-          </div>
           <table id="cnav-table" class="tableizer-table">
+            <colgroup>
+              <col style="width:10%" />
+              <col style="width:22%" />
+              <col style="width:18%" />
+              <col style="width:12%" />
+              <col style="width:18%" />
+              <col style="width:8%" />
+              <col style="width:8%" />
+            </colgroup>
             <thead>
               <tr class="tableizer-firstrow">
                 <th>Années</th>
@@ -71,6 +91,48 @@
           </table>
         </div>
         <div class="aside">
+          <div style="margin-top:0;">
+            <h4 class="simu-title-inline">Simulateur de Trimestres Cotisés</h4>
+            <table id="simulateurTable" border="1">
+              <colgroup>
+                <col style="width:55%" />
+                <col style="width:20%" />
+                <col style="width:25%" />
+              </colgroup>
+              <thead>
+                <tr><th>Type</th><th>Nombre</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="simulateurBody">
+                <tr>
+                  <td>Service National</td>
+                  <td><input type="number" id="serviceNational" value="0" min="0"></td>
+                  <td><button onclick="ajouterTrimestres('serviceNational')">Ajouter</button></td>
+                </tr>
+                <tr>
+                  <td>Chômage indemnisé</td>
+                  <td><input type="number" id="chomageIndemnise" value="0" min="0"></td>
+                  <td><button onclick="ajouterTrimestres('chomageIndemnise')">Ajouter</button></td>
+                </tr>
+                <tr>
+                  <td>Chômage non indemnisé</td>
+                  <td><input type="number" id="chomageNonIndemnise" value="0" min="0"></td>
+                  <td><button onclick="ajouterTrimestres('chomageNonIndemnise')">Ajouter</button></td>
+                </tr>
+                <tr>
+                  <td>Maladie et AT</td>
+                  <td><input type="number" id="maladieAccident" value="0" min="0"></td>
+                  <td><button onclick="ajouterTrimestres('maladieAccident')">Ajouter</button></td>
+                </tr>
+                <tr>
+                  <td>Trimestres calculés par salaire</td>
+                  <td><span id="trimestresParSalaireDisplay">0</span></td>
+                  <td><button onclick="ajouterTrimestresSalaire()">Ajouter</button></td>
+                </tr>
+              </tbody>
+            </table>
+            <p>Total des Trimestres Cotisés: <span id="totalTrimestres">0</span></p>
+          </div>
+
           <table>
             <thead><tr><th>les 25 Meilleures années</th></tr></thead>
             <tbody id="best-years">
@@ -90,38 +152,6 @@
           <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
             <button onclick="simulation_finale()">Simuler</button>
             <button onclick="resetSim()" style="background:#aaa; border-color:#aaa;">Réinitialiser</button>
-          </div>
-
-          <div style="margin-top:16px;">
-            <h4 style="margin:8px 0; font-size:14px;">Simulateur de Trimestres Cotisés</h4>
-            <table id="simulateurTable" border="1">
-              <thead>
-                <tr><th>Type</th><th>Nombre</th><th>Actions</th></tr>
-              </thead>
-              <tbody id="simulateurBody">
-                <tr>
-                  <td>Service National</td>
-                  <td><input type="number" id="serviceNational" value="0" min="0"></td>
-                  <td><button onclick="ajouterTrimestres('serviceNational')">Ajouter</button></td>
-                </tr>
-                <tr>
-                  <td>Chômage indemnisé</td>
-                  <td><input type="number" id="chomageIndemnise" value="0" min="0"></td>
-                  <td><button onclick="ajouterTrimestres('chomageIndemnise')">Ajouter</button></td>
-                </tr>
-                <tr>
-                  <td>Maladie et AT</td>
-                  <td><input type="number" id="maladieAccident" value="0" min="0"></td>
-                  <td><button onclick="ajouterTrimestres('maladieAccident')">Ajouter</button></td>
-                </tr>
-                <tr>
-                  <td>Trimestres calculés par salaire</td>
-                  <td><span id="trimestresParSalaireDisplay">0</span></td>
-                  <td><button onclick="ajouterTrimestresSalaire()">Ajouter</button></td>
-                </tr>
-              </tbody>
-            </table>
-            <p>Total des Trimestres Cotisés: <span id="totalTrimestres">0</span></p>
           </div>
         </div>
       </div>
@@ -182,7 +212,7 @@
         const year = years[idx];
         let salaireAnnuel = parseFloat(String(val).replace(/\s/g,'').replace(',','.'));
         if (isNaN(salaireAnnuel) || salaireAnnuel <= 0) {
-          document.getElementById('z'+id).innerHTML = '0 €';
+          document.getElementById('z'+id).innerHTML = '0' + (deplafonner ? ' €' : '');
           document.getElementById('e'+id).innerHTML = '0';
           trimestresParSalaire = 0;
           return;
@@ -192,14 +222,15 @@
 
         // Revalorisation (conversion FRF -> EUR avant 2002)
         let salaire_revaloriser = (year <= 2001) ? (salaireAnnuel * coeff) / 6.556957 : (salaireAnnuel * coeff);
-        if (!deplafonner || year >= 2005) salaire_revaloriser = Math.min(salaire_revaloriser, passEuro);
+        const isCapped = !deplafonner || year >= 2005;
+        if (isCapped) salaire_revaloriser = Math.min(salaire_revaloriser, passEuro);
 
         // Estimation trimestres via seuil basé sur PASS (approximation raisonnable)
         const seuilTrimestre = passEuro / 4 || 0; // 4 trimestres max si salaire >= PASS
         const trimestre = Math.min(4, Math.max(0, Math.floor(salaireAnnuel / (seuilTrimestre||Infinity))));
         trimestresParSalaire = trimestre;
 
-        document.getElementById('z'+id).innerHTML = salaire_revaloriser.toFixed(2) + ' €';
+        document.getElementById('z'+id).innerHTML = salaire_revaloriser.toFixed(2) + (deplafonner ? ' €' : '');
         document.getElementById('e'+id).innerHTML = String(trimestre);
       }
 
