@@ -42,13 +42,17 @@ class MembersList extends React.Component {
     defaultColDef: {
       resizable: true,
       sortable: true,
+      flex: 1,
+      minWidth: 120,
     },
     searchVal: "",
     columnDefs: [
       {
         headerName: "ID",
         field: "id",
-        width: 160,
+        width: 60,
+        minWidth: 60,
+        flex: 0,
         filter: true,
         checkboxSelection: true,
         headerCheckboxSelectionFilteredOnly: true,
@@ -58,13 +62,15 @@ class MembersList extends React.Component {
         headerName: "Nom",
         field: "name",
         filter: true,
-        width: 250,
+        width: 100,
+        minWidth: 100,
+        flex: 1,
         cellRendererFramework: (params) => {
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
               onClick={() =>
-                history.push("/app/member/edit/" + params.data.id + "/1")
+                history.push("/app/member/edit/" + params.data.id + "/2")
               }
             >
               <span>
@@ -78,13 +84,17 @@ class MembersList extends React.Component {
         headerName: "Email",
         field: "email",
         filter: true,
-        width: 300,
+        width: 100,
+        minWidth: 100,
+        flex: 0,
       },
       {
         headerName: "Date de Création",
         field: "created_at",
         filter: true,
-        width: 200,
+        width: 90,
+        minWidth: 90,
+        flex: 0,
         cellRendererFramework: (params) => {
           return (
             <div>
@@ -94,27 +104,31 @@ class MembersList extends React.Component {
         },
       },
       {
-        headerName: "Role",
+        headerName: "Rôle",
         field: "role",
         filter: true,
-        width: 250,
+        width: 45,
+        minWidth: 45,
+        flex: 0,
       },
       {
         headerName: "Actions",
         field: "transactions",
-        width: 150,
+        width: 29,
+        minWidth: 29,
+        flex: 0,
         cellRendererFramework: (params) => {
           return (
             <div className="actions cursor-pointer">
               <Edit
                 className="mr-50"
-                size={15}
+                size={20}
                 onClick={() =>
                   history.push("/app/member/edit/" + params.data.id + "/1")
                 }
               />
               <Trash2
-                size={15}
+                size={20}
                 onClick={() => {
                   this.handleAlert("defaultAlert", true, params.data.id);
                 }}
@@ -124,6 +138,15 @@ class MembersList extends React.Component {
         },
       },
     ],
+  };
+
+  // Ajuste les colonnes à la largeur disponible (supprime l'espace droit)
+  sizeToFit = () => {
+    if (this.gridApi) {
+      try {
+        this.gridApi.sizeColumnsToFit();
+      } catch (e) {}
+    }
   };
 
   createContract(id, name) {
@@ -187,8 +210,13 @@ class MembersList extends React.Component {
   onGridReady = (params) => {
     this.gridApi = params.api;
     this.gridColumnApi = params.columnApi;
-    this.gridApi.setDomLayout("autoHeight");
+    // Normal layout; grid scrolls inside container
+    this.sizeToFit();
+    window.addEventListener("resize", this.sizeToFit);
   };
+  componentWillUnmount() {
+    window.removeEventListener("resize", this.sizeToFit);
+  }
   filterData = (column, val) => {
     var filter = this.gridApi.getFilterInstance(column);
     var modelObj = null;
@@ -307,14 +335,14 @@ class MembersList extends React.Component {
         </SweetAlert>
         <Row className="app-user-list">
           <Col sm="12">
-            <Card style={{ minHeight: "3000px" }}>
-              <CardBody>
-                <div className="ag-theme-material ag-grid-table">
+            <Card style={{ minHeight: "85vh" }}>
+              <CardBody style={{ paddingBottom: "1rem" }}>
+                <div className="ag-theme-material ag-grid-table" style={{ height: "78vh", width: "100%" }}>
                   <div className="ag-grid-actions d-flex justify-content-between flex-wrap mb-1">
                     <div className="sort-dropdown">
                       <UncontrolledDropdown className="ag-dropdown p-1">
                         <DropdownToggle tag="div">
-                          1 - {pageSize} of 150
+                          1 - {pageSize} sur 150
                           <ChevronDown className="ml-50" size={20} />
                         </DropdownToggle>
                         <DropdownMenu right>
@@ -349,7 +377,7 @@ class MembersList extends React.Component {
                       <Input
                         className="w-50 mr-1 mb-1 mb-sm-0"
                         type="text"
-                        placeholder="search..."
+                        placeholder="Rechercher..."
                         onChange={(e) => this.updateSearchQuery(e.target.value)}
                         value={this.state.searchVal}
                       />
@@ -379,8 +407,9 @@ class MembersList extends React.Component {
                     <ContextLayout.Consumer>
                       {(context) => (
                         <AgGridReact
-                          height={"autoHeight"}
                           gridOptions={{}}
+                          onFirstDataRendered={this.sizeToFit}
+                          onGridSizeChanged={this.sizeToFit}
                           rowSelection="multiple"
                           defaultColDef={defaultColDef}
                           columnDefs={columnDefs}

@@ -761,6 +761,14 @@
   }
 }
 
+// Prevent horizontal scrollbar caused by header content overflow
+.header-navbar {
+  .navbar-container {
+    overflow-x: hidden; // avoid horizontal scroll on small viewports
+    max-width: 100%;
+  }
+}
+
 // header navbar when floating nav
 body {
   &[data-col="1-column"] {

@@ -221,7 +221,7 @@ class TemplateContract extends React.Component {
                             <Input placeholder="Email" />
                             <InputGroupAddon addonType="append">
                                 <Button.Ripple color="primary" outline>
-                                    Send Contract
+                                    Envoyer le contrat
                                 </Button.Ripple>
                             </InputGroupAddon>
                         </InputGroup>

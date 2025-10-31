@@ -44,3 +44,15 @@
     }
   }
 }
+
+// Clickable client rows in Ag-Grid
+.ag-theme-material .ag-row.client-row {
+  cursor: pointer;
+}
+.ag-theme-material .ag-row.client-row:hover {
+  background-color: #f9fafb !important;
+}
+// No pointer over Actions column
+.ag-theme-material .ag-row.client-row .ag-cell[col-id="actions"] {
+  cursor: default;
+}

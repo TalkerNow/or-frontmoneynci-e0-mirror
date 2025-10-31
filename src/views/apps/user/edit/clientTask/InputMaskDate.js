@@ -15,7 +15,7 @@ const InputMaskDate = ({ defaultValue, onChange }) => {
       <InputMask
         className="form-control"
         mask="99/99/9999"
-        placeholder="DD/MM/YYYY - End Date"
+        placeholder="DD/MM/YYYY - Date de fin"
         onChange={onChange} defaultValue={sDefaultValue}
       />
     </React.Fragment>

@@ -144,7 +144,7 @@ class NavbarColors extends React.Component {
                                 <span className="user-name text-bold-600">
                                   John Doe
                                 </span>
-                                <span className="user-status">Available</span>
+                                <span className="user-status">Disponible</span>
                               </div>
                               <span>
                                 <img
@@ -228,7 +228,7 @@ class NavbarColors extends React.Component {
                                 <span className="user-name text-bold-600">
                                   John Doe
                                 </span>
-                                <span className="user-status">Available</span>
+                                <span className="user-status">Disponible</span>
                               </div>
                               <span>
                                 <img
@@ -312,7 +312,7 @@ class NavbarColors extends React.Component {
                                 <span className="user-name text-bold-600">
                                   John Doe
                                 </span>
-                                <span className="user-status">Available</span>
+                                <span className="user-status">Disponible</span>
                               </div>
                               <span>
                                 <img
@@ -396,7 +396,7 @@ class NavbarColors extends React.Component {
                                 <span className="user-name text-bold-600">
                                   John Doe
                                 </span>
-                                <span className="user-status">Available</span>
+                                <span className="user-status">Disponible</span>
                               </div>
                               <span>
                                 <img
@@ -480,7 +480,7 @@ class NavbarColors extends React.Component {
                                 <span className="user-name text-bold-600">
                                   John Doe
                                 </span>
-                                <span className="user-status">Available</span>
+                                <span className="user-status">Disponible</span>
                               </div>
                               <span>
                                 <img
@@ -564,7 +564,7 @@ class NavbarColors extends React.Component {
                                 <span className="user-name text-bold-600">
                                   John Doe
                                 </span>
-                                <span className="user-status">Available</span>
+                                <span className="user-status">Disponible</span>
                               </div>
                               <span>
                                 <img

@@ -9,7 +9,6 @@ import {
   DropdownToggle
 } from "reactstrap"
 import * as Icon from "react-feather"
-import { Link } from "react-router-dom"
 import { history } from "../../../history"
 import { connect } from "react-redux"
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd"

@@ -18,6 +18,7 @@ import "../../../../assets/scss/plugins/forms/flatpickr/flatpickr.scss";
 import InputMaskDate from "./InputMaskDate";
 import axios from "axios";
 import { toast } from "react-toastify";
+import { history } from "../../../../history";
 import Radio from "../../../../components/@vuexy/radio/RadioVuexy";
 const chipColors = {
   CH: "warning",
@@ -155,6 +156,9 @@ class UserAccountTab extends React.Component {
       )
       .then((response) => {
         toast.info("Modifications enregistrées");
+        if (this.props && this.props.backTo) {
+          setTimeout(() => history.push(this.props.backTo), 100);
+        }
       });
   };
 
@@ -306,7 +310,7 @@ class UserAccountTab extends React.Component {
               </Col>
               <Col md="6" sm="12">
                 <FormGroup>
-                  <Label for="role">Role</Label>
+                  <Label for="role">Rôle</Label>
                   {this.ifDataExist("role") != null && (
                     <Input
                       type="select"
@@ -634,7 +638,7 @@ class UserAccountTab extends React.Component {
                 sm="12"
               >
                 <Button.Ripple className="mr-1" color="primary" type="submit">
-                  Modifier
+                  Valider
                 </Button.Ripple>
                 {/*<Button.Ripple color="flat-warning">Reset</Button.Ripple>*/}
               </Col>
