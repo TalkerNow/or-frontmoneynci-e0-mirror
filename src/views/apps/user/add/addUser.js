@@ -373,15 +373,23 @@ class AddUser extends React.Component {
                 <Input
                   type="text"
                   placeholder="Téléphone"
-                  onChange={(e) =>
+                  id="phone"
+                  maxLength="14"
+                  value={this.state.data.mobile_number || ""}
+                  onChange={(e) => {
+                    let input = e.target.value.replace(/\D/g, ""); // Supprime tout sauf les chiffres
+                    // Ajoute un espace toutes les deux chiffres
+                    if (input.length > 2)
+                      input = input.replace(/(.{2})/g, "$1 ");
+                    // Supprime un éventuel espace final inutile
+                    input = input.trim();
                     this.setState({
                       data: {
                         ...this.state.data,
-                        mobile_number: e.target.value,
+                        mobile_number: input,
                       },
-                    })
-                  }
-                  id="phone"
+                    });
+                  }}
                 />
               </FormGroup>
             </Col>

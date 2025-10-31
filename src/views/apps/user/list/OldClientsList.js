@@ -21,7 +21,7 @@ import {
 import axios from "axios";
 import { ContextLayout } from "../../../../utility/context/Layout";
 import { AgGridReact } from "ag-grid-react";
-import { ChevronDown, Trash2, Edit } from "react-feather";
+import { ChevronDown, Trash2, Edit, CheckSquare } from "react-feather";
 import classnames from "classnames";
 import { history } from "../../../../history";
 import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss";
@@ -69,6 +69,8 @@ class OldClientsList extends React.Component {
     defaultColDef: {
       resizable: true,
       sortable: true,
+      flex: 1,
+      minWidth: 120,
     },
     searchVal: "",
     columnDefs: [
@@ -76,14 +78,14 @@ class OldClientsList extends React.Component {
         headerName: "Nom",
         field: "cl_nom",
         filter: true,
-        width: 250,
+        width: 120,
+        minWidth: 120,
+        flex: 1,
         cellRendererFramework: (rowData) => {
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
-              onClick={() =>
-                this.onCopyName(rowData.data.cl_nom, rowData.data.cl_prenom)
-              }
+              onClick={() => history.push(`/app/olduser/edit/${rowData.data.clcleunik}/2`)}
             >
               <span>{rowData.data.cl_nom}</span>
             </div>
@@ -94,14 +96,14 @@ class OldClientsList extends React.Component {
         headerName: "Prénom",
         field: "cl_prenom",
         filter: true,
-        width: 250,
+        width: 120,
+        minWidth: 120,
+        flex: 0,
         cellRendererFramework: (rowData) => {
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
-              onClick={() =>
-                this.onCopyName(rowData.data.cl_nom, rowData.data.cl_prenom)
-              }
+              onClick={() => history.push(`/app/olduser/edit/${rowData.data.clcleunik}/2`)}
             >
               <span>{rowData.data.cl_prenom}</span>
             </div>
@@ -112,7 +114,9 @@ class OldClientsList extends React.Component {
         headerName: "Expert",
         field: "expert_name",
         filter: true,
-        width: 250,
+        width: 120,
+        minWidth: 120,
+        flex: 0,
         cellRendererFramework: (rowData) => {
           return (
             <div className="d-flex align-items-center cursor-pointer">
@@ -224,7 +228,9 @@ class OldClientsList extends React.Component {
         headerName: "Email",
         field: "cl_mail",
         filter: true,
-        width: 200,
+        width: 150,
+        minWidth: 150,
+        flex: 0,
         cellRendererFramework: (rowData) => {
           var email = rowData.data.cl_mail;
           return (
@@ -250,25 +256,39 @@ class OldClientsList extends React.Component {
         },
         field: "cl_date",
         filter: true,
-        width: 200,
+        width: 120,
+        minWidth: 120,
+        flex: 0,
       },
       {
         headerName: "Actions",
-        width: 150,
+        width: 67,
+        minWidth: 67,
+        flex: 0,
         cellRendererFramework: (params) => {
           return (
             <div className="actions cursor-pointer">
               <Edit
                 className="mr-50"
-                size={15}
+                size={20}
                 onClick={() =>
                   history.push(
                     "/app/olduser/edit/" + params.data.clcleunik + "/1"
                   )
                 }
               />
+              <CheckSquare
+                className="mr-50"
+                size={20}
+                onClick={() =>
+                  history.push(
+                    "/app/user/clientTask/" + params.data.clcleunik + "/all"
+                  )
+                }
+                title="Tâches"
+              />
               <Trash2
-                size={15}
+                size={20}
                 onClick={() => {
                   this.handleAlert("defaultAlert", true, params.data.clcleunik);
                 }}
@@ -278,6 +298,15 @@ class OldClientsList extends React.Component {
         },
       },
     ],
+  };
+
+  // Ajuste les colonnes pour occuper toute la largeur (supprime l'espace droit)
+  sizeToFit = () => {
+    if (this.gridApi) {
+      try {
+        this.gridApi.sizeColumnsToFit();
+      } catch (e) {}
+    }
   };
 
   createContract(id, name) {
@@ -340,8 +369,13 @@ class OldClientsList extends React.Component {
   onGridReady = (params) => {
     this.gridApi = params.api;
     this.gridColumnApi = params.columnApi;
-    this.gridApi.setDomLayout("autoHeight");
+    // Normal layout; grid scrolls within a fixed-height container
+    this.sizeToFit();
+    window.addEventListener("resize", this.sizeToFit);
   };
+  componentWillUnmount() {
+    window.removeEventListener("resize", this.sizeToFit);
+  }
   filterData = (column, val) => {
     var filter = this.gridApi.getFilterInstance(column);
     var modelObj = null;
@@ -422,11 +456,11 @@ class OldClientsList extends React.Component {
           confirmBtnText="Oui, supprimer"
           cancelBtnText="Annuler"
           onConfirm={() => {
-            this.handleAlert("basicAlert", false, 0);
+            this.handleAlert("defaultAlert", false, 0);
             this.handleAlert("confirmAlert", true, 0);
           }}
           onCancel={() => {
-            this.handleAlert("basicAlert", false, 0);
+            this.handleAlert("defaultAlert", false, 0);
             this.handleAlert("cancelAlert", true, 0);
           }}
         >
@@ -496,7 +530,7 @@ class OldClientsList extends React.Component {
                   <Row>
                     <Col lg="3" md="6" sm="12">
                       <FormGroup className="mb-0">
-                        <Label for="role">Role</Label>
+                        <Label for="role">Rôle</Label>
                         <Input
                           type="select"
                           name="role"
@@ -611,14 +645,17 @@ class OldClientsList extends React.Component {
             </Card>
           </Col>
           <Col sm="12">
-            <Card style={{ minHeight: "3000px" }}>
-              <CardBody>
-                <div className="ag-theme-material ag-grid-table">
+            <Card style={{ minHeight: "89vh" }}>
+              <CardBody style={{ paddingBottom: "1rem" }}>
+                <div
+                  className="ag-theme-material ag-grid-table"
+                  style={{ height: "82vh", width: "100%" }}
+                >
                   <div className="ag-grid-actions d-flex justify-content-between flex-wrap mb-1">
                     <div className="sort-dropdown">
                       <UncontrolledDropdown className="ag-dropdown p-1">
                         <DropdownToggle tag="div">
-                          1 - {pageSize} of 150
+                          1 - {pageSize} sur 150
                           <ChevronDown className="ml-50" size={20} />
                         </DropdownToggle>
                         <DropdownMenu right>
@@ -653,7 +690,7 @@ class OldClientsList extends React.Component {
                       <Input
                         className="w-50 mr-1 mb-1 mb-sm-0"
                         type="text"
-                        placeholder="search..."
+                        placeholder="Rechercher..."
                         onChange={(e) => this.updateSearchQuery(e.target.value)}
                         value={this.state.searchVal}
                       />
@@ -673,22 +710,17 @@ class OldClientsList extends React.Component {
                     <ContextLayout.Consumer>
                       {(context) => (
                         <AgGridReact
-                          height={"autoHeight"}
                           gridOptions={{
                             onCellClicked: (params) => {
-                              console.log(params);
-                              if (
-                                params.colDef.headerName === "Nom" ||
-                                params.colDef.field === "Prenom"
-                              ) {
-                                history.push(
-                                  "/app/olduser/edit/" +
-                                    params.data.clcleunik +
-                                    "/1"
-                                );
-                              }
+                              const field = params?.colDef?.field;
+                              const header = params?.colDef?.headerName;
+                              if (!params?.data?.clcleunik) return;
+                              if (field === 'cl_mail' || header === 'Actions') return;
+                              history.push(`/app/olduser/edit/${params.data.clcleunik}/2`);
                             },
                           }}
+                          onFirstDataRendered={this.sizeToFit}
+                          onGridSizeChanged={this.sizeToFit}
                           rowSelection="multiple"
                           defaultColDef={defaultColDef}
                           columnDefs={columnDefs}

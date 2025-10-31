@@ -53,7 +53,7 @@ class FilterSidebar extends React.Component {
                 }
               >
                 <Layers size={22} />
-                <span className="align-middle ml-1">All</span>
+                <span className="align-middle ml-1">Tout</span>
               </ListGroupItem>
             </ListGroup>
 
@@ -73,7 +73,7 @@ class FilterSidebar extends React.Component {
                 }
               >
                 <Star size={22} />
-                <span className="align-middle ml-1">Unread</span>
+                <span className="align-middle ml-1">Non lu</span>
               </ListGroupItem>
 
               <ListGroupItem
@@ -103,7 +103,7 @@ class FilterSidebar extends React.Component {
                 }
               >
                 <Check size={22} />
-                <span className="align-middle ml-1">Completed</span>
+                <span className="align-middle ml-1">Terminé</span>
               </ListGroupItem>
 
               {/*
@@ -140,7 +140,7 @@ class FilterSidebar extends React.Component {
                 }
               >
                 <span className="bullet bullet-primary align-middle" />
-                <span className="align-middle ml-1">relance caisse</span>
+                <span className="align-middle ml-1">Relance caisse</span>
               </ListGroupItem>
 
               <ListGroupItem
@@ -155,7 +155,7 @@ class FilterSidebar extends React.Component {
                 }
               >
                 <span className="bullet bullet-warning align-middle" />
-                <span className="align-middle ml-1">relance client</span>
+                <span className="align-middle ml-1">Relance client</span>
               </ListGroupItem>
 
               <ListGroupItem
@@ -170,7 +170,7 @@ class FilterSidebar extends React.Component {
                 }
               >
                 <span className="bullet bullet-success align-middle" />
-                <span className="align-middle ml-1">envoi caisse</span>
+                <span className="align-middle ml-1">Envoi caisse</span>
               </ListGroupItem>
 
               <ListGroupItem
@@ -185,7 +185,7 @@ class FilterSidebar extends React.Component {
                 }
               >
                 <span className="bullet bullet-danger align-middle" />
-                <span className="align-middle ml-1">envoi client</span>
+                <span className="align-middle ml-1">Envoi client</span>
               </ListGroupItem>
 
               <ListGroupItem
@@ -200,7 +200,7 @@ class FilterSidebar extends React.Component {
                 }
               >
                 <span className="bullet bullet-info align-middle" />
-                <span className="align-middle ml-1">appel client</span>
+                <span className="align-middle ml-1">Appel client</span>
               </ListGroupItem>
 
               <ListGroupItem
@@ -215,7 +215,7 @@ class FilterSidebar extends React.Component {
                 }
               >
                 <span className="bullet bullet-primary align-middle" />
-                <span className="align-middle ml-1">appel caisse</span>
+                <span className="align-middle ml-1">Appel caisse</span>
               </ListGroupItem>
             </ListGroup>
           </PerfectScrollbar>

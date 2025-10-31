@@ -16,7 +16,7 @@ class SidebarHeader extends Component {
       <div className="navbar-header">
         <ul className="nav navbar-nav flex-row">
           <li className="nav-item mr-auto">
-            <NavLink to="/" className="navbar-brand">
+            <NavLink to="/dashboard" className="navbar-brand">
               <div className="brand-logo" />
             </NavLink>
           </li>
