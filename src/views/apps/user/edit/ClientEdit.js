@@ -200,7 +200,7 @@ class UserEdit extends React.Component {
             <TabPane tabId='tasks'>
               <Card className='mb-1'>
                 <CardBody>
-                  <div className='text-muted'>Utilise le module tâches dédié: <a href={`/app/user/clientTask/${id}/all`}>ouvrir</a></div>
+                  <div className='text-muted'>Utilise le module tâches dédié: <a href={`/app/user/clientTask/${id}/all`}>Ouvrir</a></div>
                 </CardBody>
               </Card>
             </TabPane>
