@@ -571,6 +571,7 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
         /* Compact card body padding only on large screens */
         @media (min-width: 1200px) {
           .compact-lg { padding: 0.75rem !important; }
+          .hypo-indent-lg { padding-left: 2rem !important; }
         }
       `}</style>
       </>
@@ -969,7 +970,7 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
 
         <TabPane tabId='hypotheses'>
           <Card className='mb-1 bilan-card'>
-            <CardBody>
+            <CardBody className='hypo-indent-lg'>
               <FormGroup tag='fieldset' style={{ fontSize: '1rem' }}>
                 <legend className='h6'>Hypothèses de fin de carrière</legend>
 
