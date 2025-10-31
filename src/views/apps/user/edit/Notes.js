@@ -50,7 +50,7 @@ class UserInfoTab extends React.Component {
               <Label for="child_nbr">Notes</Label>
               <Input
                 type="textarea"
-                rows="15"
+                rows="9"
                 placeholder="Notes"
                 defaultValue={this.ifExist("notes")}
                 onChange={(e) => this.setState({ notes: e.target.value })}
