@@ -1,16 +1,15 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Nav, NavItem, NavLink, Card, CardBody, TabContent, TabPane, FormGroup, Collapse } from 'reactstrap'
+import React, { useState, useEffect, useCallback } from 'react'
+import { Nav, NavItem, NavLink, Card, CardBody, TabContent, TabPane, FormGroup, Collapse, Modal, ModalHeader, ModalBody, ModalFooter, Button } from 'reactstrap'
 import classnames from 'classnames'
 import ButtonRadioSwitch from '../../../../components/reactstrap/buttons/ButtonRadioSwitch'
+import Dropzone from 'react-dropzone'
+import { DownloadCloud } from 'react-feather'
+import '../../../../assets/scss/plugins/extensions/dropzone.scss'
+import axios from 'axios'
 
-// Mock placeholders for "Bilan retraite du client" — replace later with real business values or API
-const DEFAULT_POINTS = {
-  acquis: 12400,
-  requisTauxPlein: 18000,
-  futursParAn: 1200
-}
+// UI-only component: no calculation or API logic here per specs
 
-export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
+export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelId }) {
   const [subTab, setSubTab] = useState('carriere')
   const [regimeTab, setRegimeTab] = useState('base')
   const [carriereLongue, setCarriereLongue] = useState(false)
@@ -25,12 +24,88 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
   const [innerOffset, setInnerOffset] = useState(0)
   const [visible, setVisible] = useState(false)
   const [innerVisible, setInnerVisible] = useState(false)
-  const subNavRef = useRef(null)
-  const innerNavRef = useRef(null)
-  // États d'ouverture des blocs "Régimes de retraite" (fermés par défaut)
+  // (refs to Nav/innerNav removed to avoid function-component ref warnings)
+
+  // Add: missing open states for collapsible regime sections
   const [openBase, setOpenBase] = useState(false)
   const [openArrco, setOpenArrco] = useState(false)
   const [openIrcantec, setOpenIrcantec] = useState(false)
+  // Carrière: upload + saisie manuelle
+  const [careerDoc, setCareerDoc] = useState(null) // { name, type, size, uploadedAt, url? }
+  const [careerDocPreview, setCareerDocPreview] = useState(false)
+  const [careerDocDeleteOpen, setCareerDocDeleteOpen] = useState(false)
+  const [manualCareerRows, setManualCareerRows] = useState([
+    { id: 1, annee: '', revenu: '', trimestres: '', regime: 'général', observations: '', errY: false, errR: false, errT: false }
+  ])
+
+  // Carrière: handle upload with same Dropzone UX as Documents perso
+  const handleCareerDrop = useCallback((acceptedFiles) => {
+    try {
+      if (!acceptedFiles || !acceptedFiles.length) return
+      const formData = new FormData()
+      formData.set('user_id', id)
+      acceptedFiles.forEach((file, i) => {
+        formData.append('photoUpload' + i, file)
+      })
+
+      const Config = {
+        headers: {
+          Authorization: 'Bearer ' + localStorage.getItem('token'),
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+
+      axios.post(global.config.server_url + '/uploadFiles', formData, Config)
+        .then((response) => {
+          if (response && response.data && response.data.success === true && Array.isArray(response.data.files) && response.data.files.length) {
+            const f = response.data.files[response.data.files.length - 1]
+            const meta = {
+              fileId: f.id,
+              name: f.filename,
+              type: (f.mimetype || ''),
+              size: f.size || 0,
+              uploadedAt: f.created_at || new Date().toISOString(),
+              url: f.url || ''
+            }
+            setCareerDoc(meta)
+            try { localStorage.setItem('career_doc_meta', JSON.stringify({ ...meta })) } catch {}
+          }
+        })
+        .catch(() => { /* noop: no hard failure in UI */ })
+    } catch { /* noop */ }
+  }, [id])
+  // Nouveaux états pour la refonte de l'onglet "bilan"
+  const [retirementChoices, setRetirementChoices] = useState([
+    { id: 'legal', label: 'Âge légal', age: '', date: '', selected: false, fixedAge: false, fixedDate: false },
+    { id: 'full', label: 'Âge du taux plein', age: '', date: '', selected: false, fixedAge: false, fixedDate: false },
+    { id: 'auto67', label: 'Âge du taux plein automatique', age: '67', date: '', selected: false, fixedAge: true, fixedDate: false }
+  ])
+  const [freeDates, setFreeDates] = useState([{ id: 1, date: '', age: '', fixedAge: false }])
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null)
+  const [bilanHistory, setBilanHistory] = useState([
+    { id: 'h1', name: 'Bilan de base', age: '62 ans', type: 'Base', date: '12/01/2024', rachat: '' },
+    { id: 'h2', name: 'Simulation taux plein', age: '64 ans', type: 'Taux plein', date: '08/07/2024', rachat: '' },
+    { id: 'h3', name: 'Projection à 67 ans', age: '67 ans', type: 'Projection', date: '15/02/2025', rachat: '' }
+  ])
+
+  // Safe public URL (avoid ReferenceError when process is undefined)
+  const publicUrl = (typeof process !== 'undefined' && process && process.env && process.env.PUBLIC_URL)
+    ? process.env.PUBLIC_URL
+    : ''
+
+  // Defensive snapshots for possibly corrupted localStorage values
+  const salaireDefautRowSafe = (salaireDefautRow && typeof salaireDefautRow === 'object')
+    ? salaireDefautRow
+    : { id: 'def', value: '', fixed: false }
+  const safeSalaireRows = Array.isArray(salaireJusquaDepartRows)
+    ? salaireJusquaDepartRows.filter(r => r && typeof r === 'object')
+    : []
+  const safeRetirementChoices = Array.isArray(retirementChoices)
+    ? retirementChoices.filter(r => r && typeof r === 'object')
+    : []
+  const safeFreeDates = Array.isArray(freeDates)
+    ? freeDates.filter(r => r && typeof r === 'object')
+    : []
 
   const computeInnerOffset = useCallback(() => {
     try {
@@ -47,12 +122,17 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
   }, [subTab])
 
   useEffect(() => { computeInnerOffset() }, [computeInnerOffset])
+  // Keep submenu margin fixed from parent-provided offset (no recompute on clicks)
+  useEffect(() => {
+    const nav = document.getElementById('simu-subnav')
+    if (nav) nav.style.marginLeft = String(Math.max(0, Number(alignOffset) || 0)) + 'px'
+  }, [alignOffset])
   // Animate outer sub-nav on alignment or section change
   useEffect(() => {
     setVisible(false)
     const raf = requestAnimationFrame(() => setVisible(true))
     return () => cancelAnimationFrame(raf)
-  }, [alignOffset, subTab])
+  }, [alignOffset])
   // Animate inner regimes sub-nav each time offset or tab changes
   useEffect(() => {
     if (subTab === 'regimes') {
@@ -97,6 +177,73 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
     } catch (e) { /* noop */ }
   }, [salaireJusquaDepartRows])
 
+  // Persist history edits (names/rachat) – UI-only, to avoid losing on refresh
+  useEffect(() => {
+    try {
+      localStorage.setItem('bilan_history_ui', JSON.stringify(bilanHistory))
+    } catch (e) { /* noop */ }
+  }, [bilanHistory])
+
+  // HYDRATE: load persisted history if available (defensive)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('bilan_history_ui')
+      if (!raw) return
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) {
+        const cleaned = parsed.filter(x => x && typeof x === 'object').map(x => ({
+          id: x.id || String(Date.now()),
+          name: typeof x.name === 'string' ? x.name : '',
+          age: typeof x.age === 'string' ? x.age : '',
+          type: typeof x.type === 'string' ? x.type : '',
+          date: typeof x.date === 'string' ? x.date : '',
+          rachat: typeof x.rachat === 'string' ? x.rachat : ''
+        }))
+        if (cleaned.length) setBilanHistory(cleaned)
+      }
+    } catch { /* noop */ }
+  }, [])
+
+  // HYDRATE: career doc meta + manual rows
+  useEffect(() => {
+    try {
+      const rawDoc = localStorage.getItem('career_doc_meta')
+      if (rawDoc) {
+        const parsed = JSON.parse(rawDoc)
+        if (parsed && typeof parsed === 'object') {
+          // No URL persisted (cannot restore binary), keep meta only
+          setCareerDoc({ name: parsed.name || '', type: parsed.type || '', size: parsed.size || 0, uploadedAt: parsed.uploadedAt || new Date().toISOString(), url: '' })
+        }
+      }
+    } catch { /* noop */ }
+    try {
+      const rawRows = localStorage.getItem('career_manual_rows')
+      if (rawRows) {
+        const parsed = JSON.parse(rawRows)
+        if (Array.isArray(parsed)) {
+          const cleaned = parsed.filter(r => r && typeof r === 'object').map(r => ({
+            id: r.id || Date.now(),
+            annee: typeof r.annee === 'string' ? r.annee : '',
+            revenu: typeof r.revenu === 'string' ? r.revenu : '',
+            trimestres: typeof r.trimestres === 'string' ? r.trimestres : (r.trimestres == null ? '' : String(r.trimestres)),
+            regime: r.regime || 'général',
+            observations: typeof r.observations === 'string' ? r.observations : '',
+            errY: false, errR: false, errT: false
+          }))
+          if (cleaned.length) setManualCareerRows(cleaned)
+        }
+      }
+    } catch { /* noop */ }
+  }, [])
+
+  // PERSIST: manual rows
+  useEffect(() => {
+    try {
+      const thin = (Array.isArray(manualCareerRows) ? manualCareerRows : []).map(r => ({ id: r.id, annee: r.annee, revenu: r.revenu, trimestres: r.trimestres, regime: r.regime, observations: r.observations }))
+      localStorage.setItem('career_manual_rows', JSON.stringify(thin))
+    } catch { /* noop */ }
+  }, [manualCareerRows])
+
   // Sanitize input to digits and a single decimal separator (comma or dot)
   const sanitizeSalaryInput = (val) => {
     if (!val) return ''
@@ -127,15 +274,19 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
     return /^[0-9]$/.test(e.key)
   }
 
-  // Helpers for Bilan "Âge de départ à la retraite"
-  const [selectedDob, setSelectedDob] = useState('')
-  const [selectedAge, setSelectedAge] = useState('') // âge actuel affiché/éditable
+  // Strict digit-only keys (for age fields)
+  const isDigitKeyOnly = (e) => {
+    const allowed = ['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Enter']
+    if (allowed.includes(e.key)) return true
+    if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return true
+    return /^\d$/.test(e.key)
+  }
 
-  // If a DOB is available somewhere (e.g., localStorage or window.user), use it
-  const tryGetBirthDate = useCallback(() => {
+  // Age helpers for "Âge calculé" (Dates libres)
+  const getBirthDate = useCallback(() => {
     try {
       const ls = localStorage.getItem('user_birth_date')
-      const raw = ls || (window && window.user && window.user.birthDate) || null
+      const raw = ls || (window && window.user && (window.user.birthDate || window.user.birth_date)) || null
       if (!raw) return null
       const d = new Date(raw)
       return isNaN(d.getTime()) ? null : d
@@ -144,80 +295,30 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
     }
   }, [])
 
-  const diffYears = useCallback((dob, ref = new Date()) => {
-    let age = ref.getFullYear() - dob.getFullYear()
-    const m = ref.getMonth() - dob.getMonth()
-    if (m < 0 || (m === 0 && ref.getDate() < dob.getDate())) age--
+  const diffYearsAtDate = useCallback((dob, atDate) => {
+    if (!dob || !atDate || isNaN(dob.getTime()) || isNaN(atDate.getTime())) return null
+    let age = atDate.getFullYear() - dob.getFullYear()
+    const m = atDate.getMonth() - dob.getMonth()
+    if (m < 0 || (m === 0 && atDate.getDate() < dob.getDate())) age--
     return age
   }, [])
 
-  // Init from stored DOB and compute current age
-  useEffect(() => {
-    const dob = tryGetBirthDate()
-    if (dob) {
-      setSelectedDob(dob.toISOString().slice(0, 10))
-      setSelectedAge(diffYears(dob))
-    }
-  }, [tryGetBirthDate, diffYears])
-
-  // Handlers for inputs
-  const handleDobInputChange = (e) => {
-    const v = e.target.value
-    setSelectedDob(v)
-    try { if (v) localStorage.setItem('user_birth_date', v) } catch {}
-    if (v) {
-      const d = new Date(v)
-      if (!isNaN(d.getTime())) setSelectedAge(diffYears(d))
-    }
+  // Helpers for preview type detection
+  const isPdfDoc = (doc) => {
+    const t = (doc && doc.type) || ''
+    const u = (doc && (doc.url || doc.name)) || ''
+    return (t.includes('pdf')) || /\.pdf($|\?)/i.test(u)
   }
-
-  // Reform-aware computations
-  const computeLegalAgeFromDob = useCallback((dob) => {
-    // Returns { years, months } for legal age
-    if (!dob || isNaN(dob.getTime())) return { years: 62, months: 0 }
-    const y = dob.getFullYear()
-    const cutoff = new Date(1961, 8, 1) // 1 Sep 1961
-    if (dob < cutoff) return { years: 62, months: 0 }
-    if (y === 1961) return { years: 62, months: 3 }
-    if (y === 1962) return { years: 62, months: 6 }
-    if (y === 1963) return { years: 62, months: 9 }
-    if (y === 1964) return { years: 63, months: 0 }
-    if (y === 1965) return { years: 63, months: 3 }
-    if (y === 1966) return { years: 63, months: 6 }
-    if (y === 1967) return { years: 63, months: 9 }
-    // 1968 and later
-    return { years: 64, months: 0 }
-  }, [])
-
-  const addYearsMonths = useCallback((dob, years = 0, months = 0) => {
-    if (!dob || isNaN(dob.getTime())) return null
-    const baseYear = dob.getFullYear() + years
-    const baseMonth = dob.getMonth() + months
-    // start at day 1 to avoid overflow then clamp day to month length
-    const target = new Date(baseYear, baseMonth, 1)
-    const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate()
-    target.setDate(Math.min(dob.getDate(), lastDay))
-    return target
-  }, [])
-
-  const fmtAge = useCallback((y, m) => {
-    if (y == null) return '-'
-    return m && m > 0 ? `${y} ans ${m} mois` : `${y} ans`
-  }, [])
-
-  const fmtDateFR = useCallback((d) => {
-    if (!d || isNaN(d.getTime())) return '-'
-    try { return d.toLocaleDateString('fr-FR') } catch {
-      const dd = String(d.getDate()).padStart(2, '0')
-      const mm = String(d.getMonth() + 1).padStart(2, '0')
-      const yyyy = d.getFullYear()
-      return `${dd}/${mm}/${yyyy}`
-    }
-  }, [])
+  const isImageDoc = (doc) => {
+    const t = (doc && doc.type) || ''
+    const u = (doc && (doc.url || doc.name)) || ''
+    return t.startsWith('image/') || /\.(png|jpe?g|gif|bmp|webp|tiff?)($|\?)/i.test(u)
+  }
 
   return (
     <div>
       {/* Responsive layout helpers for the Hypothèses section + bilan table */}
+      <>
       <style>{`
         .hypo-grid { display: flex; flex-direction: column; gap: 12px; }
         .hypo-row { display: flex; align-items: center; gap: 12px; }
@@ -236,12 +337,26 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
         /* Variables + table skin (same as your CNAV snippet) */
         :root { --border:#ddd; --bg:#fff; --alt:#f7f7fb; --accent:#7367f0; --head: var(--accent); }
         .regime-table { width:100%; border-collapse:collapse; font-size:13px; background: var(--bg); }
-        .regime-table thead th { background-color: var(--head); color:#fff; border:1px solid var(--border); padding:10px; text-align:center; }
+        .regime-table thead th {
+          background-color: var(--head);
+          color:#fff;
+          border:1px solid var(--border);
+          padding:8px;              /* was 10px */
+          text-align:center;
+          font-size: 1rem;          /* increased for readability */
+        }
         .regime-table td { border:1px solid var(--border); padding:8px; vertical-align: middle; text-align:center; }
         .regime-table tbody tr:nth-child(even) { background-color: var(--alt); }
 
-        /* Keep wrapper for border/shadow */
-        .bilan-wrap { border: 1px solid #e9e9e9; border-radius: 12px; overflow: hidden; box-shadow: 0 6px 20px rgba(16,24,40,.04); background: #fff; }
+        /* Wrapper: comfortable max width, left-aligned */
+        .bilan-wrap {
+          border: 1px solid #e9e9e9; border-radius: 0; overflow: hidden;
+          box-shadow: 0 6px 20px rgba(16,24,40,.04); background: #fff;
+          width: 100%; max-width: 820px; margin: 0; display: block;
+        }
+        .bilan-wrap .table-responsive { width: 100%; max-width: 100%; }
+        /* Ensure responsive scroll on narrow screens */
+        .bilan-wrap .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
         /* Optional: tighten table padding inside the wrap */
         .bilan-wrap .table th, .bilan-wrap .table td { vertical-align: middle; }
@@ -249,9 +364,16 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
 
         /* New: bigger helper text and inputs */
         .bilan-controls { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
-        .bilan-help { font-size: 1.05rem; font-weight: 600; color: var(--bs-body-color, #4b4b4b); }
-        .bilan-field { min-width: 180px; }
-        .bilan-field label.form-label { font-size: 0.95rem; font-weight: 600; margin-bottom: 6px; color: var(--bs-body-color, #4b4b4b); }
+        .bilan-help {
+          font-size: 1.05rem;
+          font-weight: 400;
+          color: var(--bs-body-color, #4b4b4b);
+          display: block;          /* full row */
+          flex-basis: 100%;        /* push fields below */
+          width: 100%;
+        }
+        .bilan-field { min-width: 180px; display: flex; flex-direction: column; } /* make vertical */
+        .bilan-field label.form-label { display: block; font-size: 0.95rem; font-weight: 600; margin-bottom: 6px; color: var(--bs-body-color, #4b4b4b); } /* label above */
         .bilan-input { font-size: 1rem; line-height: 1.25; height: 44px; padding: 10px 12px; }
         /* New: read-only age display styled like an input */
         .bilan-age-display {
@@ -274,8 +396,18 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
           border: 1px solid #e9e9e9; border-radius: 12px; background: #fff;
           box-shadow: 0 6px 20px rgba(16,24,40,.04); padding: 14px 16px;
         }
-        .summary-title { margin: 0 0 6px; font-weight: 600; color: #4b4b57; font-size: 0.95rem; }
-        .summary-value { font-size: 1.8rem; font-weight: 800; color: #3e3e45; line-height: 1.1; }
+        .summary-title { margin: 0 0 6px; font-weight: 600; color: #4b4b57; font-size: 1.1rem; }
+        .section-title { font-size: clamp(1.2rem, 1.1vw + 1rem, 1.5rem); font-weight: 700; color: #2f2f39; }
+        /* prevent wrap for the last word + emoji on tiny screens */
+        .nowrap-chunk { white-space: nowrap; }
+        /* below 320px, allow wrapping again */
+        @media (max-width: 323px) { .nowrap-chunk { white-space: normal; } }
+        .summary-value { font-size: 1.8rem; font-weight: 800; color: #000; line-height: 1.1; }
+        /* Force black even if accent/ok/warn is applied to the value */
+        .summary-value.accent,
+        .summary-value.ok,
+        .summary-value.warn { color: #000 !important; }
+
         .summary-desc { margin-top: 4px; color: #6e6b7b; font-size: 0.92rem; }
         .accent { color: var(--bs-primary, #7367F0); }
         .ok { color: #28a745; font-weight: 700; }
@@ -295,9 +427,156 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
           .hypo-salary-row { flex-direction: column; align-items: stretch; }
           .hypo-salary-inputwrap { width: 100%; }
         }
+
+        .dob-click-wrap { display: inline-block; cursor: pointer; }
+        .dob-click-wrap:focus { outline: 2px solid var(--bs-primary, #7367F0); outline-offset: 2px; }
+
+        /* Age table responsiveness and uniformity */
+        .bilan-table-wrapper {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+        .bilan-table-wrapper::-webkit-scrollbar { height: 8px; }
+        .bilan-table-wrapper::-webkit-scrollbar-thumb {
+          background: rgba(0,0,0,0.12);
+          border-radius: 8px;
+        }
+
+        .regime-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 13px;
+          background: var(--bg);
+          table-layout: fixed; /* uniform column widths */
+        }
+        .regime-table thead th {
+          position: sticky; /* keep header visible when scrolling */
+          top: 0;
+          z-index: 1;
+        }
+        .regime-table th, .regime-table td {
+          padding: 10px;
+          text-align: center;
+          vertical-align: middle;
+          word-break: break-word; /* prevent overflow for long headers */
+        }
+
+        /* Wider min-width on medium screens to avoid squashing */
+        @media (max-width: 992px) {
+          .regime-table { min-width: 840px; }
+        }
+        /* Compact mode on small screens */
+        @media (max-width: 576px) {
+          .regime-table { min-width: 680px; }
+          .regime-table thead th { font-size: 12px; padding: 7px; } /* slightly larger on mobile */
+          .regime-table td { font-size: 12px; padding: 8px; }
+        }
       `}</style>
 
+      <style>{`
+        /* Titles: uniform and larger */
+        .section-title { font-size: 1.35rem; font-weight: 700; margin: 0 0 10px; }
+
+        .choice-table, .history-table {
+          width: 100%;            /* full width for uniformity */
+          border-collapse: collapse;
+          font-size: 13px;
+          background: #fff;
+          table-layout: fixed;
+          max-width: 100%;
+          margin-left: 0;
+        }
+        /* Equal widths (disabled to allow custom colgroup widths) */
+        .choice-table.cols-3 th, .choice-table.cols-3 td { width: auto; }
+        .history-table.cols-5 th, .history-table.cols-5 td { width: auto; }
+        .history-table.cols-6 th, .history-table.cols-6 td { width: auto; }
+        /* Age column layout: label left, value right */
+        .age-cell { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 0 8px; }
+        .age-label { flex: 1 1 auto; min-width: 0; font-weight: 600; color: #374151; text-align: left; }
+        .age-value { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end; min-width: 90px; }
+        .choice-table thead th, .history-table thead th {
+          background: var(--bs-primary, #7367F0);
+          color: #fff;
+          border: 1px solid #E5E7EB;
+          padding: 6px 8px;      /* compact header */
+          text-align: left;
+          font-weight: 600;
+          font-size: 14px;       /* increased for readability */
+          line-height: 1.15;
+          white-space: nowrap;
+        }
+        .choice-table td, .history-table td {
+          border: 1px solid #E5E7EB;
+          padding: 8px;          /* reduce cell padding */
+          vertical-align: middle;
+          background: #fff;
+        }
+        /* Narrow actions column for history table */
+        .history-table th.actions-col, .history-table td.actions-col { width: 80px; text-align: center; }
+        .history-table td { padding: 6px 8px; } /* even tighter for history */
+        .choice-table tbody tr:nth-child(even) td,
+        .history-table tbody tr:nth-child(even) td { background: #F9FAFB; }
+        .choice-table tbody tr:hover td,
+        .history-table tbody tr:hover td { background: #EEF2FF; }
+        .inline-input { width: 100%; border: 1px solid #E5E7EB; border-radius: 6px; padding: 6px 8px; background: #fff; }
+        .inline-input:focus { outline: none; border-color: #A5B4FC; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
+        .action-btn { background:#fff; border:1px solid #E5E7EB; border-radius:6px; padding:6px; line-height:0; cursor:pointer; color:#4B5563; display:inline-flex; align-items:center; justify-content:center; }
+        .action-btn svg { width: 16px; height: 16px; }
+        .action-btn:hover { background:#EEF2FF; color:#111827; }
+        .action-btn.danger { color: #dc3545; border-color: #f3c2c4; }
+        .action-btn.danger:hover { background: #FEE2E2; }
+
+        /* Carrière upload + saisie */
+        .career-card { background: #FAFAFA; border: 1px solid #E5E7EB; border-radius: 8px; width: 100%; max-width: none; margin: 0; }
+        /* In Carrière, tables should use full width */
+        .career-card .bilan-wrap { max-width: none; width: 100%; }
+        /* Remove outer card visual in Bilan so only the table block width shows */
+        .bilan-card { background: transparent; border: 0; box-shadow: none; }
+        .bilan-card > .card-body { padding-left: 0; padding-right: 0; }
+
+        /* Responsive: use full width on small screens and allow horizontal scroll if needed */
+        @media (max-width: 992px) {
+          .bilan-wrap { max-width: 100%; }
+          .choice-table col, .history-table col { width: auto !important; }
+        }
+        @media (max-width: 768px) {
+          .choice-table { min-width: 640px; }
+          .history-table { min-width: 720px; }
+          .choice-table thead th, .history-table thead th { font-size: 12px; padding: 5px 6px; }
+          .choice-table td, .history-table td { padding: 6px; }
+          /* Stack the age value under the label to avoid overflow */
+          .age-cell { flex-direction: column; align-items: flex-start; gap: 2px; padding: 0 8px; }
+          .age-value { justify-content: flex-start; min-width: 0; }
+        }
+        .file-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .file-hidden-input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+        .file-empty { color: #6B7280; background: #F9FAFB; border: 1px dashed #E5E7EB; border-radius: 8px; padding: 10px 12px; font-size: 0.92rem; }
+        .file-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid #E5E7EB; border-radius: 8px; background: #fff; }
+        .file-meta { display: flex; flex-direction: column; }
+        .file-name { font-weight: 600; color: #111827; }
+        .file-date { font-size: 0.85rem; color: #6B7280; }
+        .btn-pastel { background: #EEF2FF; border: 1px solid #E5E7EB; color: #374151; border-radius: 6px; padding: 8px 10px; font-weight: 600; }
+        .btn-pastel:hover { background: #E0E7FF; color: #111827; }
+
+        .manual-table { width: 100%; border-collapse: collapse; background: #fff; table-layout: fixed; }
+        .manual-table thead th { background: #7367F0; color: #fff; border: 1px solid #E5E7EB; padding: 6px 8px; font-size: 13px; text-align: left; white-space: nowrap; }
+        .manual-table td { border: 1px solid #E5E7EB; padding: 6px 8px; vertical-align: middle; }
+        .manual-table th.actions-col, .manual-table td.actions-col { width: 64px; text-align: center; }
+        .manual-input { width: 100%; border: 1px solid #E5E7EB; border-radius: 6px; padding: 6px 8px; background: #fff; }
+        .manual-input:focus { outline: none; border-color: #A5B4FC; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
+        .manual-input.err { border-color: #ef4444; box-shadow: 0 0 0 2px rgba(239,68,68,0.15); }
+        .manual-actions { display: inline-flex; gap: 6px; }
+        .manual-add { margin-top: 8px; }
+
+        /* Compact card body padding only on large screens */
+        @media (min-width: 1200px) {
+          .compact-lg { padding: 0.75rem !important; }
+        }
+      `}</style>
+      </>
+
       <Nav
+        id='simu-subnav'
         tabs
         className="mb-1"
         style={{
@@ -307,11 +586,11 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
           transition: 'margin-left 220ms cubic-bezier(0.16, 1, 0.3, 1), opacity 140ms ease, transform 220ms cubic-bezier(0.16, 1, 0.3, 1)',
           willChange: 'margin-left, transform, opacity'
         }}
-        ref={subNavRef}
+        
       >
         <NavItem>
           <NavLink className={classnames({ active: subTab === 'carriere' })} onClick={() => setSubTab('carriere')}>
-            Carrière
+            <span id='submenu-first-text'>Carrière</span>
           </NavLink>
         </NavItem>
         <NavItem>
@@ -338,9 +617,229 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
 
       <TabContent activeTab={subTab}>
         <TabPane tabId='carriere'>
-          <Card className='mb-1'>
+          {/* Bloc 1: Relevé de carrière */}
+          <Card className='mb-1 career-card'>
             <CardBody>
-              <p className='mb-0 text-muted'>Section Carrière — à compléter (emplois, périodes, etc.).</p>
+              <h6 className='mb-1 section-title'>Relevé de carrière du client</h6>
+              <div className='mb-50'>
+                <Dropzone onDrop={handleCareerDrop}>
+                  {({ getRootProps, getInputProps }) => (
+                    <div {...getRootProps(({ className: 'dropzone' }))}>
+                      <input {...getInputProps()} />
+                      <DownloadCloud className='text-light' size={50} />
+                      <p className='mx-1'>
+                        Glissez et déposez des fichiers ici, ou cliquez pour sélectionner des fichiers à télécharger.
+                      </p>
+                    </div>
+                  )}
+                </Dropzone>
+              </div>
+
+              {!careerDoc ? (
+                <div className='file-empty'>Aucun relevé de carrière n’a encore été importé.</div>
+              ) : (
+                <div className='file-row'>
+                  <div className='file-meta'>
+                    <span className='file-name'>{careerDoc.name}</span>
+                    <span className='file-date'>Envoyé le {(() => { try { return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(careerDoc.uploadedAt)) } catch { return careerDoc.uploadedAt } })()}</span>
+                  </div>
+                  <div className='manual-actions'>
+                    {/* Eye */}
+                    <button
+                      type='button'
+                      className='action-btn'
+                      title='Visualiser le document'
+                      onClick={() => setCareerDocPreview(true)}
+                    >
+                      <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+                        <path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'></path>
+                        <circle cx='12' cy='12' r='3'></circle>
+                      </svg>
+                    </button>
+                    {/* Trash */}
+                    <button
+                      type='button'
+                      className='action-btn danger'
+                      title='Supprimer le relevé'
+                      onClick={() => setCareerDocDeleteOpen(true)}
+                    >
+                      <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+                        <polyline points='3 6 5 6 21 6'></polyline>
+                        <path d='M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6'></path>
+                        <path d='M10 11v6'></path>
+                        <path d='M14 11v6'></path>
+                        <path d='M9 6V4h6v2'></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Preview modal */}
+              <Modal isOpen={careerDocPreview} toggle={() => setCareerDocPreview(false)} size='lg'>
+                <ModalHeader toggle={() => setCareerDocPreview(false)}>Aperçu du relevé</ModalHeader>
+                <ModalBody>
+                  {careerDoc && careerDoc.url ? (
+                    isPdfDoc(careerDoc) ? (
+                      <iframe title='aperçu-pdf' src={careerDoc.url} style={{ width: '100%', height: '70vh', border: 0 }} />
+                    ) : isImageDoc(careerDoc) ? (
+                      <div style={{ width: '100%', textAlign: 'center' }}>
+                        <img src={careerDoc.url} alt={careerDoc.name || 'aperçu'} style={{ maxWidth: '100%', height: 'auto' }} />
+                      </div>
+                    ) : (
+                      <div style={{ color: '#6B7280' }}>Aperçu non disponible pour ce format. Utilisez le bouton Ouvrir.</div>
+                    )
+                  ) : (
+                    <div style={{ color: '#6B7280' }}>Aperçu indisponible (rechargez le fichier si nécessaire).</div>
+                  )}
+                </ModalBody>
+                <ModalFooter>
+                  <Button color='primary' disabled={!(careerDoc && careerDoc.url)} onClick={() => { try { window.open(careerDoc.url, '_blank', 'noopener') } catch {} }}>Ouvrir</Button>
+                  <Button color='secondary' onClick={() => setCareerDocPreview(false)}>Fermer</Button>
+                </ModalFooter>
+              </Modal>
+
+              {/* Delete confirmation */}
+              <Modal isOpen={careerDocDeleteOpen} toggle={() => setCareerDocDeleteOpen(false)}>
+                <ModalHeader toggle={() => setCareerDocDeleteOpen(false)}>Confirmation</ModalHeader>
+                <ModalBody>Êtes-vous sûr de vouloir supprimer ce relevé ?</ModalBody>
+                <ModalFooter>
+                  <Button color='secondary' onClick={() => setCareerDocDeleteOpen(false)}>Non</Button>
+                  <Button color='danger' onClick={() => {
+                    try {
+                      const Config = { headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } }
+                      if (careerDoc && careerDoc.fileId) {
+                        axios.delete(global.config.server_url + '/files/' + careerDoc.fileId, Config).catch(() => {})
+                      }
+                    } catch {}
+                    try { if (careerDoc && careerDoc.url && careerDoc.url.startsWith('blob:')) URL.revokeObjectURL(careerDoc.url) } catch {}
+                    setCareerDoc(null)
+                    setCareerDocDeleteOpen(false)
+                    try { localStorage.removeItem('career_doc_meta') } catch {}
+                  }}>Oui</Button>
+                </ModalFooter>
+              </Modal>
+            </CardBody>
+          </Card>
+
+          {/* Bloc 2: Saisie manuelle */}
+          <Card className='mb-1 career-card'>
+            <CardBody>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
+                <h6 className='mb-1 section-title' style={{ marginBottom: 0 }}>Saisie de carrière manuelle</h6>
+                <button
+                  type='button'
+                  className='btn-pastel'
+                  onClick={() => setManualCareerRows(prev => ([...(Array.isArray(prev) ? prev : []), { id: Date.now(), annee: '', revenu: '', trimestres: '', regime: 'général', observations: '', errY: false, errR: false, errT: false }]))}
+                >
+                  + Ajouter une ligne
+                </button>
+              </div>
+              <div className='bilan-wrap' style={{ overflow: 'hidden' }}>
+                <div className='table-responsive'>
+                  <table className='manual-table'>
+                    <thead>
+                      <tr>
+                        <th>Année</th>
+                        <th>Revenu annuel brut</th>
+                        <th>Trimestres validés</th>
+                        <th className='actions-col'>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(Array.isArray(manualCareerRows) ? manualCareerRows : []).map((row, idx) => (
+                        <tr key={row.id || idx}>
+                          <td>
+                            <input
+                              type='text'
+                              inputMode='numeric'
+                              maxLength={4}
+                              className={`manual-input ${row.errY ? 'err' : ''}`}
+                              value={row.annee ?? ''}
+                              onChange={(e) => {
+                                const v = e.target.value.replace(/[^0-9]/g, '').slice(0,4)
+                                setManualCareerRows(prev => (Array.isArray(prev) ? prev : []).map(r => r.id === row.id ? { ...r, annee: v, errY: false } : r))
+                              }}
+                              onBlur={(e) => {
+                                const v = (e.target.value || '').trim()
+                                const ok = /^\d{4}$/.test(v)
+                                setManualCareerRows(prev => (Array.isArray(prev) ? prev : []).map(r => r.id === row.id ? { ...r, errY: !ok } : r))
+                              }}
+                              placeholder='2020'
+                              aria-label='Année'
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type='text'
+                              inputMode='decimal'
+                              className={`manual-input ${row.errR ? 'err' : ''}`}
+                              value={row.revenu ?? ''}
+                              onChange={(e) => {
+                                const val = sanitizeSalaryInput(e.target.value)
+                                setManualCareerRows(prev => (Array.isArray(prev) ? prev : []).map(r => r.id === row.id ? { ...r, revenu: val, errR: false } : r))
+                              }}
+                              onBlur={() => {
+                                const raw = (row.revenu || '').toString().replace(/\s/g, '').replace(',', '.')
+                                const num = parseFloat(raw)
+                                const ok = !isNaN(num) && num >= 0
+                                const formatted = ok ? new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num) : row.revenu
+                                setManualCareerRows(prev => (Array.isArray(prev) ? prev : []).map(r => r.id === row.id ? { ...r, revenu: formatted, errR: !ok } : r))
+                              }}
+                              placeholder='0,00'
+                              aria-label='Revenu annuel brut'
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type='number'
+                              min={0}
+                              max={4}
+                              step={1}
+                              className={`manual-input ${row.errT ? 'err' : ''}`}
+                              value={row.trimestres ?? ''}
+                              onChange={(e) => {
+                                const v = e.target.value
+                                setManualCareerRows(prev => (Array.isArray(prev) ? prev : []).map(r => r.id === row.id ? { ...r, trimestres: v, errT: false } : r))
+                              }}
+                              onBlur={(e) => {
+                                let n = parseInt(e.target.value || '0', 10)
+                                if (isNaN(n)) n = 0
+                                if (n < 0) n = 0
+                                if (n > 4) n = 4
+                                setManualCareerRows(prev => (Array.isArray(prev) ? prev : []).map(r => r.id === row.id ? { ...r, trimestres: String(n), errT: false } : r))
+                              }}
+                              placeholder='0'
+                              aria-label='Trimestres validés'
+                            />
+                          </td>
+                          <td className='actions-col'>
+                            <div className='manual-actions'>
+                              {idx > 0 && (
+                                <button
+                                  type='button'
+                                  className='action-btn danger'
+                                  title='Supprimer la ligne'
+                                  onClick={() => setManualCareerRows(prev => (Array.isArray(prev) ? prev : []).filter(r => r && r.id !== row.id))}
+                                >
+                                  <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+                                    <polyline points='3 6 5 6 21 6'></polyline>
+                                    <path d='M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6'></path>
+                                    <path d='M10 11v6'></path>
+                                    <path d='M14 11v6'></path>
+                                    <path d='M9 6V4h6v2'></path>
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              {/* Add button moved to top-right header */}
             </CardBody>
           </Card>
         </TabPane>
@@ -356,7 +855,7 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
               transition: 'margin-left 220ms cubic-bezier(0.16, 1, 0.3, 1), opacity 140ms ease, transform 220ms cubic-bezier(0.16, 1, 0.3, 1)',
               willChange: 'margin-left, transform, opacity'
             }}
-            ref={innerNavRef}
+            
           >
             <NavItem>
               <NavLink className={classnames({ active: regimeTab === 'base' })} onClick={() => setRegimeTab('base')}>
@@ -413,7 +912,7 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
                   <CardBody>
                     <iframe
                       title='cnav-simulator'
-                      src={`${process.env.PUBLIC_URL || ''}/cnav-simulator.html`}
+                      src={`${publicUrl}/cnav-simulator.html`}
                       style={{ width: '100%', height: '1800px', border: '0', borderRadius: '8px', background: 'transparent' }}
                     />
                   </CardBody>
@@ -428,7 +927,7 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
                   <CardBody>
                     <iframe
                       title='arrco-agirc-simulator'
-                      src={`${process.env.PUBLIC_URL || ''}/arrco-simulator.html`}
+                      src={`${publicUrl}/arrco-simulator.html`}
                       style={{ width: '100%', height: '1150px', border: '0', borderRadius: '8px', background: 'transparent' }}
                     />
                   </CardBody>
@@ -443,7 +942,7 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
                   <CardBody>
                     <iframe
                       title='ircantec-simulator'
-                      src={`${process.env.PUBLIC_URL || ''}/ircantec-simulator.html`}
+                      src={`${publicUrl}/ircantec-simulator.html`}
                       style={{ width: '100%', height: '1150px', border: '0', borderRadius: '8px', background: 'transparent' }}
                     />
                   </CardBody>
@@ -461,7 +960,7 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
         </TabPane>
 
         <TabPane tabId='rachat'>
-          <Card className='mb-1'>
+          <Card className='mb-1 bilan-card'>
             <CardBody>
               <p className='mb-0 text-muted'>Rachat de trimestres — module à compléter.</p>
             </CardBody>
@@ -469,7 +968,7 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
         </TabPane>
 
         <TabPane tabId='hypotheses'>
-          <Card className='mb-1'>
+          <Card className='mb-1 bilan-card'>
             <CardBody>
               <FormGroup tag='fieldset' style={{ fontSize: '1rem' }}>
                 <legend className='h6'>Hypothèses de fin de carrière</legend>
@@ -514,14 +1013,14 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
                           style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: '#6e6b7b', pointerEvents: 'none', fontWeight: 600 }}
                         >€</span>
 
-                        {salaireDefautRow.fixed ? (
+                        {salaireDefautRowSafe.fixed ? (
                           <input
                             type='text'
                             readOnly
                             className='form-control'
-                            value={salaireDefautRow.value}
+                            value={salaireDefautRowSafe.value ?? ''}
                             onClick={() => {
-                              setSalaireDefautRow(prev => ({ ...prev, fixed: false }))
+                              setSalaireDefautRow(prev => ({ ...(prev && typeof prev === 'object' ? prev : { id: 'def', value: '', fixed: false }), fixed: false }))
                               setTimeout(() => {
                                 const el = document.getElementById('salaire-defaut-input')
                                 if (el) { el.focus(); const len = el.value.length; el.setSelectionRange(len, len) }
@@ -537,23 +1036,23 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
                             inputMode='decimal'
                             pattern='[0-9]*'
                             className='form-control'
-                            value={salaireDefautRow.value}
+                            value={salaireDefautRowSafe.value ?? ''}
                             onKeyDown={(e) => {
                               if (!isAllowedKey(e)) e.preventDefault()
                               if (e.key === 'Enter') {
                                 e.preventDefault()
-                                const raw = (salaireDefautRow.value || '').toString().replace(/\s/g, '').replace(',', '.')
+                                const raw = ((salaireDefautRowSafe && salaireDefautRowSafe.value) || '').toString().replace(/\s/g, '').replace(',', '.')
                                 const num = parseFloat(raw)
                                 const formatted = isNaN(num)
-                                  ? salaireDefautRow.value
+                                  ? (salaireDefautRowSafe ? salaireDefautRowSafe.value : '')
                                   : new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num)
-                                setSalaireDefautRow(prev => ({ ...prev, value: formatted, fixed: true }))
+                                setSalaireDefautRow(prev => ({ ...(prev && typeof prev === 'object' ? prev : { id: 'def', value: '', fixed: false }), value: formatted, fixed: true }))
                                 e.currentTarget.blur()
                               }
                             }}
                             onChange={(e) => {
                               const val = sanitizeSalaryInput(e.target.value)
-                              setSalaireDefautRow(prev => ({ ...prev, value: val }))
+                              setSalaireDefautRow(prev => ({ ...(prev && typeof prev === 'object' ? prev : { id: 'def', value: '', fixed: false }), value: val }))
                             }}
                             placeholder='0,00'
                             style={{ paddingRight: 26, textAlign: 'right', borderRadius: 6, background: '#fff' }}
@@ -574,7 +1073,7 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
                       <span className='text-body' style={{ fontWeight: 600 }}>Salaire(s) jusqu’au départ</span>
                       <button
                         type='button'
-                        onClick={() => setSalaireJusquaDepartRows(prev => [...prev, { id: Date.now(), value: '', fixed: false }])}
+                        onClick={() => setSalaireJusquaDepartRows(prev => ([...(Array.isArray(prev) ? prev : []), { id: Date.now(), value: '', fixed: false }]))}
                         aria-label='Ajouter une ligne Salaire jusqu’au départ'
                         style={{
                           border: '1px solid var(--bs-primary, #7367F0)',
@@ -596,8 +1095,8 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
                     </div>
 
                     <div>
-                      {salaireJusquaDepartRows.map((row, idx) => (
-                        <div key={row.id} className='hypo-salary-row' style={{ marginBottom: idx === salaireJusquaDepartRows.length - 1 ? 0 : 6 }}>
+                      {(safeSalaireRows).map((row, idx) => (
+                        <div key={row.id || idx} className='hypo-salary-row' style={{ marginBottom: idx === safeSalaireRows.length - 1 ? 0 : 6 }}>
                           <span className='hypo-salary-label'>{`Salaire ${idx + 1}`}</span>
 
                           <div className='hypo-salary-inputwrap'>
@@ -606,14 +1105,14 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
                               style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: '#6e6b7b', pointerEvents: 'none', fontWeight: 600 }}
                             >€</span>
 
-                            {row.fixed ? (
+                            {row && row.fixed ? (
                               <input
                                 type='text'
                                 readOnly
                                 className='form-control'
-                                value={row.value}
+                                value={row.value ?? ''}
                                 onClick={() => {
-                                  setSalaireJusquaDepartRows(prev => prev.map(r => r.id === row.id ? { ...r, fixed: false } : r))
+                                  setSalaireJusquaDepartRows(prev => (Array.isArray(prev) ? prev : []).map(r => r && r.id === row.id ? { ...r, fixed: false } : r))
                                   setTimeout(() => {
                                     const el = document.getElementById(`salaire-input-${row.id}`)
                                     if (el) { el.focus(); const len = el.value.length; el.setSelectionRange(len, len) }
@@ -629,23 +1128,23 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
                                 inputMode='decimal'
                                 pattern='[0-9]*'
                                 className='form-control'
-                                value={row.value}
+                                value={row.value ?? ''}
                                 onKeyDown={(e) => {
                                   if (!isAllowedKey(e)) e.preventDefault()
                                   if (e.key === 'Enter') {
                                     e.preventDefault()
-                                    const raw = (row.value || '').toString().replace(/\s/g, '').replace(',', '.')
+                                    const raw = ((row && row.value) || '').toString().replace(/\s/g, '').replace(',', '.')
                                     const num = parseFloat(raw)
                                     const formatted = isNaN(num)
-                                      ? row.value
+                                      ? (row ? row.value : '')
                                       : new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num)
-                                    setSalaireJusquaDepartRows(prev => prev.map(r => r.id === row.id ? { ...r, value: formatted, fixed: true } : r))
+                                    setSalaireJusquaDepartRows(prev => (Array.isArray(prev) ? prev : []).map(r => r && r.id === row.id ? { ...r, value: formatted, fixed: true } : r))
                                     e.currentTarget.blur()
                                   }
                                 }}
                                 onChange={(e) => {
                                   const val = sanitizeSalaryInput(e.target.value)
-                                  setSalaireJusquaDepartRows(prev => prev.map(r => r.id === row.id ? { ...r, value: val } : r))
+                                  setSalaireJusquaDepartRows(prev => (Array.isArray(prev) ? prev : []).map(r => r && r.id === row.id ? { ...r, value: val } : r))
                                 }}
                                 placeholder='0,00'
                                 style={{ paddingRight: 26, textAlign: 'right', borderRadius: 6, background: '#fff' }}
@@ -657,12 +1156,13 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
                           {idx > 0 && (
                             <button
                               type='button'
-                              onClick={() => setSalaireJusquaDepartRows(prev => prev.filter(r => r.id !== row.id))}
+                              onClick={() => setSalaireJusquaDepartRows(prev => (Array.isArray(prev) ? prev : []).filter(r => r && r.id !== row.id))}
                               aria-label='Supprimer cette ligne'
                               title='Supprimer'
-                              style={{ marginLeft: 8, background: '#fff', border: '1px solid #e9e9e9', borderRadius: 6, padding: 6, lineHeight: 0, cursor: 'pointer', color: '#dc3545' }}
+                              className='action-btn danger'
+                              style={{ marginLeft: 8 }}
                             >
-                              <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+                              <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
                                 <polyline points='3 6 5 6 21 6'></polyline>
                                 <path d='M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6'></path>
                                 <path d='M10 11v6'></path>
@@ -707,141 +1207,416 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0 }) {
 
         <TabPane tabId='bilan'>
           <Card className='mb-1'>
-            <CardBody>
-              <h6 className='mb-1'>Âge et date de départ à la retraite</h6>
+            <CardBody className='compact-lg'>
+              <h6 className='mb-1 section-title'>Choix des dates de départ en retraite</h6>
 
-              <div className='mb-50 bilan-controls'>
-                <span className='bilan-help'>
-                  Veuillez sélectionner votre date de naissance. L’âge est calculé automatiquement.
-                </span>
-
-                {/* Date de naissance (champ natif restauré) */}
-                <div className='bilan-field'>
-                  <label htmlFor='bilan-dob' className='form-label'>Date de naissance</label>
-                  <input
-                    id='bilan-dob'
-                    type='date'
-                    className='form-control bilan-input sm'
-                    value={selectedDob}
-                    onChange={handleDobInputChange}
-                  />
-                </div>
-
-                {/* Âge actuel (affichage) */}
-                <div className='bilan-field'>
-                  <label className='form-label'>Âge actuel</label>
-                  <div className='bilan-age-display sm' aria-live='polite'>
-                    {selectedAge !== '' ? `${selectedAge} ans` : '—'}
-                  </div>
+              <div className='bilan-wrap' style={{ overflow: 'hidden' }}>
+                <div className='table-responsive'>
+                  <table className='choice-table cols-3'>
+                    <colgroup>
+                      <col style={{ width: '36%' }} />
+                      <col style={{ width: '32%' }} />
+                      <col style={{ width: '32%' }} />
+                    </colgroup>
+                    <thead>
+                      <tr>
+                        <th>Âge</th>
+                        <th>Date correspondante</th>
+                        <th>Choisir la date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {safeRetirementChoices.map((row) => (
+                        <tr key={row.id}>
+                          <td>
+                            <div className='age-cell'>
+                              <span className='age-label'>{row.label}</span>
+                              {row.id === 'auto67' ? (
+                                <span className='age-value' style={{ fontWeight: 700, color: '#111827' }}>{(row && row.age) ? `${row.age} ans` : '67 ans'}</span>
+                              ) : (
+                                <span className='age-value'>
+                                  {row.fixedAge ? (
+                                    <input
+                                      type='text'
+                                      className='inline-input'
+                                      readOnly
+                                      onClick={() => setRetirementChoices(prev => prev.map(r => (r && r.id === row.id) ? { ...r, fixedAge: false } : r))}
+                                      style={{ width: 80, textAlign: 'center', background: '#F9FAFB', cursor: 'pointer' }}
+                                      value={(row && row.age) ?? ''}
+                                      aria-label={`Âge pour ${row.label}`}
+                                    />
+                                  ) : (
+                                    <input
+                                      type='text'
+                                      inputMode='numeric'
+                                      pattern='[0-9]*'
+                                      className='inline-input'
+                                      style={{ width: 80, textAlign: 'center' }}
+                                      value={(row && row.age) ?? ''}
+                                      onChange={(e) => {
+                                        // digits-only while typing; allow empty
+                                        const v = e.target.value === '' ? '' : String(e.target.value).replace(/[^0-9]/g, '')
+                                        const dob = getBirthDate()
+                                        let nextDate = (row && row.date) || ''
+                                        if (dob && v !== '') {
+                                          const y = parseInt(v, 10)
+                                          if (!Number.isNaN(y)) {
+                                            const d = new Date(dob.getFullYear() + y, dob.getMonth(), dob.getDate())
+                                            if (!isNaN(d.getTime())) nextDate = d.toISOString().slice(0, 10)
+                                          }
+                                        }
+                                        setRetirementChoices(prev => prev.map(r => (r && r.id === row.id) ? { ...r, age: v, date: nextDate } : r))
+                                      }}
+                                      onKeyDown={(e) => {
+                                        if (!isDigitKeyOnly(e)) e.preventDefault()
+                                        if (e.key === 'Enter') {
+                                          const n = parseInt((row && row.age) || '', 10)
+                                          if (!Number.isNaN(n)) {
+                                            const clamped = Math.min(120, Math.max(18, n))
+                                            setRetirementChoices(prev => prev.map(r => (r && r.id === row.id) ? { ...r, age: String(clamped), fixedAge: true } : r))
+                                          } else {
+                                            setRetirementChoices(prev => prev.map(r => (r && r.id === row.id) ? { ...r, fixedAge: true } : r))
+                                          }
+                                        }
+                                      }}
+                                      placeholder='Ex: 62'
+                                      aria-label={`Âge pour ${row.label}`}
+                                    />
+                                  )}
+                                  <span>ans</span>
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td>
+                            {row.fixedDate ? (
+                              <input
+                                type='text'
+                                readOnly
+                                className='inline-input'
+                                onClick={() => setRetirementChoices(prev => prev.map(r => (r && r.id === row.id) ? { ...r, fixedDate: false } : r))}
+                                style={{ width: 130, textAlign: 'center', background: '#F9FAFB', cursor: 'pointer' }}
+                                value={(row && row.date) ?? ''}
+                                aria-label={`Date correspondante pour ${row.label}`}
+                              />
+                            ) : (
+                              <input
+                                type='date'
+                                className='inline-input'
+                                style={{ width: 130, textAlign: 'center', cursor: 'pointer' }}
+                                value={(row && row.date) ?? ''}
+                                onMouseDown={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
+                                onFocus={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
+                                onChange={(e) => {
+                                  const val = e.target.value
+                                  const dob = getBirthDate()
+                                  let nextAge = (row && row.age) || ''
+                                  if (dob && val) {
+                                    const at = new Date(val)
+                                    if (!isNaN(at.getTime())) {
+                                      let age = at.getFullYear() - dob.getFullYear()
+                                      const m = at.getMonth() - dob.getMonth()
+                                      if (m < 0 || (m === 0 && at.getDate() < dob.getDate())) age--
+                                      if (age >= 0) nextAge = String(age)
+                                    }
+                                  }
+                                  setRetirementChoices(prev => prev.map(r => (r && r.id === row.id) ? { ...r, date: val, age: nextAge } : r))
+                                }}
+                                onKeyDown={(e) => { if (e.key === 'Enter') setRetirementChoices(prev => prev.map(r => (r && r.id === row.id) ? { ...r, fixedDate: true } : r)) }}
+                                aria-label={`Date correspondante pour ${row.label}`}
+                              />
+                            )}
+                          </td>
+                          <td>
+                            <div style={{ display: 'inline-flex', gap: 12, alignItems: 'center' }}>
+                              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, margin: 0 }}>
+                                <input
+                                  type='radio'
+                                  name={`choose-${row.id}`}
+                                  checked={!!(row && row.selected)}
+                                  onChange={() => setRetirementChoices(prev => (Array.isArray(prev) ? prev : []).map(r => (r && r.id === row.id) ? { ...r, selected: true } : r))}
+                                />
+                                <span>Oui</span>
+                              </label>
+                              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, margin: 0 }}>
+                                <input
+                                  type='radio'
+                                  name={`choose-${row.id}`}
+                                  checked={!((row && row.selected))}
+                                  onChange={() => setRetirementChoices(prev => (Array.isArray(prev) ? prev : []).map(r => (r && r.id === row.id) ? { ...r, selected: false } : r))}
+                                />
+                                <span>Non</span>
+                              </label>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
-              {(() => {
-                const dob = selectedDob ? new Date(selectedDob) : tryGetBirthDate()
-                const yearOfBirth = dob ? dob.getFullYear() : '-'
-                const fullBirthDate = dob ? fmtDateFR(dob) : '-'
-
-                // Legal age by generation (2023 reform)
-                const { years: legalY, months: legalM } = computeLegalAgeFromDob(dob)
-                const earliestD = addYearsMonths(dob, legalY, legalM)
-                const earliestDate = dob ? fmtDateFR(earliestD) : '-'
-                const ageLegalStr = dob ? fmtAge(legalY, legalM) : '-'
-
-                // Automatic full-rate age unchanged: 67 years
-                const ageTauxPleinAuto = 67
-                const tauxPleinDate = dob ? fmtDateFR(addYearsMonths(dob, 67, 0)) : '-'
-
-                return (
-                  <div className='bilan-table-wrapper'>
-                    <div className='bilan-wrap'>
-                      <div className='table-responsive'>
-                        <table className='regime-table'>
-                          <thead>
-                            <tr>
-                              <th>Année de naissance</th>
-                              <th>Date de naissance complète</th>
-                              <th>Âge légal selon sa génération</th>
-                              <th>Date de départ au plus tôt</th>
-                              <th>Âge du taux plein automatique</th>
-                              <th>Date de taux plein automatique</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr>
-                              <td>{yearOfBirth}</td>
-                              <td>{fullBirthDate}</td>
-                              <td>{ageLegalStr}</td>
-                              <td>{earliestDate}</td>
-                              <td>{ageTauxPleinAuto} ans</td>
-                              <td>{tauxPleinDate}</td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
+              {/* Dates libres */}
+              <div style={{ marginTop: 16 }}>
+                <h6 className='mb-1 section-title'>Dates libres</h6>
+                <div className='bilan-wrap' style={{ overflow: 'hidden' }}>
+                  <div className='table-responsive'>
+                  <table className='choice-table cols-3'>
+                    <colgroup>
+                      <col style={{ width: '40%' }} />
+                      <col style={{ width: '40%' }} />
+                      <col style={{ width: '68px' }} />
+                    </colgroup>
+                      <thead>
+                        <tr>
+                          <th>Date libre</th>
+                          <th>Âge calculé</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {safeFreeDates.map((row, idx) => (
+                          <tr key={row.id}>
+                            <td>
+                              <input
+                                type='date'
+                                className='inline-input'
+                                style={{ width: 130, cursor: 'pointer' }}
+                                value={(row && row.date) ?? ''}
+                                onMouseDown={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
+                                onFocus={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
+                                onChange={(e) => {
+                                  const val = e.target.value
+                                  setFreeDates(prev => (Array.isArray(prev) ? prev : []).map(r => {
+                                    if (r && r.id === row.id) {
+                                      const dob = getBirthDate()
+                                      const at = val ? new Date(val) : null
+                                      const years = dob && at ? diffYearsAtDate(dob, at) : null
+                                      const newAge = (years != null && years >= 0 && !(r.fixedAge)) ? String(years) : (r.age || '')
+                                      return { ...r, date: val, age: newAge }
+                                    }
+                                    return r
+                                  }))
+                                }}
+                                aria-label={`Date libre ${idx + 1}`}
+                              />
+                            </td>
+                            <td>
+                              {(() => {
+                                const dob = getBirthDate()
+                                const at = (row && row.date) ? new Date(row.date) : null
+                                const years = dob && at ? diffYearsAtDate(dob, at) : null
+                                const computed = (years != null && years >= 0) ? String(years) : ''
+                                const current = (row && row.age != null && String(row.age).trim() !== '') ? String(row.age) : computed
+                                return (
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                    <input
+                                      type='text'
+                                      inputMode='numeric'
+                                      pattern='[0-9]*'
+                                      className='inline-input'
+                                      style={{ width: 90, textAlign: 'center' }}
+                                      value={current}
+                                      onKeyDown={(e) => { if (!isDigitKeyOnly(e)) e.preventDefault() }}
+                                      onChange={(e) => {
+                                        const raw = e.target.value
+                                        const sanitized = raw === '' ? '' : String(raw).replace(/[^0-9]/g, '')
+                                        setFreeDates(prev => (Array.isArray(prev) ? prev : []).map(r => (r && r.id === row.id) ? { ...r, age: sanitized } : r))
+                                      }}
+                                      onBlur={(e) => {
+                                        const v = e.target.value
+                                        if (v === '') return
+                                        const n = parseInt(v, 10)
+                                        if (Number.isNaN(n)) return
+                                        const clamped = Math.min(120, Math.max(18, n))
+                                        setFreeDates(prev => (Array.isArray(prev) ? prev : []).map(r => (r && r.id === row.id) ? { ...r, age: String(clamped) } : r))
+                                      }}
+                                      placeholder='Ex: 62'
+                                      aria-label={`Âge calculé pour la date libre ${idx + 1}`}
+                                    />
+                                    <span>ans</span>
+                                  </div>
+                                )
+                              })()}
+                            </td>
+                            <td>
+                              <div style={{ display: 'inline-flex', gap: 8 }}>
+                                {/* Bouton + seulement sur la première ligne */}
+                                {idx === 0 && (
+                                  <button
+                                    type='button'
+                                    className='action-btn'
+                                    title='Ajouter une date libre'
+                                    onClick={() => setFreeDates(prev => ([...(Array.isArray(prev) ? prev : []), { id: Date.now(), date: '', age: '' }]))}
+                                  >
+                                    <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+                                      <line x1='12' y1='5' x2='12' y2='19'></line>
+                                      <line x1='5' y1='12' x2='19' y2='12'></line>
+                                    </svg>
+                                  </button>
+                                )}
+                                {idx > 0 && (
+                            <button
+                              type='button'
+                              className='action-btn danger'
+                              title='Supprimer cette date libre'
+                              onClick={() => setFreeDates(prev => (Array.isArray(prev) ? prev : []).filter(r => r && r.id !== row.id))}
+                            >
+                                    <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+                                      <polyline points='3 6 5 6 21 6'></polyline>
+                                      <path d='M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6'></path>
+                                      <path d='M10 11v6'></path>
+                                      <path d='M14 11v6'></path>
+                                      <path d='M9 6V4h6v2'></path>
+                                    </svg>
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                )
-              })()}
+                </div>
+              </div>
             </CardBody>
           </Card>
 
-          {/* Bilan retraite du client */}
+          {/* Historique des bilans retraite */}
           <Card className='mb-1'>
-            <CardBody>
-              <h6 className='mb-1'>Bilan retraite du client</h6>
-              {(() => {
-                // Source des valeurs:
-                // - placeholders centralisés dans DEFAULT_POINTS (frontend uniquement, sans backend)
-                // - à remplacer plus tard par les calculs métiers et/ou une API
-                const pointsAcquis = DEFAULT_POINTS.acquis
-                const pointsRequisTauxPlein = DEFAULT_POINTS.requisTauxPlein
-                const pointsFutursParAn = DEFAULT_POINTS.futursParAn
+            <CardBody className='compact-lg'>
+              <h6 className='mb-1 section-title'>Historique des bilans retraite</h6>
+              <div className='bilan-wrap' style={{ overflow: 'hidden' }}>
+                <div className='table-responsive'>
+                  <table className='history-table cols-6'>
+                    <colgroup>
+                      <col style={{ width: '28%' }} />
+                      <col style={{ width: '13%' }} />
+                      <col style={{ width: '14%' }} />
+                      <col style={{ width: '15%' }} />
+                      <col style={{ width: '20%' }} />
+                      <col style={{ width: '80px' }} />
+                    </colgroup>
+                    <thead>
+                      <tr>
+                        <th>Nom du bilan</th>
+                        <th>Âge simulé</th>
+                        <th>Type de bilan</th>
+                        <th>Date d’édition</th>
+                        <th>Rachat / Quotement</th>
+                        <th className='actions-col'>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(Array.isArray(bilanHistory) ? bilanHistory : []).map(item => (
+                        <tr key={item.id}>
+                          <td>
+                            <input
+                              type='text'
+                              className='inline-input'
+                              value={item.name || ''}
+                              onChange={(e) => {
+                                const val = e.target.value
+                                setBilanHistory(prev => (Array.isArray(prev) ? prev : []).map(r => (r && r.id === item.id) ? { ...r, name: val } : r))
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault()
+                                  const trimmed = (e.currentTarget.value || '').toString()
+                                  setBilanHistory(prev => (Array.isArray(prev) ? prev : []).map(r => (r && r.id === item.id) ? { ...r, name: trimmed } : r))
+                                  e.currentTarget.blur()
+                                  try { localStorage.setItem('bilan_history_ui', JSON.stringify((Array.isArray(bilanHistory) ? bilanHistory : []))) } catch {}
+                                }
+                              }}
+                              placeholder='Nom du bilan'
+                              aria-label='Nom du bilan'
+                            />
+                          </td>
+                          <td>{item.age}</td>
+                          <td>{item.type}</td>
+                          <td>{item.date}</td>
+                          <td>
+                            <input
+                              type='text'
+                              className='inline-input'
+                              value={item.rachat || ''}
+                              onChange={(e) => {
+                                const val = e.target.value
+                                setBilanHistory(prev => (Array.isArray(prev) ? prev : []).map(r => (r && r.id === item.id) ? { ...r, rachat: val } : r))
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault()
+                                  const trimmed = (e.currentTarget.value || '').toString()
+                                  setBilanHistory(prev => (Array.isArray(prev) ? prev : []).map(r => (r && r.id === item.id) ? { ...r, rachat: trimmed } : r))
+                                  e.currentTarget.blur()
+                                  try { localStorage.setItem('bilan_history_ui', JSON.stringify((Array.isArray(bilanHistory) ? bilanHistory : []))) } catch {}
+                                }
+                              }}
+                              placeholder='—'
+                              aria-label='Rachat / Quotement'
+                            />
+                          </td>
+                          <td className='actions-col'>
+                            <div style={{ display: 'inline-flex', gap: 4 }}>
+                              <button
+                                type='button'
+                                className='action-btn'
+                                title='Télécharger (Word)'
+                                onClick={(e) => { e.preventDefault(); /* à implémenter plus tard */ }}
+                              >
+                                {/* Icône "Word" stylisée uniquement en tracés */}
+                                <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+                                  <path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'></path>
+                                  <polyline points='14 2 14 8 20 8'></polyline>
+                                  {/* W formed by strokes */}
+                                  <polyline points='8 9 9.5 15 11 11 12.5 15 14 9'></polyline>
+                                </svg>
+                              </button>
+                              <button
+                                type='button'
+                                className='action-btn danger'
+                                title='Supprimer le bilan'
+                                onClick={() => setDeleteConfirmId(item.id)}
+                                aria-label='Supprimer le bilan'
+                              >
+                                <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+                                  <polyline points='3 6 5 6 21 6'></polyline>
+                                  <path d='M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6'></path>
+                                  <path d='M10 11v6'></path>
+                                  <path d='M14 11v6'></path>
+                                  <path d='M9 6V4h6v2'></path>
+                                </svg>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
 
-                // Infer current age from input or DOB
-                const dob = selectedDob ? new Date(selectedDob) : tryGetBirthDate()
-                const inferredAge = selectedAge !== '' ? Number(selectedAge) : (dob ? diffYears(dob) : 0)
-                const targetAge = 67
-                const yearsRemaining = Math.max(0, targetAge - (Number.isFinite(inferredAge) ? inferredAge : 0))
-                const pointsFutursEstimes = pointsFutursParAn * yearsRemaining
-                const totalPoints = pointsAcquis + pointsFutursEstimes
-
-                const deltaRestant = pointsRequisTauxPlein - pointsAcquis
-                const restantClass = deltaRestant <= 0 ? 'ok' : 'warn'
-                const currentYear = new Date().getFullYear()
-                const prevYear = currentYear - 1
-                const dateRef = `31/12/${prevYear}`
-                const fmt = (n) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(n))
-
-                return (
-                  <>
-                    <div className='summary-grid'>
-                      <div className='summary-card'>
-                        <p className='summary-title'>Total de points</p>
-                        <div className='summary-value accent'>{fmt(totalPoints)}</div>
-                        <div className='summary-desc'>Somme des points acquis + estimation des points futurs (jusqu’à {targetAge} ans).</div>
-                      </div>
-
-                      <div className='summary-card'>
-                        <p className='summary-title'>Points acquis à date</p>
-                        <div className='summary-value'>{fmt(pointsAcquis)}</div>
-                        <div className='summary-desc'>Points enregistrés au {dateRef}.</div>
-                      </div>
-
-                      <div className='summary-card'>
-                        <p className='summary-title'>Nombre de points à acquérir</p>
-                        <div className={`summary-value ${restantClass}`}>{fmt(deltaRestant)}</div>
-                        <div className='summary-desc'>Différence avec le total requis pour le taux plein ({fmt(pointsRequisTauxPlein)} pts).</div>
-                      </div>
-
-                      <div className='summary-card'>
-                        <p className='summary-title'>Points futurs par an</p>
-                        <div className='summary-value'>{fmt(pointsFutursParAn)}</div>
-                        <div className='summary-desc'>Estimation annuelle selon l’hypothèse de fin de carrière et le scénario retenu.</div>
-                      </div>
-                    </div>
-                  </>
-                )
-              })()}
+              {/* Confirmation de suppression */}
+              <Modal isOpen={!!deleteConfirmId} toggle={() => setDeleteConfirmId(null)}>
+                <ModalHeader toggle={() => setDeleteConfirmId(null)}>Confirmation</ModalHeader>
+                <ModalBody>
+                  Êtes-vous sûr de vouloir supprimer ce bilan ?
+                </ModalBody>
+                <ModalFooter>
+                  <Button color='secondary' onClick={() => setDeleteConfirmId(null)}>Non</Button>{' '}
+                  <Button
+                    color='danger'
+                    onClick={() => {
+                      setBilanHistory(prev => (Array.isArray(prev) ? prev : []).filter(r => r && r.id !== deleteConfirmId))
+                      setDeleteConfirmId(null)
+                    }}
+                  >
+                    Oui
+                  </Button>
+                </ModalFooter>
+              </Modal>
             </CardBody>
           </Card>
         </TabPane>
