@@ -50,7 +50,7 @@ class CommentsTab extends React.Component {
               <Label for="child_nbr">Notes</Label>
               <Input
                 type="textarea"
-                rows="15"
+                rows="9"
                 placeholder="Commentaires"
                 defaultValue={this.ifExist("comments")}
                 onChange={(e) => this.setState({ comments: e.target.value })}

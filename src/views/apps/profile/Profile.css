@@ -1,0 +1,198 @@
+.user-card-container {
+  transition: all 0.35s ease-in-out;
+}
+
+.user-card-container.collapsed {
+  width: 56px !important;
+  min-width: 56px;
+}
+
+.toggle-btn {
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #7367f0;
+  color: #7367f0;
+  background: #fff;
+}
+
+/* Pulse to draw attention to the open button when the card is hidden */
+.profile-toggle-pulse {
+  position: relative;
+}
+.profile-toggle-pulse::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid rgba(115, 103, 240, 0.6);
+  transform: translate(-50%, -50%);
+  animation: profile-pulse 1.6s ease-out infinite;
+}
+
+@keyframes profile-pulse {
+  0% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
+  70% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
+  100% { opacity: 0; }
+}
+
+.collapsed-info {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 0.8rem;
+  color: #6c757d;
+  user-select: none;
+}
+
+.transition-all {
+  transition: all 0.35s ease-in-out;
+}
+
+/* Smooth collapse of the left profile column */
+.profile-left {
+  /* Animate flex-basis/max-width for smooth open/close of the sidebar */
+  transition: flex-basis 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+              max-width 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+              padding 0.18s ease;
+  will-change: flex-basis, max-width;
+  overflow: hidden; /* clip content during expand to avoid jank */
+}
+.profile-left.collapsed {
+  /* Avoid animating generic flex shorthand; only collapse via flex-basis/max-width */
+  flex-basis: 0 !important;
+  max-width: 0 !important;
+  min-width: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  overflow: hidden;
+  /* Slightly longer close for a pleasant finish */
+  transition: flex-basis 0.26s cubic-bezier(0.22, 1, 0.36, 1),
+              max-width 0.26s cubic-bezier(0.22, 1, 0.36, 1),
+              padding 0.26s ease;
+}
+
+/* Fade/slide the card a bit when collapsing/expanding */
+.profile-left .profile-card {
+  transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  opacity: 1;
+  transform: translateX(0);
+  transition-delay: 40ms; /* tiny stagger for a smoother reveal */
+  will-change: opacity, transform;
+}
+.profile-left.collapsed .profile-card {
+  opacity: 0;
+  transform: translateX(-4px);
+  pointer-events: none;
+  transition-delay: 0ms;
+  transition: opacity 0.26s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Right side expands smoothly */
+.profile-right {
+  transition: flex-basis 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+              max-width 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: flex-basis, max-width;
+}
+.profile-right.expanded {
+  flex-basis: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Compact layout for the profile card */
+.profile-card .card-body {
+  /* Reduce bottom padding so the button sits closer to the border */
+  padding: 0.5rem 1rem 0.25rem !important;
+}
+.profile-card .compact-rows .user-info div {
+  padding: 0.25rem !important;
+}
+.profile-card h5, .profile-card h6 {
+  margin-bottom: 0.4rem !important;
+}
+
+/* Constrain the visual width of the left profile card across pages */
+.profile-left .profile-card {
+  max-width: 520px;
+  margin-left: auto;
+  margin-right: auto;
+  min-height: 420px; /* balanced desktop height */
+}
+
+/* Keep previous width on ClientEdit (no max-width cap) */
+.client-left .profile-card {
+  max-width: 520px !important; /* match enlarged Profile card size */
+  margin-left: auto !important;
+  margin-right: auto !important;
+  height: auto !important; /* don't stretch with neighbor */
+  min-height: 420px; /* consistent height */
+}
+
+/* Member edit: avoid full-height stretching and keep same width */
+.member-left .profile-card {
+  max-width: 520px !important;
+  height: auto !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  min-height: 420px;
+}
+
+/* Fixed-width client profile sidebar and card (match desired 380px width) */
+.profile-sidebar-fixed {
+  flex-basis: 520px !important;
+  max-width: 520px !important;
+  min-width: 520px !important;
+}
+
+.client-profile-sidebar {
+  flex-basis: 380px !important;
+  max-width: 380px !important;
+  min-width: 380px !important;
+  transition: flex-basis 0.3s ease, max-width 0.3s ease;
+}
+
+.client-profile-card {
+  border-radius: 10px !important;
+  background-color: #fff;
+}
+.client-profile-card .card-body {
+  padding: 1.5rem !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+.client-profile-card h5,
+.client-profile-card p {
+  margin-bottom: 0.25rem;
+}
+
+/* Responsive: fallback to full width on narrow screens */
+@media (max-width: 992px) {
+  .profile-sidebar-fixed {
+    flex-basis: 100% !important;
+    max-width: 100% !important;
+    min-width: auto !important;
+  }
+  .profile-left .profile-card,
+  .client-left .profile-card,
+  .member-left .profile-card {
+    max-width: 100% !important;
+    min-height: 360px; /* reduce on small screens */
+  }
+}
+
+@media (max-width: 576px) {
+  .profile-left .profile-card,
+  .client-left .profile-card,
+  .member-left .profile-card {
+    min-height: 320px; /* compact on very small screens */
+  }
+}

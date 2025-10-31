@@ -161,8 +161,8 @@ class FilterSidebar extends React.Component {
             <div className="task-type-title text-bold-600">
               <h3>
                 {this.props.taskToUpdate && this.props.taskToUpdate.id
-                  ? "Update Task"
-                  : "Add Task"}
+                  ? "Modifier la tâche"
+                  : "Ajouter une tâche"}
               </h3>
             </div>
             <div className="close-icon">
@@ -243,7 +243,7 @@ class FilterSidebar extends React.Component {
             <FormGroup style={{ marginBottom: "10px" }}>
               <Input
                 type="text"
-                placeholder="Title"
+                placeholder="Titre"
                 value={
                   this.props.taskToUpdate !== null ? taskTitle : newTask.title
                 }
@@ -294,7 +294,7 @@ class FilterSidebar extends React.Component {
                   className="form-control"
                   options={{ dateFormat: "d/m/Y" }}
                   defaultValue={this.props.taskToUpdate.end_date}
-                  placeholder="End Date"
+                  placeholder="Date de fin"
                   onChange={(date) => this.handleEndDate(date)}
                 />
               )}
@@ -303,7 +303,7 @@ class FilterSidebar extends React.Component {
                   id="end_date"
                   className="form-control"
                   options={{ dateFormat: "d/m/Y" }}
-                  placeholder="End Date"
+                  placeholder="Date de fin"
                   onChange={(date) => this.handleEndDate(date)}
                 />
               )}
@@ -314,7 +314,7 @@ class FilterSidebar extends React.Component {
                   <div className="d-inline-block mr-1">
                     {this.props.taskToUpdate !== null && (
                       <Radio
-                        label="relance caisse"
+                        label="Relance caisse"
                         color="primary"
                         defaultChecked={
                           this.props.taskToUpdate.type == "relance_caisse"
@@ -331,7 +331,7 @@ class FilterSidebar extends React.Component {
                     )}
                     {this.props.taskToUpdate == null && (
                       <Radio
-                        label="relance caisse"
+                        label="Relance caisse"
                         color="primary"
                         defaultChecked={true}
                         name="type"
@@ -354,7 +354,7 @@ class FilterSidebar extends React.Component {
                   <div className="d-inline-block mr-1">
                     {this.props.taskToUpdate !== null && (
                       <Radio
-                        label="relance client"
+                        label="Relance client"
                         color="warning"
                         defaultChecked={
                           this.props.taskToUpdate.type == "relance_client"
@@ -370,7 +370,7 @@ class FilterSidebar extends React.Component {
                     )}
                     {this.props.taskToUpdate == null && (
                       <Radio
-                        label="relance client"
+                        label="Relance client"
                         color="warning"
                         defaultChecked={false}
                         name="type"
@@ -393,7 +393,7 @@ class FilterSidebar extends React.Component {
                   <div className="d-inline-block mr-1">
                     {this.props.taskToUpdate !== null && (
                       <Radio
-                        label="envoi caisse"
+                        label="Envoi caisse"
                         color="success"
                         defaultChecked={
                           this.props.taskToUpdate.type == "envoi_caisse"
@@ -409,7 +409,7 @@ class FilterSidebar extends React.Component {
                     )}
                     {this.props.taskToUpdate == null && (
                       <Radio
-                        label="envoi caisse"
+                        label="Envoi caisse"
                         color="success"
                         defaultChecked={false}
                         name="type"
@@ -432,7 +432,7 @@ class FilterSidebar extends React.Component {
                   <div className="d-inline-block mr-1">
                     {this.props.taskToUpdate !== null && (
                       <Radio
-                        label="envoi client"
+                        label="Envoi client"
                         color="danger"
                         defaultChecked={
                           this.props.taskToUpdate.type == "envoi_client"
@@ -448,7 +448,7 @@ class FilterSidebar extends React.Component {
                     )}
                     {this.props.taskToUpdate == null && (
                       <Radio
-                        label="envoi client"
+                        label="Envoi client"
                         color="danger"
                         defaultChecked={false}
                         name="type"
@@ -471,7 +471,7 @@ class FilterSidebar extends React.Component {
                   <div className="d-inline-block mr-1">
                     {this.props.taskToUpdate !== null && (
                       <Radio
-                        label="appel client"
+                        label="Appel client"
                         color="info"
                         defaultChecked={
                           this.props.taskToUpdate.type == "appel_client"
@@ -487,7 +487,7 @@ class FilterSidebar extends React.Component {
                     )}
                     {this.props.taskToUpdate == null && (
                       <Radio
-                        label="appel client"
+                        label="Appel client"
                         color="info"
                         defaultChecked={false}
                         name="type"
@@ -510,7 +510,7 @@ class FilterSidebar extends React.Component {
                   <div className="d-inline-block mr-1">
                     {this.props.taskToUpdate !== null && (
                       <Radio
-                        label="appel caisse"
+                        label="Appel caisse"
                         color="primary"
                         defaultChecked={
                           this.props.taskToUpdate.type == "appel_caisse"
@@ -526,7 +526,7 @@ class FilterSidebar extends React.Component {
                     )}
                     {this.props.taskToUpdate == null && (
                       <Radio
-                        label="appel caisse"
+                        label="Appel caisse"
                         color="primary"
                         defaultChecked={false}
                         name="type"

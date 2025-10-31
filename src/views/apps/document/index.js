@@ -156,7 +156,7 @@ class DropzoneBasic extends React.Component {
                                     <input {...getInputProps()} />
                                     <DownloadCloud className="text-light" size={50} />
                                     <p className="mx-1">
-                                        Drag files here or click to select files
+                                        Glissez et déposez des fichiers ici, ou cliquez pour sélectionner des fichiers à télécharger.
                                     </p>
                                 </div>
                             )}

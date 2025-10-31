@@ -20,7 +20,7 @@ import InputMaskDate from "./InputMaskDate";
 import axios from "axios";
 //import moment from "moment"
 import { toast } from "react-toastify";
-//import {history} from "../../../../history";
+import { history } from "../../../../history";
 import Radio from "../../../../components/@vuexy/radio/RadioVuexy";
 const chipColors = {
   CH: "warning",
@@ -186,6 +186,10 @@ class UserAccountTab extends React.Component {
           )
           .then((response) => {
             toast.info("Modifications enregistrées");
+            if (this.props && this.props.backTo) {
+              // léger délai pour laisser apparaître le toast
+              setTimeout(() => history.push(this.props.backTo), 100);
+            }
           });
       });
   };
@@ -991,7 +995,7 @@ class UserAccountTab extends React.Component {
                 sm="12"
               >
                 <Button.Ripple className="mr-1" color="success" type="submit">
-                  Modifier
+                  Valider
                 </Button.Ripple>
               </Col>
             </Row>

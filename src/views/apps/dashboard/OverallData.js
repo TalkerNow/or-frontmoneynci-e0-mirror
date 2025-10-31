@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { CheckCircle, DollarSign, Inbox, Package, TrendingUp, Users, ChevronDown } from "react-feather";
+import { CheckCircle, DollarSign, Inbox, Package, TrendingUp, Users } from "react-feather";
 import axios from "axios";
 import {
   Card,
@@ -11,71 +11,91 @@ import {
   CardHeader,
   CardTitle,
   TabPane,
-  Dropdown,
-  DropdownToggle,
-  DropdownMenu,
   DropdownItem,
 } from "reactstrap";
 import classNames from "classnames";
+import TabDropdown from "../../../components/TabDropdown";
 
 /* ===================== Constantes ===================== */
 const FRENCH_MONTHS = [
-  "janvier","février","mars","avril","mai","juin",
-  "juillet","août","septembre","octobre","novembre","décembre",
+  "Janvier","Février","Mars","Avril","Mai","Juin",
+  "Juillet","Août","Septembre","Octobre","Novembre","Décembre",
 ];
 
 const AUTH_CONFIG = {
   headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
 };
 
+// ---------- ISO week utils ----------
+function isoWeekInfo(dateInput) {
+  const d = new Date(dateInput);
+  const day = (d.getDay() + 6) % 7;
+  const thursday = new Date(d);
+  thursday.setDate(d.getDate() - day + 3);
+  const isoYear = thursday.getFullYear();
+  const firstThursday = new Date(isoYear, 0, 4);
+  const firstThursdayDay = (firstThursday.getDay() + 6) % 7;
+  firstThursday.setDate(firstThursday.getDate() - firstThursdayDay + 3);
+  const isoWeek = 1 + Math.round((thursday - firstThursday) / (7 * 24 * 3600 * 1000));
+  return { isoYear, isoWeek };
+}
+function isoWeeksInYear(isoYear) {
+  const dec28 = new Date(isoYear, 11, 28);
+  return isoWeekInfo(dec28).isoWeek;
+}
+function isoWeekStart(isoYear, isoWeek) {
+  const simple = new Date(isoYear, 0, 1 + (isoWeek - 1) * 7);
+  const dow = (simple.getDay() + 6) % 7;
+  const monday = new Date(simple);
+  monday.setDate(simple.getDate() - dow);
+  return monday;
+}
+
 /* ===================== Styles ===================== */
 const DROPDOWN_CSS = `
-  /* ---------- Header responsive : grid avec zones ---------- */
+  /* ---------- Header en grille ---------- */
   .header-grid {
+    position: relative;                     /* nécessaire pour centrer le titre en absolu */
     display: grid;
-    grid-template-columns: 1fr;          /* mobile: 1 colonne */
-    grid-template-areas:
-      "left"
-      "title"
-      "right";
-    row-gap: 8px;
+    grid-template-columns: auto 1fr auto;   /* gauche = filtres, centre = espace, droite = onglets */
+    grid-template-areas: "left title right";
     align-items: center;
     width: 100%;
-    min-height: 48px;
+    min-height: 56px;
+    column-gap: 12px;
   }
-  @media (min-width: 768px) {            /* >= md : une ligne */
-    .header-grid {
-      grid-template-columns: auto 1fr auto;
-      grid-template-areas: "left title right";
-      column-gap: 12px;
-      row-gap: 0;
-    }
-  }
+
   .header-left  { grid-area: left;  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
   .header-right { grid-area: right; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
-  .header-title { grid-area: title; display: flex; justify-content: center; min-width: 0; }
+
+  /* --------- Titre FIXE au centre de la carte --------- */
+  .header-title {
+    position: absolute;      /* retire le titre du flux → il ne bouge plus */
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);  /* centrage parfait */
+    pointer-events: none;    /* laisse passer les clics vers les onglets/filtres */
+    z-index: 1;              /* au-dessus de l'arrière-plan */
+  }
   .header-title .info-title {
     margin: 0;
     font-size: clamp(18px, 2.2vw, 22px);
     line-height: 1.2;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis; /* évite tout chevauchement */
-    max-width: 100%;
     text-align: center;
   }
 
-  /* ---------- Boutons "pilule" des dropdowns ---------- */
+  /* ---------- Boutons pilule violet (ancien style) ---------- */
   .tab-dd .nav-link {
     cursor: pointer;
     border-radius: 9999px;
-    padding: 0.35rem 0.75rem;
+    padding: 0.3rem 0.55rem 0.3rem 0.6rem; /* reduce right padding */
     border: 1px solid rgba(115,103,240,.25);
     background: rgba(115,103,240,.08);
     transition: background .15s ease, box-shadow .15s ease, border-color .15s ease, color .15s ease;
     display: inline-flex;
     align-items: center;
-    gap: .35rem;
+    gap: .25rem; /* tighter gap between text and chevron */
     text-decoration: none !important;
     white-space: nowrap;
   }
@@ -114,8 +134,9 @@ const DROPDOWN_CSS = `
   .header-right .nav-item { display: inline-flex; }
   .header-right .nav-link { padding: .25rem .5rem; margin-right: .25rem; white-space: nowrap; }
 
-  /* ---------- Petits écrans : compacter un peu ---------- */
-  @media (max-width: 480px) {
+  /* ---------- Petits écrans ---------- */
+  @media (max-width: 600px) {
+    .header-grid { min-height: 72px; }
     .tab-dd .nav-link { padding: 0.3rem 0.6rem; }
     .header-right .nav-link { padding: .2rem .45rem; font-size: .95rem; }
   }
@@ -128,18 +149,41 @@ const sum   = (arr) => arr.reduce((acc, v) => acc + Number(v || 0), 0);
 const getMonthsOfTrim = (i) => { const s = i * 3; return [s, s + 1, s + 2]; };
 
 /* ===================== UI: Items ===================== */
-const StatItem = ({ icon: Icon, bubbleClass, value, label, color }) => (
+const StatItem = ({ icon: Icon, value, label, color }) => (
   <div className="mx-auto d-flex align-items-start" style={{ minWidth: 240 }}>
     <div style={{ marginTop: 10 }}>
-      <div className={classNames("avatar avatar-stats p-75", bubbleClass)}>
-        <div className="avatar-content d-flex align-items-center justify-content-center" style={{ color, opacity: 1 }}>
+      <div
+        className="avatar avatar-stats p-75"
+        style={{
+          backgroundColor: color + "20", // couleur + transparence (20 = ~12%)
+          borderRadius: "50%",
+        }}
+      >
+        <div
+          className="avatar-content d-flex align-items-center justify-content-center"
+          style={{ color }}
+        >
           <Icon size={32} />
         </div>
       </div>
     </div>
     <div className="ml-1 mt-1" style={{ minWidth: 0 }}>
-      <h2 className="mb-25" style={{ fontSize: "clamp(20px, 2.2vw, 28px)", lineHeight: 1.1 }}>{value}</h2>
-      <CardTitle className="mb-0" style={{ fontSize: "clamp(13px, 1.6vw, 16px)", whiteSpace: "normal", textAlign: "left" }}>{label}</CardTitle>
+      <h2
+        className="mb-25"
+        style={{ fontSize: "clamp(20px, 2.2vw, 28px)", lineHeight: 1.1 }}
+      >
+        {value}
+      </h2>
+      <CardTitle
+        className="mb-0"
+        style={{
+          fontSize: "clamp(13px, 1.6vw, 16px)",
+          whiteSpace: "normal",
+          textAlign: "left",
+        }}
+      >
+        {label}
+      </CardTitle>
     </div>
   </div>
 );
@@ -180,18 +224,19 @@ function normalizeApiYear(dataByMonthIndex1to12) {
 }
 
 /* ===================== Composant principal ===================== */
-export default function OverallCard({ iconBg, className, iconRight, hideChart }) {
+export default function OverallCard() {
   const now = useMemo(() => new Date(), []);
-  const [activeTab, setActiveTab] = useState("1"); // "1" Mois, "2" Trimestre, "3" Années
+  const [activeTab, setActiveTab] = useState("1");
   const [year, setYear] = useState(now.getFullYear());
-  const [monthIndex, setMonthIndex] = useState(now.getMonth()); // 0..11
-  const [trimIndex, setTrimIndex] = useState(Math.floor(now.getMonth() / 3)); // 0..3
+  const [monthIndex, setMonthIndex] = useState(now.getMonth());
+  const [trimIndex, setTrimIndex] = useState(Math.floor(now.getMonth() / 3));
+  const [openWeek, setOpenWeek] = useState(false);
+  const [currentWeek, setCurrentWeek] = useState(() => `W${isoWeekInfo(new Date()).isoWeek}`);
 
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState("");
   const [data, setData]       = useState(() => normalizeApiYear({}));
 
-  // Fetch
   const fetchYear = useCallback(async (y) => {
     try {
       setLoading(true);
@@ -207,7 +252,17 @@ export default function OverallCard({ iconBg, className, iconRight, hideChart })
   }, []);
   useEffect(() => { fetchYear(year); }, [fetchYear, year]);
 
-  // Dérivés
+  const statsForMonth = useCallback((i) => ({
+    ca: fmt(data.current_total_amount[i]),
+    acompte: fmt(data.current_acompte_amount[i]),
+    solde: fmt(data.current_solde_amount[i]),
+    oppoAmount: fmt(data.opportunite_amount[i]),
+    clientsSignes: fmt(data.client_count[i]),
+    prospects: fmt(data.opportunite_count[i]),
+    totalClients: fmt((Number(data.client_count[i]) || 0) + (Number(data.opportunite_count[i]) || 0)),
+    contratsClotures: fmt(data.total_ended_count[i]),
+  }), [data]);
+
   const monthlyStats = useMemo(() => ({
     ca: fmt(data.current_total_amount[monthIndex]),
     acompte: fmt(data.current_acompte_amount[monthIndex]),
@@ -245,7 +300,13 @@ export default function OverallCard({ iconBg, className, iconRight, hideChart })
     contratsClotures: fmt(sum(data.total_ended_count)),
   }), [data]);
 
-  // Menus
+  const weeklyStats = useMemo(() => {
+    const num = Number(String(currentWeek).replace(/\D/g, "")) || isoWeekInfo(new Date()).isoWeek;
+    const monday = isoWeekStart(year, num);
+    const mi = monday.getMonth();
+    return statsForMonth(mi);
+  }, [currentWeek, year, statsForMonth]);
+
   const yearOptions = useMemo(() => {
     const current = now.getFullYear();
     return range(2018, current + 5);
@@ -254,14 +315,14 @@ export default function OverallCard({ iconBg, className, iconRight, hideChart })
   const tabStats = useMemo(() => {
     const UL = (v) => v;
     const common = [
-      { icon: TrendingUp, bubbleClass: iconBg ? `bg-rgba-${iconBg}` : "bg-rgba-warning", valueKey: "ca",              label: "Chiffre d'affaires", color: "#ff9f43" },
-      { icon: Inbox,      bubbleClass: iconBg ? `bg-rgba-${iconBg}` : "bg-rgba-info",    valueKey: "acompte",         label: "Acomptes",            color: "#00cfe8" },
-      { icon: Package,    bubbleClass: iconBg ? `bg-rgba-${iconBg}` : "bg-rgba-info",    valueKey: "solde",           label: "Soldes",              color: "#00cfe8" },
-      { icon: DollarSign, bubbleClass: iconBg ? `bg-rgba-${iconBg}` : "bg-rgba-success", valueKey: "oppoAmount",      label: "Opportunités",        color: "#28c76f" },
-      { icon: Users,      bubbleClass: iconBg ? `bg-rgba-${iconBg}` : "bg-rgba-primary", valueKey: "clientsSignes",   label: "Clients signés",      color: "#7367f0" },
-      { icon: Users,      bubbleClass: iconBg ? `bg-rgba-${iconBg}` : "bg-rgba-primary", valueKey: "prospects",       label: "Prospects",           color: "#7367f0" },
-      { icon: Users,      bubbleClass: iconBg ? `bg-rgba-${iconBg}` : "bg-rgba-primary", valueKey: "totalClients",    label: "Total clients",       color: "#7367f0" },
-      { icon: CheckCircle,bubbleClass: iconBg ? `bg-rgba-${iconBg}` : "bg-rgba-danger",  valueKey: "contratsClotures",label: "Contrats cloturés",   color: "#ea5455" },
+      { icon: TrendingUp, bubbleClass: "bg-rgba-warning", valueKey: "ca",              label: "Chiffre d'affaires", color: "#7367f0" },
+      { icon: Inbox,      bubbleClass: "bg-rgba-info",    valueKey: "acompte",         label: "Acomptes",            color: "#00cfe8" },
+      { icon: Package,    bubbleClass: "bg-rgba-info",    valueKey: "solde",           label: "Soldes",              color: "#00cfe8" },
+      { icon: DollarSign, bubbleClass: "bg-rgba-success", valueKey: "oppoAmount",      label: "Opportunités",        color: "#28c76f" },
+      { icon: Users,      bubbleClass: "bg-rgba-primary", valueKey: "clientsSignes",   label: "Clients signés",      color: "#28c76f" },
+      { icon: Users,      bubbleClass: "bg-rgba-primary", valueKey: "prospects",       label: "Prospects",           color: "#ff9f43" },
+      { icon: Users,      bubbleClass: "bg-rgba-primary", valueKey: "totalClients",    label: "Total clients",       color: "#7367f0" },
+      { icon: CheckCircle,bubbleClass: "bg-rgba-danger",  valueKey: "contratsClotures",label: "Contrats cloturés",   color: "#ea5455" },
     ];
     const toCards = (obj) => common.map(({ icon, bubbleClass, valueKey, label, color }) => ({
       icon, bubbleClass, color,
@@ -269,29 +330,12 @@ export default function OverallCard({ iconBg, className, iconRight, hideChart })
       label,
     }));
     return { month: toCards(monthlyStats), trim: toCards(trimesterStats), year: toCards(yearlyStats) };
-  }, [iconBg, monthlyStats, trimesterStats, yearlyStats]);
-
-  // ----- Dropdowns (Année/Mois/Trimestre) -----
-  const TabDropdown = ({ label, valueLabel, children, isOpen, toggle, minWidth = 120 }) => (
-    <Dropdown nav inNavbar isOpen={isOpen} toggle={toggle} className="tab-dd">
-      <DropdownToggle
-        nav caret={false} tag="button" type="button"
-        className={classNames("nav-link d-flex align-items-center", { active: isOpen })}
-        style={{ color:"#212529", fontWeight:500, minWidth, height:"1.9rem", lineHeight:1.2 }}
-        aria-haspopup="listbox" aria-expanded={isOpen} title={`${label} — cliquer pour choisir`}
-      >
-        {valueLabel || label}
-        <ChevronDown size={16} className="chev" />
-      </DropdownToggle>
-      <DropdownMenu>{children}</DropdownMenu>
-    </Dropdown>
-  );
+  }, [monthlyStats, trimesterStats, yearlyStats]);
 
   const [openYear, setOpenYear]   = useState(false);
   const [openMonth, setOpenMonth] = useState(false);
   const [openTrim, setOpenTrim]   = useState(false);
 
-  // Filtres gauche
   const FiltersLeft = () => (
     <Nav className="d-flex align-items-center flex-wrap">
       <NavItem className="mr-1 mb-1">
@@ -299,8 +343,8 @@ export default function OverallCard({ iconBg, className, iconRight, hideChart })
           label="Année"
           valueLabel={String(year)}
           isOpen={openYear}
-          toggle={() => setOpenYear((v) => !v)}
-          minWidth={90}
+          toggle={() => setOpenYear(!openYear)}
+          minWidth={70}
         >
           {yearOptions.map((y) => (
             <DropdownItem key={y} active={y === year} onClick={() => { setYear(y); setOpenYear(false); }}>
@@ -316,8 +360,8 @@ export default function OverallCard({ iconBg, className, iconRight, hideChart })
             label="Mois"
             valueLabel={FRENCH_MONTHS[monthIndex]}
             isOpen={openMonth}
-            toggle={() => setOpenMonth((v) => !v)}
-            minWidth={140}
+            toggle={() => setOpenMonth(!openMonth)}
+            minWidth={90}
           >
             {FRENCH_MONTHS.map((m, idx) => (
               <DropdownItem key={m} active={idx === monthIndex} onClick={() => { setMonthIndex(idx); setOpenMonth(false); }}>
@@ -334,8 +378,8 @@ export default function OverallCard({ iconBg, className, iconRight, hideChart })
             label="Trimestre"
             valueLabel={`Trimestre ${trimIndex + 1}`}
             isOpen={openTrim}
-            toggle={() => setOpenTrim((v) => !v)}
-            minWidth={140}
+            toggle={() => setOpenTrim(!openTrim)}
+            minWidth={120}
           >
             {[1, 2, 3, 4].map((t, i) => (
               <DropdownItem key={t} active={i === trimIndex} onClick={() => { setTrimIndex(i); setOpenTrim(false); }}>
@@ -345,13 +389,35 @@ export default function OverallCard({ iconBg, className, iconRight, hideChart })
           </TabDropdown>
         </NavItem>
       )}
+
+      {activeTab === "4" && (
+        <NavItem className="mr-1 mb-1">
+          <TabDropdown
+            label="Semaine"
+            valueLabel={currentWeek}
+            isOpen={openWeek}
+            toggle={() => setOpenWeek(!openWeek)}
+            minWidth={90}
+          >
+            {Array.from({ length: (year === new Date().getFullYear() ? isoWeekInfo(new Date()).isoWeek : isoWeeksInYear(year)) }, (_, i) => `W${i + 1}`).map((w) => (
+              <DropdownItem key={w} active={w === currentWeek} onClick={() => { setCurrentWeek(w); setOpenWeek(false); }}>
+                {w}
+              </DropdownItem>
+            ))}
+          </TabDropdown>
+        </NavItem>
+      )}
     </Nav>
   );
 
-  // Onglets droite
   const TabsRight = () => (
     <div className="header-right">
       <Nav tabs className="nav-tabs d-flex align-items-center flex-wrap">
+        <NavItem>
+          <NavLink className={classNames({ active: activeTab === "4" })} onClick={() => setActiveTab("4")}>
+            Semaines
+          </NavLink>
+        </NavItem>
         <NavItem>
           <NavLink className={classNames({ active: activeTab === "1" })} onClick={() => setActiveTab("1")}>
             Mois
@@ -371,7 +437,6 @@ export default function OverallCard({ iconBg, className, iconRight, hideChart })
     </div>
   );
 
-  /* -------------------- Rendu -------------------- */
   return (
     <>
       <style>{DROPDOWN_CSS}</style>
@@ -382,32 +447,40 @@ export default function OverallCard({ iconBg, className, iconRight, hideChart })
               <FiltersLeft />
             </div>
 
+            {/* Titre ABSOLU centré : ne bouge plus */}
             <div className="header-title">
-              <CardTitle tag="h4" className="info-title">Informations</CardTitle>
+              <CardTitle tag="h4" className="info-title">Informations Clés</CardTitle>
             </div>
 
             <TabsRight />
           </div>
         </CardHeader>
 
-        <CardBody
-          className={classNames(
-            className ? className : "stats-card-body",
-            "d-flex",
-            !iconRight && !hideChart
-              ? "flex-column align-items-start"
-              : iconRight
-              ? "justify-content-between flex-row-reverse align-items-center"
-              : hideChart && !iconRight
-              ? "justify-content-center flex-column text-center"
-              : null,
-            !hideChart ? "pb-0" : "pb-2",
-            "pt-2"
-          )}
-        >
+        <CardBody>
           {error && <div className="w-100 alert alert-danger" role="alert">{error}</div>}
 
           <TabContent activeTab={activeTab} className="w-100">
+            <TabPane tabId="4">
+              {loading ? <div className="w-100 text-center py-3">Chargement…</div> : <StatGrid stats={(() => {
+                const UL = (v) => v;
+                const common = [
+                  { icon: TrendingUp, bubbleClass: "bg-rgba-warning", valueKey: "ca",              label: "Chiffre d'affaires", color: "#7367f0" },
+                  { icon: Inbox,      bubbleClass: "bg-rgba-info",    valueKey: "acompte",         label: "Acomptes",            color: "#00cfe8" },
+                  { icon: Package,    bubbleClass: "bg-rgba-info",    valueKey: "solde",           label: "Soldes",              color: "#00cfe8" },
+                  { icon: DollarSign, bubbleClass: "bg-rgba-success", valueKey: "oppoAmount",      label: "Opportunités",        color: "#28c76f" },
+                  { icon: Users,      bubbleClass: "bg-rgba-primary", valueKey: "clientsSignes",   label: "Clients signés",      color: "#28c76f" },
+                  { icon: Users,      bubbleClass: "bg-rgba-primary", valueKey: "prospects",       label: "Prospects",           color: "#ff9f43" },
+                  { icon: Users,      bubbleClass: "bg-rgba-primary", valueKey: "totalClients",    label: "Total clients",       color: "#7367f0" },
+                  { icon: CheckCircle,bubbleClass: "bg-rgba-danger",  valueKey: "contratsClotures",label: "Contrats cloturés",   color: "#ea5455" },
+                ];
+                const obj = weeklyStats;
+                return common.map(({ icon, bubbleClass, valueKey, label, color }) => ({
+                  icon, bubbleClass, color,
+                  value: UL(obj[valueKey]) + (label !== "Clients signés" && label !== "Prospects" && label !== "Total clients" && label !== "Contrats cloturés" ? " €" : ""),
+                  label,
+                }));
+              })()} />}
+            </TabPane>
             <TabPane tabId="1">
               {loading ? <div className="w-100 text-center py-3">Chargement…</div> : <StatGrid stats={tabStats.month} />}
             </TabPane>

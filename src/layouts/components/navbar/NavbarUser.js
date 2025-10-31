@@ -25,7 +25,7 @@ const UserDropdown = props => {
         onClick={e => handleNavigation(e, "/app/profile")}
       >
         <Icon.User size={14} className="mr-50" />
-        <span className="align-middle">Edit Profile</span>
+        <span className="align-middle">Modifier son profil</span>
       </DropdownItem>
 
       <DropdownItem divider />
@@ -39,7 +39,7 @@ const UserDropdown = props => {
         }}
       >
         <Icon.Power size={14} className="mr-50" />
-        <span className="align-middle">Log Out</span>
+        <span className="align-middle">Se déconnecter</span>
       </DropdownItem>
     </DropdownMenu>
   )
@@ -103,7 +103,7 @@ class NavbarUser extends React.PureComponent {
               <span className="user-name text-bold-600">
                 {this.props.userName}
               </span>
-              <span className="user-status">Available</span>
+              <span className="user-status">Disponible</span>
             </div>
             <span data-tour="user">
               <img

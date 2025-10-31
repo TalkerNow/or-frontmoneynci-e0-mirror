@@ -186,7 +186,7 @@ class TaskList extends React.Component {
                 })
             ) : (
                 <p className="p-1 text-center mt-2 font-medium-3 text-bold-500">
-                    No tasks at this time
+                    Pas de tâches trouvées.
                 </p>
             )
 
@@ -214,7 +214,7 @@ class TaskList extends React.Component {
                                 <FormGroup className="position-relative has-icon-left m-0 d-inline-block d-lg-block">
                                     <Input
                                         type="text"
-                                        placeholder="Search..."
+                                        placeholder="Rechercher..."
                                         onChange={e => this.handleOnChange(e)}
                                         value={value}
                                     />

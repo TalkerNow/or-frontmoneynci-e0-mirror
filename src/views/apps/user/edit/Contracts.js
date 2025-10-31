@@ -62,7 +62,7 @@ class Contracts extends React.Component {
 
     columnDefs: [
       {
-        headerName: "contrat",
+        headerName: "Contrat",
         field: "comment",
         filter: true,
         width: 300,
@@ -480,7 +480,7 @@ class Contracts extends React.Component {
                   <Row>
                     <Col lg="3" md="6" sm="12">
                       <FormGroup className="mb-0">
-                        <Label for="role">Role</Label>
+                        <Label for="role">Rôle</Label>
                         <Input
                           type="select"
                           name="role"
@@ -584,7 +584,7 @@ class Contracts extends React.Component {
                           color="primary"
                           onClick={() => history.push("/pages/create-contract/" + this.props.id)}
                         >
-                          <FolderPlus size={15} /> contrat
+                          <FolderPlus size={15} /> Contrat
                         </Button.Ripple>
                       </div>
 

@@ -10,7 +10,6 @@ import {
   CardBody,
   CardHeader,
   CardTitle,
-  Input,
   Row,
   Col,
 } from "reactstrap"
@@ -314,11 +313,11 @@ class ExpertCard extends React.Component {
             <div>
               {this.state.creator ? (
                 <Button className="mr-1 mb-2 mr-3" outline color="primary" onClick={this.setDataCreators}>
-                  executants
+                  Exécutants
                 </Button>
               ) : (
                 <Button className="mr-1 mb-2 mr-3" outline color="primary" onClick={this.setDataExecutants}>
-                  createurs
+                  Créateurs
                 </Button>
               )}
             </div>

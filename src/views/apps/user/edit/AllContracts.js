@@ -58,7 +58,7 @@ class AllContracts extends React.Component {
     searchVal: "",
     columnDefs: [
       {
-        headerName: "contrat",
+        headerName: "Contrat",
         field: "comment",
         width: 300,
         cellRendererFramework: (params) => {
@@ -168,7 +168,7 @@ class AllContracts extends React.Component {
         },
       },
       {
-        headerName: "solde",
+        headerName: "Solde",
         field: "end_payment",
         width: 150,
         cellRendererFramework: (params) => {
@@ -488,14 +488,14 @@ class AllContracts extends React.Component {
         </SweetAlert>
         <Row className="app-user-list">
           <Col sm="12">
-            <Card>
+            <Card style={{ minHeight: "62vh" }}>
               <CardBody>
                 <div className="ag-theme-material ag-grid-table">
                   <div className="ag-grid-actions d-flex justify-content-between flex-wrap mb-1">
                     <div className="sort-dropdown">
                       <UncontrolledDropdown className="ag-dropdown p-1">
                         <DropdownToggle tag="div">
-                          1 - {pageSize} of 150
+                          1 - {pageSize} sur 150
                           <ChevronDown className="ml-50" size={15} />
                         </DropdownToggle>
                         <DropdownMenu right>
@@ -530,7 +530,7 @@ class AllContracts extends React.Component {
                       <Input
                         className="w-50 mr-1 mb-1 mb-sm-0"
                         type="text"
-                        placeholder="search..."
+                        placeholder="Rechercher..."
                         onChange={(e) => this.updateSearchQuery(e.target.value)}
                         value={this.state.searchVal}
                       />
@@ -544,7 +544,7 @@ class AllContracts extends React.Component {
                               color="primary"
                               onClick={() => this.externalFilterChanged(-1)}
                             >
-                              tous les contrats
+                              Tous les contrats
                             </Button>
                           </>
                         )}
@@ -562,7 +562,7 @@ class AllContracts extends React.Component {
                                   )
                                 }
                               >
-                                mes contrats
+                                Mes contrats
                               </Button>
                             </>
                           )}
