@@ -213,15 +213,19 @@ class AddUser extends React.Component {
     this.setState({ data: { ...this.state.data, birth_date: MyDateString } });
   };
   handleSubmit = (type) => {
-    var birthday_valid = moment(
-      this.state.data.birth_date,
-      "YYYY-MM-DD",
-      true
-    ).isValid();
-    if (!birthday_valid) {
-      toast.error("Birthday format is not valid");
-      return;
+    // Si une date de naissance est saisie, on la valide. Sinon on continue sans erreur.
+    if (this.state.data.birth_date) {
+      const birthday_valid = moment(
+        this.state.data.birth_date,
+        "YYYY-MM-DD",
+        true
+      ).isValid();
+      if (!birthday_valid) {
+        toast.error("Le format de la date de naissance est invalide");
+        return;
+      }
     }
+
 
     if (this.state.data.email === null || this.state.data.email === "") {
       toast.error("You should input email");
