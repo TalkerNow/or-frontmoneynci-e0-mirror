@@ -5,102 +5,72 @@ import { connect } from "react-redux"
 import SidebarHeader from "./SidebarHeader"
 import Hammer from "react-hammerjs"
 import SideMenuContent from "./sidemenu/SideMenuContent"
-import PerfectScrollbar from "react-perfect-scrollbar"
+import { Link } from "react-router-dom"
+import { User } from "react-feather"
+
 class Sidebar extends Component {
   static getDerivedStateFromProps(props, state) {
     if (props.activePath !== state.activeItem) {
-      return {
-        activeItem: props.activePath
-      }
+      return { activeItem: props.activePath }
     }
-    // Return null if the state hasn't changed
     return null
   }
+
   state = {
     width: window.innerWidth,
     activeIndex: null,
     hoveredMenuItem: null,
     activeItem: this.props.activePath,
-    menuShadow: false,
-    ScrollbarTag: PerfectScrollbar
+    menuShadow: false
   }
 
   mounted = false
 
   updateWidth = () => {
     if (this.mounted) {
-      this.setState(prevState => ({
-        width: window.innerWidth
-      }))
-      this.checkDevice()
+      this.setState({ width: window.innerWidth })
     }
   }
 
   componentDidMount() {
     this.mounted = true
     if (this.mounted) {
-      if (window !== "undefined") {
+      if (typeof window !== "undefined") {
         window.addEventListener("resize", this.updateWidth, false)
       }
-      this.checkDevice()
     }
   }
 
   componentWillUnmount() {
     this.mounted = false
-  }
-
-  checkDevice = () => {
-    var prefixes = " -webkit- -moz- -o- -ms- ".split(" ")
-    var mq = function(query) {
-      return window.matchMedia(query).matches
+    if (typeof window !== "undefined") {
+      window.removeEventListener("resize", this.updateWidth, false)
     }
-
-    if ("ontouchstart" in window || window.DocumentTouch) {
-      this.setState({
-        ScrollbarTag: "div"
-      })
-    } else {
-      this.setState({
-        ScrollbarTag: PerfectScrollbar
-      })
-    }
-    var query = ["(", prefixes.join("touch-enabled),("), "heartz", ")"].join("")
-    return mq(query)
   }
 
   changeActiveIndex = id => {
-    if (id !== this.state.activeIndex) {
-      this.setState({
-        activeIndex: id
-      })
-    } else {
-      this.setState({
-        activeIndex: null
-      })
-    }
+    this.setState({ activeIndex: id !== this.state.activeIndex ? id : null })
   }
 
   handleSidebarMouseEnter = id => {
-    if (id !== this.state.hoveredMenuItem) {
-      this.setState({
-        hoveredMenuItem: id
-      })
-    } else {
-      this.setState({
-        hoveredMenuItem: null
-      })
-    }
-  }
-
-  handleActiveItem = url => {
     this.setState({
-      activeItem: url
+      hoveredMenuItem: id !== this.state.hoveredMenuItem ? id : null
     })
   }
 
+  handleActiveItem = url => {
+    this.setState({ activeItem: url })
+  }
+
+  // Shadow en haut quand on a scrollé
+  handleContentScroll = e => {
+    const st = e.currentTarget.scrollTop
+    if (st >= 100 && !this.state.menuShadow) this.setState({ menuShadow: true })
+    else if (st < 100 && this.state.menuShadow) this.setState({ menuShadow: false })
+  }
+
   render() {
-    let {
+    const {
       visibilityState,
       toggleSidebarMenu,
       sidebarHover,
@@ -117,35 +87,28 @@ class Sidebar extends Component {
       collapsedMenuPaths
     } = this.props
 
-    let {
+    const {
       menuShadow,
       activeIndex,
       hoveredMenuItem,
-      activeItem,
-      ScrollbarTag
+      activeItem
     } = this.state
-    let scrollShadow = (container, dir) => {
-      if (container && dir === "up" && container.scrollTop >= 100) {
-        this.setState({ menuShadow: true })
-      } else if (container && dir === "down" && container.scrollTop < 100) {
-        this.setState({ menuShadow: false })
-      } else {
-        return
-      }
-    }
+
     return (
       <ContextLayout.Consumer>
         {context => {
-          let dir = context.state.direction
+          const dir = context.state.direction
+          const isRTL = dir === "rtl"
+          const isCollapsed = sidebarState === true
+
           return (
             <React.Fragment>
               <Hammer
-                onSwipe={e => {
+                onSwipe={() => {
                   sidebarVisibility()
                 }}
-                direction={
-                  dir === "rtl" ? "DIRECTION_LEFT" : "DIRECTION_RIGHT"
-                }>
+                direction={isRTL ? "DIRECTION_LEFT" : "DIRECTION_RIGHT"}
+              >
                 <div className="menu-swipe-area d-xl-none d-block vh-100"></div>
               </Hammer>
 
@@ -153,13 +116,14 @@ class Sidebar extends Component {
                 className={classnames(
                   `main-menu menu-fixed menu-light menu-accordion menu-shadow theme-${activeTheme}`,
                   {
-                    collapsed: sidebarState === true,
+                    collapsed: isCollapsed,
                     "hide-sidebar":
                       this.state.width < 1200 && visibilityState === false
                   }
                 )}
                 onMouseEnter={() => sidebarHover(false)}
-                onMouseLeave={() => sidebarHover(true)}>
+                onMouseLeave={() => sidebarHover(true)}
+              >
                 <SidebarHeader
                   toggleSidebarMenu={toggleSidebarMenu}
                   toggle={toggle}
@@ -171,26 +135,20 @@ class Sidebar extends Component {
                   activePath={activePath}
                   sidebarState={sidebarState}
                 />
-                <ScrollbarTag
-                  className={classnames("main-menu-content", {
-                    "overflow-hidden": ScrollbarTag !== "div",
-                    "overflow-scroll": ScrollbarTag === "div"
-                  })}
-                  {...(ScrollbarTag !== "div" && {
-                    options: { wheelPropagation: false },
-                    onScrollDown: container => scrollShadow(container, "down"),
-                    onScrollUp: container => scrollShadow(container, "up"),
-                    onYReachStart: () =>
-                      menuShadow === true &&
-                      this.setState({ menuShadow: false })
-                  })}>
+
+                {/* Contenu natif (scroll natif) */}
+                <div
+                  className="main-menu-content"
+                  onScroll={this.handleContentScroll}
+                  // on garde un padding bas pour ne pas recouvrir le bouton profil
+                  style={{ paddingBottom: 56, overflowY: "auto", overflowX: "hidden" }}
+                >
                   <Hammer
                     onSwipe={() => {
                       sidebarVisibility()
                     }}
-                    direction={
-                      dir === "rtl" ? "DIRECTION_RIGHT" : "DIRECTION_LEFT"
-                    }>
+                    direction={isRTL ? "DIRECTION_RIGHT" : "DIRECTION_LEFT"}
+                  >
                     <ul className="navigation navigation-main">
                       <SideMenuContent
                         setActiveIndex={this.changeActiveIndex}
@@ -205,11 +163,44 @@ class Sidebar extends Component {
                         currentUser={currentUser}
                         collapsedMenuPaths={collapsedMenuPaths}
                         toggleMenu={sidebarVisibility}
-                        deviceWidth={this.props.deviceWidth}
+                        deviceWidth={this.state.width}
                       />
                     </ul>
                   </Hammer>
-                </ScrollbarTag>
+                </div>
+
+                {/* Bouton profil simple, icône seule, fixe en bas */}
+                <div
+                  className="sidebar-profile-bar"
+                  style={{
+                    position: "absolute",
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: 56,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderTop: "1px solid rgba(0,0,0,0.08)",
+                    background: "inherit"
+                  }}
+                >
+                  <Link
+                    to="/app/profile"
+                    onClick={sidebarVisibility}
+                    className="d-flex align-items-center justify-content-center"
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 8,
+                      textDecoration: "none"
+                    }}
+                    aria-label="Profil"
+                    title="Profil"
+                  >
+                    <User size={18} />
+                  </Link>
+                </div>
               </div>
             </React.Fragment>
           )
@@ -221,7 +212,7 @@ class Sidebar extends Component {
 
 const mapStateToProps = state => {
   return {
-    currentUser: localStorage.getItem('role')
+    currentUser: localStorage.getItem("role")
   }
 }
 

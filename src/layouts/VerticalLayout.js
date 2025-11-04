@@ -29,18 +29,15 @@ class VerticalLayout extends PureComponent {
   };
   collapsedPaths = [];
   mounted = false;
+
   updateWidth = () => {
     if (this.mounted) {
-      this.setState(prevState => ({
-        width: window.innerWidth
-      }));
+      this.setState({ width: window.innerWidth });
     }
   };
 
   handleCustomizer = bool => {
-    this.setState({
-      customizer: bool
-    });
+    this.setState({ customizer: bool });
   };
 
   componentDidMount() {
@@ -53,7 +50,7 @@ class VerticalLayout extends PureComponent {
     } = this.props;
 
     if (this.mounted) {
-      if (window !== "undefined") {
+      if (typeof window !== "undefined") {
         window.addEventListener("resize", this.updateWidth, false);
       }
       if (this.collapsedPaths.includes(pathname)) {
@@ -65,6 +62,7 @@ class VerticalLayout extends PureComponent {
       if (dir === "rtl")
         document.getElementsByTagName("html")[0].setAttribute("dir", "rtl");
       else document.getElementsByTagName("html")[0].setAttribute("dir", "ltr");
+
       return layout === "dark"
         ? document.body.classList.add("dark-layout")
         : layout === "semi-dark"
@@ -73,7 +71,7 @@ class VerticalLayout extends PureComponent {
     }
   }
 
-  componentDidUpdate(prevProps, prevState) {
+  componentDidUpdate(prevProps) {
     let {
       location: { pathname },
       app: {
@@ -131,7 +129,7 @@ class VerticalLayout extends PureComponent {
     }
   };
 
-  toggleSidebarMenu = val => {
+  toggleSidebarMenu = () => {
     this.setState({
       sidebarState: !this.state.sidebarState,
       collapsedContent: !this.state.collapsedContent
@@ -139,25 +137,19 @@ class VerticalLayout extends PureComponent {
   };
 
   sidebarMenuHover = val => {
-    this.setState({
-      sidebarState: val
-    });
+    this.setState({ sidebarState: val });
   };
 
   handleSidebarVisibility = () => {
     if (this.mounted) {
-      if (window !== undefined) {
+      if (typeof window !== "undefined") {
         window.addEventListener("resize", () => {
           if (this.state.sidebarHidden) {
-            this.setState({
-              sidebarHidden: !this.state.sidebarHidden
-            });
+            this.setState({ sidebarHidden: !this.state.sidebarHidden });
           }
         });
       }
-      this.setState({
-        sidebarHidden: !this.state.sidebarHidden
-      });
+      this.setState({ sidebarHidden: !this.state.sidebarHidden });
     }
   };
 
@@ -166,40 +158,29 @@ class VerticalLayout extends PureComponent {
   }
 
   handleCurrentLanguage = lang => {
-    this.setState({
-      currentLang: lang
-    });
+    this.setState({ currentLang: lang });
   };
 
   handleAppOverlay = value => {
     if (value.length > 0) {
-      this.setState({
-        appOverlay: true
-      });
+      this.setState({ appOverlay: true });
     } else if (value.length < 0 || value === "") {
-      this.setState({
-        appOverlay: false
-      });
+      this.setState({ appOverlay: false });
     }
   };
 
   handleAppOverlayClick = () => {
-    this.setState({
-      appOverlay: false
-    });
+    this.setState({ appOverlay: false });
   };
 
   render() {
-    let appProps = this.props.app.customizer;
-    let menuThemeArr = [
-      "primary",
-      "success",
-      "danger",
-      "info",
-      "warning",
-      "dark"
-    ];
-    let sidebarProps = {
+    const appProps = this.props.app.customizer;
+    const menuThemeArr = ["primary", "success", "danger", "info", "warning", "dark"];
+
+    // 🔒 Forcer la disparition partout (indépendant du Redux)
+    const isNavbarHidden = true;
+
+    const sidebarProps = {
       toggleSidebarMenu: this.props.collapseSidebar,
       toggle: this.toggleSidebarMenu,
       sidebarState: this.state.sidebarState,
@@ -214,7 +195,7 @@ class VerticalLayout extends PureComponent {
       permission: this.props.permission,
       deviceWidth: this.state.width
     };
-    let navbarProps = {
+    const navbarProps = {
       toggleSidebarMenu: this.toggleSidebarMenu,
       sidebarState: this.state.sidebarState,
       sidebarVisibility: this.handleSidebarVisibility,
@@ -225,13 +206,11 @@ class VerticalLayout extends PureComponent {
       navbarColor: appProps.navbarColor,
       navbarType: appProps.navbarType
     };
-
-    let footerProps = {
+    const footerProps = {
       footerType: appProps.footerType,
       hideScrollToTop: appProps.hideScrollToTop
     };
-
-    let customizerProps = {
+    const customizerProps = {
       customizerState: this.state.customizer,
       handleCustomizer: this.handleCustomizer,
       changeMode: this.props.changeMode,
@@ -249,6 +228,7 @@ class VerticalLayout extends PureComponent {
       scrollToTop: appProps.hideScrollToTop,
       sidebarState: appProps.sidebarCollapsed
     };
+
     return (
       <div
         className={classnames(
@@ -257,22 +237,42 @@ class VerticalLayout extends PureComponent {
             "menu-collapsed":
               this.state.collapsedContent === true && this.state.width >= 1200,
             "fixed-footer": appProps.footerType === "sticky",
-            "navbar-static": appProps.navbarType === "static",
-            "navbar-sticky": appProps.navbarType === "sticky",
-            "navbar-floating": appProps.navbarType === "floating",
-            "navbar-hidden": appProps.navbarType === "hidden",
+
+            // ❌ Pas de classes navbar-* quand on la cache
+            "navbar-static": appProps.navbarType === "static" && !isNavbarHidden,
+            "navbar-sticky": appProps.navbarType === "sticky" && !isNavbarHidden,
+            "navbar-floating": appProps.navbarType === "floating" && !isNavbarHidden,
+
+            "navbar-hidden": isNavbarHidden,
             "theme-primary": !menuThemeArr.includes(appProps.menuTheme)
           }
         )}
       >
+        {/* CSS de secours pour neutraliser toute barre résiduelle du thème */}
+        {isNavbarHidden && (
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `
+                .header-navbar,
+                .header-navbar-shadow,
+                .content-overlay { display: none !important; }
+              `
+            }}
+          />
+        )}
+
         <Sidebar {...sidebarProps} />
+
         <div
           className={classnames("app-content content", {
             "show-overlay": this.state.appOverlay === true
           })}
           onClick={this.handleAppOverlayClick}
+          style={isNavbarHidden ? { paddingTop: 0, marginTop: 0 } : undefined}
         >
-          <Navbar {...navbarProps} />
+          {/* 🚫 On ne rend plus la navbar */}
+          {!isNavbarHidden && <Navbar {...navbarProps} />}
+
           <div className="content-wrapper">{this.props.children}</div>
         </div>
 
@@ -288,11 +288,11 @@ class VerticalLayout extends PureComponent {
     );
   }
 }
+
 const mapStateToProps = state => {
-  return {
-    app: state.customizer
-  };
+  return { app: state.customizer };
 };
+
 export default connect(mapStateToProps, {
   changeMode,
   collapseSidebar,

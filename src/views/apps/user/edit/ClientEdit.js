@@ -12,6 +12,7 @@ import axios from "axios";
 import DocumentsHub from "./DocumentsHub";
 import SimulatorHub from "./SimulatorHub";
 import { history } from "../../../../history";
+
 class UserEdit extends React.Component {
   state = {
     rowData: [],
@@ -56,33 +57,34 @@ class UserEdit extends React.Component {
     }
   }
 
-  async componentDidMount() {
+  // -------------------------
+  // Centralisation des fetchs
+  // -------------------------
+  fetchUser = async () => {
     const Config = {
-      headers: {
-        Authorization: "Bearer " + localStorage.getItem("token"),
-      },
+      headers: { Authorization: "Bearer " + localStorage.getItem("token") },
     };
+    const { id } = this.props.match.params;
+    const response = await axios.get(global.config.server_url + "/users/" + id, Config);
+    this.setState({ rowData: response.data });
+  };
 
+  fetchMembers = async () => {
+    const Config = {
+      headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+    };
+    const response = await axios.get(global.config.server_url + "/users?kind=member", Config);
+    this.setState({ members: response.data });
+  };
+
+  async componentDidMount() {
     // Déterminer le mode selon l'URL (si ":tab" vaut "1" => plein formulaire)
     const tabParam = this.props.match && this.props.match.params && this.props.match.params.tab;
     this.applyTabFromRoute(tabParam);
 
-    await axios
-      .get(
-        global.config.server_url + "/users/" + this.props.match.params.id,
-        Config
-      )
-      .then((response) => {
-        let rowData = response.data;
-
-        this.setState({ rowData });
-      });
-
-    await axios
-      .get(global.config.server_url + "/users?kind=member", Config)
-      .then((response) => {
-        this.setState({ members: response.data });
-      });
+    // Utilise les méthodes centralisées
+    await this.fetchUser();
+    await this.fetchMembers();
   }
 
   componentDidUpdate(prevProps) {
@@ -90,12 +92,20 @@ class UserEdit extends React.Component {
     const currTab = this.props.match && this.props.match.params && this.props.match.params.tab;
     if (prevTab !== currTab) {
       this.applyTabFromRoute(currTab);
+      // Recharger les infos quand on quitte le plein formulaire (1 -> autre)
+      if (prevTab === "1" && currTab !== "1") {
+        this.fetchUser();
+      }
     }
+
     const prevId = prevProps.match && prevProps.match.params && prevProps.match.params.id;
     const currId = this.props.match && this.props.match.params && this.props.match.params.id;
     if (prevId !== currId) {
       // reset display mode when navigating between users
       this.applyTabFromRoute(currTab);
+      // Re-fetch si on change d'utilisateur
+      this.fetchUser();
+      this.fetchMembers();
     }
   }
 

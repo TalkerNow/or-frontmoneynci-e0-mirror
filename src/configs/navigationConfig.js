@@ -80,9 +80,9 @@ const items = {
   },
   members: {
     id: "members",
-    title: "Membres",
+    title: "Admins",
     type: "item",
-    icon: <Icon.Folder size={20} />,
+    icon: <Icon.Monitor size={20} />,
     permissions: ["admin", "Consultant"],
     navLink: "/app/member/memberslist",
   },
@@ -92,7 +92,7 @@ const items = {
 const adminOrder = [
   "dashboard",
   "kpi",
-  "profile",
+  // "profile",
   // Group clients-related entries together in this exact order
   "users",
   "oldUsers",
@@ -113,7 +113,7 @@ const consultantOrder = [
   // Then the rest
   "dashboard",
   "kpi",
-  "profile",
+  // "profile",
   "tasks",
   "document",
   "contractTemplate",
