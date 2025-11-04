@@ -96,11 +96,11 @@ const adminOrder = [
   // Group clients-related entries together in this exact order
   "users",
   "oldUsers",
-  "members",
+  // "members",
   // Rest of the app entries
   "tasks",
-  "document",
-  "contractTemplate",
+  // "document",
+  // "contractTemplate",
   "contracts",
 ]
 
@@ -109,14 +109,14 @@ const consultantOrder = [
   // Clients-related entries first, in required order
   "users",
   "oldUsers",
-  "members",
+  // "members",
   // Then the rest
   "dashboard",
   "kpi",
   // "profile",
   "tasks",
-  "document",
-  "contractTemplate",
+  // "document",
+  // "contractTemplate",
   "contracts",
 ]
 

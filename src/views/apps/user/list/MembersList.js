@@ -1,20 +1,9 @@
 import React from "react";
-import {
-  Button,
-  Card,
-  CardBody,
-  Input,
-  Row,
-  Col,
-  UncontrolledDropdown,
-  DropdownMenu,
-  DropdownItem,
-  DropdownToggle,
-} from "reactstrap";
+import { Button, Card, CardBody, Input, Row, Col } from "reactstrap";
 import axios from "axios";
 import { ContextLayout } from "../../../../utility/context/Layout";
 import { AgGridReact } from "ag-grid-react";
-import { Edit, Trash2, ChevronDown, UserPlus, Download } from "react-feather";
+import { Edit, Trash2, UserPlus } from "react-feather";
 
 import { history } from "../../../../history";
 import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss";
@@ -44,28 +33,21 @@ class MembersList extends React.Component {
       sortable: true,
       flex: 1,
       minWidth: 120,
+      // pas de filtres
+      filter: false,
     },
     searchVal: "",
     columnDefs: [
       {
-        headerName: "ID",
-        field: "id",
-        width: 60,
-        minWidth: 60,
-        flex: 0,
-        filter: true,
-        checkboxSelection: true,
-        headerCheckboxSelectionFilteredOnly: true,
-        headerCheckboxSelection: true,
-      },
-      {
         headerName: "Nom",
         field: "name",
-        filter: true,
-        width: 100,
-        minWidth: 100,
+        width: 140,
+        minWidth: 140,
         flex: 1,
+        valueGetter: (params) =>
+          `${params.data?.first_name ?? ""} ${params.data?.last_name ?? ""}`.trim(),
         cellRendererFramework: (params) => {
+          const fullName = `${params.data.first_name} ${params.data.last_name}`;
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
@@ -73,9 +55,7 @@ class MembersList extends React.Component {
                 history.push("/app/member/edit/" + params.data.id + "/2")
               }
             >
-              <span>
-                {params.data.first_name + " " + params.data.last_name}
-              </span>
+              <span>{fullName}</span>
             </div>
           );
         },
@@ -83,17 +63,27 @@ class MembersList extends React.Component {
       {
         headerName: "Email",
         field: "email",
-        filter: true,
-        width: 100,
-        minWidth: 100,
+        width: 160,
+        minWidth: 140,
+        flex: 1,
+      },
+      {
+        headerName: "Rôle",
+        field: "role",
+        width: 110,
+        minWidth: 90,
         flex: 0,
+        valueFormatter: (params) => {
+          const v = params.value;
+          if (!v || typeof v !== "string") return v || "";
+          return v.charAt(0).toUpperCase() + v.slice(1);
+        },
       },
       {
         headerName: "Date de Création",
         field: "created_at",
-        filter: true,
-        width: 90,
-        minWidth: 90,
+        width: 140,
+        minWidth: 120,
         flex: 0,
         cellRendererFramework: (params) => {
           return (
@@ -102,20 +92,17 @@ class MembersList extends React.Component {
             </div>
           );
         },
-      },
-      {
-        headerName: "Rôle",
-        field: "role",
-        filter: true,
-        width: 45,
-        minWidth: 45,
-        flex: 0,
+        comparator: (a, b) => {
+          const da = new Date(a).getTime();
+          const db = new Date(b).getTime();
+          return da - db;
+        },
       },
       {
         headerName: "Actions",
         field: "transactions",
-        width: 29,
-        minWidth: 29,
+        width: 110,
+        minWidth: 90,
         flex: 0,
         cellRendererFramework: (params) => {
           return (
@@ -150,7 +137,6 @@ class MembersList extends React.Component {
   };
 
   createContract(id, name) {
-    console.log(name);
     const Config = {
       headers: {
         Authorization: "Bearer " + localStorage.getItem("token"),
@@ -193,71 +179,47 @@ class MembersList extends React.Component {
         this.setState({ rowData });
       });
   }
-  onBtExport = () => {
-    this.gridApi.exportDataAsCsv();
-  };
+
   deleteUser(id) {
     const Config = {
       headers: { Authorization: "Bearer " + localStorage.getItem("token") },
     };
     axios
       .delete(global.config.server_url + "/users/" + id, Config)
-      .then((response) => {
-        var SelectedData = this.gridApi.getSelectedRows();
-        this.gridApi.updateRowData({ remove: SelectedData });
+      .then(() => {
+        this.setState((prev) => ({
+          rowData: (prev.rowData || []).filter((r) => r.id !== id),
+        }));
+      })
+      .catch((error) => {
+        toast.error("Suppression impossible : " + error);
       });
   }
+
   onGridReady = (params) => {
     this.gridApi = params.api;
     this.gridColumnApi = params.columnApi;
-    // Normal layout; grid scrolls inside container
     this.sizeToFit();
     window.addEventListener("resize", this.sizeToFit);
   };
+
   componentWillUnmount() {
     window.removeEventListener("resize", this.sizeToFit);
   }
-  filterData = (column, val) => {
-    var filter = this.gridApi.getFilterInstance(column);
-    var modelObj = null;
-    if (val !== "all") {
-      modelObj = {
-        type: "equals",
-        filter: val,
-      };
-    }
-    filter.setModel(modelObj);
-    this.gridApi.onFilterChanged();
-  };
-  filterSize = (val) => {
-    if (this.gridApi) {
-      this.gridApi.paginationSetPageSize(Number(val));
-      this.setState({
-        pageSize: val,
-      });
-    }
-  };
+
   updateSearchQuery = (val) => {
-    this.gridApi.setQuickFilter(val);
+    if (this.gridApi) {
+      this.gridApi.setQuickFilter(val);
+    }
     this.setState({
       searchVal: val,
     });
   };
-  refreshCard = () => {
-    this.setState({ reload: true });
-    setTimeout(() => {
-      this.setState({
-        reload: false,
-        role: "All",
-        selectStatus: "All",
-        verified: "All",
-        department: "All",
-      });
-    }, 500);
-  };
+
   toggleCollapse = () => {
     this.setState((state) => ({ collapse: !state.collapse }));
   };
+
   onEntered = () => {
     this.setState({ status: "Opened" });
   };
@@ -273,9 +235,11 @@ class MembersList extends React.Component {
   onExited = () => {
     this.setState({ status: "Closed" });
   };
+
   removeCard = () => {
     this.setState({ isVisible: false });
   };
+
   handleAlert = (state, value, id) => {
     this.setState({ [state]: value });
     if (id !== 0) this.setState({ IdToDelete: id });
@@ -283,6 +247,7 @@ class MembersList extends React.Component {
       this.deleteUser(this.state.IdToDelete);
     }
   };
+
   render() {
     const { rowData, columnDefs, defaultColDef, pageSize } = this.state;
     return (
@@ -333,76 +298,38 @@ class MembersList extends React.Component {
         >
           <p className="sweet-alert-text">L'action est annulé</p>
         </SweetAlert>
-        <Row className="app-user-list">
-          <Col sm="12">
-            <Card style={{ minHeight: "85vh" }}>
-              <CardBody style={{ paddingBottom: "1rem" }}>
-                <div className="ag-theme-material ag-grid-table" style={{ height: "78vh", width: "100%" }}>
-                  <div className="ag-grid-actions d-flex justify-content-between flex-wrap mb-1">
-                    <div className="sort-dropdown">
-                      <UncontrolledDropdown className="ag-dropdown p-1">
-                        <DropdownToggle tag="div">
-                          1 - {pageSize} sur 150
-                          <ChevronDown className="ml-50" size={20} />
-                        </DropdownToggle>
-                        <DropdownMenu right>
-                          <DropdownItem
-                            tag="div"
-                            onClick={() => this.filterSize(20)}
-                          >
-                            20
-                          </DropdownItem>
-                          <DropdownItem
-                            tag="div"
-                            onClick={() => this.filterSize(50)}
-                          >
-                            50
-                          </DropdownItem>
-                          <DropdownItem
-                            tag="div"
-                            onClick={() => this.filterSize(100)}
-                          >
-                            100
-                          </DropdownItem>
-                          <DropdownItem
-                            tag="div"
-                            onClick={() => this.filterSize(150)}
-                          >
-                            150
-                          </DropdownItem>
-                        </DropdownMenu>
-                      </UncontrolledDropdown>
-                    </div>
-                    <div className="filter-actions d-flex">
-                      <Input
-                        className="w-50 mr-1 mb-1 mb-sm-0"
-                        type="text"
-                        placeholder="Rechercher..."
-                        onChange={(e) => this.updateSearchQuery(e.target.value)}
-                        value={this.state.searchVal}
-                      />
-                      <div>
-                        <Button.Ripple
-                          className="mr-1 mb-1"
-                          outline
-                          color="primary"
-                          onClick={() => history.push("/app/member/createUser")}
-                        >
-                          <UserPlus size={15} />
-                        </Button.Ripple>
-                      </div>
-                      <div className="dropdown mr-1 mb-1 d-inline-block">
-                        <Button
-                          className="mb-2"
-                          outline
-                          color="primary"
-                          onClick={() => this.onBtExport()}
-                        >
-                          <Download className="primary" size={15} />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
+
+        {/* Le Row occupe 100vh, puis on propage la hauteur aux enfants en flex */}
+        <Row className="app-user-list" style={{ height: "100vh" }}>
+          <Col sm="12" className="h-100 d-flex flex-column">
+            <Card className="h-100 d-flex flex-column">
+              <CardBody className="h-100 d-flex flex-column" style={{ paddingBottom: "1rem" }}>
+                {/* Header : recherche + bouton création */}
+                <div className="d-flex flex-wrap justify-content-between align-items-center mb-1">
+                  <Input
+                    className="mr-1 mb-1 mb-sm-0"
+                    style={{ maxWidth: 360 }}
+                    type="text"
+                    placeholder="Rechercher..."
+                    onChange={(e) => this.updateSearchQuery(e.target.value)}
+                    value={this.state.searchVal}
+                  />
+                  <Button.Ripple
+                    className="mb-1"
+                    outline
+                    color="primary"
+                    onClick={() => history.push("/app/member/createUser")}
+                  >
+                    <UserPlus size={15} className="mr-50" />
+                    Créer un compte
+                  </Button.Ripple>
+                </div>
+
+                {/* Conteneur AG Grid qui prend tout l'espace restant */}
+                <div
+                  className="ag-theme-material ag-grid-table flex-grow-1"
+                  style={{ width: "100%", minHeight: 0 }}
+                >
                   {this.state.rowData !== null ? (
                     <ContextLayout.Consumer>
                       {(context) => (
@@ -410,18 +337,15 @@ class MembersList extends React.Component {
                           gridOptions={{}}
                           onFirstDataRendered={this.sizeToFit}
                           onGridSizeChanged={this.sizeToFit}
-                          rowSelection="multiple"
                           defaultColDef={defaultColDef}
                           columnDefs={columnDefs}
                           rowData={rowData}
                           onGridReady={this.onGridReady}
                           colResizeDefault={"shift"}
                           animateRows={true}
-                          floatingFilter={true}
+                          floatingFilter={false}
                           pagination={true}
-                          pivotPanelShow="always"
                           paginationPageSize={pageSize}
-                          resizable={true}
                           enableRtl={context.state.direction === "rtl"}
                         />
                       )}
