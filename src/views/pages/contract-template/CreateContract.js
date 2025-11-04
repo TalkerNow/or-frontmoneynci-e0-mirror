@@ -322,19 +322,45 @@ class CreateContract extends React.Component {
     this.setState({
       parent_id: this.props.match.params.parent_id,
     });
-    axios
-      .get(global.config.server_url + "/get_template/1", Config)
-      .then((response) => {
-        if (response.data != null) {
-          let values = JSON.parse(response.data.values);
-          this.setState({
-            formValues: values,
-            general_condition: response.data.general_condition,
-          });
-          input_values = { ...values };
-          this.calculate();
+axios
+  .get(global.config.server_url + "/get_template/1", Config)
+  .then((response) => {
+    if (response.data != null) {
+      let values = JSON.parse(response.data.values);
+
+      // Convertit TOUT en vrais booléens (gère "true"/"false", "on"/"off", "oui"/"non", "1"/"0")
+      const toStrictBool = (v) => {
+        if (typeof v === "boolean") return v;
+        if (v === 1 || v === "1") return true;
+        if (v === 0 || v === "0") return false;
+        if (typeof v === "string") {
+          const s = v.trim().toLowerCase();
+          if (["true","on","yes","oui","vrai"].includes(s)) return true;
+          if (["false","off","no","non","faux"].includes(s)) return false;
         }
+        return !!v;
+      };
+
+      const boolKeys = ["c1","c2","c3","c4","c5","c6","c7","cnb2","cnb4","cnb5","cc5"];
+      boolKeys.forEach((k) => {
+        if (k in values) values[k] = toStrictBool(values[k]);
       });
+
+      // Forcer AR Entreprise (section 4) à false au chargement
+      values.c4 = false;
+
+      // Debug rapide si besoin
+      console.log("TEMPLATE c4 (raw après normalisation):", values.c4, typeof values.c4);
+
+      this.setState({
+        formValues: values,
+        general_condition: response.data.general_condition,
+      });
+      input_values = { ...values };
+      this.calculate();
+    }
+  });
+
     axios
       .get(
         global.config.server_url + "/users/" + this.props.match.params.id,

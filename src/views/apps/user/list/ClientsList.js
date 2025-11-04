@@ -1,5 +1,5 @@
 import React from "react";
-import { Download, Edit, Trash2, ChevronDown, UserPlus } from "react-feather";
+import { Edit, Trash2, UserPlus } from "react-feather";
 import {
   Button,
   Card,
@@ -7,10 +7,6 @@ import {
   Input,
   Row,
   Col,
-  UncontrolledDropdown,
-  DropdownMenu,
-  DropdownItem,
-  DropdownToggle,
 } from "reactstrap";
 import axios from "axios";
 import * as XLSX from "xlsx";
@@ -21,8 +17,6 @@ import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss";
 import "../../../../assets/scss/pages/users.scss";
 import SweetAlert from "react-bootstrap-sweetalert";
 import Moment from "react-moment";
-
-var consultant_id = -1;
 
 // ======= WHITELIST FRONT (modifier la liste ci-dessous) =======
 const ALLOWED_EMAILS = [
@@ -38,11 +32,8 @@ class ClientsList extends React.Component {
     confirmAlert: false,
     cancelAlert: false,
     IdToDelete: 0,
-    filter: false,
     rowData: null,
-    pageSize: 70,
-    isVisible: true,
-    collapse: false,
+    pageSize: 70, // par défaut 70 par page
     defaultColDef: {
       resizable: true,
       sortable: true,
@@ -51,6 +42,8 @@ class ClientsList extends React.Component {
     },
     searchVal: "",
     currentUserEmail: "",
+    // ID utilisé pour le filtre "Mes clients". null => pas de filtre.
+    myFilterId: null,
     gridOptions: {
       onCellClicked: (params) => {
         const colKey = params?.colDef?.field || params?.colDef?.colId;
@@ -185,6 +178,31 @@ class ClientsList extends React.Component {
     ],
   };
 
+  // --- Helpers
+  normalizeId = (v) => {
+    if (v === null || v === undefined) return null;
+    const n = Number(v);
+    return Number.isNaN(n) ? String(v) : n;
+  };
+
+  getOwnerIdFromRow = (row) => {
+    // Essaie plusieurs champs possibles pour l'ID "créateur/propriétaire/technicien"
+    const candidates = [
+      row?.created_by_id,
+      row?.created_by,
+      row?.creator_id,
+      row?.owner_id,
+      row?.ownerId,
+      row?.parent_id,
+      row?.parent?.id,
+      row?.parent?.user_id,
+      row?.technician_id,
+      row?.user_owner_id,
+    ];
+    const found = candidates.find(v => v !== undefined && v !== null);
+    return this.normalizeId(found);
+  };
+
   async componentDidMount() {
     const Config = {
       headers: {
@@ -292,17 +310,18 @@ class ClientsList extends React.Component {
   };
   // ======= FIN EXPORT EXCEL =======
 
-  isExternalFilterPresent = () => consultant_id !== -1;
-  onBtExport = () => {
-    this.gridApi.exportDataAsCsv({ columnKeys: [3, 1, 2, 5] });
-  };
-  externalFilterChanged = (newValue) => {
-    consultant_id = newValue;
-    this.setState({ filter: !this.state.filter });
-    this.gridApi.onFilterChanged();
-  };
-  doesExternalFilterPass = (node) => node.data.parent_id === consultant_id;
+  // --- AgGrid External Filter API
+  isExternalFilterPresent = () => this.state.myFilterId !== null;
 
+  doesExternalFilterPass = (node) => {
+    if (this.state.myFilterId === null) return true;
+    const ownerId = this.getOwnerIdFromRow(node?.data);
+    if (ownerId === null) return false;
+    // Comparaison robuste : on passe tout en string
+    return String(ownerId) === String(this.state.myFilterId);
+  };
+
+  // --- Actions
   deleteUser(id) {
     const Config = {
       headers: { Authorization: "Bearer " + localStorage.getItem("token") },
@@ -353,6 +372,17 @@ class ClientsList extends React.Component {
   componentWillUnmount() {
     window.removeEventListener("resize", this.sizeToFit);
   }
+
+  // Toggle Mes clients / Tous les clients (filtre par l'ID utilisateur courant)
+  toggleMyClients = () => {
+    const me = this.normalizeId(localStorage.getItem("userid"));
+    this.setState(
+      (prev) => ({ myFilterId: prev.myFilterId === null ? me : null }),
+      () => {
+        if (this.gridApi) this.gridApi.onFilterChanged();
+      }
+    );
+  };
 
   render() {
     const { rowData, columnDefs, defaultColDef, pageSize } = this.state;
@@ -414,63 +444,37 @@ class ClientsList extends React.Component {
           <Col sm="12" className="h-100 d-flex flex-column">
             <Card className="h-100 d-flex flex-column">
               <CardBody className="h-100 d-flex flex-column" style={{ paddingBottom: "0.5rem" }}>
-                <div className="ag-grid-actions d-flex justify-content-between flex-wrap mb-1">
-                  <div className="filter-actions d-flex">
+                {/* HEADER: recherche à gauche, boutons à droite */}
+                <div className="ag-grid-actions d-flex justify-content-between align-items-center flex-wrap mb-1">
+                  {/* Gauche : Recherche */}
+                  <div className="d-flex align-items-center mb-1" style={{ minWidth: 280, flex: 1 }}>
                     <Input
-                      className="w-50 mr-1 mb-1 mb-sm-0"
+                      className="mr-1 w-100"
                       type="text"
                       placeholder="Rechercher..."
                       onChange={(e) => this.updateSearchQuery(e.target.value)}
                       value={this.state.searchVal}
                     />
-                    <div>
-                      {consultant_id !== -1 && this.state.filter === true && (
-                        <Button
-                          className="mr-1 mb-1"
-                          style={{ width: 170, height: 40 }}
-                          outline
-                          color="primary"
-                          onClick={() => this.externalFilterChanged(-1)}
-                        >
-                          tous les clients
-                        </Button>
-                      )}
-                      {consultant_id === -1 && this.state.filter === false && (
-                        <Button
-                          className="mr-1 mb-1"
-                          style={{ width: 140, height: 40 }}
-                          outline
-                          color="primary"
-                          onClick={() =>
-                            this.externalFilterChanged(localStorage.getItem("userid"))
-                          }
-                        >
-                          Mes clients
-                        </Button>
-                      )}
-                    </div>
-                    <div>
-                      <Button
-                        className="mr-1 mb-1"
-                        outline
-                        color="primary"
-                        onClick={() => history.push("/app/user/createUser")}
-                      >
-                        <UserPlus size={15} />
-                      </Button>
-                    </div>
-                    <div className="dropdown mr-1 mb-1 d-inline-block">
-                      {this.canDownload() && (
-                        <Button
-                          className="mb-2"
-                          outline
-                          color="primary"
-                          onClick={this.onBtExportXLSX}
-                        >
-                          <Download className="primary" size={15} />
-                        </Button>
-                      )}
-                    </div>
+                  </div>
+
+                  {/* Droite : Mes/Tous les clients + Créer un compte (vert) */}
+                  <div className="d-flex align-items-center mb-1">
+                    <Button
+                      outline
+                      color="primary"
+                      className="mr-1"
+                      onClick={this.toggleMyClients}
+                    >
+                      {this.state.myFilterId === null ? "Mes clients" : "Tous les clients"}
+                    </Button>
+
+                    <Button
+                      color="success"
+                      onClick={() => history.push("/app/user/createUser")}
+                    >
+                      <UserPlus size={15} className="mr-50" />
+                      Créer un compte
+                    </Button>
                   </div>
                 </div>
 
@@ -497,7 +501,7 @@ class ClientsList extends React.Component {
                           onGridSizeChanged={this.sizeToFit}
                           colResizeDefault={"shift"}
                           animateRows={false}
-                          floatingFilter={true}
+                          floatingFilter={false}
                           pagination={true}
                           paginationPageSize={pageSize}
                           resizable={true}
