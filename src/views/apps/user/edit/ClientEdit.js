@@ -1,7 +1,7 @@
 import React from "react";
 import { Card, CardBody, Row, Col, Nav, NavItem, NavLink, TabContent, TabPane, Button, UncontrolledTooltip } from "reactstrap";
 import classnames from "classnames";
-import { Info, Folder, CheckSquare, MessageCircle, ArrowLeft, Circle, Activity } from "react-feather";
+import { Info, Folder, CheckSquare, MessageCircle, ArrowLeft, Circle, Activity, FileText } from "react-feather";
 import UserDetails from "../../profile/UserDetails";
 import AccountTab from "./Informations";
 import NotesTab from "./Notes";
@@ -12,6 +12,7 @@ import axios from "axios";
 import DocumentsHub from "./DocumentsHub";
 import SimulatorHub from "./SimulatorHub";
 import { history } from "../../../../history";
+import Contracts from "./Contracts";
 
 class UserEdit extends React.Component {
   state = {
@@ -52,7 +53,7 @@ class UserEdit extends React.Component {
     if (tabParam === "1") {
       this.setState({ showFullForm: true });
     } else if (tabParam) {
-      const mapNumToKey = { "2": "notes", "3": "documents", "4": "documents", "5": "tasks", "6": "commentaires", "7": "simulateur" };
+      const mapNumToKey = { "2": "notes", "3": "documents", "4": "documents", "5": "tasks", "6": "commentaires", "7": "simulateur", "8": "contrats" };
       this.setState({ showFullForm: false, activeTab: mapNumToKey[tabParam] || "notes" });
     }
   }
@@ -147,9 +148,8 @@ class UserEdit extends React.Component {
       );
     }
     return (
-      <Row className='align-items-start'>
-        <Col lg="4" md="4" sm="12" className={classnames('profile-left profile-sidebar-fixed client-left', { collapsed: this.state.isCollapsed })}>
-          <div>
+        <Row className='align-items-start user-edit-row flex-nowrap'>
+          <Col xs="12" sm="4" md="4" lg="4" className={classnames('profile-left profile-sidebar-fixed client-left', { collapsed: this.state.isCollapsed })}>          <div>
             <UserDetails
               user={this.state.rowData || {}}
               onEdit={() => history.push(`/app/user/edit/${id}/1`)}
@@ -158,7 +158,7 @@ class UserEdit extends React.Component {
             />
           </div>
         </Col>
-        <Col lg="8" md="8" sm="12" className={classnames('profile-right', { expanded: this.state.isCollapsed })}>
+        <Col xs="12" sm="8" md="8" lg="8" className={classnames('profile-right', { expanded: this.state.isCollapsed })}>
           <Nav tabs className="border-0 d-flex align-items-center gap-3 mb-1" ref={el => (this.navRef = el)}>
             {this.state.isCollapsed && (
               <NavItem>
@@ -171,6 +171,14 @@ class UserEdit extends React.Component {
             <NavItem>
               <NavLink className={classnames({ active: this.state.activeTab === 'notes' })} onClick={() => this.toggle('notes')}>
                 <Info className='text-primary mr-50' size={16}/> Notes
+              </NavLink>
+            </NavItem>
+            <NavItem>
+              <NavLink
+                className={classnames({ active: this.state.activeTab === 'contrats' })}
+                onClick={() => this.toggle('contrats')}
+              >
+                <FileText className='text-primary mr-50' size={16}/> Contrats
               </NavLink>
             </NavItem>
             <NavItem>
@@ -203,6 +211,9 @@ class UserEdit extends React.Component {
                   <NotesTab data={this.state.rowData} perso={this.state.rowData} members={this.state.members} id={id} />
                 </CardBody>
               </Card>
+            </TabPane>
+            <TabPane tabId='contrats'>
+              <Contracts id={id} />
             </TabPane>
             <TabPane tabId='documents'>
               <DocumentsHub id={id} name={this.state.rowData.name} parent_id={this.state.rowData.parent_id} alignOffset={this.state.docsOffset} labelId={`documents-label-client-${id}`} />

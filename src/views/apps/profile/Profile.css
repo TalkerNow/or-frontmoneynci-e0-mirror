@@ -196,3 +196,12 @@
     min-height: 320px; /* compact on very small screens */
   }
 }
+/* La row ne doit jamais wrap (au cas où la classe est oubliée) */
+.user-edit-row { flex-wrap: nowrap !important; }
+
+/* La droite doit se tasser et prendre tout l'espace restant */
+.user-edit-row .profile-right {
+  flex: 1 1 0 !important;   /* ignore les % Bootstrap et grossit/rapetisse */
+  max-width: none !important;
+  min-width: 0;             /* évite l'overflow à cause du contenu */
+}
