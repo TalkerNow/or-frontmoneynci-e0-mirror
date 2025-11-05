@@ -2038,28 +2038,20 @@ axios
                       </td>
                     </tr>
                     <tr>
-                      <td
-                        width="75%"
-                        style={{ paddingBottom: 0, paddingTop: 0 }}
-                      >
-                        <div style={{ display: "inline-block", width: "90%" }}>
-                          {this.state.formValues["subcontent5-3"]}
-                        </div>
-                        <div
-                          style={{
-                            display: "inline-block",
-                            marginLeft: "10px",
-                          }}
-                        >
+                    <td width="75%" style={{ paddingBottom: 0, paddingTop: 0 }}>
+                      <div style={{ display: "flex", alignItems: "flex-start", marginLeft: "20px" }}>
+                        <div style={{ marginRight: 10 }}>
                           <LabeledCheckboxMaterialUi
-                            label=""
-                            checked={this.state.formValues["cc5"]}
-                            onChange={(event) =>
-                              this.handleCheckChange(event, "cc5")
-                            }
+                            label="" // pas de label → pas de styles MUI sur le texte
+                            checked={this.state.formValues.cc5}
+                            onChange={(e) => this.handleCheckChange(e, "cc5")}
                           />
                         </div>
-                      </td>
+                        <div style={{ lineHeight: 1.4 }}>
+                          {this.state.formValues["subcontent5-3"]}
+                        </div>
+                      </div>
+                    </td>
                       <td
                         width="25%"
                         style={{ paddingBottom: 0, paddingTop: 0 }}
