@@ -694,11 +694,7 @@ axios
                         </Col>
                         <Col md="7" sm="12">
                           {" "}
-                          <h6>
-                            {moment(this.ifExist("birth_date")).format(
-                              "DD/MM/YYYY"
-                            )}
-                          </h6>{" "}
+                          <h6>{moment(this.ifExist("birth_date")).isValid() ? moment(this.ifExist("birth_date")).format("DD/MM/YYYY") : ""}</h6>
                         </Col>
                       </Row>
                     </div>
