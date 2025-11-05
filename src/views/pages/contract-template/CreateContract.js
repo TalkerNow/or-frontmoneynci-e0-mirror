@@ -758,7 +758,18 @@ axios
                         </Col>
                         <Col md="7" sm="12">
                           {" "}
-                          <h6>{this.ifExist("military_service")}</h6>{" "}
+                         <h6>
+                           {(() => {
+                             const v = this.ifExist("military_service");
+                             const yes =
+                               v === true ||
+                               v === 1 ||
+                               v === "1" ||
+                               String(v).toLowerCase() === "oui" ||
+                               String(v).toLowerCase() === "on";
+                             return yes ? "Service Militaire" : "";
+                           })()}
+                         </h6>
                         </Col>
                       </Row>
                       <Row>
