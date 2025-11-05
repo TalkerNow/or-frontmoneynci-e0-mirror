@@ -27,14 +27,36 @@ const items = {
     permissions: ["admin", "Client", "Consultant", "Expert"],
     navLink: "/app/profile",
   },
+
+  // 🔻 Clients = collapse (sans parentOf)
   users: {
     id: "users",
     title: "Clients",
-    type: "item",
+    type: "collapse",
     icon: <Icon.Monitor size={20} />,
     permissions: ["admin", "Expert", "Consultant"],
-    navLink: "/app/user/clientslist",
+    navLink: "/app/user/clientslist", // clic sur le libellé => navigate direct
+    children: [
+      {
+        id: "users-list",
+        title: "Liste des clients",
+        type: "item",
+        icon: <Icon.Users size={18} />,
+        permissions: ["admin", "Expert", "Consultant"],
+        navLink: "/app/user/clientslist",
+      },
+      {
+        id: "oldUsers",
+        title: "Anciens Clients",
+        type: "item",
+        icon: <Icon.Clock size={18} />,
+        permissions: ["admin", "Expert", "Consultant"],
+        navLink: "/app/user/oldclientslist",
+      },
+    ],
   },
+
+  // (facultatif, non utilisé dans l’ordre)
   oldUsers: {
     id: "oldUsers",
     title: "Anciens Clients",
@@ -43,6 +65,7 @@ const items = {
     permissions: ["admin", "Expert", "Consultant"],
     navLink: "/app/user/oldclientslist",
   },
+
   tasks: {
     id: "tasks",
     title: "Tâches",
@@ -88,35 +111,21 @@ const items = {
   },
 }
 
-// Admin keeps the current order
+// Admin keeps the current order (⚠️ sans "oldUsers")
 const adminOrder = [
   "dashboard",
   "kpi",
-  // "profile",
-  // Group clients-related entries together in this exact order
   "users",
-  "oldUsers",
-  // "members",
-  // Rest of the app entries
   "tasks",
-  // "document",
-  // "contractTemplate",
   "contracts",
 ]
 
-// Consultant order: Clients first, then KPI, CRM, etc.
+// Consultant order (⚠️ sans "oldUsers")
 const consultantOrder = [
-  // Clients-related entries first, in required order
   "users",
-  "oldUsers",
-  // "members",
-  // Then the rest
   "dashboard",
   "kpi",
-  // "profile",
   "tasks",
-  // "document",
-  // "contractTemplate",
   "contracts",
 ]
 
