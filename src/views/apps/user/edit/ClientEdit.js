@@ -1,7 +1,7 @@
 import React from "react";
 import { Card, CardBody, Row, Col, Nav, NavItem, NavLink, TabContent, TabPane, Button, UncontrolledTooltip } from "reactstrap";
 import classnames from "classnames";
-import { Info, Folder, CheckSquare, MessageCircle, ArrowLeft, Circle, Activity } from "react-feather";
+import { Info, Folder, CheckSquare, MessageCircle, ArrowLeft, Circle, Activity, FileText } from "react-feather";
 import UserDetails from "../../profile/UserDetails";
 import AccountTab from "./Informations";
 import NotesTab from "./Notes";
@@ -12,6 +12,8 @@ import axios from "axios";
 import DocumentsHub from "./DocumentsHub";
 import SimulatorHub from "./SimulatorHub";
 import { history } from "../../../../history";
+import Contracts from "./Contracts";
+
 class UserEdit extends React.Component {
   state = {
     rowData: [],
@@ -51,38 +53,39 @@ class UserEdit extends React.Component {
     if (tabParam === "1") {
       this.setState({ showFullForm: true });
     } else if (tabParam) {
-      const mapNumToKey = { "2": "notes", "3": "documents", "4": "documents", "5": "tasks", "6": "commentaires", "7": "simulateur" };
+      const mapNumToKey = { "2": "notes", "3": "documents", "4": "documents", "5": "tasks", "6": "commentaires", "7": "simulateur", "8": "contrats" };
       this.setState({ showFullForm: false, activeTab: mapNumToKey[tabParam] || "notes" });
     }
   }
 
-  async componentDidMount() {
+  // -------------------------
+  // Centralisation des fetchs
+  // -------------------------
+  fetchUser = async () => {
     const Config = {
-      headers: {
-        Authorization: "Bearer " + localStorage.getItem("token"),
-      },
+      headers: { Authorization: "Bearer " + localStorage.getItem("token") },
     };
+    const { id } = this.props.match.params;
+    const response = await axios.get(global.config.server_url + "/users/" + id, Config);
+    this.setState({ rowData: response.data });
+  };
 
+  fetchMembers = async () => {
+    const Config = {
+      headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+    };
+    const response = await axios.get(global.config.server_url + "/users?kind=member", Config);
+    this.setState({ members: response.data });
+  };
+
+  async componentDidMount() {
     // Déterminer le mode selon l'URL (si ":tab" vaut "1" => plein formulaire)
     const tabParam = this.props.match && this.props.match.params && this.props.match.params.tab;
     this.applyTabFromRoute(tabParam);
 
-    await axios
-      .get(
-        global.config.server_url + "/users/" + this.props.match.params.id,
-        Config
-      )
-      .then((response) => {
-        let rowData = response.data;
-
-        this.setState({ rowData });
-      });
-
-    await axios
-      .get(global.config.server_url + "/users?kind=member", Config)
-      .then((response) => {
-        this.setState({ members: response.data });
-      });
+    // Utilise les méthodes centralisées
+    await this.fetchUser();
+    await this.fetchMembers();
   }
 
   componentDidUpdate(prevProps) {
@@ -90,12 +93,20 @@ class UserEdit extends React.Component {
     const currTab = this.props.match && this.props.match.params && this.props.match.params.tab;
     if (prevTab !== currTab) {
       this.applyTabFromRoute(currTab);
+      // Recharger les infos quand on quitte le plein formulaire (1 -> autre)
+      if (prevTab === "1" && currTab !== "1") {
+        this.fetchUser();
+      }
     }
+
     const prevId = prevProps.match && prevProps.match.params && prevProps.match.params.id;
     const currId = this.props.match && this.props.match.params && this.props.match.params.id;
     if (prevId !== currId) {
       // reset display mode when navigating between users
       this.applyTabFromRoute(currTab);
+      // Re-fetch si on change d'utilisateur
+      this.fetchUser();
+      this.fetchMembers();
     }
   }
 
@@ -137,9 +148,8 @@ class UserEdit extends React.Component {
       );
     }
     return (
-      <Row className='align-items-start'>
-        <Col lg="4" md="4" sm="12" className={classnames('profile-left profile-sidebar-fixed client-left', { collapsed: this.state.isCollapsed })}>
-          <div>
+        <Row className='align-items-start user-edit-row flex-nowrap'>
+          <Col xs="12" sm="4" md="4" lg="4" className={classnames('profile-left profile-sidebar-fixed client-left', { collapsed: this.state.isCollapsed })}>          <div>
             <UserDetails
               user={this.state.rowData || {}}
               onEdit={() => history.push(`/app/user/edit/${id}/1`)}
@@ -148,7 +158,7 @@ class UserEdit extends React.Component {
             />
           </div>
         </Col>
-        <Col lg="8" md="8" sm="12" className={classnames('profile-right', { expanded: this.state.isCollapsed })}>
+        <Col xs="12" sm="8" md="8" lg="8" className={classnames('profile-right', { expanded: this.state.isCollapsed })}>
           <Nav tabs className="border-0 d-flex align-items-center gap-3 mb-1" ref={el => (this.navRef = el)}>
             {this.state.isCollapsed && (
               <NavItem>
@@ -161,6 +171,14 @@ class UserEdit extends React.Component {
             <NavItem>
               <NavLink className={classnames({ active: this.state.activeTab === 'notes' })} onClick={() => this.toggle('notes')}>
                 <Info className='text-primary mr-50' size={16}/> Notes
+              </NavLink>
+            </NavItem>
+            <NavItem>
+              <NavLink
+                className={classnames({ active: this.state.activeTab === 'contrats' })}
+                onClick={() => this.toggle('contrats')}
+              >
+                <FileText className='text-primary mr-50' size={16}/> Contrats
               </NavLink>
             </NavItem>
             <NavItem>
@@ -193,6 +211,9 @@ class UserEdit extends React.Component {
                   <NotesTab data={this.state.rowData} perso={this.state.rowData} members={this.state.members} id={id} />
                 </CardBody>
               </Card>
+            </TabPane>
+            <TabPane tabId='contrats'>
+              <Contracts id={id} />
             </TabPane>
             <TabPane tabId='documents'>
               <DocumentsHub id={id} name={this.state.rowData.name} parent_id={this.state.rowData.parent_id} alignOffset={this.state.docsOffset} labelId={`documents-label-client-${id}`} />

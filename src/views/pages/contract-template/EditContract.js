@@ -735,11 +735,7 @@ class EditContract extends React.Component {
                         </Col>
                         <Col md="7" sm="12">
                           {" "}
-                          <h6>
-                            {moment(this.ifExist("birth_date")).format(
-                              "DD/MM/YYYY"
-                            )}
-                          </h6>{" "}
+                          <h6>{moment(this.ifExist("birth_date")).isValid() ? moment(this.ifExist("birth_date")).format("DD/MM/YYYY") : ""}</h6>
                         </Col>
                       </Row>
                     </div>
@@ -809,7 +805,19 @@ class EditContract extends React.Component {
                         </Col>
                         <Col md="7" sm="12">
                           {" "}
-                          <h6>{this.ifExist("military_service")}</h6>{" "}
+                          <h6>
+                            {(() => {
+                              const v = this.ifExist("military_service");
+                              console.log("military_service", v);
+                              const yes =
+                                v === true ||
+                                v === 1 ||
+                                v === "1" ||
+                                String(v).toLowerCase() === "oui" ||
+                                String(v).toLowerCase() === "on";
+                              return yes ? "Service Militaire" : "";
+                            })()}
+                          </h6>
                         </Col>
                       </Row>
                       <Row>

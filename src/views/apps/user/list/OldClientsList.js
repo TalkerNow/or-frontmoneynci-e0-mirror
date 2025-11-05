@@ -300,7 +300,7 @@ class OldClientsList extends React.Component {
     ],
   };
 
-  // Ajuste les colonnes pour occuper toute la largeur (supprime l'espace droit)
+  // Ajuste les colonnes pour occuper toute la largeur
   sizeToFit = () => {
     if (this.gridApi) {
       try {
@@ -369,7 +369,6 @@ class OldClientsList extends React.Component {
   onGridReady = (params) => {
     this.gridApi = params.api;
     this.gridColumnApi = params.columnApi;
-    // Normal layout; grid scrolls within a fixed-height container
     this.sizeToFit();
     window.addEventListener("resize", this.sizeToFit);
   };
@@ -497,10 +496,12 @@ class OldClientsList extends React.Component {
         >
           <p className="sweet-alert-text">L'action est annulé</p>
         </SweetAlert>
-        <Row className="app-user-list">
-          <Col sm="12">
+
+        {/* Plein écran : layout en flex pour que la grille prenne toute la page */}
+        <Row className="app-user-list" style={{ height: "100vh" }}>
+          <Col sm="12" className="h-100 d-flex flex-column">
             <Card
-              className={classnames("card-action card-reload", {
+              className={classnames("card-action card-reload h-100 d-flex flex-column", {
                 "d-none": this.state.isVisible === false,
                 "card-collapsed": this.state.status === "Closed",
                 closing: this.state.status === "Closing...",
@@ -514,6 +515,7 @@ class OldClientsList extends React.Component {
                   l'ancien site Optionretraite.net
                 </CardTitle>
               </CardHeader>
+
               <Collapse
                 isOpen={this.state.collapse}
                 onExited={this.onExited}
@@ -538,14 +540,8 @@ class OldClientsList extends React.Component {
                           value={this.state.role}
                           onChange={(e) => {
                             this.setState(
-                              {
-                                role: e.target.value,
-                              },
-                              () =>
-                                this.filterData(
-                                  "role",
-                                  this.state.role.toLowerCase()
-                                )
+                              { role: e.target.value },
+                              () => this.filterData("role", this.state.role.toLowerCase())
                             );
                           }}
                         >
@@ -566,14 +562,8 @@ class OldClientsList extends React.Component {
                           value={this.state.selectStatus}
                           onChange={(e) => {
                             this.setState(
-                              {
-                                selectStatus: e.target.value,
-                              },
-                              () =>
-                                this.filterData(
-                                  "status",
-                                  this.state.selectStatus.toLowerCase()
-                                )
+                              { selectStatus: e.target.value },
+                              () => this.filterData("status", this.state.selectStatus.toLowerCase())
                             );
                           }}
                         >
@@ -594,14 +584,8 @@ class OldClientsList extends React.Component {
                           value={this.state.verified}
                           onChange={(e) => {
                             this.setState(
-                              {
-                                verified: e.target.value,
-                              },
-                              () =>
-                                this.filterData(
-                                  "is_verified",
-                                  this.state.verified.toLowerCase()
-                                )
+                              { verified: e.target.value },
+                              () => this.filterData("is_verified", this.state.verified.toLowerCase())
                             );
                           }}
                         >
@@ -621,14 +605,8 @@ class OldClientsList extends React.Component {
                           value={this.state.department}
                           onChange={(e) => {
                             this.setState(
-                              {
-                                department: e.target.value,
-                              },
-                              () =>
-                                this.filterData(
-                                  "department",
-                                  this.state.department.toLowerCase()
-                                )
+                              { department: e.target.value },
+                              () => this.filterData("department", this.state.department.toLowerCase())
                             );
                           }}
                         >
@@ -642,70 +620,58 @@ class OldClientsList extends React.Component {
                   </Row>
                 </CardBody>
               </Collapse>
-            </Card>
-          </Col>
-          <Col sm="12">
-            <Card style={{ minHeight: "89vh" }}>
-              <CardBody style={{ paddingBottom: "1rem" }}>
-                <div
-                  className="ag-theme-material ag-grid-table"
-                  style={{ height: "82vh", width: "100%" }}
-                >
-                  <div className="ag-grid-actions d-flex justify-content-between flex-wrap mb-1">
-                    <div className="sort-dropdown">
-                      <UncontrolledDropdown className="ag-dropdown p-1">
-                        <DropdownToggle tag="div">
-                          1 - {pageSize} sur 150
-                          <ChevronDown className="ml-50" size={20} />
-                        </DropdownToggle>
-                        <DropdownMenu right>
-                          <DropdownItem
-                            tag="div"
-                            onClick={() => this.filterSize(20)}
-                          >
-                            20
-                          </DropdownItem>
-                          <DropdownItem
-                            tag="div"
-                            onClick={() => this.filterSize(50)}
-                          >
-                            50
-                          </DropdownItem>
-                          <DropdownItem
-                            tag="div"
-                            onClick={() => this.filterSize(100)}
-                          >
-                            100
-                          </DropdownItem>
-                          <DropdownItem
-                            tag="div"
-                            onClick={() => this.filterSize(150)}
-                          >
-                            150
-                          </DropdownItem>
-                        </DropdownMenu>
-                      </UncontrolledDropdown>
-                    </div>
-                    <div className="filter-actions d-flex">
-                      <Input
-                        className="w-50 mr-1 mb-1 mb-sm-0"
-                        type="text"
-                        placeholder="Rechercher..."
-                        onChange={(e) => this.updateSearchQuery(e.target.value)}
-                        value={this.state.searchVal}
-                      />
-                      <div className="dropdown mb-1 d-inline-block">
-                        <Button
-                          className="mb-2"
-                          outline
-                          color="primary"
-                          onClick={() => this.onBtExport()}
-                        >
-                          <Download className="primary" size={15} />
-                        </Button>
-                      </div>
+
+              {/* Corps principal en flex pour faire grandir la grille */}
+              <CardBody className="h-100 d-flex flex-column" style={{ paddingBottom: "0.5rem" }}>
+                <div className="ag-grid-actions d-flex justify-content-between flex-wrap mb-1">
+                  <div className="sort-dropdown">
+                    <UncontrolledDropdown className="ag-dropdown p-1">
+                      <DropdownToggle tag="div">
+                        1 - {pageSize} sur 150
+                        <ChevronDown className="ml-50" size={20} />
+                      </DropdownToggle>
+                      <DropdownMenu right>
+                        <DropdownItem tag="div" onClick={() => this.filterSize(20)}>
+                          20
+                        </DropdownItem>
+                        <DropdownItem tag="div" onClick={() => this.filterSize(50)}>
+                          50
+                        </DropdownItem>
+                        <DropdownItem tag="div" onClick={() => this.filterSize(100)}>
+                          100
+                        </DropdownItem>
+                        <DropdownItem tag="div" onClick={() => this.filterSize(150)}>
+                          150
+                        </DropdownItem>
+                      </DropdownMenu>
+                    </UncontrolledDropdown>
+                  </div>
+                  <div className="filter-actions d-flex">
+                    <Input
+                      className="w-50 mr-1 mb-1 mb-sm-0"
+                      type="text"
+                      placeholder="Rechercher..."
+                      onChange={(e) => this.updateSearchQuery(e.target.value)}
+                      value={this.state.searchVal}
+                    />
+                    <div className="dropdown mb-1 d-inline-block">
+                      <Button
+                        className="mb-2"
+                        outline
+                        color="primary"
+                        onClick={() => this.onBtExport()}
+                      >
+                        <Download className="primary" size={15} />
+                      </Button>
                     </div>
                   </div>
+                </div>
+
+                {/* Grille : occupe tout l'espace restant */}
+                <div
+                  className="ag-theme-material ag-grid-table flex-grow-1"
+                  style={{ width: "100%", minHeight: 0 }}
+                >
                   {this.state.rowData !== null ? (
                     <ContextLayout.Consumer>
                       {(context) => (
@@ -715,7 +681,7 @@ class OldClientsList extends React.Component {
                               const field = params?.colDef?.field;
                               const header = params?.colDef?.headerName;
                               if (!params?.data?.clcleunik) return;
-                              if (field === 'cl_mail' || header === 'Actions') return;
+                              if (field === "cl_mail" || header === "Actions") return;
                               history.push(`/app/olduser/edit/${params.data.clcleunik}/2`);
                             },
                           }}

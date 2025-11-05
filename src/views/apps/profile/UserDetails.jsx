@@ -60,23 +60,23 @@ export default function UserDetails({ user = {}, onEdit, onSuspend, showCollapse
           <div style={{ borderTop: "1px solid #ebe9f1", margin: "0.25rem 0 0.75rem" }} />
           <div className="users-page-view-table compact-rows">
             <div className="d-flex user-info">
-              <div className="user-info-title font-weight-bold">Nom:</div>
+              <div className="user-info-title font-weight-bold">Nom :</div>
               <div className="text-truncate">{user.last_name || "—"}</div>
             </div>
             <div className="d-flex user-info">
-              <div className="user-info-title font-weight-bold">Prénom:</div>
+              <div className="user-info-title font-weight-bold">Prénom :</div>
               <div className="text-truncate">{user.first_name || "—"}</div>
             </div>
             <div className="d-flex user-info">
-              <div className="user-info-title font-weight-bold">Email:</div>
+              <div className="user-info-title font-weight-bold">Email :</div>
               <div className="text-break" style={{ overflowWrap: 'anywhere' }} title={user.email || ''}>{user.email || "—"}</div>
             </div>
             <div className="d-flex user-info">
-              <div className="user-info-title font-weight-bold">Rôle:</div>
+              <div className="user-info-title font-weight-bold">Rôle :</div>
               <div className="text-truncate">{user.role || "—"}</div>
             </div>
             <div className="d-flex user-info">
-              <div className="user-info-title font-weight-bold">N°:</div>
+              <div className="user-info-title font-weight-bold">Tel :</div>
               <div className="text-truncate">{formatPhoneFR(user.mobile_number || user.office_number) || "—"}</div>
             </div>
           </div>

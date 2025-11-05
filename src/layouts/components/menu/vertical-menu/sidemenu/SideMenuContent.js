@@ -63,13 +63,10 @@ class SideMenuContent extends React.Component {
     }
 
     if (type === "collapse") {
-      // If open group does not include clicked group item
       if (!open_group.includes(id)) {
-        // Get unmatched items that are not in the active group
         let temp = open_group.filter(function (obj) {
           return active_group.indexOf(obj) === -1;
         });
-        // Remove those unmatched items from open group
         if (temp.length > 0 && !open_group.includes(parent)) {
           open_group = open_group.filter(function (obj) {
             return !temp.includes(obj);
@@ -78,12 +75,10 @@ class SideMenuContent extends React.Component {
         if (open_group.includes(parent) && active_group.includes(parent)) {
           open_group = active_group.slice(0);
         }
-        // Add group item clicked in open group
         if (!open_group.includes(id)) {
           open_group.push(id);
         }
       } else {
-        // If open group includes click group item, remove it from open group
         open_group.splice(open_group.indexOf(id), 1);
       }
     }
@@ -139,7 +134,6 @@ class SideMenuContent extends React.Component {
     // eslint-disable-next-line
     const menuItems = navigationConfig.map((item) => {
       const CustomAnchorTag = item.type === "external-link" ? `a` : Link;
-      // checks if item has groupheader
       if (item.type === "groupHeader") {
         return (
           <li
@@ -160,30 +154,46 @@ class SideMenuContent extends React.Component {
               item.id
             ),
             hover: this.props.hoverIndex === item.id,
+            // ✅ active UNIQUEMENT pour les items (pas les parents)
             active:
-              (this.props.activeItemState.includes("app/user/oldclientslist") &&
-                item.navLink.includes("app/user/oldclientslist")) ||
-              (this.props.activeItemState.includes("app/user/clientslist") &&
-                item.navLink.includes("app/user/clientslist")) ||
-              (this.props.activeItemState.includes("app/member") &&
-                item.navLink.includes("app/member")) ||
-              (this.props.activeItemState === item.navLink &&
-                item.type === "item") ||
-              (item.parentOf &&
-                item.parentOf.includes(this.props.activeItemState)),
+              item.type === "item" &&
+              (
+                this.props.activeItemState === item.navLink ||
+                (item.parentOf &&
+                  item.parentOf.includes(this.props.activeItemState))
+              ),
             disabled: item.disabled,
           })}
           key={item.id}
           onClick={(e) => {
             e.stopPropagation();
+
+            const clickedCaret = e.target.closest(".menu-toggle-icon");
+
             if (item.type === "item") {
               this.props.handleActiveItem(item.navLink);
               this.handleGroupClick(item.id, null, item.type);
-              if (this.props.deviceWidth <= 1200 && item.type === "item") {
+              if (this.props.deviceWidth <= 1200) {
                 this.props.toggleMenu();
               }
-            } else {
+              return;
+            }
+
+            if (item.type === "collapse") {
+              if (clickedCaret) {
+                this.handleGroupClick(item.id, null, item.type);
+                return;
+              }
+              if (item.navLink) {
+                this.props.handleActiveItem(item.navLink);
+                history.push(item.navLink);
+                if (this.props.deviceWidth <= 1200) {
+                  this.props.toggleMenu();
+                }
+                return;
+              }
               this.handleGroupClick(item.id, null, item.type);
+              return;
             }
           }}
         >
@@ -209,6 +219,7 @@ class SideMenuContent extends React.Component {
             }}
             key={item.id}
             onClick={(e) => {
+              // on gère les collapses au niveau du <li>
               return item.type === "collapse" ? e.preventDefault() : "";
             }}
             target={item.newTab ? "_blank" : undefined}

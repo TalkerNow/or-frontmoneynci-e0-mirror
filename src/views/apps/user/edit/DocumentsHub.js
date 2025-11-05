@@ -5,7 +5,7 @@ import Contracts from './Contracts'
 import Documents from './Documents'
 
 export default function DocumentsHub({ id, name, parent_id, userFullName, alignOffset = 0, labelId }) {
-  const [subTab, setSubTab] = useState('contrats')
+  const [subTab, setSubTab] = useState('perso')
   const [visible, setVisible] = useState(false)
   const [contentOffset, setContentOffset] = useState(0)
   const [navMargin, setNavMargin] = useState(alignOffset || 0)
@@ -76,11 +76,6 @@ export default function DocumentsHub({ id, name, parent_id, userFullName, alignO
         ref={subNavRef}
       >
         <NavItem>
-          <NavLink className={classnames({ active: subTab === 'contrats' })} onClick={() => setSubTab('contrats')}>
-            <span id='docs-label-contrats'>Contrats</span>
-          </NavLink>
-        </NavItem>
-        <NavItem>
           <NavLink className={classnames({ active: subTab === 'perso' })} onClick={() => setSubTab('perso')}>
             <span>Documents perso</span>
           </NavLink>
@@ -95,6 +90,11 @@ export default function DocumentsHub({ id, name, parent_id, userFullName, alignO
             <span>Courriers caisse</span>
           </NavLink>
         </NavItem>
+        {/* <NavItem>
+          <NavLink className={classnames({ active: subTab === 'contrats' })} onClick={() => setSubTab('contrats')}>
+            <span id='docs-label-contrats'>Contrats</span>
+          </NavLink>
+        </NavItem> */}
       </Nav>
 
       <TabContent activeTab={subTab}>

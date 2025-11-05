@@ -248,7 +248,7 @@ class UserAccountTab extends React.Component {
                 <h5 style={{ marginBottom: "5px" }}>
                   <User className="mr-50" size={16} />
                   <span className="align-middle">
-                    Civilité ( {this.ifExist("civility")} )
+                    Civilité
                   </span>
                 </h5>
                 <FormGroup style={{ marginTop: "10px" }}>
@@ -389,7 +389,7 @@ class UserAccountTab extends React.Component {
                 <h5 style={{ marginBottom: "5px" }}>
                   <User className="mr-50" size={16} />
                   <span className="align-middle">
-                    Statut marital ( {this.ifExist("martial_status")} )
+                    Statut marital
                   </span>
                 </h5>
                 <FormGroup style={{ marginBottom: "15px", marginTop: "5px" }}>
@@ -536,7 +536,7 @@ class UserAccountTab extends React.Component {
                 <h5 style={{ marginBottom: "5px" }}>
                   <User className="mr-50" size={16} />
                   <span className="align-middle">
-                    Service militaire ( {this.ifExist("military_service")} )
+                    Service militaire
                   </span>
                 </h5>
                 <FormGroup style={{ marginBottom: "15px", marginTop: "5px" }}>

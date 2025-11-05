@@ -227,10 +227,10 @@ class AddUser extends React.Component {
     }
 
 
-    if (this.state.data.email === null || this.state.data.email === "") {
-      toast.error("You should input email");
-      return;
-    }
+    // if (this.state.data.email === null || this.state.data.email === "") {
+    //   toast.error("You should input email");
+    //   return;
+    // }
 
     const Config = {
       headers: {

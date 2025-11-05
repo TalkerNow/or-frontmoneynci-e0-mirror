@@ -1,5 +1,5 @@
 import React from "react";
-import { Download, Edit, Trash2, ChevronDown, UserPlus } from "react-feather";
+import { Edit, Trash2, UserPlus } from "react-feather";
 import {
   Button,
   Card,
@@ -7,10 +7,6 @@ import {
   Input,
   Row,
   Col,
-  UncontrolledDropdown,
-  DropdownMenu,
-  DropdownItem,
-  DropdownToggle,
 } from "reactstrap";
 import axios from "axios";
 import * as XLSX from "xlsx";
@@ -21,8 +17,6 @@ import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss";
 import "../../../../assets/scss/pages/users.scss";
 import SweetAlert from "react-bootstrap-sweetalert";
 import Moment from "react-moment";
-
-var consultant_id = -1;
 
 // ======= WHITELIST FRONT (modifier la liste ci-dessous) =======
 const ALLOWED_EMAILS = [
@@ -38,11 +32,8 @@ class ClientsList extends React.Component {
     confirmAlert: false,
     cancelAlert: false,
     IdToDelete: 0,
-    filter: false,
     rowData: null,
-    pageSize: 20,
-    isVisible: true,
-    collapse: false,
+    pageSize: 70, // par défaut 70 par page
     defaultColDef: {
       resizable: true,
       sortable: true,
@@ -50,16 +41,16 @@ class ClientsList extends React.Component {
       minWidth: 120,
     },
     searchVal: "",
-    currentUserEmail: "", // <-- ajouté
+    currentUserEmail: "",
+    // ID utilisé pour le filtre "Mes clients". null => pas de filtre.
+    myFilterId: null,
     gridOptions: {
-      // Click only on non-email, non-actions cells should open the client sheet (fiche)
       onCellClicked: (params) => {
         const colKey = params?.colDef?.field || params?.colDef?.colId;
         if (!params?.data?.id) return;
-        if (colKey === "email" || colKey === "actions") return; // do not navigate on Email or Actions
+        if (colKey === "email" || colKey === "actions") return;
         history.push("/app/user/edit/" + params.data.id + "/2");
       },
-      // Add a class on each row for hover + cursor styling
       getRowClass: () => "client-row",
       suppressRowClickSelection: true,
     },
@@ -88,19 +79,15 @@ class ClientsList extends React.Component {
         width: 120,
         minWidth: 120,
         flex: 1,
-        valueGetter: (params) => {
-          return params.data.last_name;
-        },
+        valueGetter: (params) => params.data.last_name,
       },
       {
-        headerName: "Prenom",
+        headerName: "Prénom",
         filter: true,
         width: 120,
         minWidth: 120,
         flex: 0,
-        valueGetter: (params) => {
-          return params.data.first_name;
-        },
+        valueGetter: (params) => params.data.first_name,
       },
       {
         headerName: "Civilité",
@@ -113,20 +100,13 @@ class ClientsList extends React.Component {
           return params.data.civility || "";
         },
       },
-      // {
-      //   field: "parent_id",
-      //   filter: true,
-      //   hide: true,
-      // },
       {
         headerName: "Nom du technicien",
         filter: false,
         width: 140,
         minWidth: 140,
         flex: 0,
-        valueGetter: (params) => {
-          return params.data.parent ? params.data.parent.name : "";
-        },
+        valueGetter: (params) => (params.data.parent ? params.data.parent.name : ""),
       },
       {
         headerName: "Apport commercial",
@@ -155,9 +135,7 @@ class ClientsList extends React.Component {
               onClick={(e) => {
                 e.stopPropagation();
                 window.location.href =
-                  "mailto:" +
-                  email +
-                  "?subject=Subject&body=message%20goes%20here";
+                  "mailto:" + email + "?subject=Subject&body=message%20goes%20here";
               }}
             >
               <span>{rowData.data.email}</span>
@@ -200,6 +178,31 @@ class ClientsList extends React.Component {
     ],
   };
 
+  // --- Helpers
+  normalizeId = (v) => {
+    if (v === null || v === undefined) return null;
+    const n = Number(v);
+    return Number.isNaN(n) ? String(v) : n;
+  };
+
+  getOwnerIdFromRow = (row) => {
+    // Essaie plusieurs champs possibles pour l'ID "créateur/propriétaire/technicien"
+    const candidates = [
+      row?.created_by_id,
+      row?.created_by,
+      row?.creator_id,
+      row?.owner_id,
+      row?.ownerId,
+      row?.parent_id,
+      row?.parent?.id,
+      row?.parent?.user_id,
+      row?.technician_id,
+      row?.user_owner_id,
+    ];
+    const found = candidates.find(v => v !== undefined && v !== null);
+    return this.normalizeId(found);
+  };
+
   async componentDidMount() {
     const Config = {
       headers: {
@@ -214,7 +217,6 @@ class ClientsList extends React.Component {
         this.setState({ rowData });
       });
 
-    // ======= Récupérer l'email de l'utilisateur courant (pour le contrôle front) =======
     const userId = localStorage.getItem("userid");
     if (userId) {
       try {
@@ -227,7 +229,6 @@ class ClientsList extends React.Component {
     }
   }
 
-  // Ajuste les colonnes à la largeur disponible (supprime l'espace droit)
   sizeToFit = () => {
     if (this.gridApi) {
       try {
@@ -237,63 +238,22 @@ class ClientsList extends React.Component {
   };
 
   // ======= EXPORT EXCEL (XLSX) =======
-
-  // Ordre de colonnes voulu dans l'Excel
   getExportHeaders = () => [
-    "ID",
-    "Créé le",
-    "Civilité",
-    "Nom",
-    "Prénom",
-    "Email",
-    "Téléphone mobile",
-    "Téléphone bureau",
-    "Statut",
-    "Mise à jour du statut",
-    "Technicien (parent)",
-    "Apport commercial",
-    "Date de naissance",
-    "Lieu de naissance",
-    "Nombre d’enfants",
-    "Situation maritale",
-    "Adresse perso",
-    "Adresse perso 2",
-    "Ville perso",
-    "Code postal perso",
-    "Pays perso",
-    "Société",
-    "Adresse société",
-    "Adresse société 2",
-    "Ville société",
-    "Code postal société",
-    "Pays société",
-    "Notes",
-    "Services souscrits",
-    "Compte valide",
-    "Utilisateur (ID)",
-    "ID parent (numérique)",
+    "ID","Créé le","Civilité","Nom","Prénom","Email","Téléphone mobile","Téléphone bureau",
+    "Statut","Mise à jour du statut","Technicien (parent)","Apport commercial","Date de naissance",
+    "Lieu de naissance","Nombre d’enfants","Situation maritale","Adresse perso","Adresse perso 2",
+    "Ville perso","Code postal perso","Pays perso","Société","Adresse société","Adresse société 2",
+    "Ville société","Code postal société","Pays société","Notes","Services souscrits",
+    "Compte valide","Utilisateur (ID)","ID parent (numérique)",
   ];
-
-  // Format date simple et robuste
   formatDateForExcel = (d) => {
     if (!d) return "";
-    // Garde un format lisible par Excel sans dépendances (#stabilité)
     return String(d).replace("T", " ").replace("Z", "");
   };
-
-  // Nettoie les sauts de ligne / espaces longs
-  sanitizeText = (t) => {
-    if (!t) return "";
-    return String(t).replace(/\r?\n/g, " ").replace(/\s\s+/g, " ").trim();
-  };
-
-  // Construit une ligne "propre" depuis l'objet brut
+  sanitizeText = (t) => (!t ? "" : String(t).replace(/\r?\n/g, " ").replace(/\s\s+/g, " ").trim());
   buildClientRow = (c) => {
-    const civ =
-      c.civility === "Monsieur" ? "M." : c.civility === "Madame" ? "Mme" : (c.civility || "");
-    const apport =
-      c.business_introducer ? (c.business_introducer.name || c.business_introducer) : "";
-
+    const civ = c.civility === "Monsieur" ? "M." : c.civility === "Madame" ? "Mme" : (c.civility || "");
+    const apport = c.business_introducer ? (c.business_introducer.name || c.business_introducer) : "";
     return {
       "ID": c.id ?? "",
       "Créé le": this.formatDateForExcel(c.created_at),
@@ -329,71 +289,46 @@ class ClientsList extends React.Component {
       "ID parent (numérique)": c.parent_id ?? "",
     };
   };
-
-  // ======= Vérification d'autorisation côté front =======
   canDownload = () => {
     const email = (this.state.currentUserEmail || "").toLowerCase();
     return ALLOWED_EMAILS.map(e => e.toLowerCase()).includes(email);
   };
-
   onBtExportXLSX = () => {
-    // Garde de sécurité front
     if (!this.canDownload()) return;
-
     const { rowData } = this.state;
     if (!rowData || !rowData.length) return;
-
     const headers = this.getExportHeaders();
     const data = rowData.map(this.buildClientRow);
-
-    // Construit la feuille avec l'ordre de colonnes fixé
     const ws = XLSX.utils.json_to_sheet(data, { header: headers, skipHeader: true });
-    // Ajoute les en-têtes en A1
     XLSX.utils.sheet_add_aoa(ws, [headers], { origin: "A1" });
-
-    // Ajuste la largeur des colonnes (basique)
     const colWidths = headers.map((h) => ({ wch: Math.max(14, h.length + 2) }));
     ws["!cols"] = colWidths;
-
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Clients");
-
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const today = new Date().toISOString().slice(0, 10);
     XLSX.writeFile(wb, `export_clients_${today}.xlsx`);
   };
-
   // ======= FIN EXPORT EXCEL =======
 
-  isExternalFilterPresent = () => {
-    if (consultant_id !== -1) {
-      return true;
-    }
-    return false;
-  };
+  // --- AgGrid External Filter API
+  isExternalFilterPresent = () => this.state.myFilterId !== null;
 
-  // Ancien export CSV (gardé si besoin, mais non utilisé par le bouton)
-  onBtExport = () => {
-    this.gridApi.exportDataAsCsv({
-      columnKeys: [3, 1, 2, 5],
-    });
-  };
-
-  externalFilterChanged = (newValue) => {
-    consultant_id = newValue;
-    this.setState({ filter: !this.state.filter });
-    this.gridApi.onFilterChanged();
-  };
   doesExternalFilterPass = (node) => {
-    return node.data.parent_id === consultant_id;
+    if (this.state.myFilterId === null) return true;
+    const ownerId = this.getOwnerIdFromRow(node?.data);
+    if (ownerId === null) return false;
+    // Comparaison robuste : on passe tout en string
+    return String(ownerId) === String(this.state.myFilterId);
   };
 
+  // --- Actions
   deleteUser(id) {
     const Config = {
       headers: { Authorization: "Bearer " + localStorage.getItem("token") },
     };
     axios
       .delete(global.config.server_url + "/users/" + id, Config)
-      .then((response) => {
+      .then(() => {
         var SelectedData = this.gridApi.getSelectedRows();
         this.gridApi.updateRowData({ remove: SelectedData });
       });
@@ -402,18 +337,14 @@ class ClientsList extends React.Component {
   onGridReady = (params) => {
     this.gridApi = params.api;
     this.gridColumnApi = params.columnApi;
-    // Use normal layout; container sets a fixed height so grid scrolls inside the card
+    this.sizeToFit();
+    window.addEventListener("resize", this.sizeToFit);
   };
 
   filterData = (column, val) => {
     var filter = this.gridApi.getFilterInstance(column);
     var modelObj = null;
-    if (val !== "all") {
-      modelObj = {
-        type: "equals",
-        filter: val,
-      };
-    }
+    if (val !== "all") modelObj = { type: "equals", filter: val };
     filter.setModel(modelObj);
     this.gridApi.onFilterChanged();
   };
@@ -421,17 +352,13 @@ class ClientsList extends React.Component {
   filterSize = (val) => {
     if (this.gridApi) {
       this.gridApi.paginationSetPageSize(Number(val));
-      this.setState({
-        pageSize: val,
-      });
+      this.setState({ pageSize: val });
     }
   };
 
   updateSearchQuery = (val) => {
     this.gridApi.setQuickFilter(val);
-    this.setState({
-      searchVal: val,
-    });
+    this.setState({ searchVal: val });
   };
 
   handleAlert = (state, value, id) => {
@@ -445,6 +372,17 @@ class ClientsList extends React.Component {
   componentWillUnmount() {
     window.removeEventListener("resize", this.sizeToFit);
   }
+
+  // Toggle Mes clients / Tous les clients (filtre par l'ID utilisateur courant)
+  toggleMyClients = () => {
+    const me = this.normalizeId(localStorage.getItem("userid"));
+    this.setState(
+      (prev) => ({ myFilterId: prev.myFilterId === null ? me : null }),
+      () => {
+        if (this.gridApi) this.gridApi.onFilterChanged();
+      }
+    );
+  };
 
   render() {
     const { rowData, columnDefs, defaultColDef, pageSize } = this.state;
@@ -460,11 +398,11 @@ class ClientsList extends React.Component {
           confirmBtnText="Oui, supprimer"
           cancelBtnText="Annuler"
           onConfirm={() => {
-            this.handleAlert("defaultAlert", false, 0);
+            this.handleAlert("basicAlert", false, 0);
             this.handleAlert("confirmAlert", true, 0);
           }}
           onCancel={() => {
-            this.handleAlert("defaultAlert", false, 0);
+            this.handleAlert("basicAlert", false, 0);
             this.handleAlert("cancelAlert", true, 0);
           }}
         >
@@ -501,100 +439,50 @@ class ClientsList extends React.Component {
           <p className="sweet-alert-text">L'action est annulé</p>
         </SweetAlert>
 
-        <Row className="app-user-list">
-          <Col sm="12">
-            <Card style={{ minHeight: "82vh" }}>
-              <CardBody style={{ paddingBottom: "1rem" }}>
-                <div className="ag-theme-material ag-grid-table" style={{ height: "78vh", width: "100%" }}>
-                  <div className="ag-grid-actions d-flex justify-content-between flex-wrap mb-1">
-                    <div className="sort-dropdown">
-                      <UncontrolledDropdown className="ag-dropdown p-1">
-                        <DropdownToggle tag="div">
-                          1 - {pageSize} of 50
-                          <ChevronDown className="ml-50" size={20} />
-                        </DropdownToggle>
-                        <DropdownMenu right>
-                          <DropdownItem
-                            tag="div"
-                            onClick={() => this.filterSize(20)}
-                          >
-                            20
-                          </DropdownItem>
-                          <DropdownItem
-                            tag="div"
-                            onClick={() => this.filterSize(50)}
-                          >
-                            50
-                          </DropdownItem>
-                        </DropdownMenu>
-                      </UncontrolledDropdown>
-                    </div>
-                    <div className="filter-actions d-flex">
-                      <Input
-                        className="w-50 mr-1 mb-1 mb-sm-0"
-                        type="text"
-                        placeholder="Rechercher..."
-                        onChange={(e) => this.updateSearchQuery(e.target.value)}
-                        value={this.state.searchVal}
-                      />
-                      <div>
-                        {consultant_id !== -1 && this.state.filter === true && (
-                          <>
-                            <Button
-                              className="mr-1 mb-1"
-                              style={{ width: 170, height: 40 }}
-                              outline
-                              color="primary"
-                              onClick={() => this.externalFilterChanged(-1)}
-                            >
-                              tous les clients
-                            </Button>
-                          </>
-                        )}
-                        {consultant_id === -1 &&
-                          this.state.filter === false && (
-                            <>
-                              <Button
-                                className="mr-1 mb-1"
-                                style={{ width: 140, height: 40 }}
-                                outline
-                                color="primary"
-                                onClick={() =>
-                                  this.externalFilterChanged(
-                                    localStorage.getItem("userid")
-                                  )
-                                }
-                              >
-                                Mes clients
-                              </Button>
-                            </>
-                          )}
-                      </div>
-                      <div>
-                        <Button
-                          className="mr-1 mb-1"
-                          outline
-                          color="primary"
-                          onClick={() => history.push("/app/user/createUser")}
-                        >
-                          <UserPlus size={15} />
-                        </Button>
-                      </div>
-                      <div className="dropdown mr-1 mb-1 d-inline-block">
-                        {this.canDownload() && (
-                          <Button
-                            className="mb-2"
-                            outline
-                            color="primary"
-                            onClick={this.onBtExportXLSX}
-                          >
-                            <Download className="primary" size={15} />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
+        {/* Pleine hauteur page */}
+        <Row className="app-user-list" style={{ height: "100vh" }}>
+          <Col sm="12" className="h-100 d-flex flex-column">
+            <Card className="h-100 d-flex flex-column">
+              <CardBody className="h-100 d-flex flex-column" style={{ paddingBottom: "0.5rem" }}>
+                {/* HEADER: recherche à gauche, boutons à droite */}
+                <div className="ag-grid-actions d-flex justify-content-between align-items-center flex-wrap mb-1">
+                  {/* Gauche : Recherche */}
+                  <div className="d-flex align-items-center mb-1" style={{ minWidth: 280, flex: 1 }}>
+                    <Input
+                      className="mr-1 w-100"
+                      type="text"
+                      placeholder="Rechercher..."
+                      onChange={(e) => this.updateSearchQuery(e.target.value)}
+                      value={this.state.searchVal}
+                    />
                   </div>
 
+                  {/* Droite : Mes/Tous les clients + Créer un compte (vert) */}
+                  <div className="d-flex align-items-center mb-1">
+                    <Button
+                      outline
+                      color="primary"
+                      className="mr-1"
+                      onClick={this.toggleMyClients}
+                    >
+                      {this.state.myFilterId === null ? "Mes clients" : "Tous les clients"}
+                    </Button>
+
+                    <Button
+                      color="success"
+                      onClick={() => history.push("/app/user/createUser")}
+                    >
+                      <UserPlus size={15} className="mr-50" />
+                      Créer un compte
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Le conteneur grid prend tout l'espace restant */}
+                <div
+                  className="ag-theme-material ag-grid-table flex-grow-1"
+                  style={{ width: "100%", minHeight: 0 }}
+                >
                   {this.state.rowData !== null ? (
                     <ContextLayout.Consumer>
                       {(context) => (
@@ -606,14 +494,15 @@ class ClientsList extends React.Component {
                           defaultColDef={defaultColDef}
                           columnDefs={columnDefs}
                           rowData={rowData}
-                          onGridReady={(params) => { this.onGridReady(params); this.sizeToFit(); window.addEventListener("resize", this.sizeToFit); }}
+                          onGridReady={(params) => {
+                            this.onGridReady(params);
+                          }}
                           onFirstDataRendered={this.sizeToFit}
                           onGridSizeChanged={this.sizeToFit}
                           colResizeDefault={"shift"}
                           animateRows={false}
-                          floatingFilter={true}
+                          floatingFilter={false}
                           pagination={true}
-                          pivotPanelShow="always"
                           paginationPageSize={pageSize}
                           resizable={true}
                           enableRtl={context.state.direction === "rtl"}
