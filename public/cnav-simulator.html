@@ -34,16 +34,52 @@
       #simulateurTable td { vertical-align: middle; }
       /* Title overlay so it doesn't shift the table down */
       .simu-title-inline { position: absolute; top: -26px; left: 0; margin: 0; font-size: 14px; font-weight: 600; color: #343a40; }
+      /* Tooltip styles for table headers */
+      .th-tooltip { position: relative; display: inline-block; }
+      .th-tooltip .tooltip-box {
+        position: absolute;
+        left: 50%;
+        bottom: calc(100% + 6px);
+        transform: translateX(-50%);
+        background: #F9FAFB;
+        border: 1px solid #D1D5DB;
+        color: #111827;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        white-space: nowrap;
+        display: none;
+        z-index: 10;
+      }
+      .th-tooltip:hover .tooltip-box { display: block; }
+      /* Child quarters small table */
+      .child-table { width:100%; border-collapse: collapse; margin: 8px 0 12px; }
+      .child-table thead th { background: var(--head); color:#fff; border:1px solid var(--border); padding:8px; text-align:center; }
+      .child-table td { border:1px solid var(--border); padding:8px; text-align:center; vertical-align: middle; }
+      .child-table input[type="number"] { width: 80px; box-sizing: border-box; padding: 6px 8px; border:1px solid var(--border); border-radius:6px; }
+      /* Best years table specific sizing */
+      .best-years-table { width:100%; border-collapse: collapse; table-layout: fixed; }
+      .best-years-table thead th { background: var(--head); color:#fff; border:1px solid var(--border); padding:10px; text-align:center; }
+      .best-years-table td { border:1px solid var(--border); padding:8px; text-align:center; }
+      .best-years-years-col { width: 50%; }
+      .best-years-value-col { width: 50%; }
     </style>
   </head>
   <body>
     <div class="container">
       <h2 class="sim-title">SIMULATEUR PENSION SÉCURITÉ SOCIALE CNAV</h2>
 
-      <div class="mb-2">
+      <div class="mb-2" style="display:flex; align-items:center; gap:.5rem; margin: 8px 0;">
         <label for="birth_date">Quelle est votre date de naissance ? </label>
         <input type="date" id="birth_date" name="birth_date" />
         <input type="button" value="OK" onclick="afficher()" />
+        <button onclick="resetSim()">Réinitialiser</button>
+      </div>
+
+      <!-- Titles aligned where the old reset button sat -->
+      <div class="titles-row" style="display:flex; justify-content:flex-start; align-items:center; margin: 6px 0 10px; gap: 12px; flex-wrap: wrap;">
+        <h4 style="margin:0; font-size:16px; font-weight:600; color:#343a40;">Simulateur de trimestres cotisés</h4>
       </div>
 
       <div id="div" style="display:none; margin-bottom:10px;">
@@ -60,21 +96,21 @@
         </p>
       </div>
 
-      <div class="controls" style="display:flex; gap:.5rem; margin: 8px 0 8px;">
-        <button onclick="resetSim()">Réinitialiser</button>
-      </div>
+      
 
       <div class="grid">
         <div class="main">
           <table id="cnav-table" class="tableizer-table">
             <colgroup>
+              <col style="width:9%" />
+              <col style="width:18%" />
+              <col style="width:16%" />
               <col style="width:10%" />
-              <col style="width:22%" />
-              <col style="width:18%" />
-              <col style="width:12%" />
-              <col style="width:18%" />
-              <col style="width:8%" />
-              <col style="width:8%" />
+              <col style="width:16%" />
+              <col style="width:7%" />
+              <col style="width:6%" />
+              <col style="width:6%" />
+              <col style="width:6%" />
             </colgroup>
             <thead>
               <tr class="tableizer-firstrow">
@@ -82,9 +118,13 @@
                 <th>Salaires Réels (F/€)</th>
                 <th>Salaire SS(F/€)</th>
                 <th>Coeff. Revalo</th>
-                <th>Salaires Revalorisés</th>
+                <th>
+                  <span class="th-tooltip" title="Trimestres">Salaires Revalorisés</span>
+                </th>
                 <th>Trimestres</th>
                 <th>Déplafonner</th>
+                <th>Ar</th>
+                <th>Tot</th>
               </tr>
             </thead>
             <tbody id="cnav-body"></tbody>
@@ -92,7 +132,7 @@
         </div>
         <div class="aside">
           <div style="margin-top:0;">
-            <h4 class="simu-title-inline">Simulateur de Trimestres Cotisés</h4>
+            <h4 class="simu-title-inline">Simulateur de trimestres assimilés</h4>
             <table id="simulateurTable" border="1">
               <colgroup>
                 <col style="width:55%" />
@@ -104,7 +144,7 @@
               </thead>
               <tbody id="simulateurBody">
                 <tr>
-                  <td>Service National</td>
+                  <td>Service national</td>
                   <td><input type="number" id="serviceNational" value="0" min="0"></td>
                   <td><button onclick="ajouterTrimestres('serviceNational')">Ajouter</button></td>
                 </tr>
@@ -128,21 +168,64 @@
                   <td><span id="trimestresParSalaireDisplay">0</span></td>
                   <td><button onclick="ajouterTrimestresSalaire()">Ajouter</button></td>
                 </tr>
+                <tr>
+                  <td>Invalidités</td>
+                  <td><span id="trimestresParInvaliditesDisplay">0</span></td>
+                  <td><button onclick="ajouterTrimestresInvalidites()">Ajouter</button></td>
+                </tr>
               </tbody>
             </table>
-            <p>Total des Trimestres Cotisés: <span id="totalTrimestres">0</span></p>
+            <p>Total des trimestres assimilés: <span id="totalTrimestres">0</span></p>
           </div>
 
-          <table>
-            <thead><tr><th>les 25 Meilleures années</th></tr></thead>
+          <!-- Trimestres enfant (entre total et meilleures années) -->
+          <table class="child-table">
+            <thead>
+              <tr>
+                <th>Trimestres enfant</th>
+                <th>Nombre de trimestres</th>
+                <th>Handicap</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Enfant(s)</td>
+                <td>
+                  <input type="number" id="enfantTrimestres" value="8" min="0" max="8" step="1" />
+                </td>
+                <td>
+                  <label class="checkbox-label"><input type="checkbox" id="enfantHandicap"> En situation de handicap</label>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p>Trimestres enfant pris en compte: <span id="enfantTrimestresDisplay">8</span></p>
+
+          <table class="best-years-table">
+            <colgroup>
+              <col class="best-years-years-col" />
+              <col class="best-years-value-col" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Année</th>
+                <th>Les 25 Meilleures années</th>
+              </tr>
+            </thead>
             <tbody id="best-years">
               <script>
-                for (let i=1;i<=25;i++) document.write('<tr><td><span id="y'+i+'">0</span></td></tr>');
+                (function(){
+                  var current = new Date().getFullYear();
+                  for (let i=1;i<=25;i++) {
+                    var year = current - (i-1);
+                    document.write('<tr><td>'+year+'</td><td><span id="y'+i+'">0</span></td></tr>');
+                  }
+                })();
               </script>
             </tbody>
           </table>
           <table>
-            <thead><tr><th>Total des meilleurs années revalorisées</th></tr></thead>
+            <thead><tr><th>Total des meilleures années revalorisées</th></tr></thead>
             <tbody><tr><td><span id="total">0,0€</span></td></tr></tbody>
           </table>
           <table>
@@ -181,7 +264,9 @@
               <label class="checkbox-label">
                 <input type="checkbox" id="deplafonner_${i}" onchange="simulateur(document.getElementById('sr-${i}').value, ${i}, this.checked)">
               </label>
-            </td>`;
+            </td>
+            <td><span id="ar${i}">0</span></td>
+            <td><span id="tot${i}">0</span></td>`;
           tb.appendChild(tr);
         })
       })();
@@ -232,6 +317,9 @@
 
         document.getElementById('z'+id).innerHTML = salaire_revaloriser.toFixed(2) + (deplafonner ? ' €' : '');
         document.getElementById('e'+id).innerHTML = String(trimestre);
+        // Les colonnes 'Ar' et 'Tot' sont des placeholders UI (non métier)
+        var ar = document.getElementById('ar'+id); if (ar && ar.innerHTML === '0') ar.innerHTML = '';
+        var tot = document.getElementById('tot'+id); if (tot && tot.innerHTML === '0') tot.innerHTML = '';
       }
 
       function simulation_finale() {
@@ -259,7 +347,7 @@
 
       function resetSim(){
         // Effacer entrées/valeurs
-        years.forEach((_,i)=>{ const n=i+1; const a=document.getElementById('sr-'+n); const b=document.getElementById('ss-'+n); if(a) a.value=''; if(b) b.value=''; document.getElementById('z'+n).textContent='0'; document.getElementById('e'+n).textContent='0'; const cb=document.getElementById('deplafonner_'+n); if (cb) cb.checked=false; });
+        years.forEach((_,i)=>{ const n=i+1; const a=document.getElementById('sr-'+n); const b=document.getElementById('ss-'+n); if(a) a.value=''; if(b) b.value=''; document.getElementById('z'+n).textContent='0'; document.getElementById('e'+n).textContent='0'; const cb=document.getElementById('deplafonner_'+n); if (cb) cb.checked=false; const ar=document.getElementById('ar'+n); if(ar) ar.textContent=''; const tot=document.getElementById('tot'+n); if(tot) tot.textContent=''; });
         for (let j=1;j<=25;j++){ const el=document.getElementById('y'+j); if (el) el.textContent='0'; }
         document.getElementById('total').textContent='0,0€';
         document.getElementById('moyenne').textContent='0,0€';
@@ -319,6 +407,28 @@
         document.getElementById('div').style.display = 'block';
         document.querySelector('#retirementAgeDisplay').innerHTML = retirementAge;
       }
+
+      // UI-only: setup Enfant trimestres small table
+      (function setupEnfantTable(){
+        try {
+          var input = document.getElementById('enfantTrimestres');
+          var chk = document.getElementById('enfantHandicap');
+          var out = document.getElementById('enfantTrimestresDisplay');
+          if (!input || !chk || !out) return;
+          function clamp(){
+            var max = chk.checked ? 16 : 8;
+            input.max = String(max);
+            var v = parseInt(input.value, 10);
+            if (isNaN(v) || v < 0) v = 0;
+            if (v > max) v = max;
+            input.value = String(v);
+            out.textContent = String(v);
+          }
+          input.addEventListener('input', clamp);
+          chk.addEventListener('change', clamp);
+          clamp();
+        } catch(e){}
+      })();
     </script>
   </body>
   </html>
