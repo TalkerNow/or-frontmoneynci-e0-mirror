@@ -562,7 +562,7 @@ class EditContract extends React.Component {
                           }
                           color="primary"
                           type="text"
-                          placeholder="Moyen de payement"
+                          placeholder="Moyen de paiement"
                           onChange={(e) =>
                             this.setState({ payment_method: e.target.value })
                           }
