@@ -444,21 +444,6 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Pacsé"
-                          color="primary"
-                          defaultChecked={
-                            this.props.data["martial_status"] == "Pacsé"
-                              ? true
-                              : false
-                          }
-                          name="martial_status"
-                          onChange={() =>
-                            this.setState({ martial_status: "Pacsé" })
-                          }
-                        />
-                      </div>
-                      <div className="d-inline-block mr-1">
-                        <Radio
                           label="Marié"
                           color="primary"
                           defaultChecked={
@@ -474,21 +459,6 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Veuf"
-                          color="primary"
-                          defaultChecked={
-                            this.props.data["martial_status"] == "Veuf"
-                              ? true
-                              : false
-                          }
-                          name="martial_status"
-                          onChange={() =>
-                            this.setState({ martial_status: "Veuf" })
-                          }
-                        />
-                      </div>
-                      <div className="d-inline-block mr-1">
-                        <Radio
                           label="Divorcé"
                           color="primary"
                           defaultChecked={
@@ -499,6 +469,36 @@ class UserAccountTab extends React.Component {
                           name="martial_status"
                           onChange={() =>
                             this.setState({ martial_status: "Divorcé" })
+                          }
+                        />
+                      </div>
+                      <div className="d-inline-block mr-1">
+                        <Radio
+                          label="Pacsé"
+                          color="primary"
+                          defaultChecked={
+                            this.props.data["martial_status"] == "Pacsé"
+                              ? true
+                              : false
+                          }
+                          name="martial_status"
+                          onChange={() =>
+                            this.setState({ martial_status: "Pacsé" })
+                          }
+                        />
+                      </div>
+                      <div className="d-inline-block mr-1">
+                        <Radio
+                          label="Veuf"
+                          color="primary"
+                          defaultChecked={
+                            this.props.data["martial_status"] == "Veuf"
+                              ? true
+                              : false
+                          }
+                          name="martial_status"
+                          onChange={() =>
+                            this.setState({ martial_status: "Veuf" })
                           }
                         />
                       </div>
@@ -518,17 +518,6 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Pacsé"
-                          color="primary"
-                          defaultChecked={false}
-                          name="martial_status"
-                          onChange={() =>
-                            this.setState({ martial_status: "Pacsé" })
-                          }
-                        />
-                      </div>
-                      <div className="d-inline-block mr-1">
-                        <Radio
                           label="Marié"
                           color="primary"
                           defaultChecked={false}
@@ -540,23 +529,34 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Veuf"
-                          color="primary"
-                          defaultChecked={false}
-                          name="martial_status"
-                          onChange={() =>
-                            this.setState({ martial_status: "Veuf" })
-                          }
-                        />
-                      </div>
-                      <div className="d-inline-block mr-1">
-                        <Radio
                           label="Divorcé"
                           color="primary"
                           defaultChecked={false}
                           name="martial_status"
                           onChange={() =>
                             this.setState({ martial_status: "Divorcé" })
+                          }
+                        />
+                      </div>
+                      <div className="d-inline-block mr-1">
+                        <Radio
+                          label="Pacsé"
+                          color="primary"
+                          defaultChecked={false}
+                          name="martial_status"
+                          onChange={() =>
+                            this.setState({ martial_status: "Pacsé" })
+                          }
+                        />
+                      </div>
+                      <div className="d-inline-block mr-1">
+                        <Radio
+                          label="Veuf"
+                          color="primary"
+                          defaultChecked={false}
+                          name="martial_status"
+                          onChange={() =>
+                            this.setState({ martial_status: "Veuf" })
                           }
                         />
                       </div>

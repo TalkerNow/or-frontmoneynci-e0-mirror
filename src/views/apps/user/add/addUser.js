@@ -595,24 +595,24 @@ handleZipChange = (zip, which) => {
                 </div>
                 <div className="d-inline-block mr-1">
                   <Radio
-                    label="Pacsé"
-                    color="success"
-                    name="martial_status"
-                    onChange={() =>
-                      this.setState({
-                        data: { ...this.state.data, martial_status: "Pacsé" },
-                      })
-                    }
-                  />
-                </div>
-                <div className="d-inline-block mr-1">
-                  <Radio
                     label="Marié"
                     color="info"
                     name="martial_status"
                     onChange={() =>
                       this.setState({
                         data: { ...this.state.data, martial_status: "Marié" },
+                      })
+                    }
+                  />
+                </div>
+                <div className="d-inline-block mr-1">
+                  <Radio
+                    label="Divorcé"
+                    color="danger"
+                    name="martial_status"
+                    onChange={() =>
+                      this.setState({
+                        data: { ...this.state.data, martial_status: "Divorcé" },
                       })
                     }
                   />
@@ -631,12 +631,12 @@ handleZipChange = (zip, which) => {
                 </div>
                 <div className="d-inline-block mr-1">
                   <Radio
-                    label="Divorcé"
-                    color="danger"
+                    label="Pacsé"
+                    color="success"
                     name="martial_status"
                     onChange={() =>
                       this.setState({
-                        data: { ...this.state.data, martial_status: "Divorcé" },
+                        data: { ...this.state.data, martial_status: "Pacsé" },
                       })
                     }
                   />
