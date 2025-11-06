@@ -33,7 +33,7 @@ const items = {
     id: "users",
     title: "Clients",
     type: "collapse",
-    icon: <Icon.Monitor size={20} />,
+    icon: <Icon.Users size={20} />,
     permissions: ["admin", "Expert", "Consultant"],
     navLink: "/app/user/clientslist", // clic sur le libellé => navigate direct
     children: [

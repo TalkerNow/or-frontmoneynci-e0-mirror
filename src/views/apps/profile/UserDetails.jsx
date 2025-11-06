@@ -1,18 +1,49 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import axios from "axios";
 import { Card, CardBody, Button, Badge, UncontrolledTooltip } from "reactstrap";
 import { User as UserIcon, Disc } from "react-feather";
 
-export default function UserDetails({ user = {}, onEdit, onSuspend, showCollapse = false, onCollapse, cardClassName = "" }) {
-  const fullName = `${user.first_name || ""} ${user.last_name || ""}`.trim() || "Utilisateur";
+export default function UserDetails({
+  user = {},
+  onEdit,
+  onSuspend,
+  showCollapse = false,
+  onCollapse,
+  cardClassName = ""
+}) {
+  const [members, setMembers] = useState([]);
+
+  // --- FETCH des membres (experts) DANS CETTE FONCTION ---
+  useEffect(() => {
+    let isMounted = true;
+    const fetchMembers = async () => {
+      try {
+        const Config = {
+          headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+        };
+        const base = (global?.config?.server_url || "").replace(/\/+$/,"");
+        const { data } = await axios.get(`${base}/users?kind=member`, Config);
+        if (isMounted) setMembers(Array.isArray(data) ? data : []);
+      } catch (e) {
+        if (isMounted) setMembers([]);
+        // Optionnel: console.warn("Erreur fetch members:", e);
+      }
+    };
+    fetchMembers();
+    return () => { isMounted = false; };
+  }, []);
+
+  const fullName =
+    `${user.first_name || ""} ${user.last_name || ""}`.trim() || "Utilisateur";
+
   const formatPhoneFR = (val) => {
     if (!val) return "";
     try {
       let digits = String(val).replace(/\D/g, "");
-      // Normalize French country code to leading 0
-      if (/^(?:33)/.test(digits)) digits = "0" + digits.slice(2);
+      // Normaliser indicatif FR -> 0
       if (/^(?:0033)/.test(String(val))) digits = "0" + digits.replace(/\D/g, "").slice(4);
-      if (/^(?:\+33)/.test(String(val))) digits = "0" + digits.slice(2); // already removed +
-      // Keep first 10 for standard FR mobile/landline formatting
+      else if (/^(?:\+33)/.test(String(val))) digits = "0" + digits.slice(2);
+      else if (/^(?:33)/.test(digits)) digits = "0" + digits.slice(2);
       const core = digits.length >= 10 ? digits.slice(0, 10) : digits;
       return core.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
     } catch (e) {
@@ -20,16 +51,54 @@ export default function UserDetails({ user = {}, onEdit, onSuspend, showCollapse
     }
   };
 
+  // Nom de l'expert (au-dessus du téléphone)
+  const expertName = useMemo(() => {
+    if (!user) return "—";
+
+    // 1) Résolution via members + parent_id
+    if (Array.isArray(members) && user.parent_id != null) {
+      const m = members.find(m => String(m.id) === String(user.parent_id));
+      if (m) {
+        const s = `${m.first_name || ""} ${m.last_name || ""}`.trim();
+        if (s) return s;
+      }
+    }
+
+    // 2) Fallback via user.parent
+    if (user.parent && (user.parent.first_name || user.parent.last_name)) {
+      const s = `${user.parent.first_name || ""} ${user.parent.last_name || ""}`.trim();
+      if (s) return s;
+    }
+
+    // 3) Fallback via champ direct
+    if (user.expert_name && String(user.expert_name).trim()) {
+      return String(user.expert_name).trim();
+    }
+
+    return "—";
+  }, [user, members]);
+
   return (
     <Card className={`h-100 profile-card ${cardClassName}`}>
-      <CardBody className="d-flex flex-column h-100 p-1 pb-0" style={{ position: 'relative' }}>
+      <CardBody className="d-flex flex-column h-100 p-1 pb-0" style={{ position: "relative" }}>
         {showCollapse && (
-          <div className="nav-link modern-nav-toggle" style={{ position: 'absolute', top: 10, right: 10, zIndex: 5 }}>
-            <Disc id="profileCardCollapseToggle" onClick={onCollapse} className="toggle-icon icon-x d-none d-xl-block text-primary" size={20} />
-            <UncontrolledTooltip placement='left' target='profileCardCollapseToggle'>Masquer la fiche</UncontrolledTooltip>
+          <div
+            className="nav-link modern-nav-toggle"
+            style={{ position: "absolute", top: 10, right: 10, zIndex: 5 }}
+          >
+            <Disc
+              id="profileCardCollapseToggle"
+              onClick={onCollapse}
+              className="toggle-icon icon-x d-none d-xl-block text-primary"
+              size={20}
+            />
+            <UncontrolledTooltip placement="left" target="profileCardCollapseToggle">
+              Masquer la fiche
+            </UncontrolledTooltip>
           </div>
         )}
-        {/* En-tête avec icône utilisateur dans un cercle */}
+
+        {/* En-tête avec icône utilisateur */}
         <div className="d-flex justify-content-center mb-50">
           <div
             style={{
@@ -40,13 +109,15 @@ export default function UserDetails({ user = {}, onEdit, onSuspend, showCollapse
               backgroundColor: "#f5f5ff",
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
+              justifyContent: "center"
             }}
           >
             <UserIcon size={22} color="#7367f0" />
           </div>
         </div>
+
         <h5 className="mb-25 text-center">{fullName}</h5>
+
         {user.role ? (
           <div className="d-flex justify-content-center mb-75">
             <Badge color="light-primary" pill>
@@ -69,21 +140,42 @@ export default function UserDetails({ user = {}, onEdit, onSuspend, showCollapse
             </div>
             <div className="d-flex user-info">
               <div className="user-info-title font-weight-bold">Email :</div>
-              <div className="text-break" style={{ overflowWrap: 'anywhere' }} title={user.email || ''}>{user.email || "—"}</div>
+              <div className="text-break" style={{ overflowWrap: "anywhere" }} title={user.email || ""}>
+                {user.email || "—"}
+              </div>
             </div>
             <div className="d-flex user-info">
-              <div className="user-info-title font-weight-bold">Rôle :</div>
-              <div className="text-truncate">{user.role || "—"}</div>
+              <div className="user-info-title font-weight-bold">Né(e) le :</div>
+              <div className="text-truncate">
+                {user.birth_date
+                  ? new Date(user.birth_date).toLocaleDateString("fr-FR", {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric"
+                    })
+                  : "—"}
+              </div>
             </div>
+
+            {/* >>> Expert AU-DESSUS du téléphone <<< */}
+            <div className="d-flex user-info">
+              <div className="user-info-title font-weight-bold">Consultant :</div>
+              <div className="text-truncate">{expertName}</div>
+            </div>
+
             <div className="d-flex user-info">
               <div className="user-info-title font-weight-bold">Tel :</div>
-              <div className="text-truncate">{formatPhoneFR(user.mobile_number || user.office_number) || "—"}</div>
+              <div className="text-truncate">
+                {formatPhoneFR(user.mobile_number || user.office_number) || "—"}
+              </div>
             </div>
           </div>
         </div>
 
         <div className="d-flex justify-content-center mt-3 mb-0 pb-0">
-          <Button color="primary" className="mr-1" onClick={onEdit}>Modifier</Button>
+          <Button color="primary" className="mr-1" onClick={onEdit}>
+            Modifier
+          </Button>
         </div>
       </CardBody>
     </Card>
