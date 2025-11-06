@@ -11,7 +11,7 @@
       .sim-title { font-weight: 800; text-transform: uppercase; letter-spacing: .02em; margin: 6px 0 8px; font-size: 20px; color:#1f2d3d; }
       .sim-help { font-size:14px; line-height:1.55; margin: 0 0 12px; }
       .sim-help strong { color: var(--accent); }
-      .divider{ height:auto; display:inline-block; }
+      .divider{ margin-right:50px; height:auto; display:inline-block; }
       .divider1{ margin-right:50px; height:auto; display:inline-block; }
       .controls { margin-bottom:8px; font-size:14px; }
       b1 { font-weight:600; font-size:14px; }
@@ -53,12 +53,26 @@
             <input type="radio" id="cadre" name="cadreStatus" value="cadre" onclick="choixPersonne('cacher2');" />
             <label for="cadre">Cadre</label>
           </div>
+          <div class="divider1">
+            <input
+              type="reset"
+              value="Réinitialiser"
+              onclick="
+                try { this.form && this.form.reset && this.form.reset(); } catch(e) {}
+                var nc = document.getElementById('non-cadre');
+                var c = document.getElementById('cadre');
+                if (nc) nc.checked = true;
+                if (c) c.checked = false;
+                if (typeof choixPersonne === 'function') choixPersonne('cacher1');
+                document.querySelectorAll('#divnoncadre input[type=text]').forEach(function(i){ i.value=''; });
+                document.querySelectorAll('#divnoncadre span').forEach(function(s){ s.textContent=''; });
+              "
+            />
+          </div>
         </form>
       </div>
 
       <div id="divnoncadre" style="display:none">
-        <input type="reset" value="Réinitialiser" onclick="document.querySelectorAll('#divnoncadre input[type=text]').forEach(i=>i.value=''); document.querySelectorAll('#divnoncadre span').forEach(s=>s.textContent='');" />
-        <br/><br/>
         <table class="tableizer-table">
           <thead>
             <tr class="tableizer-firstrow">
@@ -143,8 +157,6 @@
       </div>
 
       <div id="divcadre" style="display:none">
-        <input type="reset" value="Réinitialiser" onclick="document.querySelectorAll('#divcadre input[type=text]').forEach(i=>i.value=''); document.querySelectorAll('#divcadre span').forEach(s=>s.textContent='');" />
-        <br/><br/>
         <table class="tableizer-table">
           <thead><tr class="tableizer-firstrow"><th>Année</th><th>Salaire (F/€)</th><th>Taux service Tranche A</th><th>Taux service Tranche B</th><th>Salaire référence (F/€)</th><th>TRANCHE A</th><th>TRANCHE B</th><th>TOTAL</th></tr></thead>
           <tbody>

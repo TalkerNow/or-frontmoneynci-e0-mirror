@@ -7,7 +7,7 @@ import Hammer from "react-hammerjs"
 import SideMenuContent from "./sidemenu/SideMenuContent"
 import { Link } from "react-router-dom"
 import { createPortal } from "react-dom"
-import { User, Settings, Users, FileText, File, Power } from "react-feather"
+import { User, Settings, Users, File, Power } from "react-feather"
 
 // ✅ importe l’action (ajuste le chemin si différent chez toi)
 import { logoutWithJWT } from "../../../../redux/actions/auth/loginActions"

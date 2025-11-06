@@ -9,7 +9,7 @@ import axios from 'axios'
 
 // UI-only component: no calculation or API logic here per specs
 
-export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelId }) {
+export default function SimulatorHub({ id, alignOffset = 0 }) {
   const [subTab, setSubTab] = useState('carriere')
   const [regimeTab, setRegimeTab] = useState('base')
   const [carriereLongue, setCarriereLongue] = useState(false)
@@ -21,15 +21,34 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
   // Ajout: lignes dynamiques "Salaire jusqu’au départ"
   const [salaireJusquaDepartRows, setSalaireJusquaDepartRows] = useState([{ id: 1, value: '', fixed: false }])
   const [retraiteProgressive, setRetraiteProgressive] = useState(false)
+  const [cumulEmploiRetraite, setCumulEmploiRetraite] = useState(false)
+  // Retraite progressive: UI-only fields (date, %, salaire, surcôtisation)
+  const [progStartDate, setProgStartDate] = useState('')
+  const [progPct, setProgPct] = useState('')
+  const [progSalary, setProgSalary] = useState('')
+  const [progSurcotisation, setProgSurcotisation] = useState(false)
+  const [progStartDateFixed, setProgStartDateFixed] = useState(false)
+  const [progPctFixed, setProgPctFixed] = useState(false)
+  const [progSalaryFixed, setProgSalaryFixed] = useState(false)
+
+  // Chômage fixed states
+  const [chomageJoursFixed, setChomageJoursFixed] = useState(false)
+  const [chomageAnneesFixed, setChomageAnneesFixed] = useState(false)
+
+  // Carrière longue: fixed for trimestres count per age
+  const [clAvantFixed, setClAvantFixed] = useState({ '21': false, '20': false, '18': false, '16': false })
+  // Chômage: UI-only fields for the panel opened when toggle is ON
+  const [chomageJours, setChomageJours] = useState('')
+  const [chomageAnnees, setChomageAnnees] = useState('')
+  // Carrière longue: UI-only "Trimestres avant" (21/20/18/16)
+  const [clAvantCount, setClAvantCount] = useState({ '21': '', '20': '', '18': '', '16': '' })
+  const [clAvantDates, setClAvantDates] = useState({ '21': { from: '', to: '' }, '20': { from: '', to: '' }, '18': { from: '', to: '' }, '16': { from: '', to: '' } })
   const [innerOffset, setInnerOffset] = useState(0)
   const [visible, setVisible] = useState(false)
   const [innerVisible, setInnerVisible] = useState(false)
   // (refs to Nav/innerNav removed to avoid function-component ref warnings)
 
-  // Add: missing open states for collapsible regime sections
-  const [openBase, setOpenBase] = useState(false)
-  const [openArrco, setOpenArrco] = useState(false)
-  const [openIrcantec, setOpenIrcantec] = useState(false)
+  // Regimes are displayed via tabs; no collapsible per-regime state
   // Carrière: upload + saisie manuelle
   const [careerDoc, setCareerDoc] = useState(null) // { name, type, size, uploadedAt, url? }
   const [careerDocPreview, setCareerDocPreview] = useState(false)
@@ -279,6 +298,7 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
     const allowed = ['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Enter']
     if (allowed.includes(e.key)) return true
     if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return true
+    if (e.key === ',' || e.key === '.') return true
     return /^\d$/.test(e.key)
   }
 
@@ -315,6 +335,14 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
     return t.startsWith('image/') || /\.(png|jpe?g|gif|bmp|webp|tiff?)($|\?)/i.test(u)
   }
 
+  // Safe date helper for type="date" inputs
+  const normalizeDate = (v) => {
+    try {
+      const s = String(v || '')
+      return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : ''
+    } catch { return '' }
+  }
+
   return (
     <div>
       {/* Responsive layout helpers for the Hypothèses section + bilan table */}
@@ -331,8 +359,37 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
         .hypo-panel-header > span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .hypo-panel-header > button { flex: 0 0 auto; align-self: center !important; }
         .hypo-salary-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .hypo-salary-label { margin-right: 12px; min-width: 90px; color: var(--bs-body-color, #4b4b4b); font-weight: 600; font-size: 0.95rem; }
-        .hypo-salary-inputwrap { position: relative; width: 160px; max-width: 100%; }
+        .hypo-salary-row.nowrap { flex-wrap: nowrap; }
+        .hypo-salary-label { margin-right: 6px; min-width: 70px; color: var(--bs-body-color, #4b4b4b); font-weight: 600; font-size: 0.95rem; }
+        .hypo-salary-inputwrap { position: relative; width: 110px; max-width: 100%; }
+        .hypo-date-row { display: inline-flex; align-items: center; gap: 6px; }
+        .hypo-date-input { width: 140px; height: 32px; padding: 6px 8px; border: 1px solid #E5E7EB; border-radius: 6px; background: #fff; font-size: 0.9rem; }
+        .hypo-date-sep { width: 24px; text-align: center; color: #6B7280; display: inline-block; }
+        .hypo-date-input:focus { outline: none; border-color: #A5B4FC; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
+        /* Chômage panel */
+        .chomage-panel-fields { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .chomage-field { display: inline-flex; align-items: center; gap: 8px; }
+        .chomage-field label { margin: 0; font-weight: 600; color: var(--bs-body-color, #4b4b4b); }
+        .chomage-days { width: 80px; text-align: center; }
+        .chomage-days::placeholder { text-align: center; }
+        /* Vendor placeholder alignment (Safari/Chrome) */
+        .chomage-days::-webkit-input-placeholder { text-align: center; }
+        .chomage-trim { width: 100%; text-align: center; }
+        .chomage-row { display: grid; grid-template-columns: 180px 80px 24px 140px 24px 140px; column-gap: 8px; align-items: center; }
+        .chomage-dual-row { display: grid; grid-template-columns: 180px 80px 16px 90px 96px; column-gap: 8px; align-items: center; }
+        /* Retraite progressive panel */
+        .prog-panel-fields { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .prog-panel-fields.nowrap { flex-wrap: nowrap; }
+        .prog-field { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+        .prog-field label { margin: 0; font-weight: 600; color: var(--bs-body-color, #4b4b4b); white-space: nowrap; }
+        .prog-inputwrap { position: relative; width: 72px; max-width: 100%; }
+        .prog-date { width: 140px; }
+        .prog-pct { width: 100%; text-align: center; }
+        .prog-pct::placeholder { text-align: center; }
+        .prog-pct::-webkit-input-placeholder { text-align: center; }
+        .prog-surco-row { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+        .prog-surco-row .prog-label { font-weight: 600; color: var(--bs-body-color, #4b4b4b); min-width: 265px; flex: 0 0 240px; max-width: 240px; }
+        .prog-salary-wrap { position: relative; width: 100px; max-width: 100%; }
 
         /* Variables + table skin (same as your CNAV snippet) */
         :root { --border:#ddd; --bg:#fff; --alt:#f7f7fb; --accent:#7367f0; --head: var(--accent); }
@@ -341,9 +398,9 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
           background-color: var(--head);
           color:#fff;
           border:1px solid var(--border);
-          padding:8px;              /* was 10px */
+          padding:8px;
           text-align:center;
-          font-size: 1rem;          /* increased for readability */
+          font-size: 0.9rem;        /* reduced for compact headers */
         }
         .regime-table td { border:1px solid var(--border); padding:8px; vertical-align: middle; text-align:center; }
         .regime-table tbody tr:nth-child(even) { background-color: var(--alt); }
@@ -421,11 +478,37 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
           .hypo-row { flex-direction: column; align-items: flex-start; gap: 6px; }
           .hypo-label { flex: none; width: auto; max-width: none; }
           .hypo-label.nowrap { white-space: normal; }
-          .hypo-ctrl { width: 100%; }
+          .hypo-ctrl { width: 100%; padding-left: 12px; }
           .hypo-panel { max-width: 100%; }
           .hypo-panel-header { flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: nowrap; }
           .hypo-salary-row { flex-direction: column; align-items: stretch; }
+          .hypo-salary-row.nowrap { flex-wrap: wrap; }
+          .hypo-salary-label { min-width: 0; margin-right: 0; }
           .hypo-salary-inputwrap { width: 100%; }
+          .hypo-date-row { margin-left: 0 !important; width: 100%; }
+          .hypo-date-input { width: 100%; }
+          .chomage-panel-fields { flex-direction: column; align-items: stretch; }
+        .chomage-row { grid-template-columns: 1fr; row-gap: 6px; }
+        .chomage-dual-row { grid-template-columns: 1fr; row-gap: 6px; }
+        .chomage-days { width: 100%; }
+          .prog-panel-fields { flex-direction: column; align-items: stretch; }
+          .prog-field { justify-content: space-between; width: 100%; flex-wrap: wrap; }
+          .prog-field label { width: 100%; margin-bottom: 6px; }
+          .prog-field .form-control { width: 100%; }
+          .prog-inputwrap { width: 100%; }
+          .prog-date { width: 100%; }
+          .prog-pct { width: 100%; }
+          .prog-surco-row { justify-content: space-between; flex-wrap: wrap; }
+          .prog-surco-row > div { margin-left: 12px; }
+          .prog-surco-row .prog-label { min-width: 0; flex: 0 0 100%; max-width: 100%; margin-bottom: 6px; }
+          .prog-salary-wrap { width: 100%; }
+          .prog-panel-fields.nowrap { flex-wrap: wrap; }
+        }
+
+        /* Ultra-narrow devices: keep labels and inputs paired per line */
+        @media (max-width: 480px) {
+          .hypo-date-row { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; row-gap: 6px; }
+          .hypo-date-input { width: 100%; min-width: 0; }
         }
 
         .dob-click-wrap { display: inline-block; cursor: pointer; }
@@ -476,6 +559,8 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
       <style>{`
         /* Titles: uniform and larger */
         .section-title { font-size: 1.35rem; font-weight: 700; margin: 0 0 10px; }
+        /* Make legend title match section-title look */
+        fieldset > legend.h6 { font-size: 1.35rem; font-weight: 700; margin: 0 0 10px; color: #2f2f39; }
 
         .choice-table, .history-table {
           width: 100%;            /* full width for uniformity */
@@ -498,11 +583,11 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
           background: var(--bs-primary, #7367F0);
           color: #fff;
           border: 1px solid #E5E7EB;
-          padding: 6px 8px;      /* compact header */
+          padding: 8px;          /* align header height with simulators */
           text-align: left;
           font-weight: 600;
-          font-size: 14px;       /* increased for readability */
-          line-height: 1.15;
+          font-size: 0.9rem;     /* reduced for compact headers */
+          line-height: 1.1;
           white-space: nowrap;
         }
         .choice-table td, .history-table td {
@@ -542,7 +627,7 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
         @media (max-width: 768px) {
           .choice-table { min-width: 640px; }
           .history-table { min-width: 720px; }
-          .choice-table thead th, .history-table thead th { font-size: 12px; padding: 5px 6px; }
+          .choice-table thead th, .history-table thead th { font-size: 11px; padding: 7px; }
           .choice-table td, .history-table td { padding: 6px; }
           /* Stack the age value under the label to avoid overflow */
           .age-cell { flex-direction: column; align-items: flex-start; gap: 2px; padding: 0 8px; }
@@ -558,15 +643,25 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
         .btn-pastel { background: #EEF2FF; border: 1px solid #E5E7EB; color: #374151; border-radius: 6px; padding: 8px 10px; font-weight: 600; }
         .btn-pastel:hover { background: #E0E7FF; color: #111827; }
 
-        .manual-table { width: 100%; border-collapse: collapse; background: #fff; table-layout: fixed; }
-        .manual-table thead th { background: #7367F0; color: #fff; border: 1px solid #E5E7EB; padding: 6px 8px; font-size: 13px; text-align: left; white-space: nowrap; }
-        .manual-table td { border: 1px solid #E5E7EB; padding: 6px 8px; vertical-align: middle; }
-        .manual-table th.actions-col, .manual-table td.actions-col { width: 64px; text-align: center; }
+        .manual-table { width: 100%; border-collapse: collapse; background: #fff; table-layout: fixed; min-width: 960px; }
+        .manual-table thead th { background: var(--bs-primary, #7367F0); color: #FFFFFF; border: 1px solid #E5E7EB; padding: 6px 8px; font-size: 12px; text-align: center; font-weight: 600; white-space: nowrap; }
+        .manual-table td { border: 1px solid #E5E7EB; padding: 6px 8px; vertical-align: middle; text-align: center; }
+        .manual-table th.actions-col, .manual-table td.actions-col { width: 80px; text-align: center; }
+        .manual-table th.w-90, .manual-table td.w-90 { width: 90px; }
+        .manual-table th.w-110, .manual-table td.w-110 { width: 110px; }
+        .manual-table th.w-150, .manual-table td.w-150 { width: 150px; }
+        .manual-table th.w-100, .manual-table td.w-100 { width: 100px; }
+        .manual-table th.w-140, .manual-table td.w-140 { width: 140px; }
+        .manual-table .hidden-tc { display: none; }
+        .manual-num { width: 100%; border: 1px solid #E5E7EB; border-radius: 6px; padding: 6px 8px; background: #fff; text-align: center; }
+        .manual-num:focus { outline: none; border-color: #A5B4FC; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
+        /* Horizontal scroll for small screens */
+        .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .manual-input { width: 100%; border: 1px solid #E5E7EB; border-radius: 6px; padding: 6px 8px; background: #fff; }
         .manual-input:focus { outline: none; border-color: #A5B4FC; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
         .manual-input.err { border-color: #ef4444; box-shadow: 0 0 0 2px rgba(239,68,68,0.15); }
         .manual-actions { display: inline-flex; gap: 6px; }
-        .manual-add { margin-top: 8px; }
+        .manual-add { margin-top: 16px; display: flex; justify-content: flex-end; }
 
         /* Compact card body padding only on large screens */
         @media (min-width: 1200px) {
@@ -597,11 +692,6 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
         <NavItem>
           <NavLink id='regimes-link' className={classnames({ active: subTab === 'regimes' })} onClick={() => setSubTab('regimes')}>
             <span id='regimes-label'>Régimes de retraite</span>
-          </NavLink>
-        </NavItem>
-        <NavItem>
-          <NavLink className={classnames({ active: subTab === 'rachat' })} onClick={() => setSubTab('rachat')}>
-            Rachat de trimestres
           </NavLink>
         </NavItem>
         <NavItem>
@@ -728,22 +818,31 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
             <CardBody>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
                 <h6 className='mb-1 section-title' style={{ marginBottom: 0 }}>Saisie de carrière manuelle</h6>
-                <button
-                  type='button'
-                  className='btn-pastel'
-                  onClick={() => setManualCareerRows(prev => ([...(Array.isArray(prev) ? prev : []), { id: Date.now(), annee: '', revenu: '', trimestres: '', regime: 'général', observations: '', errY: false, errR: false, errT: false }]))}
-                >
-                  + Ajouter une ligne
-                </button>
               </div>
               <div className='bilan-wrap' style={{ overflow: 'hidden' }}>
                 <div className='table-responsive'>
                   <table className='manual-table'>
+                    <colgroup>
+                      <col className='w-90' />
+                      <col className='w-140' />
+                      <col className='w-150' />
+                      <col className='w-100' />
+                      <col className='w-100' />
+                      <col className='w-100' />
+                      <col className='w-100' />
+                      <col className='hidden-tc w-100' />
+                      <col style={{ width: '80px' }} />
+                    </colgroup>
                     <thead>
                       <tr>
-                        <th>Année</th>
-                        <th>Revenu annuel brut</th>
-                        <th>Trimestres validés</th>
+                        <th className='w-90'>Année</th>
+                        <th className='w-140'>Revenu annuel brut</th>
+                        <th className='w-150'>Trimestres validés</th>
+                        <th className='w-100'>Cnav (points)</th>
+                        <th className='w-100'>Arrco Agirc (points)</th>
+                        <th className='w-100'>Tranche A (TA)</th>
+                        <th className='w-100'>Tranche B (TB)</th>
+                        <th className='hidden-tc w-100'>Tranche C (TC)</th>
                         <th className='actions-col'>Actions</th>
                       </tr>
                     </thead>
@@ -814,6 +913,22 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
                               aria-label='Trimestres validés'
                             />
                           </td>
+                          {/* New UI-only numeric columns (uncontrolled) */}
+                          <td>
+                            <input type='text' inputMode='numeric' pattern='[0-9]*' maxLength={6} className='manual-num' defaultValue={row.cnavPoints ?? ''} aria-label='Cnav (points)' />
+                          </td>
+                          <td>
+                            <input type='text' inputMode='numeric' pattern='[0-9]*' maxLength={6} className='manual-num' defaultValue={row.arrcoPoints ?? ''} aria-label='Arrco Agirc (points)' />
+                          </td>
+                          <td>
+                            <input type='text' inputMode='numeric' pattern='[0-9]*' className='manual-num' defaultValue={row.ta ?? ''} aria-label='Tranche A (TA)' />
+                          </td>
+                          <td>
+                            <input type='text' inputMode='numeric' pattern='[0-9]*' className='manual-num' defaultValue={row.tb ?? ''} aria-label='Tranche B (TB)' />
+                          </td>
+                          <td className='hidden-tc'>
+                            <input type='text' inputMode='numeric' pattern='[0-9]*' className='manual-num' defaultValue={row.tc ?? ''} aria-label='Tranche C (TC)' />
+                          </td>
                           <td className='actions-col'>
                             <div className='manual-actions'>
                               {idx > 0 && (
@@ -840,7 +955,15 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
                   </table>
                 </div>
               </div>
-              {/* Add button moved to top-right header */}
+              <div className='manual-add'>
+                <button
+                  type='button'
+                  className='btn-pastel'
+                  onClick={() => setManualCareerRows(prev => ([...(Array.isArray(prev) ? prev : []), { id: Date.now(), annee: '', revenu: '', trimestres: '', regime: 'général', observations: '', errY: false, errR: false, errT: false }]))}
+                >
+                  + Ajouter une ligne
+                </button>
+              </div>
             </CardBody>
           </Card>
         </TabPane>
@@ -861,37 +984,16 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
             <NavItem>
               <NavLink className={classnames({ active: regimeTab === 'base' })} onClick={() => setRegimeTab('base')}>
                 <span id='regime-base-text'>Régime de base</span>
-                <span
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setRegimeTab('base'); setOpenBase(v => !v) }}
-                  aria-label='Basculer le tableau Régime de base'
-                  style={{ marginLeft: 6, display: 'inline-block', transition: 'transform 200ms', transform: openBase ? 'rotate(180deg)' : 'rotate(0deg)' }}
-                >
-                  ▼
-                </span>
               </NavLink>
             </NavItem>
             <NavItem>
               <NavLink className={classnames({ active: regimeTab === 'arrco' })} onClick={() => setRegimeTab('arrco')}>
                 ARRCO AGIRC
-                <span
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setRegimeTab('arrco'); setOpenArrco(v => !v) }}
-                  aria-label='Basculer le tableau ARRCO AGIRC'
-                  style={{ marginLeft: 6, display: 'inline-block', transition: 'transform 200ms', transform: openArrco ? 'rotate(180deg)' : 'rotate(0deg)' }}
-                >
-                  ▼
-                </span>
               </NavLink>
             </NavItem>
             <NavItem>
               <NavLink className={classnames({ active: regimeTab === 'ircantec' })} onClick={() => setRegimeTab('ircantec')}>
                 IRCANTEC
-                <span
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setRegimeTab('ircantec'); setOpenIrcantec(v => !v) }}
-                  aria-label='Basculer le tableau IRCANTEC'
-                  style={{ marginLeft: 6, display: 'inline-block', transition: 'transform 200ms', transform: openIrcantec ? 'rotate(180deg)' : 'rotate(0deg)' }}
-                >
-                  ▼
-                </span>
               </NavLink>
             </NavItem>
             <NavItem>
@@ -907,48 +1009,39 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
           </Nav>
           <TabContent activeTab={regimeTab}>
             <TabPane tabId='base'>
-              {/* Retrait du déclencheur: on garde uniquement le Collapse */}
-              <Collapse isOpen={openBase}>
-                <Card className='mb-1'>
-                  <CardBody>
-                    <iframe
-                      title='cnav-simulator'
-                      src={`${publicUrl}/cnav-simulator.html`}
-                      style={{ width: '100%', height: '1800px', border: '0', borderRadius: '8px', background: 'transparent' }}
-                    />
-                  </CardBody>
-                </Card>
-              </Collapse>
+              <Card className='mb-1'>
+                <CardBody>
+                  <iframe
+                    title='cnav-simulator'
+                    src={`${publicUrl}/cnav-simulator.html`}
+                    style={{ width: '100%', height: '1800px', border: '0', borderRadius: '8px', background: 'transparent' }}
+                  />
+                </CardBody>
+              </Card>
             </TabPane>
 
             <TabPane tabId='arrco'>
-              {/* Retrait du déclencheur */}
-              <Collapse isOpen={openArrco}>
-                <Card className='mb-1'>
-                  <CardBody>
-                    <iframe
-                      title='arrco-agirc-simulator'
-                      src={`${publicUrl}/arrco-simulator.html`}
-                      style={{ width: '100%', height: '1150px', border: '0', borderRadius: '8px', background: 'transparent' }}
-                    />
-                  </CardBody>
-                </Card>
-              </Collapse>
+              <Card className='mb-1'>
+                <CardBody>
+                  <iframe
+                    title='arrco-agirc-simulator'
+                    src={`${publicUrl}/arrco-simulator.html`}
+                    style={{ width: '100%', height: '1150px', border: '0', borderRadius: '8px', background: 'transparent' }}
+                  />
+                </CardBody>
+              </Card>
             </TabPane>
 
             <TabPane tabId='ircantec'>
-              {/* Retrait du déclencheur */}
-              <Collapse isOpen={openIrcantec}>
-                <Card className='mb-1'>
-                  <CardBody>
-                    <iframe
-                      title='ircantec-simulator'
-                      src={`${publicUrl}/ircantec-simulator.html`}
-                      style={{ width: '100%', height: '1150px', border: '0', borderRadius: '8px', background: 'transparent' }}
-                    />
-                  </CardBody>
-                </Card>
-              </Collapse>
+              <Card className='mb-1'>
+                <CardBody>
+                  <iframe
+                    title='ircantec-simulator'
+                    src={`${publicUrl}/ircantec-simulator.html`}
+                    style={{ width: '100%', height: '1150px', border: '0', borderRadius: '8px', background: 'transparent' }}
+                  />
+                </CardBody>
+              </Card>
             </TabPane>
 
             <TabPane tabId='rci'>
@@ -960,13 +1053,7 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
           </TabContent>
         </TabPane>
 
-        <TabPane tabId='rachat'>
-          <Card className='mb-1 bilan-card'>
-            <CardBody>
-              <p className='mb-0 text-muted'>Rachat de trimestres — module à compléter.</p>
-            </CardBody>
-          </Card>
-        </TabPane>
+        
 
         <TabPane tabId='hypotheses'>
           <Card className='mb-1 bilan-card'>
@@ -988,8 +1075,8 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
                   </div>
 
                   {/* Salaire par défaut jusqu'au départ (même comportement que les lignes Non) */}
-                  <div className='hypo-row'>
-                    <span className='hypo-label nowrap'>Salaire à projeter complet</span>
+                  <div className='hypo-row' style={{ display: sans ? undefined : 'none' }}>
+                    <span className='hypo-label nowrap'>Salaire(s) à projeter</span>
                     <div className='hypo-ctrl'>
                       <ButtonRadioSwitch
                         noLabel
@@ -1001,12 +1088,12 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
                 </div>
 
                 {/* Panel animé pour le cas Oui: saisir le salaire par défaut */}
-                <Collapse isOpen={salaireDefaut}>
+                <Collapse isOpen={salaireDefaut && !!sans}>
                   <div
                     className='hypo-panel mb-50'
-                    style={{ marginTop: 12, maxWidth: 420 }} // align with the Non panel
+                    style={{ marginTop: 12, maxWidth: 600 }}
                   >
-                    <div className='hypo-salary-row' style={{ marginBottom: 0 }}>
+                    <div className='hypo-salary-row nowrap' style={{ marginBottom: 0 }}>
                       <span className='hypo-salary-label'>Salaire par défaut</span>
                       <div className='hypo-salary-inputwrap'>
                         <span
@@ -1060,15 +1147,44 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
                           />
                         )}
                       </div>
+                      {/* Date range: Du .. au .. */}
+                      <div className='hypo-date-row' style={{ marginLeft: 8 }}>
+                        <span className='hypo-date-sep'>Du</span>
+                        <input
+                          type='date'
+                          className='hypo-date-input'
+                          value={normalizeDate(salaireDefautRowSafe && salaireDefautRowSafe.from)}
+                          onMouseDown={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
+                          onFocus={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
+                          onChange={(e) => {
+                            const v = e.currentTarget.value || ''
+                            setSalaireDefautRow(prev => ({ ...(prev && typeof prev === 'object' ? prev : { id: 'def', value: '', fixed: false }), from: v }))
+                          }}
+                          aria-label='Date de début (salaire par défaut)'
+                        />
+                        <span className='hypo-date-sep'>au</span>
+                        <input
+                          type='date'
+                          className='hypo-date-input'
+                          value={normalizeDate(salaireDefautRowSafe && salaireDefautRowSafe.to)}
+                          onMouseDown={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
+                          onFocus={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
+                          onChange={(e) => {
+                            const v = e.currentTarget.value || ''
+                            setSalaireDefautRow(prev => ({ ...(prev && typeof prev === 'object' ? prev : { id: 'def', value: '', fixed: false }), to: v }))
+                          }}
+                          aria-label='Date de fin (salaire par défaut)'
+                        />
+                      </div>
                     </div>
                   </div>
                 </Collapse>
 
                 {/* Zone dynamique "Salaire(s) jusqu’au départ" quand Non */}
-                <Collapse isOpen={!salaireDefaut}>
+                <Collapse isOpen={!salaireDefaut && !!sans}>
                   <div
                     className='hypo-panel mb-50'
-                    style={{ marginTop: 12, maxWidth: 420 }} // réduit la largeur max du panel
+                    style={{ marginTop: 12, maxWidth: 640 }}
                   >
                     <div className='hypo-panel-header mb-1'>
                       <span className='text-body' style={{ fontWeight: 600 }}>Salaire(s) jusqu’au départ</span>
@@ -1153,7 +1269,37 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
                             )}
                           </div>
 
-                          {/* Bouton suppression (poubelle) — masqué pour Salaire 1 */}
+                          {/* Date range for this salary row */}
+                          <div className='hypo-date-row' style={{ marginLeft: 8 }}>
+                            <span className='hypo-date-sep'>Du</span>
+                            <input
+                              type='date'
+                              className='hypo-date-input'
+                              value={normalizeDate(row && row.from)}
+                              onMouseDown={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
+                              onFocus={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
+                              onChange={(e) => {
+                                const v = e.currentTarget.value || ''
+                                setSalaireJusquaDepartRows(prev => (Array.isArray(prev) ? prev : []).map(r => (r && r.id === row.id) ? { ...r, from: v } : r))
+                              }}
+                              aria-label={`Date de début pour Salaire ${idx + 1}`}
+                            />
+                        <span className='hypo-date-sep'>au</span>
+                            <input
+                              type='date'
+                              className='hypo-date-input'
+                              value={normalizeDate(row && row.to)}
+                              onMouseDown={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
+                              onFocus={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
+                              onChange={(e) => {
+                                const v = e.currentTarget.value || ''
+                                setSalaireJusquaDepartRows(prev => (Array.isArray(prev) ? prev : []).map(r => (r && r.id === row.id) ? { ...r, to: v } : r))
+                              }}
+                              aria-label={`Date de fin pour Salaire ${idx + 1}`}
+                            />
+                      </div>
+
+                          {/* Bouton suppression (poubelle) — masqué pour Salaire 1, déplacé après les dates */}
                           {idx > 0 && (
                             <button
                               type='button'
@@ -1187,6 +1333,74 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
                     </div>
                   </div>
 
+                  {/* Pavé Chômage – visible quand Oui */}
+                  <Collapse isOpen={!!chomage}>
+                    <div className='hypo-panel mb-50' style={{ maxWidth: 500 }}>
+                      <div className='chomage-panel-fields'>
+                        <div className='chomage-dual-row'>
+                          <span className='hypo-salary-label' style={{ minWidth: 'auto' }}>Nombre de jours</span>
+                          {chomageJoursFixed ? (
+                            <input
+                              type='number'
+                              readOnly
+                              className='form-control chomage-days'
+                              value={chomageJours}
+                              onClick={() => {
+                                setChomageJoursFixed(false)
+                                setTimeout(() => {
+                                  const el = document.getElementById('chomage-jours')
+                                  if (el) { el.focus(); const len = el.value.length; el.setSelectionRange(len, len) }
+                                }, 0)
+                              }}
+                              title='Cliquez pour modifier'
+                              placeholder='0'
+                            />
+                          ) : (
+                            <input
+                              id='chomage-jours'
+                              type='number'
+                              min={0}
+                              step={1}
+                              className='form-control chomage-days'
+                              value={chomageJours}
+                              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); setChomageJoursFixed(true); e.currentTarget.blur() } }}
+                              onChange={(e) => setChomageJours(e.target.value.replace(/[^0-9]/g, ''))}
+                              placeholder='0'
+                            />
+                          )}
+                          <span />
+                          <span className='hypo-salary-label' style={{ minWidth: 'auto' }}>Années</span>
+                          {chomageAnneesFixed ? (
+                            <input
+                              type='number'
+                              readOnly
+                              className='form-control chomage-days'
+                              value={chomageAnnees}
+                              onClick={() => {
+                                setChomageAnneesFixed(false)
+                                setTimeout(() => { const el = document.getElementById('chomage-annees'); if (el) { el.focus(); const len = el.value.length; el.setSelectionRange(len, len) } }, 0)
+                              }}
+                              title='Cliquez pour modifier'
+                              placeholder='0'
+                            />
+                          ) : (
+                            <input
+                              id='chomage-annees'
+                              type='number'
+                              min={0}
+                              step={1}
+                              className='form-control chomage-days'
+                              value={chomageAnnees}
+                              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); setChomageAnneesFixed(true); e.currentTarget.blur() } }}
+                              onChange={(e) => setChomageAnnees(e.target.value.replace(/[^0-9]/g, ''))}
+                              placeholder='0'
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </Collapse>
+
                   <div className='hypo-row'>
                     <span className='hypo-label'>Carrière longue</span>
                     <div className='hypo-ctrl'>
@@ -1194,14 +1408,236 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
                     </div>
                   </div>
 
+                  {/* Pavé Carrière longue – visible quand Oui */}
+                  <Collapse isOpen={!!carriereLongue}>
+                    <div className='hypo-panel mb-50' style={{ marginTop: 0, maxWidth: 650 }}>
+                      <div className='chomage-panel-fields'>
+                        {[21,20,18,16].map((age) => (
+                          <div key={age} className='chomage-row' style={{ marginBottom: 6 }}>
+                            <span className='hypo-salary-label' style={{ marginRight: 0, minWidth: 'auto' }}>{`Trimestre avant ${age} ans`}</span>
+                            {clAvantFixed[String(age)] ? (
+                              <input
+                                type='number'
+                                readOnly
+                                className='form-control chomage-trim'
+                                value={clAvantCount[String(age)]}
+                                onClick={() => setClAvantFixed(prev => ({ ...(prev||{}), [String(age)]: false }))}
+                                title='Cliquez pour modifier'
+                                placeholder='0'
+                              />
+                            ) : (
+                              <input
+                                id={`cl-trim-avant-${age}`}
+                                type='number'
+                                min={0}
+                                step={1}
+                                className='form-control chomage-trim'
+                                value={clAvantCount[String(age)]}
+                                max={20}
+                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); setClAvantFixed(prev => ({ ...(prev||{}), [String(age)]: true })); e.currentTarget.blur() } }}
+                                onChange={(e) => {
+                                  const raw = (e.target.value || '').replace(/[^0-9]/g, '')
+                                  if (raw === '') {
+                                    setClAvantCount(prev => ({ ...(prev||{}), [String(age)]: '' }))
+                                    return
+                                  }
+                                  let n = parseInt(raw, 10)
+                                  if (isNaN(n)) n = 0
+                                  if (n < 0) n = 0
+                                  if (n > 20) n = 20
+                                  setClAvantCount(prev => ({ ...(prev||{}), [String(age)]: String(n) }))
+                                }}
+                                placeholder='0'
+                              />
+                            )}
+                            <span className='hypo-date-sep'>Du</span>
+                            <input
+                              type='date'
+                              className='hypo-date-input'
+                              value={normalizeDate(clAvantDates[String(age)] && clAvantDates[String(age)].from)}
+                              onMouseDown={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
+                              onFocus={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
+                              onChange={(e) => {
+                                const v = e.currentTarget.value || ''
+                                setClAvantDates(prev => ({ ...(prev||{}), [String(age)]: { ...(prev && prev[String(age)] ? prev[String(age)] : { from:'', to:'' }), from: v } }))
+                              }}
+                              aria-label={`Date de début pour trimestre avant ${age} ans (Carrière longue)`}
+                            />
+                            <span className='hypo-date-sep'>au</span>
+                            <input
+                              type='date'
+                              className='hypo-date-input'
+                              value={normalizeDate(clAvantDates[String(age)] && clAvantDates[String(age)].to)}
+                              onMouseDown={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
+                              onFocus={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
+                              onChange={(e) => {
+                                const v = e.currentTarget.value || ''
+                                setClAvantDates(prev => ({ ...(prev||{}), [String(age)]: { ...(prev && prev[String(age)] ? prev[String(age)] : { from:'', to:'' }), to: v } }))
+                              }}
+                              aria-label={`Date de fin pour trimestre avant ${age} ans (Carrière longue)`}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </Collapse>
+
                   <div className='hypo-row' style={{ marginBottom: 0 }}>
                     <span className='hypo-label'>Retraite progressive</span>
                     <div className='hypo-ctrl'>
                       <ButtonRadioSwitch noLabel checked={retraiteProgressive} onChange={(e) => setRetraiteProgressive(e.target.checked)} />
                     </div>
                   </div>
+
+                  {/* Pavé Retraite progressive – visible quand Oui */}
+                  <Collapse isOpen={!!retraiteProgressive}>
+                    <div
+                      className='hypo-panel mb-50'
+                      style={{ marginTop: 0, maxWidth: 670, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, padding: '1rem' }}
+                    >
+                      {/* Partie 1 — Données principales */}
+                      <div className='prog-panel-fields nowrap'>
+                        {/* Date de début */}
+                        <div className='prog-field'>
+                          <label htmlFor='prog-start'>Date de début</label>
+                          {progStartDateFixed ? (
+                            <input
+                              type='date'
+                              readOnly
+                              className='form-control hypo-date-input prog-date'
+                              value={normalizeDate(progStartDate)}
+                              onClick={() => {
+                                setProgStartDateFixed(false)
+                                setTimeout(() => { const el = document.getElementById('prog-start'); if (el) el.focus() }, 0)
+                              }}
+                              title='Cliquez pour modifier'
+                            />
+                          ) : (
+                            <input
+                              id='prog-start'
+                              type='date'
+                              className='form-control hypo-date-input prog-date'
+                              value={normalizeDate(progStartDate)}
+                              onMouseDown={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
+                              onFocus={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
+                              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); setProgStartDateFixed(true); e.currentTarget.blur() } }}
+                              onChange={(e) => setProgStartDate(e.currentTarget.value || '')}
+                            />
+                          )}
+                        </div>
+
+                        {/* Pourcentage d’activité */}
+                        <div className='prog-field'>
+                          <label htmlFor='prog-pct'>Pourcentage d’activité</label>
+                          <div className='prog-inputwrap'>
+                            {progPctFixed ? (
+                              <input
+                                type='number'
+                                readOnly
+                                className='form-control prog-pct'
+                                value={progPct}
+                                onClick={() => setProgPctFixed(false)}
+                                title='Cliquez pour modifier'
+                                placeholder='0'
+                                style={{ textAlign: 'center' }}
+                              />
+                            ) : (
+                              <input
+                                id='prog-pct'
+                                type='number'
+                                min={0}
+                                max={100}
+                                step={1}
+                                className='form-control prog-pct'
+                                value={progPct}
+                                onKeyDown={(e) => {
+                                  if (!isDigitKeyOnly(e)) e.preventDefault()
+                                  if (e.key === 'Enter') { e.preventDefault(); setProgPctFixed(true); e.currentTarget.blur() }
+                                }}
+                                onChange={(e) => {
+                                  const raw = (e.target.value || '').replace(/[^0-9]/g, '')
+                                  if (raw === '') { setProgPct(''); return }
+                                  let n = parseInt(raw, 10)
+                                  if (isNaN(n)) n = 0
+                                  if (n < 0) n = 0
+                                  if (n > 100) n = 100
+                                  setProgPct(String(n))
+                                }}
+                                placeholder='0'
+                                style={{ textAlign: 'center', paddingRight: 22 }}
+                              />
+                            )}
+                            <span aria-hidden='true' style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: '#6e6b7b', pointerEvents: 'none', fontWeight: 600 }}>%</span>
+                          </div>
+                        </div>
+
+                        {/* Salaire */}
+                        <div className='prog-field'>
+                          <label htmlFor='prog-salary'>Salaire</label>
+                          <div className='prog-salary-wrap'>
+                            {progSalaryFixed ? (
+                              <input
+                                type='text'
+                                readOnly
+                                className='form-control'
+                                value={progSalary}
+                                onClick={() => {
+                                  setProgSalaryFixed(false)
+                                  setTimeout(() => { const el = document.getElementById('prog-salary'); if (el) { el.focus(); const len = el.value.length; el.setSelectionRange(len, len) } }, 0)
+                                }}
+                                title='Cliquez pour modifier'
+                                placeholder='0,00'
+                                style={{ textAlign: 'center', paddingRight: 22 }}
+                              />
+                            ) : (
+                              <input
+                                id='prog-salary'
+                                type='text'
+                                inputMode='decimal'
+                                pattern='[0-9]*'
+                                className='form-control'
+                                value={progSalary}
+                                onKeyDown={(e) => { if (!isAllowedKey(e)) e.preventDefault(); if (e.key === 'Enter') { e.preventDefault(); setProgSalaryFixed(true); e.currentTarget.blur() } }}
+                                onChange={(e) => setProgSalary(sanitizeSalaryInput(e.target.value))}
+                                placeholder='0,00'
+                                style={{ textAlign: 'center', paddingRight: 22 }}
+                              />
+                            )}
+                            <span aria-hidden='true' style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: '#6e6b7b', pointerEvents: 'none', fontWeight: 600 }}>€</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Partie 2 — Surcôtisation */}
+                      <div className='prog-surco-row'>
+                        <span className='prog-label'>Surcôtisation</span>
+                        <div>
+                          <ButtonRadioSwitch
+                            noLabel
+                            checked={progSurcotisation}
+                            onChange={(e) => setProgSurcotisation(e.target.checked)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </Collapse>
+                  {/* Cumul emploi de retraite */}
+                  <div className='hypo-row'>
+                    <span className='hypo-label'>Cumul emploi de retraite</span>
+                    <div className='hypo-ctrl'>
+                      <ButtonRadioSwitch noLabel checked={cumulEmploiRetraite} onChange={(e) => setCumulEmploiRetraite(e.target.checked)} />
+                    </div>
+                  </div>
                 </div>
               </FormGroup>
+            </CardBody>
+          </Card>
+
+          {/* Rachat de trimestres intégré en bas des hypothèses */}
+          <Card className='mb-1 bilan-card'>
+            <CardBody className='hypo-indent-lg'>
+              <h6 className='mb-1 section-title'>Rachat de trimestres</h6>
+              <p className='mb-0 text-muted'>Rachat de trimestres — module à compléter.</p>
             </CardBody>
           </Card>
         </TabPane>
@@ -1249,14 +1685,17 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
                                   ) : (
                                     <input
                                       type='text'
-                                      inputMode='numeric'
-                                      pattern='[0-9]*'
+                                      inputMode='decimal'
+                                      pattern='[0-9,\.]*'
                                       className='inline-input'
                                       style={{ width: 80, textAlign: 'center' }}
                                       value={(row && row.age) ?? ''}
                                       onChange={(e) => {
-                                        // digits-only while typing; allow empty
-                                        const v = e.target.value === '' ? '' : String(e.target.value).replace(/[^0-9]/g, '')
+                                        // digits + optional comma/dot; allow empty; normalize multiple separators
+                                        let v = e.target.value == null ? '' : String(e.target.value)
+                                        v = v.replace(/\./g, ',')
+                                        const parts = v.replace(/[^0-9,]/g, '').split(',')
+                                        v = parts[0] + (parts.length > 1 ? (',' + parts.slice(1).join('').replace(/,/g, '')) : '')
                                         const dob = getBirthDate()
                                         let nextDate = (row && row.date) || ''
                                         if (dob && v !== '') {
@@ -1329,26 +1768,12 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
                             )}
                           </td>
                           <td>
-                            <div style={{ display: 'inline-flex', gap: 12, alignItems: 'center' }}>
-                              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, margin: 0 }}>
-                                <input
-                                  type='radio'
-                                  name={`choose-${row.id}`}
-                                  checked={!!(row && row.selected)}
-                                  onChange={() => setRetirementChoices(prev => (Array.isArray(prev) ? prev : []).map(r => (r && r.id === row.id) ? { ...r, selected: true } : r))}
-                                />
-                                <span>Oui</span>
-                              </label>
-                              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, margin: 0 }}>
-                                <input
-                                  type='radio'
-                                  name={`choose-${row.id}`}
-                                  checked={!((row && row.selected))}
-                                  onChange={() => setRetirementChoices(prev => (Array.isArray(prev) ? prev : []).map(r => (r && r.id === row.id) ? { ...r, selected: false } : r))}
-                                />
-                                <span>Non</span>
-                              </label>
-                            </div>
+                            <ButtonRadioSwitch
+                              noLabel
+                              textWeight={700}
+                              checked={!!(row && row.selected)}
+                              onToggle={(val) => setRetirementChoices(prev => (Array.isArray(prev) ? prev : []).map(r => (r && r.id === row.id) ? ((!!r.selected) === (!!val) ? r : { ...r, selected: !!val }) : r))}
+                            />
                           </td>
                         </tr>
                       ))}
@@ -1413,16 +1838,18 @@ export default function SimulatorHub({ id, userFullName, alignOffset = 0, labelI
                                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                                     <input
                                       type='text'
-                                      inputMode='numeric'
-                                      pattern='[0-9]*'
+                                      inputMode='decimal'
+                                      pattern='[0-9,\.]*'
                                       className='inline-input'
                                       style={{ width: 90, textAlign: 'center' }}
                                       value={current}
                                       onKeyDown={(e) => { if (!isDigitKeyOnly(e)) e.preventDefault() }}
                                       onChange={(e) => {
-                                        const raw = e.target.value
-                                        const sanitized = raw === '' ? '' : String(raw).replace(/[^0-9]/g, '')
-                                        setFreeDates(prev => (Array.isArray(prev) ? prev : []).map(r => (r && r.id === row.id) ? { ...r, age: sanitized } : r))
+                                        let v = e.target.value == null ? '' : String(e.target.value)
+                                        v = v.replace(/\./g, ',')
+                                        const parts = v.replace(/[^0-9,]/g, '').split(',')
+                                        v = parts[0] + (parts.length > 1 ? (',' + parts.slice(1).join('').replace(/,/g, '')) : '')
+                                        setFreeDates(prev => (Array.isArray(prev) ? prev : []).map(r => (r && r.id === row.id) ? { ...r, age: v } : r))
                                       }}
                                       onBlur={(e) => {
                                         const v = e.target.value
