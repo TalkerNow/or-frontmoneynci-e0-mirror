@@ -1,5 +1,5 @@
 import React from "react";
-import { Edit, Trash2, UserPlus } from "react-feather";
+import { UserPlus } from "react-feather";
 import {
   Button,
   Card,
@@ -17,6 +17,64 @@ import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss";
 import "../../../../assets/scss/pages/users.scss";
 import SweetAlert from "react-bootstrap-sweetalert";
 import Moment from "react-moment";
+import Chip from "../../../../../src/components/@vuexy/chips/ChipComponent";
+
+// === Couleurs pastilles identiques à la liste des contrats ===
+const chipColors = {
+  CH: "warning",
+  SIMU: "success",
+  AR: "primary",
+  TFD: "danger",
+  ACTU: "primary",
+  RAC: "warning",
+};
+const VALID_SERVICES = new Set(Object.keys(chipColors));
+
+// ===== Helpers téléphone (normalisation / affichage) =====
+const PHONE_FIELDS = [
+  "mobile_number",
+  "office_number",
+  "phone",
+  "telephone",
+  "tel",
+  "personal_phone",
+  "work_phone",
+];
+
+const normalizePhone = (v) => {
+  if (!v) return "";
+  let s = String(v).trim();
+
+  // Garder un éventuel "+" pour détecter +33, mais enlever le reste des non-digits
+  let t = s.replace(/[^\d+]/g, "");
+
+  // Normaliser préfixes FR (0033 / +33) vers 0
+  if (t.startsWith("+33")) t = "0" + t.slice(3);
+  else if (t.startsWith("0033")) t = "0" + t.slice(4);
+
+  // Finir en chiffres uniquement
+  t = t.replace(/\D/g, "");
+  return t;
+};
+
+// ⬇️ Seuil abaissé à 3 chiffres (au lieu de 4) pour matcher "301" -> "30 11"
+const phoneLooksLike = (s) => {
+  return /\d/.test(s) && normalizePhone(s).length >= 3;
+};
+
+const formatPhonePretty = (v) => {
+  const d = normalizePhone(v);
+  if (!d) return "";
+  // Si 10 chiffres (format FR), afficher en paires
+  if (d.length === 10) {
+    return d.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
+  }
+  // Sinon, tenter un regroupement lisible
+  if (d.length > 4) {
+    return d.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
+  }
+  return v || "";
+};
 
 // ======= WHITELIST FRONT (modifier la liste ci-dessous) =======
 const ALLOWED_EMAILS = [
@@ -44,11 +102,16 @@ class ClientsList extends React.Component {
     currentUserEmail: "",
     // ID utilisé pour le filtre "Mes clients". null => pas de filtre.
     myFilterId: null,
+    // Saisie téléphone normalisée (chiffres) utilisée par le filtre externe
+    phoneQueryDigits: "",
+    // Map userId -> array de services (depuis le dernier document)
+    servicesByUserId: {},
     gridOptions: {
       onCellClicked: (params) => {
         const colKey = params?.colDef?.field || params?.colDef?.colId;
         if (!params?.data?.id) return;
-        if (colKey === "email" || colKey === "actions") return;
+        // Empêcher la navigation quand on clique sur Email, Téléphone ou Prestation
+        if (colKey === "email" || colKey === "phone" || colKey === "prestations") return;
         history.push("/app/user/edit/" + params.data.id + "/2");
       },
       getRowClass: () => "client-row",
@@ -65,7 +128,7 @@ class ClientsList extends React.Component {
           return (
             <div>
               <Moment
-                format="DD/MM/YYYY HH:mm"
+                format="DD/MM/YYYY"
                 date={params.data.created_at}
                 utc
               />
@@ -100,7 +163,107 @@ class ClientsList extends React.Component {
           return params.data.civility || "";
         },
       },
+      // ====== COLONNE "Prestation" (pastilles depuis le DERNIER document du client) ======
       {
+        headerName: "Prestation",
+        colId: "prestations",
+        filter: false,
+        width: 150,
+        minWidth: 150,
+        flex: 0,
+        cellRendererFramework: (params) => {
+          const userId = params?.data?.id;
+          const services = (this.state.servicesByUserId && this.state.servicesByUserId[userId]) || [];
+          if (!services || services.length === 0) return <div></div>;
+          return (
+            <div
+              className="d-flex align-items-center"
+              onClick={(e) => e.stopPropagation()} // éviter la navigation quand on clique sur une pastille
+            >
+              {services.map((label) => (
+                <Chip
+                  className="m-0 text-center ml-1"
+                  key={label}
+                  color={chipColors[label] || "primary"}
+                  text={label}
+                />
+              ))}
+            </div>
+          );
+        },
+      },
+
+      // ====== COLONNE TÉLÉPHONE ======
+      {
+        headerName: "Téléphone",
+        colId: "phone",
+        filter: true,
+        width: 160,
+        minWidth: 140,
+        flex: 0,
+        // Affiche le mobile en priorité, sinon bureau, sinon les autres champs possibles
+        valueGetter: (params) => {
+          const d = params.data || {};
+          const phone =
+            d.mobile_number ||
+            d.office_number ||
+            d.phone ||
+            d.telephone ||
+            d.tel ||
+            "";
+          return formatPhonePretty(phone) || "-";
+        },
+        cellRendererFramework: (rowData) => {
+          const d = rowData?.data || {};
+          const raw =
+            d.mobile_number ||
+            d.office_number ||
+            d.phone ||
+            d.telephone ||
+            d.tel ||
+            "";
+          const pretty = formatPhonePretty(raw) || "-";
+          const telHref = "tel:" + normalizePhone(raw);
+          return (
+            <div
+              className="d-flex align-items-center cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!normalizePhone(raw)) return;
+                window.location.href = telHref;
+              }}
+              title={normalizePhone(raw) ? `Appeler ${pretty}` : ""}
+            >
+              <span>{pretty}</span>
+            </div>
+          );
+        },
+      },
+
+      {
+        headerName: "Email",
+        field: "email",
+        filter: true,
+        width: 230,
+        minWidth: 250,
+        flex: 0,
+        cellRendererFramework: (rowData) => {
+          var email = rowData.data.email;
+          return (
+            <div
+              className="d-flex align-items-center cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.location.href =
+                  "mailto:" + email + "?subject=Subject&body=message%20goes%20here";
+              }}
+            >
+              <span>{rowData.data.email}</span>
+            </div>
+          );
+        },
+      },
+            {
         headerName: "Nom du technicien",
         filter: false,
         width: 140,
@@ -120,61 +283,7 @@ class ClientsList extends React.Component {
             : "-";
         },
       },
-      {
-        headerName: "Email",
-        field: "email",
-        filter: true,
-        width: 220,
-        minWidth: 200,
-        flex: 0,
-        cellRendererFramework: (rowData) => {
-          var email = rowData.data.email;
-          return (
-            <div
-              className="d-flex align-items-center cursor-pointer"
-              onClick={(e) => {
-                e.stopPropagation();
-                window.location.href =
-                  "mailto:" + email + "?subject=Subject&body=message%20goes%20here";
-              }}
-            >
-              <span>{rowData.data.email}</span>
-            </div>
-          );
-        },
-      },
-      {
-        headerName: "Actions",
-        colId: "actions",
-        width: 81,
-        minWidth: 81,
-        flex: 0,
-        cellRendererFramework: (params) => {
-          return (
-            <div
-              className="actions"
-              style={{ cursor: "default" }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Edit
-                className="mr-50"
-                size={20}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  history.push("/app/user/edit/" + params.data.id + "/1");
-                }}
-              />
-              <Trash2
-                size={20}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  this.handleAlert("defaultAlert", true, params.data.id);
-                }}
-              />
-            </div>
-          );
-        },
-      },
+      // -> Colonne Actions supprimée
     ],
   };
 
@@ -203,6 +312,73 @@ class ClientsList extends React.Component {
     return this.normalizeId(found);
   };
 
+  getPhoneCandidatesFromRow = (row) => {
+    if (!row) return [];
+    const out = [];
+    for (const key of PHONE_FIELDS) {
+      const v = row[key];
+      if (v) {
+        const n = normalizePhone(v);
+        if (n) out.push(n);
+      }
+    }
+    return out;
+  };
+
+  // --- Parsing robuste des services (nettoyage + filtre par liste blanche)
+  parseServices = (raw) => {
+    if (raw === null || raw === undefined) return [];
+    let s = String(raw).toUpperCase();
+
+    // enlever guillemets et antislashs, unifier séparateurs
+    s = s.replace(/["\\]/g, "");
+    s = s.replace(/[|,]/g, "/");
+
+    // couper, trim, garder uniquement codes connus (CH, SIMU, AR, TFD, ACTU, RAC)
+    const parts = s
+      .split("/")
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    const seen = new Set();
+    const out = [];
+    for (const p of parts) {
+      if (VALID_SERVICES.has(p) && !seen.has(p)) {
+        out.push(p);
+        seen.add(p);
+      }
+    }
+    return out;
+  };
+
+  // Construit une map userId -> services depuis le DERNIER document (updated_at sinon created_at)
+  buildServicesMapFromDocuments = (documents) => {
+    const latestTsByUser = {};
+    const map = {};
+
+    if (!Array.isArray(documents)) return map;
+
+    for (const doc of documents) {
+      // ne garder que les contrats si le type existe
+      if (doc?.type && String(doc.type).toLowerCase() !== "contract") continue;
+
+      const userId = doc?.user?.id ?? doc?.user_id ?? null;
+      if (!userId) continue;
+
+      const services = this.parseServices(doc?.subscribe_services);
+      if (!services.length) continue; // pas de services => ne pas écraser avec vide
+
+      const tsStr = doc?.updated_at || doc?.created_at || null;
+      const ts = tsStr ? Date.parse(tsStr) : 0;
+
+      if (latestTsByUser[userId] === undefined || ts > latestTsByUser[userId]) {
+        latestTsByUser[userId] = ts;
+        map[userId] = services;
+      }
+    }
+    return map;
+  };
+
   async componentDidMount() {
     const Config = {
       headers: {
@@ -210,13 +386,23 @@ class ClientsList extends React.Component {
       },
     };
 
-    await axios
-      .get(global.config.server_url + "/users?kind=client", Config)
-      .then((response) => {
-        let rowData = response.data;
-        this.setState({ rowData });
-      });
+    // Récupère clients + documents en parallèle
+    try {
+      const [usersRes, docsRes] = await Promise.all([
+        axios.get(global.config.server_url + "/users?kind=client", Config),
+        axios.get(global.config.server_url + "/documents", Config),
+      ]);
 
+      const rowData = usersRes.data;
+      const documents = docsRes.data || [];
+      const servicesByUserId = this.buildServicesMapFromDocuments(documents);
+
+      this.setState({ rowData, servicesByUserId });
+    } catch (e) {
+      console.error("Erreur chargement clients/documents", e);
+    }
+
+    // Email utilisateur courant (pour export XLSX)
     const userId = localStorage.getItem("userid");
     if (userId) {
       try {
@@ -311,17 +497,32 @@ class ClientsList extends React.Component {
   // ======= FIN EXPORT EXCEL =======
 
   // --- AgGrid External Filter API
-  isExternalFilterPresent = () => this.state.myFilterId !== null;
+  // Présence du filtre externe si "Mes clients" est actif OU si une recherche téléphone est active
+  isExternalFilterPresent = () =>
+    this.state.myFilterId !== null ||
+    (this.state.phoneQueryDigits && this.state.phoneQueryDigits.length > 0);
 
   doesExternalFilterPass = (node) => {
-    if (this.state.myFilterId === null) return true;
-    const ownerId = this.getOwnerIdFromRow(node?.data);
-    if (ownerId === null) return false;
-    // Comparaison robuste : on passe tout en string
-    return String(ownerId) === String(this.state.myFilterId);
+    // 1) Filtre "Mes clients"
+    if (this.state.myFilterId !== null) {
+      const ownerId = this.getOwnerIdFromRow(node?.data);
+      if (ownerId === null) return false;
+      if (String(ownerId) !== String(this.state.myFilterId)) return false;
+    }
+
+    // 2) Filtre "recherche téléphone" (normalisé)
+    const q = this.state.phoneQueryDigits;
+    if (q && q.length > 0) {
+      const candidates = this.getPhoneCandidatesFromRow(node?.data);
+      if (!candidates.length) return false;
+      const hit = candidates.some((digits) => digits.includes(q));
+      if (!hit) return false;
+    }
+
+    return true;
   };
 
-  // --- Actions
+  // --- Actions (conservés mais plus déclenchés sans colonne Actions)
   deleteUser(id) {
     const Config = {
       headers: { Authorization: "Bearer " + localStorage.getItem("token") },
@@ -357,8 +558,23 @@ class ClientsList extends React.Component {
   };
 
   updateSearchQuery = (val) => {
-    this.gridApi.setQuickFilter(val);
-    this.setState({ searchVal: val });
+    const phoneDigits = phoneLooksLike(val) ? normalizePhone(val) : "";
+
+    // IMPORTANT :
+    // - si recherche téléphone => vider le Quick Filter (sinon il "AND" avec notre filtre externe et bloque les résultats
+    //   car l'affichage contient des espaces)
+    // - sinon, Quick Filter normal
+    if (this.gridApi) {
+      this.gridApi.setQuickFilter(phoneDigits ? "" : val);
+    }
+
+    this.setState(
+      { searchVal: val, phoneQueryDigits: phoneDigits },
+      () => {
+        // Recalcule le filtre externe (Mes clients + recherche téléphone)
+        if (this.gridApi) this.gridApi.onFilterChanged();
+      }
+    );
   };
 
   handleAlert = (state, value, id) => {

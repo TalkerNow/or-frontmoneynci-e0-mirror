@@ -440,7 +440,7 @@ class EditContract extends React.Component {
     //------ print action -------
     //document.getElementById("send_contract_section").remove();
     document.getElementById("button_section").remove();
-    document.getElementById("print-section").style.marginTop = "-90px";
+    document.getElementById("print-section").style.marginTop = "-20px";
     document.getElementById("print-section").style.fontSize = "18px";
     var userid = this.state.user_id;
     window.onafterprint = function (e) {
@@ -2096,28 +2096,20 @@ class EditContract extends React.Component {
                       </td>
                     </tr>
                     <tr>
-                      <td
-                        width="75%"
-                        style={{ paddingBottom: 0, paddingTop: 0 }}
-                      >
-                        <div style={{ display: "inline-block", width: "90%" }}>
-                          {this.state.formValues["subcontent5-3"]}
-                        </div>
-                        <div
-                          style={{
-                            display: "inline-block",
-                            marginLeft: "10px",
-                          }}
-                        >
+                    <td width="75%" style={{ paddingBottom: 0, paddingTop: 0 }}>
+                      <div style={{ display: "flex", alignItems: "flex-start", marginLeft: "20px" }}>
+                        <div style={{ marginRight: 10 }}>
                           <LabeledCheckboxMaterialUi
-                            label=""
-                            checked={this.state.formValues["cc5"]}
-                            onChange={(event) =>
-                              this.handleCheckChange(event, "cc5")
-                            }
+                            label="" // pas de label → pas de styles MUI sur le texte
+                            checked={this.state.formValues.cc5}
+                            onChange={(e) => this.handleCheckChange(e, "cc5")}
                           />
                         </div>
-                      </td>
+                        <div style={{ lineHeight: 1.4 }}>
+                          {this.state.formValues["subcontent5-3"]}
+                        </div>
+                      </div>
+                    </td>
                       <td
                         width="25%"
                         style={{ paddingBottom: 0, paddingTop: 0 }}
