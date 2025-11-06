@@ -718,7 +718,7 @@ class UserAccountTab extends React.Component {
                   <Input
                     type="text"
                     defaultValue={this.ifExist("birth_place")}
-                    placeholder="Lieu de naissance"
+                    placeholder="Ville"
                     onChange={(e) =>
                       this.setState({ birth_place: e.target.value })
                     }
@@ -766,7 +766,7 @@ class UserAccountTab extends React.Component {
                   <Input
                     type="number"
                     id="child_nbr"
-                    placeholder="Nombre d'enfants"
+                    placeholder="Nombre"
                     defaultValue={this.ifExist("children_number")}
                     onChange={(e) =>
                       this.setState({ children_number: e.target.value })
@@ -782,7 +782,7 @@ class UserAccountTab extends React.Component {
                   <Input
                     type="number"
                     id="secu_social"
-                    placeholder="Sécurité Sociale"
+                    placeholder="N°"
                     defaultValue={this.ifExist("secu_social")}
                     onChange={(e) =>
                       this.setState({ secu_social: e.target.value })
@@ -796,7 +796,7 @@ class UserAccountTab extends React.Component {
                   <Input
                     type="number"
                     id="secu_social_key"
-                    placeholder="Clé de Sécurité Sociale"
+                    placeholder="XX"
                     defaultValue={this.ifExist("secu_social_key")}
                     onChange={(e) =>
                       this.setState({ secu_social_key: e.target.value })
@@ -812,7 +812,7 @@ class UserAccountTab extends React.Component {
                   <span className="align-middle">Adresse du client</span>
                 </h5>
                 <FormGroup>
-                  <Label for="address1">Adresse1</Label>
+                  <Label for="address1">Adresse</Label>
                   <Input
                     type="text"
                     id="address1"
@@ -820,11 +820,11 @@ class UserAccountTab extends React.Component {
                     onChange={(e) =>
                       this.setState({ personal_address: e.target.value })
                     }
-                    placeholder="Adresse personnelle1"
+                    placeholder="Adresse"
                   />
                 </FormGroup>
                 <FormGroup>
-                  <Label for="address2">Adresse2</Label>
+                  <Label for="address2">Adresse n°2</Label>
                   <Input
                     type="text"
                     id="address2"
@@ -832,7 +832,7 @@ class UserAccountTab extends React.Component {
                     onChange={(e) =>
                       this.setState({ personal_address_2: e.target.value })
                     }
-                    placeholder="Adresse personnelle2"
+                    placeholder="Adresse n°2"
                   />
                 </FormGroup>
                 <FormGroup>

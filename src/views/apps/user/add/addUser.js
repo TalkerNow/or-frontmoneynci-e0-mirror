@@ -520,7 +520,7 @@ handleZipChange = (zip, which) => {
                 <Label for="placeofbirth">Lieu de naissance</Label>
                 <Input
                   type="text"
-                  placeholder="Lieu de naissance"
+                  placeholder="Ville"
                   onChange={(e) =>
                     this.setState({
                       data: { ...this.state.data, birth_place: e.target.value },
@@ -539,7 +539,7 @@ handleZipChange = (zip, which) => {
                 <Label for="secu_social">Sécurité Sociale</Label>
                 <Input
                   type="text"
-                  placeholder="Sécurité Sociale"
+                placeholder="N°"
                   onChange={(e) =>
                     this.setState({
                       data: { ...this.state.data, secu_social: e.target.value },
@@ -554,7 +554,7 @@ handleZipChange = (zip, which) => {
                 <Label for="secu_social_key">Clé de Sécurité Sociale</Label>
                 <Input
                   type="text"
-                  placeholder="Clé de Sécurité Sociale"
+                  placeholder="XX"
                   onChange={(e) =>
                     this.setState({
                       data: {
@@ -686,7 +686,7 @@ handleZipChange = (zip, which) => {
                 <Label for="nb_child">Nombre D'enfants</Label>
                 <Input
                   type="number"
-                  placeholder="Nombre d'enfants"
+                  placeholder="Nombre"
                   onChange={(e) =>
                     this.setState({
                       data: {
@@ -751,7 +751,7 @@ handleZipChange = (zip, which) => {
                 <Label for="adress1">Adresse 1</Label>
                 <Input
                   type="text"
-                  placeholder="Adresse 1"
+                  placeholder="Adresse"
                   onChange={(e) =>
                     this.setState({
                       data: {
@@ -764,10 +764,10 @@ handleZipChange = (zip, which) => {
                 />
               </FormGroup>
               <FormGroup>
-                <Label for="adress2">Adresse 2</Label>
+                <Label for="adress2">Adresse N°2</Label>
                 <Input
                   type="text"
-                  placeholder="Adresse 2"
+                  placeholder="Adresse N°2"
                   onChange={(e) =>
                     this.setState({
                       data: {
