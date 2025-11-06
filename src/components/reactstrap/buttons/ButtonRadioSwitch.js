@@ -1,6 +1,6 @@
 import React from 'react'
 
-export default function ButtonRadioSwitch({ label, checked, value, onChange, activeColor, noLabel, className, style }) {
+export default function ButtonRadioSwitch({ label, checked, value, onChange, onToggle, activeColor, noLabel, className, style, textWeight }) {
   const isChecked = typeof checked === 'boolean' ? checked : Boolean(value)
   const onColor = activeColor || 'var(--bs-primary, var(--primary, #7367F0))'
 
@@ -44,7 +44,7 @@ export default function ButtonRadioSwitch({ label, checked, value, onChange, act
     userSelect: 'none',
     cursor: 'pointer',
     transition: 'color 200ms, opacity 200ms',
-    fontWeight: 500
+    fontWeight: typeof textWeight === 'number' ? textWeight : 500
   }
 
   const textNonStyle = {
@@ -60,7 +60,8 @@ export default function ButtonRadioSwitch({ label, checked, value, onChange, act
   }
 
   const setChecked = (next, e) => {
-    if (e) e.preventDefault()
+    if (e && typeof e.preventDefault === 'function') e.preventDefault()
+    try { if (typeof onToggle === 'function') onToggle(!!next) } catch {}
     if (onChange) onChange({ target: { checked: next } })
   }
 
@@ -75,7 +76,7 @@ export default function ButtonRadioSwitch({ label, checked, value, onChange, act
           <input
             type="checkbox"
             checked={isChecked}
-            onChange={onChange}
+            onChange={(e) => { try { if (typeof onToggle === 'function') onToggle(!!e.target.checked) } catch {}; if (onChange) onChange(e) }}
             style={visuallyHidden}
             aria-hidden="true"
           />
