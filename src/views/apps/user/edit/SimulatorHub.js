@@ -382,7 +382,7 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
         .prog-panel-fields.nowrap { flex-wrap: nowrap; }
         .prog-field { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; }
         .prog-field label { margin: 0; font-weight: 600; color: var(--bs-body-color, #4b4b4b); white-space: nowrap; }
-        .prog-inputwrap { position: relative; width: 72px; max-width: 100%; }
+        .prog-inputwrap { position: relative; width: 110px; max-width: 100%; }
         .prog-date { width: 140px; }
         .prog-pct { width: 100%; text-align: center; }
         .prog-pct::placeholder { text-align: center; }
