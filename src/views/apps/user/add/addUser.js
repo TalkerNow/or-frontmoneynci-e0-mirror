@@ -53,6 +53,7 @@ class AddUser extends React.Component {
       personal_address_2: null,
       personal_zip_code: null,
       personal_city: null,
+      personal_city_options: [],
       personal_country: null,
       society_name: null,
       society_address: null,
@@ -98,6 +99,50 @@ class AddUser extends React.Component {
         }
       });
   }
+  zipTimeout = null;
+handleDataChange = (field) => (e) => {
+  const value = e && e.target ? e.target.value : e; // safe
+  this.setState(prev => ({ data: { ...prev.data, [field]: value } }));
+};
+fetchCitiesByZip = async (zip, which /* 'personal' | 'society' */) => {
+  const key = `${which}_city_options`;
+  if (!/^\d{5}$/.test(zip)) {
+    this.setState(prev => ({
+      data: { ...prev.data, [key]: [], [`${which}_city`]: "" }
+    }));
+    return;
+  }
+  try {
+    const { data } = await axios.get(
+      `https://geo.api.gouv.fr/communes?codePostal=${zip}&fields=nom&format=json`
+    );
+    const options = (data || []).map(c => c.nom);
+
+    this.setState(prev => ({
+      data: { ...prev.data, [key]: options }
+    }));
+
+    if (options.length === 1) {
+      this.setState(prev => ({
+        data: { ...prev.data, [`${which}_city`]: options[0] }
+      }));
+    }
+  } catch (e) {
+    console.error(e);
+    this.setState(prev => ({
+      data: { ...prev.data, [key]: [] }
+    }));
+  }
+};
+
+handleZipChange = (zip, which) => {
+  const sanitized = (zip || "").replace(/\D/g, "").slice(0, 5);
+  this.setState(prev => ({
+    data: { ...prev.data, [`${which}_zip_code`]: sanitized }
+  }));
+  if (this.zipTimeout) clearTimeout(this.zipTimeout);
+  this.zipTimeout = setTimeout(() => this.fetchCitiesByZip(sanitized, which), 300);
+};
   handleAlert = (value) => {
     this.setState({ Alert: value });
   };
@@ -734,38 +779,36 @@ class AddUser extends React.Component {
                   id="adress2"
                 />
               </FormGroup>
-              <FormGroup>
-                <Label for="postalcode">Code postal</Label>
-                <Input
-                  type="number"
-                  placeholder="Code Postal"
-                  onChange={(e) =>
-                    this.setState({
-                      data: {
-                        ...this.state.data,
-                        personal_zip_code: e.target.value,
-                      },
-                    })
-                  }
-                  id="postalcode"
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label for="city">Ville</Label>
-                <Input
-                  type="text"
-                  placeholder="Ville"
-                  onChange={(e) =>
-                    this.setState({
-                      data: {
-                        ...this.state.data,
-                        personal_city: e.target.value,
-                      },
-                    })
-                  }
-                  id="city"
-                />
-              </FormGroup>
+                <FormGroup>
+                  <Label for="postalcode">Code postal</Label>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="\d{5}"
+                    id="postalcode"
+                    placeholder="Code postal personnel"
+                    value={this.state.data.personal_zip_code || ""}
+                    onChange={(e) => this.handleZipChange(e.target.value, "personal")}
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label for="city">Ville</Label>
+                    <Input
+                      type="text"
+                      id="city"
+                      list="personalCityList"
+                      placeholder="Ville personnelle"
+                      value={this.state.data.personal_city || ""}
+                      onChange={this.handleDataChange("personal_city")}
+                    />
+                  <datalist id="personalCityList">
+                    {(this.state.data.personal_city_options || []).map((v) => (
+                      <option key={v} value={v} />
+                    ))}
+                  </datalist>
+                </FormGroup>
+
               <FormGroup>
                 <Label for="country">Pays</Label>
                 <Input

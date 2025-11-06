@@ -60,6 +60,7 @@ class UserAccountTab extends React.Component {
     personal_address_2: this.props.data.personal_address_2,
     personal_zip_code: this.props.data.personal_zip_code,
     personal_city: this.props.data.personal_city,
+    personal_city_options: [],
     personal_country: this.props.data.personal_country,
     society_name: this.props.data.society_name,
     society_address: this.props.data.society_address,
@@ -86,7 +87,38 @@ class UserAccountTab extends React.Component {
         this.setState({ ...rowData });
       });
   }
+  zipTimeout = null;
 
+  // Appel API : code postal -> liste de villes
+  fetchCitiesByZip = async (zip, which /* 'personal' | 'society' */) => {
+    const key = `${which}_city_options`;
+    if (!/^\d{5}$/.test(zip)) {
+      this.setState({ [key]: [] });
+      return;
+    }
+    try {
+      const { data } = await axios.get(
+        `https://geo.api.gouv.fr/communes?codePostal=${zip}&fields=nom&format=json`
+      );
+      const options = (data || []).map((c) => c.nom);
+      this.setState({ [key]: options });
+
+      // Astuce: auto-sélection si une seule commune pour ce CP
+      if (options.length === 1) {
+        this.setState({ [`${which}_city`]: options[0] });
+      }
+    } catch (e) {
+      console.error(e);
+      this.setState({ [key]: [] });
+    }
+  };
+
+  // Débounce de la saisie CP pour limiter les requêtes
+  handleZipChange = (zip, which) => {
+    this.setState({ [`${which}_zip_code`]: zip });
+    if (this.zipTimeout) clearTimeout(this.zipTimeout);
+    this.zipTimeout = setTimeout(() => this.fetchCitiesByZip(zip, which), 300);
+  };
   updateUsername = (e) => {
     if (e.first_name != null && e.last_name != null) {
       this.setState({ first_name: e.first_name });
@@ -805,27 +837,31 @@ class UserAccountTab extends React.Component {
                 </FormGroup>
                 <FormGroup>
                   <Label for="pincode">Code postal</Label>
-                  <Input
-                    type="number"
-                    id="pincode"
-                    placeholder="Code postal personnel"
-                    defaultValue={this.ifExist("personal_zip_code")}
-                    onChange={(e) =>
-                      this.setState({ personal_zip_code: e.target.value })
-                    }
-                  />
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="\d{5}"
+                      id="pincode"
+                      placeholder="Code postal personnel"
+                      defaultValue={this.ifExist("personal_zip_code")}
+                      onChange={(e) => this.handleZipChange(e.target.value, "personal")}
+                    />
                 </FormGroup>
                 <FormGroup>
                   <Label for="city">Ville</Label>
                   <Input
                     type="text"
-                    defaultValue={this.ifExist("personal_city")}
-                    onChange={(e) =>
-                      this.setState({ personal_city: e.target.value })
-                    }
                     id="city"
+                    list="personalCityList"
                     placeholder="Ville personnelle"
+                    value={this.state.personal_city || ""}
+                    onChange={(e) => this.setState({ personal_city: e.target.value })}
                   />
+                  <datalist id="personalCityList">
+                    {this.state.personal_city_options.map((v) => (
+                      <option key={v} value={v} />
+                    ))}
+                  </datalist>
                 </FormGroup>
                 <FormGroup>
                   <Label for="Country">Pays</Label>

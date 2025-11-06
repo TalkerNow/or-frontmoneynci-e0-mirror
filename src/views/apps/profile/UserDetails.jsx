@@ -72,9 +72,17 @@ export default function UserDetails({ user = {}, onEdit, onSuspend, showCollapse
               <div className="text-break" style={{ overflowWrap: 'anywhere' }} title={user.email || ''}>{user.email || "—"}</div>
             </div>
             <div className="d-flex user-info">
-              <div className="user-info-title font-weight-bold">Rôle :</div>
-              <div className="text-truncate">{user.role || "—"}</div>
-            </div>
+              <div className="user-info-title font-weight-bold">Né(e) le :</div>
+                <div className="text-truncate">
+                  {user.birth_date
+                    ? new Date(user.birth_date).toLocaleDateString('fr-FR', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                      })
+                    : '—'}
+                </div>            
+              </div>
             <div className="d-flex user-info">
               <div className="user-info-title font-weight-bold">Tel :</div>
               <div className="text-truncate">{formatPhoneFR(user.mobile_number || user.office_number) || "—"}</div>
