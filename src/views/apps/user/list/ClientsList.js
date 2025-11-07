@@ -177,18 +177,21 @@ class ClientsList extends React.Component {
         width: 150,
         minWidth: 150,
         flex: 0,
+        cellClass: 'd-flex align-items-center justify-content-center',
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 },
         cellRendererFramework: (params) => {
           const userId = params?.data?.id;
           const services = (this.state.servicesByUserId && this.state.servicesByUserId[userId]) || [];
           if (!services || services.length === 0) return <div></div>;
           return (
             <div
-              className="d-flex align-items-center"
+              className="d-flex align-items-center justify-content-center w-100"
+              style={{ gap: 6 }}
               onClick={(e) => e.stopPropagation()} // éviter la navigation quand on clique sur une pastille
             >
               {services.map((label) => (
                 <Chip
-                  className="m-0 text-center ml-1"
+                  className="m-0 text-center"
                   key={label}
                   color={chipColors[label] || "primary"}
                   text={label}
