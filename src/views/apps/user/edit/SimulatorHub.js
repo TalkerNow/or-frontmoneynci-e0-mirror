@@ -1493,7 +1493,7 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                   <Collapse isOpen={!!retraiteProgressive}>
                     <div
                       className='hypo-panel mb-50'
-                      style={{ marginTop: 0, maxWidth: 670, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, padding: '1rem' }}
+                      style={{ marginTop: 0, maxWidth: 705, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, padding: '1rem' }}
                     >
                       {/* Partie 1 — Données principales */}
                       <div className='prog-panel-fields nowrap'>
@@ -1539,7 +1539,7 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                                 onClick={() => setProgPctFixed(false)}
                                 title='Cliquez pour modifier'
                                 placeholder='0'
-                                style={{ textAlign: 'center' }}
+                                style={{ textAlign: 'center', paddingRight: 22 }}
                               />
                             ) : (
                               <input
