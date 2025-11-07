@@ -20,7 +20,7 @@ import SweetAlert from "react-bootstrap-sweetalert";
 import "flatpickr/dist/themes/light.css";
 import "../../../../assets/scss/plugins/forms/flatpickr/flatpickr.scss";
 import InputMaskDate from "../edit/InputMaskDate";
-import { MapPin, Home, User } from "react-feather";
+import { MapPin, Home, User, ArrowLeft } from "react-feather";
 import Radio from "../../../../components/@vuexy/radio/RadioVuexy";
 import moment from "moment";
 import { waiterHide, waiterShow } from "../../../../helpers/waiter";
@@ -303,8 +303,23 @@ handleZipChange = (zip, which) => {
   render() {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle>Création client</CardTitle>
+        <CardHeader className="pb-0">
+          <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between w-100 mb-50">
+            <Button.Ripple
+              color="primary"
+              aria-label="Retour"
+              title="Retour"
+              className="btn-icon rounded-circle p-0 d-flex align-items-center justify-content-center"
+              style={{ width: 32, height: 32 }}
+              onClick={() => history.goBack()}
+            >
+              <ArrowLeft size={16} />
+            </Button.Ripple>
+            <Button.Ripple color="success" onClick={() => this.handleSubmit(0)} className="mt-1 mt-sm-0 w-100 w-sm-auto">
+              Enregistrer
+            </Button.Ripple>
+          </div>
+          <CardTitle className="mb-0">Création client</CardTitle>
         </CardHeader>
         <SweetAlert
           success
@@ -786,7 +801,7 @@ handleZipChange = (zip, which) => {
                     inputMode="numeric"
                     pattern="\d{5}"
                     id="postalcode"
-                    placeholder="Code postal personnel"
+                    placeholder="Code postal"
                     value={this.state.data.personal_zip_code || ""}
                     onChange={(e) => this.handleZipChange(e.target.value, "personal")}
                   />
@@ -798,7 +813,7 @@ handleZipChange = (zip, which) => {
                       type="text"
                       id="city"
                       list="personalCityList"
-                      placeholder="Ville personnelle"
+                      placeholder="Ville"
                       value={this.state.data.personal_city || ""}
                       onChange={this.handleDataChange("personal_city")}
                     />
@@ -1001,7 +1016,7 @@ handleZipChange = (zip, which) => {
               className="d-flex flex-column flex-md-row justify-content-center"
             >
               <Button.Ripple
-                color="primary"
+                color="success"
                 className="mb-1 mb-md-0 mr-md-1 w-100 w-md-auto"
                 onClick={() => this.handleSubmit(0)}
               >
@@ -1012,7 +1027,7 @@ handleZipChange = (zip, which) => {
                 className="w-100 w-md-auto"
                 onClick={() => this.handleSubmit(1)}
               >
-                Prestations
+                + Prestations
               </Button.Ripple>
             </Col>
           </Row>

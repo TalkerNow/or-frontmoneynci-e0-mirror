@@ -11,25 +11,14 @@ import {
   FormGroup,
   CustomInput,
 } from "reactstrap";
-import Chip from "../../../../../src/components/@vuexy/chips/ChipComponent";
-//import Flatpickr from "react-flatpickr";
-import { User, MapPin, Aperture } from "react-feather";
+import { User, MapPin } from "react-feather";
 import "flatpickr/dist/themes/light.css";
 import "../../../../assets/scss/plugins/forms/flatpickr/flatpickr.scss";
 import InputMaskDate from "./InputMaskDate";
 import axios from "axios";
-//import moment from "moment"
 import { toast } from "react-toastify";
 import { history } from "../../../../history";
 import Radio from "../../../../components/@vuexy/radio/RadioVuexy";
-const chipColors = {
-  CH: "warning",
-  SIMU: "success",
-  AR: "primary",
-  TFD: "danger",
-  ACTU: "primary",
-  RAC: "warning",
-};
 
 class UserAccountTab extends React.Component {
   state = {
@@ -118,6 +107,22 @@ class UserAccountTab extends React.Component {
     this.setState({ [`${which}_zip_code`]: zip });
     if (this.zipTimeout) clearTimeout(this.zipTimeout);
     this.zipTimeout = setTimeout(() => this.fetchCitiesByZip(zip, which), 300);
+  };
+  // ===== Helpers téléphone (FR) =====
+  normalizePhone = (v) => {
+    if (!v) return "";
+    let s = String(v).trim();
+    let t = s.replace(/[^\d+]/g, "");
+    if (t.startsWith("+33")) t = "0" + t.slice(3);
+    else if (t.startsWith("0033")) t = "0" + t.slice(4);
+    t = t.replace(/\D/g, "");
+    return t;
+  };
+  formatPhonePretty = (v) => {
+    const d = this.normalizePhone(v);
+    if (!d) return "";
+    const core = d.length > 10 ? d.slice(0, 10) : d;
+    return core.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
   };
   updateUsername = (e) => {
     if (e.first_name != null && e.last_name != null) {
@@ -273,7 +278,7 @@ class UserAccountTab extends React.Component {
     return (
       <Row>
         <Col sm="12">
-          <Form onSubmit={this.updateData}>
+          <Form onSubmit={this.updateData} id="user-edit-form">
             <Row>
               {/* Civilité */}
               <Col md="12" sm="12" style={{ marginTop: "20px" }}>
@@ -408,10 +413,13 @@ class UserAccountTab extends React.Component {
                     type="text"
                     id="contactnumber"
                     placeholder="Numéro de Téléphone"
-                    defaultValue={this.ifExist("mobile_number")}
-                    onChange={(e) =>
-                      this.setState({ contact_number: e.target.value })
+                    value={
+                      this.formatPhonePretty(
+                        this.state.contact_number ?? this.ifExist("mobile_number") ?? this.ifExist("office_number")
+                      )
                     }
+                    onChange={(e) => this.setState({ contact_number: this.normalizePhone(e.target.value) })}
+                    onBlur={(e) => this.setState({ contact_number: this.normalizePhone(e.target.value) })}
                   />
                 </FormGroup>
               </Col>
@@ -750,11 +758,10 @@ class UserAccountTab extends React.Component {
                   <Input
                     type="text"
                     id="officenumber"
-                    defaultValue={this.ifExist("office_number")}
+                    value={this.formatPhonePretty(this.state.office_number ?? this.ifExist("office_number"))}
                     placeholder="Numéro de Téléphone de la société"
-                    onChange={(e) =>
-                      this.setState({ office_number: e.target.value })
-                    }
+                    onChange={(e) => this.setState({ office_number: this.normalizePhone(e.target.value) })}
+                    onBlur={(e) => this.setState({ office_number: this.normalizePhone(e.target.value) })}
                   />
                 </FormGroup>
               </Col> */}
@@ -1025,13 +1032,13 @@ class UserAccountTab extends React.Component {
                 </FormGroup>
               </Col>
 
-              {/* Bouton */}
+              {/* Bouton (bas de page) */}
               <Col
                 className="d-flex justify-content-center flex-wrap mt-2"
                 sm="12"
               >
                 <Button.Ripple className="mr-1" color="success" type="submit">
-                  Valider
+                  Enregistrer une modification
                 </Button.Ripple>
               </Col>
             </Row>

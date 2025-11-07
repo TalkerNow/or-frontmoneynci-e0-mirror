@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { Card, CardBody, Button, Badge, UncontrolledTooltip } from "reactstrap";
-import { User as UserIcon, Disc } from "react-feather";
+import { User as UserIcon, Disc, ArrowLeft, Trash2 } from "react-feather";
+import { history } from "../../../history";
+import SweetAlert from "react-bootstrap-sweetalert";
+import ReactDOM from "react-dom";
 
 export default function UserDetails({
   user = {},
@@ -12,6 +15,8 @@ export default function UserDetails({
   cardClassName = ""
 }) {
   const [members, setMembers] = useState([]);
+  const [showDelete, setShowDelete] = useState(false);
+  const [confirmDeleted, setConfirmDeleted] = useState(false);
 
   // --- FETCH des membres (experts) DANS CETTE FONCTION ---
   useEffect(() => {
@@ -51,6 +56,11 @@ export default function UserDetails({
     }
   };
 
+  const formatAddress = (l1, l2) => {
+    const a = [l1, l2].map(v => (v || "").trim()).filter(Boolean);
+    return a.length ? a.join(" ") : "—";
+  };
+
   // Nom de l'expert (au-dessus du téléphone)
   const expertName = useMemo(() => {
     if (!user) return "—";
@@ -81,6 +91,57 @@ export default function UserDetails({
   return (
     <Card className={`h-100 profile-card ${cardClassName}`}>
       <CardBody className="d-flex flex-column h-100 p-1 pb-0" style={{ position: "relative" }}>
+        {showDelete && ReactDOM.createPortal(
+          <SweetAlert
+            title="Êtes-vous sûr de supprimer ce client ?"
+            warning
+            show={true}
+            showCancel
+            reverseButtons
+            confirmBtnBsStyle="danger"
+            cancelBtnBsStyle="primary"
+            confirmBtnText="Oui, supprimer"
+            cancelBtnText="Annuler"
+            onConfirm={async () => {
+              try {
+                const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+                await axios.delete(`${global.config.server_url}/users/${user.id}`, Config);
+                setShowDelete(false);
+                history.push("/app/user/clientslist");
+              } catch (e) {
+                setShowDelete(false);
+              }
+            }}
+            onCancel={() => setShowDelete(false)}
+          >
+            Vous ne pourrez pas revenir en arrière
+          </SweetAlert>, document.body)}
+
+        {confirmDeleted && ReactDOM.createPortal(
+          <SweetAlert
+            success
+            title="Supprimé!"
+            confirmBtnBsStyle="success"
+            show={true}
+            onConfirm={() => {
+              setConfirmDeleted(false);
+              history.push("/app/user/clientslist");
+            }}
+          >
+            <p className="sweet-alert-text">L'utilisateur a été supprimé.</p>
+          </SweetAlert>, document.body)}
+        <div style={{ position: "absolute", top: 10, left: 10, zIndex: 5 }}>
+          <Button.Ripple
+            color="primary"
+            aria-label="Retour"
+            title="Retour"
+            className="btn-icon rounded-circle p-0 d-flex align-items-center justify-content-center"
+            style={{ width: 32, height: 32 }}
+            onClick={() => history.push('/app/user/clientslist')}
+          >
+            <ArrowLeft size={16} />
+          </Button.Ripple>
+        </div>
         {showCollapse && (
           <div
             className="nav-link modern-nav-toggle"
@@ -127,7 +188,9 @@ export default function UserDetails({
         ) : null}
 
         <div className="mt-1">
-          <h6 className="mb-50">Détails</h6>
+          <div className="mb-50" style={{ marginLeft: 5 }}>
+            <span className="font-weight-bold">Consultant :</span> {expertName}
+          </div>
           <div style={{ borderTop: "1px solid #ebe9f1", margin: "0.25rem 0 0.75rem" }} />
           <div className="users-page-view-table compact-rows">
             <div className="d-flex user-info">
@@ -157,25 +220,54 @@ export default function UserDetails({
               </div>
             </div>
 
-            {/* >>> Expert AU-DESSUS du téléphone <<< */}
             <div className="d-flex user-info">
-              <div className="user-info-title font-weight-bold">Consultant :</div>
-              <div className="text-truncate">{expertName}</div>
-            </div>
-
-            <div className="d-flex user-info">
-              <div className="user-info-title font-weight-bold">Tel :</div>
+              <div className="user-info-title font-weight-bold">Tél :</div>
               <div className="text-truncate">
                 {formatPhoneFR(user.mobile_number || user.office_number) || "—"}
               </div>
             </div>
+            <div className="d-flex user-info">
+              <div className="user-info-title font-weight-bold">Adresse :</div>
+              <div className="text-truncate">
+                {formatAddress(user.personal_address, user.personal_address_2)}
+              </div>
+            </div>
+            <div className="d-flex user-info">
+              <div className="user-info-title font-weight-bold">CP :</div>
+              <div className="text-truncate">{user.personal_zip_code || "—"}</div>
+            </div>
+            <div className="d-flex user-info">
+              <div className="user-info-title font-weight-bold">Ville :</div>
+              <div className="text-truncate">{user.personal_city || "—"}</div>
+            </div>
+            <div className="d-flex user-info">
+              <div className="user-info-title font-weight-bold">Pays :</div>
+              <div className="text-truncate">{user.personal_country || "—"}</div>
+            </div>
           </div>
         </div>
 
-        <div className="d-flex justify-content-center mt-3 mb-0 pb-0">
-          <Button color="primary" className="mr-1" onClick={onEdit}>
-            Modifier
-          </Button>
+        <div className="d-flex justify-content-end mt-auto mb-0 pb-0">
+          <Button.Ripple
+            color="primary"
+            aria-label="Détails"
+            title="Détails"
+            className="mr-1"
+            style={{ height: 40, padding: '0 12px', marginBottom: "10px" }}
+            onClick={onEdit}
+          >
+            Détails
+          </Button.Ripple>
+          <Button.Ripple
+            color="danger"
+            aria-label="Supprimer"
+            title="Supprimer"
+            className="mr-1"
+            style={{ height: 40, padding: '0 12px', marginBottom: "10px" }}
+            onClick={() => setShowDelete(true)}
+          >
+            <Trash2 size={15}/>
+          </Button.Ripple>
         </div>
       </CardBody>
     </Card>
