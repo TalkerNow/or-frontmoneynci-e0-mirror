@@ -69,6 +69,7 @@ class AddUser extends React.Component {
       parent_id: null,
     },
     members: [],
+    copyCompanyAddr: false,
   };
   async componentDidMount() {
     const Config = {
@@ -143,6 +144,19 @@ handleZipChange = (zip, which) => {
   if (this.zipTimeout) clearTimeout(this.zipTimeout);
   this.zipTimeout = setTimeout(() => this.fetchCitiesByZip(sanitized, which), 300);
 };
+  handleCopyCompanyToggle = (checked) => {
+    this.setState((prev) => {
+      const d = { ...prev.data };
+      if (checked) {
+        d.society_address = d.personal_address || "";
+        d.society_address_2 = d.personal_address_2 || "";
+        d.society_zip_code = d.personal_zip_code || "";
+        d.society_city = d.personal_city || "";
+        d.society_country = d.personal_country || "";
+      }
+      return { copyCompanyAddr: checked, data: d };
+    });
+  };
   handleAlert = (value) => {
     this.setState({ Alert: value });
   };
@@ -332,6 +346,7 @@ handleZipChange = (zip, which) => {
           </p>
         </SweetAlert>
         <CardBody>
+          <h5 style={{ fontWeight: 600, fontSize: 16, marginBottom: 8, borderBottom: '1px solid #E5E7EB', paddingBottom: 6 }}>Informations personnelles</h5>
           {/* Civilité */}
           <Row>
             <Col md="12" sm="12">
@@ -380,99 +395,77 @@ handleZipChange = (zip, which) => {
             </Col>
           </Row>
 
-          {/* Nom / Prénom */}
+          {/* Identité + Contact à gauche / Notes à droite */}
           <Row>
             <Col md="6" sm="12">
-              <FormGroup>
-                <Label for="lastname">Nom</Label>
-                <Input
-                  type="text"
-                  placeholder="Nom"
-                  onChange={(e) =>
-                    this.setState({
-                      data: { ...this.state.data, last_name: e.target.value },
-                    })
-                  }
-                  id="lastname"
-                />
-              </FormGroup>
+              <Row>
+                <Col md="12" sm="12">
+                  <FormGroup>
+                    <Label for="lastname">Nom</Label>
+                    <Input
+                      type="text"
+                      placeholder="Nom"
+                      onChange={(e) =>
+                        this.setState({ data: { ...this.state.data, last_name: e.target.value } })
+                      }
+                      id="lastname"
+                    />
+                  </FormGroup>
+                </Col>
+                <Col md="12" sm="12">
+                  <FormGroup>
+                    <Label for="firstname">Prénom</Label>
+                    <Input
+                      type="text"
+                      placeholder="Prénom"
+                      onChange={(e) =>
+                        this.setState({ data: { ...this.state.data, first_name: e.target.value } })
+                      }
+                      id="firstname"
+                    />
+                  </FormGroup>
+                </Col>
+                <Col md="12" sm="12">
+                  <FormGroup>
+                    <Label for="email">Email</Label>
+                    <Input
+                      type="email"
+                      placeholder="Email"
+                      onChange={(e) =>
+                        this.setState({ data: { ...this.state.data, email: e.target.value } })
+                      }
+                      id="email"
+                    />
+                  </FormGroup>
+                </Col>
+                <Col md="12" sm="12">
+                  <FormGroup>
+                    <Label for="phone">Numéro de téléphone</Label>
+                    <Input
+                      type="text"
+                      placeholder="Téléphone"
+                      id="phone"
+                      maxLength="14"
+                      value={this.state.data.mobile_number || ""}
+                      onChange={(e) => {
+                        let input = e.target.value.replace(/\D/g, "");
+                        if (input.length > 2) input = input.replace(/(.{2})/g, "$1 ");
+                        input = input.trim();
+                        this.setState({ data: { ...this.state.data, mobile_number: input } });
+                      }}
+                    />
+                  </FormGroup>
+                </Col>
+              </Row>
             </Col>
             <Col md="6" sm="12">
-              <FormGroup>
-                <Label for="firstname">Prénom</Label>
-                <Input
-                  type="text"
-                  placeholder="Prénom"
-                  onChange={(e) =>
-                    this.setState({
-                      data: { ...this.state.data, first_name: e.target.value },
-                    })
-                  }
-                  id="firstname"
-                />
-              </FormGroup>
-            </Col>
-          </Row>
-
-          {/* Email / Téléphone */}
-          <Row>
-            <Col md="6" sm="12">
-              <FormGroup>
-                <Label for="email">Email</Label>
-                <Input
-                  type="email"
-                  placeholder="Email"
-                  onChange={(e) =>
-                    this.setState({
-                      data: { ...this.state.data, email: e.target.value },
-                    })
-                  }
-                  id="email"
-                />
-              </FormGroup>
-            </Col>
-            <Col md="6" sm="12">
-              <FormGroup>
-                <Label for="phone">Numéro de téléphone</Label>
-                <Input
-                  type="text"
-                  placeholder="Téléphone"
-                  id="phone"
-                  maxLength="14"
-                  value={this.state.data.mobile_number || ""}
-                  onChange={(e) => {
-                    let input = e.target.value.replace(/\D/g, ""); // Supprime tout sauf les chiffres
-                    // Ajoute un espace toutes les deux chiffres
-                    if (input.length > 2)
-                      input = input.replace(/(.{2})/g, "$1 ");
-                    // Supprime un éventuel espace final inutile
-                    input = input.trim();
-                    this.setState({
-                      data: {
-                        ...this.state.data,
-                        mobile_number: input,
-                      },
-                    });
-                  }}
-                />
-              </FormGroup>
-            </Col>
-          </Row>
-
-          {/* Notes */}
-          <Row>
-            <Col md="12" sm="12">
               <FormGroup>
                 <Label for="notes">Notes</Label>
                 <Input
                   type="textarea"
-                  rows="4"
+                  rows="10"
                   placeholder="Notes"
-                  onChange={(e) =>
-                    this.setState({
-                      data: { ...this.state.data, notes: e.target.value },
-                    })
-                  }
+                  onChange={(e) => this.setState({ data: { ...this.state.data, notes: e.target.value } })}
                   id="notes"
                 />
               </FormGroup>
@@ -484,17 +477,15 @@ handleZipChange = (zip, which) => {
             <Col md="6" sm="12">
               <FormGroup>
                 <Label for="password">Mot de passe</Label>
-                <Input
-                  type="text"
-                  placeholder="Mot de passe"
-                  value={this.state.data.password}
-                  onChange={(e) =>
-                    this.setState({
-                      data: { ...this.state.data, password: e.target.value },
-                    })
-                  }
-                  id="password"
-                />
+                <div className="d-flex align-items-center">
+                  <Input
+                    type="text"
+                    id="password"
+                    readOnly
+                    value={this.state.data.password}
+                  />
+                  <Button color="primary" className="ml-1" onClick={() => navigator.clipboard && navigator.clipboard.writeText(this.state.data.password)}>📋 Copier</Button>
+                </div>
               </FormGroup>
             </Col>
             <Col md="6" sm="12">
@@ -519,6 +510,7 @@ handleZipChange = (zip, which) => {
             </Col>
           </Row> */}
 
+          <h5 style={{ fontWeight: 600, fontSize: 16, marginTop: 8, marginBottom: 8, borderBottom: '1px solid #E5E7EB', paddingBottom: 6 }}>Informations administratives</h5>
           {/* Date et lieu de naissance */}
           <Row>
             <Col md="6" sm="12">
@@ -952,17 +944,27 @@ handleZipChange = (zip, which) => {
             <Col md="6" sm="12">
               <FormGroup>
                 <Label for="password">Mot de passe</Label>
-                <Input
-                  type="text"
-                  placeholder="Mot de passe"
-                  value={this.state.data.password}
-                  onChange={(e) =>
-                    this.setState({
-                      data: { ...this.state.data, password: e.target.value },
-                    })
-                  }
-                  id="password"
-                />
+                <div className="d-flex align-items-center">
+                  <Input
+                    type="text"
+                    id="password"
+                    readOnly
+                    value={this.state.data.password}
+                  />
+                  <Button
+                    color="primary"
+                    className="ml-1"
+                    onClick={() => {
+                      if (navigator && navigator.clipboard) {
+                        navigator.clipboard.writeText(this.state.data.password);
+                      }
+                    }}
+                    title="Copier"
+                    aria-label="Copier le mot de passe"
+                  >
+                    Copier
+                  </Button>
+                </div>
               </FormGroup>
             </Col>
             {/* <Col md="4" sm="12">

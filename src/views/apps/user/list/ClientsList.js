@@ -270,7 +270,7 @@ class ClientsList extends React.Component {
         },
       },
             {
-        headerName: "Nom du technicien",
+        headerName: "Consultant",
         filter: false,
         width: 140,
         minWidth: 140,
@@ -278,7 +278,7 @@ class ClientsList extends React.Component {
         valueGetter: (params) => (params.data.parent ? params.data.parent.name : ""),
       },
       {
-        headerName: "Apport commercial",
+        headerName: "Apporteur",
         filter: false,
         width: 140,
         minWidth: 140,
@@ -291,7 +291,7 @@ class ClientsList extends React.Component {
       },
       // -> Colonne Actions
       {
-        headerName: "Actions",
+        headerName: "Action",
         colId: "actions",
         filter: false,
         width: 90,
@@ -458,7 +458,7 @@ class ClientsList extends React.Component {
   // ======= EXPORT EXCEL (XLSX) =======
   getExportHeaders = () => [
     "ID","Créé le","Civilité","Nom","Prénom","Email","Téléphone mobile","Téléphone bureau",
-    "Statut","Mise à jour du statut","Technicien (parent)","Apport commercial","Date de naissance",
+    "Statut","Mise à jour du statut","Technicien (parent)","Apporteur","Date de naissance",
     "Lieu de naissance","Nombre d’enfants","Situation maritale","Adresse perso","Adresse perso 2",
     "Ville perso","Code postal perso","Pays perso","Société","Adresse société","Adresse société 2",
     "Ville société","Code postal société","Pays société","Notes","Services souscrits",
@@ -484,7 +484,7 @@ class ClientsList extends React.Component {
       "Statut": c.status ?? "",
       "Mise à jour du statut": c.status_update_date ?? "",
       "Technicien (parent)": c.parent ? c.parent.name : "",
-      "Apport commercial": apport,
+      "Apporteur": apport,
       "Date de naissance": this.formatDateForExcel(c.birth_date),
       "Lieu de naissance": c.birth_place ?? "",
       "Nombre d’enfants": c.children_number ?? "",

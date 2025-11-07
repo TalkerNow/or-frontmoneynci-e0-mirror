@@ -978,10 +978,10 @@ class UserAccountTab extends React.Component {
                 </FormGroup>
               </Col>
 
-              {/* Expert / Apporteur */}
+              {/* Consultant / Responsable commercial */}
               <Col md="6" sm="12">
                 <FormGroup>
-                  <Label for="member">Expert</Label>
+                  <Label for="member">Consultant</Label>
                   <CustomInput
                     type="select"
                     name="member"
@@ -1006,7 +1006,7 @@ class UserAccountTab extends React.Component {
               </Col>
               <Col md="6" sm="12">
                 <FormGroup>
-                  <Label for="business_introducer">Apporteur d'affaire</Label>
+                  <Label for="business_introducer">Responsable commercial</Label>
                   <CustomInput
                     type="select"
                     name="business_introducer"
