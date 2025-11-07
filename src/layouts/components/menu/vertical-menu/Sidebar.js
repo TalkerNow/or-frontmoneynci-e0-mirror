@@ -7,12 +7,13 @@ import Hammer from "react-hammerjs"
 import SideMenuContent from "./sidemenu/SideMenuContent"
 import { Link } from "react-router-dom"
 import { createPortal } from "react-dom"
-import { User, Settings, Users, File, Power } from "react-feather"
+import { User, Settings, Users, File, Power, Menu } from "react-feather"
 
-// ✅ importe l’action (ajuste le chemin si différent chez toi)
+// ✅ importe l’action (ajuste le chemin si nécessaire)
 import { logoutWithJWT } from "../../../../redux/actions/auth/loginActions"
 
 class Sidebar extends Component {
+  // Garde la route active en phase avec les props
   static getDerivedStateFromProps(props, state) {
     if (props.activePath !== state.activeItem) {
       return { activeItem: props.activePath }
@@ -21,7 +22,7 @@ class Sidebar extends Component {
   }
 
   state = {
-    width: window.innerWidth,
+    width: typeof window !== "undefined" ? window.innerWidth : 1920,
     activeIndex: null,
     hoveredMenuItem: null,
     activeItem: this.props.activePath,
@@ -33,11 +34,7 @@ class Sidebar extends Component {
   settingsBtnRef = React.createRef()
   settingsMenuRef = null
 
-  updateWidth = () => {
-    if (this.mounted) {
-      this.setState({ width: window.innerWidth })
-    }
-  }
+  // --- Lifecycle -------------------------------------------------------------
 
   componentDidMount() {
     this.mounted = true
@@ -56,6 +53,7 @@ class Sidebar extends Component {
   }
 
   componentDidUpdate(prevProps, prevState) {
+    // Ajoute/retire les listeners quand le menu "Paramètres" s’ouvre/se ferme
     if (!prevState.settingsOpen && this.state.settingsOpen) {
       document.addEventListener("mousedown", this.handleDocClick, false)
       document.addEventListener("keydown", this.handleDocKeyDown, false)
@@ -65,7 +63,15 @@ class Sidebar extends Component {
     }
   }
 
-  handleDocClick = e => {
+  // --- Handlers --------------------------------------------------------------
+
+  updateWidth = () => {
+    if (this.mounted && typeof window !== "undefined") {
+      this.setState({ width: window.innerWidth })
+    }
+  }
+
+  handleDocClick = (e) => {
     const btn = this.settingsBtnRef.current
     const menu = this.settingsMenuRef
     if (btn && !btn.contains(e.target) && menu && !menu.contains(e.target)) {
@@ -73,57 +79,64 @@ class Sidebar extends Component {
     }
   }
 
-  handleDocKeyDown = e => {
+  handleDocKeyDown = (e) => {
     if (e.key === "Escape") this.setState({ settingsOpen: false })
   }
 
-  changeActiveIndex = id => {
+  changeActiveIndex = (id) => {
     this.setState({ activeIndex: id !== this.state.activeIndex ? id : null })
   }
 
-  handleSidebarMouseEnter = id => {
+  handleSidebarMouseEnter = (id) => {
     this.setState({
       hoveredMenuItem: id !== this.state.hoveredMenuItem ? id : null
     })
   }
 
-  handleActiveItem = url => {
+  handleActiveItem = (url) => {
     this.setState({ activeItem: url })
   }
 
-  handleContentScroll = e => {
+  handleContentScroll = (e) => {
     const st = e.currentTarget.scrollTop
     if (st >= 100 && !this.state.menuShadow) this.setState({ menuShadow: true })
     else if (st < 100 && this.state.menuShadow) this.setState({ menuShadow: false })
   }
 
   toggleSettings = () => {
-    this.setState(prev => ({ settingsOpen: !prev.settingsOpen }))
+    this.setState((prev) => ({ settingsOpen: !prev.settingsOpen }))
   }
 
-  // ✅ handler unifié pour la déconnexion
-  handleLogout = e => {
+  // ✅ Déconnexion
+  handleLogout = (e) => {
     e.preventDefault()
     this.setState({ settingsOpen: false })
-    // appelle l’action Redux injectée
     if (this.props.logoutWithJWT) {
       this.props.logoutWithJWT()
     } else {
-      // fallback (au cas où) : redirection simple
       window.location.href = "/pages/login"
     }
   }
 
-  // ---------- MENU EN PORTAL ----------
-  renderSettingsPortal = (isRTL) => {
+  // ✅ Bouton "ouvrir le menu" (n’ouvre que si actuellement fermé)
+  handleOpenSidebar = () => {
+    const { visibilityState, sidebarVisibility } = this.props
+    if (sidebarVisibility && visibilityState === false) {
+      sidebarVisibility()
+    }
+  }
+
+  // --- Portal du menu Paramètres --------------------------------------------
+
+  renderSettingsPortal = () => {
     if (!this.state.settingsOpen || !this.settingsBtnRef.current) return null
     const rect = this.settingsBtnRef.current.getBoundingClientRect()
 
     const style = {
       position: "fixed",
-      top: rect.top, // drop-up au-dessus du bouton
+      top: rect.top,
       left: rect.left,
-      transform: "translateY(-8px) translateY(-100%)",
+      transform: "translateY(-8px) translateY(-100%)", // drop-up
       minWidth: 220,
       background: "var(--bs-dropdown-bg, #fff)",
       borderRadius: 12,
@@ -135,7 +148,7 @@ class Sidebar extends Component {
 
     return createPortal(
       <div
-        ref={node => (this.settingsMenuRef = node)}
+        ref={(node) => (this.settingsMenuRef = node)}
         style={style}
         role="menu"
         aria-label="Paramètres"
@@ -143,7 +156,7 @@ class Sidebar extends Component {
         <a
           className="dropdown-item d-flex align-items-center"
           href="/app/member/memberslist"
-          onClick={e => {
+          onClick={(e) => {
             e.preventDefault()
             this.setState({ settingsOpen: false })
             this.props.sidebarVisibility && this.props.sidebarVisibility()
@@ -155,10 +168,11 @@ class Sidebar extends Component {
           <Users size={14} className="mr-50" />
           <span className="align-middle">Admins</span>
         </a>
+
         <a
           className="dropdown-item d-flex align-items-center"
           href="/app/contractTemplate"
-          onClick={e => {
+          onClick={(e) => {
             e.preventDefault()
             this.setState({ settingsOpen: false })
             this.props.sidebarVisibility && this.props.sidebarVisibility()
@@ -171,7 +185,7 @@ class Sidebar extends Component {
           <span className="align-middle">Modèle de contrat</span>
         </a>
 
-        {/* 🔴 Déconnexion en rouge */}
+        {/* 🔴 Déconnexion */}
         <a
           className="dropdown-item d-flex align-items-center text-danger"
           style={{ color: "#dc3545" }}
@@ -185,7 +199,8 @@ class Sidebar extends Component {
       document.body
     )
   }
-  // -----------------------------------
+
+  // --- Render ----------------------------------------------------------------
 
   render() {
     const {
@@ -205,37 +220,76 @@ class Sidebar extends Component {
       collapsedMenuPaths
     } = this.props
 
-    const { menuShadow, activeIndex, hoveredMenuItem, activeItem } = this.state
+    const { menuShadow, activeIndex, hoveredMenuItem, activeItem, width } = this.state
 
     return (
       <ContextLayout.Consumer>
-        {context => {
+        {(context) => {
           const dir = context.state.direction
           const isRTL = dir === "rtl"
           const isCollapsed = sidebarState === true
 
+          // ✅ Clarté : variables explicites
+          const isMobile = width < 1200
+          // 👉 On ne cache la sidebar sur mobile que si l’app l’a EXPLICITEMENT fermée
+          const shouldHide = isMobile ? visibilityState === false : false
+
           return (
             <React.Fragment>
+              {/* --- BOUTON FLOTTANT GAUCHE (plus bas) POUR OUVRIR LA SIDEBAR SUR MOBILE --- */}
+              {isMobile && shouldHide && createPortal(
+                <button
+                  type="button"
+                  onClick={this.handleOpenSidebar}
+                  aria-label="Ouvrir le menu"
+                  aria-controls="app-sidebar"
+                  className="sidebar-open-btn"
+                  style={{
+                    position: "fixed",
+                    left: "max(16px, calc(env(safe-area-inset-left) + 12px))",
+                    bottom: "calc(20px + env(safe-area-inset-bottom))", // ↓ plus bas
+                    width: 56,
+                    height: 56,
+                    borderRadius: 999,
+                    border: "1px solid rgba(0,0,0,0.12)",
+                    background: "#fff",
+                    boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 2147483646,
+                    cursor: "pointer"
+                  }}
+                >
+                  <Menu size={24} />
+                </button>,
+                document.body
+              )}
+
+              {/* Zone de swipe pour OUVRIR/FERMER (optionnel) */}
               <Hammer
                 onSwipe={() => {
-                  sidebarVisibility()
+                  sidebarVisibility && sidebarVisibility()
                 }}
                 direction={isRTL ? "DIRECTION_LEFT" : "DIRECTION_RIGHT"}
               >
-                <div className="menu-swipe-area d-xl-none d-block vh-100"></div>
+                <div
+                  className="menu-swipe-area d-xl-none d-block vh-100"
+                  style={{ position: "fixed", top: 0, left: 0, width: 18, zIndex: 5 }}
+                />
               </Hammer>
 
               <div
+                id="app-sidebar"
                 className={classnames(
                   `main-menu menu-fixed menu-light menu-accordion menu-shadow theme-${activeTheme}`,
                   {
                     collapsed: isCollapsed,
-                    "hide-sidebar":
-                      this.state.width < 1200 && visibilityState === false
+                    "hide-sidebar": shouldHide
                   }
                 )}
-                onMouseEnter={() => sidebarHover(false)}
-                onMouseLeave={() => sidebarHover(true)}
+                onMouseEnter={() => sidebarHover && sidebarHover(false)}
+                onMouseLeave={() => sidebarHover && sidebarHover(true)}
               >
                 <SidebarHeader
                   toggleSidebarMenu={toggleSidebarMenu}
@@ -249,15 +303,16 @@ class Sidebar extends Component {
                   sidebarState={sidebarState}
                 />
 
-                {/* Contenu natif (scroll natif) */}
+                {/* Contenu (scroll natif) */}
                 <div
                   className="main-menu-content"
                   onScroll={this.handleContentScroll}
                   style={{ paddingBottom: 56, overflowY: "auto", overflowX: "hidden" }}
                 >
+                  {/* Swipe pour FERMER la sidebar sur mobile */}
                   <Hammer
                     onSwipe={() => {
-                      sidebarVisibility()
+                      sidebarVisibility && sidebarVisibility()
                     }}
                     direction={isRTL ? "DIRECTION_RIGHT" : "DIRECTION_LEFT"}
                   >
@@ -275,13 +330,13 @@ class Sidebar extends Component {
                         currentUser={currentUser}
                         collapsedMenuPaths={collapsedMenuPaths}
                         toggleMenu={sidebarVisibility}
-                        deviceWidth={this.state.width}
+                        deviceWidth={width}
                       />
                     </ul>
                   </Hammer>
                 </div>
 
-                {/* Barre du bas : 2 boutons 50% / 50% */}
+                {/* Barre basse avec Profil & Paramètres */}
                 <div
                   className="sidebar-profile-bar"
                   style={{
@@ -297,7 +352,7 @@ class Sidebar extends Component {
                     background: "inherit"
                   }}
                 >
-                  {/* Profil -> 50% */}
+                  {/* Profil */}
                   <Link
                     to="/app/profile"
                     onClick={sidebarVisibility}
@@ -314,7 +369,7 @@ class Sidebar extends Component {
                     <User size={18} />
                   </Link>
 
-                  {/* Paramètres -> 50% */}
+                  {/* Paramètres (ouvre le portal) */}
                   <div
                     ref={this.settingsBtnRef}
                     onClick={this.toggleSettings}
@@ -334,8 +389,8 @@ class Sidebar extends Component {
                 </div>
               </div>
 
-              {/* Menu en portal (au-dessus de tout) */}
-              {this.renderSettingsPortal(isRTL)}
+              {/* Menu Paramètres en portal */}
+              {this.renderSettingsPortal()}
             </React.Fragment>
           )
         }}
@@ -344,7 +399,12 @@ class Sidebar extends Component {
   }
 }
 
-const mapStateToProps = state => {
+// ✅ Visible par défaut (y compris sur mobile) pour éviter la disparition ambiguë
+Sidebar.defaultProps = {
+  visibilityState: true
+}
+
+const mapStateToProps = (state) => {
   return {
     currentUser: localStorage.getItem("role")
   }
