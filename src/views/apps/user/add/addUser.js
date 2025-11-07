@@ -20,7 +20,7 @@ import SweetAlert from "react-bootstrap-sweetalert";
 import "flatpickr/dist/themes/light.css";
 import "../../../../assets/scss/plugins/forms/flatpickr/flatpickr.scss";
 import InputMaskDate from "../edit/InputMaskDate";
-import { MapPin, Home, User, ArrowLeft } from "react-feather";
+import { MapPin, Home, User, ArrowLeft, Plus } from "react-feather";
 import Radio from "../../../../components/@vuexy/radio/RadioVuexy";
 import moment from "moment";
 import { waiterHide, waiterShow } from "../../../../helpers/waiter";
@@ -951,19 +951,6 @@ handleZipChange = (zip, which) => {
                     readOnly
                     value={this.state.data.password}
                   />
-                  <Button
-                    color="primary"
-                    className="ml-1"
-                    onClick={() => {
-                      if (navigator && navigator.clipboard) {
-                        navigator.clipboard.writeText(this.state.data.password);
-                      }
-                    }}
-                    title="Copier"
-                    aria-label="Copier le mot de passe"
-                  >
-                    Copier
-                  </Button>
                 </div>
               </FormGroup>
             </Col>
@@ -1029,7 +1016,8 @@ handleZipChange = (zip, which) => {
                 className="w-100 w-md-auto"
                 onClick={() => this.handleSubmit(1)}
               >
-                + Prestations
+                <Plus size={16} />
+                Prestations
               </Button.Ripple>
             </Col>
           </Row>
