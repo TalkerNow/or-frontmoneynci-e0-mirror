@@ -6,36 +6,18 @@ import {
   CardBody,
   Row,
   Col,
-  Media,
-  Table,
   InputGroup,
   Input,
   InputGroupAddon,
   Button,
-  FormGroup,
-  CustomInput,
 } from "reactstrap";
-import Chip from "../../../../src/components/@vuexy/chips/ChipComponent";
-import { User, MapPin, Aperture } from "react-feather";
 import LabeledCheckboxMaterialUi from "labeled-checkbox-material-ui";
 import Breadcrumbs from "../../../components/@vuexy/breadCrumbs/BreadCrumb";
 import logo from "../../../assets/img/logo/contract_logo.jpg";
-import { Mail, Phone, FileText, Download, ChevronsLeft } from "react-feather";
-import { Check } from "react-feather";
+import { FileText, ChevronsLeft } from "react-feather";
 import "../../../assets/scss/pages/contract.scss";
 import axios from "axios";
-import Checkbox from "../../../components/@vuexy/checkbox/CheckboxesVuexy";
-import { toast } from "react-toastify";
 import { history } from "../../../history";
-import Radio from "../../../components/@vuexy/radio/RadioVuexy";
-const chipColors = {
-  CH: "warning",
-  SIMU: "success",
-  AR: "primary",
-  TFD: "danger",
-  ACTU: "primary",
-  RAC: "warning",
-};
 
 var input_values = {
   c1: false,
@@ -531,9 +513,9 @@ axios
     return (
       <React.Fragment>
         <Breadcrumbs
-          breadCrumbTitle="Create Contract"
+          breadCrumbTitle="Créer un contrat"
           breadCrumbParent="Pages"
-          breadCrumbActive="Create Contract"
+          breadCrumbActive="Créer un contrat"
         />
         <style>{`
           /* Reset total pendant la capture PDF */
@@ -600,7 +582,7 @@ axios
                 this.sendForm();
               }}
             >
-              Save Contract
+              Enregistrer le contrat
             </Button>
             <Button
               className="mr-1 mb-md-0 mb-1"
@@ -608,7 +590,7 @@ axios
               onClick={this.print}
             >
               <FileText size="15" />
-              <span className="align-middle ml-50">Print</span>
+              <span className="align-middle ml-50">Imprimer</span>
             </Button>
           </Col>
               <Col

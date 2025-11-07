@@ -1,5 +1,5 @@
 import React from "react";
-import { UserPlus } from "react-feather";
+import { UserPlus, Trash2 } from "react-feather";
 import {
   Button,
   Card,
@@ -110,8 +110,14 @@ class ClientsList extends React.Component {
       onCellClicked: (params) => {
         const colKey = params?.colDef?.field || params?.colDef?.colId;
         if (!params?.data?.id) return;
-        // Empêcher la navigation quand on clique sur Email, Téléphone ou Prestation
-        if (colKey === "email" || colKey === "phone" || colKey === "prestations") return;
+        // Empêcher la navigation quand on clique sur Email, Téléphone, Prestation ou Actions
+        if (
+          colKey === "email" ||
+          colKey === "phone" ||
+          colKey === "prestations" ||
+          colKey === "actions"
+        )
+          return;
         history.push("/app/user/edit/" + params.data.id + "/2");
       },
       getRowClass: () => "client-row",
@@ -171,18 +177,21 @@ class ClientsList extends React.Component {
         width: 150,
         minWidth: 150,
         flex: 0,
+        cellClass: 'd-flex align-items-center justify-content-center',
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 },
         cellRendererFramework: (params) => {
           const userId = params?.data?.id;
           const services = (this.state.servicesByUserId && this.state.servicesByUserId[userId]) || [];
           if (!services || services.length === 0) return <div></div>;
           return (
             <div
-              className="d-flex align-items-center"
+              className="d-flex align-items-center justify-content-center w-100"
+              style={{ gap: 6 }}
               onClick={(e) => e.stopPropagation()} // éviter la navigation quand on clique sur une pastille
             >
               {services.map((label) => (
                 <Chip
-                  className="m-0 text-center ml-1"
+                  className="m-0 text-center"
                   key={label}
                   color={chipColors[label] || "primary"}
                   text={label}
@@ -264,7 +273,7 @@ class ClientsList extends React.Component {
         },
       },
             {
-        headerName: "Nom du technicien",
+        headerName: "Consultant",
         filter: false,
         width: 140,
         minWidth: 140,
@@ -272,7 +281,7 @@ class ClientsList extends React.Component {
         valueGetter: (params) => (params.data.parent ? params.data.parent.name : ""),
       },
       {
-        headerName: "Apport commercial",
+        headerName: "Apporteur",
         filter: false,
         width: 140,
         minWidth: 140,
@@ -283,7 +292,33 @@ class ClientsList extends React.Component {
             : "-";
         },
       },
-      // -> Colonne Actions supprimée
+      // -> Colonne Actions
+      {
+        headerName: "Action",
+        colId: "actions",
+        filter: false,
+        width: 90,
+        minWidth: 90,
+        flex: 0,
+        cellClass: 'd-flex align-items-center justify-content-center',
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 },
+        cellRendererFramework: (params) => {
+          return (
+            <div
+              className="actions cursor-pointer d-flex align-items-center justify-content-center w-100"
+              style={{ width: "100%", height: "100%" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Trash2
+                size={20}
+                onClick={() => {
+                  this.handleAlert("defaultAlert", true, params.data.id);
+                }}
+              />
+            </div>
+          );
+        },
+      },
     ],
   };
 
@@ -426,7 +461,7 @@ class ClientsList extends React.Component {
   // ======= EXPORT EXCEL (XLSX) =======
   getExportHeaders = () => [
     "ID","Créé le","Civilité","Nom","Prénom","Email","Téléphone mobile","Téléphone bureau",
-    "Statut","Mise à jour du statut","Technicien (parent)","Apport commercial","Date de naissance",
+    "Statut","Mise à jour du statut","Technicien (parent)","Apporteur","Date de naissance",
     "Lieu de naissance","Nombre d’enfants","Situation maritale","Adresse perso","Adresse perso 2",
     "Ville perso","Code postal perso","Pays perso","Société","Adresse société","Adresse société 2",
     "Ville société","Code postal société","Pays société","Notes","Services souscrits",
@@ -452,7 +487,7 @@ class ClientsList extends React.Component {
       "Statut": c.status ?? "",
       "Mise à jour du statut": c.status_update_date ?? "",
       "Technicien (parent)": c.parent ? c.parent.name : "",
-      "Apport commercial": apport,
+      "Apporteur": apport,
       "Date de naissance": this.formatDateForExcel(c.birth_date),
       "Lieu de naissance": c.birth_place ?? "",
       "Nombre d’enfants": c.children_number ?? "",
@@ -605,20 +640,21 @@ class ClientsList extends React.Component {
     return (
       <div>
         <SweetAlert
-          title="Êtes vous sûrs?"
+          title="Êtes-vous sûr de supprimer ce client ?"
           warning
           show={this.state.defaultAlert}
           showCancel
           reverseButtons
-          cancelBtnBsStyle="danger"
+          confirmBtnBsStyle="danger"
+          cancelBtnBsStyle="primary"
           confirmBtnText="Oui, supprimer"
           cancelBtnText="Annuler"
           onConfirm={() => {
-            this.handleAlert("basicAlert", false, 0);
+            this.handleAlert("defaultAlert", false, 0);
             this.handleAlert("confirmAlert", true, 0);
           }}
           onCancel={() => {
-            this.handleAlert("basicAlert", false, 0);
+            this.handleAlert("defaultAlert", false, 0);
             this.handleAlert("cancelAlert", true, 0);
           }}
         >
@@ -645,14 +681,14 @@ class ClientsList extends React.Component {
 
         <SweetAlert
           error
-          title="Annulé!"
+          title="Annulé !"
           confirmBtnBsStyle="success"
           show={this.state.cancelAlert}
           onConfirm={() => {
             this.handleAlert("cancelAlert", false, 0);
           }}
         >
-          <p className="sweet-alert-text">L'action est annulé</p>
+          <p className="sweet-alert-text">L'action est annulée.</p>
         </SweetAlert>
 
         {/* Pleine hauteur page */}
