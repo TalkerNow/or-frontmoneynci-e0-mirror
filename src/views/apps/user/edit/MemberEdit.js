@@ -10,7 +10,6 @@ import "../../profile/Profile.css";
 import axios from "axios";
 import DocumentsHub from "./DocumentsHub";
 import SimulatorHub from "./SimulatorHub";
-//import Task from "./memberTask/Task";
 import { history } from "../../../../history";
 import CommentsTab from "./Comments";
 class UserEdit extends React.Component {
@@ -109,11 +108,20 @@ class UserEdit extends React.Component {
         <Row>
           <Col sm="12">
             <Card className='shadow-sm'>
-              <div className='card-header d-flex justify-content-between align-items-center'>
-                <Button color='primary' className='d-flex align-items-center' onClick={() => history.push(`/app/member/edit/${id}/2`)}>
-                  <ArrowLeft size={16} className='text mr-50' />
-                  <span>Retour</span>
-                </Button>
+              <div className='card-header d-flex flex-wrap justify-content-between align-items-center'>
+                <Button.Ripple
+                  color='primary'
+                  aria-label='Retour'
+                  title='Retour'
+                  className='btn-icon rounded-circle p-0 d-flex align-items-center justify-content-center'
+                  style={{ width: 32, height: 32 }}
+                  onClick={() => history.push(`/app/member/edit/${id}/2`)}
+                >
+                  <ArrowLeft size={16} />
+                </Button.Ripple>
+                <Button.Ripple color='success' type='submit' form='user-edit-form' className='mt-1 mt-sm-0 w-100 w-sm-auto'>
+                  Enregistrer une modification
+                </Button.Ripple>
               </div>
               <CardBody className="pt-2">
                 <AccountTab

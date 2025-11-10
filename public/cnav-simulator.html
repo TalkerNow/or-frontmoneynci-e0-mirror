@@ -121,10 +121,10 @@
                 <th>
                   <span class="th-tooltip" title="Trimestres">Salaires Revalorisés</span>
                 </th>
-                <th>Trimestres</th>
                 <th>Déplafonner</th>
-                <th>Ar</th>
-                <th>Tot</th>
+                <th>Trimestres</th>
+                <th>AR</th>
+                <th>Total</th>
               </tr>
             </thead>
             <tbody id="cnav-body"></tbody>
@@ -191,7 +191,7 @@
               <tr>
                 <td>Enfant(s)</td>
                 <td>
-                  <input type="number" id="enfantTrimestres" value="8" min="0" max="8" step="1" />
+                  <input type="number" id="enfantTrimestres" value="0" min="0" max="172" step="1" />
                 </td>
                 <td>
                   <label class="checkbox-label"><input type="checkbox" id="enfantHandicap"> En situation de handicap</label>
@@ -209,7 +209,7 @@
             <thead>
               <tr>
                 <th>Année</th>
-                <th>Les 25 Meilleures années</th>
+                <th>Les 25 meilleures années</th>
               </tr>
             </thead>
             <tbody id="best-years">
@@ -259,12 +259,12 @@
             <td><input type="text" id="ss-${i}" onkeyup="simulateur(this.value, ${i}, document.getElementById('deplafonner_${i}').checked)"/></td>
             <td>${(coeffRevalo[y]||'')}</td>
             <td><span id="z${i}">0</span></td>
-            <td><span id="e${i}">0</span></td>
             <td>
               <label class="checkbox-label">
                 <input type="checkbox" id="deplafonner_${i}" onchange="simulateur(document.getElementById('sr-${i}').value, ${i}, this.checked)">
               </label>
             </td>
+            <td><span id="e${i}">0</span></td>
             <td><span id="ar${i}">0</span></td>
             <td><span id="tot${i}">0</span></td>`;
           tb.appendChild(tr);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Nav, NavItem, NavLink, Card, CardBody, TabContent, TabPane, FormGroup, Collapse, Modal, ModalHeader, ModalBody, ModalFooter, Button } from 'reactstrap'
+import { Nav, NavItem, NavLink, Card, CardBody, TabContent, TabPane, FormGroup, Collapse, Modal, ModalHeader, ModalBody, ModalFooter, Button, Label } from 'reactstrap'
 import classnames from 'classnames'
 import ButtonRadioSwitch from '../../../../components/reactstrap/buttons/ButtonRadioSwitch'
 import Dropzone from 'react-dropzone'
@@ -54,8 +54,9 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
   const [careerDocPreview, setCareerDocPreview] = useState(false)
   const [careerDocDeleteOpen, setCareerDocDeleteOpen] = useState(false)
   const [manualCareerRows, setManualCareerRows] = useState([
-    { id: 1, annee: '', revenu: '', trimestres: '', regime: 'général', observations: '', errY: false, errR: false, errT: false }
+    { id: 1, annee: '', revenu: '', trimBase: '', trimAR: '', regime: 'général', observations: '', errY: false, errR: false }
   ])
+  const [careerComment, setCareerComment] = useState('')
 
   // Carrière: handle upload with same Dropzone UX as Documents perso
   const handleCareerDrop = useCallback((acceptedFiles) => {
@@ -240,15 +241,21 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
       if (rawRows) {
         const parsed = JSON.parse(rawRows)
         if (Array.isArray(parsed)) {
-          const cleaned = parsed.filter(r => r && typeof r === 'object').map(r => ({
-            id: r.id || Date.now(),
-            annee: typeof r.annee === 'string' ? r.annee : '',
-            revenu: typeof r.revenu === 'string' ? r.revenu : '',
-            trimestres: typeof r.trimestres === 'string' ? r.trimestres : (r.trimestres == null ? '' : String(r.trimestres)),
-            regime: r.regime || 'général',
-            observations: typeof r.observations === 'string' ? r.observations : '',
-            errY: false, errR: false, errT: false
-          }))
+          // Backward-compat: migrate legacy `trimestres` -> new `trimBase` and default `trimAR`
+          const cleaned = parsed
+            .filter(r => r && typeof r === 'object')
+            .map(r => ({
+              id: r.id || Date.now(),
+              annee: typeof r.annee === 'string' ? r.annee : '',
+              revenu: typeof r.revenu === 'string' ? r.revenu : '',
+              trimBase: (r.trimBase != null)
+                ? String(r.trimBase)
+                : (r.trimestres != null ? String(r.trimestres) : ''),
+              trimAR: (r.trimAR != null) ? String(r.trimAR) : '',
+              regime: r.regime || 'général',
+              observations: typeof r.observations === 'string' ? r.observations : '',
+              errY: false, errR: false, errT: false
+            }))
           if (cleaned.length) setManualCareerRows(cleaned)
         }
       }
@@ -258,7 +265,17 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
   // PERSIST: manual rows
   useEffect(() => {
     try {
-      const thin = (Array.isArray(manualCareerRows) ? manualCareerRows : []).map(r => ({ id: r.id, annee: r.annee, revenu: r.revenu, trimestres: r.trimestres, regime: r.regime, observations: r.observations }))
+      // Persist new keys; also keep legacy `trimestres` for older readers (set to trimBase)
+      const thin = (Array.isArray(manualCareerRows) ? manualCareerRows : []).map(r => ({
+        id: r.id,
+        annee: r.annee,
+        revenu: r.revenu,
+        trimBase: r.trimBase,
+        trimAR: r.trimAR,
+        trimestres: r.trimBase, // legacy compatibility
+        regime: r.regime,
+        observations: r.observations
+      }))
       localStorage.setItem('career_manual_rows', JSON.stringify(thin))
     } catch { /* noop */ }
   }, [manualCareerRows])
@@ -348,8 +365,10 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
       {/* Responsive layout helpers for the Hypothèses section + bilan table */}
       <>
       <style>{`
-        .hypo-grid { display: flex; flex-direction: column; gap: 12px; }
-        .hypo-row { display: flex; align-items: center; gap: 12px; }
+        .hypo-grid { display: flex; flex-direction: column; gap: 20px; }
+        .hypo-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; }
+        .hypo-row + .hypo-row { margin-top: 4px; }
+        .hypo-ctrl { display: inline-flex; align-items: center; gap: 12px; }
         /* Unify label width so all switches are aligned */
         .hypo-label { flex: 0 0 280px; max-width: 280px; font-weight: 500; color: var(--bs-body-color, #4b4b4b); line-height: 1.3; }
         .hypo-label.nowrap { white-space: nowrap; }
@@ -726,6 +745,33 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                 </Dropzone>
               </div>
 
+              {/* Boutons actions alignés à droite */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                <Button
+                  style={{ background: '#A78BFA', borderColor: '#A78BFA' }}
+                  color='primary'
+                >
+                  Pré-analyse RDV
+                </Button>
+                <Button
+                  style={{ background: '#E5E7EB', borderColor: '#E5E7EB', color: '#111827' }}
+                  color='secondary'
+                >
+                  Rapport de CH
+                </Button>
+              </div>
+
+              {/* Pavé Commentaires */}
+              <div style={{ marginBottom: 12 }}>
+                <Label style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Commentaires</Label>
+                <textarea
+                  value={careerComment}
+                  onChange={(e) => setCareerComment(e.target.value)}
+                  placeholder='Écrire un commentaire lié à la pré-analyse ou au rapport de CH…'
+                  style={{ width: '100%', height: 110, border: '1px solid #E5E7EB', borderRadius: 8, padding: 8, background: '#fff' }}
+                />
+              </div>
+
               {!careerDoc ? (
                 <div className='file-empty'>Aucun relevé de carrière n’a encore été importé.</div>
               ) : (
@@ -823,9 +869,11 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                 <div className='table-responsive'>
                   <table className='manual-table'>
                     <colgroup>
-                      <col className='w-90' />
-                      <col className='w-140' />
-                      <col className='w-150' />
+                      <col style={{ width: '90px' }} />
+                      <col style={{ width: '140px' }} />
+                      <col style={{ width: '90px' }} />
+                      <col style={{ width: '90px' }} />
+                      <col style={{ width: '90px' }} />
                       <col className='w-100' />
                       <col className='w-100' />
                       <col className='w-100' />
@@ -837,7 +885,9 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                       <tr>
                         <th className='w-90'>Année</th>
                         <th className='w-140'>Revenu annuel brut</th>
-                        <th className='w-150'>Trimestres validés</th>
+                        <th style={{ width: '90px' }}>Trimestres</th>
+                        <th style={{ width: '90px' }}>AR</th>
+                        <th style={{ width: '90px' }}>Total</th>
                         <th className='w-100'>Cnav (points)</th>
                         <th className='w-100'>Arrco Agirc (points)</th>
                         <th className='w-100'>Tranche A (TA)</th>
@@ -894,24 +944,42 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                             <input
                               type='number'
                               min={0}
-                              max={4}
+                              max={40}
                               step={1}
-                              className={`manual-input ${row.errT ? 'err' : ''}`}
-                              value={row.trimestres ?? ''}
+                              className='manual-input'
+                              value={row.trimBase ?? ''}
                               onChange={(e) => {
-                                const v = e.target.value
-                                setManualCareerRows(prev => (Array.isArray(prev) ? prev : []).map(r => r.id === row.id ? { ...r, trimestres: v, errT: false } : r))
-                              }}
-                              onBlur={(e) => {
                                 let n = parseInt(e.target.value || '0', 10)
-                                if (isNaN(n)) n = 0
-                                if (n < 0) n = 0
-                                if (n > 4) n = 4
-                                setManualCareerRows(prev => (Array.isArray(prev) ? prev : []).map(r => r.id === row.id ? { ...r, trimestres: String(n), errT: false } : r))
+                                if (isNaN(n) || n < 0) n = 0
+                                if (n > 40) n = 40
+                                const v = String(n)
+                                setManualCareerRows(prev => (Array.isArray(prev) ? prev : []).map(r => r.id === row.id ? { ...r, trimBase: v } : r))
                               }}
                               placeholder='0'
-                              aria-label='Trimestres validés'
+                              aria-label='Trimestres de base'
                             />
+                          </td>
+                          <td>
+                            <input
+                              type='number'
+                              min={0}
+                              max={40}
+                              step={1}
+                              className='manual-input'
+                              value={row.trimAR ?? ''}
+                              onChange={(e) => {
+                                let n = parseInt(e.target.value || '0', 10)
+                                if (isNaN(n) || n < 0) n = 0
+                                if (n > 40) n = 40
+                                const v = String(n)
+                                setManualCareerRows(prev => (Array.isArray(prev) ? prev : []).map(r => r.id === row.id ? { ...r, trimAR: v } : r))
+                              }}
+                              placeholder='0'
+                              aria-label='Trimestres assimilés (AR)'
+                            />
+                          </td>
+                          <td>
+                            <span>{(() => { const a = parseInt(row.trimBase||'0',10)||0; const b = parseInt(row.trimAR||'0',10)||0; return a+b })()}</span>
                           </td>
                           {/* New UI-only numeric columns (uncontrolled) */}
                           <td>
@@ -959,7 +1027,10 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                 <button
                   type='button'
                   className='btn-pastel'
-                  onClick={() => setManualCareerRows(prev => ([...(Array.isArray(prev) ? prev : []), { id: Date.now(), annee: '', revenu: '', trimestres: '', regime: 'général', observations: '', errY: false, errR: false, errT: false }]))}
+                  onClick={() => setManualCareerRows(prev => ([
+                    ...(Array.isArray(prev) ? prev : []),
+                    { id: Date.now(), annee: '', revenu: '', trimBase: '', trimAR: '', regime: 'général', observations: '', errY: false, errR: false, errT: false }
+                  ]))}
                 >
                   + Ajouter une ligne
                 </button>
@@ -1061,7 +1132,7 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
               <FormGroup tag='fieldset' style={{ fontSize: '1rem' }}>
                 <legend className='h6'>Hypothèses de fin de carrière</legend>
 
-                <div className='hypo-grid'>
+                <div className='hypo-grid' style={{ marginBottom: 8 }}>
                   {/* Sans */}
                   <div className='hypo-row'>
                     <span className='hypo-label'>Sans</span>
@@ -1325,7 +1396,7 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                 </Collapse>
 
                 {/* Autres switches */}
-                <div className='hypo-grid'>
+                <div className='hypo-grid' style={{ marginTop: 16 }}>
                   <div className='hypo-row'>
                     <span className='hypo-label'>Chômage</span>
                     <div className='hypo-ctrl'>
@@ -1433,7 +1504,7 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                                 step={1}
                                 className='form-control chomage-trim'
                                 value={clAvantCount[String(age)]}
-                                max={20}
+                                max={172}
                                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); setClAvantFixed(prev => ({ ...(prev||{}), [String(age)]: true })); e.currentTarget.blur() } }}
                                 onChange={(e) => {
                                   const raw = (e.target.value || '').replace(/[^0-9]/g, '')
@@ -1444,7 +1515,7 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                                   let n = parseInt(raw, 10)
                                   if (isNaN(n)) n = 0
                                   if (n < 0) n = 0
-                                  if (n > 20) n = 20
+                                  if (n > 172) n = 172
                                   setClAvantCount(prev => ({ ...(prev||{}), [String(age)]: String(n) }))
                                 }}
                                 placeholder='0'
@@ -1493,7 +1564,7 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                   <Collapse isOpen={!!retraiteProgressive}>
                     <div
                       className='hypo-panel mb-50'
-                      style={{ marginTop: 0, maxWidth: 670, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, padding: '1rem' }}
+                      style={{ marginTop: 0, maxWidth: 705, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, padding: '1rem' }}
                     >
                       {/* Partie 1 — Données principales */}
                       <div className='prog-panel-fields nowrap'>
@@ -1539,7 +1610,7 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                                 onClick={() => setProgPctFixed(false)}
                                 title='Cliquez pour modifier'
                                 placeholder='0'
-                                style={{ textAlign: 'center' }}
+                                style={{ textAlign: 'center', paddingRight: 22 }}
                               />
                             ) : (
                               <input
