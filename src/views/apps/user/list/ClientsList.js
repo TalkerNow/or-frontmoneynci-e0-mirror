@@ -174,6 +174,7 @@ class ClientsList extends React.Component {
         headerName: "Prestation",
         colId: "prestations",
         filter: false,
+        cellClass: "prestations-cell",
         width: 150,
         minWidth: 150,
         flex: 0,
@@ -181,13 +182,16 @@ class ClientsList extends React.Component {
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 },
         cellRendererFramework: (params) => {
           const userId = params?.data?.id;
-          const services = (this.state.servicesByUserId && this.state.servicesByUserId[userId]) || [];
-          if (!services || services.length === 0) return <div></div>;
+          const services =
+            (this.state.servicesByUserId && this.state.servicesByUserId[userId]) || [];
+          if (!services || services.length === 0) {
+            return <div className="h-100 d-flex align-items-center"></div>;
+          }
           return (
             <div
-              className="d-flex align-items-center justify-content-center w-100"
-              style={{ gap: 6 }}
-              onClick={(e) => e.stopPropagation()} // éviter la navigation quand on clique sur une pastille
+              className="h-100 d-flex align-items-center"
+              style={{ flexWrap: "wrap", alignContent: "center" }} // utile si ça passe à la ligne
+              onClick={(e) => e.stopPropagation()}
             >
               {services.map((label) => (
                 <Chip

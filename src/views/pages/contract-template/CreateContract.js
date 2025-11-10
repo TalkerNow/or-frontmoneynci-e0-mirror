@@ -672,7 +672,7 @@ axios
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">Date Nais. </h5>{" "}
+                          <h5 className="bold-black">Date Naissance </h5>{" "}
                         </Col>
                         <Col md="7" sm="12">
                           {" "}
@@ -786,7 +786,7 @@ axios
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">Tel mob</h5>{" "}
+                          <h5 className="bold-black">Tel. mobile</h5>{" "}
                         </Col>
                         <Col md="8" sm="12">
                           {" "}
@@ -800,7 +800,7 @@ axios
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">Tel bur</h5>{" "}
+                          <h5 className="bold-black">Tel. bureau</h5>{" "}
                         </Col>
                         <Col md="8" sm="12">
                           {" "}
@@ -835,7 +835,9 @@ axios
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">Personnel</h5>{" "}
+                        <h5 className="bold-black" style={{ textDecoration: "underline", textUnderlineOffset: "2px" }}>
+                          Personnel
+                        </h5>                        
                         </Col>
                       </Row>
                       <Row>
@@ -872,7 +874,7 @@ axios
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">CP</h5>{" "}
+                          <h5 className="bold-black">Code Postal</h5>{" "}
                         </Col>
                         <Col md="7" sm="12">
                           {" "}
@@ -886,7 +888,7 @@ axios
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">VILLE</h5>{" "}
+                          <h5 className="bold-black">Ville</h5>{" "}
                         </Col>
                         <Col md="7" sm="12">
                           {" "}
@@ -900,7 +902,7 @@ axios
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">PAYS</h5>{" "}
+                          <h5 className="bold-black">Pays</h5>{" "}
                         </Col>
                         <Col md="7" sm="12">
                           {" "}
@@ -921,7 +923,9 @@ axios
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">Société:</h5>{" "}
+                        <h5 className="bold-black" style={{ textDecoration: "underline", textUnderlineOffset: "2px" }}>
+                          Société
+                        </h5>                        
                         </Col>
                         <Col
                           md="8"
@@ -968,7 +972,7 @@ axios
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">CP</h5>{" "}
+                          <h5 className="bold-black">Code Postal</h5>{" "}
                         </Col>
                         <Col md="8" sm="12">
                           {" "}
@@ -982,7 +986,7 @@ axios
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">VILLE</h5>{" "}
+                          <h5 className="bold-black">Ville</h5>{" "}
                         </Col>
                         <Col md="8" sm="12">
                           {" "}
@@ -996,7 +1000,7 @@ axios
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">PAYS</h5>{" "}
+                          <h5 className="bold-black">Pays</h5>{" "}
                         </Col>
                         <Col md="8" sm="12">
                           {" "}
@@ -1017,7 +1021,7 @@ axios
                   }}
                 >
                   <h5 className="bold-black">
-                    <u>NOTES :</u>
+                    <u>Notes</u>
                   </h5>
                   <h5 style={{ marginTop: "20px" }}>
                   {this.ifExist("notes") &&
@@ -2603,7 +2607,7 @@ axios
                           style={{ fontStyle: "italic" }}
                           className="bold-black"
                         >
-                          <u>Date & signature du client:</u>
+                          <u>Date & signature du client :</u>
                         </div>
                         <br />
                         <br />
