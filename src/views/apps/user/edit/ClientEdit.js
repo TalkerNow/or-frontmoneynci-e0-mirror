@@ -128,11 +128,25 @@ class UserEdit extends React.Component {
           <Col sm="12">
             <Card>
               <CardBody className="pt-2">
-                <div className="d-flex justify-content-start mb-2">
-                  <Button color="primary" size="lg" onClick={() => history.push(`/app/user/edit/${id}/2`)}>
-                    <ArrowLeft size={18} className="mr-50" />
-                    Retour
-                  </Button>
+                <div className="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-2 w-100">
+                  <Button.Ripple
+                    color="primary"
+                    aria-label="Retour"
+                    title="Retour"
+                    className="btn-icon rounded-circle p-0 d-flex align-items-center justify-content-center"
+                    style={{ width: 32, height: 32 }}
+                    onClick={() => history.push(`/app/user/edit/${id}/2`)}
+                  >
+                    <ArrowLeft size={16} />
+                  </Button.Ripple>
+                  <Button.Ripple
+                    color="success"
+                    type="submit"
+                    form="user-edit-form"
+                    className="mt-1 mt-sm-0 w-100 w-sm-auto"
+                  >
+                    Enregistrer une modification
+                  </Button.Ripple>
                 </div>
                 <AccountTab
                   data={this.state.rowData}

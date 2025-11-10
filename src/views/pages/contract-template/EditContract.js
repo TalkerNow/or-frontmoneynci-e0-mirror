@@ -7,25 +7,17 @@ import {
   CardBody,
   Row,
   Col,
-  Media,
-  Table,
-  InputGroup,
   Input,
-  InputGroupAddon,
   Button,
   FormGroup,
   CustomInput,
 } from "reactstrap";
 import Chip from "../../../../src/components/@vuexy/chips/ChipComponent";
-import { User, MapPin, Aperture } from "react-feather";
 import LabeledCheckboxMaterialUi from "labeled-checkbox-material-ui";
-import Breadcrumbs from "../../../components/@vuexy/breadCrumbs/BreadCrumb";
 import logo from "../../../assets/img/logo/contract_logo.jpg";
-import { Mail, Phone, FileText, Download, ChevronsLeft } from "react-feather";
-import { Check } from "react-feather";
+import { Download, ArrowLeft, Save, Aperture } from "react-feather";
 import "../../../assets/scss/pages/contract.scss";
 import axios from "axios";
-import Checkbox from "../../../components/@vuexy/checkbox/CheckboxesVuexy";
 import { toast } from "react-toastify";
 import { history } from "../../../history";
 import Radio from "../../../components/@vuexy/radio/RadioVuexy";
@@ -69,6 +61,8 @@ class EditContract extends React.Component {
     rowData: [],
     services: [],
     activeTab: "1",
+    // Indique si des modifications ont été faites (pour activer le bouton Enregistrer)
+    isDirty: false,
     formValues: {
       c1: false,
       c2: true,
@@ -113,6 +107,8 @@ class EditContract extends React.Component {
       formValues: this.state.formValues,
     });
     this.calculate();
+    // Marque le formulaire comme modifié
+    if (!this.state.isDirty) this.setState({ isDirty: true });
   };
   handleCheckChange = (check, field) => {
     input_values[field] = check;
@@ -121,6 +117,7 @@ class EditContract extends React.Component {
       formValues: this.state.formValues,
     });
     this.calculate();
+    if (!this.state.isDirty) this.setState({ isDirty: true });
   };
   calculate = () => {
     var VTA = 1 + input_values["TVAP"] / 100;
@@ -351,6 +348,7 @@ class EditContract extends React.Component {
         this.setState({ sold_date: null });
       }
     }
+    if (!this.state.isDirty) this.setState({ isDirty: true });
   }
   setSubscribeServices() {
     const Config = {
@@ -456,14 +454,27 @@ class EditContract extends React.Component {
           <Col
             md="5"
             sm="12"
-            className="mb-1 contract-header"
-            style={{ height: "50px" }}
+            className="contract-header mb-0"
+            style={{ minHeight: "50px" }}
           >
+            {/* Bouton retour au-dessus de "Prestation" */}
+            <div className="d-flex align-items-center mb-50">
+              <Button.Ripple
+                color="primary"
+                aria-label="Retour"
+                title="Retour"
+                className="btn-icon rounded-circle p-0 d-flex align-items-center justify-content-center"
+                style={{ width: 32, height: 32 }}
+                onClick={() => history.push("/app/user/edit/" + this.state.user_id + "/3")}
+              >
+                <ArrowLeft size={16} />
+              </Button.Ripple>
+            </div>
             <div>
               <div style={{ display: "inline-block" }}>
                 <h5 style={{ marginBottom: "5px" }}>
                   <Aperture className="mr-50" size={16} />
-                  <span className="align-middle">Prestation: </span>
+                  <span className="align-middle">Prestation : </span>
                 </h5>
               </div>
               <div style={{ display: "inline-block", marginLeft: "5px" }}>
@@ -495,7 +506,7 @@ class EditContract extends React.Component {
                 </div>
               </div>
             </div>
-            <FormGroup style={{ marginTop: "8px" }}>
+            <FormGroup style={{ marginTop: "8px", marginBottom: 0 }}>
               {this.state.status != null &&
                 this.state.subscribe_services != null &&
                 this.state.status_payment != null && (
@@ -515,7 +526,7 @@ class EditContract extends React.Component {
                           }
                           name="status"
                           onChange={() =>
-                            this.setState({ status: "En attente" })
+                            this.setState({ status: "En attente", isDirty: true })
                           }
                         />
                       </div>
@@ -527,18 +538,18 @@ class EditContract extends React.Component {
                             this.state.status == "En cours" ? true : false
                           }
                           name="status"
-                          onChange={() => this.setState({ status: "En cours" })}
+                          onChange={() => this.setState({ status: "En cours", isDirty: true })}
                         />
                       </div>
                       <div style={{ display: "inline-block" }} className="mr-1">
                         <Radio
-                          label="Termine"
+                          label="Terminé"
                           color="primary"
                           defaultChecked={
-                            this.state.status == "Termine" ? true : false
+                            this.state.status == "Terminé" ? true : false
                           }
                           name="status"
-                          onChange={() => this.setState({ status: "Termine" })}
+                          onChange={() => this.setState({ status: "Terminé", isDirty: true })}
                         />
                       </div>
                       <div style={{ display: "inline-block" }} className="mr-1">
@@ -549,7 +560,7 @@ class EditContract extends React.Component {
                             this.state.status == "Perdu" ? true : false
                           }
                           name="status"
-                          onChange={() => this.setState({ status: "Perdu" })}
+                          onChange={() => this.setState({ status: "Perdu", isDirty: true })}
                         />
                       </div>
                       <div style={{ display: "inline-block" }}>
@@ -618,37 +629,32 @@ class EditContract extends React.Component {
             </FormGroup>
           </Col>
           <Col
-            className="d-flex flex-column flex-md-row justify-content-end contract-header mb-1"
+            className="d-flex flex-column flex-md-row justify-content-end contract-header mb-0"
             md="7"
             sm="12"
             id="button_section"
           >
-            <Button
-              className="mr-1 mb-md-0 mb-1 pt-0 pb-0"
-              color="primary"
-              onClick={() => {
-                history.push("/app/user/edit/" + this.state.user_id + "/3");
-              }}
-            >
-              <ChevronsLeft size="20" />
-            </Button>
 
             <Button
               className="mr-1 mb-md-0 mb-1"
-              color="primary"
+              color={this.state.isDirty ? "success" : "secondary"}
+              disabled={!this.state.isDirty}
+              style={{ height: 40, lineHeight: '40px', padding: '0 16px' }}
               onClick={() => {
-                this.sendForm();
+                if (this.state.isDirty) this.sendForm();
               }}
             >
-              Save Contract
+              <Save size="15" />
+              <span className="align-middle ml-50">Enregistrer le contrat</span>
             </Button>
             <Button
               className="mr-1 mb-md-0 mb-1"
               color="primary"
+              style={{ height: 40, lineHeight: '40px', padding: '0 16px' }}
               onClick={this.print}
             >
-              <FileText size="15" />
-              <span className="align-middle ml-50">Print</span>
+              <Download size="15" />
+              <span className="align-middle ml-50">Télécharger</span>
             </Button>
           </Col>
 
@@ -657,7 +663,7 @@ class EditContract extends React.Component {
             style={{
               marginLeft: "auto",
               marginRight: "auto",
-              marginTop: "30px",
+              marginTop: "-16px",
               fontSize: "15px",
             }}
           >
@@ -731,7 +737,7 @@ class EditContract extends React.Component {
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">Date Nais. </h5>{" "}
+                          <h5 className="bold-black">Date Naissance </h5>{" "}
                         </Col>
                         <Col md="7" sm="12">
                           {" "}
@@ -852,7 +858,7 @@ class EditContract extends React.Component {
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">Tel mob</h5>{" "}
+                          <h5 className="bold-black">Tel. mobile</h5>{" "}
                         </Col>
                         <Col md="8" sm="12">
                           {" "}
@@ -866,7 +872,7 @@ class EditContract extends React.Component {
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">Tel bur</h5>{" "}
+                          <h5 className="bold-black">Tel. bureau</h5>{" "}
                         </Col>
                         <Col md="8" sm="12">
                           {" "}
@@ -900,8 +906,9 @@ class EditContract extends React.Component {
                           sm="12"
                           className="contract-caption1-section"
                         >
-                          {" "}
-                          <h5 className="bold-black">Personnel</h5>{" "}
+                        <h5 className="bold-black" style={{ textDecoration: "underline", textUnderlineOffset: "2px" }}>
+                          Société
+                        </h5>                        
                         </Col>
                       </Row>
                       <Row>
@@ -938,7 +945,7 @@ class EditContract extends React.Component {
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">CP</h5>{" "}
+                          <h5 className="bold-black">Code Postal</h5>{" "}
                         </Col>
                         <Col md="7" sm="12">
                           {" "}
@@ -952,7 +959,7 @@ class EditContract extends React.Component {
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">VILLE</h5>{" "}
+                          <h5 className="bold-black">Ville</h5>{" "}
                         </Col>
                         <Col md="7" sm="12">
                           {" "}
@@ -966,7 +973,7 @@ class EditContract extends React.Component {
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">PAYS</h5>{" "}
+                          <h5 className="bold-black">Pays</h5>{" "}
                         </Col>
                         <Col md="7" sm="12">
                           {" "}
@@ -987,7 +994,9 @@ class EditContract extends React.Component {
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">Société:</h5>{" "}
+                        <h5 className="bold-black" style={{ textDecoration: "underline", textUnderlineOffset: "2px" }}>
+                          Société
+                        </h5>                        
                         </Col>
                         <Col
                           md="8"
@@ -1034,7 +1043,7 @@ class EditContract extends React.Component {
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">CP</h5>{" "}
+                          <h5 className="bold-black">Code Postal</h5>{" "}
                         </Col>
                         <Col md="8" sm="12">
                           {" "}
@@ -1048,7 +1057,7 @@ class EditContract extends React.Component {
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">VILLE</h5>{" "}
+                          <h5 className="bold-black">Ville</h5>{" "}
                         </Col>
                         <Col md="8" sm="12">
                           {" "}
@@ -1062,7 +1071,7 @@ class EditContract extends React.Component {
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">PAYS</h5>{" "}
+                          <h5 className="bold-black">Pays</h5>{" "}
                         </Col>
                         <Col md="8" sm="12">
                           {" "}
@@ -1083,7 +1092,7 @@ class EditContract extends React.Component {
                   }}
                 >
                   <h5 className="bold-black">
-                    <u>NOTES :</u>
+                    <u>Notes</u>
                   </h5>
                   <h5 style={{ marginTop: "20px" }}>
                     {this.ifExist("notes") &&
@@ -2670,7 +2679,7 @@ class EditContract extends React.Component {
                           style={{ fontStyle: "italic" }}
                           className="bold-black"
                         >
-                          <u>Date & signature du client:</u>
+                          <u>Date & signature du client :</u>
                         </div>
                         <br />
                         <br />
