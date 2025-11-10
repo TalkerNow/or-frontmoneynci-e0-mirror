@@ -1,231 +1,459 @@
 /* eslint-disable */
-
-import React, { useState, useEffect } from "react"
+import React from "react"
 import {
-    Card,
-    CardHeader,
-    CardBody,
-    CardTitle,
-    Col,
-    Row,
-    CardImg,
-    DropdownToggle,
-    DropdownMenu,
-    DropdownItem, UncontrolledButtonDropdown, Button
+  Button,
+  DropdownToggle,
+  DropdownMenu,
+  DropdownItem,
+  UncontrolledButtonDropdown,
+  Card,
+  CardBody
 } from "reactstrap"
-import { useDropzone } from "react-dropzone"
 import Dropzone from "react-dropzone"
 import "../../../../assets/scss/plugins/extensions/dropzone.scss"
-import { ChevronDown, DownloadCloud, Eye } from "react-feather";
-import axios from "axios";
-import pdf_icon_img from "../../../../../src/assets/img/icons/pdf_icon.png"
-import excel_icon_img from "../../../../../src/assets/img/icons/excel_icon.png"
-import image_icon_img from "../../../../../src/assets/img/icons/image_icon.png"
-import doc_icon_img from "../../../../../src/assets/img/icons/doc_icon.png"
-import csv_icon_img from "../../../../../src/assets/img/icons/csv_icon.png"
-import { waiterHide, waiterShow } from "../../../../helpers/waiter";
+import {
+  DownloadCloud,
+  Folder,
+  ArrowLeft,
+  MoreVertical,
+  FileText,
+  Image,
+  File as FileIcon
+} from "react-feather"
+import axios from "axios"
+import { waiterHide, waiterShow } from "../../../../helpers/waiter"
+
+// 🔹 Dossiers
+const FOLDERS = [
+  { id: 1, name: "Contrat / Procuration", color: "#007bff" },
+  { id: 2, name: "Documents familiaux", color: "#28a745" },
+  { id: 3, name: "Documents carrières", color: "#17a2b8" },
+  { id: 4, name: "Echanges avec les organismes", color: "#ffc107" },
+  { id: 5, name: "Notifications retraite", color: "#dc3545" },
+  { id: 6, name: "Autre", color: "#6f42c1" }
+]
+
 class DropzoneBasic extends React.Component {
-    state = { files: [], dates: [] }
-    async componentDidMount() {
-        const Config = {
-            headers: {
-                Authorization: "Bearer " + localStorage.getItem("token")
-            }
-        }
-        axios.get(global.config.server_url + "/files?user_id=" + this.props.id, Config).then(response => {
-            var dates = [];
-            var cur_date = null;
-            response.data.forEach(file => {
-                var tmp_date = new Date(file.created_at);
-                var str_date = ('0' + tmp_date.getDate()).slice(-2) + "/" + ('0' + (tmp_date.getMonth() + 1)).slice(-2) + "/" + tmp_date.getFullYear();
+  state = {
+    files: [],
+    currentFolder: null,
+    folderCounts: {},
+    dragOverFolderId: null
+  }
 
-                if (cur_date != str_date) {
-                    dates.push(str_date);
-                    cur_date = str_date;
-                }
-            });
-            this.setState({ dates: dates })
-            this.setState({ files: response.data })
+  componentDidMount() {
+    this.loadFiles()
+  }
+
+  // 🔹 Charger les fichiers
+  loadFiles = () => {
+    const Config = {
+      headers: { Authorization: "Bearer " + localStorage.getItem("token") }
+    }
+
+    axios
+      .get(global.config.server_url + "/files?user_id=" + this.props.id, Config)
+      .then(response => {
+        const files = response.data
+        const counts = {}
+        counts[0] = files.filter(f => !f.dossier || f.dossier === 0).length
+        FOLDERS.forEach(folder => {
+          counts[folder.id] = files.filter(f => f.dossier === folder.id).length
         })
-    }
-    onDrop = (acceptedFiles) => {
-        acceptedFiles.forEach(file => {
-            // req.attach(file.name, file);
-        });
-        var formData = new FormData();
-        formData.set("user_id", this.props.id);
-        acceptedFiles.forEach((file, i) => {
-            formData.append("photoUpload" + i, file);
-        });
-        const Config = {
-            headers: {
-                Authorization: "Bearer " + localStorage.getItem("token"),
-                'Content-Type': "multipart/form-data"
-            }
-        }
-        axios.post(global.config.server_url + "/uploadFiles", formData, Config)
-            .then(response => {
-                if (response.data.success == true) {
-                    var file_array = [...this.state.files];
-                    var date_array = [...this.state.dates];
-                    response.data.files.forEach(file => {
-                        var tmp_date = new Date(file.created_at);
-                        var str_date = ('0' + tmp_date.getDate()).slice(-2) + "/" + ('0' + (tmp_date.getMonth() + 1)).slice(-2) + "/" + tmp_date.getFullYear();
-                        if (date_array.includes(str_date) == false)
-                            date_array.push(str_date);
-                        file_array.push(file)
-                    });
-                    this.setState({ dates: date_array })
-                    this.setState({ files: file_array })
-                }
-            });
-    }
-    removeFile = (id) => {
-        const Config = {
-            headers: {
-                Authorization: "Bearer " + localStorage.getItem("token")
-            }
-        }
-        axios.delete(global.config.server_url + "/files/" + id, Config).then(response => {
-            var file_array = [...this.state.files];
-            const fileIndex = file_array.findIndex(function (item) {
-                return item.id == id;
-            });
+        this.setState({ files, folderCounts: counts })
+      })
+  }
 
-            var deleted_file = file_array.find(x => x.id == id);
-            var tmp_date = new Date(deleted_file.created_at);
-            var str_deleted_date = ('0' + tmp_date.getDate()).slice(-2) + "/" + ('0' + (tmp_date.getMonth() + 1)).slice(-2) + "/" + tmp_date.getFullYear();
+  // 🔹 Factorisation : upload dans un dossier donné
+  uploadFilesToDossier = (files, dossier) => {
+    const acceptedFiles = Array.from(files || [])
+    if (acceptedFiles.length === 0) return
 
-            if (fileIndex !== -1) {
-                file_array.splice(fileIndex, 1);
-            }
+    const formData = new FormData()
+    formData.set("user_id", this.props.id)
+    formData.set("dossier", dossier || 0)
+    acceptedFiles.forEach((file, i) => formData.append("photoUpload" + i, file))
 
-            //----- remove item if date doesn't exist in date_array
-            var date_array = [...this.state.dates];
-            var isExist = false;
-            file_array.forEach(file => {
-                var date1 = new Date(file.created_at);
-                var str_date = ('0' + date1.getDate()).slice(-2) + "/" + ('0' + (date1.getMonth() + 1)).slice(-2) + "/" + date1.getFullYear();
-                if (str_date == str_deleted_date) {
-                    isExist = true;
-                }
-            });
-            if (!isExist) {
-                var index = date_array.indexOf(str_deleted_date);
-                if (index !== -1) {
-                    date_array.splice(index, 1);
-                }
-            }
-
-            this.setState({ dates: date_array })
-            this.setState({ files: file_array })
-        })
+    const Config = {
+      headers: {
+        Authorization: "Bearer " + localStorage.getItem("token"),
+        "Content-Type": "multipart/form-data"
+      }
     }
-    download = (file_id, file_url) => {
-        waiterShow();
-        const Config = {
-            headers: {
-                Authorization: "Bearer " + localStorage.getItem("token")
-            },
-            responseType: 'blob'
-        }
-        axios.get(global.config.server_url + "/downloadFile?file_id=" + file_id, Config).then(response => {
-            waiterHide();
-            const url = window.URL.createObjectURL(new Blob([response.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            let lst_filename = file_url.split("/");
-            link.setAttribute('download', lst_filename[lst_filename.length - 1]);
-            document.body.appendChild(link);
-            link.click();
-        }).catch(error => {
-            waiterHide();
-        });
+
+    axios.post(global.config.server_url + "/uploadFiles", formData, Config).then(response => {
+      if (response.data && response.data.success === true) this.loadFiles()
+    })
+  }
+
+  // 🔹 Upload depuis la dropzone interne (dans un dossier ouvert)
+  onDrop = acceptedFiles => {
+    this.uploadFilesToDossier(acceptedFiles, this.state.currentFolder || 0)
+  }
+
+  // 🔹 Supprimer un fichier
+  removeFile = id => {
+    const Config = {
+      headers: { Authorization: "Bearer " + localStorage.getItem("token") }
     }
-    render() {
+    axios
+      .delete(global.config.server_url + "/files/" + id, Config)
+      .then(() => this.loadFiles())
+  }
+
+  // 🔹 Déplacer un fichier (change le dossier)
+  moveFile = (fileId, newFolder) => {
+    const Config = {
+      headers: { Authorization: "Bearer " + localStorage.getItem("token") }
+    }
+    axios
+      .put(global.config.server_url + "/files/" + fileId, { dossier: newFolder }, Config)
+      .then(() => this.loadFiles())
+  }
+
+  // 🔹 Télécharger un fichier
+  download = (file_id, file_url) => {
+    waiterShow()
+    const Config = {
+      headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+      responseType: "blob"
+    }
+
+    axios
+      .get(global.config.server_url + "/downloadFile?file_id=" + file_id, Config)
+      .then(response => {
+        waiterHide()
+        const url = window.URL.createObjectURL(new Blob([response.data]))
+        const link = document.createElement("a")
+        link.href = url
+        const lst_filename = file_url.split("/")
+        link.setAttribute("download", lst_filename[lst_filename.length - 1])
+        document.body.appendChild(link)
+        link.click()
+      })
+      .catch(() => waiterHide())
+  }
+
+  openFolder = folderId => this.setState({ currentFolder: folderId })
+  closeFolder = () => this.setState({ currentFolder: null })
+
+  // 🔹 Helpers pour le type de fichier
+  getFileExtension = filename => {
+    if (!filename) return ""
+    const parts = filename.split(".")
+    if (parts.length <= 1) return ""
+    return parts.pop().toLowerCase()
+  }
+
+  getFileIcon = filename => {
+    const ext = this.getFileExtension(filename)
+
+    if (["jpg", "jpeg", "png", "gif", "svg", "webp"].includes(ext)) {
+      return <Image size={18} />
+    }
+    if (["pdf"].includes(ext)) {
+      return <FileText size={18} />
+    }
+    return <FileIcon size={18} />
+  }
+
+  // 🔹 Drag start sur un fichier existant (pour le déplacer dans un dossier)
+  handleDragStart = (event, fileId) => {
+    event.dataTransfer.setData("text/plain", String(fileId))
+    event.dataTransfer.effectAllowed = "move"
+  }
+
+  // 🔹 Drag over sur un dossier (pour le highlight)
+  handleDragOverFolder = (folderId, event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (this.state.dragOverFolderId !== folderId) {
+      this.setState({ dragOverFolderId: folderId })
+    }
+  }
+
+  // 🔹 Drag leave d’un dossier (on enlève le highlight)
+  handleDragLeaveFolder = event => {
+    event.preventDefault()
+    event.stopPropagation()
+    this.setState({ dragOverFolderId: null })
+  }
+
+  // 🔹 Drop sur un dossier : soit upload local, soit move d’un fichier existant
+  handleDropOnFolder = (folderId, event) => {
+    event.preventDefault()
+    event.stopPropagation()
+
+    const dt = event.dataTransfer
+    if (!dt) return
+
+    this.setState({ dragOverFolderId: null })
+
+    // 1) Fichiers locaux (depuis l'ordi)
+    if (dt.files && dt.files.length > 0) {
+      this.uploadFilesToDossier(dt.files, folderId)
+      return
+    }
+
+    // 2) Fichier existant (drag depuis la liste)
+    const fileId = dt.getData("text/plain")
+    if (fileId) {
+      this.moveFile(fileId, folderId)
+    }
+  }
+
+  // 🔹 Affichage plus soigné (carte par fichier) + draggable
+  renderFileList = files => (
+    <div style={{ fontSize: "14px", lineHeight: 1.5 }}>
+      {files.map(file => {
+        const ext = this.getFileExtension(file.filename)
+        const extLabel = ext ? ext.toUpperCase() : "FICHIER"
+
         return (
-            <>
-                <Card>
-                    <CardBody>
-                        <Dropzone onDrop={this.onDrop}>
-                            {({ getRootProps, getInputProps }) => (
-                                <div {...getRootProps(({ className: "dropzone" }))}>
-                                    <input {...getInputProps()} />
-                                    <DownloadCloud className="text-light" size={50} />
-                                    <p className="mx-1">
-                                        Glissez et déposez des fichiers ici, ou cliquez pour sélectionner des fichiers à télécharger.
-                                    </p>
-                                </div>
-                            )}
-                        </Dropzone>
-                    </CardBody>
-                </Card>
-                {this.state.dates.length > 0 && this.state.dates.map((cur_date) => (
-                    <>
-                        <div style={{ textAlign: 'center', marginBottom: '5px', marginTop: '40px ' }} width="90%">{cur_date}</div>
-                        <div style={{ height: '1px', background: '#dfdfdf', marginBottom: '15px' }} width="90%"></div>
-                        <Row style={{ textAlign: 'center' }}>
-                            {this.state.files.length > 0 && this.state.files.map((file) => {
-                                var tmp_date = new Date(file.created_at);
-                                var str_date = ('0' + tmp_date.getDate()).slice(-2) + "/" + ('0' + (tmp_date.getMonth() + 1)).slice(-2) + "/" + tmp_date.getFullYear();
-                                if (cur_date == str_date) {
-                                    return <Col xl="2" sm="12">
-                                        <Card>
-                                            <CardBody>
-                                                <div style={{ position: 'absolute', marginLeft: '65%', marginTop: '5%' }}>
-                                                    <UncontrolledButtonDropdown>
-                                                        <DropdownToggle color="flat-dark" caret style={{
-                                                            width: '30px',
-                                                            height: '22px',
-                                                            background: '#e6e6e6',
-                                                            padding: '5px'
-                                                        }}>
-                                                            <h3 style={{ color: '#747373', marginTop: '-13px' }}>...</h3>
-                                                        </DropdownToggle>
-                                                        <DropdownMenu>
-                                                            <DropdownItem tag="a"><a href={file.url} style={{ color: '#5e5e5e' }}
-                                                                target="_blank">Open</a></DropdownItem>
-                                                            <DropdownItem tag="a"
-                                                                onClick={e => this.removeFile(file.id)}>Remove</DropdownItem>
-                                                            <DropdownItem tag="a"
-                                                                onClick={e => this.download(file.id, file.url)}>Download</DropdownItem>
-                                                        </DropdownMenu>
-                                                    </UncontrolledButtonDropdown>
-                                                </div>
-                                                {(() => {
-                                                    if (file.filename.split('.').length > 0) {
-                                                        var ext = file.filename.split('.').pop().toLowerCase();
-                                                        if (ext == "jpg" || ext == "png" || ext == "gif" || ext == "tiff" || ext == "jfif")
-                                                            return <CardImg src={image_icon_img} style={{ width: '60%' }} />
-                                                        else if (ext == "pdf")
-                                                            return <CardImg src={pdf_icon_img} style={{ width: '60%' }} />
-                                                        else if (ext == "xls" || ext == "xlsx")
-                                                            return <CardImg src={excel_icon_img} style={{ width: '60%' }} />
-                                                        else if (ext == "doc" || ext == "docx")
-                                                            return <CardImg src={doc_icon_img} style={{ width: '60%' }} />
-                                                        else if (ext == "csv" || ext == "csv")
-                                                            return <CardImg src={csv_icon_img} style={{ width: '60%' }} />
-                                                    }
-                                                })()}
-                                                <div className="title-section" style={{ height: '40px' }}>
-                                                    <h5 className="text-bold-600 mt-1 mb-25"><a href={file.url}
-                                                        style={{ color: '#5e5e5e' }}
-                                                        target="_blank">{file.filename}</a>
-                                                    </h5>
-                                                </div>
-                                            </CardBody>
-                                        </Card>
-                                    </Col>
-                                }
-                            })}
-                        </Row>
-                    </>
+          <div
+            key={file.id}
+            className="d-flex align-items-center justify-content-between"
+            draggable
+            onDragStart={e => this.handleDragStart(e, file.id)}
+            style={{
+              padding: "6px 10px",
+              borderRadius: 8,
+              backgroundColor: "#f8f9fa",
+              border: "1px solid #e9ecef",
+              marginBottom: 6,
+              boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+              cursor: "grab"
+            }}
+          >
+            {/* Partie gauche : icône + nom */}
+            <div className="d-flex align-items-center flex-grow-1" style={{ minWidth: 0 }}>
+              <div
+                className="d-flex align-items-center justify-content-center"
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 8,
+                  backgroundColor: "#ffffff",
+                  border: "1px solid #e9ecef",
+                  marginRight: 8,
+                  flexShrink: 0
+                }}
+              >
+                {this.getFileIcon(file.filename)}
+              </div>
+
+              <div className="d-flex flex-column flex-grow-1" style={{ minWidth: 0 }}>
+                <a
+                  href={file.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    color: "#212529",
+                    textDecoration: "none",
+                    fontWeight: 500,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap"
+                  }}
+                  title={file.filename}
+                >
+                  {file.filename.length > 70
+                    ? file.filename.substring(0, 67) + "..."
+                    : file.filename}
+                </a>
+                <small style={{ color: "#868e96" }}>{extLabel}</small>
+              </div>
+            </div>
+
+            {/* Bouton d’options à droite */}
+            <UncontrolledButtonDropdown>
+              <DropdownToggle
+                color="light"
+                aria-label="Options du fichier"
+                style={{
+                  padding: 0,
+                  width: 34,
+                  height: 34,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: 8,
+                  border: "1px solid #e5e5e5",
+                  backgroundColor: "#ffffff",
+                  marginLeft: 8
+                }}
+              >
+                <MoreVertical size={18} />
+              </DropdownToggle>
+              <DropdownMenu right>
+                <DropdownItem
+                  tag="a"
+                  href={file.url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Ouvrir
+                </DropdownItem>
+                <DropdownItem divider />
+                <DropdownItem header>Déplacer vers</DropdownItem>
+                {FOLDERS.map(folder => (
+                  <DropdownItem
+                    key={folder.id}
+                    onClick={() => this.moveFile(file.id, folder.id)}
+                  >
+                    {folder.name}
+                  </DropdownItem>
                 ))}
-            </>
+                <DropdownItem divider />
+                <DropdownItem onClick={() => this.download(file.id, file.url)}>
+                  Télécharger
+                </DropdownItem>
+                <DropdownItem
+                  onClick={() => this.removeFile(file.id)}
+                  className="text-danger"
+                >
+                  Supprimer
+                </DropdownItem>
+              </DropdownMenu>
+            </UncontrolledButtonDropdown>
+          </div>
         )
-    }
+      })}
+    </div>
+  )
+
+  // 🔹 Fichiers non triés
+  renderUnsortedFiles = () => {
+    const unsortedFiles = this.state.files.filter(f => !f.dossier || f.dossier === 0)
+    if (unsortedFiles.length === 0) return null
+    return (
+      <>
+        <h6 className="mb-1 mt-3">Fichiers non triés</h6>
+        {this.renderFileList(unsortedFiles)}
+        <hr />
+      </>
+    )
+  }
+
+  // 🔹 Vue dossiers : liste verticale + pastille compteur à droite + highlight drag
+  renderFolderView = () => (
+    <>
+      {FOLDERS.map((folder, index) => {
+        const count = this.state.folderCounts[folder.id] || 0
+        const isDragOver = this.state.dragOverFolderId === folder.id
+
+        return (
+          <Card
+            key={folder.id}
+            onClick={() => this.openFolder(folder.id)}
+            onDrop={e => this.handleDropOnFolder(folder.id, e)}
+            onDragOver={e => this.handleDragOverFolder(folder.id, e)}
+            onDragLeave={this.handleDragLeaveFolder}
+            className="mb-2"
+            style={{
+              cursor: "pointer",
+              transition: "0.15s",
+              borderRadius: 8,
+              border: isDragOver ? "1px solid #adb5bd" : "1px solid #e9ecef",
+              backgroundColor: isDragOver ? "#f8f9fa" : "#ffffff",
+              boxShadow: isDragOver ? "0 0 0 2px rgba(0,0,0,0.04)" : "none"
+            }}
+          >
+            <CardBody className="d-flex align-items-center justify-content-between py-2">
+              {/* Gauche : icône + titre numéroté */}
+              <div className="d-flex align-items-center">
+                <Folder size={24} className="mr-2" />
+                <div className="ml-2">
+                  <strong>
+                    {index + 1}. {folder.name}
+                  </strong>
+                </div>
+              </div>
+
+              {/* Droite : pastille avec le nombre de fichiers (uniquement si > 0) */}
+              {count > 0 && (
+                <div
+                  style={{
+                    minWidth: 28,
+                    height: 28,
+                    padding: "0 8px",
+                    borderRadius: 999,
+                    backgroundColor: "#e9ecef",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#212529",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center"
+                  }}
+                >
+                  {count}
+                </div>
+              )}
+            </CardBody>
+          </Card>
+        )
+      })}
+
+      {/* 🔹 Fichiers non triés en dessous des dossiers */}
+      {this.renderUnsortedFiles()}
+    </>
+  )
+
+  // 🔹 Vue fichiers d’un dossier (dropzone pour upload dans ce dossier)
+  renderFileView = () => {
+    const currentFolderObj = FOLDERS.find(f => f.id === this.state.currentFolder)
+    const filesInFolder = this.state.files.filter(f => f.dossier === this.state.currentFolder)
+
+    return (
+      <>
+        <div className="d-flex align-items-center mb-2">
+          <Button color="light" onClick={this.closeFolder} size="sm" className="mr-2 p-1">
+            <ArrowLeft size={16} />
+          </Button>
+          <Folder size={20} className="mr-2" />
+          <div>
+            <strong>{currentFolderObj.name}</strong>
+            <div style={{ fontSize: "12px", color: "#888" }}>
+              {filesInFolder.length} fichier(s)
+            </div>
+          </div>
+        </div>
+
+        <Dropzone onDrop={this.onDrop}>
+          {({ getRootProps, getInputProps }) => (
+            <div
+              {...getRootProps({ className: "dropzone text-center mb-2" })}
+              style={{
+                padding: "14px",
+                borderRadius: 10,
+                border: "1px dashed #ced4da",
+                backgroundColor: "#f8f9fa"
+              }}
+            >
+              <input {...getInputProps()} />
+              <DownloadCloud size={35} className="mb-1" />
+              <p className="mb-0" style={{ fontSize: "13px", color: "#495057" }}>
+                Glissez vos fichiers ici ou cliquez pour sélectionner
+              </p>
+            </div>
+          )}
+        </Dropzone>
+
+        {filesInFolder.length > 0 && this.renderFileList(filesInFolder)}
+      </>
+    )
+  }
+
+  render() {
+    return (
+      <>
+        {this.state.currentFolder === null
+          ? this.renderFolderView()
+          : this.renderFileView()}
+      </>
+    )
+  }
 }
 
 export default DropzoneBasic
-/* eslint-disable */
-
