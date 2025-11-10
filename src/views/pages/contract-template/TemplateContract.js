@@ -1145,7 +1145,7 @@ class TemplateContract extends React.Component {
                                                 </Row>
                                             </td>
                                             <td width="25%" style={{ paddingTop: '15px', borderLeft: '2px solid #8d8d8d' }}>
-                                                <div style={{ fontStyle: 'italic' }} className="bold-black"><u>Date & signature du client:</u></div>
+                                                <div style={{ fontStyle: 'italic' }} className="bold-black"><u>Date & signature du client :</u></div>
                                                 <br />
                                                 <br />
                                                 <br />

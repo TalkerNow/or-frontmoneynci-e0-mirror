@@ -731,7 +731,7 @@ class EditContract extends React.Component {
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">Date Nais. </h5>{" "}
+                          <h5 className="bold-black">Date Naissance </h5>{" "}
                         </Col>
                         <Col md="7" sm="12">
                           {" "}
@@ -852,7 +852,7 @@ class EditContract extends React.Component {
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">Tel mob</h5>{" "}
+                          <h5 className="bold-black">Tel. mobile</h5>{" "}
                         </Col>
                         <Col md="8" sm="12">
                           {" "}
@@ -866,7 +866,7 @@ class EditContract extends React.Component {
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">Tel bur</h5>{" "}
+                          <h5 className="bold-black">Tel. bureau</h5>{" "}
                         </Col>
                         <Col md="8" sm="12">
                           {" "}
@@ -900,8 +900,9 @@ class EditContract extends React.Component {
                           sm="12"
                           className="contract-caption1-section"
                         >
-                          {" "}
-                          <h5 className="bold-black">Personnel</h5>{" "}
+                        <h5 className="bold-black" style={{ textDecoration: "underline", textUnderlineOffset: "2px" }}>
+                          Société
+                        </h5>                        
                         </Col>
                       </Row>
                       <Row>
@@ -938,7 +939,7 @@ class EditContract extends React.Component {
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">CP</h5>{" "}
+                          <h5 className="bold-black">Code Postal</h5>{" "}
                         </Col>
                         <Col md="7" sm="12">
                           {" "}
@@ -952,7 +953,7 @@ class EditContract extends React.Component {
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">VILLE</h5>{" "}
+                          <h5 className="bold-black">Ville</h5>{" "}
                         </Col>
                         <Col md="7" sm="12">
                           {" "}
@@ -966,7 +967,7 @@ class EditContract extends React.Component {
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">PAYS</h5>{" "}
+                          <h5 className="bold-black">Pays</h5>{" "}
                         </Col>
                         <Col md="7" sm="12">
                           {" "}
@@ -987,7 +988,9 @@ class EditContract extends React.Component {
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">Société:</h5>{" "}
+                        <h5 className="bold-black" style={{ textDecoration: "underline", textUnderlineOffset: "2px" }}>
+                          Société
+                        </h5>                        
                         </Col>
                         <Col
                           md="8"
@@ -1034,7 +1037,7 @@ class EditContract extends React.Component {
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">CP</h5>{" "}
+                          <h5 className="bold-black">Code Postal</h5>{" "}
                         </Col>
                         <Col md="8" sm="12">
                           {" "}
@@ -1048,7 +1051,7 @@ class EditContract extends React.Component {
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">VILLE</h5>{" "}
+                          <h5 className="bold-black">Ville</h5>{" "}
                         </Col>
                         <Col md="8" sm="12">
                           {" "}
@@ -1062,7 +1065,7 @@ class EditContract extends React.Component {
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black">PAYS</h5>{" "}
+                          <h5 className="bold-black">Pays</h5>{" "}
                         </Col>
                         <Col md="8" sm="12">
                           {" "}
@@ -1083,7 +1086,7 @@ class EditContract extends React.Component {
                   }}
                 >
                   <h5 className="bold-black">
-                    <u>NOTES :</u>
+                    <u>Notes</u>
                   </h5>
                   <h5 style={{ marginTop: "20px" }}>
                     {this.ifExist("notes") &&
@@ -2670,7 +2673,7 @@ class EditContract extends React.Component {
                           style={{ fontStyle: "italic" }}
                           className="bold-black"
                         >
-                          <u>Date & signature du client:</u>
+                          <u>Date & signature du client :</u>
                         </div>
                         <br />
                         <br />

@@ -213,3 +213,20 @@ $secondary-font-weight: 600;
     margin-top: 0.5rem;
   }
 }
+/* Centre verticalement tout le contenu de la cellule "Prestation" */
+.ag-theme-material .ag-cell.prestations-cell {
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* Et on centre aussi le wrapper interne d’ag-Grid par sécurité */
+.ag-theme-material .ag-cell.prestations-cell .ag-cell-wrapper {
+  align-items: center !important;
+}
+
+/* Si ton renderer rend une <div> racine, on la fait prendre la hauteur */
+.ag-theme-material .ag-cell.prestations-cell .ag-cell-value > div {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
