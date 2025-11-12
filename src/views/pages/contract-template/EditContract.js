@@ -11,6 +11,7 @@ import {
   Button,
   FormGroup,
   CustomInput,
+  CardHeader
 } from "reactstrap";
 import Chip from "../../../../src/components/@vuexy/chips/ChipComponent";
 import LabeledCheckboxMaterialUi from "labeled-checkbox-material-ui";
@@ -60,6 +61,8 @@ class EditContract extends React.Component {
   state = {
     rowData: [],
     services: [],
+    acompte_dates: [],
+    sold_dates: [],
     activeTab: "1",
     // Indique si des modifications ont été faites (pour activer le bouton Enregistrer)
     isDirty: false,
@@ -244,7 +247,19 @@ class EditContract extends React.Component {
       .then((response) => {
         let rowData = response.data.data;
         console.log("ICI", rowData);
+        const acompteDates =
+          Array.isArray(rowData.acompte_dates)
+            ? rowData.acompte_dates
+            : rowData.acompte_dates
+              ? JSON.parse(rowData.acompte_dates)
+              : [];
 
+        const soldDates =
+          Array.isArray(rowData.sold_dates)
+            ? rowData.sold_dates
+            : rowData.sold_dates
+              ? JSON.parse(rowData.sold_dates)
+              : [];
         this.setState({
           rowData,
           user_id: rowData.id,
@@ -255,6 +270,8 @@ class EditContract extends React.Component {
           status_payment: rowData.status_payment,
           payment_method: rowData.payment_method,
           subscribe_services: rowData.subscribe_services,
+          acompte_dates: acompteDates,
+          sold_dates: soldDates,
         });
         if (rowData.values != null) {
           let values = JSON.parse(rowData.values);
@@ -298,6 +315,8 @@ class EditContract extends React.Component {
     parameters["status_payment"] = this.state.status_payment;
     parameters["payment_method"] = this.state.payment_method;
     parameters["values"] = JSON.stringify(input_values);
+    parameters["acompte_dates"] = this.state.acompte_dates; // ex: ["2025-11-12 10:00:00", ...]
+    parameters["sold_dates"]    = this.state.sold_dates;
     parameters["advanced_payment"] = this.state.formValues["TOTALTTC"]
       ? this.state.formValues["TOTALTTC"]
       : 0;
@@ -401,6 +420,8 @@ class EditContract extends React.Component {
     var userid = this.state.user_id;
     parameters["user_id"] = this.state.user_id;
     parameters["parent_id"] = this.state.parent_id;
+    parameters["acompte_dates"] = this.state.acompte_dates; // ex: ["2025-11-12 10:00:00", ...]
+    parameters["sold_dates"]    = this.state.sold_dates;
     parameters["subscribe_services"] = sub_services;
     parameters["comment"] =
       "Contract de " +
@@ -446,15 +467,44 @@ class EditContract extends React.Component {
     };
     window.print();
   };
+  toInputValue = (sql) => { // "YYYY-MM-DD HH:mm:ss" -> "YYYY-MM-DDTHH:mm"
+    if (!sql) return '';
+    return sql.replace(' ', 'T').slice(0, 16);
+  };
+
+  fromInputValue = (v) => { // "YYYY-MM-DDTHH:mm" -> "YYYY-MM-DD HH:mm:00"
+    if (!v) return '';
+    return v.replace('T', ' ') + ':00';
+  };
+
+  addDate = (key) => {
+    this.setState(prev => ({ [key]: [...(prev[key] || []), '' ], isDirty: true }));
+  };
+
+  updateDate = (key, idx, v) => {
+    this.setState(prev => {
+      const arr = [...(prev[key] || [])];
+      arr[idx] = v;
+      return { [key]: arr, isDirty: true };
+    });
+  };
+
+  removeDate = (key, idx) => {
+    this.setState(prev => {
+      const arr = [...(prev[key] || [])];
+      arr.splice(idx, 1);
+      return { [key]: arr, isDirty: true };
+    });
+  };
 
   render() {
     return (
       <React.Fragment>
         <Row>
           <Col
-            md="5"
-            sm="12"
-            className="contract-header mb-0"
+            xs="12"
+            md="12"
+            className="contract-header mb-0 px-0"
             style={{ minHeight: "50px" }}
           >
             {/* Bouton retour au-dessus de "Prestation" */}
@@ -510,127 +560,157 @@ class EditContract extends React.Component {
               {this.state.status != null &&
                 this.state.subscribe_services != null &&
                 this.state.status_payment != null && (
-                  <>
-                    <div
-                      style={{
-                        justifyContent: "center",
-                        alignItems: "center",
-                      }}
+                  <Card className="mb-1 shadow-sm" style={{ borderRadius: 10 }}>
+                    <CardHeader
+                      className="py-1 d-flex align-items-center"
+                      style={{ background: "#f8f9fa", borderBottom: "1px solid #e9ecef" }}
                     >
-                      <div style={{ display: "inline-block" }} className="mr-1">
-                        <Radio
-                          label="En attente"
-                          color="primary"
-                          defaultChecked={
-                            this.state.status == "En attente" ? true : false
-                          }
-                          name="status"
-                          onChange={() =>
-                            this.setState({ status: "En attente", isDirty: true })
-                          }
-                        />
-                      </div>
-                      <div style={{ display: "inline-block" }} className="mr-1">
-                        <Radio
-                          label="En cours"
-                          color="primary"
-                          defaultChecked={
-                            this.state.status == "En cours" ? true : false
-                          }
-                          name="status"
-                          onChange={() => this.setState({ status: "En cours", isDirty: true })}
-                        />
-                      </div>
-                      <div style={{ display: "inline-block" }} className="mr-1">
-                        <Radio
-                          label="Terminé"
-                          color="primary"
-                          defaultChecked={
-                            this.state.status == "Terminé" ? true : false
-                          }
-                          name="status"
-                          onChange={() => this.setState({ status: "Terminé", isDirty: true })}
-                        />
-                      </div>
-                      <div style={{ display: "inline-block" }} className="mr-1">
-                        <Radio
-                          label="Perdu"
-                          color="primary"
-                          defaultChecked={
-                            this.state.status == "Perdu" ? true : false
-                          }
-                          name="status"
-                          onChange={() => this.setState({ status: "Perdu", isDirty: true })}
-                        />
-                      </div>
-                      <div style={{ display: "inline-block" }}>
-                        <Input
-                          style={{ width: 150, height: 30 }}
-                          defaultValue={
-                            this.state.payment_method !== null
-                              ? this.state.payment_method
-                              : ""
-                          }
-                          color="primary"
-                          type="text"
-                          placeholder="Moyen de paiement"
-                          onChange={(e) =>
-                            this.setState({ payment_method: e.target.value })
-                          }
-                        />
-                      </div>
-                    </div>
-                    <div
-                      style={{
-                        marginLeft: "20px",
-                        display: "inline-block",
-                        marginBottom: "5px",
-                      }}
-                    >
-                      <CustomInput
-                        className="custom-switch-success mr-1 mb-2"
-                        type="switch"
-                        id="acompte"
-                        name="Acompte"
-                        inline
-                        defaultChecked={
-                          this.state.status_payment > 0 ? true : false
-                        }
-                        onChange={() => this.setStatusPayment(1)}
-                      >
-                        <span
-                          className="mb-0 switch-label"
-                          style={{ paddingTop: "3px" }}
-                        >
-                          Acompte
-                        </span>
-                      </CustomInput>
-                      <CustomInput
-                        className="custom-switch-success mr-1 mb-2"
-                        type="switch"
-                        id="sold"
-                        name="Sold"
-                        inline
-                        defaultChecked={
-                          this.state.status_payment > 1 ? true : false
-                        }
-                        onChange={() => this.setStatusPayment(2)}
-                      >
-                        <span
-                          className="mb-0 switch-label"
-                          style={{ paddingTop: "3px" }}
-                        >
-                          Soldé
-                        </span>
-                      </CustomInput>
-                    </div>
-                  </>
-                )}
+                      <h5 className="mb-0">Statut & Paiements</h5>
+                    </CardHeader>
+
+                    <CardBody className="pt-1">
+                      {/* Ligne 1 : statut + moyen de paiement + switches */}
+                      <Row className="align-items-center">
+                        <Col md="6" sm="12" className="mb-1">
+                          <div className="d-flex flex-wrap" style={{ gap: 8 }}>
+                            <Radio
+                              label="En attente"
+                              color="primary"
+                              name="status"
+                              checked={this.state.status === "En attente"}
+                              onChange={() => this.setState({ status: "En attente", isDirty: true })}
+                            />
+                            <Radio
+                              label="En cours"
+                              color="primary"
+                              name="status"
+                              checked={this.state.status === "En cours"}
+                              onChange={() => this.setState({ status: "En cours", isDirty: true })}
+                            />
+                            <Radio
+                              label="Terminé"
+                              color="primary"
+                              name="status"
+                              checked={this.state.status === "Terminé"}
+                              onChange={() => this.setState({ status: "Terminé", isDirty: true })}
+                            />
+                            <Radio
+                              label="Perdu"
+                              color="primary"
+                              name="status"
+                              checked={this.state.status === "Perdu"}
+                              onChange={() => this.setState({ status: "Perdu", isDirty: true })}
+                            />
+                          </div>
+
+                          <div className="d-flex align-items-center mt-1" style={{ gap: 8 }}>
+                            <span className="text-muted" style={{ minWidth: 130 }}>Moyen de paiement</span>
+                            <Input
+                              style={{ width: 220, height: 34 }}
+                              value={this.state.payment_method || ""}
+                              color="primary"
+                              type="text"
+                              placeholder="Ex: CB, virement…"
+                              onChange={(e) => this.setState({ payment_method: e.target.value, isDirty: true })}
+                            />
+                          </div>
+                        </Col>
+
+                        <Col md="6" sm="12" className="mb-1">
+                          <div className="d-flex align-items-center" style={{ gap: 18 }}>
+                            <CustomInput
+                              className="custom-switch-success"
+                              type="switch"
+                              id="acompte"
+                              name="Acompte"
+                              inline
+                              checked={this.state.status_payment > 0}
+                              onChange={() => this.setStatusPayment(1)}
+                            >
+                              <span className="mb-0 switch-label" style={{ paddingTop: 3 }}>
+                                Acompte
+                              </span>
+                            </CustomInput>
+
+                            <CustomInput
+                              className="custom-switch-success"
+                              type="switch"
+                              id="sold"
+                              name="Sold"
+                              inline
+                              checked={this.state.status_payment > 1}
+                              onChange={() => this.setStatusPayment(2)}
+                            >
+                              <span className="mb-0 switch-label" style={{ paddingTop: 3 }}>
+                                Soldé
+                              </span>
+                            </CustomInput>
+                          </div>
+                        </Col>
+                      </Row>
+
+                      <hr className="my-2" />
+
+                      {/* Ligne 2 : listes de dates */}
+                      <Row>
+                        {/* Acomptes */}
+                        <Col md="6" sm="12" className="mb-1">
+                          <div className="mb-1">
+                            <h6 className="mb-0 text-muted">Dates d’acompte</h6>
+                          </div>
+
+                          {(this.state.acompte_dates || []).map((d, idx) => (
+                            <div key={`ad-${idx}`} className="d-flex align-items-center" style={{ gap: 8, marginBottom: 8 }}>
+                              <Input
+                                type="datetime-local"
+                                style={{ width: 240, height: 34 }}
+                                value={this.toInputValue(d)}
+                                onChange={(e) => this.updateDate('acompte_dates', idx, this.fromInputValue(e.target.value))}
+                              />
+                              <Button color="danger" size="sm" onClick={() => this.removeDate('acompte_dates', idx)}>
+                                Supprimer
+                              </Button>
+                            </div>
+                          ))}
+
+                          <Button outline color="primary" size="sm" className="mt-1" onClick={() => this.addDate('acompte_dates')}>
+                            + Ajouter
+                          </Button>
+                        </Col>
+
+                        {/* Ventes */}
+                        <Col md="6" sm="12" className="mb-1">
+                          <div className="mb-1">
+                            <h6 className="mb-0 text-muted">Dates de paiement</h6>
+                          </div>
+
+                          {(this.state.sold_dates || []).map((d, idx) => (
+                            <div key={`sd-${idx}`} className="d-flex align-items-center" style={{ gap: 8, marginBottom: 8 }}>
+                              <Input
+                                type="datetime-local"
+                                style={{ width: 240, height: 34 }}
+                                value={this.toInputValue(d)}
+                                onChange={(e) => this.updateDate('sold_dates', idx, this.fromInputValue(e.target.value))}
+                              />
+                              <Button color="danger" size="sm" onClick={() => this.removeDate('sold_dates', idx)}>
+                                Supprimer
+                              </Button>
+                            </div>
+                          ))}
+
+                          <Button outline color="primary" size="sm" className="mt-1" onClick={() => this.addDate('sold_dates')}>
+                            + Ajouter
+                          </Button>
+                        </Col>
+                      </Row>
+                    </CardBody>
+                  </Card>
+              )}
             </FormGroup>
           </Col>
           <Col
-            className="d-flex flex-column flex-md-row justify-content-end contract-header mb-0"
-            md="7"
+            className="d-flex flex-column flex-md-row justify-content-end contract-header px-0 mb-3"
+            md="12"
             sm="12"
             id="button_section"
           >
