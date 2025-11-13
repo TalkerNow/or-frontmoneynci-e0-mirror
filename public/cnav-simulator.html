@@ -8,6 +8,13 @@
       :root { --border:#ddd; --bg:#fff; --alt:#f7f7fb; --accent:#7367f0; --head: var(--accent); }
       html, body { margin:0; padding:0; background:transparent; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif; color:#4b4b4b; }
       .container { padding:12px; }
+      .collapsible { border:1px solid var(--border); border-radius:16px; background:var(--bg); box-shadow:0 12px 30px rgba(15,23,42,0.08); }
+      .collapsible-header { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; border:0; background:transparent; cursor:pointer; border-radius:16px; font-size:18px; font-weight:700; color:#1f2d3d; }
+      .collapsible-header .chevron { transition: transform .25s ease; color:#6b7280; }
+      .collapsible-header[aria-expanded="true"] .chevron { transform: rotate(180deg); }
+      .collapsible-body { overflow:hidden; max-height:0; padding:0 16px; transition:max-height .35s ease, padding .35s ease; }
+      .collapsible-body.open { padding:16px; }
+      .collapsible-inner { display:block; }
       .sim-title { font-weight: 800; text-transform: none; letter-spacing: .01em; margin: 6px 0 12px; font-size: 20px; color:#1f2d3d; }
       label { font-size:14px; }
       /* Spacing around the birth date label */
@@ -68,7 +75,18 @@
   </head>
   <body>
     <div class="container">
-      <h2 class="sim-title">SIMULATEUR PENSION SÉCURITÉ SOCIALE CNAV</h2>
+      <div class="collapsible" data-collapsible>
+      <button class="collapsible-header" type="button" aria-expanded="false">
+        <span class="sim-title" style="margin:0;">SIMULATEUR PENSION SÉCURITÉ SOCIALE CNAV</span>
+        <span class="chevron" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </span>
+      </button>
+
+      <div class="collapsible-body">
+        <div class="collapsible-inner">
 
       <div class="mb-2" style="display:flex; align-items:center; gap:.5rem; margin: 8px 0;">
         <label for="birth_date">Quelle est votre date de naissance ? </label>
@@ -239,11 +257,16 @@
         </div>
       </div>
 
+        </div>
+      </div>
     </div>
 
     <script>
       // Données
-      const years = Array.from({length: 62}, (_,i)=>1963+i);
+      const YEARS_START = 1963;
+      const YEARS_COUNT = 62;
+      const LAST_YEAR = YEARS_START + YEARS_COUNT - 1;
+      const years = Array.from({ length: YEARS_COUNT }, (_, i) => LAST_YEAR - i);
       const coeffRevalo = {1963:17.704,1964:15.946,1965:14.916,1966:14.095,1967:13.344,1968:12.3,1969:10.663,1970:9.686,1971:8.688,1972:7.829,1973:7.234,1974:6.378,1975:5.368,1976:4.561,1977:3.934,1978:3.538,1979:3.226,1980:2.836,1981:2.502,1982:2.235,1983:2.108,1984:1.999,1985:1.915,1986:1.872,1987:1.803,1988:1.762,1989:1.699,1990:1.653,1991:1.628,1992:1.575,1993:1.575,1994:1.547,1995:1.53,1996:1.493,1997:1.477,1998:1.46,1999:1.443,2000:1.436,2001:1.407,2002:1.376,2003:1.354,2004:1.333,2005:1.308,2006:1.285,2007:1.264,2008:1.252,2009:1.241,2010:1.229,2011:1.219,2012:1.195,2013:1.17,2014:1.156,2015:1.156,2016:1.155,2017:1.155,2018:1.146,2019:1.13,2020:1.119,2021:1.115,2022:1.103,2023:1.053,2024:1.053};
       const plafondSS = {1963:1592.201992,1964:1738.611371,1965:1866.719577,1966:1976.526611,1967:2086.333645,1968:2196.140679,1969:2488.959437,1970:2745.175849,1971:3019.693434,1972:3349.114536,1973:3733.439155,1974:4245.87198,1975:5032.82239,1976:5783.170455,1977:6606.72321,1978:7320.468931,1979:8180.62403,1980:9168.887336,1981:10486.57174,1982:12508.85129,1983:13982.09566,1984:15189.97303,1985:16278.89279,1986:17111.59613,1987:17816.19126,1988:18356.07584,1989:19106.42391,1990:19984.88018,1991:21009.74583,1992:21979.70797,1993:22849.01365,1994:23352.29589,1995:23782.37344,1996:24587.62502,1997:25109.20843,1998:25786.35181,1999:26481.79636,2000:26902.72332,2001:27360.25263,2002:28224,2003:29184,2004:29712,2005:30192,2006:31068,2007:32184,2008:33276,2009:34308,2010:34620,2011:35352,2012:36372,2013:37032,2014:37548,2015:38040,2016:38616,2017:39228,2018:39732,2019:40524,2020:41136,2021:41136,2022:41136,2023:43992,2024:46368};
 
@@ -429,6 +452,34 @@
           clamp();
         } catch(e){}
       })();
+      function initCollapsibles(){
+        document.querySelectorAll('[data-collapsible]').forEach(function(section){
+          var header = section.querySelector('.collapsible-header');
+          var body = section.querySelector('.collapsible-body');
+          if (!header || !body) return;
+          var setExpanded = function(expanded){
+            header.setAttribute('aria-expanded', expanded);
+            if (expanded) {
+              body.classList.add('open');
+              body.style.maxHeight = body.scrollHeight + 'px';
+            } else {
+              body.classList.remove('open');
+              body.style.maxHeight = '0px';
+            }
+          };
+          setExpanded(false);
+          header.addEventListener('click', function(){
+            var isExpanded = header.getAttribute('aria-expanded') === 'true';
+            setExpanded(!isExpanded);
+          });
+          window.addEventListener('resize', function(){
+            if (header.getAttribute('aria-expanded') === 'true') {
+              body.style.maxHeight = body.scrollHeight + 'px';
+            }
+          });
+        });
+      }
+      document.addEventListener('DOMContentLoaded', initCollapsibles);
     </script>
   </body>
   </html>
