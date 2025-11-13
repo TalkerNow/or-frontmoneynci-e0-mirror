@@ -1,15 +1,111 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Nav, NavItem, NavLink, Card, CardBody, TabContent, TabPane, FormGroup, Collapse, Modal, ModalHeader, ModalBody, ModalFooter, Button, Label } from 'reactstrap'
 import classnames from 'classnames'
 import ButtonRadioSwitch from '../../../../components/reactstrap/buttons/ButtonRadioSwitch'
 import Dropzone from 'react-dropzone'
-import { DownloadCloud } from 'react-feather'
+import { DownloadCloud, ChevronDown } from 'react-feather'
 import '../../../../assets/scss/plugins/extensions/dropzone.scss'
 import axios from 'axios'
+import wordIcon2025 from '../../../../assets/img/icons/word-icon-2025.png'
 
 // UI-only component: no calculation or API logic here per specs
+const DOC_STORAGE_KEY = 'career_generated_docs_v1'
+const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+const CAREER_METRIC_FIELDS = ['trimBase', 'trimAR', 'cnavPoints', 'arrcoPoints', 'ta', 'tb']
+const DOC_NAME_LABELS = {
+  preanalyse: 'Rapport pré-entretien',
+  consultation: 'Rapport consultation'
+}
+const CAREER_BUTTON_BASE_STYLE = {
+  borderRadius: 8,
+  height: 40,
+  fontWeight: 600,
+  padding: '0 18px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  transition: 'filter 160ms ease'
+}
+const CAREER_ACTIVE_COLOR = '#8B5CF6'
+const CAREER_INACTIVE_COLOR = '#9CA3AF'
+const getPreanalyseStyle = (isActive) => ({
+  ...CAREER_BUTTON_BASE_STYLE,
+  background: isActive ? CAREER_ACTIVE_COLOR : CAREER_INACTIVE_COLOR,
+  borderColor: isActive ? CAREER_ACTIVE_COLOR : CAREER_INACTIVE_COLOR,
+  color: '#fff',
+  opacity: isActive ? 1 : 0.6,
+  cursor: isActive ? 'default' : 'pointer'
+})
+const getRapportStyle = (isActive) => ({
+  ...CAREER_BUTTON_BASE_STYLE,
+  background: isActive ? CAREER_ACTIVE_COLOR : CAREER_INACTIVE_COLOR,
+  borderColor: isActive ? CAREER_ACTIVE_COLOR : CAREER_INACTIVE_COLOR,
+  color: '#fff',
+  opacity: isActive ? 1 : 0.6,
+  cursor: isActive ? 'default' : 'pointer'
+})
+const getImportStyle = (isEnabled) => ({
+  ...CAREER_BUTTON_BASE_STYLE,
+  background: isEnabled ? 'var(--bs-primary, #7367F0)' : '#9CA3AF',
+  borderColor: isEnabled ? 'var(--bs-primary, #7367F0)' : '#9CA3AF',
+  color: '#fff',
+  cursor: isEnabled ? 'pointer' : 'not-allowed',
+  opacity: isEnabled ? 1 : 0.7
+})
+const getErrorButtonStyle = (isOpen) => ({
+  ...CAREER_BUTTON_BASE_STYLE,
+  background: isOpen ? '#DC2626' : '#EF4444',
+  borderColor: isOpen ? '#B91C1C' : '#EF4444',
+  color: '#fff',
+  boxShadow: isOpen ? '0 0 0 2px rgba(220,38,38,0.25)' : 'none',
+  gap: 8
+})
+const createDocBlob = (content = '') => {
+  try {
+    return new Blob([content || ''], { type: DOCX_MIME })
+  } catch {
+    return null
+  }
+}
+const loadStoredDocs = () => {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return []
+  try {
+    const raw = localStorage.getItem(DOC_STORAGE_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .filter(doc => doc && typeof doc === 'object')
+      .map(doc => {
+        const content = typeof doc.fileContent === 'string' ? doc.fileContent : ''
+        return {
+          ...doc,
+          fileContent: content,
+          file: createDocBlob(content)
+        }
+      })
+  } catch {
+    return []
+  }
+}
+const formatDocDate = (iso) => {
+  try {
+    const d = new Date(iso)
+    if (isNaN(d.getTime())) return ''
+    return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(d)
+  } catch {
+    return ''
+  }
+}
+const generateDocId = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
+  return 'doc-' + Math.random().toString(36).slice(2) + Date.now()
+}
+const WordLogoIcon = () => (
+  <img src={wordIcon2025} alt='Logo Word' width={22} height={22} style={{ display: 'block' }} />
+)
 
-export default function SimulatorHub({ id, alignOffset = 0 }) {
+export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
   const [subTab, setSubTab] = useState('carriere')
   const [regimeTab, setRegimeTab] = useState('base')
   const [carriereLongue, setCarriereLongue] = useState(false)
@@ -20,8 +116,10 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
   const [salaireDefautRow, setSalaireDefautRow] = useState({ id: 'def', value: '', fixed: false })
   // Ajout: lignes dynamiques "Salaire jusqu’au départ"
   const [salaireJusquaDepartRows, setSalaireJusquaDepartRows] = useState([{ id: 1, value: '', fixed: false }])
+  const [projectMultiple, setProjectMultiple] = useState(false)
   const [retraiteProgressive, setRetraiteProgressive] = useState(false)
   const [cumulEmploiRetraite, setCumulEmploiRetraite] = useState(false)
+  const [rachatTrimestresActive, setRachatTrimestresActive] = useState(false)
   // Retraite progressive: UI-only fields (date, %, salaire, surcôtisation)
   const [progStartDate, setProgStartDate] = useState('')
   const [progPct, setProgPct] = useState('')
@@ -30,6 +128,8 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
   const [progStartDateFixed, setProgStartDateFixed] = useState(false)
   const [progPctFixed, setProgPctFixed] = useState(false)
   const [progSalaryFixed, setProgSalaryFixed] = useState(false)
+  const [errorMenuOpen, setErrorMenuOpen] = useState(false)
+  const [lastErrorSelection, setLastErrorSelection] = useState('')
 
   // Chômage fixed states
   const [chomageJoursFixed, setChomageJoursFixed] = useState(false)
@@ -40,6 +140,7 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
   // Chômage: UI-only fields for the panel opened when toggle is ON
   const [chomageJours, setChomageJours] = useState('')
   const [chomageAnnees, setChomageAnnees] = useState('')
+  const [chomageStartDate, setChomageStartDate] = useState('')
   // Carrière longue: UI-only "Trimestres avant" (21/20/18/16)
   const [clAvantCount, setClAvantCount] = useState({ '21': '', '20': '', '18': '', '16': '' })
   const [clAvantDates, setClAvantDates] = useState({ '21': { from: '', to: '' }, '20': { from: '', to: '' }, '18': { from: '', to: '' }, '16': { from: '', to: '' } })
@@ -54,9 +155,46 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
   const [careerDocPreview, setCareerDocPreview] = useState(false)
   const [careerDocDeleteOpen, setCareerDocDeleteOpen] = useState(false)
   const [manualCareerRows, setManualCareerRows] = useState([
-    { id: 1, annee: '', revenu: '', trimBase: '', trimAR: '', regime: 'général', observations: '', errY: false, errR: false }
+    {
+      id: 1,
+      annee: '',
+      revenu: '',
+      trimBase: '',
+      trimAR: '',
+      cnavPoints: '',
+      arrcoPoints: '',
+      ta: '',
+      tb: '',
+      tc: '',
+      regime: 'général',
+      observations: '',
+      errY: false,
+      errR: false
+    }
   ])
   const [careerComment, setCareerComment] = useState('')
+  const [selectedCareerAction, setSelectedCareerAction] = useState('preanalyse')
+  const [careerDocuments, setCareerDocuments] = useState(loadStoredDocs)
+  const [editingDocId, setEditingDocId] = useState(null)
+  const [editingDocName, setEditingDocName] = useState('')
+
+  const clientFullName = useMemo(() => {
+    const pick = (val) => (typeof val === 'string' && val.trim().length ? val.trim() : '')
+    const first = pick(user?.first_name) || pick(user?.firstname) || pick(user?.firstName) || pick(user?.prenom) || pick(user?.first) || ''
+    const last = pick(user?.last_name) || pick(user?.lastname) || pick(user?.lastName) || pick(user?.nom) || ''
+    const combined = `${first} ${last}`.replace(/\s+/g, ' ').trim()
+    if (combined) {
+      try { if (typeof localStorage !== 'undefined') localStorage.setItem('simu_last_client_name', combined) } catch {}
+      return combined
+    }
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const cached = localStorage.getItem('simu_last_client_name')
+        if (cached) return cached
+      }
+    } catch {}
+    return 'ce client'
+  }, [user])
 
   // Carrière: handle upload with same Dropzone UX as Documents perso
   const handleCareerDrop = useCallback((acceptedFiles) => {
@@ -94,6 +232,9 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
         .catch(() => { /* noop: no hard failure in UI */ })
     } catch { /* noop */ }
   }, [id])
+  const handleCareerActionClick = useCallback((action) => {
+    setSelectedCareerAction(action)
+  }, [])
   // Nouveaux états pour la refonte de l'onglet "bilan"
   const [retirementChoices, setRetirementChoices] = useState([
     { id: 'legal', label: 'Âge légal', age: '', date: '', selected: false, fixedAge: false, fixedDate: false },
@@ -126,6 +267,11 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
   const safeFreeDates = Array.isArray(freeDates)
     ? freeDates.filter(r => r && typeof r === 'object')
     : []
+  const errorMenuRef = useRef(null)
+  const isRetraiteProgressiveLocked = cumulEmploiRetraite || carriereLongue
+  const isCumulLocked = retraiteProgressive
+  const isCarriereLongueLocked = retraiteProgressive || rachatTrimestresActive
+  const isRachatLocked = carriereLongue
 
   const computeInnerOffset = useCallback(() => {
     try {
@@ -197,6 +343,21 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
     } catch (e) { /* noop */ }
   }, [salaireJusquaDepartRows])
 
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('hypotheses_project_multiple')
+      if (stored != null) {
+        setProjectMultiple(stored === 'true' || stored === true)
+      }
+    } catch (e) { /* noop */ }
+  }, [])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('hypotheses_project_multiple', JSON.stringify(projectMultiple))
+    } catch (e) { /* noop */ }
+  }, [projectMultiple])
+
   // Persist history edits (names/rachat) – UI-only, to avoid losing on refresh
   useEffect(() => {
     try {
@@ -252,6 +413,11 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                 ? String(r.trimBase)
                 : (r.trimestres != null ? String(r.trimestres) : ''),
               trimAR: (r.trimAR != null) ? String(r.trimAR) : '',
+              cnavPoints: typeof r.cnavPoints === 'string' ? r.cnavPoints : '',
+              arrcoPoints: typeof r.arrcoPoints === 'string' ? r.arrcoPoints : '',
+              ta: typeof r.ta === 'string' ? r.ta : '',
+              tb: typeof r.tb === 'string' ? r.tb : '',
+              tc: typeof r.tc === 'string' ? r.tc : '',
               regime: r.regime || 'général',
               observations: typeof r.observations === 'string' ? r.observations : '',
               errY: false, errR: false, errT: false
@@ -273,12 +439,71 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
         trimBase: r.trimBase,
         trimAR: r.trimAR,
         trimestres: r.trimBase, // legacy compatibility
+        cnavPoints: r.cnavPoints,
+        arrcoPoints: r.arrcoPoints,
+        ta: r.ta,
+        tb: r.tb,
+        tc: r.tc,
         regime: r.regime,
         observations: r.observations
       }))
       localStorage.setItem('career_manual_rows', JSON.stringify(thin))
     } catch { /* noop */ }
   }, [manualCareerRows])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') return
+    try {
+      const serializable = (Array.isArray(careerDocuments) ? careerDocuments : []).map(doc => {
+        if (!doc || typeof doc !== 'object') return null
+        const { file, ...rest } = doc
+        return rest
+      }).filter(Boolean)
+      localStorage.setItem(DOC_STORAGE_KEY, JSON.stringify(serializable))
+    } catch { /* noop */ }
+  }, [careerDocuments])
+
+  useEffect(() => {
+    if (!errorMenuOpen) return
+    const handleOutsideClick = (event) => {
+      if (errorMenuRef.current && !errorMenuRef.current.contains(event.target)) {
+        setErrorMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [errorMenuOpen])
+
+  // Compatibility rules between hypotheses toggles
+  useEffect(() => {
+    if (isRetraiteProgressiveLocked && retraiteProgressive) {
+      setRetraiteProgressive(false)
+    }
+  }, [isRetraiteProgressiveLocked, retraiteProgressive])
+
+  useEffect(() => {
+    if (isCumulLocked && cumulEmploiRetraite) {
+      setCumulEmploiRetraite(false)
+    }
+  }, [isCumulLocked, cumulEmploiRetraite])
+
+  useEffect(() => {
+    if (isCarriereLongueLocked && carriereLongue) {
+      setCarriereLongue(false)
+    }
+  }, [isCarriereLongueLocked, carriereLongue])
+
+  useEffect(() => {
+    if (isRachatLocked && rachatTrimestresActive) {
+      setRachatTrimestresActive(false)
+    }
+  }, [isRachatLocked, rachatTrimestresActive])
+
+  useEffect(() => {
+    if (!retraiteProgressive && progSurcotisation) {
+      setProgSurcotisation(false)
+    }
+  }, [retraiteProgressive, progSurcotisation])
 
   // Sanitize input to digits and a single decimal separator (comma or dot)
   const sanitizeSalaryInput = (val) => {
@@ -318,6 +543,211 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
     if (e.key === ',' || e.key === '.') return true
     return /^\d$/.test(e.key)
   }
+
+  const renderSalaireRows = (rows, { labelOffset = 1, canDeleteFirst = false } = {}) => {
+    const safeRows = Array.isArray(rows) ? rows : []
+    return safeRows.map((row, idx) => {
+      const label = `Salaire ${idx + labelOffset}`
+      return (
+        <div key={row.id || idx} className='hypo-salary-row' style={{ marginBottom: idx === safeRows.length - 1 ? 0 : 6 }}>
+          <span className='hypo-salary-label'>{label}</span>
+        <div className='hypo-salary-inputwrap'>
+          <span aria-hidden='true' style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: '#6e6b7b', pointerEvents: 'none', fontWeight: 600 }}>€</span>
+          {row && row.fixed ? (
+            <input
+              type='text'
+              readOnly
+              className='form-control'
+              value={row.value ?? ''}
+              onClick={() => {
+                setSalaireJusquaDepartRows(prev => (Array.isArray(prev) ? prev : []).map(r => r && r.id === row.id ? { ...r, fixed: false } : r))
+                setTimeout(() => {
+                  const el = document.getElementById(`salaire-input-${row.id}`)
+                  if (el) { el.focus(); const len = el.value.length; el.setSelectionRange(len, len) }
+                }, 0)
+              }}
+              title='Cliquez pour modifier'
+              style={{ paddingRight: 26, textAlign: 'right', borderRadius: 6, background: '#fff' }}
+            />
+          ) : (
+            <input
+              id={`salaire-input-${row.id}`}
+              type='text'
+              inputMode='decimal'
+              pattern='[0-9]*'
+              className='form-control'
+              value={row.value ?? ''}
+              onKeyDown={(e) => {
+                if (!isAllowedKey(e)) e.preventDefault()
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  const raw = ((row && row.value) || '').toString().replace(/\s/g, '').replace(',', '.')
+                  const num = parseFloat(raw)
+                  const formatted = isNaN(num)
+                    ? (row ? row.value : '')
+                    : new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num)
+                  setSalaireJusquaDepartRows(prev => (Array.isArray(prev) ? prev : []).map(r => r && r.id === row.id ? { ...r, value: formatted, fixed: true } : r))
+                  e.currentTarget.blur()
+                }
+              }}
+              onChange={(e) => {
+                const val = sanitizeSalaryInput(e.target.value)
+                setSalaireJusquaDepartRows(prev => (Array.isArray(prev) ? prev : []).map(r => r && r.id === row.id ? { ...r, value: val } : r))
+              }}
+              placeholder='0,00'
+              style={{ paddingRight: 26, textAlign: 'right', borderRadius: 6, background: '#fff' }}
+            />
+          )}
+        </div>
+        <div className='hypo-date-row' style={{ marginLeft: 8 }}>
+          <span className='hypo-date-sep'>Du</span>
+          <input
+            type='date'
+            className='hypo-date-input'
+            value={normalizeDate(row && row.from)}
+            onMouseDown={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
+            onFocus={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
+            onChange={(e) => {
+              const v = e.currentTarget.value || ''
+              setSalaireJusquaDepartRows(prev => (Array.isArray(prev) ? prev : []).map(r => (r && r.id === row.id) ? { ...r, from: v } : r))
+            }}
+            aria-label={`Date de début pour ${label}`}
+          />
+          <span className='hypo-date-sep'>au</span>
+          <input
+            type='date'
+            className='hypo-date-input'
+            value={normalizeDate(row && row.to)}
+            onMouseDown={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
+            onFocus={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
+            onChange={(e) => {
+              const v = e.currentTarget.value || ''
+              setSalaireJusquaDepartRows(prev => (Array.isArray(prev) ? prev : []).map(r => (r && r.id === row.id) ? { ...r, to: v } : r))
+            }}
+            aria-label={`Date de fin pour ${label}`}
+          />
+        </div>
+        { (canDeleteFirst || idx > 0) && (
+          <button
+            type='button'
+            onClick={() => setSalaireJusquaDepartRows(prev => (Array.isArray(prev) ? prev : []).filter(r => r && r.id !== row.id))}
+            aria-label='Supprimer cette ligne'
+            title='Supprimer'
+            className='action-btn danger'
+            style={{ marginLeft: 8 }}
+          >
+            <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+              <polyline points='3 6 5 6 21 6'></polyline>
+              <path d='M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6'></path>
+              <path d='M10 11v6'></path>
+              <path d='M14 11v6'></path>
+              <path d='M9 6V4h6v2'></path>
+            </svg>
+          </button>
+        )}
+      </div>
+      )
+    })
+  }
+  const hasValidManualRow = useMemo(() => {
+    const rows = Array.isArray(manualCareerRows) ? manualCareerRows : []
+    return rows.some(row => {
+      if (!row) return false
+      const yearValue = typeof row.annee === 'string' ? row.annee.trim() : ''
+      const revenueValue = row && row.revenu != null ? String(row.revenu).trim() : ''
+      const yearOk = yearValue.length === 4
+      const revenueOk = revenueValue !== ''
+      if (!yearOk || !revenueOk) return false
+      const hasMetric = CAREER_METRIC_FIELDS.some(field => {
+        const value = row[field]
+        return value !== undefined && value !== null && String(value).trim() !== ''
+      })
+      return hasMetric
+    })
+  }, [manualCareerRows])
+
+  const isImportReady = Boolean(careerDoc) || hasValidManualRow
+
+  const buildDocumentContent = useCallback((docTitle, generationDate) => {
+    try {
+      const label = docTitle || 'Document carrière'
+      const originLabel = selectedCareerAction === 'consultation' ? 'Rapport consultation' : 'Rapport pré-entretien'
+      const dateLabel = generationDate && generationDate.toLocaleString
+        ? generationDate.toLocaleString('fr-FR')
+        : new Date().toLocaleString('fr-FR')
+      const header = `${label}\nOrigine: ${originLabel}\nGénéré le: ${dateLabel}\n\n`
+      if (careerDoc && careerDoc.name) {
+        const meta = [
+          `Source: Fichier importé (« ${careerDoc.name} »)`,
+          careerDoc.type ? `Type: ${careerDoc.type}` : null,
+          careerDoc.uploadedAt ? `Ajouté le: ${careerDoc.uploadedAt}` : null
+        ].filter(Boolean).join('\n')
+        return `${header}${meta}\n`
+      }
+      const rows = (Array.isArray(manualCareerRows) ? manualCareerRows : [])
+        .map((row, idx) => `Ligne ${idx + 1} · Année ${row.annee || '-'} · Revenu ${row.revenu || '-'} · Trimestres ${row.trimBase || '0'} · AR ${row.trimAR || '0'}`)
+        .join('\n')
+      return `${header}Source: Saisie manuelle\n${rows || 'Aucune donnée saisie'}`
+    } catch {
+      return 'Document carrière'
+    }
+  }, [careerDoc, manualCareerRows, selectedCareerAction])
+
+  const handleImportData = useCallback(() => {
+    if (!isImportReady) return
+    const originKey = selectedCareerAction === 'consultation' ? 'consultation' : 'preanalyse'
+    const label = DOC_NAME_LABELS[originKey] || 'Document carrière'
+    const displayName = `${label} de ${clientFullName}`.replace(/\s+/g, ' ').trim()
+    const now = new Date()
+    const content = buildDocumentContent(displayName, now)
+    const blob = createDocBlob(content) || createDocBlob('Document carrière')
+    const newDoc = {
+      id: generateDocId(),
+      name: displayName,
+      type: 'docx',
+      origin: originKey,
+      createdAt: now.toISOString(),
+      fileContent: content,
+      file: blob
+    }
+    setCareerDocuments(prev => (Array.isArray(prev) ? [...prev, newDoc] : [newDoc]))
+  }, [buildDocumentContent, clientFullName, isImportReady, selectedCareerAction])
+
+  const handleOpenDocument = useCallback((doc) => {
+    if (!doc || !doc.file) return
+    try {
+      const url = URL.createObjectURL(doc.file)
+      window.open(url, '_blank', 'noopener')
+      setTimeout(() => URL.revokeObjectURL(url), 5000)
+    } catch { /* noop */ }
+  }, [])
+
+  const startEditingDocName = useCallback((doc) => {
+    if (!doc) return
+    setEditingDocId(doc.id)
+    setEditingDocName(doc.name || '')
+  }, [])
+
+  const cancelDocNameEdit = useCallback(() => {
+    setEditingDocId(null)
+    setEditingDocName('')
+  }, [])
+
+  const commitDocNameEdit = useCallback(() => {
+    if (!editingDocId) return cancelDocNameEdit()
+    const nextName = (editingDocName || '').trim()
+    setCareerDocuments(prev => (Array.isArray(prev) ? prev : []).map(doc => {
+      if (!doc || doc.id !== editingDocId) return doc
+      return { ...doc, name: nextName || doc.name }
+    }))
+    cancelDocNameEdit()
+  }, [editingDocId, editingDocName, cancelDocNameEdit])
+
+  const deleteGeneratedDoc = useCallback((docId) => {
+    setCareerDocuments(prev => (Array.isArray(prev) ? prev : []).filter(doc => doc && doc.id !== docId))
+    if (editingDocId === docId) cancelDocNameEdit()
+  }, [cancelDocNameEdit, editingDocId])
+
 
   // Age helpers for "Âge calculé" (Dates libres)
   const getBirthDate = useCallback(() => {
@@ -360,6 +790,55 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
     } catch { return '' }
   }
 
+  const handleRetraiteToggle = useCallback((next) => {
+    if (isRetraiteProgressiveLocked && next) return
+    const nextValue = !!next
+    setRetraiteProgressive(nextValue)
+    if (nextValue) {
+      setCumulEmploiRetraite(false)
+      setCarriereLongue(false)
+    } else {
+      setProgSurcotisation(false)
+    }
+  }, [isRetraiteProgressiveLocked])
+
+  const handleCumulToggle = useCallback((next) => {
+    if (isCumulLocked && next) return
+    const nextValue = !!next
+    setCumulEmploiRetraite(nextValue)
+    if (nextValue) {
+      setRetraiteProgressive(false)
+    }
+  }, [isCumulLocked])
+
+  const handleCarriereLongueToggle = useCallback((next) => {
+    if (isCarriereLongueLocked && next) return
+    const nextValue = !!next
+    setCarriereLongue(nextValue)
+    if (nextValue) {
+      setRetraiteProgressive(false)
+      setRachatTrimestresActive(false)
+    }
+  }, [isCarriereLongueLocked])
+
+  const handleRachatToggle = useCallback((next) => {
+    if (isRachatLocked && next) return
+    const nextValue = !!next
+    setRachatTrimestresActive(nextValue)
+    if (nextValue) {
+      setCarriereLongue(false)
+    }
+  }, [isRachatLocked])
+
+  const handleSignalErrorClick = useCallback(() => {
+    setErrorMenuOpen(prev => !prev)
+  }, [])
+
+  const handleErrorOptionSelect = useCallback((type) => {
+    setLastErrorSelection(type)
+    setErrorMenuOpen(false)
+  }, [])
+
   return (
     <div>
       {/* Responsive layout helpers for the Hypothèses section + bilan table */}
@@ -372,6 +851,20 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
         /* Unify label width so all switches are aligned */
         .hypo-label { flex: 0 0 280px; max-width: 280px; font-weight: 500; color: var(--bs-body-color, #4b4b4b); line-height: 1.3; }
         .hypo-label.nowrap { white-space: nowrap; }
+        .ui-disabled { opacity: 0.55; filter: grayscale(0.25); transition: opacity 0.2s ease; }
+        .ui-disabled,
+        .ui-disabled * { cursor: not-allowed !important; }
+        .ui-disabled .hypo-ctrl,
+        .ui-disabled .hypo-panel,
+        .ui-disabled .prog-field,
+        .ui-disabled .prog-surco-row,
+        .ui-disabled input,
+        .ui-disabled button,
+        .ui-disabled .btn,
+        .ui-disabled .action-btn,
+        .ui-disabled .inline-input { pointer-events: none !important; }
+        .ui-disabled .hypo-label,
+        .ui-disabled .prog-label { color: #9CA3AF !important; }
         .hypo-ctrl { flex: 1 1 auto; min-width: 180px; }
         .hypo-panel { background: #f8f8f8; border: 1px solid #e9e9e9; border-radius: 8px; padding: 8px 10px; width: 100%; max-width: 640px; }
         .hypo-panel-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: nowrap; }
@@ -385,6 +878,9 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
         .hypo-date-input { width: 140px; height: 32px; padding: 6px 8px; border: 1px solid #E5E7EB; border-radius: 6px; background: #fff; font-size: 0.9rem; }
         .hypo-date-sep { width: 24px; text-align: center; color: #6B7280; display: inline-block; }
         .hypo-date-input:focus { outline: none; border-color: #A5B4FC; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
+        .hypo-salary-toggle { display: inline-flex; align-items: center; gap: 10px; margin-left: 12px; flex-wrap: wrap; }
+        .hypo-salary-toggle.inline { flex-wrap: nowrap; white-space: nowrap; }
+        .hypo-salary-toggle span.label { font-weight: 600; color: var(--bs-body-color, #4b4b4b); }
         /* Chômage panel */
         .chomage-panel-fields { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
         .chomage-field { display: inline-flex; align-items: center; gap: 8px; }
@@ -395,7 +891,12 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
         .chomage-days::-webkit-input-placeholder { text-align: center; }
         .chomage-trim { width: 100%; text-align: center; }
         .chomage-row { display: grid; grid-template-columns: 180px 80px 24px 140px 24px 140px; column-gap: 8px; align-items: center; }
-        .chomage-dual-row { display: grid; grid-template-columns: 180px 80px 16px 90px 96px; column-gap: 8px; align-items: center; }
+        .chomage-dual-row {
+          display: grid;
+          grid-template-columns: 120px 220px 140px 100px 40px 100px 80px;
+          column-gap: 10px;
+          align-items: center;
+        }
         /* Retraite progressive panel */
         .prog-panel-fields { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
         .prog-panel-fields.nowrap { flex-wrap: nowrap; }
@@ -582,13 +1083,28 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
         fieldset > legend.h6 { font-size: 1.35rem; font-weight: 700; margin: 0 0 10px; color: #2f2f39; }
 
         .choice-table, .history-table {
-          width: 100%;            /* full width for uniformity */
+          width: 100%;
           border-collapse: collapse;
           font-size: 13px;
           background: #fff;
           table-layout: fixed;
           max-width: 100%;
           margin-left: 0;
+          padding: 0 8px;
+        }
+        .choice-table tbody td,
+        .history-table tbody td {
+          min-height: 48px;
+        }
+        @media (min-width: 1200px) {
+          .choice-table,
+          .history-table {
+            max-width: 1020px;
+          }
+        }
+        .history-table-wrap {
+          width: 100%;
+          overflow-x: visible;
         }
         /* Equal widths (disabled to allow custom colgroup widths) */
         .choice-table.cols-3 th, .choice-table.cols-3 td { width: auto; }
@@ -616,7 +1132,7 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
           background: #fff;
         }
         /* Narrow actions column for history table */
-        .history-table th.actions-col, .history-table td.actions-col { width: 80px; text-align: center; }
+        .history-table th.actions-col, .history-table td.actions-col { width: 110px; text-align: center; }
         .history-table td { padding: 6px 8px; } /* even tighter for history */
         .choice-table tbody tr:nth-child(even) td,
         .history-table tbody tr:nth-child(even) td { background: #F9FAFB; }
@@ -624,14 +1140,84 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
         .history-table tbody tr:hover td { background: #EEF2FF; }
         .inline-input { width: 100%; border: 1px solid #E5E7EB; border-radius: 6px; padding: 6px 8px; background: #fff; }
         .inline-input:focus { outline: none; border-color: #A5B4FC; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
-        .action-btn { background:#fff; border:1px solid #E5E7EB; border-radius:6px; padding:6px; line-height:0; cursor:pointer; color:#4B5563; display:inline-flex; align-items:center; justify-content:center; }
+        .action-btn {
+          background:#fff;
+          border:1px solid #E5E7EB;
+          border-radius:10px;
+          padding:6px 10px;
+          min-width:40px;
+          height:34px;
+          line-height:0;
+          cursor:pointer;
+          color:#4B5563;
+          display:inline-flex;
+          align-items:center;
+          justify-content:center;
+          transition: background 140ms ease, transform 120ms ease;
+        }
         .action-btn svg { width: 16px; height: 16px; }
-        .action-btn:hover { background:#EEF2FF; color:#111827; }
-        .action-btn.danger { color: #dc3545; border-color: #f3c2c4; }
-        .action-btn.danger:hover { background: #FEE2E2; }
+        .action-btn:hover { background:#EEF2FF; color:#111827; transform: translateY(-1px); }
+        .action-btn:active { transform: translateY(0); }
+        .action-btn.danger {
+          color: #B91C1C;
+          border-color: #FECACA;
+          background: #FFF5F5;
+        }
+        .action-btn.danger:hover {
+          background: #FEE2E2;
+          color: #991B1B;
+        }
 
         /* Carrière upload + saisie */
         .career-card { background: #FAFAFA; border: 1px solid #E5E7EB; border-radius: 8px; width: 100%; max-width: none; margin: 0; }
+        .career-upload-row { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 12px; }
+        .career-upload-card, .career-comment-stack { flex: 1 1 0; min-width: 320px; }
+        .career-dropzone { min-height: 110px; border-radius: 10px; border: 1.5px dashed #C4B5FD; background: #F9FAFB; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; }
+        .career-comment-stack { display: flex; flex-direction: column; gap: 4px; justify-content: flex-start; margin-top: -8px; }
+        .career-comment-label { font-weight: 600; font-size: 13px; color: #374151; margin: 0; line-height: 1; padding-left: 2px; }
+        .career-comment-input { width: 100%; min-height: 110px; border: 1px solid #E5E7EB; border-radius: 8px; padding: 8px; background: #fff; resize: vertical; }
+        .career-comment-input:focus { outline: none; border-color: #A5B4FC; box-shadow: 0 0 0 3px rgba(129,140,248,0.2); }
+        @media (max-width: 768px) {
+          .career-upload-row { flex-direction: column; }
+        }
+        .career-action-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; position: relative; }
+        .career-error-dropdown { position: relative; display: inline-flex; }
+        .career-error-menu {
+          position: absolute;
+          top: calc(100% + 6px);
+          right: 0;
+          min-width: 240px;
+          background: #fff;
+          border: 1px solid #E5E7EB;
+          border-radius: 10px;
+          box-shadow: 0 12px 30px rgba(15,23,42,0.12);
+          padding: 6px;
+          z-index: 5;
+        }
+        .career-error-option {
+          width: 100%;
+          border: 0;
+          background: transparent;
+          padding: 8px 10px;
+          border-radius: 8px;
+          font-weight: 600;
+          color: #374151;
+          text-align: left;
+          transition: background 140ms ease, color 140ms ease;
+        }
+        .career-error-option:hover { background: #EEF2FF; color: #1F2937; }
+        .career-error-caret { transition: transform 160ms ease; }
+        .career-error-caret.open { transform: rotate(180deg); }
+        .sr-only {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0 0 0 0);
+          border: 0;
+        }
         /* In Carrière, tables should use full width */
         .career-card .bilan-wrap { max-width: none; width: 100%; }
         /* Remove outer card visual in Bilan so only the table block width shows */
@@ -684,7 +1270,7 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
 
         /* Compact card body padding only on large screens */
         @media (min-width: 1200px) {
-          .compact-lg { padding: 0.75rem !important; }
+          .compact-lg { padding: 1.5rem !important; }
           .hypo-indent-lg { padding-left: 2rem !important; }
         }
       `}</style>
@@ -731,86 +1317,216 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
           <Card className='mb-1 career-card'>
             <CardBody>
               <h6 className='mb-1 section-title'>Relevé de carrière du client</h6>
-              <div className='mb-50'>
-                <Dropzone onDrop={handleCareerDrop}>
-                  {({ getRootProps, getInputProps }) => (
-                    <div {...getRootProps(({ className: 'dropzone' }))}>
-                      <input {...getInputProps()} />
-                      <DownloadCloud className='text-light' size={50} />
-                      <p className='mx-1'>
-                        Glissez et déposez des fichiers ici, ou cliquez pour sélectionner des fichiers à télécharger.
-                      </p>
-                    </div>
-                  )}
-                </Dropzone>
+              <div className='career-upload-row'>
+                <div className='career-upload-card'>
+                  <Dropzone onDrop={handleCareerDrop}>
+                    {({ getRootProps, getInputProps }) => (
+                      <div {...getRootProps({ className: 'dropzone career-dropzone' })}>
+                        <input {...getInputProps()} />
+                        <DownloadCloud className='text-light' size={42} />
+                        <p className='mx-1'>
+                          Glissez et déposez des fichiers ici, ou cliquez pour sélectionner des fichiers à télécharger.
+                        </p>
+                      </div>
+                    )}
+                  </Dropzone>
+                </div>
+                <div className='career-comment-stack'>
+                  <Label className='career-comment-label'>Commentaires</Label>
+                  <textarea
+                    value={careerComment}
+                    onChange={(e) => setCareerComment(e.target.value)}
+                    placeholder='Écrire un commentaire lié au rapport pré-entretien ou au rapport de CH…'
+                    className='career-comment-input'
+                  />
+                </div>
               </div>
 
-              {/* Boutons actions alignés à droite */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-                <Button
-                  style={{ background: '#A78BFA', borderColor: '#A78BFA' }}
-                  color='primary'
-                >
-                  Pré-analyse RDV
-                </Button>
-                <Button
-                  style={{ background: '#E5E7EB', borderColor: '#E5E7EB', color: '#111827' }}
-                  color='secondary'
-                >
-                  Rapport de CH
-                </Button>
-              </div>
-
-              {/* Pavé Commentaires */}
-              <div style={{ marginBottom: 12 }}>
-                <Label style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Commentaires</Label>
-                <textarea
-                  value={careerComment}
-                  onChange={(e) => setCareerComment(e.target.value)}
-                  placeholder='Écrire un commentaire lié à la pré-analyse ou au rapport de CH…'
-                  style={{ width: '100%', height: 110, border: '1px solid #E5E7EB', borderRadius: 8, padding: 8, background: '#fff' }}
-                />
-              </div>
-
-              {!careerDoc ? (
-                <div className='file-empty'>Aucun relevé de carrière n’a encore été importé.</div>
-              ) : (
-                <div className='file-row'>
-                  <div className='file-meta'>
-                    <span className='file-name'>{careerDoc.name}</span>
-                    <span className='file-date'>Envoyé le {(() => { try { return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(careerDoc.uploadedAt)) } catch { return careerDoc.uploadedAt } })()}</span>
+              {/* Actions carrière */}
+              <div className='career-action-row'>
+                <div className='career-action-group'>
+                  <Button
+                    className='career-action-btn'
+                    style={getPreanalyseStyle(selectedCareerAction === 'preanalyse')}
+                    color={selectedCareerAction === 'preanalyse' ? 'primary' : 'secondary'}
+                    onClick={() => handleCareerActionClick('preanalyse')}
+                  >
+                    Rapport pré-entretien
+                  </Button>
+                  <Button
+                    className='career-action-btn'
+                    style={getRapportStyle(selectedCareerAction === 'consultation')}
+                    color={selectedCareerAction === 'consultation' ? 'primary' : 'secondary'}
+                    onClick={() => handleCareerActionClick('consultation')}
+                  >
+                    Rapport consultation
+                  </Button>
+                </div>
+                <div className='career-action-group'>
+                  <Button
+                    className='career-action-btn'
+                    style={getImportStyle(isImportReady)}
+                    color={isImportReady ? 'primary' : 'light'}
+                    disabled={!isImportReady}
+                    onClick={handleImportData}
+                  >
+                    Importer les données
+                  </Button>
+                  <div className='career-error-dropdown' ref={errorMenuRef}>
+                    <Button
+                      className='career-action-btn'
+                      style={getErrorButtonStyle(errorMenuOpen)}
+                      color='danger'
+                      aria-haspopup='menu'
+                      aria-expanded={errorMenuOpen}
+                      onClick={handleSignalErrorClick}
+                    >
+                      Signaler une erreur
+                      <ChevronDown
+                        size={16}
+                        className={classnames('career-error-caret', { open: errorMenuOpen })}
+                      />
+                    </Button>
+                    {errorMenuOpen && (
+                      <div className='career-error-menu' role='menu'>
+                        <button
+                          type='button'
+                          className='career-error-option'
+                          role='menuitem'
+                          onClick={() => handleErrorOptionSelect('preanalyse')}
+                        >
+                          Erreur rapport pré-entretien
+                        </button>
+                        <button
+                          type='button'
+                          className='career-error-option'
+                          role='menuitem'
+                          onClick={() => handleErrorOptionSelect('consultation')}
+                        >
+                          Erreur rapport consultation
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <div className='manual-actions'>
-                    {/* Eye */}
-                    <button
-                      type='button'
-                      className='action-btn'
-                      title='Visualiser le document'
-                      onClick={() => setCareerDocPreview(true)}
-                    >
-                      <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
-                        <path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'></path>
-                        <circle cx='12' cy='12' r='3'></circle>
-                      </svg>
-                    </button>
-                    {/* Trash */}
-                    <button
-                      type='button'
-                      className='action-btn danger'
-                      title='Supprimer le relevé'
-                      onClick={() => setCareerDocDeleteOpen(true)}
-                    >
-                      <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
-                        <polyline points='3 6 5 6 21 6'></polyline>
-                        <path d='M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6'></path>
-                        <path d='M10 11v6'></path>
-                        <path d='M14 11v6'></path>
-                        <path d='M9 6V4h6v2'></path>
-                      </svg>
-                    </button>
+                </div>
+              </div>
+              <span className='sr-only' aria-live='polite'>
+                {lastErrorSelection
+                  ? `Dernière erreur signalée : ${
+                      lastErrorSelection === 'preanalyse'
+                        ? 'Erreur rapport pré-entretien'
+                        : 'Erreur rapport consultation'
+                    }`
+                  : ''}
+              </span>
+              {Array.isArray(careerDocuments) && careerDocuments.length > 0 && (
+                <div className='career-generated-wrapper'>
+                  <div className='doc-section-title'>Documents générés via l’import</div>
+                  <div className='career-documents'>
+                    {careerDocuments.map((doc) => (
+                      <div className='career-doc-card' key={doc.id}>
+                        <div className='doc-card-left'>
+                          <div className='doc-card-icon' aria-hidden='true'>
+                            <svg width='28' height='28' viewBox='0 0 48 48' fill='none' xmlns='http://www.w3.org/2000/svg'>
+                              <rect x='9' y='4' width='30' height='40' rx='6' stroke='#9CA3AF' strokeWidth='2' fill='none' />
+                              <line x1='15' y1='16' x2='33' y2='16' stroke='#9CA3AF' strokeWidth='2' />
+                              <line x1='15' y1='22' x2='33' y2='22' stroke='#9CA3AF' strokeWidth='2' />
+                              <line x1='15' y1='28' x2='27' y2='28' stroke='#9CA3AF' strokeWidth='2' />
+                            </svg>
+                          </div>
+                        <div className='doc-card-text'>
+                            {editingDocId === doc.id ? (
+                              <input
+                                className='doc-name-input'
+                                value={editingDocName}
+                                onChange={(e) => setEditingDocName(e.target.value)}
+                                onBlur={commitDocNameEdit}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') { e.preventDefault(); commitDocNameEdit() }
+                                  if (e.key === 'Escape') { e.preventDefault(); cancelDocNameEdit() }
+                                }}
+                                autoFocus
+                              />
+                            ) : (
+                              <button type='button' className='doc-name-btn' onClick={() => startEditingDocName(doc)}>
+                                {doc.name || 'Document sans titre'}
+                              </button>
+                            )}
+                            <div className='doc-card-subtitle'>
+                              Document · DOCX{doc.createdAt ? ` · ${formatDocDate(doc.createdAt)}` : ''}
+                            </div>
+                          </div>
+                        </div>
+                        <div className='doc-card-actions'>
+                          <button type='button' className='doc-word-btn' onClick={() => handleOpenDocument(doc)}>
+                            <span className='doc-word-icon' aria-hidden='true'>
+                              <WordLogoIcon />
+                            </span>
+                            <span>Ouvrir dans Word</span>
+                          </button>
+                          <button
+                            type='button'
+                            className='doc-delete-btn'
+                            title='Supprimer le document'
+                            onClick={() => deleteGeneratedDoc(doc.id)}
+                          >
+                            <svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+                              <polyline points='3 6 5 6 21 6'></polyline>
+                              <path d='M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6'></path>
+                              <path d='M10 11v6'></path>
+                              <path d='M14 11v6'></path>
+                              <path d='M9 6V4h6v2'></path>
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
+
+              <div className='career-upload-wrapper'>
+                <div className='doc-section-title'>Documents importés</div>
+                {!careerDoc ? (
+                  <div className='file-empty'>Aucun relevé de carrière n’a encore été importé.</div>
+                ) : (
+                  <div className='file-row'>
+                    <div className='file-meta'>
+                      <span className='file-name'>{careerDoc.name}</span>
+                      <span className='file-date'>Envoyé le {(() => { try { return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(careerDoc.uploadedAt)) } catch { return careerDoc.uploadedAt } })()}</span>
+                    </div>
+                    <div className='manual-actions'>
+                      {/* Eye */}
+                      <button
+                        type='button'
+                        className='action-btn'
+                        title='Visualiser le document'
+                        onClick={() => setCareerDocPreview(true)}
+                      >
+                        <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+                          <path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'></path>
+                          <circle cx='12' cy='12' r='3'></circle>
+                        </svg>
+                      </button>
+                      {/* Trash */}
+                      <button
+                        type='button'
+                        className='action-btn danger'
+                        title='Supprimer le relevé'
+                        onClick={() => setCareerDocDeleteOpen(true)}
+                      >
+                        <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+                          <polyline points='3 6 5 6 21 6'></polyline>
+                          <path d='M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6'></path>
+                          <path d='M10 11v6'></path>
+                          <path d='M14 11v6'></path>
+                          <path d='M9 6V4h6v2'></path>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Preview modal */}
               <Modal isOpen={careerDocPreview} toggle={() => setCareerDocPreview(false)} size='lg'>
@@ -983,19 +1699,69 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                           </td>
                           {/* New UI-only numeric columns (uncontrolled) */}
                           <td>
-                            <input type='text' inputMode='numeric' pattern='[0-9]*' maxLength={6} className='manual-num' defaultValue={row.cnavPoints ?? ''} aria-label='Cnav (points)' />
+                            <input
+                              type='text'
+                              inputMode='decimal'
+                              className='manual-num'
+                              value={row.cnavPoints ?? ''}
+                              onChange={(e) => {
+                                const val = sanitizeSalaryInput(e.target.value)
+                                setManualCareerRows(prev => (Array.isArray(prev) ? prev : []).map(r => r.id === row.id ? { ...r, cnavPoints: val } : r))
+                              }}
+                              aria-label='Cnav (points)'
+                            />
                           </td>
                           <td>
-                            <input type='text' inputMode='numeric' pattern='[0-9]*' maxLength={6} className='manual-num' defaultValue={row.arrcoPoints ?? ''} aria-label='Arrco Agirc (points)' />
+                            <input
+                              type='text'
+                              inputMode='decimal'
+                              className='manual-num'
+                              value={row.arrcoPoints ?? ''}
+                              onChange={(e) => {
+                                const val = sanitizeSalaryInput(e.target.value)
+                                setManualCareerRows(prev => (Array.isArray(prev) ? prev : []).map(r => r.id === row.id ? { ...r, arrcoPoints: val } : r))
+                              }}
+                              aria-label='Arrco Agirc (points)'
+                            />
                           </td>
                           <td>
-                            <input type='text' inputMode='numeric' pattern='[0-9]*' className='manual-num' defaultValue={row.ta ?? ''} aria-label='Tranche A (TA)' />
+                            <input
+                              type='text'
+                              inputMode='decimal'
+                              className='manual-num'
+                              value={row.ta ?? ''}
+                              onChange={(e) => {
+                                const val = sanitizeSalaryInput(e.target.value)
+                                setManualCareerRows(prev => (Array.isArray(prev) ? prev : []).map(r => r.id === row.id ? { ...r, ta: val } : r))
+                              }}
+                              aria-label='Tranche A (TA)'
+                            />
                           </td>
                           <td>
-                            <input type='text' inputMode='numeric' pattern='[0-9]*' className='manual-num' defaultValue={row.tb ?? ''} aria-label='Tranche B (TB)' />
+                            <input
+                              type='text'
+                              inputMode='decimal'
+                              className='manual-num'
+                              value={row.tb ?? ''}
+                              onChange={(e) => {
+                                const val = sanitizeSalaryInput(e.target.value)
+                                setManualCareerRows(prev => (Array.isArray(prev) ? prev : []).map(r => r.id === row.id ? { ...r, tb: val } : r))
+                              }}
+                              aria-label='Tranche B (TB)'
+                            />
                           </td>
                           <td className='hidden-tc'>
-                            <input type='text' inputMode='numeric' pattern='[0-9]*' className='manual-num' defaultValue={row.tc ?? ''} aria-label='Tranche C (TC)' />
+                            <input
+                              type='text'
+                              inputMode='decimal'
+                              className='manual-num'
+                              value={row.tc ?? ''}
+                              onChange={(e) => {
+                                const val = sanitizeSalaryInput(e.target.value)
+                                setManualCareerRows(prev => (Array.isArray(prev) ? prev : []).map(r => r.id === row.id ? { ...r, tc: val } : r))
+                              }}
+                              aria-label='Tranche C (TC)'
+                            />
                           </td>
                           <td className='actions-col'>
                             <div className='manual-actions'>
@@ -1029,7 +1795,23 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                   className='btn-pastel'
                   onClick={() => setManualCareerRows(prev => ([
                     ...(Array.isArray(prev) ? prev : []),
-                    { id: Date.now(), annee: '', revenu: '', trimBase: '', trimAR: '', regime: 'général', observations: '', errY: false, errR: false, errT: false }
+                    {
+                      id: Date.now(),
+                      annee: '',
+                      revenu: '',
+                      trimBase: '',
+                      trimAR: '',
+                      cnavPoints: '',
+                      arrcoPoints: '',
+                      ta: '',
+                      tb: '',
+                      tc: '',
+                      regime: 'général',
+                      observations: '',
+                      errY: false,
+                      errR: false,
+                      errT: false
+                    }
                   ]))}
                 >
                   + Ajouter une ligne
@@ -1131,7 +1913,6 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
             <CardBody className='hypo-indent-lg'>
               <FormGroup tag='fieldset' style={{ fontSize: '1rem' }}>
                 <legend className='h6'>Hypothèses de fin de carrière</legend>
-
                 <div className='hypo-grid' style={{ marginBottom: 8 }}>
                   {/* Sans */}
                   <div className='hypo-row'>
@@ -1162,10 +1943,10 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                 <Collapse isOpen={salaireDefaut && !!sans}>
                   <div
                     className='hypo-panel mb-50'
-                    style={{ marginTop: 12, maxWidth: 600 }}
+                    style={{ marginTop: 12, maxWidth: '70%' }}
                   >
-                    <div className='hypo-salary-row nowrap' style={{ marginBottom: 0 }}>
-                      <span className='hypo-salary-label'>Salaire par défaut</span>
+                    <div className='hypo-salary-row nowrap' style={{ marginBottom: 0, alignItems: 'center', flexWrap: 'nowrap', gap: 12 }}>
+                      <span className='hypo-salary-label'>Salaire actuel jusqu’au départ</span>
                       <div className='hypo-salary-inputwrap'>
                         <span
                           aria-hidden='true'
@@ -1218,7 +1999,6 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                           />
                         )}
                       </div>
-                      {/* Date range: Du .. au .. */}
                       <div className='hypo-date-row' style={{ marginLeft: 8 }}>
                         <span className='hypo-date-sep'>Du</span>
                         <input
@@ -1231,7 +2011,7 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                             const v = e.currentTarget.value || ''
                             setSalaireDefautRow(prev => ({ ...(prev && typeof prev === 'object' ? prev : { id: 'def', value: '', fixed: false }), from: v }))
                           }}
-                          aria-label='Date de début (salaire par défaut)'
+                          aria-label='Date de début (salaire actuel)'
                         />
                         <span className='hypo-date-sep'>au</span>
                         <input
@@ -1244,156 +2024,69 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                             const v = e.currentTarget.value || ''
                             setSalaireDefautRow(prev => ({ ...(prev && typeof prev === 'object' ? prev : { id: 'def', value: '', fixed: false }), to: v }))
                           }}
-                          aria-label='Date de fin (salaire par défaut)'
+                          aria-label='Date de fin (salaire actuel)'
+                        />
+                      </div>
+                      <div className='hypo-salary-toggle inline'>
+                        <span className='label'>Projeter plusieurs salaires&nbsp;?</span>
+                        <ButtonRadioSwitch
+                          noLabel
+                          checked={projectMultiple}
+                          onChange={(e) => setProjectMultiple(e.target.checked)}
                         />
                       </div>
                     </div>
                   </div>
+                  {projectMultiple && (
+                    <div
+                      className='hypo-panel mb-50'
+                      style={{ marginTop: 16, maxWidth: 640 }}
+                    >
+                      <div className='hypo-panel-header mb-1'>
+                        <span className='text-body' style={{ fontWeight: 600 }}>Salaire(s) supplémentaires</span>
+                        <button
+                          type='button'
+                          onClick={() => setSalaireJusquaDepartRows(prev => ([...(Array.isArray(prev) ? prev : []), { id: Date.now(), value: '', fixed: false }]))}
+                          aria-label='Ajouter un salaire supplémentaire'
+                          style={{
+                            border: '1px solid var(--bs-primary, #7367F0)',
+                            color: 'var(--bs-primary, #7367F0)',
+                            background: '#fff',
+                            borderRadius: 20,
+                            padding: '2px 8px',
+                            lineHeight: 1.2,
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                            alignSelf: 'flex-start',
+                            width: 'auto',
+                            display: 'inline-flex'
+                          }}
+                        >
+                          +
+                        </button>
+                      </div>
+                      <div>
+                        {renderSalaireRows(safeSalaireRows, { labelOffset: 2, canDeleteFirst: true })}
+                      </div>
+                    </div>
+                  )}
                 </Collapse>
 
                 {/* Zone dynamique "Salaire(s) jusqu’au départ" quand Non */}
-                <Collapse isOpen={!salaireDefaut && !!sans}>
+                {/* <Collapse isOpen={!salaireDefaut && !!sans}>
                   <div
                     className='hypo-panel mb-50'
                     style={{ marginTop: 12, maxWidth: 640 }}
                   >
                     <div className='hypo-panel-header mb-1'>
                       <span className='text-body' style={{ fontWeight: 600 }}>Salaire(s) jusqu’au départ</span>
-                      <button
-                        type='button'
-                        onClick={() => setSalaireJusquaDepartRows(prev => ([...(Array.isArray(prev) ? prev : []), { id: Date.now(), value: '', fixed: false }]))}
-                        aria-label='Ajouter une ligne Salaire jusqu’au départ'
-                        style={{
-                          border: '1px solid var(--bs-primary, #7367F0)',
-                          color: 'var(--bs-primary, #7367F0)',
-                          background: '#fff',
-                          borderRadius: 20,
-                          padding: '2px 8px',
-                          lineHeight: 1.2,
-                          cursor: 'pointer',
-                          fontWeight: 600,
-                          // keep small on mobile
-                          alignSelf: 'flex-start',
-                          width: 'auto',
-                          display: 'inline-flex'
-                        }}
-                      >
-                        +
-                      </button>
                     </div>
 
                     <div>
-                      {(safeSalaireRows).map((row, idx) => (
-                        <div key={row.id || idx} className='hypo-salary-row' style={{ marginBottom: idx === safeSalaireRows.length - 1 ? 0 : 6 }}>
-                          <span className='hypo-salary-label'>{`Salaire ${idx + 1}`}</span>
-
-                          <div className='hypo-salary-inputwrap'>
-                            <span
-                              aria-hidden='true'
-                              style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: '#6e6b7b', pointerEvents: 'none', fontWeight: 600 }}
-                            >€</span>
-
-                            {row && row.fixed ? (
-                              <input
-                                type='text'
-                                readOnly
-                                className='form-control'
-                                value={row.value ?? ''}
-                                onClick={() => {
-                                  setSalaireJusquaDepartRows(prev => (Array.isArray(prev) ? prev : []).map(r => r && r.id === row.id ? { ...r, fixed: false } : r))
-                                  setTimeout(() => {
-                                    const el = document.getElementById(`salaire-input-${row.id}`)
-                                    if (el) { el.focus(); const len = el.value.length; el.setSelectionRange(len, len) }
-                                  }, 0)
-                                }}
-                                title='Cliquez pour modifier'
-                                style={{ paddingRight: 26, textAlign: 'right', borderRadius: 6, background: '#fff' }}
-                              />
-                            ) : (
-                              <input
-                                id={`salaire-input-${row.id}`}
-                                type='text'
-                                inputMode='decimal'
-                                pattern='[0-9]*'
-                                className='form-control'
-                                value={row.value ?? ''}
-                                onKeyDown={(e) => {
-                                  if (!isAllowedKey(e)) e.preventDefault()
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault()
-                                    const raw = ((row && row.value) || '').toString().replace(/\s/g, '').replace(',', '.')
-                                    const num = parseFloat(raw)
-                                    const formatted = isNaN(num)
-                                      ? (row ? row.value : '')
-                                      : new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num)
-                                    setSalaireJusquaDepartRows(prev => (Array.isArray(prev) ? prev : []).map(r => r && r.id === row.id ? { ...r, value: formatted, fixed: true } : r))
-                                    e.currentTarget.blur()
-                                  }
-                                }}
-                                onChange={(e) => {
-                                  const val = sanitizeSalaryInput(e.target.value)
-                                  setSalaireJusquaDepartRows(prev => (Array.isArray(prev) ? prev : []).map(r => r && r.id === row.id ? { ...r, value: val } : r))
-                                }}
-                                placeholder='0,00'
-                                style={{ paddingRight: 26, textAlign: 'right', borderRadius: 6, background: '#fff' }}
-                              />
-                            )}
-                          </div>
-
-                          {/* Date range for this salary row */}
-                          <div className='hypo-date-row' style={{ marginLeft: 8 }}>
-                            <span className='hypo-date-sep'>Du</span>
-                            <input
-                              type='date'
-                              className='hypo-date-input'
-                              value={normalizeDate(row && row.from)}
-                              onMouseDown={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
-                              onFocus={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
-                              onChange={(e) => {
-                                const v = e.currentTarget.value || ''
-                                setSalaireJusquaDepartRows(prev => (Array.isArray(prev) ? prev : []).map(r => (r && r.id === row.id) ? { ...r, from: v } : r))
-                              }}
-                              aria-label={`Date de début pour Salaire ${idx + 1}`}
-                            />
-                        <span className='hypo-date-sep'>au</span>
-                            <input
-                              type='date'
-                              className='hypo-date-input'
-                              value={normalizeDate(row && row.to)}
-                              onMouseDown={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
-                              onFocus={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
-                              onChange={(e) => {
-                                const v = e.currentTarget.value || ''
-                                setSalaireJusquaDepartRows(prev => (Array.isArray(prev) ? prev : []).map(r => (r && r.id === row.id) ? { ...r, to: v } : r))
-                              }}
-                              aria-label={`Date de fin pour Salaire ${idx + 1}`}
-                            />
-                      </div>
-
-                          {/* Bouton suppression (poubelle) — masqué pour Salaire 1, déplacé après les dates */}
-                          {idx > 0 && (
-                            <button
-                              type='button'
-                              onClick={() => setSalaireJusquaDepartRows(prev => (Array.isArray(prev) ? prev : []).filter(r => r && r.id !== row.id))}
-                              aria-label='Supprimer cette ligne'
-                              title='Supprimer'
-                              className='action-btn danger'
-                              style={{ marginLeft: 8 }}
-                            >
-                              <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
-                                <polyline points='3 6 5 6 21 6'></polyline>
-                                <path d='M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6'></path>
-                                <path d='M10 11v6'></path>
-                                <path d='M14 11v6'></path>
-                                <path d='M9 6V4h6v2'></path>
-                              </svg>
-                            </button>
-                          )}
-                        </div>
-                      ))}
+                      {renderSalaireRows(safeSalaireRows, { labelOffset: 1, canDeleteFirst: false })}
                     </div>
                   </div>
-                </Collapse>
+                </Collapse> */}
 
                 {/* Autres switches */}
                 <div className='hypo-grid' style={{ marginTop: 16 }}>
@@ -1406,9 +2099,19 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
 
                   {/* Pavé Chômage – visible quand Oui */}
                   <Collapse isOpen={!!chomage}>
-                    <div className='hypo-panel mb-50' style={{ maxWidth: 500 }}>
+                    <div className='hypo-panel mb-50' style={{ maxWidth: '57%' }}>
                       <div className='chomage-panel-fields'>
                         <div className='chomage-dual-row'>
+                          <span className='hypo-salary-label' style={{ minWidth: 'auto' }}>À partir de</span>
+                          <input
+                            type='date'
+                            className='hypo-date-input'
+                            value={normalizeDate(chomageStartDate)}
+                            onMouseDown={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
+                            onFocus={(e) => { try { e.currentTarget.showPicker && e.currentTarget.showPicker() } catch {} }}
+                            onChange={(e) => setChomageStartDate(e.currentTarget.value || '')}
+                            placeholder='JJ/MM/AAAA'
+                          />
                           <span className='hypo-salary-label' style={{ minWidth: 'auto' }}>Nombre de jours</span>
                           {chomageJoursFixed ? (
                             <input
@@ -1472,10 +2175,17 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                     </div>
                   </Collapse>
 
-                  <div className='hypo-row'>
+                  <div
+                    className={classnames('hypo-row', { 'ui-disabled': isCarriereLongueLocked })}
+                    aria-disabled={isCarriereLongueLocked}
+                  >
                     <span className='hypo-label'>Carrière longue</span>
                     <div className='hypo-ctrl'>
-                      <ButtonRadioSwitch noLabel checked={carriereLongue} onChange={(e) => setCarriereLongue(e.target.checked)} />
+                      <ButtonRadioSwitch
+                        noLabel
+                        checked={carriereLongue}
+                        onToggle={handleCarriereLongueToggle}
+                      />
                     </div>
                   </div>
 
@@ -1553,10 +2263,18 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                     </div>
                   </Collapse>
 
-                  <div className='hypo-row' style={{ marginBottom: 0 }}>
+                  <div
+                    className={classnames('hypo-row', { 'ui-disabled': isRetraiteProgressiveLocked })}
+                    style={{ marginBottom: 0 }}
+                    aria-disabled={isRetraiteProgressiveLocked}
+                  >
                     <span className='hypo-label'>Retraite progressive</span>
                     <div className='hypo-ctrl'>
-                      <ButtonRadioSwitch noLabel checked={retraiteProgressive} onChange={(e) => setRetraiteProgressive(e.target.checked)} />
+                      <ButtonRadioSwitch
+                        noLabel
+                        checked={retraiteProgressive}
+                        onToggle={handleRetraiteToggle}
+                      />
                     </div>
                   </div>
 
@@ -1680,103 +2398,98 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                       </div>
 
                       {/* Partie 2 — Surcôtisation */}
-                      <div className='prog-surco-row'>
-                        <span className='prog-label'>Surcôtisation</span>
-                        <div>
-                          <ButtonRadioSwitch
-                            noLabel
-                            checked={progSurcotisation}
-                            onChange={(e) => setProgSurcotisation(e.target.checked)}
-                          />
+                      {retraiteProgressive && (
+                        <div className='prog-surco-row'>
+                          <span className='prog-label'>Surcôtisation</span>
+                          <div>
+                            <ButtonRadioSwitch
+                              noLabel
+                              checked={progSurcotisation}
+                              onChange={(e) => setProgSurcotisation(e.target.checked)}
+                            />
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   </Collapse>
                   {/* Cumul emploi de retraite */}
-                  <div className='hypo-row'>
+                  <div
+                    className={classnames('hypo-row', { 'ui-disabled': isCumulLocked })}
+                    aria-disabled={isCumulLocked}
+                  >
                     <span className='hypo-label'>Cumul emploi de retraite</span>
                     <div className='hypo-ctrl'>
-                      <ButtonRadioSwitch noLabel checked={cumulEmploiRetraite} onChange={(e) => setCumulEmploiRetraite(e.target.checked)} />
+                      <ButtonRadioSwitch
+                        noLabel
+                        checked={cumulEmploiRetraite}
+                        onToggle={handleCumulToggle}
+                      />
                     </div>
                   </div>
                 </div>
               </FormGroup>
-            </CardBody>
-          </Card>
 
-          {/* Rachat de trimestres intégré en bas des hypothèses */}
-          <Card className='mb-1 bilan-card'>
-            <CardBody className='hypo-indent-lg'>
-              <h6 className='mb-1 section-title'>Rachat de trimestres</h6>
-              <p className='mb-0 text-muted'>Rachat de trimestres — module à compléter.</p>
-            </CardBody>
-          </Card>
-        </TabPane>
-
-        <TabPane tabId='bilan'>
-          <Card className='mb-1'>
-            <CardBody className='compact-lg'>
-              <h6 className='mb-1 section-title'>Choix des dates de départ en retraite</h6>
-
-              <div className='bilan-wrap' style={{ overflow: 'hidden' }}>
-                <div className='table-responsive'>
-                  <table className='choice-table cols-3'>
-                    <colgroup>
-                      <col style={{ width: '36%' }} />
-                      <col style={{ width: '32%' }} />
-                      <col style={{ width: '32%' }} />
-                    </colgroup>
-                    <thead>
-                      <tr>
-                        <th>Âge</th>
-                        <th>Date correspondante</th>
-                        <th>Choisir la date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {safeRetirementChoices.map((row) => (
-                        <tr key={row.id}>
-                          <td>
-                            <div className='age-cell'>
-                              <span className='age-label'>{row.label}</span>
-                              {row.id === 'auto67' ? (
-                                <span className='age-value' style={{ fontWeight: 700, color: '#111827' }}>{(row && row.age) ? `${row.age} ans` : '67 ans'}</span>
-                              ) : (
-                                <span className='age-value'>
-                                  {row.fixedAge ? (
+              <div className='bilan-wrap' style={{ overflow: 'hidden', marginBottom: 16 }}>
+                  <div className='table-responsive'>
+                    <table className='choice-table cols-3'>
+                      <colgroup>
+                        <col style={{ width: '36%' }} />
+                        <col style={{ width: '32%' }} />
+                        <col style={{ width: '32%' }} />
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          <th>Âge</th>
+                          <th>Date correspondante</th>
+                          <th>Choisir la date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {safeRetirementChoices.map((row) => (
+                          <tr key={row.id}>
+                            <td>
+                              <div className='age-cell'>
+                                <span className='age-label'>{row.label}</span>
+                                {row.fixedAge ? (
+                                  <span className='age-value'>
                                     <input
                                       type='text'
-                                      className='inline-input'
                                       readOnly
-                                      onClick={() => setRetirementChoices(prev => prev.map(r => (r && r.id === row.id) ? { ...r, fixedAge: false } : r))}
-                                      style={{ width: 80, textAlign: 'center', background: '#F9FAFB', cursor: 'pointer' }}
+                                      className='inline-input'
                                       value={(row && row.age) ?? ''}
+                                      onClick={() => setRetirementChoices(prev => prev.map(r => (r && r.id === row.id) ? { ...r, fixedAge: false } : r))}
+                                      style={{ width: 90, textAlign: 'center', background: '#F9FAFB', cursor: 'pointer' }}
                                       aria-label={`Âge pour ${row.label}`}
                                     />
-                                  ) : (
+                                    <span>ans</span>
+                                  </span>
+                                ) : (
+                                  <span className='age-value'>
                                     <input
                                       type='text'
                                       inputMode='decimal'
-                                      pattern='[0-9,\.]*'
+                                      pattern='[0-9,\\.]*'
                                       className='inline-input'
-                                      style={{ width: 80, textAlign: 'center' }}
+                                      style={{ width: 90, textAlign: 'center' }}
                                       value={(row && row.age) ?? ''}
-                                      onChange={(e) => {
-                                        // digits + optional comma/dot; allow empty; normalize multiple separators
-                                        let v = e.target.value == null ? '' : String(e.target.value)
-                                        v = v.replace(/\./g, ',')
-                                        const parts = v.replace(/[^0-9,]/g, '').split(',')
-                                        v = parts[0] + (parts.length > 1 ? (',' + parts.slice(1).join('').replace(/,/g, '')) : '')
+                                      onChange={(e) => setRetirementChoices(prev => prev.map(r => (r && r.id === row.id) ? { ...r, age: e.target.value } : r))}
+                                      onBlur={(e) => {
+                                        const v = e.target.value.trim()
+                                        const parts = v.split(/[,.]/)
+                                        let next = ''
+                                        if (parts.length) {
+                                          next = parts[0] + (parts.length > 1 ? (',' + parts.slice(1).join('').replace(/,/g, '')) : '')
+                                        }
                                         const dob = getBirthDate()
                                         let nextDate = (row && row.date) || ''
-                                        if (dob && v !== '') {
-                                          const y = parseInt(v, 10)
+                                        if (dob && next !== '') {
+                                          const y = parseInt(next, 10)
                                           if (!Number.isNaN(y)) {
                                             const d = new Date(dob.getFullYear() + y, dob.getMonth(), dob.getDate())
                                             if (!isNaN(d.getTime())) nextDate = d.toISOString().slice(0, 10)
                                           }
                                         }
-                                        setRetirementChoices(prev => prev.map(r => (r && r.id === row.id) ? { ...r, age: v, date: nextDate } : r))
+                                        setRetirementChoices(prev => prev.map(r => (r && r.id === row.id) ? { ...r, age: next, date: nextDate, fixedAge: true } : r))
                                       }}
                                       onKeyDown={(e) => {
                                         if (!isDigitKeyOnly(e)) e.preventDefault()
@@ -1793,7 +2506,6 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                                       placeholder='Ex: 62'
                                       aria-label={`Âge pour ${row.label}`}
                                     />
-                                  )}
                                   <span>ans</span>
                                 </span>
                               )}
@@ -1852,7 +2564,44 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                   </table>
                 </div>
               </div>
+            </CardBody>
+          </Card>
 
+          {/* Rachat de trimestres intégré en bas des hypothèses */}
+          <Card className='mb-1 bilan-card'>
+            <CardBody
+              className={classnames('hypo-indent-lg', { 'ui-disabled': isRachatLocked })}
+              aria-disabled={isRachatLocked}
+            >
+              <h6 className='mb-1 section-title'>Rachat de trimestres</h6>
+              <div
+                className={classnames('hypo-row', { 'ui-disabled': isRachatLocked })}
+                style={{ paddingTop: 0 }}
+                aria-disabled={isRachatLocked}
+              >
+                <span className='hypo-label'>Activer le rachat de trimestres</span>
+                <div className='hypo-ctrl'>
+                  <ButtonRadioSwitch
+                    noLabel
+                    checked={rachatTrimestresActive}
+                    onToggle={handleRachatToggle}
+                  />
+                </div>
+              </div>
+              {rachatTrimestresActive ? (
+                <div className='hypo-panel mb-0' style={{ marginTop: 12, maxWidth: 640 }}>
+                  <p className='mb-0 text-muted'>Rachat de trimestres — module à compléter.</p>
+                </div>
+              ) : (
+                <p className='mb-0 text-muted'>Rachat de trimestres — module à compléter.</p>
+              )}
+            </CardBody>
+          </Card>
+        </TabPane>
+
+        <TabPane tabId='bilan'>
+          <Card className='mb-1'>
+            <CardBody className='compact-lg'>
               {/* Dates libres */}
               <div style={{ marginTop: 16 }}>
                 <h6 className='mb-1 section-title'>Dates libres</h6>
@@ -1987,21 +2736,21 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
             <CardBody className='compact-lg'>
               <h6 className='mb-1 section-title'>Historique des bilans retraite</h6>
               <div className='bilan-wrap' style={{ overflow: 'hidden' }}>
-                <div className='table-responsive'>
+                <div className='history-table-wrap'>
                   <table className='history-table cols-6'>
                     <colgroup>
-                      <col style={{ width: '28%' }} />
-                      <col style={{ width: '13%' }} />
+                      <col style={{ width: '25%' }} />
                       <col style={{ width: '14%' }} />
-                      <col style={{ width: '15%' }} />
                       <col style={{ width: '20%' }} />
-                      <col style={{ width: '80px' }} />
+                      <col style={{ width: '14%' }} />
+                      <col style={{ width: '20%' }} />
+                      <col style={{ width: '110px' }} />
                     </colgroup>
                     <thead>
                       <tr>
                         <th>Nom du bilan</th>
                         <th>Âge simulé</th>
-                        <th>Type de bilan</th>
+                        <th>Simulation réalisée</th>
                         <th>Date d’édition</th>
                         <th>Rachat / Quotement</th>
                         <th className='actions-col'>Actions</th>
@@ -2065,13 +2814,7 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                                 title='Télécharger (Word)'
                                 onClick={(e) => { e.preventDefault(); /* à implémenter plus tard */ }}
                               >
-                                {/* Icône "Word" stylisée uniquement en tracés */}
-                                <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
-                                  <path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'></path>
-                                  <polyline points='14 2 14 8 20 8'></polyline>
-                                  {/* W formed by strokes */}
-                                  <polyline points='8 9 9.5 15 11 11 12.5 15 14 9'></polyline>
-                                </svg>
+                                <img src={wordIcon2025} alt='Word' width={18} height={18} style={{ display: 'block' }} />
                               </button>
                               <button
                                 type='button'

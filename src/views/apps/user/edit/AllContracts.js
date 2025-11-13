@@ -201,7 +201,7 @@ class AllContracts extends React.Component {
         },
       },
       {
-        headerName: "Etat",
+        headerName: "État",
         field: "document_state",
         width: 170,
         cellRendererFramework: (params) => {

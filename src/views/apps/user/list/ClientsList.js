@@ -178,7 +178,6 @@ class ClientsList extends React.Component {
         width: 150,
         minWidth: 150,
         flex: 0,
-        cellClass: 'd-flex align-items-center justify-content-center',
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 },
         cellRendererFramework: (params) => {
           const userId = params?.data?.id;
