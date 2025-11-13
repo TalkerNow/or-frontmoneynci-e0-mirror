@@ -275,11 +275,14 @@
         const tb = document.getElementById('cnav-body');
         years.forEach((y, idx)=>{
           const i = idx+1; // index 1..N pour les ids z/e/deplafonner
+          const isFrancYear = y <= 2001;
+          const currencyPlaceholder = isFrancYear ? 'en Franc' : 'en €uro';
+          const currencyTitle = isFrancYear ? 'Saisir le montant en francs (FRF)' : 'Saisir le montant en euros (€)';
           const tr = document.createElement('tr');
           tr.innerHTML = `
             <td>${y}</td>
-            <td><input type="text" id="sr-${i}" placeholder="en Franc/€" onkeyup="simulateur(this.value, ${i}, document.getElementById('deplafonner_${i}').checked)"/></td>
-            <td><input type="text" id="ss-${i}" onkeyup="simulateur(this.value, ${i}, document.getElementById('deplafonner_${i}').checked)"/></td>
+            <td><input type="text" id="sr-${i}" placeholder="${currencyPlaceholder}" title="${currencyTitle}" data-currency="${isFrancYear ? 'FRF' : 'EUR'}" onkeyup="simulateur(this.value, ${i}, document.getElementById('deplafonner_${i}').checked)"/></td>
+            <td><input type="text" id="ss-${i}" placeholder="${currencyPlaceholder}" title="${currencyTitle}" data-currency="${isFrancYear ? 'FRF' : 'EUR'}" onkeyup="simulateur(this.value, ${i}, document.getElementById('deplafonner_${i}').checked)"/></td>
             <td>${(coeffRevalo[y]||'')}</td>
             <td><span id="z${i}">0</span></td>
             <td>
