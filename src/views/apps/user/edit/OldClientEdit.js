@@ -192,7 +192,7 @@ class UserEdit extends React.Component {
               </Card>
             </TabPane>
             <TabPane tabId='simulateur'>
-              <SimulatorHub id={id} alignOffset={this.state.simuOffset} />
+              <SimulatorHub id={id} alignOffset={this.state.simuOffset} user={this.state.rowData} />
             </TabPane>
           </TabContent>
         </Col>

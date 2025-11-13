@@ -291,7 +291,7 @@ class UserView extends React.Component {
               </TabPane>
               {/* Simulateur */}
               <TabPane tabId='simulateur'>
-                <SimulatorHub id={localStorage.getItem('userid')} alignOffset={this.state.simuOffset} />
+                <SimulatorHub id={localStorage.getItem('userid')} alignOffset={this.state.simuOffset} user={this.state.rowData} />
               </TabPane>
               {/* Notes */}
               <TabPane tabId='notes'>

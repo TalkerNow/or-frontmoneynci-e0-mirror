@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Nav, NavItem, NavLink, Card, CardBody, TabContent, TabPane, FormGroup, Collapse, Modal, ModalHeader, ModalBody, ModalFooter, Button, Label } from 'reactstrap'
 import classnames from 'classnames'
 import ButtonRadioSwitch from '../../../../components/reactstrap/buttons/ButtonRadioSwitch'
@@ -6,10 +6,98 @@ import Dropzone from 'react-dropzone'
 import { DownloadCloud } from 'react-feather'
 import '../../../../assets/scss/plugins/extensions/dropzone.scss'
 import axios from 'axios'
+import wordIcon2025 from '../../../../assets/img/icons/word-icon-2025.png'
 
 // UI-only component: no calculation or API logic here per specs
+const DOC_STORAGE_KEY = 'career_generated_docs_v1'
+const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+const CAREER_METRIC_FIELDS = ['trimBase', 'trimAR', 'cnavPoints', 'arrcoPoints', 'ta', 'tb']
+const DOC_NAME_LABELS = {
+  preanalyse: 'Rapport pré-entretien',
+  consultation: 'Rapport consultation'
+}
+const CAREER_BUTTON_BASE_STYLE = {
+  borderRadius: 8,
+  height: 40,
+  fontWeight: 600,
+  padding: '0 18px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  transition: 'filter 160ms ease'
+}
+const CAREER_ACTIVE_COLOR = '#8B5CF6'
+const CAREER_INACTIVE_COLOR = '#9CA3AF'
+const getPreanalyseStyle = (isActive) => ({
+  ...CAREER_BUTTON_BASE_STYLE,
+  background: isActive ? CAREER_ACTIVE_COLOR : CAREER_INACTIVE_COLOR,
+  borderColor: isActive ? CAREER_ACTIVE_COLOR : CAREER_INACTIVE_COLOR,
+  color: '#fff',
+  opacity: isActive ? 1 : 0.6,
+  cursor: isActive ? 'default' : 'pointer'
+})
+const getRapportStyle = (isActive) => ({
+  ...CAREER_BUTTON_BASE_STYLE,
+  background: isActive ? CAREER_ACTIVE_COLOR : CAREER_INACTIVE_COLOR,
+  borderColor: isActive ? CAREER_ACTIVE_COLOR : CAREER_INACTIVE_COLOR,
+  color: '#fff',
+  opacity: isActive ? 1 : 0.6,
+  cursor: isActive ? 'default' : 'pointer'
+})
+const getImportStyle = (isEnabled) => ({
+  ...CAREER_BUTTON_BASE_STYLE,
+  background: '#E5E7EB',
+  borderColor: '#E5E7EB',
+  color: isEnabled ? '#6D28D9' : '#9CA3AF',
+  cursor: isEnabled ? 'pointer' : 'not-allowed',
+  opacity: isEnabled ? 1 : 0.8
+})
+const createDocBlob = (content = '') => {
+  try {
+    return new Blob([content || ''], { type: DOCX_MIME })
+  } catch {
+    return null
+  }
+}
+const loadStoredDocs = () => {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return []
+  try {
+    const raw = localStorage.getItem(DOC_STORAGE_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .filter(doc => doc && typeof doc === 'object')
+      .map(doc => {
+        const content = typeof doc.fileContent === 'string' ? doc.fileContent : ''
+        return {
+          ...doc,
+          fileContent: content,
+          file: createDocBlob(content)
+        }
+      })
+  } catch {
+    return []
+  }
+}
+const formatDocDate = (iso) => {
+  try {
+    const d = new Date(iso)
+    if (isNaN(d.getTime())) return ''
+    return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(d)
+  } catch {
+    return ''
+  }
+}
+const generateDocId = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
+  return 'doc-' + Math.random().toString(36).slice(2) + Date.now()
+}
+const WordLogoIcon = () => (
+  <img src={wordIcon2025} alt='Logo Word' width={22} height={22} style={{ display: 'block' }} />
+)
 
-export default function SimulatorHub({ id, alignOffset = 0 }) {
+export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
   const [subTab, setSubTab] = useState('carriere')
   const [regimeTab, setRegimeTab] = useState('base')
   const [carriereLongue, setCarriereLongue] = useState(false)
@@ -54,9 +142,46 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
   const [careerDocPreview, setCareerDocPreview] = useState(false)
   const [careerDocDeleteOpen, setCareerDocDeleteOpen] = useState(false)
   const [manualCareerRows, setManualCareerRows] = useState([
-    { id: 1, annee: '', revenu: '', trimBase: '', trimAR: '', regime: 'général', observations: '', errY: false, errR: false }
+    {
+      id: 1,
+      annee: '',
+      revenu: '',
+      trimBase: '',
+      trimAR: '',
+      cnavPoints: '',
+      arrcoPoints: '',
+      ta: '',
+      tb: '',
+      tc: '',
+      regime: 'général',
+      observations: '',
+      errY: false,
+      errR: false
+    }
   ])
   const [careerComment, setCareerComment] = useState('')
+  const [selectedCareerAction, setSelectedCareerAction] = useState('preanalyse')
+  const [careerDocuments, setCareerDocuments] = useState(loadStoredDocs)
+  const [editingDocId, setEditingDocId] = useState(null)
+  const [editingDocName, setEditingDocName] = useState('')
+
+  const clientFullName = useMemo(() => {
+    const pick = (val) => (typeof val === 'string' && val.trim().length ? val.trim() : '')
+    const first = pick(user?.first_name) || pick(user?.firstname) || pick(user?.firstName) || pick(user?.prenom) || pick(user?.first) || ''
+    const last = pick(user?.last_name) || pick(user?.lastname) || pick(user?.lastName) || pick(user?.nom) || ''
+    const combined = `${first} ${last}`.replace(/\s+/g, ' ').trim()
+    if (combined) {
+      try { if (typeof localStorage !== 'undefined') localStorage.setItem('simu_last_client_name', combined) } catch {}
+      return combined
+    }
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const cached = localStorage.getItem('simu_last_client_name')
+        if (cached) return cached
+      }
+    } catch {}
+    return 'ce client'
+  }, [user])
 
   // Carrière: handle upload with same Dropzone UX as Documents perso
   const handleCareerDrop = useCallback((acceptedFiles) => {
@@ -94,6 +219,9 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
         .catch(() => { /* noop: no hard failure in UI */ })
     } catch { /* noop */ }
   }, [id])
+  const handleCareerActionClick = useCallback((action) => {
+    setSelectedCareerAction(action)
+  }, [])
   // Nouveaux états pour la refonte de l'onglet "bilan"
   const [retirementChoices, setRetirementChoices] = useState([
     { id: 'legal', label: 'Âge légal', age: '', date: '', selected: false, fixedAge: false, fixedDate: false },
@@ -252,6 +380,11 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                 ? String(r.trimBase)
                 : (r.trimestres != null ? String(r.trimestres) : ''),
               trimAR: (r.trimAR != null) ? String(r.trimAR) : '',
+              cnavPoints: typeof r.cnavPoints === 'string' ? r.cnavPoints : '',
+              arrcoPoints: typeof r.arrcoPoints === 'string' ? r.arrcoPoints : '',
+              ta: typeof r.ta === 'string' ? r.ta : '',
+              tb: typeof r.tb === 'string' ? r.tb : '',
+              tc: typeof r.tc === 'string' ? r.tc : '',
               regime: r.regime || 'général',
               observations: typeof r.observations === 'string' ? r.observations : '',
               errY: false, errR: false, errT: false
@@ -273,12 +406,29 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
         trimBase: r.trimBase,
         trimAR: r.trimAR,
         trimestres: r.trimBase, // legacy compatibility
+        cnavPoints: r.cnavPoints,
+        arrcoPoints: r.arrcoPoints,
+        ta: r.ta,
+        tb: r.tb,
+        tc: r.tc,
         regime: r.regime,
         observations: r.observations
       }))
       localStorage.setItem('career_manual_rows', JSON.stringify(thin))
     } catch { /* noop */ }
   }, [manualCareerRows])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') return
+    try {
+      const serializable = (Array.isArray(careerDocuments) ? careerDocuments : []).map(doc => {
+        if (!doc || typeof doc !== 'object') return null
+        const { file, ...rest } = doc
+        return rest
+      }).filter(Boolean)
+      localStorage.setItem(DOC_STORAGE_KEY, JSON.stringify(serializable))
+    } catch { /* noop */ }
+  }, [careerDocuments])
 
   // Sanitize input to digits and a single decimal separator (comma or dot)
   const sanitizeSalaryInput = (val) => {
@@ -318,6 +468,106 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
     if (e.key === ',' || e.key === '.') return true
     return /^\d$/.test(e.key)
   }
+
+  const hasValidManualRow = useMemo(() => {
+    const rows = Array.isArray(manualCareerRows) ? manualCareerRows : []
+    return rows.some(row => {
+      if (!row) return false
+      const yearValue = typeof row.annee === 'string' ? row.annee.trim() : ''
+      const revenueValue = row && row.revenu != null ? String(row.revenu).trim() : ''
+      const yearOk = yearValue.length === 4
+      const revenueOk = revenueValue !== ''
+      if (!yearOk || !revenueOk) return false
+      const hasMetric = CAREER_METRIC_FIELDS.some(field => {
+        const value = row[field]
+        return value !== undefined && value !== null && String(value).trim() !== ''
+      })
+      return hasMetric
+    })
+  }, [manualCareerRows])
+
+  const isImportReady = Boolean(careerDoc) || hasValidManualRow
+
+  const buildDocumentContent = useCallback((docTitle, generationDate) => {
+    try {
+      const label = docTitle || 'Document carrière'
+      const originLabel = selectedCareerAction === 'consultation' ? 'Rapport consultation' : 'Rapport pré-entretien'
+      const dateLabel = generationDate && generationDate.toLocaleString
+        ? generationDate.toLocaleString('fr-FR')
+        : new Date().toLocaleString('fr-FR')
+      const header = `${label}\nOrigine: ${originLabel}\nGénéré le: ${dateLabel}\n\n`
+      if (careerDoc && careerDoc.name) {
+        const meta = [
+          `Source: Fichier importé (« ${careerDoc.name} »)`,
+          careerDoc.type ? `Type: ${careerDoc.type}` : null,
+          careerDoc.uploadedAt ? `Ajouté le: ${careerDoc.uploadedAt}` : null
+        ].filter(Boolean).join('\n')
+        return `${header}${meta}\n`
+      }
+      const rows = (Array.isArray(manualCareerRows) ? manualCareerRows : [])
+        .map((row, idx) => `Ligne ${idx + 1} · Année ${row.annee || '-'} · Revenu ${row.revenu || '-'} · Trimestres ${row.trimBase || '0'} · AR ${row.trimAR || '0'}`)
+        .join('\n')
+      return `${header}Source: Saisie manuelle\n${rows || 'Aucune donnée saisie'}`
+    } catch {
+      return 'Document carrière'
+    }
+  }, [careerDoc, manualCareerRows, selectedCareerAction])
+
+  const handleImportData = useCallback(() => {
+    if (!isImportReady) return
+    const originKey = selectedCareerAction === 'consultation' ? 'consultation' : 'preanalyse'
+    const label = DOC_NAME_LABELS[originKey] || 'Document carrière'
+    const displayName = `${label} de ${clientFullName}`.replace(/\s+/g, ' ').trim()
+    const now = new Date()
+    const content = buildDocumentContent(displayName, now)
+    const blob = createDocBlob(content) || createDocBlob('Document carrière')
+    const newDoc = {
+      id: generateDocId(),
+      name: displayName,
+      type: 'docx',
+      origin: originKey,
+      createdAt: now.toISOString(),
+      fileContent: content,
+      file: blob
+    }
+    setCareerDocuments(prev => (Array.isArray(prev) ? [...prev, newDoc] : [newDoc]))
+  }, [buildDocumentContent, clientFullName, isImportReady, selectedCareerAction])
+
+  const handleOpenDocument = useCallback((doc) => {
+    if (!doc || !doc.file) return
+    try {
+      const url = URL.createObjectURL(doc.file)
+      window.open(url, '_blank', 'noopener')
+      setTimeout(() => URL.revokeObjectURL(url), 5000)
+    } catch { /* noop */ }
+  }, [])
+
+  const startEditingDocName = useCallback((doc) => {
+    if (!doc) return
+    setEditingDocId(doc.id)
+    setEditingDocName(doc.name || '')
+  }, [])
+
+  const cancelDocNameEdit = useCallback(() => {
+    setEditingDocId(null)
+    setEditingDocName('')
+  }, [])
+
+  const commitDocNameEdit = useCallback(() => {
+    if (!editingDocId) return cancelDocNameEdit()
+    const nextName = (editingDocName || '').trim()
+    setCareerDocuments(prev => (Array.isArray(prev) ? prev : []).map(doc => {
+      if (!doc || doc.id !== editingDocId) return doc
+      return { ...doc, name: nextName || doc.name }
+    }))
+    cancelDocNameEdit()
+  }, [editingDocId, editingDocName, cancelDocNameEdit])
+
+  const deleteGeneratedDoc = useCallback((docId) => {
+    setCareerDocuments(prev => (Array.isArray(prev) ? prev : []).filter(doc => doc && doc.id !== docId))
+    if (editingDocId === docId) cancelDocNameEdit()
+  }, [cancelDocNameEdit, editingDocId])
+
 
   // Age helpers for "Âge calculé" (Dates libres)
   const getBirthDate = useCallback(() => {
@@ -624,11 +874,33 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
         .history-table tbody tr:hover td { background: #EEF2FF; }
         .inline-input { width: 100%; border: 1px solid #E5E7EB; border-radius: 6px; padding: 6px 8px; background: #fff; }
         .inline-input:focus { outline: none; border-color: #A5B4FC; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
-        .action-btn { background:#fff; border:1px solid #E5E7EB; border-radius:6px; padding:6px; line-height:0; cursor:pointer; color:#4B5563; display:inline-flex; align-items:center; justify-content:center; }
+        .action-btn {
+          background:#fff;
+          border:1px solid #E5E7EB;
+          border-radius:10px;
+          padding:6px 10px;
+          min-width:40px;
+          height:34px;
+          line-height:0;
+          cursor:pointer;
+          color:#4B5563;
+          display:inline-flex;
+          align-items:center;
+          justify-content:center;
+          transition: background 140ms ease, transform 120ms ease;
+        }
         .action-btn svg { width: 16px; height: 16px; }
-        .action-btn:hover { background:#EEF2FF; color:#111827; }
-        .action-btn.danger { color: #dc3545; border-color: #f3c2c4; }
-        .action-btn.danger:hover { background: #FEE2E2; }
+        .action-btn:hover { background:#EEF2FF; color:#111827; transform: translateY(-1px); }
+        .action-btn:active { transform: translateY(0); }
+        .action-btn.danger {
+          color: #B91C1C;
+          border-color: #FECACA;
+          background: #FFF5F5;
+        }
+        .action-btn.danger:hover {
+          background: #FEE2E2;
+          color: #991B1B;
+        }
 
         /* Carrière upload + saisie */
         .career-card { background: #FAFAFA; border: 1px solid #E5E7EB; border-radius: 8px; width: 100%; max-width: none; margin: 0; }
@@ -745,72 +1017,153 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                 </Dropzone>
               </div>
 
-              {/* Boutons actions alignés à droite */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-                <Button
-                  style={{ background: '#A78BFA', borderColor: '#A78BFA' }}
-                  color='primary'
-                >
-                  Pré-analyse RDV
-                </Button>
-                <Button
-                  style={{ background: '#E5E7EB', borderColor: '#E5E7EB', color: '#111827' }}
-                  color='secondary'
-                >
-                  Rapport de CH
-                </Button>
-              </div>
-
               {/* Pavé Commentaires */}
               <div style={{ marginBottom: 12 }}>
                 <Label style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Commentaires</Label>
                 <textarea
                   value={careerComment}
                   onChange={(e) => setCareerComment(e.target.value)}
-                  placeholder='Écrire un commentaire lié à la pré-analyse ou au rapport de CH…'
+                  placeholder='Écrire un commentaire lié au rapport pré-entretien ou au rapport de CH…'
                   style={{ width: '100%', height: 110, border: '1px solid #E5E7EB', borderRadius: 8, padding: 8, background: '#fff' }}
                 />
               </div>
 
-              {!careerDoc ? (
-                <div className='file-empty'>Aucun relevé de carrière n’a encore été importé.</div>
-              ) : (
-                <div className='file-row'>
-                  <div className='file-meta'>
-                    <span className='file-name'>{careerDoc.name}</span>
-                    <span className='file-date'>Envoyé le {(() => { try { return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(careerDoc.uploadedAt)) } catch { return careerDoc.uploadedAt } })()}</span>
-                  </div>
-                  <div className='manual-actions'>
-                    {/* Eye */}
-                    <button
-                      type='button'
-                      className='action-btn'
-                      title='Visualiser le document'
-                      onClick={() => setCareerDocPreview(true)}
-                    >
-                      <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
-                        <path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'></path>
-                        <circle cx='12' cy='12' r='3'></circle>
-                      </svg>
-                    </button>
-                    {/* Trash */}
-                    <button
-                      type='button'
-                      className='action-btn danger'
-                      title='Supprimer le relevé'
-                      onClick={() => setCareerDocDeleteOpen(true)}
-                    >
-                      <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
-                        <polyline points='3 6 5 6 21 6'></polyline>
-                        <path d='M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6'></path>
-                        <path d='M10 11v6'></path>
-                        <path d='M14 11v6'></path>
-                        <path d='M9 6V4h6v2'></path>
-                      </svg>
-                    </button>
+              {/* Actions carrière */}
+              <div className='career-action-row'>
+                <Button
+                  className='career-action-btn'
+                  style={getPreanalyseStyle(selectedCareerAction === 'preanalyse')}
+                  color={selectedCareerAction === 'preanalyse' ? 'primary' : 'secondary'}
+                  onClick={() => handleCareerActionClick('preanalyse')}
+                >
+                  Rapport pré-entretien
+                </Button>
+                <Button
+                  className='career-action-btn'
+                  style={getRapportStyle(selectedCareerAction === 'consultation')}
+                  color={selectedCareerAction === 'consultation' ? 'primary' : 'secondary'}
+                  onClick={() => handleCareerActionClick('consultation')}
+                >
+                  Rapport consultation
+                </Button>
+                <Button
+                  className='career-action-btn'
+                  style={getImportStyle(isImportReady)}
+                  color='light'
+                  disabled={!isImportReady}
+                  onClick={handleImportData}
+                >
+                  Importer les données
+                </Button>
+              </div>
+              {Array.isArray(careerDocuments) && careerDocuments.length > 0 && (
+                <div className='career-generated-wrapper'>
+                  <div className='doc-section-title'>Documents générés via l’import</div>
+                  <div className='career-documents'>
+                    {careerDocuments.map((doc) => (
+                      <div className='career-doc-card' key={doc.id}>
+                        <div className='doc-card-left'>
+                          <div className='doc-card-icon' aria-hidden='true'>
+                            <svg width='28' height='28' viewBox='0 0 48 48' fill='none' xmlns='http://www.w3.org/2000/svg'>
+                              <rect x='9' y='4' width='30' height='40' rx='6' stroke='#9CA3AF' strokeWidth='2' fill='none' />
+                              <line x1='15' y1='16' x2='33' y2='16' stroke='#9CA3AF' strokeWidth='2' />
+                              <line x1='15' y1='22' x2='33' y2='22' stroke='#9CA3AF' strokeWidth='2' />
+                              <line x1='15' y1='28' x2='27' y2='28' stroke='#9CA3AF' strokeWidth='2' />
+                            </svg>
+                          </div>
+                        <div className='doc-card-text'>
+                            {editingDocId === doc.id ? (
+                              <input
+                                className='doc-name-input'
+                                value={editingDocName}
+                                onChange={(e) => setEditingDocName(e.target.value)}
+                                onBlur={commitDocNameEdit}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') { e.preventDefault(); commitDocNameEdit() }
+                                  if (e.key === 'Escape') { e.preventDefault(); cancelDocNameEdit() }
+                                }}
+                                autoFocus
+                              />
+                            ) : (
+                              <button type='button' className='doc-name-btn' onClick={() => startEditingDocName(doc)}>
+                                {doc.name || 'Document sans titre'}
+                              </button>
+                            )}
+                            <div className='doc-card-subtitle'>
+                              Document · DOCX{doc.createdAt ? ` · ${formatDocDate(doc.createdAt)}` : ''}
+                            </div>
+                          </div>
+                        </div>
+                        <div className='doc-card-actions'>
+                          <button type='button' className='doc-word-btn' onClick={() => handleOpenDocument(doc)}>
+                            <span className='doc-word-icon' aria-hidden='true'>
+                              <WordLogoIcon />
+                            </span>
+                            <span>Ouvrir dans Word</span>
+                          </button>
+                          <button
+                            type='button'
+                            className='doc-delete-btn'
+                            title='Supprimer le document'
+                            onClick={() => deleteGeneratedDoc(doc.id)}
+                          >
+                            <svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+                              <polyline points='3 6 5 6 21 6'></polyline>
+                              <path d='M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6'></path>
+                              <path d='M10 11v6'></path>
+                              <path d='M14 11v6'></path>
+                              <path d='M9 6V4h6v2'></path>
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
+
+              <div className='career-upload-wrapper'>
+                <div className='doc-section-title'>Documents importés</div>
+                {!careerDoc ? (
+                  <div className='file-empty'>Aucun relevé de carrière n’a encore été importé.</div>
+                ) : (
+                  <div className='file-row'>
+                    <div className='file-meta'>
+                      <span className='file-name'>{careerDoc.name}</span>
+                      <span className='file-date'>Envoyé le {(() => { try { return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(careerDoc.uploadedAt)) } catch { return careerDoc.uploadedAt } })()}</span>
+                    </div>
+                    <div className='manual-actions'>
+                      {/* Eye */}
+                      <button
+                        type='button'
+                        className='action-btn'
+                        title='Visualiser le document'
+                        onClick={() => setCareerDocPreview(true)}
+                      >
+                        <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+                          <path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'></path>
+                          <circle cx='12' cy='12' r='3'></circle>
+                        </svg>
+                      </button>
+                      {/* Trash */}
+                      <button
+                        type='button'
+                        className='action-btn danger'
+                        title='Supprimer le relevé'
+                        onClick={() => setCareerDocDeleteOpen(true)}
+                      >
+                        <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+                          <polyline points='3 6 5 6 21 6'></polyline>
+                          <path d='M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6'></path>
+                          <path d='M10 11v6'></path>
+                          <path d='M14 11v6'></path>
+                          <path d='M9 6V4h6v2'></path>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Preview modal */}
               <Modal isOpen={careerDocPreview} toggle={() => setCareerDocPreview(false)} size='lg'>
@@ -983,19 +1336,69 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                           </td>
                           {/* New UI-only numeric columns (uncontrolled) */}
                           <td>
-                            <input type='text' inputMode='numeric' pattern='[0-9]*' maxLength={6} className='manual-num' defaultValue={row.cnavPoints ?? ''} aria-label='Cnav (points)' />
+                            <input
+                              type='text'
+                              inputMode='decimal'
+                              className='manual-num'
+                              value={row.cnavPoints ?? ''}
+                              onChange={(e) => {
+                                const val = sanitizeSalaryInput(e.target.value)
+                                setManualCareerRows(prev => (Array.isArray(prev) ? prev : []).map(r => r.id === row.id ? { ...r, cnavPoints: val } : r))
+                              }}
+                              aria-label='Cnav (points)'
+                            />
                           </td>
                           <td>
-                            <input type='text' inputMode='numeric' pattern='[0-9]*' maxLength={6} className='manual-num' defaultValue={row.arrcoPoints ?? ''} aria-label='Arrco Agirc (points)' />
+                            <input
+                              type='text'
+                              inputMode='decimal'
+                              className='manual-num'
+                              value={row.arrcoPoints ?? ''}
+                              onChange={(e) => {
+                                const val = sanitizeSalaryInput(e.target.value)
+                                setManualCareerRows(prev => (Array.isArray(prev) ? prev : []).map(r => r.id === row.id ? { ...r, arrcoPoints: val } : r))
+                              }}
+                              aria-label='Arrco Agirc (points)'
+                            />
                           </td>
                           <td>
-                            <input type='text' inputMode='numeric' pattern='[0-9]*' className='manual-num' defaultValue={row.ta ?? ''} aria-label='Tranche A (TA)' />
+                            <input
+                              type='text'
+                              inputMode='decimal'
+                              className='manual-num'
+                              value={row.ta ?? ''}
+                              onChange={(e) => {
+                                const val = sanitizeSalaryInput(e.target.value)
+                                setManualCareerRows(prev => (Array.isArray(prev) ? prev : []).map(r => r.id === row.id ? { ...r, ta: val } : r))
+                              }}
+                              aria-label='Tranche A (TA)'
+                            />
                           </td>
                           <td>
-                            <input type='text' inputMode='numeric' pattern='[0-9]*' className='manual-num' defaultValue={row.tb ?? ''} aria-label='Tranche B (TB)' />
+                            <input
+                              type='text'
+                              inputMode='decimal'
+                              className='manual-num'
+                              value={row.tb ?? ''}
+                              onChange={(e) => {
+                                const val = sanitizeSalaryInput(e.target.value)
+                                setManualCareerRows(prev => (Array.isArray(prev) ? prev : []).map(r => r.id === row.id ? { ...r, tb: val } : r))
+                              }}
+                              aria-label='Tranche B (TB)'
+                            />
                           </td>
                           <td className='hidden-tc'>
-                            <input type='text' inputMode='numeric' pattern='[0-9]*' className='manual-num' defaultValue={row.tc ?? ''} aria-label='Tranche C (TC)' />
+                            <input
+                              type='text'
+                              inputMode='decimal'
+                              className='manual-num'
+                              value={row.tc ?? ''}
+                              onChange={(e) => {
+                                const val = sanitizeSalaryInput(e.target.value)
+                                setManualCareerRows(prev => (Array.isArray(prev) ? prev : []).map(r => r.id === row.id ? { ...r, tc: val } : r))
+                              }}
+                              aria-label='Tranche C (TC)'
+                            />
                           </td>
                           <td className='actions-col'>
                             <div className='manual-actions'>
@@ -1029,7 +1432,23 @@ export default function SimulatorHub({ id, alignOffset = 0 }) {
                   className='btn-pastel'
                   onClick={() => setManualCareerRows(prev => ([
                     ...(Array.isArray(prev) ? prev : []),
-                    { id: Date.now(), annee: '', revenu: '', trimBase: '', trimAR: '', regime: 'général', observations: '', errY: false, errR: false, errT: false }
+                    {
+                      id: Date.now(),
+                      annee: '',
+                      revenu: '',
+                      trimBase: '',
+                      trimAR: '',
+                      cnavPoints: '',
+                      arrcoPoints: '',
+                      ta: '',
+                      tb: '',
+                      tc: '',
+                      regime: 'général',
+                      observations: '',
+                      errY: false,
+                      errR: false,
+                      errT: false
+                    }
                   ]))}
                 >
                   + Ajouter une ligne
