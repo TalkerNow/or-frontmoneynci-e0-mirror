@@ -196,12 +196,25 @@
     min-height: 320px; /* compact on very small screens */
   }
 }
-/* La row ne doit jamais wrap (au cas où la classe est oubliée) */
+/* Layout desktop par défaut */
 .user-edit-row { flex-wrap: nowrap !important; }
-
-/* La droite doit se tasser et prendre tout l'espace restant */
 .user-edit-row .profile-right {
-  flex: 1 1 0 !important;   /* ignore les % Bootstrap et grossit/rapetisse */
+  flex: 1 1 0 !important;
   max-width: none !important;
-  min-width: 0;             /* évite l'overflow à cause du contenu */
+  min-width: 0;
+}
+
+/* Responsive: empile la fiche client et le contenu dès 993px */
+@media (max-width: 992px) {
+  .user-edit-row {
+    flex-wrap: wrap !important;
+  }
+  .user-edit-row .profile-left,
+  .user-edit-row .profile-right {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+  }
+  .user-edit-row .profile-right {
+    margin-top: 1rem;
+  }
 }

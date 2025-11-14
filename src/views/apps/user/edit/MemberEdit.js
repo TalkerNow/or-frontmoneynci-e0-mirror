@@ -161,7 +161,7 @@ class UserEdit extends React.Component {
             )}
             <NavItem>
               <NavLink className={classnames({ active: this.state.activeTab === 'notes' })} onClick={() => this.toggle('notes')}>
-                <Info className='text-primary mr-50' size={16}/> Notes
+                <Info className='text-primary mr-50' size={16}/> Infos
               </NavLink>
             </NavItem>
             <NavItem>
