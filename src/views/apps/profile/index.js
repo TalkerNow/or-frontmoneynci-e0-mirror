@@ -193,7 +193,7 @@ class UserView extends React.Component {
               )}
               <NavItem>
                 <NavLink className={classnames({ active: this.state.activeTab === 'notes' })} onClick={() => this.toggleTab('notes')}>
-                  <Globe className='text-primary mr-50' size={16}/> Notes
+                  <Globe className='text-primary mr-50' size={16}/> Infos
                 </NavLink>
               </NavItem>
               {/* <NavItem>
@@ -298,13 +298,13 @@ class UserView extends React.Component {
                 <Card className='mb-1 shadow-sm rounded-2xl'>
                   <CardHeader className='pb-0'>
                     <CardTitle tag='h5' className='d-flex align-items-center'>
-                      <Globe className='text-primary mr-50' size={18}/> Notes
+                      <Globe className='text-primary mr-50' size={18}/> Infos
                     </CardTitle>
                   </CardHeader>
                   <CardBody>
                     <FormGroup>
-                      <Label for='notes' className='fw-bold mb-1'>Notes</Label>
-                      <Input type='textarea' id='notes' value={this.state.notes} placeholder='Notes' onChange={(e)=>this.setState({notes:e.target.value})} rows='8' style={{ borderRadius:'10px', resize:'none' }}/>
+                      <Label for='notes' className='fw-bold mb-1'>Infos</Label>
+                      <Input type='textarea' id='notes' value={this.state.notes} placeholder='Infos' onChange={(e)=>this.setState({notes:e.target.value})} rows='8' style={{ borderRadius:'10px', resize:'none' }}/>
                     </FormGroup>
                     <div className='d-flex justify-content-end'>
                       <Button color='primary' onClick={this.handleSaveNotes}>Enregistrer</Button>

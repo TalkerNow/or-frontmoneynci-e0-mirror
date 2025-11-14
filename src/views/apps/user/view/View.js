@@ -100,12 +100,12 @@ class UserView extends React.Component {
             {/* Notes */}
             <Card className="mb-1">
               <CardHeader className="pb-0 d-flex align-items-center">
-                <CardTitle className="mb-0 d-flex align-items-center"><UserIcon className="primary mr-50" size={18}/> Notes</CardTitle>
+                <CardTitle className="mb-0 d-flex align-items-center"><UserIcon className="primary mr-50" size={18}/> Infos</CardTitle>
               </CardHeader>
               <CardBody>
                 <FormGroup>
-                  <Label for="client-notes">Notes</Label>
-                  <Input type="textarea" id="client-notes" rows="8" placeholder="Notes" value={this.state.notes} onChange={(e)=>this.setState({notes:e.target.value})} />
+                  <Label for="client-notes">Infos</Label>
+                  <Input type="textarea" id="client-notes" rows="8" placeholder="Infos" value={this.state.notes} onChange={(e)=>this.setState({notes:e.target.value})} />
                 </FormGroup>
                 <div className="d-flex justify-content-end">
                   <Button color="primary" onClick={this.handleSaveNotes}>Enregistrer</Button>

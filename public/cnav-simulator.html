@@ -75,7 +75,7 @@
   </head>
   <body>
     <div class="container">
-      <div class="collapsible" data-collapsible>
+      <div class="collapsible" data-collapsible data-default-open>
       <button class="collapsible-header" type="button" aria-expanded="false">
         <span class="sim-title" style="margin:0;">SIMULATEUR PENSION SÉCURITÉ SOCIALE CNAV</span>
         <span class="chevron" aria-hidden="true">
@@ -470,7 +470,8 @@
               body.style.maxHeight = '0px';
             }
           };
-          setExpanded(false);
+          var defaultOpen = header.hasAttribute('data-default-open') || section.hasAttribute('data-default-open');
+          setExpanded(defaultOpen);
           header.addEventListener('click', function(){
             var isExpanded = header.getAttribute('aria-expanded') === 'true';
             setExpanded(!isExpanded);
