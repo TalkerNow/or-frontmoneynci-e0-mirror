@@ -113,7 +113,7 @@ class EditContract extends React.Component {
   labelFor = (id) => {
     const fv = this.state.formValues || {};
     switch (id) {
-      case "r1": return fv["title1"] || "Minutes + PU (mn / €/h)";
+      case "r1": return fv["title1"] || "Minutes + PU (min / €/h)";
       case "r2": return fv["title2"] || "Forfait + option rachat/chômage";
       case "r3": return fv["title3"] || "Ligne 3 (forfait)";
       case "r4": return fv["title4"] || "Forfait + 1ère période à l’étranger";
@@ -683,7 +683,7 @@ class EditContract extends React.Component {
                         />
                         <span>{this.state.formValues["title1"]}</span>
 
-                        <span className="text-muted">Nb (mn)</span>
+                        <span className="text-muted">Nb (min)</span>
                         <Input
                           type="text"
                           value={this.state.formValues["nb1"]}
@@ -720,7 +720,7 @@ class EditContract extends React.Component {
                         />
                         <span>{this.state.formValues[`title${n}`]}</span>
 
-                        <Ghost>Nb (mn)</Ghost>
+                        <Ghost>Nb (min)</Ghost>
                         <Ghost><Input style={{ width: 90, height: 30 }} /></Ghost>
                         <Ghost>PU (€/h)</Ghost>
                         <Ghost><Input style={{ width: 90, height: 30 }} /></Ghost>
@@ -751,7 +751,7 @@ class EditContract extends React.Component {
                         />
                         <span>{this.state.formValues[`title${n}`]}</span>
 
-                        <Ghost>Nb (mn)</Ghost>
+                        <Ghost>Nb (min)</Ghost>
                         <Ghost><Input style={{ width: 90, height: 30 }} /></Ghost>
                         <Ghost>PU (€/h)</Ghost>
                         <Ghost><Input style={{ width: 90, height: 30 }} /></Ghost>
@@ -1585,7 +1585,7 @@ class EditContract extends React.Component {
                               className="bold-black"
                               style={{ display: "inline-block" }}
                             >
-                              Nb mn:
+                              Nb min:
                             </div>
                             <div style={{ display: "inline-block" }}>
                               <Input
