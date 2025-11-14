@@ -75,24 +75,6 @@ class OldClientsList extends React.Component {
     searchVal: "",
     columnDefs: [
       {
-        headerName: "Nom",
-        field: "cl_nom",
-        filter: true,
-        width: 120,
-        minWidth: 120,
-        flex: 1,
-        cellRendererFramework: (rowData) => {
-          return (
-            <div
-              className="d-flex align-items-center cursor-pointer"
-              onClick={() => history.push(`/app/olduser/edit/${rowData.data.clcleunik}/2`)}
-            >
-              <span>{rowData.data.cl_nom}</span>
-            </div>
-          );
-        },
-      },
-      {
         headerName: "Prénom",
         field: "cl_prenom",
         filter: true,
@@ -106,6 +88,24 @@ class OldClientsList extends React.Component {
               onClick={() => history.push(`/app/olduser/edit/${rowData.data.clcleunik}/2`)}
             >
               <span>{rowData.data.cl_prenom}</span>
+            </div>
+          );
+        },
+      },
+      {
+        headerName: "Nom",
+        field: "cl_nom",
+        filter: true,
+        width: 120,
+        minWidth: 120,
+        flex: 1,
+        cellRendererFramework: (rowData) => {
+          return (
+            <div
+              className="d-flex align-items-center cursor-pointer"
+              onClick={() => history.push(`/app/olduser/edit/${rowData.data.clcleunik}/2`)}
+            >
+              <span>{rowData.data.cl_nom}</span>
             </div>
           );
         },
