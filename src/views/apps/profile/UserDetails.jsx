@@ -194,12 +194,12 @@ export default function UserDetails({
           <div style={{ borderTop: "1px solid #ebe9f1", margin: "0.25rem 0 0.75rem" }} />
           <div className="users-page-view-table compact-rows">
             <div className="d-flex user-info">
-              <div className="user-info-title font-weight-bold">Nom :</div>
-              <div className="text-truncate">{user.last_name || "—"}</div>
-            </div>
-            <div className="d-flex user-info">
               <div className="user-info-title font-weight-bold">Prénom :</div>
               <div className="text-truncate">{user.first_name || "—"}</div>
+            </div>
+            <div className="d-flex user-info">
+              <div className="user-info-title font-weight-bold">Nom :</div>
+              <div className="text-truncate">{user.last_name || "—"}</div>
             </div>
             <div className="d-flex user-info">
               <div className="user-info-title font-weight-bold">Email :</div>

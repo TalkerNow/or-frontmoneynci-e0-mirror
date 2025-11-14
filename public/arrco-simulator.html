@@ -24,7 +24,9 @@
       tbody tr:nth-child(odd) { background-color: var(--bg); }
       td { border: 1px solid var(--border); padding: 8px; vertical-align: middle; }
       th { background-color: var(--head); color:#fff; border: 1px solid var(--border); padding: 8px; text-align:left; }
-      input[type="text"] {
+      input[type="text"],
+      input[type="number"],
+      input[type="date"] {
         width: 100%;
         box-sizing: border-box; /* éviter tout dépassement dans la cellule */
         padding: 6px 8px;
@@ -43,6 +45,17 @@
       .collapsible-body { overflow:hidden; max-height:0; padding:0 16px; transition:max-height .35s ease, padding .35s ease; }
       .collapsible-body.open { padding:16px; }
       .collapsible-inner { display:block; }
+      .points-section { display:flex; flex-direction:column; gap:0.75rem; margin-top:0.75rem; }
+      .points-row { display:grid; gap:0.75rem; align-items:end; }
+      .points-row--three { grid-template-columns: minmax(200px, 1.2fr) repeat(2, minmax(160px, 1fr)); }
+      .points-row--two { grid-template-columns: minmax(200px, 1.2fr) minmax(160px, 1fr); }
+      .points-label { font-size:14px; font-weight:600; color:#1f2d3d; text-transform:none; }
+      @media (max-width: 640px) {
+        .points-row--three,
+        .points-row--two {
+          grid-template-columns: 1fr;
+        }
+      }
     </style>
   </head>
   <body>
@@ -184,6 +197,32 @@
             <tr><td>2024</td><td><input type="text" id="62c" placeholder="en €uro"  onkeyup="simulateurc(this.value,this.id);"/></td><td>6,20%</td><td>17%</td><td>  5.611 € </td><td><span id="ca62"></span></td><td><span id="cad62"></span></td><td><span id="za62"></span></td></tr>
           </tbody>
         </table>
+      </div>
+
+      <div class="collapsible mt-1" data-collapsible data-default-open>
+        <button class="collapsible-header" type="button" aria-expanded="true" data-default-open>
+          <span class="sim-title" style="margin:0;">POINTS RELEVÉ DE CARRIÈRE</span>
+          <span class="chevron" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </span>
+        </button>
+        <div class="collapsible-body open">
+          <div class="collapsible-inner">
+            <div class="points-section">
+              <div class="points-row points-row--three">
+                <label class="points-label" for="points-date">Nombre de points acquis au</label>
+                <input type="date" id="points-date" />
+                <input type="number" id="points-total" placeholder="Points" inputmode="decimal" />
+              </div>
+              <div class="points-row points-row--two">
+                <label class="points-label" for="points-2024">Points acquis année 2024</label>
+                <input type="number" id="points-2024" placeholder="Points" inputmode="decimal" />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -371,7 +410,8 @@
               body.style.maxHeight = '0px';
             }
           };
-          setExpanded(false);
+          var defaultOpen = section.hasAttribute('data-default-open') || header.hasAttribute('data-default-open');
+          setExpanded(defaultOpen);
           header.addEventListener('click', function(){
             var isExpanded = header.getAttribute('aria-expanded') === 'true';
             setExpanded(!isExpanded);
