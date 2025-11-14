@@ -143,20 +143,20 @@ class ClientsList extends React.Component {
         },
       },
       {
-        headerName: "Nom",
-        filter: true,
-        width: 120,
-        minWidth: 120,
-        flex: 1,
-        valueGetter: (params) => params.data.last_name,
-      },
-      {
         headerName: "Prénom",
         filter: true,
         width: 120,
         minWidth: 120,
         flex: 0,
         valueGetter: (params) => params.data.first_name,
+      },
+      {
+        headerName: "Nom",
+        filter: true,
+        width: 120,
+        minWidth: 120,
+        flex: 1,
+        valueGetter: (params) => params.data.last_name,
       },
       {
         headerName: "Civilité",
