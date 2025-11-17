@@ -56,7 +56,11 @@ var input_values = {
   TVAP: "20",
   fp1: "75",
   fp2: "25",
+  credit_impot_50: false,
 };
+const CREDIT_IMPOT_NOTE =
+  "Prestation éligible à l'avance immédiate de crédit d'impôt soit 50 % pris en charge immédiatement par l'URSSAF après enregistrement du client.";
+
 class EditContract extends React.Component {
   state = {
     rowData: [],
@@ -81,6 +85,7 @@ class EditContract extends React.Component {
       cnb4: true,
       cnb5: false,
       cc5: true,
+      credit_impot_50: false,
     },
     user_id: null,
     parent_id: null,
@@ -89,12 +94,13 @@ class EditContract extends React.Component {
     status: null,
     status_payment: null,
     payment_method: null,
+    payment_method_other: "",
     deposit_date: null,
     sold_date: null,
   };
 
   // ---------- utils d’affichage conditionnel ----------
-  ALL_ROW_IDS = ["r1","r2","r3","r4","r5","r5b","r6","r7"];
+  ALL_ROW_IDS = ["r1", "r2", "r3", "r4", "r5", "r6", "r7"];
 
   rowPrimaryKey = (id) => {
     switch (id) {
@@ -103,7 +109,6 @@ class EditContract extends React.Component {
       case "r3": return "c3";
       case "r4": return "c4";
       case "r5": return "c5";
-      case "r5b": return "cc5"; // texte seul lié à la 5
       case "r6": return "c6";
       case "r7": return "c7";
       default: return null;
@@ -118,7 +123,6 @@ class EditContract extends React.Component {
       case "r3": return fv["title3"] || "Ligne 3 (forfait)";
       case "r4": return fv["title4"] || "Forfait + 1ère période à l’étranger";
       case "r5": return fv["title5"] || "Forfait + 2ème période à l’étranger";
-      case "r5b": return fv["subcontent5-3"] || "Texte seul lié à la ligne 5";
       case "r6": return fv["title6"] || "Ligne 6 (forfait)";
       case "r7": return fv["title7"] || "Ligne 7 (forfait)";
       default: return id;
@@ -137,7 +141,6 @@ class EditContract extends React.Component {
     if (fv?.c3) ids.push("r3");
     if (fv?.c4) ids.push("r4");
     if (fv?.c5) ids.push("r5");
-    if (fv?.cc5) ids.push("r5b");
     if (fv?.c6) ids.push("r6");
     if (fv?.c7) ids.push("r7");
     return ids;
@@ -333,20 +336,37 @@ class EditContract extends React.Component {
             : rowData.sold_dates
               ? JSON.parse(rowData.sold_dates)
               : [];
+        const KNOWN_PAYMENT_METHODS = [
+          "Virement bancaire",
+          "Chèque de banque",
+          "Carte bancaire",
+          "Espèce",
+          "Autre",
+        ];
+        let payment_method = rowData.payment_method || "";
+        let payment_method_other = "";
 
-        this.setState({
-          rowData,
-          user_id: rowData.id,
-          parent_id: rowData.parent_id,
-          deposit_date: rowData.deposit_date,
-          sold_date: rowData.sold_date,
-          status: rowData.document_state,
-          status_payment: rowData.status_payment,
-          payment_method: rowData.payment_method,
-          subscribe_services: rowData.subscribe_services,
-          acompte_dates: acompteDates,
-          sold_dates: soldDates,
-        });
+        if (payment_method && !KNOWN_PAYMENT_METHODS.includes(payment_method)) {
+          // On considère que c'est un "Autre" personnalisé
+          payment_method_other = payment_method;
+          payment_method = "Autre";
+        }
+
+this.setState({
+  rowData,
+  user_id: rowData.id,
+  parent_id: rowData.parent_id,
+  deposit_date: rowData.deposit_date,
+  sold_date: rowData.sold_date,
+  status: rowData.document_state,
+  status_payment: rowData.status_payment,
+  payment_method,          // <-- on garde la valeur calculée
+  payment_method_other,    // <-- et le champ "Autre"
+  subscribe_services: rowData.subscribe_services,
+  acompte_dates: acompteDates,
+  sold_dates: soldDates,
+});
+
 
         if (rowData.values != null) {
           let values = JSON.parse(rowData.values);
@@ -364,15 +384,70 @@ class EditContract extends React.Component {
       })
       .catch((e) => console.log(e));
   }
+  appendCreditImpotNote = async () => {
+    // Si la case n'est pas cochée, on ne fait rien
+    if (!this.state.formValues.credit_impot_50) return;
 
-  sendForm = () => {
+    const userId = this.state.user_id;   // 👈 CORRECTION ICI
+    if (!userId) return;
+
+    const config = {
+      headers: {
+        Authorization: "Bearer " + localStorage.getItem("token"),
+      },
+    };
+
+    try {
+      // 1) Récupérer les notes actuelles
+      const res = await axios.get(
+        `${global.config.server_url}/users/${userId}`,
+        config
+      );
+
+      const user = res.data || {};
+      let existingNotes =
+        user.notes ||
+        (user.personal_informations && user.personal_informations.notes) ||
+        "";
+
+      // Éviter les doublons si la phrase est déjà présente
+      if (existingNotes && existingNotes.includes(CREDIT_IMPOT_NOTE)) {
+        return;
+      }
+
+      // 2) Construire les nouvelles notes
+      let newNotes;
+      if (existingNotes && existingNotes.trim() !== "") {
+        newNotes = `${existingNotes}\n\n${CREDIT_IMPOT_NOTE}`;
+      } else {
+        newNotes = CREDIT_IMPOT_NOTE;
+      }
+
+      // 3) PUT sur /personal_information/:id
+      await axios.put(
+        `${global.config.server_url}/personal_information/${userId}`,
+        { notes: newNotes },
+        config
+      );
+    } catch (e) {
+      console.error("Erreur mise à jour des notes crédit d'impôt", e);
+      // toast.error("Impossible de mettre à jour les notes");
+    }
+  };
+
+  sendForm = async () => {
+    const moyenPaiementFinal =
+      this.state.payment_method === "Autre"
+        ? this.state.payment_method_other || "Autre"
+        : this.state.payment_method;
+
     const Config = {
       headers: {
         Authorization: "Bearer " + localStorage.getItem("token"),
       },
     };
-    let sub_services = "";
 
+    let sub_services = "";
     if (input_values.c1) sub_services += "CH";
     if (input_values.c2) sub_services += " / SIMU";
     if (input_values.c3) sub_services += " / AR";
@@ -380,50 +455,54 @@ class EditContract extends React.Component {
     if (input_values.c5) sub_services += " / TFD";
     if (input_values.c6) sub_services += " / ACTU";
     if (input_values.c7) sub_services += " / RAC";
+
     this.setState({ subscribe_services: sub_services });
 
-    var parameters = {};
-    var userid = this.state.user_id;
-    parameters["user_id"] = userid;
-    parameters["parent_id"] = this.state.parent_id;
-    parameters["comment"] =
-      "Contract de " +
-      this.state.rowData["first_name"] +
-      " " +
-      this.state.rowData["last_name"];
-    parameters["document_state"] = this.state.status;
-    parameters["subscribe_services"] = sub_services;
-    parameters["status_payment"] = this.state.status_payment;
-    parameters["payment_method"] = this.state.payment_method;
-    parameters["values"] = JSON.stringify(input_values);
-    parameters["acompte_dates"] = this.state.acompte_dates;
-    parameters["sold_dates"]    = this.state.sold_dates;
-    parameters["advanced_payment"] = this.state.formValues["TOTALTTC"]
-      ? this.state.formValues["TOTALTTC"]
-      : 0;
-    parameters["pre_payment"] = parseFloat(this.state.formValues["FINAL75"])
-      ? parseFloat(this.state.formValues["FINAL75"])
-      : 0;
-    parameters["end_payment"] = parseFloat(this.state.formValues["FINAL25"])
-      ? parseFloat(this.state.formValues["FINAL25"])
-      : 0;
-    parameters["deposit_date"] = this.state.deposit_date;
-    parameters["sold_date"] = this.state.sold_date;
+    const userid = this.state.user_id;
 
-    axios
-      .put(
+    const parameters = {
+      user_id: userid,
+      parent_id: this.state.parent_id,
+      comment:
+        "Contract de " +
+        this.state.rowData["first_name"] +
+        " " +
+        this.state.rowData["last_name"],
+      document_state: this.state.status,
+      subscribe_services: sub_services,
+      status_payment: this.state.status_payment,
+      payment_method: moyenPaiementFinal,
+      values: JSON.stringify(input_values),
+      unipro: this.state.formValues.credit_impot_50 ? 1 : 0,
+      acompte_dates: this.state.acompte_dates,
+      sold_dates: this.state.sold_dates,
+      advanced_payment: this.state.formValues["TOTALTTC"] || 0,
+      pre_payment: parseFloat(this.state.formValues["FINAL75"]) || 0,
+      end_payment: parseFloat(this.state.formValues["FINAL25"]) || 0,
+      deposit_date: this.state.deposit_date,
+      sold_date: this.state.sold_date,
+    };
+
+    try {
+      // 🧠 1) notes client si crédit d'impôt checked
+      await this.appendCreditImpotNote();
+
+      // 📝 2) mise à jour du document
+      await axios.put(
         global.config.server_url + "/documents/" + this.props.match.params.id,
         parameters,
         Config
-      )
-      .then(function () {
-        history.push("/app/user/edit/" + userid + "/3");
-      })
-      .catch(function (error) {
-        toast.error("API injoignable" + error);
-      });
+      );
 
-    this.setSubscribeServices();
+      // 📡 3) maj des services liés
+      this.setSubscribeServices();
+
+      // 🔁 4) retour sur la fiche user
+      history.push("/app/user/edit/" + userid + "/3");
+    } catch (error) {
+      console.error(error);
+      toast.error("API injoignable " + error);
+    }
   };
 
   setStatusPayment(value) {
@@ -510,6 +589,8 @@ class EditContract extends React.Component {
       this.state.rowData["last_name"];
     parameters["status_payment"] = this.state.status_payment;
     parameters["values"] = JSON.stringify(input_values);
+    parameters["unipro"] = this.state.formValues.credit_impot_50 ? 1 : 0;
+    this.appendCreditImpotNote();
     parameters["advanced_payment"] = this.state.formValues["TOTALTTC"] || 0;
     parameters["pre_payment"] = parseFloat(this.state.formValues["FINAL75"]) || 0;
     parameters["end_payment"] = parseFloat(this.state.formValues["FINAL25"]) || 0;
@@ -741,73 +822,129 @@ class EditContract extends React.Component {
                         <Ghost><Input style={{ width: 70, height: 30 }} /></Ghost>
                       </div>
                     );
+                    const RowWithOption = ({ i, n, optionCheckKey, optionLabel, optionNbKey }) => {
+                      const isPensionLine = n === 5; // ligne "liquidation des pensions"
+                      return (
+                        <div style={{ ...stripe(i), ...GRID }}>
+                          {/* Checkbox principale + titre */}
+                          <LabeledCheckboxMaterialUi
+                            label=""
+                            checked={this.state.formValues[`c${n}`]}
+                            onChange={(checked) => this.onPrimaryToggle(checked, `c${n}`, `r${n}`)}
+                          />
+                          <span>{this.state.formValues[`title${n}`]}</span>
 
-                    const RowWithOption = ({ i, n, optionCheckKey, optionLabel, optionNbKey }) => (
-                      <div style={{ ...stripe(i), ...GRID }}>
-                        <LabeledCheckboxMaterialUi
-                          label=""
-                          checked={this.state.formValues[`c${n}`]}
-                          onChange={(checked) => this.onPrimaryToggle(checked, `c${n}`, `r${n}`)}
-                        />
-                        <span>{this.state.formValues[`title${n}`]}</span>
+                          {/* colonnes minutes / PU fantômes */}
+                          <Ghost>Nb (min)</Ghost>
+                          <Ghost><Input style={{ width: 90, height: 30 }} /></Ghost>
+                          <Ghost>PU (€/h)</Ghost>
+                          <Ghost><Input style={{ width: 90, height: 30 }} /></Ghost>
 
-                        <Ghost>Nb (min)</Ghost>
-                        <Ghost><Input style={{ width: 90, height: 30 }} /></Ghost>
-                        <Ghost>PU (€/h)</Ghost>
-                        <Ghost><Input style={{ width: 90, height: 30 }} /></Ghost>
+                          {/* prix forfait */}
+                          <Input
+                            type="text"
+                            value={this.state.formValues[`p${n}`]}
+                            onChange={(e) => this.handleFieldChange(`p${n}`, e.target.value)}
+                            style={{ height: 30, width: 110, textAlign: "right" }}
+                          />
+                          <span>€ HT</span>
 
-                        <Input
-                          type="text"
-                          value={this.state.formValues[`p${n}`]}
-                          onChange={(e) => this.handleFieldChange(`p${n}`, e.target.value)}
-                          style={{ height: 30, width: 110, textAlign: "right" }}
-                        />
-                        <span>€ HT</span>
+                          <VSep />
 
-                        <VSep />
+                          {/* Partie option */}
+                          {isPensionLine ? (
+                            // Ligne 5 : option "liquidation des pensions" + cc5 sur la même rangée
+                            <div style={{ gridColumn: "10 / span 4" }}>
+                              {/* Option "liquidation des pensions" (cnb5) */}
+                              <div
+                                style={{
+                                  display: "grid",
+                                  gridTemplateColumns: "32px minmax(0,1fr) 24px 70px",
+                                  columnGap: 8,
+                                  alignItems: "center",
+                                }}
+                              >
+                                <LabeledCheckboxMaterialUi
+                                  label=""
+                                  checked={this.state.formValues[optionCheckKey]}
+                                  onChange={(checked) =>
+                                    this.handleCheckChange(checked, optionCheckKey)
+                                  }
+                                />
+                                <span
+                                  style={{
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                  }}
+                                >
+                                  {optionLabel}
+                                </span>
+                                <span>Nb</span>
+                                <Input
+                                  type="text"
+                                  value={this.state.formValues[optionNbKey]}
+                                  onChange={(e) =>
+                                    this.handleFieldChange(optionNbKey, e.target.value)
+                                  }
+                                  style={{ height: 30, width: "100%", textAlign: "right" }}
+                                />
+                              </div>
 
-                        <LabeledCheckboxMaterialUi
-                          label=""
-                          checked={this.state.formValues[optionCheckKey]}
-                          onChange={(checked) => this.handleCheckChange(checked, optionCheckKey)}
-                        />
-                        <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {optionLabel}
-                        </span>
-                        <span>Nb</span>
-                        <Input
-                          type="text"
-                          value={this.state.formValues[optionNbKey]}
-                          onChange={(e) => this.handleFieldChange(optionNbKey, e.target.value)}
-                          style={{ height: 30, width: 70, textAlign: "right" }}
-                        />
-                      </div>
-                    );
-
-                    const RowTextOnly = ({ i }) => (
-                      <div style={{ ...stripe(i), ...GRID }}>
-                        <Ghost><LabeledCheckboxMaterialUi label="" checked={false} /></Ghost>
-                        <span style={{ opacity: 0.65 }}>—</span>
-
-                        <Ghost />
-                        <Ghost />
-                        <Ghost />
-                        <Ghost />
-                        <Ghost />
-                        <Ghost />
-
-                        <VSep />
-
-                        <LabeledCheckboxMaterialUi
-                          label=""
-                          checked={this.state.formValues["cc5"]}
-                          onChange={(checked) => this.onPrimaryToggle(checked, "cc5", "r5b")}
-                        />
-                        <span>{this.state.formValues["subcontent5-3"]}</span>
-                        <Ghost>Nb</Ghost>
-                        <Ghost><Input style={{ width: 70, height: 30 }} /></Ghost>
-                      </div>
-                    );
+                              {/* cc5 : "inclus sous réserve d'un départ en retraite..." */}
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  marginTop: 4,
+                                  gap: 6,
+                                }}
+                              >
+                                <LabeledCheckboxMaterialUi
+                                  label=""
+                                  checked={this.state.formValues.cc5}
+                                  onChange={(checked) =>
+                                    this.handleCheckChange(checked, "cc5")
+                                  }
+                                />
+                                <span style={{ whiteSpace: "normal" }}>
+                                  {this.state.formValues["subcontent5-3"]}
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            // Lignes 2 et 4 : comportement normal
+                            <>
+                              <LabeledCheckboxMaterialUi
+                                label=""
+                                checked={this.state.formValues[optionCheckKey]}
+                                onChange={(checked) =>
+                                  this.handleCheckChange(checked, optionCheckKey)
+                                }
+                              />
+                              <span
+                                style={{
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                }}
+                              >
+                                {optionLabel}
+                              </span>
+                              <span>Nb</span>
+                              <Input
+                                type="text"
+                                value={this.state.formValues[optionNbKey]}
+                                onChange={(e) =>
+                                  this.handleFieldChange(optionNbKey, e.target.value)
+                                }
+                                style={{ height: 30, width: 70, textAlign: "right" }}
+                              />
+                            </>
+                          )}
+                        </div>
+                      );
+                    };
 
                     // Sélecteur d’ajout
                     const AddRowSelect = ({ placeholder = "Ajouter une ligne" }) => {
@@ -882,9 +1019,6 @@ class EditContract extends React.Component {
                             />
                           );
                           break;
-                        case "r5b":
-                          out.push(<RowTextOnly key="r5b" i={i++} />);
-                          break;
                         case "r6":
                           out.push(<RowFixed key="r6" i={i++} n={6} />);
                           break;
@@ -895,7 +1029,6 @@ class EditContract extends React.Component {
                           break;
                       }
                     });
-
                     out.push(
                       <div
                         key="row-tva"
@@ -910,9 +1043,7 @@ class EditContract extends React.Component {
                           style={{ height: 30, width: 80, textAlign: "right" }}
                         />
                         <span>%</span>
-
                         <VSep />
-
                         <span style={{ minWidth: 200 }}>
                           {this.state.formValues["table3-subcontent1"] || "Acompte à la commande :"}
                         </span>
@@ -923,9 +1054,7 @@ class EditContract extends React.Component {
                           style={{ height: 30, width: 80, textAlign: "right" }}
                         />
                         <span>%</span>
-
                         <VSep />
-
                         <span style={{ minWidth: 200 }}>
                           {this.state.formValues["table3-subcontent2"] || "Solde fin de mission :"}
                         </span>
@@ -936,9 +1065,23 @@ class EditContract extends React.Component {
                           style={{ height: 30, width: 80, textAlign: "right" }}
                         />
                         <span>%</span>
+
+                        {/* 👇 séparation avant le crédit d'impôts */}
+                        <VSep />
+
+                        {/* 👇 checkbox + texte avec le même style que les autres spans */}
+                        <div className="d-flex align-items-center" style={{ gap: 6 }}>
+                          <LabeledCheckboxMaterialUi
+                            label="" // important : label vide
+                            checked={!!this.state.formValues.credit_impot_50}
+                            onChange={(checked) =>
+                              this.handleCheckChange(checked, "credit_impot_50")
+                            }
+                          />
+                          <span>Crédit d'impôts 50%</span>
+                        </div>
                       </div>
                     );
-
                     return out;
                   })()}
                 </CardBody>
@@ -972,17 +1115,43 @@ class EditContract extends React.Component {
                               checked={this.state.status === "Perdu"}
                               onChange={() => this.setState({ status: "Perdu", isDirty: true })} />
                           </div>
-
                           <div className="d-flex align-items-center mt-1" style={{ gap: 8 }}>
                             <span className="text-muted" style={{ minWidth: 130 }}>Moyen de paiement</span>
-                            <Input
-                              style={{ width: 220, height: 34 }}
-                              value={this.state.payment_method || ""}
-                              color="primary"
-                              type="text"
-                              placeholder="Ex: CB, virement…"
-                              onChange={(e) => this.setState({ payment_method: e.target.value, isDirty: true })}
-                            />
+
+                            {/* Liste de choix */}
+                              <Input
+                                type="select"
+                                style={{ minWidth: 100, maxWidth: 200, height: 40 }}
+                                value={this.state.payment_method || ""}
+                                color="primary"
+                                onChange={(e) =>
+                                  this.setState({ payment_method: e.target.value, isDirty: true })
+                                }
+                              >
+                              <option value="" disabled hidden>Sélectionner…</option>
+                              <option value="Virement bancaire">Virement bancaire</option>
+                              <option value="Chèque de banque">Chèque de banque</option>
+                              <option value="Carte bancaire">Carte bancaire</option>
+                              <option value="Espèce">Espèce</option>
+                              <option value="Autre">Autre</option>
+                            </Input>
+
+                            {/* Champ texte si "Autre" */}
+                            {this.state.payment_method === "Autre" && (
+                              <Input
+                                style={{ width: 220, height: 34 }}
+                                value={this.state.payment_method_other || ""}
+                                color="primary"
+                                type="text"
+                                placeholder="Précisez le moyen de paiement"
+                                onChange={(e) =>
+                                  this.setState({
+                                    payment_method_other: e.target.value,
+                                    isDirty: true,
+                                  })
+                                }
+                              />
+                            )}
                           </div>
                         </Col>
 

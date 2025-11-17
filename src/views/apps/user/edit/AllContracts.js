@@ -140,7 +140,7 @@ class AllContracts extends React.Component {
         cellRendererFramework: (params) => {
           if (
             (params.data.document_state === "En cours" ||
-              params.data.document_state === "Termine") &&
+              params.data.document_state === "Terminé") &&
             params.data.status_payment >= 1
           ) {
             return (
@@ -150,7 +150,7 @@ class AllContracts extends React.Component {
             );
           } else if (
             (params.data.document_state === "En cours" ||
-              params.data.document_state === "Termine") &&
+              params.data.document_state === "Terminé") &&
             params.data.status_payment < 1
           ) {
             return (
@@ -174,7 +174,7 @@ class AllContracts extends React.Component {
         cellRendererFramework: (params) => {
           if (
             (params.data.document_state === "En cours" ||
-              params.data.document_state === "Termine") &&
+              params.data.document_state === "Terminé") &&
             params.data.status_payment === 2
           ) {
             return (
@@ -183,7 +183,7 @@ class AllContracts extends React.Component {
               </div>
             );
           } else if (
-            params.data.document_state === "Termine" &&
+            params.data.document_state === "Terminé" &&
             params.data.status_payment < 2
           ) {
             return (
