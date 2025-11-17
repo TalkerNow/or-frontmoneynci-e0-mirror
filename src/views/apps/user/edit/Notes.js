@@ -317,11 +317,11 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         <Card className='notes-card notes-card--compact'>
           <CardBody>
             <Form className='notes-form' onSubmit={handleSubmit}>
-              <h5 className='notes-card-title'>Infos</h5>
+              <h5 className='notes-card-title'>Notes</h5>
               <Input
                 id='notes'
                 type='textarea'
-                placeholder='Infos'
+                placeholder='Notes'
                 className='notes-textarea'
                 value={notes}
                 onChange={handleNotesChange}

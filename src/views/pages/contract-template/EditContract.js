@@ -56,7 +56,11 @@ var input_values = {
   TVAP: "20",
   fp1: "75",
   fp2: "25",
+  credit_impot_50: false,
 };
+const CREDIT_IMPOT_NOTE =
+  "Prestation éligible à l'avance immédiate de crédit d'impôt soit 50 % pris en charge immédiatement par l'URSSAF après enregistrement du client.";
+
 class EditContract extends React.Component {
   state = {
     rowData: [],
@@ -81,6 +85,7 @@ class EditContract extends React.Component {
       cnb4: true,
       cnb5: false,
       cc5: true,
+      credit_impot_50: false,
     },
     user_id: null,
     parent_id: null,
@@ -379,19 +384,70 @@ this.setState({
       })
       .catch((e) => console.log(e));
   }
+  appendCreditImpotNote = async () => {
+    // Si la case n'est pas cochée, on ne fait rien
+    if (!this.state.formValues.credit_impot_50) return;
 
-  sendForm = () => {
+    const userId = this.state.user_id;   // 👈 CORRECTION ICI
+    if (!userId) return;
+
+    const config = {
+      headers: {
+        Authorization: "Bearer " + localStorage.getItem("token"),
+      },
+    };
+
+    try {
+      // 1) Récupérer les notes actuelles
+      const res = await axios.get(
+        `${global.config.server_url}/users/${userId}`,
+        config
+      );
+
+      const user = res.data || {};
+      let existingNotes =
+        user.notes ||
+        (user.personal_informations && user.personal_informations.notes) ||
+        "";
+
+      // Éviter les doublons si la phrase est déjà présente
+      if (existingNotes && existingNotes.includes(CREDIT_IMPOT_NOTE)) {
+        return;
+      }
+
+      // 2) Construire les nouvelles notes
+      let newNotes;
+      if (existingNotes && existingNotes.trim() !== "") {
+        newNotes = `${existingNotes}\n\n${CREDIT_IMPOT_NOTE}`;
+      } else {
+        newNotes = CREDIT_IMPOT_NOTE;
+      }
+
+      // 3) PUT sur /personal_information/:id
+      await axios.put(
+        `${global.config.server_url}/personal_information/${userId}`,
+        { notes: newNotes },
+        config
+      );
+    } catch (e) {
+      console.error("Erreur mise à jour des notes crédit d'impôt", e);
+      // toast.error("Impossible de mettre à jour les notes");
+    }
+  };
+
+  sendForm = async () => {
     const moyenPaiementFinal =
       this.state.payment_method === "Autre"
         ? this.state.payment_method_other || "Autre"
         : this.state.payment_method;
+
     const Config = {
       headers: {
         Authorization: "Bearer " + localStorage.getItem("token"),
       },
     };
-    let sub_services = "";
 
+    let sub_services = "";
     if (input_values.c1) sub_services += "CH";
     if (input_values.c2) sub_services += " / SIMU";
     if (input_values.c3) sub_services += " / AR";
@@ -399,50 +455,54 @@ this.setState({
     if (input_values.c5) sub_services += " / TFD";
     if (input_values.c6) sub_services += " / ACTU";
     if (input_values.c7) sub_services += " / RAC";
+
     this.setState({ subscribe_services: sub_services });
 
-    var parameters = {};
-    var userid = this.state.user_id;
-    parameters["user_id"] = userid;
-    parameters["parent_id"] = this.state.parent_id;
-    parameters["comment"] =
-      "Contract de " +
-      this.state.rowData["first_name"] +
-      " " +
-      this.state.rowData["last_name"];
-    parameters["document_state"] = this.state.status;
-    parameters["subscribe_services"] = sub_services;
-    parameters["status_payment"] = this.state.status_payment;
-    parameters["payment_method"] = moyenPaiementFinal;
-    parameters["values"] = JSON.stringify(input_values);
-    parameters["acompte_dates"] = this.state.acompte_dates;
-    parameters["sold_dates"]    = this.state.sold_dates;
-    parameters["advanced_payment"] = this.state.formValues["TOTALTTC"]
-      ? this.state.formValues["TOTALTTC"]
-      : 0;
-    parameters["pre_payment"] = parseFloat(this.state.formValues["FINAL75"])
-      ? parseFloat(this.state.formValues["FINAL75"])
-      : 0;
-    parameters["end_payment"] = parseFloat(this.state.formValues["FINAL25"])
-      ? parseFloat(this.state.formValues["FINAL25"])
-      : 0;
-    parameters["deposit_date"] = this.state.deposit_date;
-    parameters["sold_date"] = this.state.sold_date;
+    const userid = this.state.user_id;
 
-    axios
-      .put(
+    const parameters = {
+      user_id: userid,
+      parent_id: this.state.parent_id,
+      comment:
+        "Contract de " +
+        this.state.rowData["first_name"] +
+        " " +
+        this.state.rowData["last_name"],
+      document_state: this.state.status,
+      subscribe_services: sub_services,
+      status_payment: this.state.status_payment,
+      payment_method: moyenPaiementFinal,
+      values: JSON.stringify(input_values),
+      unipro: this.state.formValues.credit_impot_50 ? 1 : 0,
+      acompte_dates: this.state.acompte_dates,
+      sold_dates: this.state.sold_dates,
+      advanced_payment: this.state.formValues["TOTALTTC"] || 0,
+      pre_payment: parseFloat(this.state.formValues["FINAL75"]) || 0,
+      end_payment: parseFloat(this.state.formValues["FINAL25"]) || 0,
+      deposit_date: this.state.deposit_date,
+      sold_date: this.state.sold_date,
+    };
+
+    try {
+      // 🧠 1) notes client si crédit d'impôt checked
+      await this.appendCreditImpotNote();
+
+      // 📝 2) mise à jour du document
+      await axios.put(
         global.config.server_url + "/documents/" + this.props.match.params.id,
         parameters,
         Config
-      )
-      .then(function () {
-        history.push("/app/user/edit/" + userid + "/3");
-      })
-      .catch(function (error) {
-        toast.error("API injoignable" + error);
-      });
+      );
 
-    this.setSubscribeServices();
+      // 📡 3) maj des services liés
+      this.setSubscribeServices();
+
+      // 🔁 4) retour sur la fiche user
+      history.push("/app/user/edit/" + userid + "/3");
+    } catch (error) {
+      console.error(error);
+      toast.error("API injoignable " + error);
+    }
   };
 
   setStatusPayment(value) {
@@ -529,6 +589,8 @@ this.setState({
       this.state.rowData["last_name"];
     parameters["status_payment"] = this.state.status_payment;
     parameters["values"] = JSON.stringify(input_values);
+    parameters["unipro"] = this.state.formValues.credit_impot_50 ? 1 : 0;
+    this.appendCreditImpotNote();
     parameters["advanced_payment"] = this.state.formValues["TOTALTTC"] || 0;
     parameters["pre_payment"] = parseFloat(this.state.formValues["FINAL75"]) || 0;
     parameters["end_payment"] = parseFloat(this.state.formValues["FINAL25"]) || 0;
@@ -967,7 +1029,6 @@ this.setState({
                           break;
                       }
                     });
-
                     out.push(
                       <div
                         key="row-tva"
@@ -982,9 +1043,7 @@ this.setState({
                           style={{ height: 30, width: 80, textAlign: "right" }}
                         />
                         <span>%</span>
-
                         <VSep />
-
                         <span style={{ minWidth: 200 }}>
                           {this.state.formValues["table3-subcontent1"] || "Acompte à la commande :"}
                         </span>
@@ -995,9 +1054,7 @@ this.setState({
                           style={{ height: 30, width: 80, textAlign: "right" }}
                         />
                         <span>%</span>
-
                         <VSep />
-
                         <span style={{ minWidth: 200 }}>
                           {this.state.formValues["table3-subcontent2"] || "Solde fin de mission :"}
                         </span>
@@ -1008,9 +1065,23 @@ this.setState({
                           style={{ height: 30, width: 80, textAlign: "right" }}
                         />
                         <span>%</span>
+
+                        {/* 👇 séparation avant le crédit d'impôts */}
+                        <VSep />
+
+                        {/* 👇 checkbox + texte avec le même style que les autres spans */}
+                        <div className="d-flex align-items-center" style={{ gap: 6 }}>
+                          <LabeledCheckboxMaterialUi
+                            label="" // important : label vide
+                            checked={!!this.state.formValues.credit_impot_50}
+                            onChange={(checked) =>
+                              this.handleCheckChange(checked, "credit_impot_50")
+                            }
+                          />
+                          <span>Crédit d'impôts 50%</span>
+                        </div>
                       </div>
                     );
-
                     return out;
                   })()}
                 </CardBody>
