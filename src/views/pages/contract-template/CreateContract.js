@@ -46,6 +46,7 @@ var input_values = {
   TVAP: "20",
   fp1: "75",
   fp2: "25",
+  credit_impot_50: false,
 };
 
 const Config = {
@@ -53,6 +54,9 @@ const Config = {
     Authorization: "Bearer " + localStorage.getItem("token"),
   },
 };
+
+const CREDIT_IMPOT_NOTE =
+  "Prestation éligible à l'avance immédiate de crédit d'impôt soit 50 % pris en charge immédiatement par l'URSSAF après enregistrement du client.";
 
 class CreateContract extends React.Component {
   pdfRef = React.createRef();
@@ -75,6 +79,7 @@ class CreateContract extends React.Component {
       cnb4: true,
       cnb5: false,
       cc5: true,
+      credit_impot_50: false,
     },
     general_condition: "",
     subscribe_services: "",
@@ -406,11 +411,13 @@ class CreateContract extends React.Component {
             return !!v;
           };
 
-          const boolKeys = ["c1", "c2", "c3", "c4", "c5", "c6", "c7", "cnb2", "cnb4", "cnb5", "cc5"];
+          const boolKeys = ["c1", "c2", "c3", "c4", "c5", "c6", "c7", "cnb2", "cnb4", "cnb5", "cc5","credit_impot_50",];
           boolKeys.forEach((k) => {
             if (k in values) values[k] = toStrictBool(values[k]);
           });
-
+          if (!("credit_impot_50" in values)) {
+            values.credit_impot_50 = false;
+          }
           // Forcer AR Entreprise (section 4) à false au chargement
           values.c4 = false;
 
@@ -432,63 +439,133 @@ class CreateContract extends React.Component {
         this.setState({ rowData });
       });
   }
+  appendCreditImpotNote = async () => {
+    // Si la case n'est pas cochée, on ne fait rien
+    if (!this.state.formValues.credit_impot_50) return;
 
-  sendForm = () => {
-    const Config = {
+    const userId = this.props.match.params.id;
+
+    const config = {
       headers: {
         Authorization: "Bearer " + localStorage.getItem("token"),
       },
     };
-    let sub_services = "";
 
-    if (input_values.c1) sub_services += "CH";
-    if (input_values.c2) sub_services += " / SIMU";
-    if (input_values.c3) sub_services += " / AR";
-    if (input_values.c4) sub_services += " / AR";
-    if (input_values.c5) sub_services += " / TFD";
-    if (input_values.c6) sub_services += " / ACTU";
-    if (input_values.c7) sub_services += " / RAC";
-    this.setState({ subscribe_services: sub_services });
-    var parameters = {};
-    var userid = this.props.match.params.id;
-    var parentid = this.state.rowData.parent_id;
-    parameters["link_to_documents"] = "N/a";
-    parameters["type"] = "contract";
-    parameters["document_state"] = "En attente";
-    parameters["date"] = "N/a";
-    parameters["subscribe_services"] = sub_services;
-    parameters["status_payment"] = 0;
-    parameters["comment"] =
+    try {
+      // 1) Récupérer les notes actuelles
+      const res = await axios.get(
+        `${global.config.server_url}/users/${userId}`,
+        config
+      );
+
+      const user = res.data || {};
+      // notes probablement au niveau root (comme first_name / last_name)
+      let existingNotes =
+        user.notes ||
+        (user.personal_informations && user.personal_informations.notes) ||
+        "";
+
+      // Éviter les doublons si la phrase est déjà présente
+      if (
+        existingNotes &&
+        existingNotes.includes(CREDIT_IMPOT_NOTE)
+      ) {
+        return;
+      }
+
+      // 2) Construire les nouvelles notes
+      let newNotes;
+      if (existingNotes && existingNotes.trim() !== "") {
+        newNotes = `${existingNotes}\n\n${CREDIT_IMPOT_NOTE}`;
+      } else {
+        newNotes = CREDIT_IMPOT_NOTE;
+      }
+
+      // 3) PUT sur /personal_information/:id
+      await axios.put(
+        `${global.config.server_url}/personal_information/${userId}`,
+        { notes: newNotes },
+        config
+      );
+    } catch (e) {
+      console.error("Erreur mise à jour des notes crédit d'impôt", e);
+      // tu peux mettre un toast si tu veux, mais j'évite de bloquer le contrat
+      // toast.error("Impossible de mettre à jour les notes");
+    }
+  };
+
+sendForm = async () => {
+  const Config = {
+    headers: {
+      Authorization: "Bearer " + localStorage.getItem("token"),
+    },
+  };
+
+  let sub_services = "";
+
+  if (input_values.c1) sub_services += "CH";
+  if (input_values.c2) sub_services += " / SIMU";
+  if (input_values.c3) sub_services += " / AR";
+  if (input_values.c4) sub_services += " / AR";
+  if (input_values.c5) sub_services += " / TFD";
+  if (input_values.c6) sub_services += " / ACTU";
+  if (input_values.c7) sub_services += " / RAC";
+
+  this.setState({ subscribe_services: sub_services });
+
+  const userid = this.props.match.params.id;
+  const parentid = this.state.rowData.parent_id;
+
+  const parameters = {
+    link_to_documents: "N/a",
+    type: "contract",
+    document_state: "En attente",
+    date: "N/a",
+    subscribe_services: sub_services,
+    status_payment: 0,
+    comment:
       "Contract de " +
       this.state.rowData["first_name"] +
       " " +
-      this.state.rowData["last_name"];
-    parameters["advanced_payment"] = this.state.formValues["TOTALTTC"]
+      this.state.rowData["last_name"],
+    advanced_payment: this.state.formValues["TOTALTTC"]
       ? this.state.formValues["TOTALTTC"]
-      : 0;
-    parameters["pre_payment"] = parseFloat(this.state.formValues["FINAL75"])
+      : 0,
+    pre_payment: parseFloat(this.state.formValues["FINAL75"])
       ? parseFloat(this.state.formValues["FINAL75"])
-      : 0;
-    parameters["end_payment"] = parseFloat(this.state.formValues["FINAL25"])
+      : 0,
+    end_payment: parseFloat(this.state.formValues["FINAL25"])
       ? parseFloat(this.state.formValues["FINAL25"])
-      : 0;
-    parameters["user_id"] = userid;
-    parameters["parent_id"] = parentid.toString();
-    parameters["creator_id"] = this.state.creator_id;
-    parameters["values"] = JSON.stringify(input_values);
-    //-------- save Contract ---------
-    axios
-      .post(global.config.server_url + "/documents", parameters, Config)
-      .then(function (result) {
-        history.push("/app/user/edit/" + userid + "/3");
-      })
-      .catch(function (error) {
-        toast.error("API injoignable" + error);
-      });
-
-    //--- set the subscribe services from contract into user table--------
-    this.setSubscribeServices();
+      : 0,
+    user_id: userid,
+    parent_id: parentid.toString(),
+    creator_id: this.state.creator_id,
+    values: JSON.stringify(input_values),
+    unipro: this.state.formValues.credit_impot_50 ? 1 : 0,
   };
+
+  try {
+    // 🔹 On attend que les notes soient bien mises à jour
+    await this.appendCreditImpotNote();
+
+    // 🔹 On enregistre le document
+    await axios.post(
+      global.config.server_url + "/documents",
+      parameters,
+      Config
+    );
+
+    // 🔹 On met à jour les services (tu peux aussi await si tu veux être 100% séquentiel)
+    this.setSubscribeServices();
+
+    // 🔹 Puis seulement on revient sur la page editUser
+    history.push("/app/user/edit/" + userid + "/3");
+  } catch (error) {
+    console.error(error);
+    toast.error("API injoignable " + error);
+  }
+};
+
 
   setSubscribeServices() {
     const Config = {
@@ -568,7 +645,8 @@ class CreateContract extends React.Component {
     parameters["parent_id"] = parentid.toString(); //parentid;
     parameters["creator_id"] = this.state.creator_id;
     parameters["values"] = JSON.stringify(input_values);
-
+    parameters["unipro"] = this.state.formValues.credit_impot_50 ? 1 : 0;
+    this.appendCreditImpotNote();
     axios
       .post(global.config.server_url + "/documents", parameters, Config)
       .catch(function (error) {
@@ -1016,6 +1094,21 @@ class CreateContract extends React.Component {
                           style={{ height: 30, width: 80, textAlign: "right" }}
                         />
                         <span>%</span>
+
+                        {/* 👇 séparation avant le crédit d'impôts */}
+                        <VSep />
+
+                        {/* 👇 checkbox + texte avec le même style que les autres spans */}
+                        <div className="d-flex align-items-center" style={{ gap: 6 }}>
+                          <LabeledCheckboxMaterialUi
+                            label="" // important : label vide
+                            checked={!!this.state.formValues.credit_impot_50}
+                            onChange={(checked) =>
+                              this.handleCheckChange(checked, "credit_impot_50")
+                            }
+                          />
+                          <span>Crédit d'impôts 50%</span>
+                        </div>
                       </div>
                     );
                     return out;
@@ -1102,7 +1195,7 @@ class CreateContract extends React.Component {
                             {" "}
                             <h5 className="bold-black">Date Naissance </h5>{" "}
                           </Col>
- <Col md="7" sm="12">
+                            <Col md="7" sm="12">
                           {" "}
                           <h6>{moment(this.ifExist("birth_date")).isValid() ? moment(this.ifExist("birth_date")).format("DD/MM/YYYY") : ""}</h6>
                         </Col>
