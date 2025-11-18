@@ -31,6 +31,40 @@ const toDateInputValue = (raw) => {
   }
   return datePart;
 };
+// Récupère la première date d'un champ (string simple ou liste JSON/array)
+const getFirstDateFromValue = (value) => {
+  if (!value) return null;
+
+  // Si c'est déjà un tableau JS
+  if (Array.isArray(value)) {
+    if (!value.length) return null;
+    const v0 = value[0];
+    if (typeof v0 === "string") return toDateInputValue(v0);
+    return null;
+  }
+
+  // Si c'est une string
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+
+    // Si c'est une string de tableau JSON : '["2025-11-17","2025-12-01"]'
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === "string") {
+          return toDateInputValue(parsed[0]);
+        }
+      } catch (e) {
+        // on tombe plus bas
+      }
+    }
+
+    // Sinon on considère que c'est une simple date "YYYY-MM-DD ..."
+    return toDateInputValue(value);
+  }
+
+  return null;
+};
 
 // Pour envoyer au back (YYYY-MM-DD HH:MM:SS)
 const fromDateInputValue = (value) => {
@@ -54,6 +88,22 @@ const addBusinessDays = (dateInputValue, days) => {
       added++;
     }
   }
+
+  const pad = (n) => String(n).padStart(2, "0");
+  const y = d.getFullYear();
+  const m = pad(d.getMonth() + 1);
+  const da = pad(d.getDate());
+  return `${y}-${m}-${da}`;
+};
+
+// Ajouter N jours "classiques" (calendaires) à une date (YYYY-MM-DD)
+const addDays = (dateInputValue, days) => {
+  if (!dateInputValue) return null;
+  const [year, month, day] = dateInputValue.split("-").map(Number);
+  if (!year || !month || !day) return null;
+
+  const d = new Date(year, month - 1, day);
+  d.setDate(d.getDate() + days);
 
   const pad = (n) => String(n).padStart(2, "0");
   const y = d.getFullYear();
@@ -124,28 +174,29 @@ const getContractTypeLabel = (contract) => {
 };
 
 const BADGE_CLASS_BY_TYPE = {
-  credit_impot: "badge badge-light-success",      // vert
-  ar_tfd: "badge badge-light-warning",            // jaune
-  ch_simu_actu_rac: "badge badge-light-primary",  // bleu
-  none: "badge badge-light-secondary",            // gris
+  credit_impot: "badge badge-light-success", // vert
+  ar_tfd: "badge badge-light-warning", // jaune
+  ch_simu_actu_rac: "badge badge-light-primary", // bleu
+  none: "badge badge-light-secondary", // gris
 };
 
 // Définition des steps par type
 const STEP_DEFINITION = {
-  credit_impot: {
+    credit_impot: {
     totalSteps: 8,
     dateSteps: [1, 2, 3, 4, 5, 6, 7],
     labels: [
-      "Signature du contrat", // step 1
-      "Inscription Urssaf",   // step 2
-      "5 jours ouvrés d'attente", 
-      "Étape 4",
-      "Étape 5",
-      "Étape 6",
-      "Étape 7",
-      "Étape 8 (sans date)",
+        "Signature du contrat",              // 1
+        "Inscription Urssaf",                // 2
+        "5 jours ouvrés d'attente",          // 3
+        "Création devis",                    // 4
+        "Transformer devis en facture",      // 5
+        "Paiement automatique Unipro",                           // 6
+        "Paiement du contrat",                           // 7
+        "Avancement du dossier",              // 8
     ],
-  },
+    },
+
   ar_tfd: {
     totalSteps: 5,
     dateSteps: [1, 2, 3, 4],
@@ -160,13 +211,7 @@ const STEP_DEFINITION = {
   ch_simu_actu_rac: {
     totalSteps: 5,
     dateSteps: [1, 2, 3, 4],
-    labels: [
-      "Étape 1",
-      "Étape 2",
-      "Étape 3",
-      "Étape 4",
-      "Étape 5 (sans date)",
-    ],
+    labels: ["Étape 1", "Étape 2", "Étape 3", "Étape 4", "Étape 5 (sans date)"],
   },
   none: {
     totalSteps: 0,
@@ -225,18 +270,19 @@ const SuiviAvancementBox = ({ clientId }) => {
   };
 
   // 4) Synchro Step 1 (signature) depuis les fichiers (dossier = 1)
-  const syncStep1FromFiles = async (contractsRes, currentSuivis, files) => {
+ // 4) Synchro Step 1 (signature) depuis les fichiers (dossier = 1)
+    const syncStep1FromFiles = async (contractsRes, currentSuivis, files) => {
     const dossier1Files = (files || []).filter((f) => f.dossier === 1);
     const hasFile = dossier1Files.length > 0;
     setHasSignedFile(hasFile);
 
     if (!hasFile || currentSuivis.length === 0) {
-      return currentSuivis;
+        return currentSuivis;
     }
 
     const latestFile = dossier1Files.reduce((acc, f) => {
-      if (!acc) return f;
-      return new Date(f.created_at) > new Date(acc.created_at) ? f : acc;
+        if (!acc) return f;
+        return new Date(f.created_at) > new Date(acc.created_at) ? f : acc;
     }, null);
 
     if (!latestFile) return currentSuivis;
@@ -244,32 +290,35 @@ const SuiviAvancementBox = ({ clientId }) => {
     const fileDate = latestFile.created_at.replace("T", " ").replace("Z", "");
 
     await Promise.all(
-      currentSuivis.map(async (s) => {
+        currentSuivis.map(async (s) => {
         const contract = contractsRes.find((c) => c.id === s.facture_id);
         const typeCode = getContractTypeCode(contract);
         if (typeCode !== "credit_impot" && typeCode !== "ar_tfd") return;
 
-        const hasExistingDate = !!s.step1_completed_at;
+        // 🔴 IMPORTANT : ne JAMAIS écraser une date déjà renseignée
+        if (s.step1_completed_at) {
+            // il y a déjà une date (auto ou manuelle) -> on respecte la DB
+            return;
+        }
+
         const url = `${global.config.server_url}/suivi-avancement/${s.id}/steps/1`;
 
         try {
-          if (hasExistingDate) {
-            await axios.put(url, { date: fileDate }, getConfig());
-          } else {
+            // ici on ne fait que créer la date si elle est nulle
             await axios.post(url, { date: fileDate }, getConfig());
-          }
         } catch (e) {
-          console.error(
+            console.error(
             `Erreur update step1 pour le suivi ${s.id} avec la date du fichier`,
             e
-          );
+            );
         }
-      })
+        })
     );
 
     const refreshedSuivis = await fetchSuivis();
     return refreshedSuivis;
-  };
+    };
+
 
   // 5) Synchro Step 3 (crédit d'impot) auto = Step 2 + 5 jours ouvrés
   const syncStep3FromStep2 = async (contractsRes, currentSuivis) => {
@@ -347,7 +396,11 @@ const SuiviAvancementBox = ({ clientId }) => {
       }
 
       let finalSuivis = await fetchSuivis();
-      finalSuivis = await syncStep1FromFiles(contractsRes, finalSuivis, filesRes);
+      finalSuivis = await syncStep1FromFiles(
+        contractsRes,
+        finalSuivis,
+        filesRes
+      );
       finalSuivis = await syncStep3FromStep2(contractsRes, finalSuivis);
 
       setSuivis(finalSuivis);
@@ -359,7 +412,7 @@ const SuiviAvancementBox = ({ clientId }) => {
     }
   };
 
-  // ----------- Edition manuelle d'une date -----------
+  // ----------- Edition manuelle d'une date (steps génériques) -----------
 
   const startEditing = (suiviId, stepNumber, rawValue) => {
     setEditing((prev) => ({
@@ -370,7 +423,7 @@ const SuiviAvancementBox = ({ clientId }) => {
       ...prev,
       [suiviId]: {
         ...(prev[suiviId] || {}),
-        [stepNumber]: toDateInputValue(rawValue),
+        [stepNumber]: rawValue ? toDateInputValue(rawValue) : "",
       },
     }));
   };
@@ -441,6 +494,118 @@ const SuiviAvancementBox = ({ clientId }) => {
       }));
     }
   };
+    const validateStep7Date = async (suivi, dateInput) => {
+    const svId = suivi.id;
+    if (!dateInput) return;
+    const dateToSend = fromDateInputValue(dateInput);
+    if (!dateToSend) return;
+
+    setSaving((prev) => ({
+        ...prev,
+        [svId]: { ...(prev[svId] || {}), 7: true },
+    }));
+    setError(null);
+
+    const hasExistingDate = !!suivi.step7_completed_at;
+    const url = `${global.config.server_url}/suivi-avancement/${svId}/steps/7`;
+
+    try {
+        if (hasExistingDate) {
+        await axios.put(url, { date: dateToSend }, getConfig());
+        } else {
+        await axios.post(url, { date: dateToSend }, getConfig());
+        }
+        const refreshedSuivis = await fetchSuivis();
+        setSuivis(refreshedSuivis);
+        cancelEditing(svId, 7);
+    } catch (e) {
+        console.error("Erreur validation step7", e);
+        setError(
+        "Erreur lors de la validation de la date pour l'étape 7 (crédit d'impot)."
+        );
+    } finally {
+        setSaving((prev) => ({
+        ...prev,
+        [svId]: { ...(prev[svId] || {}), 7: false },
+        }));
+    }
+    };
+
+  // Validation step 4 (Création devis) avec une date donnée (input YYYY-MM-DD)
+  const validateStep4Date = async (suivi, dateInput) => {
+    const svId = suivi.id;
+    if (!dateInput) return;
+    const dateToSend = fromDateInputValue(dateInput);
+    if (!dateToSend) return;
+
+    setSaving((prev) => ({
+      ...prev,
+      [svId]: { ...(prev[svId] || {}), 4: true },
+    }));
+    setError(null);
+
+    const hasExistingDate = !!suivi.step4_completed_at;
+    const url = `${global.config.server_url}/suivi-avancement/${svId}/steps/4`;
+
+    try {
+      if (hasExistingDate) {
+        await axios.put(url, { date: dateToSend }, getConfig());
+      } else {
+        await axios.post(url, { date: dateToSend }, getConfig());
+      }
+      const refreshedSuivis = await fetchSuivis();
+      setSuivis(refreshedSuivis);
+      cancelEditing(svId, 4);
+    } catch (e) {
+      console.error("Erreur validation step4", e);
+      setError(
+        "Erreur lors de la validation de la date pour l'étape 4 (Création devis)."
+      );
+    } finally {
+      setSaving((prev) => ({
+        ...prev,
+        [svId]: { ...(prev[svId] || {}), 4: false },
+      }));
+    }
+  };
+
+  // Validation step 6 (date step 5 + 2 jours)
+  const validateStep6Date = async (suivi, dateInput) => {
+    const svId = suivi.id;
+    if (!dateInput) return;
+    const dateToSend = fromDateInputValue(dateInput);
+    if (!dateToSend) return;
+
+    setSaving((prev) => ({
+      ...prev,
+      [svId]: { ...(prev[svId] || {}), 6: true },
+    }));
+    setError(null);
+
+    const hasExistingDate = !!suivi.step6_completed_at;
+    const url = `${global.config.server_url}/suivi-avancement/${svId}/steps/6`;
+
+    try {
+      if (hasExistingDate) {
+        await axios.put(url, { date: dateToSend }, getConfig());
+      } else {
+        await axios.post(url, { date: dateToSend }, getConfig());
+      }
+      const refreshedSuivis = await fetchSuivis();
+      setSuivis(refreshedSuivis);
+      cancelEditing(svId, 6);
+    } catch (e) {
+      console.error("Erreur validation step6", e);
+      setError(
+        "Erreur lors de la validation de la date pour l'étape 6 (crédit d'impot)."
+      );
+    } finally {
+      setSaving((prev) => ({
+        ...prev,
+        [svId]: { ...(prev[svId] || {}), 6: false },
+      }));
+    }
+  };
 
   useEffect(() => {
     if (clientId) {
@@ -500,142 +665,536 @@ const SuiviAvancementBox = ({ clientId }) => {
                     </div>
                   ) : (
                     <div>
-                      {Array.from({ length: stepDef.totalSteps }).map(
-                        (_, index) => {
-                          const stepNumber = index + 1;
-                          const hasDate = stepDef.dateSteps.includes(
-                            stepNumber
-                          );
-                          const column = hasDate
-                            ? `step${stepNumber}_completed_at`
-                            : null;
-                          const rawValue =
-                            column && s[column] ? s[column] : null;
-                          const displayValue = rawValue
-                            ? formatDisplayDate(rawValue)
-                            : "-";
-                          const label =
-                            stepDef.labels[stepNumber - 1] ||
-                            `Étape ${stepNumber}`;
+                    {Array.from({ length: stepDef.totalSteps }).map((_, index) => {
+                    const stepNumber = index + 1;
+                    const hasDate = stepDef.dateSteps.includes(stepNumber);
+                    const column = hasDate ? `step${stepNumber}_completed_at` : null;
+                    const dbRaw = column && s[column] ? s[column] : null;
+                    const dbInput = dbRaw ? toDateInputValue(dbRaw) : null;
+                    const label = stepDef.labels[stepNumber - 1] || `Étape ${stepNumber}`;
 
-                          const isCreditImpot = typeCode === "credit_impot";
-                          const isStep1Signature =
-                            (isCreditImpot || typeCode === "ar_tfd") &&
-                            stepNumber === 1;
-                          const isCreditImpotStep2 =
-                            isCreditImpot && stepNumber === 2;
-                          const isCreditImpotStep3 =
-                            isCreditImpot && stepNumber === 3;
+                    const isCreditImpot = typeCode === "credit_impot";
+                    const isStep1Signature =
+                        (isCreditImpot || typeCode === "ar_tfd") && stepNumber === 1;
+                    const isCreditImpotStep2 = isCreditImpot && stepNumber === 2;
+                    const isCreditImpotStep3 = isCreditImpot && stepNumber === 3;
+                    const isCreditImpotStep4 = isCreditImpot && stepNumber === 4;
+                    const isCreditImpotStep5 = isCreditImpot && stepNumber === 5;
+                    const isCreditImpotStep6 = isCreditImpot && stepNumber === 6;
+                    const isCreditImpotStep7 = isCreditImpot && stepNumber === 7;
+                    const isCreditImpotStep8 = isCreditImpot && stepNumber === 8;
 
-                          const canEditDate =
-                            hasDate &&
-                            (isStep1Signature ||
-                              isCreditImpotStep2 ||
-                              isCreditImpotStep3);
+                    const isEditing = editing[s.id]?.[stepNumber] === true;
+                    const editingValueInput =
+                        (editingValues[s.id] && editingValues[s.id][stepNumber]) || null;
 
-                          const isEditing =
-                            editing[s.id]?.[stepNumber] === true;
+                    // ----- Dates candidates par défaut -----
+                    let displayDateInput = dbInput;
 
-                          return (
-                            <div key={stepNumber} className="mb-25">
-                              <div className="d-flex justify-content-between align-items-center">
-                                <span>
-                                  {label} : <strong>{displayValue}</strong>{" "}
-                                  {isStep1Signature &&
-                                    !hasSignedFile &&
-                                    !rawValue && (
-                                      <span className="text-muted ml-25">
-                                        (Mettre le contrat signé dans le
-                                        dossier{" "}
-                                        <strong>
-                                          &quot;1. Contrat / Procuration&quot;
-                                        </strong>{" "}
-                                        pour passer à l&apos;étape suivante.)
-                                      </span>
-                                    )}
-                                </span>
+                    // Step 3 : vient de la DB uniquement (générée auto depuis step2)
+                    // => pas de cas spécial ici, on laisse dbInput.
 
-                                {canEditDate && (
-                                  <div className="d-flex align-items-center ml-1">
-                                    {isEditing ? (
-                                      <>
-                                        <Input
-                                          type="date"
-                                          bsSize="sm"
-                                          value={
-                                            (editingValues[s.id] &&
-                                              editingValues[s.id][
-                                                stepNumber
-                                              ]) ??
-                                            toDateInputValue(rawValue)
-                                          }
-                                          onChange={(e) => {
-                                            const newValue = e.target.value;
-                                            setEditingValues((prev) => ({
-                                              ...prev,
-                                              [s.id]: {
-                                                ...(prev[s.id] || {}),
-                                                [stepNumber]: newValue,
-                                              },
-                                            }));
-                                          }}
-                                          className="mr-50"
-                                          style={{ maxWidth: 160 }}
-                                        />
-                                        <Button
-                                          color="primary"
-                                          size="sm"
-                                          disabled={
-                                            saving[s.id]?.[stepNumber] === true
-                                          }
-                                          className="mr-25"
-                                          onClick={() =>
-                                            saveManualStepDate(
-                                              s,
-                                              stepNumber,
-                                              typeCode
-                                            )
-                                          }
-                                        >
-                                          {saving[s.id]?.[stepNumber]
-                                            ? "..."
-                                            : "OK"}
-                                        </Button>
-                                        <Button
-                                          color="secondary"
-                                          size="sm"
-                                          outline
-                                          onClick={() =>
-                                            cancelEditing(s.id, stepNumber)
-                                          }
-                                        >
-                                          Annuler
-                                        </Button>
-                                      </>
-                                    ) : (
-                                      <Button
-                                        color="link"
-                                        size="sm"
-                                        className="p-0"
-                                        onClick={() =>
-                                          startEditing(
-                                            s.id,
-                                            stepNumber,
-                                            rawValue
-                                          )
-                                        }
-                                        title="Modifier la date"
-                                      >
-                                        <Edit size={14} />
-                                      </Button>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          );
+                    // Step 4 : même date que step 3 par défaut (puis validation)
+                    let step4CandidateInput = null;
+                    const step3Input = s.step3_completed_at
+                        ? toDateInputValue(s.step3_completed_at)
+                        : null;
+                    const step4Validated = !!s.step4_completed_at;
+
+                    if (isCreditImpotStep4) {
+                        if (isEditing) {
+                        step4CandidateInput = editingValueInput || dbInput || step3Input;
+                        } else {
+                        step4CandidateInput = dbInput || step3Input || null;
                         }
-                      )}
+                        displayDateInput = step4CandidateInput || null;
+                    }
+
+                    // Step 5 : date manuelle
+                    let step5CandidateInput = null;
+                    const step5Validated = !!s.step5_completed_at;
+
+                    if (isCreditImpotStep5) {
+                        if (isEditing) {
+                        step5CandidateInput = editingValueInput || dbInput || "";
+                        } else {
+                        step5CandidateInput = dbInput || null;
+                        }
+                        displayDateInput = step5CandidateInput || null;
+                    }
+
+                    // Step 6 : date step5 + 2 jours
+                    let step6CandidateInput = null;
+                    const step5Input = s.step5_completed_at
+                        ? toDateInputValue(s.step5_completed_at)
+                        : null;
+                    const autoFromStep5 = step5Input ? addDays(step5Input, 2) : null;
+                    const step6Validated = !!s.step6_completed_at;
+
+                    if (isCreditImpotStep6) {
+                        if (isEditing) {
+                        step6CandidateInput = editingValueInput || dbInput || autoFromStep5;
+                        } else {
+                        step6CandidateInput = dbInput || autoFromStep5 || null;
+                        }
+                        displayDateInput = step6CandidateInput || null;
+                    }
+
+                    // Step 7 : première date de deposit_date du contrat (modifiable)
+                    let step7CandidateInput = null;
+                    const step7Validated = !!s.step7_completed_at;
+                    const depositFirstInput = contract
+                        ? getFirstDateFromValue(contract.deposit_date)
+                        : null;
+
+                    if (isCreditImpotStep7) {
+                        if (isEditing) {
+                        step7CandidateInput = editingValueInput || dbInput || depositFirstInput;
+                        } else {
+                        step7CandidateInput = dbInput || depositFirstInput || null;
+                        }
+                        displayDateInput = step7CandidateInput || null;
+                    }
+
+                    let displayValue = "-";
+
+                    if (isCreditImpotStep8) {
+                    // toutes les steps 1 à 7 ont une date ?
+                    const allDone = STEP_DEFINITION.credit_impot.dateSteps
+                        .filter((num) => num <= 7) // on limite bien à 1..7
+                        .every((num) => !!s[`step${num}_completed_at`]);
+
+                    displayValue = allDone
+                        ? "Dossier en cours de traitement"
+                        : "Dossier en attente";
+                    } else {
+                    displayValue = displayDateInput
+                        ? formatDisplayDate(displayDateInput)
+                        : "-";
+                    }
+
+
+                    // ----- Edition générique (step1 & step2) -----
+                    const canEditDate =
+                        hasDate && (isStep1Signature || isCreditImpotStep2);
+                    const isEditingGeneric =
+                        isEditing && (isStep1Signature || isCreditImpotStep2);
+
+                    return (
+                        <div key={stepNumber} className="mb-25">
+                        <div className="d-flex justify-content-between align-items-center">
+                            <span>
+                            {label} : <strong>{displayValue}</strong>{" "}
+                            {isStep1Signature && !hasSignedFile && !dbRaw && (
+                                <span className="text-muted ml-25">
+                                (Mettre le contrat signé dans le dossier{" "}
+                                <strong>&quot;1. Contrat / Procuration&quot;</strong>{" "}
+                                pour passer à l&apos;étape suivante.)
+                                </span>
+                            )}
+                            </span>
+
+                            {/* Édition générique Step1 & Step2 */}
+                            {hasDate && canEditDate && (
+                            <div className="d-flex align-items-center ml-1">
+                                {isEditingGeneric ? (
+                                <>
+                                    <Input
+                                    type="date"
+                                    bsSize="sm"
+                                    value={
+                                        (editingValues[s.id] &&
+                                        editingValues[s.id][stepNumber]) ??
+                                        dbInput ??
+                                        ""
+                                    }
+                                    onChange={(e) => {
+                                        const newValue = e.target.value;
+                                        setEditingValues((prev) => ({
+                                        ...prev,
+                                        [s.id]: {
+                                            ...(prev[s.id] || {}),
+                                            [stepNumber]: newValue,
+                                        },
+                                        }));
+                                    }}
+                                    className="mr-50"
+                                    style={{ maxWidth: 160 }}
+                                    />
+                                    <Button
+                                    color="primary"
+                                    size="sm"
+                                    disabled={saving[s.id]?.[stepNumber] === true}
+                                    className="mr-25"
+                                    onClick={() =>
+                                        saveManualStepDate(s, stepNumber, typeCode)
+                                    }
+                                    >
+                                    {saving[s.id]?.[stepNumber] ? "..." : "OK"}
+                                    </Button>
+                                    <Button
+                                    color="secondary"
+                                    size="sm"
+                                    outline
+                                    onClick={() => cancelEditing(s.id, stepNumber)}
+                                    >
+                                    Annuler
+                                    </Button>
+                                </>
+                                ) : (
+                                <Button
+                                    color="link"
+                                    size="sm"
+                                    className="p-0"
+                                    onClick={() => startEditing(s.id, stepNumber, dbRaw)}
+                                    title="Modifier la date"
+                                >
+                                    <Edit size={14} />
+                                </Button>
+                                )}
+                            </div>
+                            )}
+
+                            {/* Étape 4 - Création devis (Edit + Valider avant validation) */}
+                            {isCreditImpotStep4 && (
+                            <div className="d-flex align-items-center ml-1">
+                                {isEditing ? (
+                                <>
+                                    <Input
+                                    type="date"
+                                    bsSize="sm"
+                                    value={step4CandidateInput || ""}
+                                    onChange={(e) => {
+                                        const newValue = e.target.value;
+                                        setEditingValues((prev) => ({
+                                        ...prev,
+                                        [s.id]: {
+                                            ...(prev[s.id] || {}),
+                                            4: newValue,
+                                        },
+                                        }));
+                                    }}
+                                    className="mr-50"
+                                    style={{ maxWidth: 160 }}
+                                    />
+                                    <Button
+                                    color="primary"
+                                    size="sm"
+                                    disabled={saving[s.id]?.[4] === true}
+                                    className="mr-25"
+                                    onClick={() =>
+                                        validateStep4Date(
+                                        s,
+                                        (editingValues[s.id] && editingValues[s.id][4]) ||
+                                            step4CandidateInput
+                                        )
+                                    }
+                                    >
+                                    {saving[s.id]?.[4] ? "Validation..." : "Valider"}
+                                    </Button>
+                                    <Button
+                                    color="secondary"
+                                    size="sm"
+                                    outline
+                                    onClick={() => cancelEditing(s.id, 4)}
+                                    >
+                                    Annuler
+                                    </Button>
+                                </>
+                                ) : (
+                                <>
+                                    {!step4Validated && step4CandidateInput && (
+                                    <Button
+                                        color="primary"
+                                        size="sm"
+                                        disabled={saving[s.id]?.[4] === true}
+                                        className="mr-25"
+                                        onClick={() =>
+                                        validateStep4Date(s, step4CandidateInput)
+                                        }
+                                    >
+                                        {saving[s.id]?.[4]
+                                        ? "Validation..."
+                                        : "Valider"}
+                                    </Button>
+                                    )}
+                                    <Button
+                                    color="link"
+                                    size="sm"
+                                    className="p-0"
+                                    onClick={() =>
+                                        startEditing(
+                                        s.id,
+                                        4,
+                                        step4CandidateInput ||
+                                            s.step4_completed_at ||
+                                            s.step3_completed_at
+                                        )
+                                    }
+                                    title="Modifier la date"
+                                    >
+                                    <Edit size={14} />
+                                    </Button>
+                                    {step4Validated && (
+                                    <span className="text-success small ml-50">
+                                        Validé
+                                    </span>
+                                    )}
+                                </>
+                                )}
+                            </div>
+                            )}
+
+                            {/* Étape 5 - Transformer devis en facture (Edit + Valider pour sauvegarder) */}
+                            {isCreditImpotStep5 && (
+                            <div className="d-flex align-items-center ml-1">
+                                {isEditing ? (
+                                <>
+                                    <Input
+                                    type="date"
+                                    bsSize="sm"
+                                    value={step5CandidateInput || ""}
+                                    onChange={(e) => {
+                                        const newValue = e.target.value;
+                                        setEditingValues((prev) => ({
+                                        ...prev,
+                                        [s.id]: {
+                                            ...(prev[s.id] || {}),
+                                            5: newValue,
+                                        },
+                                        }));
+                                    }}
+                                    className="mr-50"
+                                    style={{ maxWidth: 160 }}
+                                    />
+                                    <Button
+                                    color="primary"
+                                    size="sm"
+                                    disabled={saving[s.id]?.[5] === true}
+                                    className="mr-25"
+                                    onClick={() => saveManualStepDate(s, 5, typeCode)}
+                                    >
+                                    {saving[s.id]?.[5] ? "Validation..." : "Valider"}
+                                    </Button>
+                                    <Button
+                                    color="secondary"
+                                    size="sm"
+                                    outline
+                                    onClick={() => cancelEditing(s.id, 5)}
+                                    >
+                                    Annuler
+                                    </Button>
+                                </>
+                                ) : (
+                                <>
+                                    <Button
+                                    color="link"
+                                    size="sm"
+                                    className="p-0"
+                                    onClick={() =>
+                                        startEditing(
+                                        s.id,
+                                        5,
+                                        step5CandidateInput || s.step5_completed_at
+                                        )
+                                    }
+                                    title="Modifier la date"
+                                    >
+                                    <Edit size={14} />
+                                    </Button>
+                                    {step5Validated && (
+                                    <span className="text-success small ml-50">
+                                        Validé
+                                    </span>
+                                    )}
+                                </>
+                                )}
+                            </div>
+                            )}
+
+                            {/* Étape 6 - date step5 + 2 jours (Edit + Valider) */}
+                            {isCreditImpotStep6 && (
+                            <div className="d-flex align-items-center ml-1">
+                                {isEditing ? (
+                                <>
+                                    <Input
+                                    type="date"
+                                    bsSize="sm"
+                                    value={step6CandidateInput || ""}
+                                    onChange={(e) => {
+                                        const newValue = e.target.value;
+                                        setEditingValues((prev) => ({
+                                        ...prev,
+                                        [s.id]: {
+                                            ...(prev[s.id] || {}),
+                                            6: newValue,
+                                        },
+                                        }));
+                                    }}
+                                    className="mr-50"
+                                    style={{ maxWidth: 160 }}
+                                    />
+                                    <Button
+                                    color="primary"
+                                    size="sm"
+                                    disabled={saving[s.id]?.[6] === true}
+                                    className="mr-25"
+                                    onClick={() =>
+                                        validateStep6Date(
+                                        s,
+                                        (editingValues[s.id] && editingValues[s.id][6]) ||
+                                            step6CandidateInput
+                                        )
+                                    }
+                                    >
+                                    {saving[s.id]?.[6] ? "Validation..." : "Valider"}
+                                    </Button>
+                                    <Button
+                                    color="secondary"
+                                    size="sm"
+                                    outline
+                                    onClick={() => cancelEditing(s.id, 6)}
+                                    >
+                                    Annuler
+                                    </Button>
+                                </>
+                                ) : (
+                                <>
+                                    {!step6Validated && step6CandidateInput && (
+                                    <Button
+                                        color="primary"
+                                        size="sm"
+                                        disabled={saving[s.id]?.[6] === true}
+                                        className="mr-25"
+                                        onClick={() =>
+                                        validateStep6Date(s, step6CandidateInput)
+                                        }
+                                    >
+                                        {saving[s.id]?.[6]
+                                        ? "Validation..."
+                                        : "Valider"}
+                                    </Button>
+                                    )}
+                                    <Button
+                                    color="link"
+                                    size="sm"
+                                    className="p-0"
+                                    onClick={() =>
+                                        startEditing(
+                                        s.id,
+                                        6,
+                                        step6CandidateInput ||
+                                            s.step6_completed_at ||
+                                            (autoFromStep5 || null)
+                                        )
+                                    }
+                                    title="Modifier la date"
+                                    >
+                                    <Edit size={14} />
+                                    </Button>
+                                    {step6Validated && (
+                                    <span className="text-success small ml-50">
+                                        Validé
+                                    </span>
+                                    )}
+                                </>
+                                )}
+                            </div>
+                            )}
+
+                            {/* Étape 7 - première date de deposit_date (Edit + Valider) */}
+                            {isCreditImpotStep7 && (
+                            <div className="d-flex align-items-center ml-1">
+                                {isEditing ? (
+                                <>
+                                    <Input
+                                    type="date"
+                                    bsSize="sm"
+                                    value={step7CandidateInput || ""}
+                                    onChange={(e) => {
+                                        const newValue = e.target.value;
+                                        setEditingValues((prev) => ({
+                                        ...prev,
+                                        [s.id]: {
+                                            ...(prev[s.id] || {}),
+                                            7: newValue,
+                                        },
+                                        }));
+                                    }}
+                                    className="mr-50"
+                                    style={{ maxWidth: 160 }}
+                                    />
+                                    <Button
+                                    color="primary"
+                                    size="sm"
+                                    disabled={saving[s.id]?.[7] === true}
+                                    className="mr-25"
+                                    onClick={() =>
+                                        validateStep7Date(
+                                        s,
+                                        (editingValues[s.id] && editingValues[s.id][7]) ||
+                                            step7CandidateInput
+                                        )
+                                    }
+                                    >
+                                    {saving[s.id]?.[7] ? "Validation..." : "Valider"}
+                                    </Button>
+                                    <Button
+                                    color="secondary"
+                                    size="sm"
+                                    outline
+                                    onClick={() => cancelEditing(s.id, 7)}
+                                    >
+                                    Annuler
+                                    </Button>
+                                </>
+                                ) : (
+                                <>
+                                    {!step7Validated && step7CandidateInput && (
+                                    <Button
+                                        color="primary"
+                                        size="sm"
+                                        disabled={saving[s.id]?.[7] === true}
+                                        className="mr-25"
+                                        onClick={() =>
+                                        validateStep7Date(s, step7CandidateInput)
+                                        }
+                                    >
+                                        {saving[s.id]?.[7]
+                                        ? "Validation..."
+                                        : "Valider"}
+                                    </Button>
+                                    )}
+                                    <Button
+                                    color="link"
+                                    size="sm"
+                                    className="p-0"
+                                    onClick={() =>
+                                        startEditing(
+                                        s.id,
+                                        7,
+                                        step7CandidateInput ||
+                                            s.step7_completed_at ||
+                                            depositFirstInput
+                                        )
+                                    }
+                                    title="Modifier la date"
+                                    >
+                                    <Edit size={14} />
+                                    </Button>
+                                    {step7Validated && (
+                                    <span className="text-success small ml-50">
+                                        Validé
+                                    </span>
+                                    )}
+                                </>
+                                )}
+                            </div>
+                            )}
+                        </div>
+                        </div>
+                    );
+                    })}
                     </div>
                   )}
                 </div>
