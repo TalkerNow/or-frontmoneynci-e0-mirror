@@ -251,9 +251,9 @@ const getContractTypeLabel = (contract) => {
   if (typeCode === "credit_impot") {
     if (filtered.length > 0) {
       // Ex : "Crédit d'impot (CH / SIMU)"
-      return `Crédit d'impot (${filtered.join(" / ")})`;
+      return `Crédit d'impôt (${filtered.join(" / ")})`;
     }
-    return "Crédit d'impot";
+    return "Crédit d'impôt";
   }
 
   // 👉 Autres types : comportement inchangé
@@ -279,7 +279,7 @@ const STEP_DEFINITION = {
     dateSteps: [1, 2, 3, 4, 5, 6, 7],
     labels: [
       "Signature du contrat", // 1
-      "Inscription Urssaf", // 2
+      "Activation compte Urssaf", // 2
       "5 jours ouvrés d'attente", // 3
       "Création devis", // 4
       "Transformer devis en facture", // 5
@@ -372,7 +372,7 @@ const TIMELINE_STYLES = {
     alignItems: "center",
   },
   label: {
-    fontWeight: 500,
+    fontWeight: "bold",
   },
   chipsWrapper: {
     display: "inline-flex",
@@ -1231,6 +1231,8 @@ const saveStep2DateTimeChSimu = async (suivi) => {
                           isCreditImpot && stepNumber === 7;
                         const isCreditImpotStep8 =
                           isCreditImpot && stepNumber === 8;
+                        const isFiveDaysWaitStep =
+                          typeCode === "credit_impot" && stepNumber === 3;
 
                         if (
                           typeCode === "ch_simu_actu_rac" &&
@@ -1489,24 +1491,29 @@ const saveStep2DateTimeChSimu = async (suivi) => {
                             ? TIMELINE_STYLES.bulletCurrent
                             : {}),
                         };
+                          const labelStyle = {
+                            ...TIMELINE_STYLES.label,
+                            ...(isFiveDaysWaitStep
+                              ? { fontWeight: "normal", fontStyle: "italic" }
+                              : {}
+                            ),
+                          };
 
                         return (
                           <div
                             key={stepNumber}
                             style={TIMELINE_STYLES.step}
                           >
-                            <div style={TIMELINE_STYLES.bulletWrapper}>
-                              <div style={bulletStyle} />
-                            </div>
+                          <div style={TIMELINE_STYLES.bulletWrapper}>
+                            {!isFiveDaysWaitStep && <div style={bulletStyle} />}
+                          </div>
                             <div style={TIMELINE_STYLES.content}>
                               <div style={TIMELINE_STYLES.headerRow}>
                                 <div>
-                                  <span
-                                    style={TIMELINE_STYLES.label}
-                                  >
+                                  <span style={labelStyle}>
                                     {label}
                                   </span>
-                                  {(isCurrent || isCompleted) && (
+                                  {(isCurrent || isCompleted) && !isFiveDaysWaitStep && (
                                     <span
                                       style={{
                                         ...TIMELINE_STYLES.chipsWrapper,
@@ -2318,25 +2325,21 @@ const saveStep2DateTimeChSimu = async (suivi) => {
                                 )}
                                 </div>
                               </div>
+                                <div style={TIMELINE_STYLES.dateText}>
+                                  {/* On n'affiche pas la date pour "5 jours ouvrés d'attente" */}
+                                  {!isFiveDaysWaitStep && (
+                                    <strong>{displayValue}</strong>
+                                  )}
 
-                              <div style={TIMELINE_STYLES.dateText}>
-                                <strong>{displayValue}</strong>
-                                {isStep1Signature &&
-                                  !hasSignedFile &&
-                                  !dbRaw && (
-                                    <span className="text-muted ml-25">
-                                      {" "}
-                                      (Mettre le contrat signé dans
-                                      le dossier{" "}
-                                      <strong>
-                                        &quot;1. Contrat /
-                                        Procuration&quot;
-                                      </strong>{" "}
-                                      pour passer à l'étape
-                                      suivante.)
-                                        </span>
-                                      )}
-                                  </div>
+                                  {isStep1Signature &&
+                                    !hasSignedFile &&
+                                    !dbRaw && (
+                                      <span className="text-muted ml-25">
+                                        (Mettre le contrat signé dans le dossier{" "}
+                                        <strong>"1. Contrat / Procuration"</strong> pour passer à l'étape suivante.)
+                                      </span>
+                                    )}
+                                </div>
                                 </div>
                               </div>
                             );
