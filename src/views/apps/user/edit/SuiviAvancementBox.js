@@ -19,6 +19,83 @@ const formatDisplayDate = (raw) => {
   if (!y || !m || !d) return raw;
   return `${d}/${m}/${y}`;
 };
+// Pour afficher date + heure (JJ/MM/AAAA HH:MM)
+const formatDisplayDateTime = (raw) => {
+  if (!raw) return "-";
+
+  let v = raw.replace("Z", "");
+  let datePart = v;
+  let timePart = "";
+
+  if (v.includes("T")) {
+    const [d, t] = v.split("T");
+    datePart = d;
+    timePart = t || "";
+  } else if (v.includes(" ")) {
+    const [d, t] = v.split(" ");
+    datePart = d;
+    timePart = t || "";
+  }
+
+  const [y, m, d] = datePart.split("-");
+  if (!y || !m || !d) return raw;
+
+  if (timePart) {
+    const [hh, mm] = timePart.split(":");
+    if (hh && mm) {
+      timePart = `${hh.padStart(2, "0")}:${mm.padStart(2, "0")}`;
+    } else {
+      timePart = "";
+    }
+  }
+
+  const dateFormatted = `${d}/${m}/${y}`;
+  return timePart ? `${dateFormatted} ${timePart}` : dateFormatted;
+};
+
+// Pour remplir un <input type="datetime-local"> depuis une valeur DB
+const toDateTimeLocalValue = (raw) => {
+  if (!raw) return "";
+  let v = raw.replace("Z", "");
+  let datePart = v;
+  let timePart = "";
+
+  if (v.includes("T")) {
+    const [d, t] = v.split("T");
+    datePart = d;
+    timePart = t || "";
+  } else if (v.includes(" ")) {
+    const [d, t] = v.split(" ");
+    datePart = d;
+    timePart = t || "";
+  }
+
+  if (!datePart) return "";
+
+  let hh = "00";
+  let mm = "00";
+
+  if (timePart) {
+    const parts = timePart.split(":");
+    if (parts[0]) hh = parts[0].padStart(2, "0");
+    if (parts[1]) mm = parts[1].padStart(2, "0");
+  }
+
+  return `${datePart}T${hh}:${mm}`;
+};
+
+// Pour envoyer au back une valeur type="datetime-local" (YYYY-MM-DDTHH:MM)
+const fromDateTimeLocalValue = (value) => {
+  if (!value) return null;
+  const [datePart, timePart] = value.split("T");
+  if (!datePart || !timePart) return null;
+
+  const [hh, mm] = timePart.split(":");
+  const h = (hh || "00").padStart(2, "0");
+  const m = (mm || "00").padStart(2, "0");
+
+  return `${datePart} ${h}:${m}:00`;
+};
 
 // Pour remplir un <input type="date">
 const toDateInputValue = (raw) => {
@@ -166,20 +243,27 @@ const getContractTypeLabel = (contract) => {
   if (!contract) return "Pas de prestation";
 
   const typeCode = getContractTypeCode(contract);
-  if (typeCode === "credit_impot") {
-    return "Crédit d'impot";
-  }
-
   const services = parseServices(contract.subscribe_services);
   const knownCodes = ["CH", "SIMU", "ACTU", "RAC", "AR", "TFD"];
   const filtered = services.filter((s) => knownCodes.includes(s));
 
+  // 👉 Cas particulier : crédit d'impôt
+  if (typeCode === "credit_impot") {
+    if (filtered.length > 0) {
+      // Ex : "Crédit d'impot (CH / SIMU)"
+      return `Crédit d'impot (${filtered.join(" / ")})`;
+    }
+    return "Crédit d'impot";
+  }
+
+  // 👉 Autres types : comportement inchangé
   if (filtered.length > 0) {
     return filtered.join(" / ");
   }
 
   return "Pas de prestation";
 };
+
 
 const BADGE_CLASS_BY_TYPE = {
   credit_impot: "badge badge-light-success", // vert
@@ -577,6 +661,19 @@ const SuiviAvancementBox = ({ clientId }) => {
       },
     }));
   };
+  const startEditingDateTime = (suiviId, stepNumber, rawValue) => {
+    setEditing((prev) => ({
+      ...prev,
+      [suiviId]: { ...(prev[suiviId] || {}), [stepNumber]: true },
+    }));
+    setEditingValues((prev) => ({
+      ...prev,
+      [suiviId]: {
+        ...(prev[suiviId] || {}),
+        [stepNumber]: rawValue ? toDateTimeLocalValue(rawValue) : "",
+      },
+    }));
+  };
 
   const cancelEditing = (suiviId, stepNumber) => {
     setEditing((prev) => ({
@@ -644,6 +741,48 @@ const SuiviAvancementBox = ({ clientId }) => {
       }));
     }
   };
+// Étape 2 (CH/SIMU/ACTU/RAC) : Prise de RDV avec date + heure
+const saveStep2DateTimeChSimu = async (suivi) => {
+  const svId = suivi.id;
+  const valueForSuivi = editingValues[svId] || {};
+  const raw = valueForSuivi[2]; // "YYYY-MM-DDTHH:MM"
+
+  if (!raw) return;
+
+  const dateToSend = fromDateTimeLocalValue(raw);
+  if (!dateToSend) return;
+
+  setSaving((prev) => ({
+    ...prev,
+    [svId]: { ...(prev[svId] || {}), 2: true },
+  }));
+  setError(null);
+
+  const hasExistingDate = !!suivi.step2_completed_at;
+  const url = `${global.config.server_url}/suivi-avancement/${svId}/steps/2`;
+
+  try {
+    if (hasExistingDate) {
+      await axios.put(url, { date: dateToSend }, getConfig());
+    } else {
+      await axios.post(url, { date: dateToSend }, getConfig());
+    }
+
+    const refreshedSuivis = await fetchSuivis();
+    setSuivis(refreshedSuivis);
+    cancelEditing(svId, 2);
+  } catch (e) {
+    console.error("Erreur lors de la mise à jour de la date/heure de RDV", e);
+    setError(
+      "Erreur lors de la mise à jour de la date/heure pour l'étape 2 (Prise de RDV)."
+    );
+  } finally {
+    setSaving((prev) => ({
+      ...prev,
+      [svId]: { ...(prev[svId] || {}), 2: false },
+    }));
+  }
+};
 
   const validateStep7Date = async (suivi, dateInput) => {
     const svId = suivi.id;
@@ -925,7 +1064,7 @@ const SuiviAvancementBox = ({ clientId }) => {
       <CardBody>
         <div className="d-flex justify-content-between align-items-center mb-1">
           <div className="d-flex align-items-center">
-            <h5 className="mb-0 mr-50">Suivi d&apos;avancement</h5>
+            <h5 className="mb-0 mr-50">Suivi d'avancement</h5>
             {suivis.length > 0 && (
               <span className="text-muted small">
                 {suivis.length} contrat(s) suivi(s)
@@ -952,7 +1091,7 @@ const SuiviAvancementBox = ({ clientId }) => {
 
         {!loading && !error && suivis.length === 0 && (
           <div className="text-muted">
-            Aucun suivi d&apos;avancement pour ce client.
+            Aucun suivi d'avancement pour ce client.
           </div>
         )}
 
@@ -1029,7 +1168,7 @@ const SuiviAvancementBox = ({ clientId }) => {
                                 >
                                   <ChevronUp size={12} />
                                 </span>
-                                <span>Masquer l&apos;historique</span>
+                                <span>Masquer l'historique</span>
                               </>
                             ) : (
                               <>
@@ -1048,7 +1187,7 @@ const SuiviAvancementBox = ({ clientId }) => {
                                 >
                                   <ChevronDown size={12} />
                                 </span>
-                                <span>Afficher l&apos;historique</span>
+                                <span>Afficher l'historique</span>
                               </>
                             )}
                           </Button>
@@ -1293,7 +1432,6 @@ const SuiviAvancementBox = ({ clientId }) => {
                           }
                         } else if (isChSimuStep5) {
                           // CH/SIMU/ACTU/RAC : Avancement du dossier
-                          // On considère le dossier "en cours de traitement" dès que l'étape 4 est validée
                           const allDone = !!s.step4_completed_at;
 
                           if (isContractFinished) {
@@ -1305,17 +1443,21 @@ const SuiviAvancementBox = ({ clientId }) => {
                               : "Dossier en attente";
                             isCompleted = allDone;
                           }
-                        } else {
-                          // Steps classiques avec date
-                          displayValue = displayDateInput
-                            ? formatDisplayDate(displayDateInput)
-                            : "-";
-                          if (hasDate && dbRaw) {
-                            isCompleted = true;
+                          } else {
+                            // Steps classiques avec date
+                            if (isChSimuStep2) {
+                              // Pour "Prise de RDV", on affiche date + heure
+                              displayValue = dbRaw ? formatDisplayDateTime(dbRaw) : "-";
+                            } else {
+                              displayValue = displayDateInput
+                                ? formatDisplayDate(displayDateInput)
+                                : "-";
+                            }
+
+                            if (hasDate && dbRaw) {
+                              isCompleted = true;
+                            }
                           }
-                        }
-
-
                         const isArTfdGenericEditable =
                           typeCode === "ar_tfd" && stepNumber !== 4;
 
@@ -1325,17 +1467,19 @@ const SuiviAvancementBox = ({ clientId }) => {
                             isCreditImpotStep2 ||
                             isChSimuStep2 ||
                             isArTfdGenericEditable);
+                          const isEditingGeneric =
+                            isEditing &&
+                            (isStep1Signature ||
+                              isCreditImpotStep2 ||
+                              isChSimuStep2 ||
+                              isArTfdGenericEditable);
+                          const isAvancementStep =
+                            isCreditImpotStep8 || isArTfdStep5 || isChSimuStep5;
+                          let isCurrent = currentStepNumber === stepNumber;
 
-                        const isEditingGeneric =
-                          isEditing &&
-                          (isStep1Signature ||
-                            isCreditImpotStep2 ||
-                            isChSimuStep2 ||
-                            isArTfdGenericEditable);
-                        const isCurrent =
-                          currentStepNumber === stepNumber;
-
-
+                          if (isContractFinished && isAvancementStep) {
+                            isCurrent = false;
+                          }
                         const bulletStyle = {
                           ...TIMELINE_STYLES.bulletBase,
                           ...(isCompleted
@@ -1384,7 +1528,7 @@ const SuiviAvancementBox = ({ clientId }) => {
                                   )}
                                 </div>
                                 <div className="d-flex align-items-center ml-1">
-                                {hasDate && canEditDate && (
+                                {hasDate && canEditDate && !isChSimuStep2 && (
                                   <>
                                     {isEditingGeneric ? (
                                       <>
@@ -1461,6 +1605,78 @@ const SuiviAvancementBox = ({ clientId }) => {
                                     )}
                                   </>
                                 )}
+                                {isChSimuStep2 && (
+                                  <>
+                                    {isEditing ? (
+                                      <>
+                                        <Input
+                                          type="datetime-local"
+                                          value={
+                                            (editingValues[s.id] && editingValues[s.id][2]) ||
+                                            (dbRaw ? toDateTimeLocalValue(dbRaw) : "")
+                                          }
+                                          onChange={(e) => {
+                                            const newValue = e.target.value;
+                                            setEditingValues((prev) => ({
+                                              ...prev,
+                                              [s.id]: {
+                                                ...(prev[s.id] || {}),
+                                                2: newValue,
+                                              },
+                                            }));
+                                          }}
+                                          className="mr-50"
+                                          style={{ maxWidth: 220 }}
+                                        />
+                                        <Button
+                                          color="primary"
+                                          disabled={saving[s.id]?.[2] === true}
+                                          className="mr-25"
+                                          onClick={() => saveStep2DateTimeChSimu(s)}
+                                        >
+                                          {saving[s.id]?.[2] ? "Validation..." : "Valider"}
+                                        </Button>
+                                        <Button
+                                          color="link"
+                                          size="sm"
+                                          className="p-0 d-flex align-items-center"
+                                          onClick={() => cancelEditing(s.id, 2)}
+                                          title="Annuler"
+                                        >
+                                          <X size={16} />
+                                        </Button>
+                                      </>
+                                    ) : (
+                                      <>
+                                        {!hasExistingDate && isCurrent && (
+                                          <Button
+                                            color="link"
+                                            size="sm"
+                                            className="p-0 d-flex align-items-center"
+                                            onClick={() => startEditingDateTime(s.id, 2, dbRaw)}
+                                            title="Ajouter date & heure"
+                                          >
+                                            <PlusCircle size={14} className="mr-25" />
+                                            <span>Ajouter date & heure</span>
+                                          </Button>
+                                        )}
+
+                                        {hasExistingDate && (
+                                          <Button
+                                            color="link"
+                                            size="sm"
+                                            className="p-0"
+                                            onClick={() => startEditingDateTime(s.id, 2, dbRaw)}
+                                            title="Modifier la date & heure"
+                                          >
+                                            <Edit size={14} />
+                                          </Button>
+                                        )}
+                                      </>
+                                    )}
+                                  </>
+                                )}
+
 
                                   {/* Étape 3 (CH/SIMU/ACTU/RAC) - Facturation */}
                                 {isChSimuStep3 && (
@@ -1539,7 +1755,6 @@ const SuiviAvancementBox = ({ clientId }) => {
                                             >
                                               <Edit size={14} />
                                             </Button>
-                                            <span className="text-success small ml-50">Validé</span>
                                           </>
                                         )}
                                       </>
@@ -1646,9 +1861,6 @@ const SuiviAvancementBox = ({ clientId }) => {
                                             >
                                               <Edit size={14} />
                                             </Button>
-                                            <span className="text-success small ml-50">
-                                              Validé
-                                            </span>
                                           </>
                                         )}
                                       </>
@@ -1733,7 +1945,6 @@ const SuiviAvancementBox = ({ clientId }) => {
                                             >
                                               <Edit size={14} />
                                             </Button>
-                                            <span className="text-success small ml-50">Validé</span>
                                           </>
                                         )}
                                       </>
@@ -1838,9 +2049,6 @@ const SuiviAvancementBox = ({ clientId }) => {
                                             >
                                               <Edit size={14} />
                                             </Button>
-                                            <span className="text-success small ml-50">
-                                              Validé
-                                            </span>
                                           </>
                                         )}
                                       </>
@@ -1919,7 +2127,6 @@ const SuiviAvancementBox = ({ clientId }) => {
                                             >
                                               <Edit size={14} />
                                             </Button>
-                                            <span className="text-success small ml-50">Validé</span>
                                           </>
                                         )}
                                       </>
@@ -2004,7 +2211,6 @@ const SuiviAvancementBox = ({ clientId }) => {
                                             >
                                               <Edit size={14} />
                                             </Button>
-                                            <span className="text-success small ml-50">Validé</span>
                                           </>
                                         )}
                                       </>
@@ -2104,9 +2310,6 @@ const SuiviAvancementBox = ({ clientId }) => {
                                             >
                                               <Edit size={14} />
                                             </Button>
-                                            <span className="text-success small ml-50">
-                                              Validé
-                                            </span>
                                           </>
                                         )}
                                       </>
@@ -2129,7 +2332,7 @@ const SuiviAvancementBox = ({ clientId }) => {
                                         &quot;1. Contrat /
                                         Procuration&quot;
                                       </strong>{" "}
-                                      pour passer à l&apos;étape
+                                      pour passer à l'étape
                                       suivante.)
                                         </span>
                                       )}
