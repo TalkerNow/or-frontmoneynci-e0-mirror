@@ -39,6 +39,7 @@ import {
   PhoneOutgoing,
   PhoneCall,
   UserPlus,
+  ArrowRight
 } from "react-feather"; // icônes
 
 /** =============================
@@ -621,12 +622,15 @@ export default function KpiPage() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
   const [objet, setObjet] = useState("Appel entrant");
+  const [showProcessing, setShowProcessing] = useState(false); // Dossiers en cours de traitement
+  const [showCompleted, setShowCompleted] = useState(false);   // Contrats terminés
   const [action, setAction] = useState("");
   const [creating, setCreating] = useState(false);
   const adminId = localStorage.getItem("userid");
   const [error, setError] = useState("");
   const [kpiDate, setKpiDate] = useState(todayStr());
-
+  const [sortField, setSortField] = useState("client"); // client | todo | last | type
+  const [sortDir, setSortDir] = useState("asc");        // asc | desc
   // >>> Nouveaux champs contact (optionnels)
   const [nomPrenom, setNomPrenom] = useState("");
   const [email, setEmail] = useState("");
@@ -686,6 +690,74 @@ export default function KpiPage() {
     setYear(y);
     setWeek(w);
   }
+  const handleSort = (field) => {
+    setSortField((prevField) => {
+      if (prevField === field) {
+        // on toggle juste le sens
+        setSortDir((prevDir) => (prevDir === "asc" ? "desc" : "asc"));
+        return prevField;
+      }
+      // on change de colonne, on repart en asc
+      setSortDir("asc");
+      return field;
+    });
+  };
+
+  const renderSortIcon = (field) => {
+    if (sortField !== field) {
+      return <span style={{ opacity: 0.3, marginLeft: 4 }}>↕</span>;
+    }
+    return (
+      <span style={{ marginLeft: 4 }}>
+        {sortDir === "asc" ? "↑" : "↓"}
+      </span>
+    );
+  };
+
+  const headerClickableStyle = {
+    cursor: "pointer",
+    userSelect: "none",
+    whiteSpace: "nowrap",
+  };
+
+  // ---- styles filtres jolis ----
+  const filterWrapperStyle = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 12,
+    padding: "6px 10px",
+    borderRadius: 10,
+    backgroundColor: "#f8f9fa",
+    border: "1px solid #e9ecef",
+  };
+
+  const filterTitleStyle = {
+    fontSize: 14,
+    textTransform: "uppercase",
+    letterSpacing: "0.04em",
+    color: "#6c757d",
+    fontWeight: 600,
+  };
+
+  const filterPillBase = {
+    borderRadius: 999,
+    border: "1px solid transparent",
+    padding: "4px 10px",
+    fontSize: 14,
+    backgroundColor: "transparent",
+    color: "#495057",
+    display: "inline-flex",
+    alignItems: "center",
+    cursor: "pointer",
+  };
+
+  const filterPillActive = {
+    backgroundColor: "#e7f1ff",
+    borderColor: "#0d6efd",
+    color: "#0d6efd",
+    fontWeight: 600,
+  };
+
 
   // Libellé clair
   const weekLabel = useMemo(
@@ -1110,6 +1182,83 @@ export default function KpiPage() {
       .map(([period, counts]) => ({ period, ...counts }))
       .sort((a, b) => (a.period > b.period ? 1 : -1));
   }, [allItems, groupBy, year, week]);
+  const sortedSuivis = useMemo(() => {
+    if (!Array.isArray(suivis)) return [];
+
+    const data = [...suivis];
+
+    const getSortKey = (s) => {
+      switch (sortField) {
+        case "client": {
+          const label = getClientDisplayNameFromSuivi(s, clientsById);
+          return (label || "").toLowerCase();
+        }
+        case "todo": {
+          const { steps } = buildStepsForSuivi(s);
+          const { next } = getLastAndNextSteps(steps);
+          if (!next) return "zzz"; // dossiers terminés à la fin
+          return (next.label || "").toLowerCase();
+        }
+        case "last": {
+          const { steps } = buildStepsForSuivi(s);
+          const { last } = getLastAndNextSteps(steps);
+          // on trie d'abord par date si dispo
+          if (last && last.date) return last.date;
+          if (last && last.label) return last.label.toLowerCase();
+          return "";
+        }
+        case "type": {
+          const label = getContractTypeLabel(s);
+          return (label || "").toLowerCase();
+        }
+        default:
+          return "";
+      }
+    };
+
+    data.sort((a, b) => {
+      const ka = getSortKey(a);
+      const kb = getSortKey(b);
+
+      if (ka < kb) return sortDir === "asc" ? -1 : 1;
+      if (ka > kb) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return data;
+  }, [suivis, clientsById, sortField, sortDir]);
+  const groupedSuivis = useMemo(() => {
+    const res = {
+      active: [],      // ce qu’on affiche par défaut
+      processing: [],  // Paiement du contrat -> Avancement du dossier
+      completed: [],   // Dossier terminé (next === null)
+    };
+
+    if (!Array.isArray(sortedSuivis)) return res;
+
+    sortedSuivis.forEach((s) => {
+      const { steps } = buildStepsForSuivi(s);
+      const { last, next } = getLastAndNextSteps(steps);
+
+      const isProcessing =
+        last &&
+        last.label === "Paiement du contrat" &&
+        next &&
+        next.label === "Avancement du dossier";
+
+      const isCompleted = !next; // même logique que ton "Dossier terminé"
+
+      const bucket = isCompleted
+        ? "completed"
+        : isProcessing
+        ? "processing"
+        : "active";
+
+      res[bucket].push({ s, steps, last, next });
+    });
+
+    return res;
+  }, [sortedSuivis]);
 
   return (
     <div className="vx-row">
@@ -1119,132 +1268,400 @@ export default function KpiPage() {
           <CardHeader className="d-flex align-items-center justify-content-between">
             <h4 className="mb-0">Suivi des contrats</h4>
           </CardHeader>
-          <CardBody>
-            {suivisError && (
-              <div
-                style={{
-                  background: "#ffe9e9",
-                  border: "1px solid #ffb3b3",
-                  color: "#b10000",
-                  padding: 10,
-                  borderRadius: 6,
-                  marginBottom: 14,
-                }}
-              >
-                {suivisError}
-              </div>
-            )}
+            <CardBody>
+              {suivisError && (
+                <div
+                  style={{
+                    background: "#ffe9e9",
+                    border: "1px solid #ffb3b3",
+                    color: "#b10000",
+                    padding: 10,
+                    borderRadius: 6,
+                    marginBottom: 14,
+                  }}
+                >
+                  {suivisError}
+                </div>
+              )}
 
+              {/* Filtres d'affichage (propre, aligné) */}
+              <div className="d-flex justify-content-end mb-2">
+                <div style={filterWrapperStyle}>
+                  <span style={filterTitleStyle}>Afficher</span>
+
+                  {/* Dossiers en cours */}
+                  <button
+                    type="button"
+                    onClick={() => setShowProcessing((v) => !v)}
+                    style={{
+                      ...filterPillBase,
+                      ...(showProcessing ? filterPillActive : {}),
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: "50%",
+                        marginRight: 6,
+                        backgroundColor: showProcessing ? "#198754" : "transparent",
+                        border: `1px solid ${
+                          showProcessing ? "#198754" : "#ced4da"
+                        }`,
+                      }}
+                    />
+                    Dossiers en cours
+                  </button>
+
+                  {/* Contrats terminés */}
+                  <button
+                    type="button"
+                    onClick={() => setShowCompleted((v) => !v)}
+                    style={{
+                      ...filterPillBase,
+                      ...(showCompleted ? filterPillActive : {}),
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: "50%",
+                        marginRight: 6,
+                        backgroundColor: showCompleted ? "#6c757d" : "transparent",
+                        border: `1px solid ${
+                          showCompleted ? "#6c757d" : "#ced4da"
+                        }`,
+                      }}
+                    />
+                    Contrats terminés
+                  </button>
+                </div>
+              </div>
             <Table responsive hover>
-              <thead>
+            <thead>
+              <tr>
+                <th
+                  style={headerClickableStyle}
+                  onClick={() => handleSort("client")}
+                >
+                  Client
+                  {renderSortIcon("client")}
+                </th>
+                <th
+                  style={headerClickableStyle}
+                  onClick={() => handleSort("todo")}
+                >
+                  À faire
+                  {renderSortIcon("todo")}
+                </th>
+                <th
+                  style={headerClickableStyle}
+                  onClick={() => handleSort("last")}
+                >
+                  Dernière étape validée
+                  {renderSortIcon("last")}
+                </th>
+                <th
+                  style={headerClickableStyle}
+                  onClick={() => handleSort("type")}
+                >
+                  Type de contrat
+                  {renderSortIcon("type")}
+                </th>
+                <th>Voir le contrat</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loadingSuivis ? (
                 <tr>
-                  <th>Client</th>
-                  <th>Produit</th>
-                  <th>Avancement</th>
-                  <th>Dernière étape validée</th>
-                  <th>Contrat</th>
+                  <td colSpan="5">Chargement des suivis…</td>
                 </tr>
-              </thead>
-              <tbody>
-        {loadingSuivis ? (
-          <tr>
-            <td colSpan="5">Chargement des suivis…</td>
-          </tr>
-        ) : suivis && suivis.length ? (
-          suivis.map((s) => {
-            const { profileKey, steps } = buildStepsForSuivi(s);
-      const clientLabel = getClientDisplayNameFromSuivi(s, clientsById);
-      const { last, next } = getLastAndNextSteps(steps);
+              ) : (
+                <>
+                  {/* 1) Dossiers actifs (par défaut) */}
+                  {groupedSuivis.active.map(({ s, steps, last, next }) => {
+                    const clientLabel = getClientDisplayNameFromSuivi(s, clientsById);
+                    const contractId = s.facture_id || s.document_id || s.contract_id;
+                    const clientId = s.client_id;
 
-      const contractId = s.facture_id || s.document_id || s.contract_id;
+                    return (
+                      <tr
+                        key={`${s.suivi_id || s.id || ""}-${s.document_id || s.facture_id || ""}`}
+                        onClick={() => {
+                          if (clientId) {
+                            history.push(`/app/user/edit/${clientId}/2`);
+                          }
+                        }}
+                        style={{ cursor: "pointer" }}
+                      >
+                        {/* Client */}
+                        <td>{clientLabel}</td>
 
-      return (
-        <tr
-          key={`${s.suivi_id || s.id || ""}-${s.document_id || s.facture_id || ""}`}
-        >
-          {/* Client */}
-          <td>{clientLabel}</td>
+                        {/* À faire */}
+                        <td>
+                          {next ? (
+                            <div style={{ fontSize: 14 }}>
+                              <div>
+                                <strong>{next.label}</strong>
+                              </div>
+                              {next.isDatedStep && !next.date && (
+                                <div className="text-muted">À planifier</div>
+                              )}
+                              {!next.isDatedStep && (
+                                <div className="text-muted">Étape de suivi</div>
+                              )}
+                            </div>
+                          ) : (
+                            <span
+                              className="text-success"
+                              style={{ fontSize: 14, fontWeight: 600 }}
+                            >
+                              Dossier terminé
+                            </span>
+                          )}
+                        </td>
 
-          {/* Produit : même rendu que dans SuiviAvancementBox */}
-          <td>{renderProductBadgeFromSuivi(s)}</td>
+                        {/* Dernière étape validée */}
+                        <td>
+                          {last ? (
+                            <div style={{ fontSize: 14 }}>
+                              <div>
+                                <strong>{last.label}</strong>
+                              </div>
+                              {last.date && (
+                                <div className="text-muted">{formatDate(last.date)}</div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted" style={{ fontSize: 14 }}>
+                              Aucune étape validée
+                            </span>
+                          )}
+                        </td>
 
-          {/* Avancement : seulement la prochaine étape */}
-          <td>
-            {next ? (
-              <div style={{ fontSize: 12 }}>
-                <div>
-                  <strong>{next.label}</strong>
-                </div>
-                {next.isDatedStep && !next.date && (
-                  <div className="text-muted">
-                    À planifier
-                  </div>
-                )}
-                {!next.isDatedStep && (
-                  <div className="text-muted">
-                    Étape de suivi
-                  </div>
-                )}
-              </div>
-            ) : (
-              <span
-                className="text-success"
-                style={{ fontSize: 12, fontWeight: 600 }}
-              >
-                Dossier terminé
-              </span>
-            )}
-          </td>
+                        {/* Type de contrat */}
+                        <td style={{ whiteSpace: "nowrap", width: 160 }}>
+                          {renderProductBadgeFromSuivi(s)}
+                        </td>
 
-          {/* Dernière étape validée */}
-          <td>
-            {last ? (
-              <div style={{ fontSize: 12 }}>
-                <div>
-                  <strong>{last.label}</strong>
-                </div>
-                {last.date && (
-                  <div className="text-muted">
-                    {formatDate(last.date)}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <span className="text-muted" style={{ fontSize: 12 }}>
-                Aucune étape validée
-              </span>
-            )}
-          </td>
+                        {/* Contrat (flèche) */}
+                        <td style={{ width: 60, textAlign: "center" }}>
+                          {contractId ? (
+                            <Button
+                              color="link"
+                              className="p-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                history.push(`/pages/contract/${contractId}`);
+                              }}
+                              title="Voir le contrat"
+                            >
+                              <ArrowRight size={18} />
+                            </Button>
+                          ) : (
+                            <span className="text-muted" style={{ fontSize: 14 }}>
+                              -
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
 
-          {/* Bouton contrat */}
-          <td>
-            {contractId ? (
-              <Button
-                color="primary"
-                size="sm"
-                onClick={() =>
-                  history.push(`/pages/contract/${contractId}`)
-                }
-              >
-                Voir le contrat
-              </Button>
-            ) : (
-              <span className="text-muted" style={{ fontSize: 12 }}>
-                -
-              </span>
-            )}
-          </td>
-        </tr>
-      );
-    })
-  ) : (
-    <tr>
-      <td colSpan="5">Aucun suivi trouvé.</td>
-    </tr>
-  )}
-</tbody>
+                  {/* 2) Dossiers en cours de traitement (tiroir) */}
+                  {showProcessing && groupedSuivis.processing.length > 0 && (
+                    <>
+                      <tr className="table-secondary">
+                        <td colSpan="5" style={{ fontSize: 14, fontWeight: 600 }}>
+                          Dossiers en cours de traitement
+                        </td>
+                      </tr>
+
+                      {groupedSuivis.processing.map(({ s, steps, last, next }) => {
+                        const clientLabel = getClientDisplayNameFromSuivi(s, clientsById);
+                        const contractId = s.facture_id || s.document_id || s.contract_id;
+                        const clientId = s.client_id;
+
+                        return (
+                          <tr
+                            key={`processing-${s.suivi_id || s.id || ""}-${s.document_id || s.facture_id || ""}`}
+                            onClick={() => {
+                              if (clientId) {
+                                history.push(`/app/user/edit/${clientId}/2`);
+                              }
+                            }}
+                            style={{ cursor: "pointer" }}
+                          >
+                            <td>{clientLabel}</td>
+
+                            <td>
+                              {next ? (
+                                <div style={{ fontSize: 14 }}>
+                                  <div>
+                                    <strong>{next.label}</strong>
+                                  </div>
+                                  {next.isDatedStep && !next.date && (
+                                    <div className="text-muted">À planifier</div>
+                                  )}
+                                  {!next.isDatedStep && (
+                                    <div className="text-muted">Étape de suivi</div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span
+                                  className="text-success"
+                                  style={{ fontSize: 14, fontWeight: 600 }}
+                                >
+                                  Dossier terminé
+                                </span>
+                              )}
+                            </td>
+
+                            <td>
+                              {last ? (
+                                <div style={{ fontSize: 14 }}>
+                                  <div>
+                                    <strong>{last.label}</strong>
+                                  </div>
+                                  {last.date && (
+                                    <div className="text-muted">
+                                      {formatDate(last.date)}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-muted" style={{ fontSize: 14 }}>
+                                  Aucune étape validée
+                                </span>
+                              )}
+                            </td>
+
+                            <td style={{ whiteSpace: "nowrap", width: 160 }}>
+                              {renderProductBadgeFromSuivi(s)}
+                            </td>
+
+                            <td style={{ width: 60, textAlign: "center" }}>
+                              {contractId ? (
+                                <Button
+                                  color="link"
+                                  className="p-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    history.push(`/pages/contract/${contractId}`);
+                                  }}
+                                  title="Voir le contrat"
+                                >
+                                  <ArrowRight size={18} />
+                                </Button>
+                              ) : (
+                                <span className="text-muted" style={{ fontSize: 14 }}>
+                                  -
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </>
+                  )}
+
+                  {/* 3) Contrats terminés (tiroir) */}
+                  {showCompleted && groupedSuivis.completed.length > 0 && (
+                    <>
+                      <tr className="table-secondary">
+                        <td colSpan="5" style={{ fontSize: 14, fontWeight: 600 }}>
+                          Contrats terminés
+                        </td>
+                      </tr>
+
+                      {groupedSuivis.completed.map(({ s, steps, last, next }) => {
+                        const clientLabel = getClientDisplayNameFromSuivi(s, clientsById);
+                        const contractId = s.facture_id || s.document_id || s.contract_id;
+                        const clientId = s.client_id;
+
+                        return (
+                          <tr
+                            key={`completed-${s.suivi_id || s.id || ""}-${s.document_id || s.facture_id || ""}`}
+                            onClick={() => {
+                              if (clientId) {
+                                history.push(`/app/user/edit/${clientId}/2`);
+                              }
+                            }}
+                            style={{ cursor: "pointer" }}
+                          >
+                            <td>{clientLabel}</td>
+
+                            <td>
+                              <span
+                                className="text-success"
+                                style={{ fontSize: 14, fontWeight: 600 }}
+                              >
+                                Dossier terminé
+                              </span>
+                            </td>
+
+                            <td>
+                              {last ? (
+                                <div style={{ fontSize: 14 }}>
+                                  <div>
+                                    <strong>{last.label}</strong>
+                                  </div>
+                                  {last.date && (
+                                    <div className="text-muted">
+                                      {formatDate(last.date)}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-muted" style={{ fontSize: 14 }}>
+                                  Aucune étape validée
+                                </span>
+                              )}
+                            </td>
+
+                            <td style={{ whiteSpace: "nowrap", width: 160 }}>
+                              {renderProductBadgeFromSuivi(s)}
+                            </td>
+
+                            <td style={{ width: 60, textAlign: "center" }}>
+                              {contractId ? (
+                                <Button
+                                  color="link"
+                                  className="p-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    history.push(`/pages/contract/${contractId}`);
+                                  }}
+                                  title="Voir le contrat"
+                                >
+                                  <ArrowRight size={18} />
+                                </Button>
+                              ) : (
+                                <span className="text-muted" style={{ fontSize: 14 }}>
+                                  -
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </>
+                  )}
+
+                  {/* Si rien n’est visible du tout */}
+                  {groupedSuivis.active.length === 0 &&
+                    (!showProcessing || groupedSuivis.processing.length === 0) &&
+                    (!showCompleted || groupedSuivis.completed.length === 0) && (
+                      <tr>
+                        <td colSpan="5">Aucun suivi trouvé.</td>
+                      </tr>
+                    )}
+                </>
+              )}
+            </tbody>
+
             </Table>
-
           </CardBody>
         </Card>
       </div>
@@ -1349,7 +1766,7 @@ export default function KpiPage() {
                     <div
                       className="mt-1"
                       style={{
-                        fontSize: 12,
+                        fontSize: 14,
                         color: sendMsg.startsWith("✅")
                           ? "#0f5132"
                           : sendMsg.startsWith("⚠️")
