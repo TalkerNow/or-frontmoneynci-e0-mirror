@@ -486,15 +486,14 @@ class AllContracts extends React.Component {
         >
           <p className="sweet-alert-text">L'action est annulé</p>
         </SweetAlert>
-        <Row className="app-user-list">
-          <Col sm="12">
-            <Card style={{ minHeight: "62vh" }}>
-              <CardBody>
-                <div className="ag-theme-material ag-grid-table">
-                  <div className="ag-grid-actions d-flex justify-content-between flex-wrap mb-1">
-                    <div className="sort-dropdown">
-                      <UncontrolledDropdown className="ag-dropdown p-1">
-                        <DropdownToggle tag="div">
+        <Row className="app-user-list" style={{ height: "100vh" }}>
+          <Col sm="12" className="h-100 d-flex flex-column">
+            <Card className="h-100 d-flex flex-column">
+              <CardBody className="h-100 d-flex flex-column" style={{ paddingBottom: "0.5rem" }}>
+                <div className="ag-grid-actions d-flex justify-content-between align-items-center flex-wrap mb-1">
+                  <div className="sort-dropdown">
+                    <UncontrolledDropdown className="ag-dropdown p-1">
+                      <DropdownToggle tag="div">
                           1 - {pageSize} sur 150
                           <ChevronDown className="ml-50" size={15} />
                         </DropdownToggle>
@@ -577,9 +576,10 @@ class AllContracts extends React.Component {
                       </Button>
                     </div>
                   </div>
-                  {this.state.rowData !== null ? (
-                    <ContextLayout.Consumer>
-                      {(context) => (
+                {this.state.rowData !== null ? (
+                  <ContextLayout.Consumer>
+                    {(context) => (
+                      <div className="ag-theme-material ag-grid-table flex-grow-1" style={{ width: "100%", minHeight: 0 }}>
                         <AgGridReact
                           gridOptions={{}}
                           rowSelection="multiple"
@@ -598,10 +598,10 @@ class AllContracts extends React.Component {
                           resizable={true}
                           enableRtl={context.state.direction === "rtl"}
                         />
-                      )}
-                    </ContextLayout.Consumer>
-                  ) : null}
-                </div>
+                      </div>
+                    )}
+                  </ContextLayout.Consumer>
+                ) : null}
               </CardBody>
             </Card>
           </Col>
