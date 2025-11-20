@@ -39,6 +39,7 @@ import {
   PhoneOutgoing,
   PhoneCall,
   UserPlus,
+  ArrowRight
 } from "react-feather"; // icônes
 
 /** =============================
@@ -375,6 +376,295 @@ function renderActionBadge(action) {
     </Badge>
   );
 }
+const parseServices = (servicesRaw) => {
+  if (!servicesRaw) return [];
+
+  return servicesRaw
+    .split("/") // ex : "CH / AR / SIMU"
+    .map((s) =>
+      s
+        .replace(/["\\]/g, "") // enlève guillemets / backslashes
+        .trim()
+        .toUpperCase()
+    )
+    .filter(Boolean);
+};
+
+function getProduitLabel(suiviRow, profileKey) {
+  // 1) Si le contrat a un libellé métier, on l'affiche tel quel
+  const raw =
+    suiviRow?.subscribe_services ||
+    suiviRow?.type ||
+    suiviRow?.document_type ||
+    "";
+
+  if (raw && String(raw).trim() !== "") {
+    return raw; // ex: "CH SIMU ACTU RAC", "AR / TFD", etc.
+  }
+
+  // 2) Sinon, on mappe le code vers un label propre
+  switch (profileKey) {
+    case "credit_impot":
+      return "Crédit d’impôt";
+    case "ar_tfd":
+      return "Audit retraite / TFD";
+    case "ch_simu_actu_rac":
+      return "CH - Simulation / Actualisation / Rachat";
+    default:
+      return "Non défini";
+  }
+}
+const getContractTypeLabel = (source) => {
+  if (!source) return "Pas de prestation";
+
+  const typeCode = getContractTypeCode(source);
+  const services = parseServices(source.subscribe_services);
+  const knownCodes = ["CH", "SIMU", "ACTU", "RAC", "AR", "TFD"];
+  const filtered = services.filter((s) => knownCodes.includes(s));
+
+  if (typeCode === "credit_impot") {
+    if (filtered.length > 0) {
+      // Crédit d'impôt (CH / SIMU)
+      return `Crédit d'impôt (${filtered.join(" / ")})`;
+    }
+    return "Crédit d'impôt";
+  }
+
+  if (filtered.length > 0) {
+    return filtered.join(" / ");
+  }
+
+  return "Pas de prestation";
+};
+
+const PRODUCT_BADGE_COLORS = {
+  credit_impot: "success",   // vert
+  ar_tfd: "warning",         // jaune
+  ch_simu_actu_rac: "primary", // bleu
+  none: "secondary",         // gris
+};
+
+// Rendu "Produit" dans la table Suivi des contrats (badge)
+function renderProductBadgeFromSuivi(suiviRow) {
+  const typeCode = getContractTypeCode(suiviRow);
+  const label = getContractTypeLabel(suiviRow);
+  const context = PRODUCT_BADGE_COLORS[typeCode] || "secondary";
+
+  return (
+    <Badge color={`light-${context}`} pill>
+      {label}
+    </Badge>
+  );
+}
+const getContractTypeCode = (source) => {
+  if (!source) return "none";
+
+  // on suppose que le suivi a les mêmes champs qu'un "contract"
+  const unipro = source.unipro;
+  const subscribe_services = source.subscribe_services;
+
+  if (unipro === 1 || unipro === "1") {
+    return "credit_impot";
+  }
+
+  const services = parseServices(subscribe_services);
+  const groupCH = ["CH", "SIMU", "ACTU", "RAC"];
+  const groupAR = ["AR", "TFD"];
+
+  const hasGroupCH = services.some((s) => groupCH.includes(s));
+  const hasGroupAR = services.some((s) => groupAR.includes(s));
+
+  if (hasGroupCH) return "ch_simu_actu_rac";
+  if (hasGroupAR) return "ar_tfd";
+
+  return "none";
+};
+
+const STEP_DEFINITION = {
+  credit_impot: {
+    totalSteps: 8,
+    dateSteps: [1, 2, 3, 4, 5, 6, 7],
+    labels: [
+      "Signature du contrat", // 1
+      "Activation compte Urssaf", // 2
+      "5 jours ouvrés d'attente", // 3
+      "Création devis", // 4
+      "Transformer devis en facture", // 5
+      "Paiement automatique Unipro", // 6
+      "Paiement du contrat", // 7
+      "Avancement du dossier", // 8
+    ],
+  },
+  ar_tfd: {
+    totalSteps: 5,
+    dateSteps: [1, 2, 3, 4],
+    labels: [
+      "Signature du contrat", // 1
+      "Création devis", // 2
+      "Transformer devis en facture", // 3
+      "Paiement du contrat", // 4
+      "Avancement du dossier", // 5 (sans date)
+    ],
+  },
+  ch_simu_actu_rac: {
+    totalSteps: 5,
+    dateSteps: [1, 2, 3, 4],
+    labels: [
+      "Étape 1", // 1
+      "Prise de RDV", // 2
+      "Facturation", // 3
+      "Paiement du contrat", // 4
+      "Avancement du dossier", // 5
+    ],
+  },
+  none: {
+    totalSteps: 0,
+    dateSteps: [],
+    labels: [],
+  },
+};
+function getClientDisplayNameFromSuivi(suiviRow, clientsMap) {
+  const clientId = suiviRow?.client_id;
+  if (!clientId) return "Client inconnu";
+
+  // Si on a la data dans la map, priorité
+  const fromMap = clientsMap?.[clientId];
+  if (fromMap && fromMap.trim() !== "") return fromMap;
+
+  // Fallback sur les champs renvoyés dans le suivi (au cas où)
+  const full =
+    suiviRow?.client_full_name ||
+    suiviRow?.client_name ||
+    [suiviRow?.client_first_name, suiviRow?.client_last_name]
+      .filter(Boolean)
+      .join(" ") ||
+    suiviRow?.client ||
+    null;
+
+  if (full && full.trim() !== "") return full;
+
+  // Dernier recours : ID
+  return `Client #${clientId}`;
+}
+
+
+// Récupère la "clé produit" à partir du suivi (document)
+// Récupère la "clé produit" (credit_impot / ar_tfd / ch_simu_actu_rac / none)
+function getStepProfileKeyFromSuivi(suiviRow) {
+  const contract = {
+    unipro: suiviRow?.unipro,
+    subscribe_services: suiviRow?.subscribe_services,
+  };
+
+  const code = getContractTypeCode(contract);
+  return STEP_DEFINITION[code] ? code : "none";
+}
+
+function getLastAndNextSteps(steps = []) {
+  if (!steps || steps.length === 0) {
+    return { last: null, next: null };
+  }
+
+  const sorted = [...steps].sort((a, b) => a.index - b.index);
+
+  const completed = sorted.filter((s) => s.completed);
+  const last = completed.length ? completed[completed.length - 1] : null;
+
+  let next = null;
+  if (!last) {
+    next = sorted[0] || null;
+  } else {
+    next = sorted.find((s) => s.index > last.index) || null;
+  }
+
+  return { last, next };
+}
+
+// Construit un tableau d'étapes pour un suivi donné
+function buildStepsForSuivi(suiviRow) {
+  const profileKey = getStepProfileKeyFromSuivi(suiviRow);
+  const config = STEP_DEFINITION[profileKey] || STEP_DEFINITION.none;
+
+  const steps = [];
+  // Pour ch_simu_actu_rac : on ne montre pas la step 1, on commence à 2
+  const startIndex = profileKey === "ch_simu_actu_rac" ? 2 : 1;
+
+  for (let i = startIndex; i <= config.totalSteps; i++) {
+    const label = config.labels[i - 1] || `Étape ${i}`;
+    const dateField = `step${i}_completed_at`;
+    const dateVal = suiviRow[dateField] || null;
+    const hasDate = !!dateVal;
+
+    steps.push({
+      index: i,
+      label,
+      date: dateVal,
+      hasDate,
+      isDatedStep: config.dateSteps.includes(i),
+      completed: hasDate && config.dateSteps.includes(i),
+    });
+  }
+  return { profileKey, config, steps };
+}
+
+const todoBadgeWrapper = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  padding: "3px 9px",
+  borderRadius: 10,          // pill
+  backgroundColor: "#f1f1f1ff", // gris très léger
+  maxWidth: 260,
+};
+
+const todoDot = {
+  width: 8,
+  height: 8,
+  borderRadius: "50%",
+  backgroundColor: "red", // accent bleu (change si tu veux)
+  flexShrink: 0,
+};
+
+const todoMainText = {
+  fontSize: 16,
+  fontWeight: 600,
+  color: "#212529",
+  lineHeight: 1.2,
+};
+
+const todoSubText = {
+  fontSize: 12,
+  color: "#b0b3b5ff",
+  lineHeight: 1.2,
+};
+
+function renderTodoCell(next) {
+  if (!next) {
+    return (
+      <span
+        className="text-success"
+        style={{ fontSize: 14, fontWeight: 600 }}
+      >
+        Dossier terminé
+      </span>
+    );
+  }
+
+  let sub = "";
+  if (next.isDatedStep && !next.date) sub = "À planifier";
+  else if (!next.isDatedStep) sub = "Étape de suivi";
+
+  return (
+    <div style={todoBadgeWrapper}>
+      <span style={todoDot} />
+      <div>
+        <div style={todoMainText}>{next.label}</div>
+        {sub && <div style={todoSubText}>{sub}</div>}
+      </div>
+    </div>
+  );
+}
+
 
 /** =============================
  *  UI bits
@@ -390,12 +680,16 @@ export default function KpiPage() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
   const [objet, setObjet] = useState("Appel entrant");
+  const [showProcessing, setShowProcessing] = useState(false); // Dossiers en cours de traitement
+  const [showCompleted, setShowCompleted] = useState(false);   // Contrats terminés
+  const [showAfter5Days, setShowAfter5Days] = useState(true);
   const [action, setAction] = useState("");
   const [creating, setCreating] = useState(false);
   const adminId = localStorage.getItem("userid");
   const [error, setError] = useState("");
   const [kpiDate, setKpiDate] = useState(todayStr());
-
+  const [sortField, setSortField] = useState("client"); // client | todo | last | type
+  const [sortDir, setSortDir] = useState("asc");        // asc | desc
   // >>> Nouveaux champs contact (optionnels)
   const [nomPrenom, setNomPrenom] = useState("");
   const [email, setEmail] = useState("");
@@ -428,6 +722,12 @@ export default function KpiPage() {
   // Données complètes pour le GRAPHIQUE
   const [allItems, setAllItems] = useState([]);
   const [loadingChart, setLoadingChart] = useState(false);
+  const [clientsById, setClientsById] = useState({});
+
+  // Suivis d'avancement (backend Laravel)
+  const [suivis, setSuivis] = useState([]);
+  const [loadingSuivis, setLoadingSuivis] = useState(false);
+  const [suivisError, setSuivisError] = useState("");
 
   // Graph controls
   const [groupBy, setGroupBy] = useState("day");
@@ -449,6 +749,74 @@ export default function KpiPage() {
     setYear(y);
     setWeek(w);
   }
+  const handleSort = (field) => {
+    setSortField((prevField) => {
+      if (prevField === field) {
+        // on toggle juste le sens
+        setSortDir((prevDir) => (prevDir === "asc" ? "desc" : "asc"));
+        return prevField;
+      }
+      // on change de colonne, on repart en asc
+      setSortDir("asc");
+      return field;
+    });
+  };
+
+  const renderSortIcon = (field) => {
+    if (sortField !== field) {
+      return <span style={{ opacity: 0.3, marginLeft: 4 }}>↕</span>;
+    }
+    return (
+      <span style={{ marginLeft: 4 }}>
+        {sortDir === "asc" ? "↑" : "↓"}
+      </span>
+    );
+  };
+
+  const headerClickableStyle = {
+    cursor: "pointer",
+    userSelect: "none",
+    whiteSpace: "nowrap",
+  };
+
+  // ---- styles filtres jolis ----
+  const filterWrapperStyle = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 12,
+    padding: "6px 10px",
+    borderRadius: 10,
+    backgroundColor: "#f8f9fa",
+    border: "1px solid #e9ecef",
+  };
+
+  const filterTitleStyle = {
+    fontSize: 14,
+    textTransform: "uppercase",
+    letterSpacing: "0.04em",
+    color: "#6c757d",
+    fontWeight: 600,
+  };
+
+  const filterPillBase = {
+    borderRadius: 999,
+    border: "1px solid transparent",
+    padding: "4px 10px",
+    fontSize: 14,
+    backgroundColor: "transparent",
+    color: "#495057",
+    display: "inline-flex",
+    alignItems: "center",
+    cursor: "pointer",
+  };
+
+  const filterPillActive = {
+    backgroundColor: "#e7f1ff",
+    borderColor: "#0d6efd",
+    color: "#0d6efd",
+    fontWeight: 600,
+  };
+
 
   // Libellé clair
   const weekLabel = useMemo(
@@ -490,9 +858,12 @@ export default function KpiPage() {
   useEffect(() => {
     fetchAllKpis();
     fetchMembers();
+    fetchClients();
     fetchAdminEmailFromApi();
+    fetchSuivis();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
 
   async function fetchKpis(p = 1) {
     try {
@@ -522,6 +893,24 @@ export default function KpiPage() {
       );
     } finally {
       setLoadingList(false);
+    }
+  }
+  async function fetchSuivis() {
+    try {
+      setLoadingSuivis(true);
+      setSuivisError("");
+
+      const res = await API.get("/suivi-avancement/all");
+      const data = Array.isArray(res.data) ? res.data : [];
+      setSuivis(data);
+    } catch (e) {
+      console.error(e);
+      setSuivisError(
+        e?.response?.data?.message ||
+          "Erreur lors du chargement des suivis d'avancement."
+      );
+    } finally {
+      setLoadingSuivis(false);
     }
   }
 
@@ -563,18 +952,47 @@ export default function KpiPage() {
       setLoadingChart(false);
     }
   }
+  async function fetchClients() {
+    try {
+      const res = await API.get("/users", {
+        // adapte si ton backend attend plutôt ?kind=client
+        params: { role: "Client" },
+      });
+
+      const payload = res.data;
+      const list = Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload)
+        ? payload
+        : [];
+
+      const map = {};
+      list.forEach((u) => {
+        const id = u.id;
+        if (!id) return;
+
+        const first =
+          u.first_name ?? u.firstname ?? u.firstName ?? u.prenom ?? "";
+        const last = u.last_name ?? u.lastname ?? u.lastName ?? u.nom ?? "";
+        const fallback = u.name ?? u.email ?? `Client #${id}`;
+        const name = `${first} ${last}`.trim() || fallback;
+        map[id] = name;
+      });
+
+      setClientsById(map);
+    } catch (e) {
+      console.error("fetchClients error:", e);
+      // on ne bloque pas l'écran si ça foire, on garde juste le fallback Client #ID
+    }
+  }
+
 
   async function fetchMembers() {
     try {
       setLoadingUsers(true);
-      const token =
-        localStorage.getItem("token") ||
-        localStorage.getItem("access_token") ||
-        localStorage.getItem("jwt");
 
-      const res = await axios.get("https://api.optionretraite.net/api/users", {
+      const res = await API.get("/users", {
         params: { kind: "member" },
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 
       const payload = res.data;
@@ -603,20 +1021,13 @@ export default function KpiPage() {
     }
   }
 
-  async function fetchAdminEmailFromApi() {
+   async function fetchAdminEmailFromApi() {
     try {
-      const token =
-        localStorage.getItem("token") ||
-        localStorage.getItem("access_token") ||
-        localStorage.getItem("jwt");
+      if (!adminId) return;
 
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const params = adminId ? { id: adminId } : undefined;
-
-      const res = await axios.get(
-        `https://api.optionretraite.net/api/users/${adminId}`,
-        { headers, params }
-      );
+      const res = await API.get(`/users/${adminId}`, {
+        params: { id: adminId },
+      });
 
       const payload = res.data || {};
       const email =
@@ -627,6 +1038,7 @@ export default function KpiPage() {
       console.error("fetchAdminEmailFromApi error:", e);
     }
   }
+
 
   // ✅ createKpi modifié
   async function createKpi() {
@@ -829,9 +1241,592 @@ export default function KpiPage() {
       .map(([period, counts]) => ({ period, ...counts }))
       .sort((a, b) => (a.period > b.period ? 1 : -1));
   }, [allItems, groupBy, year, week]);
+    const sortedSuivis = useMemo(() => {
+      if (!Array.isArray(suivis)) return [];
+
+      const data = [...suivis];
+
+      const getSortKey = (s) => {
+        switch (sortField) {
+          case "client": {
+            const label = getClientDisplayNameFromSuivi(s, clientsById);
+            return (label || "").toLowerCase();
+          }
+          case "todo": {
+            const { steps } = buildStepsForSuivi(s);
+            const { next } = getLastAndNextSteps(steps);
+            if (!next) return "zzz"; // dossiers terminés à la fin
+            return (next.label || "").toLowerCase();
+          }
+          case "last": {
+            const { steps } = buildStepsForSuivi(s);
+            const { last } = getLastAndNextSteps(steps);
+            // on trie d'abord par date si dispo
+            if (last && last.date) return last.date;
+            if (last && last.label) return last.label.toLowerCase();
+            return "";
+          }
+          case "type": {
+            const label = getContractTypeLabel(s);
+            return (label || "").toLowerCase();
+          }
+          default:
+            return "";
+        }
+      };
+
+      data.sort((a, b) => {
+        const ka = getSortKey(a);
+        const kb = getSortKey(b);
+
+        if (ka < kb) return sortDir === "asc" ? -1 : 1;
+        if (ka > kb) return sortDir === "asc" ? 1 : -1;
+        return 0;
+      });
+
+      return data;
+    }, [suivis, clientsById, sortField, sortDir]);
+    const groupedSuivis = useMemo(() => {
+      const res = {
+        active: [],      // par défaut
+        after5days: [],  // 5 jours atteints / dépassés
+        processing: [],  // Paiement du contrat -> Avancement du dossier
+        completed: [],   // Contrats terminés
+      };
+
+  if (!Array.isArray(sortedSuivis)) return res;
+
+  // "Aujourd'hui" tronqué à minuit pour comparer les dates proprement
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  sortedSuivis.forEach((s) => {
+    const { profileKey, steps } = buildStepsForSuivi(s);
+    const { last, next } = getLastAndNextSteps(steps);
+
+    const contract = s.contract || s;
+    const isContractFinished =
+      contract && contract.document_state === "Terminé";
+
+    const isProcessing =
+      last &&
+      last.label === "Paiement du contrat" &&
+      next &&
+      next.label === "Avancement du dossier";
+
+    // 🔶 Crédit d'impôt : "5 jours ouvrés d'attente" atteints / dépassés
+    let isAfter5Days = false;
+
+    if (!isContractFinished && profileKey === "credit_impot") {
+      const step3 = steps.find((st) => st.index === 3); // "5 jours ouvrés d'attente"
+      const step4 = steps.find((st) => st.index === 4); // "Création devis"
+
+      if (step3 && step3.date && (!step4 || !step4.completed)) {
+        const raw = String(step3.date);
+        let datePart = raw;
+
+        if (raw.includes("T")) {
+          datePart = raw.split("T")[0];
+        } else if (raw.includes(" ")) {
+          datePart = raw.split(" ")[0];
+        }
+
+        const [y, m, d] = datePart.split("-");
+        if (y && m && d) {
+          const d3 = new Date(Number(y), Number(m) - 1, Number(d));
+          const d3Only = new Date(
+            d3.getFullYear(),
+            d3.getMonth(),
+            d3.getDate()
+          );
+
+          // 👉 la date de l'étape 3 est arrivée ou passée
+          if (d3Only.getTime() <= today.getTime()) {
+            isAfter5Days = true;
+          }
+        }
+      }
+    }
+
+    const bucket = isContractFinished
+      ? "completed"
+      : isAfter5Days
+      ? "after5days"
+      : isProcessing
+      ? "processing"
+      : "active";
+
+    res[bucket].push({ s, steps, last, next });
+  });
+
+  return res;
+}, [sortedSuivis]);
 
   return (
     <div className="vx-row">
+            {/* ====== Suivis d'avancement ====== */}
+      <div className="vx-col w-100">
+        <Card>
+          <CardHeader className="d-flex align-items-center justify-content-between">
+            <h4 className="mb-0">Suivi des contrats</h4>
+          </CardHeader>
+            <CardBody>
+              {suivisError && (
+                <div
+                  style={{
+                    background: "#ffe9e9",
+                    border: "1px solid #ffb3b3",
+                    color: "#b10000",
+                    padding: 10,
+                    borderRadius: 6,
+                    marginBottom: 14,
+                  }}
+                >
+                  {suivisError}
+                </div>
+              )}
+
+              {/* Filtres d'affichage (propre, aligné) */}
+              <div className="d-flex justify-content-end mb-2">
+                <div style={filterWrapperStyle}>
+                  <span style={filterTitleStyle}>Afficher</span>
+
+                  {/* Dossiers en cours */}
+                  <button
+                    type="button"
+                    onClick={() => setShowProcessing((v) => !v)}
+                    style={{
+                      ...filterPillBase,
+                      ...(showProcessing ? filterPillActive : {}),
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 18,
+                        height: 18,
+                        borderRadius: "50%",
+                        marginRight: 6,
+                        backgroundColor: showProcessing ? "#198754" : "transparent",
+                        border: `1px solid ${
+                          showProcessing ? "#198754" : "#ced4da"
+                        }`,
+                      }}
+                    />
+                    Dossiers en cours
+                  </button>
+
+                  {/* Contrats terminés */}
+                  <button
+                    type="button"
+                    onClick={() => setShowCompleted((v) => !v)}
+                    style={{
+                      ...filterPillBase,
+                      ...(showCompleted ? filterPillActive : {}),
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 18,
+                        height: 18,
+                        borderRadius: "50%",
+                        marginRight: 6,
+                        backgroundColor: showCompleted ? "#6c757d" : "transparent",
+                        border: `1px solid ${
+                          showCompleted ? "#6c757d" : "#ced4da"
+                        }`,
+                      }}
+                    />
+                    Contrats terminés
+                  </button>
+                </div>
+              </div>
+            <Table responsive hover>
+            <thead>
+              <tr>
+                <th
+                  style={headerClickableStyle}
+                  onClick={() => handleSort("client")}
+                >
+                  Client
+                  {renderSortIcon("client")}
+                </th>
+                <th
+                  style={headerClickableStyle}
+                  onClick={() => handleSort("todo")}
+                >
+                  À faire
+                  {renderSortIcon("todo")}
+                </th>
+                <th
+                  style={headerClickableStyle}
+                  onClick={() => handleSort("last")}
+                >
+                  Dernière étape validée
+                  {renderSortIcon("last")}
+                </th>
+                <th
+                  style={headerClickableStyle}
+                  onClick={() => handleSort("type")}
+                >
+                  Type de contrat
+                  {renderSortIcon("type")}
+                </th>
+                <th>Voir le contrat</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loadingSuivis ? (
+                <tr>
+                  <td colSpan="5">Chargement des suivis…</td>
+                </tr>
+              ) : (
+                <>
+                {/* 0) 5 jours ouvrés atteints / dépassés (toujours en haut si présents) */}
+                {groupedSuivis.after5days.length > 0 && (
+                  <>
+                    <tr className="table-warning">
+                      <td colSpan="5" style={{ fontSize: 14, fontWeight: 600 }}>
+                        5 jours ouvrés atteints / dépassés (à traiter en priorité)
+                      </td>
+                    </tr>
+
+                    {groupedSuivis.after5days.map(({ s, steps, last, next }) => {
+                      const clientLabel = getClientDisplayNameFromSuivi(s, clientsById);
+                      const contractId =
+                        s.facture_id || s.document_id || s.contract_id;
+                      const clientId = s.client_id;
+
+                      return (
+                        <tr
+                          key={`after5-${s.suivi_id || s.id || ""}-${s.document_id || s.facture_id || ""}`}
+                          onClick={() => {
+                            if (clientId) {
+                              history.push(`/app/user/edit/${clientId}/2`);
+                            }
+                          }}
+                          style={{ cursor: "pointer" }}
+                        >
+                          {/* Client */}
+                          <td>{clientLabel}</td>
+
+                          {/* À faire */}
+                          <td>{renderTodoCell(next)}</td>
+
+                          {/* Dernière étape validée */}
+                          <td>
+                            {last ? (
+                              <div style={{ fontSize: 14 }}>
+                                <div>
+                                  <strong>{last.label}</strong>
+                                </div>
+                                {last.date && (
+                                  <div className="text-muted">
+                                    {formatDate(last.date)}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-muted" style={{ fontSize: 14 }}>
+                                Aucune étape validée
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Type de contrat */}
+                          <td style={{ whiteSpace: "nowrap", width: 160 }}>
+                            {renderProductBadgeFromSuivi(s)}
+                          </td>
+
+                          {/* Contrat (flèche) */}
+                          <td style={{ width: 60, textAlign: "center" }}>
+                            {contractId ? (
+                              <Button
+                                color="link"
+                                className="p-0"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  history.push(`/pages/contract/${contractId}`);
+                                }}
+                                title="Voir le contrat"
+                              >
+                                <ArrowRight size={18} />
+                              </Button>
+                            ) : (
+                              <span className="text-muted" style={{ fontSize: 14 }}>
+                                -
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </>
+                )}
+                {groupedSuivis.after5days.length > 0 &&
+                  groupedSuivis.active.length > 0 && (
+                    <tr>
+                      <td
+                        colSpan="5"
+                        style={{
+                          padding: "6px 10px",
+                          borderTop: "2px solid #dee2e6",
+                          borderBottom: "1px solid #dee2e6",
+                          background: "#f8f9fa",
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: "#6c757d",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.04em",
+                        }}
+                      >
+                        Autres dossiers
+                      </td>
+                    </tr>
+                  )}
+
+                  {/* 1) Dossiers actifs (par défaut) */}
+                  {groupedSuivis.active.map(({ s, steps, last, next }) => {
+                    const clientLabel = getClientDisplayNameFromSuivi(s, clientsById);
+                    const contractId = s.facture_id || s.document_id || s.contract_id;
+                    const clientId = s.client_id;
+
+                    return (
+                      <tr
+                        key={`${s.suivi_id || s.id || ""}-${s.document_id || s.facture_id || ""}`}
+                        onClick={() => {
+                          if (clientId) {
+                            history.push(`/app/user/edit/${clientId}/2`);
+                          }
+                        }}
+                        style={{ cursor: "pointer" }}
+                      >
+                        {/* Client */}
+                        <td>{clientLabel}</td>
+
+                        {/* À faire */}
+                        <td>{renderTodoCell(next)}</td>
+                        {/* Dernière étape validée */}
+                        <td>
+                          {last ? (
+                            <div style={{ fontSize: 14 }}>
+                              <div>
+                                <strong>{last.label}</strong>
+                              </div>
+                              {last.date && (
+                                <div className="text-muted">{formatDate(last.date)}</div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted" style={{ fontSize: 14 }}>
+                              Aucune étape validée
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Type de contrat */}
+                        <td style={{ whiteSpace: "nowrap", width: 160 }}>
+                          {renderProductBadgeFromSuivi(s)}
+                        </td>
+
+                        {/* Contrat (flèche) */}
+                        <td style={{ width: 60, textAlign: "center" }}>
+                          {contractId ? (
+                            <Button
+                              color="link"
+                              className="p-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                history.push(`/pages/contract/${contractId}`);
+                              }}
+                              title="Voir le contrat"
+                            >
+                              <ArrowRight size={18} />
+                            </Button>
+                          ) : (
+                            <span className="text-muted" style={{ fontSize: 14 }}>
+                              -
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+
+                  {/* 2) Dossiers en cours de traitement (tiroir) */}
+                  {showProcessing && groupedSuivis.processing.length > 0 && (
+                    <>
+                      <tr className="table-secondary">
+                        <td colSpan="5" style={{ fontSize: 14, fontWeight: 600 }}>
+                          Dossiers en cours de traitement
+                        </td>
+                      </tr>
+
+                      {groupedSuivis.processing.map(({ s, steps, last, next }) => {
+                        const clientLabel = getClientDisplayNameFromSuivi(s, clientsById);
+                        const contractId = s.facture_id || s.document_id || s.contract_id;
+                        const clientId = s.client_id;
+
+                        return (
+                          <tr
+                            key={`processing-${s.suivi_id || s.id || ""}-${s.document_id || s.facture_id || ""}`}
+                            onClick={() => {
+                              if (clientId) {
+                                history.push(`/app/user/edit/${clientId}/2`);
+                              }
+                            }}
+                            style={{ cursor: "pointer" }}
+                          >
+                            <td>{clientLabel}</td>
+                          <td>{renderTodoCell(next)}</td>
+                            <td>
+                              {last ? (
+                                <div style={{ fontSize: 14 }}>
+                                  <div>
+                                    <strong>{last.label}</strong>
+                                  </div>
+                                  {last.date && (
+                                    <div className="text-muted">
+                                      {formatDate(last.date)}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-muted" style={{ fontSize: 14 }}>
+                                  Aucune étape validée
+                                </span>
+                              )}
+                            </td>
+
+                            <td style={{ whiteSpace: "nowrap", width: 160 }}>
+                              {renderProductBadgeFromSuivi(s)}
+                            </td>
+
+                            <td style={{ width: 60, textAlign: "center" }}>
+                              {contractId ? (
+                                <Button
+                                  color="link"
+                                  className="p-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    history.push(`/pages/contract/${contractId}`);
+                                  }}
+                                  title="Voir le contrat"
+                                >
+                                  <ArrowRight size={18} />
+                                </Button>
+                              ) : (
+                                <span className="text-muted" style={{ fontSize: 14 }}>
+                                  -
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </>
+                  )}
+
+                  {/* 3) Contrats terminés (tiroir) */}
+                  {showCompleted && groupedSuivis.completed.length > 0 && (
+                    <>
+                      <tr className="table-secondary">
+                        <td colSpan="5" style={{ fontSize: 14, fontWeight: 600 }}>
+                          Contrats terminés
+                        </td>
+                      </tr>
+
+                      {groupedSuivis.completed.map(({ s, steps, last, next }) => {
+                        const clientLabel = getClientDisplayNameFromSuivi(s, clientsById);
+                        const contractId = s.facture_id || s.document_id || s.contract_id;
+                        const clientId = s.client_id;
+
+                        return (
+                          <tr
+                            key={`completed-${s.suivi_id || s.id || ""}-${s.document_id || s.facture_id || ""}`}
+                            onClick={() => {
+                              if (clientId) {
+                                history.push(`/app/user/edit/${clientId}/2`);
+                              }
+                            }}
+                            style={{ cursor: "pointer" }}
+                          >
+                            <td>{clientLabel}</td>
+
+                            <td>
+                              <span
+                                className="text-success"
+                                style={{ fontSize: 14, fontWeight: 600 }}
+                              >
+                                Dossier terminé
+                              </span>
+                            </td>
+
+                            <td>
+                              {last ? (
+                                <div style={{ fontSize: 14 }}>
+                                  <div>
+                                    <strong>{last.label}</strong>
+                                  </div>
+                                  {last.date && (
+                                    <div className="text-muted">
+                                      {formatDate(last.date)}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-muted" style={{ fontSize: 14 }}>
+                                  Aucune étape validée
+                                </span>
+                              )}
+                            </td>
+
+                            <td style={{ whiteSpace: "nowrap", width: 160 }}>
+                              {renderProductBadgeFromSuivi(s)}
+                            </td>
+
+                            <td style={{ width: 60, textAlign: "center" }}>
+                              {contractId ? (
+                                <Button
+                                  color="link"
+                                  className="p-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    history.push(`/pages/contract/${contractId}`);
+                                  }}
+                                  title="Voir le contrat"
+                                >
+                                  <ArrowRight size={18} />
+                                </Button>
+                              ) : (
+                                <span className="text-muted" style={{ fontSize: 14 }}>
+                                  -
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </>
+                  )}
+
+                  {/* Si rien n’est visible du tout */}
+                  {groupedSuivis.active.length === 0 &&
+                    groupedSuivis.after5days.length === 0 &&
+                    (!showProcessing || groupedSuivis.processing.length === 0) &&
+                    (!showCompleted || groupedSuivis.completed.length === 0) && (
+                      <tr>
+                        <td colSpan="5">Aucun suivi trouvé.</td>
+                      </tr>
+                  )}
+                </>
+              )}
+            </tbody>
+
+            </Table>
+          </CardBody>
+        </Card>
+      </div>
+
       <Row className="align-items-stretch">
         <Col xs="12" className="d-flex">
           <Card className="flex-fill d-flex flex-column" style={{ padding: "10px 16px" }}>
@@ -932,7 +1927,7 @@ export default function KpiPage() {
                     <div
                       className="mt-1"
                       style={{
-                        fontSize: 12,
+                        fontSize: 14,
                         color: sendMsg.startsWith("✅")
                           ? "#0f5132"
                           : sendMsg.startsWith("⚠️")
