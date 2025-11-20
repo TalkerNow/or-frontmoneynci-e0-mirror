@@ -153,6 +153,41 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
   useEffect(() => {
     persistDocs(generatedDocs)
   }, [generatedDocs])
+  useEffect(() => {
+    const handleComplementaryPointsMessage = (event) => {
+      const eventType = event?.data?.type
+      if (eventType !== 'ARRCO_POINTS_SAVE' && eventType !== 'IRCANTEC_POINTS_SAVE') return
+      const payload = event.data.payload || {}
+      const year = Number(payload.year) || 2024
+      const pointsValue = Number(payload.pointsYear != null ? payload.pointsYear : payload.pointsTotal) || 0
+      setManualCareerRows(prev => {
+        const safeRows = Array.isArray(prev) ? [...prev] : []
+        const idx = safeRows.findIndex(row => Number(row?.annee) === year)
+        if (idx >= 0) {
+          safeRows[idx] = { ...safeRows[idx], arrcoPoints: pointsValue }
+        } else {
+          safeRows.push({
+            id: `comp-${year}-${Date.now()}`,
+            annee: year,
+            revenu: '',
+            trimBase: '',
+            trimAR: '',
+            cnavPoints: '',
+            arrcoPoints: pointsValue,
+            ta: '',
+            tb: '',
+            tc: '',
+            errY: false,
+            errR: false
+          })
+        }
+        return safeRows
+      })
+      toast.success(`Points ${eventType === 'ARRCO_POINTS_SAVE' ? 'ARRCO' : 'IRCANTEC'} mis à jour`)
+    }
+    window.addEventListener('message', handleComplementaryPointsMessage)
+    return () => window.removeEventListener('message', handleComplementaryPointsMessage)
+  }, [])
 
   const handleNotesChange = (e) => {
     setNotes(e.target.value)
@@ -240,7 +275,8 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
       return
     }
     try {
-      window.open(doc.url, '_blank', 'noopener')
+      const wordUrl = `ms-word:ofe|u|${doc.url}`
+      window.location.href = wordUrl
     } catch {
       toast.error('Impossible d’ouvrir le document')
     }
@@ -400,30 +436,37 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         )}
       </div>
 
-      {/* <Card className='notes-card manual-entry-card mt-2'>
+      <Card className='notes-card manual-entry-card mt-2'>
         <CardBody>
-          <h5 className='notes-card-title mb-1'>Saisie de carrière manuelle</h5>
+          <div className='manual-header'>
+            <h5 className='notes-card-title mb-1'>Saisie de carrière manuelle</h5>
+            <div className='manual-header-actions'>
+              <Button color='light' className='notes-action-btn manual-add-btn' onClick={handleManualAddLine} style={{ marginBottom: '8px' }}>
+                + Ajouter une ligne
+              </Button>
+            </div>
+          </div>
           <div className='bilan-wrap manual-table-wrap'>
             <div className='table-responsive'>
               <table className='manual-table'>
                 <thead>
                   <tr>
-                    <th className='w-90'>Année</th>
-                    <th className='w-140'>Revenu annuel brut</th>
-                    <th style={{ width: '90px' }}>Trimestres</th>
-                    <th style={{ width: '90px' }}>AR</th>
-                    <th style={{ width: '90px' }}>Total</th>
-                    <th className='w-100'>Cnav (points)</th>
-                    <th className='w-100'>Arrco Agirc (points)</th>
-                    <th className='w-100'>Tranche A (TA)</th>
-                    <th className='w-100'>Tranche B (TB)</th>
+                    <th className='narrow'>Année</th>
+                    <th className='large-column'>Rémunération annuelle brute</th>
+                    <th className='narrow'>Trimestres</th>
+                    <th className='narrow'>AR</th>
+                    <th className='narrow'>Total</th>
+                    <th className='medium'>Cnav (points)</th>
+                    <th className='medium'>Arrco Agirc (points)</th>
+                    <th className='medium'>Tranche A (TA)</th>
+                    <th className='medium'>Tranche B (TB)</th>
                     <th className='actions-col'>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {manualCareerRows.map((row, idx) => (
                     <tr key={row.id || idx}>
-                      <td>
+                      <td className='narrow'>
                         <input
                           type='text'
                           inputMode='numeric'
@@ -443,7 +486,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
                           aria-label='Année'
                         />
                       </td>
-                      <td>
+                      <td className='large-column'>
                         <input
                           type='text'
                           inputMode='decimal'
@@ -461,10 +504,10 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
                             setManualCareerRows(prev => prev.map(r => r.id === row.id ? { ...r, revenu: formatted, errR: !ok } : r))
                           }}
                           placeholder='0,00'
-                          aria-label='Revenu annuel brut'
+                          aria-label='Rémunération annuelle brute'
                         />
                       </td>
-                      <td>
+                      <td className='narrow'>
                         <input
                           type='number'
                           min={0}
@@ -482,7 +525,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
                           aria-label='Trimestres de base'
                         />
                       </td>
-                      <td>
+                      <td className='narrow'>
                         <input
                           type='number'
                           min={0}
@@ -500,10 +543,10 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
                           aria-label='Trimestres assimilés (AR)'
                         />
                       </td>
-                      <td>
+                      <td className='narrow'>
                         <span>{(() => { const a = parseInt(row.trimBase || '0', 10) || 0; const b = parseInt(row.trimAR || '0', 10) || 0; return a + b })()}</span>
                       </td>
-                      <td>
+                      <td className='medium'>
                         <input
                           type='text'
                           inputMode='decimal'
@@ -513,10 +556,10 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
                             const val = sanitizeSalaryInput(e.target.value)
                             setManualCareerRows(prev => prev.map(r => r.id === row.id ? { ...r, cnavPoints: val } : r))
                           }}
-                          aria-label='Cnav (points)'
+                          aria-label='CNAV (points)'
                         />
                       </td>
-                      <td>
+                      <td className='medium'>
                         <input
                           type='text'
                           inputMode='decimal'
@@ -526,10 +569,10 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
                             const val = sanitizeSalaryInput(e.target.value)
                             setManualCareerRows(prev => prev.map(r => r.id === row.id ? { ...r, arrcoPoints: val } : r))
                           }}
-                          aria-label='Arrco Agirc (points)'
+                          aria-label='ARRCO (points)'
                         />
                       </td>
-                      <td>
+                      <td className='medium'>
                         <input
                           type='text'
                           inputMode='decimal'
@@ -542,7 +585,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
                           aria-label='Tranche A (TA)'
                         />
                       </td>
-                      <td>
+                      <td className='medium'>
                         <input
                           type='text'
                           inputMode='decimal'
@@ -582,15 +625,12 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
             </div>
           </div>
           <div className='manual-entry-actions mt-1'>
-            <Button color='light' className='notes-action-btn manual-add-btn' onClick={handleManualAddLine}>
-              + Ajouter une ligne
-            </Button>
             <Button color='primary' className='notes-action-btn manual-import-btn' onClick={handleManualImport}>
               Importer les données
             </Button>
           </div>
         </CardBody>
-      </Card> */}
+      </Card>
 
       <Modal isOpen={!!deleteConfirmTarget} toggle={() => setDeleteConfirmTarget(null)} centered>
         <ModalHeader toggle={() => setDeleteConfirmTarget(null)}>Confirmation</ModalHeader>

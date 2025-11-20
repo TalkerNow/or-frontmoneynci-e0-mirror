@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Nav, NavItem, NavLink, Card, CardBody, TabContent, TabPane, FormGroup, Collapse, Modal, ModalHeader, ModalBody, ModalFooter, Button } from 'reactstrap'
 import classnames from 'classnames'
 import ButtonRadioSwitch from '../../../../components/reactstrap/buttons/ButtonRadioSwitch'
@@ -12,7 +12,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
   const [carriereLongue, setCarriereLongue] = useState(false)
   const [chomage, setChomage] = useState(false)
   const [sans, setSans] = useState(true) // default to true
-  const [salaireDefaut, setSalaireDefaut] = useState(false)
+  const [isSalaryProjected, setIsSalaryProjected] = useState(false)
   // Ajout: ligne "Salaire par défaut" (même comportement que les lignes Non)
   const [salaireDefautRow, setSalaireDefautRow] = useState({ id: 'def', value: '', fixed: false })
   // Ajout: lignes dynamiques "Salaire jusqu’au départ"
@@ -20,7 +20,8 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
   const [projectMultiple, setProjectMultiple] = useState(false)
   const [retraiteProgressive, setRetraiteProgressive] = useState(false)
   const [cumulEmploiRetraite, setCumulEmploiRetraite] = useState(false)
-  const [rachatTrimestresActive, setRachatTrimestresActive] = useState(false)
+  const [vplrChoice, setVplrChoice] = useState('incomplete')
+  const [vplrEntries, setVplrEntries] = useState([])
   // Retraite progressive: UI-only fields (date, %, salaire, surcôtisation)
   const [progStartDate, setProgStartDate] = useState('')
   const [progPct, setProgPct] = useState('')
@@ -47,23 +48,23 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
   const [innerVisible, setInnerVisible] = useState(false)
   // (refs to Nav/innerNav removed to avoid function-component ref warnings)
 
-  const clientFullName = useMemo(() => {
-    const pick = (val) => (typeof val === 'string' && val.trim().length ? val.trim() : '')
-    const first = pick(user?.first_name) || pick(user?.firstname) || pick(user?.firstName) || pick(user?.prenom) || pick(user?.first) || ''
-    const last = pick(user?.last_name) || pick(user?.lastname) || pick(user?.lastName) || pick(user?.nom) || ''
-    const combined = `${first} ${last}`.replace(/\s+/g, ' ').trim()
-    if (combined) {
-      try { if (typeof localStorage !== 'undefined') localStorage.setItem('simu_last_client_name', combined) } catch {}
-      return combined
-    }
-    try {
-      if (typeof localStorage !== 'undefined') {
-        const cached = localStorage.getItem('simu_last_client_name')
-        if (cached) return cached
-      }
-    } catch {}
-    return 'ce client'
-  }, [user])
+  // const clientFullName = useMemo(() => {
+  //   const pick = (val) => (typeof val === 'string' && val.trim().length ? val.trim() : '')
+  //   const first = pick(user?.first_name) || pick(user?.firstname) || pick(user?.firstName) || pick(user?.prenom) || pick(user?.first) || ''
+  //   const last = pick(user?.last_name) || pick(user?.lastname) || pick(user?.lastName) || pick(user?.nom) || ''
+  //   const combined = `${first} ${last}`.replace(/\s+/g, ' ').trim()
+  //   if (combined) {
+  //     try { if (typeof localStorage !== 'undefined') localStorage.setItem('simu_last_client_name', combined) } catch {}
+  //     return combined
+  //   }
+  //   try {
+  //     if (typeof localStorage !== 'undefined') {
+  //       const cached = localStorage.getItem('simu_last_client_name')
+  //       if (cached) return cached
+  //     }
+  //   } catch {}
+  //   return 'ce client'
+  // }, [user])
 
   // Nouveaux états pour la refonte de l'onglet "bilan"
   const [retirementChoices, setRetirementChoices] = useState([
@@ -99,8 +100,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
     : []
   const isRetraiteProgressiveLocked = cumulEmploiRetraite || carriereLongue
   const isCumulLocked = retraiteProgressive
-  const isCarriereLongueLocked = retraiteProgressive || rachatTrimestresActive
-  const isRachatLocked = carriereLongue
+  const isCarriereLongueLocked = retraiteProgressive
 
   const computeInnerOffset = useCallback(() => {
     try {
@@ -234,16 +234,16 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
   }, [isCarriereLongueLocked, carriereLongue])
 
   useEffect(() => {
-    if (isRachatLocked && rachatTrimestresActive) {
-      setRachatTrimestresActive(false)
-    }
-  }, [isRachatLocked, rachatTrimestresActive])
-
-  useEffect(() => {
     if (!retraiteProgressive && progSurcotisation) {
       setProgSurcotisation(false)
     }
   }, [retraiteProgressive, progSurcotisation])
+
+  useEffect(() => {
+    if (vplrChoice !== 'etude' && Array.isArray(vplrEntries) && vplrEntries.length) {
+      setVplrEntries([])
+    }
+  }, [vplrChoice, vplrEntries])
 
   // Sanitize input to digits and a single decimal separator (comma or dot)
   const sanitizeSalaryInput = (val) => {
@@ -376,7 +376,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
             className='action-btn danger'
             style={{ marginLeft: 8 }}
           >
-            <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+            <svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
               <polyline points='3 6 5 6 21 6'></polyline>
               <path d='M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6'></path>
               <path d='M10 11v6'></path>
@@ -446,18 +446,8 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
     setCarriereLongue(nextValue)
     if (nextValue) {
       setRetraiteProgressive(false)
-      setRachatTrimestresActive(false)
     }
   }, [isCarriereLongueLocked])
-
-  const handleRachatToggle = useCallback((next) => {
-    if (isRachatLocked && next) return
-    const nextValue = !!next
-    setRachatTrimestresActive(nextValue)
-    if (nextValue) {
-      setCarriereLongue(false)
-    }
-  }, [isRachatLocked])
 
   return (
     <div>
@@ -471,6 +461,108 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
         /* Unify label width so all switches are aligned */
         .hypo-label { flex: 0 0 280px; max-width: 280px; font-weight: 500; color: var(--bs-body-color, #4b4b4b); line-height: 1.3; }
         .hypo-label.nowrap { white-space: nowrap; }
+        .hypo-label.spacer { flex: 0 0 0; max-width: 0; visibility: hidden; padding: 0; margin: 0; }
+        .label-with-info { display: inline-flex; align-items: flex-start; gap: 6px; flex-wrap: wrap; row-gap: 4px; }
+        .vplr-stack { flex: 1 1 auto; display: flex; flex-direction: column; gap: 10px; width: 100%; }
+        .vplr-switch-line { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .vplr-toggle { gap: 12px; }
+        .vplr-toggle > span {
+          font-size: 0;
+          line-height: 1.2;
+          position: relative;
+        }
+        .vplr-toggle > span::before {
+          content: attr(data-label);
+          font-size: 0.95rem;
+          font-weight: 600;
+          color: #6B7280;
+        }
+        .vplr-toggle > span:first-of-type::before { content: 'Année incomplète'; }
+        .vplr-toggle > span:last-of-type::before { content: "Rachat année d'étude"; }
+        .vplr-toggle.primary-left > span:first-of-type::before,
+        .vplr-toggle.primary-right > span:last-of-type::before { color: var(--bs-primary, #7367F0); }
+        .vplr-toggle span[role='switch'] { margin: 0 4px; }
+        .vplr-add-btn {
+          border: 1px solid var(--bs-primary, #7367F0);
+          color: var(--bs-primary, #7367F0);
+          background: #fff;
+          border-radius: 50%;
+          padding: 0;
+          width: 28px;
+          height: 28px;
+          line-height: 1;
+          cursor: pointer;
+          font-weight: 700;
+          font-size: 1rem;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .vplr-entries { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 6px; }
+        .vplr-entry-row { display: inline-flex; align-items: center; gap: 10px; flex-wrap: nowrap; }
+        .vplr-entry-label { font-weight: 600; color: var(--bs-body-color, #4b4b4b); white-space: nowrap; }
+        .vplr-entry-input { width: 110px; max-width: 100%; text-align: center; }
+        .hypo-info-icon {
+          position: relative;
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          border: 1px solid #D1D5DB;
+          background: #fff;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 600;
+          font-size: 8.5px;
+          transition: transform 140ms ease, box-shadow 140ms ease;
+        }
+        .hypo-info-icon:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(17, 24, 39, 0.12); }
+        .hypo-info-icon:focus-visible { outline: 2px solid #C7D2FE; outline-offset: 2px; }
+        .hypo-tooltip {
+          position: absolute;
+          bottom: calc(100% + 12px);
+          left: 50%;
+          background-color: #fff;
+          color: #4B5563;
+          padding: 12px 14px;
+          border-radius: 12px;
+          border: 1px solid #E5E7EB;
+          box-shadow: 0 14px 34px rgba(17, 24, 39, 0.16);
+          font-size: 0.9rem;
+          line-height: 1.45;
+          opacity: 0;
+          pointer-events: none;
+          transform: translate(-50%, 6px);
+          transition: opacity 140ms ease, transform 140ms ease;
+          max-width: min(360px, calc(100vw - 32px));
+          width: max-content;
+          z-index: 5;
+          white-space: normal;
+          text-align: center;
+        }
+        .hypo-tooltip::before {
+          content: '';
+          position: absolute;
+          top: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          border-width: 9px 9px 0 9px;
+          border-style: solid;
+          border-color: #E5E7EB transparent transparent transparent;
+        }
+        .hypo-tooltip::after {
+          content: '';
+          position: absolute;
+          top: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          border-width: 8px 8px 0 8px;
+          border-style: solid;
+          border-color: #fff transparent transparent transparent;
+          filter: drop-shadow(0 4px 6px rgba(17, 24, 39, 0.16));
+        }
+        .hypo-info-icon:hover .hypo-tooltip,
+        .hypo-info-icon:focus-visible .hypo-tooltip { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
         .ui-disabled { opacity: 0.55; filter: grayscale(0.25); transition: opacity 0.2s ease; }
         .ui-disabled,
         .ui-disabled * { cursor: not-allowed !important; }
@@ -631,6 +723,11 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
         .chomage-row { grid-template-columns: 1fr; row-gap: 6px; }
         .chomage-dual-row { grid-template-columns: 1fr; row-gap: 6px; }
         .chomage-days { width: 100%; }
+          .vplr-stack { width: 100%; }
+          .vplr-entry-row { width: 100%; justify-content: flex-start; }
+          .vplr-entry-input { width: 100%; }
+          .vplr-entries { align-items: stretch; }
+          .vplr-switch-line { width: 100%; }
           .prog-panel-fields { flex-direction: column; align-items: stretch; }
           .prog-field { justify-content: space-between; width: 100%; flex-wrap: wrap; }
           .prog-field label { width: 100%; margin-bottom: 6px; }
@@ -816,16 +913,34 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
         .btn-pastel { background: #EEF2FF; border: 1px solid #E5E7EB; color: #374151; border-radius: 6px; padding: 8px 10px; font-weight: 600; }
         .btn-pastel:hover { background: #E0E7FF; color: #111827; }
 
-        .manual-table { width: 100%; border-collapse: collapse; background: #fff; table-layout: fixed; min-width: 960px; }
-        .manual-table thead th { background: var(--bs-primary, #7367F0); color: #FFFFFF; border: 1px solid #E5E7EB; padding: 6px 8px; font-size: 12px; text-align: center; font-weight: 600; white-space: nowrap; }
-        .manual-table td { border: 1px solid #E5E7EB; padding: 6px 8px; vertical-align: middle; text-align: center; }
-        .manual-table th.actions-col, .manual-table td.actions-col { width: 80px; text-align: center; }
-        .manual-table th.w-90, .manual-table td.w-90 { width: 90px; }
-        .manual-table th.w-110, .manual-table td.w-110 { width: 110px; }
-        .manual-table th.w-150, .manual-table td.w-150 { width: 150px; }
-        .manual-table th.w-100, .manual-table td.w-100 { width: 100px; }
-        .manual-table th.w-140, .manual-table td.w-140 { width: 140px; }
-        .manual-table .hidden-tc { display: none; }
+        .manual-table-wrap { width: 100% !important; max-width: 100% !important; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 6px; }
+        .manual-table-wrap .table-responsive { width: 100%; overflow-x: visible; }
+        .manual-table { width: 100%; border-collapse: collapse; background: #fff; min-width: 960px; }
+        .manual-table thead th {
+          background: var(--bs-primary, #7367F0);
+          color: #FFFFFF;
+          border: 1px solid #E5E7EB;
+          padding: 12px;
+          font-size: 0.9rem;
+          text-align: center;
+          font-weight: 600;
+          white-space: nowrap;
+          min-width: 100px;
+        }
+        .manual-table td {
+          border: 1px solid #E5E7EB;
+          padding: 12px;
+          vertical-align: middle;
+          text-align: center;
+        }
+        .manual-table th.large-column,
+        .manual-table td.large-column { min-width: 180px; }
+        .manual-table th.narrow,
+        .manual-table td.narrow { min-width: 90px; }
+        .manual-table th.medium,
+        .manual-table td.medium { min-width: 110px; }
+        .manual-table th.actions-col,
+        .manual-table td.actions-col { min-width: 110px; text-align: center; }
         .manual-num { width: 100%; border: 1px solid #E5E7EB; border-radius: 6px; padding: 6px 8px; background: #fff; text-align: center; }
         .manual-num:focus { outline: none; border-color: #A5B4FC; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
         /* Horizontal scroll for small screens */
@@ -834,7 +949,15 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
         .manual-input:focus { outline: none; border-color: #A5B4FC; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
         .manual-input.err { border-color: #ef4444; box-shadow: 0 0 0 2px rgba(239,68,68,0.15); }
         .manual-actions { display: inline-flex; gap: 6px; }
-        .manual-add { margin-top: 16px; display: flex; justify-content: flex-end; }
+        .manual-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+        .manual-header-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+        .manual-entry-actions { display: flex; justify-content: flex-end; }
 
         /* Compact card body padding only on large screens */
         @media (min-width: 1200px) {
@@ -980,21 +1103,119 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                     </div>
                   </div>
 
+                  {/* Rachat de trimestres (VPLR) */}
+                  <div className='hypo-row'>
+                    <span className='hypo-label'>Rachat de trimestres (VPLR)</span>
+                    <div className='hypo-ctrl'>
+                      <div className='vplr-stack'>
+                        <div className='vplr-switch-line'>
+                          <ButtonRadioSwitch
+                            noLabel
+                            className={classnames('vplr-toggle', vplrChoice === 'etude' ? 'primary-right' : 'primary-left')}
+                            checked={vplrChoice === 'etude'}
+                            onChange={(e) => setVplrChoice(e.target.checked ? 'etude' : 'incomplete')}
+                          />
+                          {vplrChoice === 'etude' && (
+                            <button
+                              type='button'
+                              className='vplr-add-btn'
+                               style={{ width: 28, height: 28, borderRadius: '45%', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                              onClick={() => setVplrEntries(prev => ([...(Array.isArray(prev) ? prev : []), { id: Date.now(), year: '', trimestres: '' }]))}
+                              aria-label="Ajouter un rachat d'année d'étude"
+                            >
+                              +
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Collapse isOpen={vplrChoice === 'etude'}>
+                    <div className='hypo-row' style={{ paddingTop: 0, gap: 0 }}>
+                      <span className='hypo-label spacer' aria-hidden='true' />
+                      <div className='hypo-ctrl'>
+                        <div className='hypo-panel' style={{ marginTop: 8, maxWidth: 480 }}>
+                          {Array.isArray(vplrEntries) && vplrEntries.length ? (
+                            <div className='vplr-entries'>
+                              {vplrEntries.map((row) => (
+                                <div key={row.id} className='vplr-entry-row'>
+                                  <span className='vplr-entry-label'>Année</span>
+                                  <input
+                                    type='number'
+                                    className='inline-input vplr-entry-input'
+                                    value={(row && row.year) || ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value
+                                      setVplrEntries(prev => (Array.isArray(prev) ? prev : []).map(r => (r && r.id === row.id) ? { ...r, year: val } : r))
+                                    }}
+                                    min='0'
+                                    inputMode='numeric'
+                                  />
+                                  <span className='vplr-entry-label'>Nombre de trimestres</span>
+                                  <input
+                                    type='number'
+                                    className='inline-input vplr-entry-input'
+                                    value={(row && row.trimestres) || ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value
+                                      setVplrEntries(prev => (Array.isArray(prev) ? prev : []).map(r => (r && r.id === row.id) ? { ...r, trimestres: val } : r))
+                                    }}
+                                    min='0'
+                                    inputMode='numeric'
+                                  />
+                                <button
+                                  type='button'
+                                  className='action-btn danger'
+                                  aria-label='Supprimer cette ligne'
+                                  onClick={() => setVplrEntries(prev => (Array.isArray(prev) ? prev.filter(r => r && r.id !== row.id) : []))}
+                                >
+                                  <svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+                                    <polyline points='3 6 5 6 21 6'></polyline>
+                                    <path d='M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6'></path>
+                                    <path d='M10 11v6'></path>
+                                    <path d='M14 11v6'></path>
+                                    <path d='M9 6V4h6v2'></path>
+                                  </svg>
+                                </button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className='mb-0 text-muted' style={{ fontSize: '0.9rem' }}>Ajoutez vos années à racheter avec le bouton +.</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </Collapse>
+
                   {/* Salaire par défaut jusqu'au départ (même comportement que les lignes Non) */}
                   <div className='hypo-row' style={{ display: sans ? undefined : 'none' }}>
-                    <span className='hypo-label nowrap'>Salaire(s) à projeter</span>
+                    <div className='hypo-label label-with-info'>
+                      <span className='nowrap'>Salaire(s) à projeter</span>
+                      {!isSalaryProjected && (
+                        <span
+                          className='hypo-info-icon'
+                          aria-label='Informations sur la projection de salaire'
+                          tabIndex={0}
+                        >
+                          i
+                          <span className='hypo-tooltip'>Prise en compte par défaut des dernières rémunérations enregistrées</span>
+                        </span>
+                      )}
+                    </div>
                     <div className='hypo-ctrl'>
                       <ButtonRadioSwitch
                         noLabel
-                        checked={salaireDefaut}
-                        onChange={(e) => setSalaireDefaut(e.target.checked)}
+                        checked={isSalaryProjected}
+                        onChange={(e) => setIsSalaryProjected(e.target.checked)}
                       />
                     </div>
                   </div>
                 </div>
 
                 {/* Panel animé pour le cas Oui: saisir le salaire par défaut */}
-                <Collapse isOpen={salaireDefaut && !!sans}>
+                <Collapse isOpen={isSalaryProjected && !!sans}>
                   <div
                     className='hypo-panel mb-50'
                     style={{ marginTop: 12, maxWidth: '70%' }}
@@ -1127,7 +1348,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                 </Collapse>
 
                 {/* Zone dynamique "Salaire(s) jusqu’au départ" quand Non */}
-                {/* <Collapse isOpen={!salaireDefaut && !!sans}>
+                {/* <Collapse isOpen={!isSalaryProjected && !!sans}>
                   <div
                     className='hypo-panel mb-50'
                     style={{ marginTop: 12, maxWidth: 640 }}
@@ -1621,36 +1842,6 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
             </CardBody>
           </Card>
 
-          {/* Rachat de trimestres intégré en bas des hypothèses */}
-          <Card className='mb-1 bilan-card'>
-            <CardBody
-              className={classnames('hypo-indent-lg', { 'ui-disabled': isRachatLocked })}
-              aria-disabled={isRachatLocked}
-            >
-              <h6 className='mb-1 section-title'>Rachat de trimestres</h6>
-              <div
-                className={classnames('hypo-row', { 'ui-disabled': isRachatLocked })}
-                style={{ paddingTop: 0 }}
-                aria-disabled={isRachatLocked}
-              >
-                <span className='hypo-label'>Activer le rachat de trimestres</span>
-                <div className='hypo-ctrl'>
-                  <ButtonRadioSwitch
-                    noLabel
-                    checked={rachatTrimestresActive}
-                    onToggle={handleRachatToggle}
-                  />
-                </div>
-              </div>
-              {rachatTrimestresActive ? (
-                <div className='hypo-panel mb-0' style={{ marginTop: 12, maxWidth: 640 }}>
-                  <p className='mb-0 text-muted'>Rachat de trimestres — module à compléter.</p>
-                </div>
-              ) : (
-                <p className='mb-0 text-muted'>Rachat de trimestres — module à compléter.</p>
-              )}
-            </CardBody>
-          </Card>
         </TabPane>
 
         <TabPane tabId='bilan'>

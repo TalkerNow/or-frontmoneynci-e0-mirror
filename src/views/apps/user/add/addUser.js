@@ -20,7 +20,7 @@ import SweetAlert from "react-bootstrap-sweetalert";
 import "flatpickr/dist/themes/light.css";
 import "../../../../assets/scss/plugins/forms/flatpickr/flatpickr.scss";
 import InputMaskDate from "../edit/InputMaskDate";
-import { MapPin, Home, User, ArrowLeft, Plus } from "react-feather";
+import { Home, User, ArrowLeft, Plus, Heart, Briefcase } from "react-feather";
 import Radio from "../../../../components/@vuexy/radio/RadioVuexy";
 import moment from "moment";
 import { waiterHide, waiterShow } from "../../../../helpers/waiter";
@@ -581,7 +581,7 @@ handleZipChange = (zip, which) => {
             {/* Statut marital */}
             <Col md="6" sm="12">
               <h5 className="mb-1">
-                <User className="mr-50" size={16} />
+                <Heart className="mr-50" size={16} />
                 <span className="align-middle">Statut marital</span>
               </h5>
               <FormGroup style={{ marginBottom: "15px", marginTop: "5px" }}>
@@ -837,7 +837,7 @@ handleZipChange = (zip, which) => {
             {/* Adresse société */}
             <Col className="mt-1" md="6" sm="12">
               <h5 className="mb-1">
-                <MapPin className="mr-50" size={16} />
+                <Briefcase className="mr-50" size={16} />
                 <span className="align-middle">Adresse de sa société</span>
               </h5>
               <FormGroup>
