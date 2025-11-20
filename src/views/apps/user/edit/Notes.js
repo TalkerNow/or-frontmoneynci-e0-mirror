@@ -153,6 +153,40 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
   useEffect(() => {
     persistDocs(generatedDocs)
   }, [generatedDocs])
+  useEffect(() => {
+    const handleArrcoMessage = (event) => {
+      if (!event || !event.data || event.data.type !== 'ARRCO_POINTS_SAVE') return
+      const payload = event.data.payload || {}
+      const year = Number(payload.year) || 2024
+      const arrcoValue = Number(payload.pointsYear != null ? payload.pointsYear : payload.pointsTotal) || 0
+      setManualCareerRows(prev => {
+        const safeRows = Array.isArray(prev) ? [...prev] : []
+        const idx = safeRows.findIndex(row => Number(row?.annee) === year)
+        if (idx >= 0) {
+          safeRows[idx] = { ...safeRows[idx], arrcoPoints: arrcoValue }
+        } else {
+          safeRows.push({
+            id: `arrco-${year}-${Date.now()}`,
+            annee: year,
+            revenu: '',
+            trimBase: '',
+            trimAR: '',
+            cnavPoints: '',
+            arrcoPoints: arrcoValue,
+            ta: '',
+            tb: '',
+            tc: '',
+            errY: false,
+            errR: false
+          })
+        }
+        return safeRows
+      })
+      toast.success('Points ARRCO mis à jour')
+    }
+    window.addEventListener('message', handleArrcoMessage)
+    return () => window.removeEventListener('message', handleArrcoMessage)
+  }, [])
 
   const handleNotesChange = (e) => {
     setNotes(e.target.value)
