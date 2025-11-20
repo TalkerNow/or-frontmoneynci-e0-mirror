@@ -607,6 +607,64 @@ function buildStepsForSuivi(suiviRow) {
   return { profileKey, config, steps };
 }
 
+const todoBadgeWrapper = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  padding: "3px 9px",
+  borderRadius: 10,          // pill
+  backgroundColor: "#f1f1f1ff", // gris très léger
+  maxWidth: 260,
+};
+
+const todoDot = {
+  width: 8,
+  height: 8,
+  borderRadius: "50%",
+  backgroundColor: "red", // accent bleu (change si tu veux)
+  flexShrink: 0,
+};
+
+const todoMainText = {
+  fontSize: 16,
+  fontWeight: 600,
+  color: "#212529",
+  lineHeight: 1.2,
+};
+
+const todoSubText = {
+  fontSize: 12,
+  color: "#b0b3b5ff",
+  lineHeight: 1.2,
+};
+
+function renderTodoCell(next) {
+  if (!next) {
+    return (
+      <span
+        className="text-success"
+        style={{ fontSize: 14, fontWeight: 600 }}
+      >
+        Dossier terminé
+      </span>
+    );
+  }
+
+  let sub = "";
+  if (next.isDatedStep && !next.date) sub = "À planifier";
+  else if (!next.isDatedStep) sub = "Étape de suivi";
+
+  return (
+    <div style={todoBadgeWrapper}>
+      <span style={todoDot} />
+      <div>
+        <div style={todoMainText}>{next.label}</div>
+        {sub && <div style={todoSubText}>{sub}</div>}
+      </div>
+    </div>
+  );
+}
+
 
 /** =============================
  *  UI bits
@@ -1182,83 +1240,91 @@ export default function KpiPage() {
       .map(([period, counts]) => ({ period, ...counts }))
       .sort((a, b) => (a.period > b.period ? 1 : -1));
   }, [allItems, groupBy, year, week]);
-  const sortedSuivis = useMemo(() => {
-    if (!Array.isArray(suivis)) return [];
+    const sortedSuivis = useMemo(() => {
+      if (!Array.isArray(suivis)) return [];
 
-    const data = [...suivis];
+      const data = [...suivis];
 
-    const getSortKey = (s) => {
-      switch (sortField) {
-        case "client": {
-          const label = getClientDisplayNameFromSuivi(s, clientsById);
-          return (label || "").toLowerCase();
+      const getSortKey = (s) => {
+        switch (sortField) {
+          case "client": {
+            const label = getClientDisplayNameFromSuivi(s, clientsById);
+            return (label || "").toLowerCase();
+          }
+          case "todo": {
+            const { steps } = buildStepsForSuivi(s);
+            const { next } = getLastAndNextSteps(steps);
+            if (!next) return "zzz"; // dossiers terminés à la fin
+            return (next.label || "").toLowerCase();
+          }
+          case "last": {
+            const { steps } = buildStepsForSuivi(s);
+            const { last } = getLastAndNextSteps(steps);
+            // on trie d'abord par date si dispo
+            if (last && last.date) return last.date;
+            if (last && last.label) return last.label.toLowerCase();
+            return "";
+          }
+          case "type": {
+            const label = getContractTypeLabel(s);
+            return (label || "").toLowerCase();
+          }
+          default:
+            return "";
         }
-        case "todo": {
-          const { steps } = buildStepsForSuivi(s);
-          const { next } = getLastAndNextSteps(steps);
-          if (!next) return "zzz"; // dossiers terminés à la fin
-          return (next.label || "").toLowerCase();
-        }
-        case "last": {
-          const { steps } = buildStepsForSuivi(s);
-          const { last } = getLastAndNextSteps(steps);
-          // on trie d'abord par date si dispo
-          if (last && last.date) return last.date;
-          if (last && last.label) return last.label.toLowerCase();
-          return "";
-        }
-        case "type": {
-          const label = getContractTypeLabel(s);
-          return (label || "").toLowerCase();
-        }
-        default:
-          return "";
-      }
-    };
+      };
 
-    data.sort((a, b) => {
-      const ka = getSortKey(a);
-      const kb = getSortKey(b);
+      data.sort((a, b) => {
+        const ka = getSortKey(a);
+        const kb = getSortKey(b);
 
-      if (ka < kb) return sortDir === "asc" ? -1 : 1;
-      if (ka > kb) return sortDir === "asc" ? 1 : -1;
-      return 0;
-    });
+        if (ka < kb) return sortDir === "asc" ? -1 : 1;
+        if (ka > kb) return sortDir === "asc" ? 1 : -1;
+        return 0;
+      });
 
-    return data;
-  }, [suivis, clientsById, sortField, sortDir]);
-  const groupedSuivis = useMemo(() => {
-    const res = {
-      active: [],      // ce qu’on affiche par défaut
-      processing: [],  // Paiement du contrat -> Avancement du dossier
-      completed: [],   // Dossier terminé (next === null)
-    };
+      return data;
+    }, [suivis, clientsById, sortField, sortDir]);
+    const groupedSuivis = useMemo(() => {
+      const res = {
+        active: [],      // ce qu’on affiche par défaut
+        processing: [],  // Paiement du contrat -> Avancement du dossier
+        completed: [],   // Contrats terminés (document_state === "Terminé")
+      };
 
-    if (!Array.isArray(sortedSuivis)) return res;
+      if (!Array.isArray(sortedSuivis)) return res;
 
-    sortedSuivis.forEach((s) => {
-      const { steps } = buildStepsForSuivi(s);
-      const { last, next } = getLastAndNextSteps(steps);
+      sortedSuivis.forEach((s) => {
+        const { steps } = buildStepsForSuivi(s);
+        const { last, next } = getLastAndNextSteps(steps);
 
-      const isProcessing =
-        last &&
-        last.label === "Paiement du contrat" &&
-        next &&
-        next.label === "Avancement du dossier";
+        // 👉 récupère l’objet contrat (adapte si besoin)
+        const contract = s.contract || s;
 
-      const isCompleted = !next; // même logique que ton "Dossier terminé"
+        // 👉 ta condition pour dire qu’un contrat est terminé
+        const isContractFinished =
+          contract && contract.document_state === "Terminé";
 
-      const bucket = isCompleted
-        ? "completed"
-        : isProcessing
-        ? "processing"
-        : "active";
+        // Dossier "en cours de traitement"
+        const isProcessing =
+          last &&
+          last.label === "Paiement du contrat" &&
+          next &&
+          next.label === "Avancement du dossier";
 
-      res[bucket].push({ s, steps, last, next });
-    });
+        // Choix du groupe
+        const bucket = isContractFinished
+          ? "completed"
+          : isProcessing
+          ? "processing"
+          : "active";
 
-    return res;
-  }, [sortedSuivis]);
+        res[bucket].push({ s, steps, last, next });
+      });
+
+      return res;
+    }, [sortedSuivis]);
+
 
   return (
     <div className="vx-row">
@@ -1399,29 +1465,7 @@ export default function KpiPage() {
                         <td>{clientLabel}</td>
 
                         {/* À faire */}
-                        <td>
-                          {next ? (
-                            <div style={{ fontSize: 14 }}>
-                              <div>
-                                <strong>{next.label}</strong>
-                              </div>
-                              {next.isDatedStep && !next.date && (
-                                <div className="text-muted">À planifier</div>
-                              )}
-                              {!next.isDatedStep && (
-                                <div className="text-muted">Étape de suivi</div>
-                              )}
-                            </div>
-                          ) : (
-                            <span
-                              className="text-success"
-                              style={{ fontSize: 14, fontWeight: 600 }}
-                            >
-                              Dossier terminé
-                            </span>
-                          )}
-                        </td>
-
+                        <td>{renderTodoCell(next)}</td>
                         {/* Dernière étape validée */}
                         <td>
                           {last ? (
@@ -1494,30 +1538,7 @@ export default function KpiPage() {
                             style={{ cursor: "pointer" }}
                           >
                             <td>{clientLabel}</td>
-
-                            <td>
-                              {next ? (
-                                <div style={{ fontSize: 14 }}>
-                                  <div>
-                                    <strong>{next.label}</strong>
-                                  </div>
-                                  {next.isDatedStep && !next.date && (
-                                    <div className="text-muted">À planifier</div>
-                                  )}
-                                  {!next.isDatedStep && (
-                                    <div className="text-muted">Étape de suivi</div>
-                                  )}
-                                </div>
-                              ) : (
-                                <span
-                                  className="text-success"
-                                  style={{ fontSize: 14, fontWeight: 600 }}
-                                >
-                                  Dossier terminé
-                                </span>
-                              )}
-                            </td>
-
+                          <td>{renderTodoCell(next)}</td>
                             <td>
                               {last ? (
                                 <div style={{ fontSize: 14 }}>
