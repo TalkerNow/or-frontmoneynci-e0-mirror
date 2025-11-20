@@ -406,7 +406,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
           <div className='manual-header'>
             <h5 className='notes-card-title mb-1'>Saisie de carrière manuelle</h5>
             <div className='manual-header-actions'>
-              <Button color='light' className='notes-action-btn manual-add-btn' onClick={handleManualAddLine}>
+              <Button color='light' className='notes-action-btn manual-add-btn' onClick={handleManualAddLine} style={{ marginBottom: '8px' }}>
                 + Ajouter une ligne
               </Button>
             </div>
