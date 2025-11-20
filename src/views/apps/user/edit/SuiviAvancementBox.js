@@ -1,7 +1,7 @@
 // SuiviAvancementBox.js
 import React, { useEffect, useState } from "react";
 import { Card, CardBody, Spinner, Button, Input } from "reactstrap";
-import { Edit, PlusCircle, X, ChevronDown, ChevronUp } from "react-feather";
+import { Edit, PlusCircle, X, ChevronDown, ChevronUp, RefreshCcw } from "react-feather";
 import axios from "axios";
 
 // ----------- Helpers de format de date ------------
@@ -1077,7 +1077,7 @@ const saveStep2DateTimeChSimu = async (suivi) => {
             outline
             onClick={syncSuivisForClient}
           >
-            Rafraîchir
+            <RefreshCcw size={16} className="mr-25" />
           </Button>
         </div>
 
