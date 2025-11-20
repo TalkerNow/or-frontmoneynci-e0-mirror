@@ -1219,8 +1219,8 @@ const saveStep2DateTimeChSimu = async (suivi) => {
                           stepNumber === 1;
                         const isCreditImpotStep2 =
                           isCreditImpot && stepNumber === 2;
-                        const isCreditImpotStep3 =
-                          isCreditImpot && stepNumber === 3;
+                        // const isCreditImpotStep3 =
+                        //   isCreditImpot && stepNumber === 3;
                         const isCreditImpotStep4 =
                           isCreditImpot && stepNumber === 4;
                         const isCreditImpotStep5 =
