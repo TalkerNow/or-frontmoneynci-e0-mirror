@@ -1,13 +1,6 @@
 import React from "react";
 import { UserPlus, Trash2 } from "react-feather";
-import {
-  Button,
-  Card,
-  CardBody,
-  Input,
-  Row,
-  Col,
-} from "reactstrap";
+import { Button, Card, CardBody, Input, Row, Col } from "reactstrap";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { ContextLayout } from "../../../../utility/context/Layout";
@@ -81,7 +74,7 @@ const ALLOWED_EMAILS = [
   "remi@phocus1.com",
   "jfc@eor.fr",
   "martin.six@phocus1.com",
-  "sebastien@eor.fr"
+  "sebastien@eor.fr",
 ];
 
 class ClientsList extends React.Component {
@@ -100,6 +93,8 @@ class ClientsList extends React.Component {
     },
     searchVal: "",
     currentUserEmail: "",
+    // Flag rôle consultant
+    isConsultant: false,
     // ID utilisé pour le filtre "Mes clients". null => pas de filtre.
     myFilterId: null,
     // Saisie téléphone normalisée (chiffres) utilisée par le filtre externe
@@ -133,22 +128,10 @@ class ClientsList extends React.Component {
         cellRendererFramework: (params) => {
           return (
             <div>
-              <Moment
-                format="DD/MM/YYYY"
-                date={params.data.created_at}
-                utc
-              />
+              <Moment format="DD/MM/YYYY" date={params.data.created_at} utc />
             </div>
           );
         },
-      },
-      {
-        headerName: "Nom",
-        filter: true,
-        width: 120,
-        minWidth: 120,
-        flex: 1,
-        valueGetter: (params) => params.data.last_name,
       },
       {
         headerName: "Prénom",
@@ -157,6 +140,14 @@ class ClientsList extends React.Component {
         minWidth: 120,
         flex: 0,
         valueGetter: (params) => params.data.first_name,
+      },
+      {
+        headerName: "Nom",
+        filter: true,
+        width: 120,
+        minWidth: 120,
+        flex: 1,
+        valueGetter: (params) => params.data.last_name,
       },
       {
         headerName: "Civilité",
@@ -178,12 +169,18 @@ class ClientsList extends React.Component {
         width: 150,
         minWidth: 150,
         flex: 0,
-        cellClass: 'd-flex align-items-center justify-content-center',
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 },
+        cellStyle: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 0,
+        },
         cellRendererFramework: (params) => {
           const userId = params?.data?.id;
           const services =
-            (this.state.servicesByUserId && this.state.servicesByUserId[userId]) || [];
+            (this.state.servicesByUserId &&
+              this.state.servicesByUserId[userId]) ||
+            [];
           if (!services || services.length === 0) {
             return <div className="h-100 d-flex align-items-center"></div>;
           }
@@ -268,7 +265,9 @@ class ClientsList extends React.Component {
               onClick={(e) => {
                 e.stopPropagation();
                 window.location.href =
-                  "mailto:" + email + "?subject=Subject&body=message%20goes%20here";
+                  "mailto:" +
+                  email +
+                  "?subject=Subject&body=message%20goes%20here";
               }}
             >
               <span>{rowData.data.email}</span>
@@ -276,13 +275,14 @@ class ClientsList extends React.Component {
           );
         },
       },
-            {
+      {
         headerName: "Consultant",
         filter: false,
         width: 140,
         minWidth: 140,
         flex: 0,
-        valueGetter: (params) => (params.data.parent ? params.data.parent.name : ""),
+        valueGetter: (params) =>
+          params.data.parent ? params.data.parent.name : "",
       },
       {
         headerName: "Apporteur",
@@ -292,7 +292,8 @@ class ClientsList extends React.Component {
         flex: 0,
         valueGetter: (params) => {
           return params.data.business_introducer
-            ? params.data.business_introducer.name || params.data.business_introducer
+            ? params.data.business_introducer.name ||
+                params.data.business_introducer
             : "-";
         },
       },
@@ -304,8 +305,13 @@ class ClientsList extends React.Component {
         width: 90,
         minWidth: 90,
         flex: 0,
-        cellClass: 'd-flex align-items-center justify-content-center',
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 },
+        cellClass: "d-flex align-items-center justify-content-center",
+        cellStyle: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 0,
+        },
         cellRendererFramework: (params) => {
           return (
             <div
@@ -347,7 +353,7 @@ class ClientsList extends React.Component {
       row?.technician_id,
       row?.user_owner_id,
     ];
-    const found = candidates.find(v => v !== undefined && v !== null);
+    const found = candidates.find((v) => v !== undefined && v !== null);
     return this.normalizeId(found);
   };
 
@@ -410,7 +416,10 @@ class ClientsList extends React.Component {
       const tsStr = doc?.updated_at || doc?.created_at || null;
       const ts = tsStr ? Date.parse(tsStr) : 0;
 
-      if (latestTsByUser[userId] === undefined || ts > latestTsByUser[userId]) {
+      if (
+        latestTsByUser[userId] === undefined ||
+        ts > latestTsByUser[userId]
+      ) {
         latestTsByUser[userId] = ts;
         map[userId] = services;
       }
@@ -425,6 +434,16 @@ class ClientsList extends React.Component {
       },
     };
 
+    // Rôle + ID utilisateur courant
+    const userIdRaw = localStorage.getItem("userid");
+    const roleStr = (localStorage.getItem("role") || "").toLowerCase();
+    // On considère consultant si la chaîne contient "consultant"
+    const isConsultant = roleStr.includes("consultant");
+    const myFilterId =
+      isConsultant && userIdRaw ? this.normalizeId(userIdRaw) : null;
+
+    this.setState({ isConsultant, myFilterId });
+
     // Récupère clients + documents en parallèle
     try {
       const [usersRes, docsRes] = await Promise.all([
@@ -436,16 +455,22 @@ class ClientsList extends React.Component {
       const documents = docsRes.data || [];
       const servicesByUserId = this.buildServicesMapFromDocuments(documents);
 
-      this.setState({ rowData, servicesByUserId });
+      this.setState({ rowData, servicesByUserId }, () => {
+        if (this.gridApi && this.isExternalFilterPresent()) {
+          this.gridApi.onFilterChanged();
+        }
+      });
     } catch (e) {
       console.error("Erreur chargement clients/documents", e);
     }
 
     // Email utilisateur courant (pour export XLSX)
-    const userId = localStorage.getItem("userid");
-    if (userId) {
+    if (userIdRaw) {
       try {
-        const meRes = await axios.get(`${global.config.server_url}/users/${userId}`, Config);
+        const meRes = await axios.get(
+          `${global.config.server_url}/users/${userIdRaw}`,
+          Config
+        );
         const currentUserEmail = (meRes?.data?.email || "").toLowerCase();
         this.setState({ currentUserEmail });
       } catch (e) {
@@ -464,34 +489,68 @@ class ClientsList extends React.Component {
 
   // ======= EXPORT EXCEL (XLSX) =======
   getExportHeaders = () => [
-    "ID","Créé le","Civilité","Nom","Prénom","Email","Téléphone mobile","Téléphone bureau",
-    "Statut","Mise à jour du statut","Technicien (parent)","Apporteur","Date de naissance",
-    "Lieu de naissance","Nombre d’enfants","Situation maritale","Adresse perso","Adresse perso 2",
-    "Ville perso","Code postal perso","Pays perso","Société","Adresse société","Adresse société 2",
-    "Ville société","Code postal société","Pays société","Notes","Services souscrits",
-    "Compte valide","Utilisateur (ID)","ID parent (numérique)",
+    "ID",
+    "Créé le",
+    "Civilité",
+    "Nom",
+    "Prénom",
+    "Email",
+    "Téléphone mobile",
+    "Téléphone bureau",
+    "Statut",
+    "Mise à jour du statut",
+    "Technicien (parent)",
+    "Apporteur",
+    "Date de naissance",
+    "Lieu de naissance",
+    "Nombre d’enfants",
+    "Situation maritale",
+    "Adresse perso",
+    "Adresse perso 2",
+    "Ville perso",
+    "Code postal perso",
+    "Pays perso",
+    "Société",
+    "Adresse société",
+    "Adresse société 2",
+    "Ville société",
+    "Code postal société",
+    "Pays société",
+    "Notes",
+    "Services souscrits",
+    "Compte valide",
+    "Utilisateur (ID)",
+    "ID parent (numérique)",
   ];
   formatDateForExcel = (d) => {
     if (!d) return "";
     return String(d).replace("T", " ").replace("Z", "");
   };
-  sanitizeText = (t) => (!t ? "" : String(t).replace(/\r?\n/g, " ").replace(/\s\s+/g, " ").trim());
+  sanitizeText = (t) =>
+    !t ? "" : String(t).replace(/\r?\n/g, " ").replace(/\s\s+/g, " ").trim();
   buildClientRow = (c) => {
-    const civ = c.civility === "Monsieur" ? "M." : c.civility === "Madame" ? "Mme" : (c.civility || "");
-    const apport = c.business_introducer ? (c.business_introducer.name || c.business_introducer) : "";
+    const civ =
+      c.civility === "Monsieur"
+        ? "M."
+        : c.civility === "Madame"
+        ? "Mme"
+        : c.civility || "";
+    const apport = c.business_introducer
+      ? c.business_introducer.name || c.business_introducer
+      : "";
     return {
-      "ID": c.id ?? "",
+      ID: c.id ?? "",
       "Créé le": this.formatDateForExcel(c.created_at),
-      "Civilité": civ,
-      "Nom": c.last_name ?? "",
-      "Prénom": c.first_name ?? "",
-      "Email": c.email ?? "",
+      Civilité: civ,
+      Nom: c.last_name ?? "",
+      Prénom: c.first_name ?? "",
+      Email: c.email ?? "",
       "Téléphone mobile": c.mobile_number ?? "",
       "Téléphone bureau": c.office_number ?? "",
-      "Statut": c.status ?? "",
+      Statut: c.status ?? "",
       "Mise à jour du statut": c.status_update_date ?? "",
       "Technicien (parent)": c.parent ? c.parent.name : "",
-      "Apporteur": apport,
+      Apporteur: apport,
       "Date de naissance": this.formatDateForExcel(c.birth_date),
       "Lieu de naissance": c.birth_place ?? "",
       "Nombre d’enfants": c.children_number ?? "",
@@ -501,13 +560,13 @@ class ClientsList extends React.Component {
       "Ville perso": c.personal_city ?? "",
       "Code postal perso": c.personal_zip_code ?? "",
       "Pays perso": c.personal_country ?? "",
-      "Société": c.society_name ?? "",
+      Société: c.society_name ?? "",
       "Adresse société": c.society_address ?? "",
       "Adresse société 2": c.society_address_2 ?? "",
       "Ville société": c.society_city ?? "",
       "Code postal société": c.society_zip_code ?? "",
       "Pays société": c.society_country ?? "",
-      "Notes": this.sanitizeText(c.notes),
+      Notes: this.sanitizeText(c.notes),
       "Services souscrits": this.sanitizeText(c.subscribe_services),
       "Compte valide": c.valid_account ? "Oui" : "Non",
       "Utilisateur (ID)": c.user_id ?? "",
@@ -516,7 +575,7 @@ class ClientsList extends React.Component {
   };
   canDownload = () => {
     const email = (this.state.currentUserEmail || "").toLowerCase();
-    return ALLOWED_EMAILS.map(e => e.toLowerCase()).includes(email);
+    return ALLOWED_EMAILS.map((e) => e.toLowerCase()).includes(email);
   };
   onBtExportXLSX = () => {
     if (!this.canDownload()) return;
@@ -524,9 +583,14 @@ class ClientsList extends React.Component {
     if (!rowData || !rowData.length) return;
     const headers = this.getExportHeaders();
     const data = rowData.map(this.buildClientRow);
-    const ws = XLSX.utils.json_to_sheet(data, { header: headers, skipHeader: true });
+    const ws = XLSX.utils.json_to_sheet(data, {
+      header: headers,
+      skipHeader: true,
+    });
     XLSX.utils.sheet_add_aoa(ws, [headers], { origin: "A1" });
-    const colWidths = headers.map((h) => ({ wch: Math.max(14, h.length + 2) }));
+    const colWidths = headers.map((h) => ({
+      wch: Math.max(14, h.length + 2),
+    }));
     ws["!cols"] = colWidths;
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Clients");
@@ -561,7 +625,7 @@ class ClientsList extends React.Component {
     return true;
   };
 
-  // --- Actions (conservés mais plus déclenchés sans colonne Actions)
+  // --- Actions
   deleteUser(id) {
     const Config = {
       headers: { Authorization: "Bearer " + localStorage.getItem("token") },
@@ -579,6 +643,9 @@ class ClientsList extends React.Component {
     this.gridColumnApi = params.columnApi;
     this.sizeToFit();
     window.addEventListener("resize", this.sizeToFit);
+    if (this.isExternalFilterPresent()) {
+      this.gridApi.onFilterChanged();
+    }
   };
 
   filterData = (column, val) => {
@@ -607,13 +674,10 @@ class ClientsList extends React.Component {
       this.gridApi.setQuickFilter(phoneDigits ? "" : val);
     }
 
-    this.setState(
-      { searchVal: val, phoneQueryDigits: phoneDigits },
-      () => {
-        // Recalcule le filtre externe (Mes clients + recherche téléphone)
-        if (this.gridApi) this.gridApi.onFilterChanged();
-      }
-    );
+    this.setState({ searchVal: val, phoneQueryDigits: phoneDigits }, () => {
+      // Recalcule le filtre externe (Mes clients + recherche téléphone)
+      if (this.gridApi) this.gridApi.onFilterChanged();
+    });
   };
 
   handleAlert = (state, value, id) => {
@@ -628,8 +692,12 @@ class ClientsList extends React.Component {
     window.removeEventListener("resize", this.sizeToFit);
   }
 
-  // Toggle Mes clients / Tous les clients (filtre par l'ID utilisateur courant)
+  // Toggle Mes clients / Tous les clients (désactivé pour les consultants)
   toggleMyClients = () => {
+    // Les consultants doivent toujours rester sur "Mes clients"
+    if (this.state.isConsultant) {
+      return;
+    }
     const me = this.normalizeId(localStorage.getItem("userid"));
     this.setState(
       (prev) => ({ myFilterId: prev.myFilterId === null ? me : null }),
@@ -699,11 +767,17 @@ class ClientsList extends React.Component {
         <Row className="app-user-list" style={{ height: "100vh" }}>
           <Col sm="12" className="h-100 d-flex flex-column">
             <Card className="h-100 d-flex flex-column">
-              <CardBody className="h-100 d-flex flex-column" style={{ paddingBottom: "0.5rem" }}>
+              <CardBody
+                className="h-100 d-flex flex-column"
+                style={{ paddingBottom: "0.5rem" }}
+              >
                 {/* HEADER: recherche à gauche, boutons à droite */}
                 <div className="ag-grid-actions d-flex justify-content-between align-items-center flex-wrap mb-1">
                   {/* Gauche : Recherche */}
-                  <div className="d-flex align-items-center mb-1" style={{ minWidth: 280, flex: 1 }}>
+                  <div
+                    className="d-flex align-items-center mb-1"
+                    style={{ minWidth: 280, flex: 1 }}
+                  >
                     <Input
                       className="mr-1 w-100"
                       type="text"
@@ -713,20 +787,26 @@ class ClientsList extends React.Component {
                     />
                   </div>
 
-                  {/* Droite : Mes/Tous les clients + Créer un compte (vert) */}
+                  {/* Droite : Mes/Tous les clients (non consultant) + Créer un compte */}
                   <div className="d-flex align-items-center mb-1">
-                    <Button
-                      outline
-                      color="primary"
-                      className="mr-1"
-                      onClick={this.toggleMyClients}
-                    >
-                      {this.state.myFilterId === null ? "Mes clients" : "Tous les clients"}
-                    </Button>
+                    {!this.state.isConsultant && (
+                      <Button
+                        outline
+                        color="primary"
+                        className="mr-1"
+                        onClick={this.toggleMyClients}
+                      >
+                        {this.state.myFilterId === null
+                          ? "Mes clients"
+                          : "Tous les clients"}
+                      </Button>
+                    )}
 
                     <Button
                       color="success"
-                      onClick={() => history.push("/app/user/createUser")}
+                      onClick={() =>
+                        history.push("/app/user/createUser")
+                      }
                     >
                       <UserPlus size={15} className="mr-50" />
                       Créer un compte
@@ -746,7 +826,9 @@ class ClientsList extends React.Component {
                           rowBuffer={10}
                           gridOptions={this.state.gridOptions}
                           doesExternalFilterPass={this.doesExternalFilterPass}
-                          isExternalFilterPresent={this.isExternalFilterPresent}
+                          isExternalFilterPresent={
+                            this.isExternalFilterPresent
+                          }
                           defaultColDef={defaultColDef}
                           columnDefs={columnDefs}
                           rowData={rowData}

@@ -408,7 +408,7 @@ class DropzoneBasic extends React.Component {
     return (
       <>
         <div className="d-flex align-items-center mb-2">
-          <Button color="light" onClick={this.closeFolder} size="sm" className="mr-2 p-1">
+          <Button color="primary" onClick={this.closeFolder} size="sm" className="mr-2 p-1">
             <ArrowLeft size={16} />
           </Button>
           <Folder size={20} className="mr-2" />

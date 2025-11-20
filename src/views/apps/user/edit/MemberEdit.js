@@ -161,7 +161,7 @@ class UserEdit extends React.Component {
             )}
             <NavItem>
               <NavLink className={classnames({ active: this.state.activeTab === 'notes' })} onClick={() => this.toggle('notes')}>
-                <Info className='text-primary mr-50' size={16}/> Notes
+                <Info className='text-primary mr-50' size={16}/> Infos
               </NavLink>
             </NavItem>
             <NavItem>
@@ -216,7 +216,7 @@ class UserEdit extends React.Component {
             </Card>
           </TabPane>
           <TabPane tabId='simulateur'>
-            <SimulatorHub id={id} alignOffset={this.state.simuOffset} labelId={`simulateur-label-member-${id}`} />
+            <SimulatorHub id={id} alignOffset={this.state.simuOffset} labelId={`simulateur-label-member-${id}`} user={this.state.rowData} />
           </TabPane>
           </TabContent>
         </Col>

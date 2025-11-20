@@ -28,6 +28,8 @@ class MembersList extends React.Component {
     selectStatus: "All",
     verified: "All",
     department: "All",
+    // 👉 rôle actuel
+    isConsultant: false,
     defaultColDef: {
       resizable: true,
       sortable: true,
@@ -45,9 +47,23 @@ class MembersList extends React.Component {
         minWidth: 140,
         flex: 1,
         valueGetter: (params) =>
-          `${params.data?.first_name ?? ""} ${params.data?.last_name ?? ""}`.trim(),
+          `${params.data?.first_name ?? ""} ${
+            params.data?.last_name ?? ""
+          }`.trim(),
         cellRendererFramework: (params) => {
           const fullName = `${params.data.first_name} ${params.data.last_name}`;
+          const isConsultant = this.state.isConsultant;
+
+          // 👉 Les consultants voient juste le nom, pas de clic, pas de cursor-pointer
+          if (isConsultant) {
+            return (
+              <div className="d-flex align-items-center">
+                <span>{fullName}</span>
+              </div>
+            );
+          }
+
+          // 👉 Autres rôles : clic vers les détails (onglet 2)
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
@@ -105,6 +121,19 @@ class MembersList extends React.Component {
         minWidth: 90,
         flex: 0,
         cellRendererFramework: (params) => {
+          const isConsultant = this.state.isConsultant;
+
+          // 👉 Les consultants voient les icônes mais ne peuvent pas cliquer
+          if (isConsultant) {
+            return (
+              <div className="actions d-flex align-items-center">
+                <Edit className="mr-50" size={20} color="#cccccc" />
+                <Trash2 size={20} color="#cccccc" />
+              </div>
+            );
+          }
+
+          // 👉 Autres rôles : comportement normal (édition + suppression)
           return (
             <div className="actions cursor-pointer">
               <Edit
@@ -172,6 +201,11 @@ class MembersList extends React.Component {
       },
     };
 
+    // 👉 Rôle depuis le localStorage
+    const roleStr = (localStorage.getItem("role") || "").toLowerCase();
+    const isConsultant = roleStr.includes("consultant");
+    this.setState({ isConsultant });
+
     await axios
       .get(global.config.server_url + "/users?kind=member", Config)
       .then((response) => {
@@ -226,9 +260,6 @@ class MembersList extends React.Component {
   onEntering = () => {
     this.setState({ status: "Opening..." });
   };
-  onEntered = () => {
-    this.setState({ status: "Opened" });
-  };
   onExiting = () => {
     this.setState({ status: "Closing..." });
   };
@@ -262,11 +293,11 @@ class MembersList extends React.Component {
           confirmBtnText="Oui, supprimer"
           cancelBtnText="Annuler"
           onConfirm={() => {
-            this.handleAlert("basicAlert", false, 0);
+            this.handleAlert("defaultAlert", false, 0);
             this.handleAlert("confirmAlert", true, 0);
           }}
           onCancel={() => {
-            this.handleAlert("basicAlert", false, 0);
+            this.handleAlert("defaultAlert", false, 0);
             this.handleAlert("cancelAlert", true, 0);
           }}
         >
@@ -303,7 +334,10 @@ class MembersList extends React.Component {
         <Row className="app-user-list" style={{ height: "100vh" }}>
           <Col sm="12" className="h-100 d-flex flex-column">
             <Card className="h-100 d-flex flex-column">
-              <CardBody className="h-100 d-flex flex-column" style={{ paddingBottom: "1rem" }}>
+              <CardBody
+                className="h-100 d-flex flex-column"
+                style={{ paddingBottom: "1rem" }}
+              >
                 {/* Header : recherche + bouton création */}
                 <div className="d-flex flex-wrap justify-content-between align-items-center mb-1">
                   <Input
@@ -314,15 +348,21 @@ class MembersList extends React.Component {
                     onChange={(e) => this.updateSearchQuery(e.target.value)}
                     value={this.state.searchVal}
                   />
-                  <Button.Ripple
-                    className="mb-1"
-                    outline
-                    color="primary"
-                    onClick={() => history.push("/app/member/createUser")}
-                  >
-                    <UserPlus size={15} className="mr-50" />
-                    Créer un compte
-                  </Button.Ripple>
+
+                  {/* 👉 Les consultants n'ont PAS le bouton "Créer un compte" */}
+                  {!this.state.isConsultant && (
+                    <Button.Ripple
+                      className="mb-1"
+                      outline
+                      color="primary"
+                      onClick={() =>
+                        history.push("/app/member/createUser")
+                      }
+                    >
+                      <UserPlus size={15} className="mr-50" />
+                      Créer un compte
+                    </Button.Ripple>
+                  )}
                 </div>
 
                 {/* Conteneur AG Grid qui prend tout l'espace restant */}

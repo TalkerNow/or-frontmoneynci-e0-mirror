@@ -9,6 +9,8 @@ import {
   InputGroup,
   Input,
   InputGroupAddon,
+  FormGroup,
+  CardHeader,
   Button,
 } from "reactstrap";
 import LabeledCheckboxMaterialUi from "labeled-checkbox-material-ui";
@@ -44,6 +46,7 @@ var input_values = {
   TVAP: "20",
   fp1: "75",
   fp2: "25",
+  credit_impot_50: false,
 };
 
 const Config = {
@@ -51,6 +54,9 @@ const Config = {
     Authorization: "Bearer " + localStorage.getItem("token"),
   },
 };
+
+const CREDIT_IMPOT_NOTE =
+  "Prestation éligible à l'avance immédiate de crédit d'impôt soit 50 % pris en charge immédiatement par l'URSSAF après enregistrement du client.";
 
 class CreateContract extends React.Component {
   pdfRef = React.createRef();
@@ -60,6 +66,7 @@ class CreateContract extends React.Component {
     rowData: [],
     services: [],
     activeTab: "1",
+    selectedRows: [],  // Nouvelle propriété pour les lignes sélectionnées
     formValues: {
       c1: false,
       c2: true,
@@ -72,12 +79,14 @@ class CreateContract extends React.Component {
       cnb4: true,
       cnb5: false,
       cc5: true,
+      credit_impot_50: false,
     },
     general_condition: "",
     subscribe_services: "",
     status: "",
     status_payment: 0,
   };
+
   sendViaDocusign = async () => {
     try {
       // 1) Assure-toi que les totaux sont à jour
@@ -121,50 +130,49 @@ class CreateContract extends React.Component {
       toast.error("Échec envoi DocuSign");
     }
   };
+
   generatePdfBase64 = async () => {
-  if (!window.html2pdf) throw new Error("html2pdf non chargé");
-  const node = this.pdfRef.current;
-  if (!node) throw new Error("pdf-root introuvable");
+    if (!window.html2pdf) throw new Error("html2pdf non chargé");
+    const node = this.pdfRef.current;
+    if (!node) throw new Error("pdf-root introuvable");
 
-  // --- mémorise styles courants
-  const prevBg = node.style.background;
-  const prevShadow = node.style.boxShadow;
-  const prevWidth = node.style.width;
-  const prevMaxWidth = node.style.maxWidth;
+    // --- mémorise styles courants
+    const prevBg = node.style.background;
+    const prevShadow = node.style.boxShadow;
+    const prevWidth = node.style.width;
+    const prevMaxWidth = node.style.maxWidth;
 
-  // --- force un vrai A4 pour la capture, pas pour l’écran
-  node.style.background = "#ffffff";
-  node.style.boxShadow = "none";
-  node.style.width = "794px";
-  node.style.maxWidth = "794px";
+    // --- force un vrai A4 pour la capture, pas pour l’écran
+    node.style.background = "#ffffff";
+    node.style.boxShadow = "none";
+    node.style.width = "794px";
+    node.style.maxWidth = "794px";
 
-  const opt = {
-    margin: 0,
-    filename: "contrat.pdf",
-    image: { type: "jpeg", quality: 1 },
-    html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", removeContainer: true },
-    jsPDF: { unit: "pt", format: [595.28, 841.89], orientation: "portrait" },
-    pagebreak: { mode: ["css", "legacy"] },
+    const opt = {
+      margin: 0,
+      filename: "contrat.pdf",
+      image: { type: "jpeg", quality: 1 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", removeContainer: true },
+      jsPDF: { unit: "pt", format: [595.28, 841.89], orientation: "portrait" },
+      pagebreak: { mode: ["css", "legacy"] },
+    };
+
+    const dataUri = await window.html2pdf().set(opt).from(node).toPdf().output("datauristring");
+
+    // --- restaure styles écran
+    node.style.background = prevBg;
+    node.style.boxShadow = prevShadow;
+    node.style.width = prevWidth;
+    node.style.maxWidth = prevMaxWidth;
+
+    return dataUri.split(",")[1];
   };
-
-  const dataUri = await window.html2pdf().set(opt).from(node).toPdf().output("datauristring");
-
-  // --- restaure styles écran
-  node.style.background = prevBg;
-  node.style.boxShadow = prevShadow;
-  node.style.width = prevWidth;
-  node.style.maxWidth = prevMaxWidth;
-
-  return dataUri.split(",")[1];
-};
-
-
-
 
   ifExist(name) {
     if (this.state.rowData) return this.state.rowData[name];
     else return "N/a";
   }
+
   handleFieldChange = (field, value) => {
     input_values[field] = value;
     this.state.formValues[field] = value;
@@ -182,6 +190,7 @@ class CreateContract extends React.Component {
     });
     this.calculate();
   };
+
   handleCheckChange = (eOrBool, field) => {
     // Accepte soit un booléen direct, soit un event React
     const checked =
@@ -191,10 +200,88 @@ class CreateContract extends React.Component {
 
     input_values[field] = checked;
     this.setState(
-      prev => ({ formValues: { ...prev.formValues, [field]: checked } }),
+      (prev) => ({ formValues: { ...prev.formValues, [field]: checked } }),
       this.calculate
     );
   };
+
+  // --- Fonctions utilitaires pour la gestion des lignes du contrat ---
+  ALL_ROW_IDS = ["r1", "r2", "r3", "r4", "r5", "r6", "r7"];
+
+  rowPrimaryKey = (id) => {
+    switch (id) {
+      case "r1": return "c1";
+      case "r2": return "c2";
+      case "r3": return "c3";
+      case "r4": return "c4";
+      case "r5": return "c5";
+      case "r6": return "c6";
+      case "r7": return "c7";
+      default: return null;
+    }
+  };
+
+  labelFor = (id) => {
+    const fv = this.state.formValues || {};
+    switch (id) {
+      case "r1": return fv["title1"] || "Minutes + PU (min / €/h)";
+      case "r2": return fv["title2"] || "Forfait + option rachat/chômage";
+      case "r3": return fv["title3"] || "Ligne 3 (forfait)";
+      case "r4": return fv["title4"] || "Forfait + 1ère période à l’étranger";
+      case "r5": return fv["title5"] || "Forfait + 2ème période à l’étranger";
+      case "r6": return fv["title6"] || "Ligne 6 (forfait)";
+      case "r7": return fv["title7"] || "Ligne 7 (forfait)";
+      default: return id;
+    }
+  };
+
+  availableRowIds = () => {
+    const selected = this.state.selectedRows || [];
+    return this.ALL_ROW_IDS.filter((id) => !selected.includes(id));
+  };
+
+  computeSelectedRows = (fv) => {
+    const ids = [];
+    if (fv?.c1) ids.push("r1");
+    if (fv?.c2) ids.push("r2");
+    if (fv?.c3) ids.push("r3");
+    if (fv?.c4) ids.push("r4");
+    if (fv?.c5) ids.push("r5");
+    if (fv?.c6) ids.push("r6");
+    if (fv?.c7) ids.push("r7");
+    return ids;
+  };
+
+  addRowById = (id) => {
+    const key = this.rowPrimaryKey(id);
+    this.setState(
+      (prev) => ({
+        selectedRows: prev.selectedRows.includes(id) ? prev.selectedRows : [...prev.selectedRows, id],
+        formValues: key ? { ...prev.formValues, [key]: true } : prev.formValues,
+      }),
+      this.calculate
+    );
+    if (key) input_values[key] = true;
+  };
+
+  removeRowById = (id) => {
+    const key = this.rowPrimaryKey(id);
+    this.setState(
+      (prev) => ({
+        selectedRows: prev.selectedRows.filter((r) => r !== id),
+        formValues: key ? { ...prev.formValues, [key]: false } : prev.formValues,
+      }),
+      this.calculate
+    );
+    if (key) input_values[key] = false;
+  };
+
+  onPrimaryToggle = (checked, key, id) => {
+    this.handleCheckChange(checked, key);
+    if (checked) this.addRowById(id);
+    else this.removeRowById(id);
+  };
+  // --- Fin des fonctions utilitaires ---
 
   calculate = () => {
     var VTA = 1 + input_values["TVAP"] / 100;
@@ -294,6 +381,7 @@ class CreateContract extends React.Component {
       formValues: this.state.formValues,
     });
   };
+
   async componentDidMount() {
     this.setState({
       user_id: this.props.match.params.id,
@@ -304,112 +392,180 @@ class CreateContract extends React.Component {
     this.setState({
       parent_id: this.props.match.params.parent_id,
     });
-axios
-  .get(global.config.server_url + "/get_template/1", Config)
-  .then((response) => {
-    if (response.data != null) {
-      let values = JSON.parse(response.data.values);
+    axios
+      .get(global.config.server_url + "/get_template/1", Config)
+      .then((response) => {
+        if (response.data != null) {
+          let values = JSON.parse(response.data.values);
 
-      // Convertit TOUT en vrais booléens (gère "true"/"false", "on"/"off", "oui"/"non", "1"/"0")
-      const toStrictBool = (v) => {
-        if (typeof v === "boolean") return v;
-        if (v === 1 || v === "1") return true;
-        if (v === 0 || v === "0") return false;
-        if (typeof v === "string") {
-          const s = v.trim().toLowerCase();
-          if (["true","on","yes","oui","vrai"].includes(s)) return true;
-          if (["false","off","no","non","faux"].includes(s)) return false;
+          // Convertit TOUT en vrais booléens
+          const toStrictBool = (v) => {
+            if (typeof v === "boolean") return v;
+            if (v === 1 || v === "1") return true;
+            if (v === 0 || v === "0") return false;
+            if (typeof v === "string") {
+              const s = v.trim().toLowerCase();
+              if (["true", "on", "yes", "oui", "vrai"].includes(s)) return true;
+              if (["false", "off", "no", "non", "faux"].includes(s)) return false;
+            }
+            return !!v;
+          };
+
+          const boolKeys = ["c1", "c2", "c3", "c4", "c5", "c6", "c7", "cnb2", "cnb4", "cnb5", "cc5","credit_impot_50",];
+          boolKeys.forEach((k) => {
+            if (k in values) values[k] = toStrictBool(values[k]);
+          });
+          if (!("credit_impot_50" in values)) {
+            values.credit_impot_50 = false;
+          }
+          // Forcer AR Entreprise (section 4) à false au chargement
+          values.c4 = false;
+
+          console.log("TEMPLATE c4 (raw après normalisation):", values.c4, typeof values.c4);
+
+          this.setState({
+            formValues: values,
+            general_condition: response.data.general_condition,
+            selectedRows: this.computeSelectedRows(values),
+          }, this.calculate);
+          input_values = { ...values };
         }
-        return !!v;
-      };
-
-      const boolKeys = ["c1","c2","c3","c4","c5","c6","c7","cnb2","cnb4","cnb5","cc5"];
-      boolKeys.forEach((k) => {
-        if (k in values) values[k] = toStrictBool(values[k]);
       });
-
-      // Forcer AR Entreprise (section 4) à false au chargement
-      values.c4 = false;
-
-      // Debug rapide si besoin
-      console.log("TEMPLATE c4 (raw après normalisation):", values.c4, typeof values.c4);
-
-      this.setState({
-        formValues: values,
-        general_condition: response.data.general_condition,
-      });
-      input_values = { ...values };
-      this.calculate();
-    }
-  });
 
     axios
-      .get(
-        global.config.server_url + "/users/" + this.props.match.params.id,
-        Config
-      )
+      .get(global.config.server_url + "/users/" + this.props.match.params.id, Config)
       .then((response) => {
         let rowData = response.data;
         this.setState({ rowData });
       });
   }
+  appendCreditImpotNote = async () => {
+    // Si la case n'est pas cochée, on ne fait rien
+    if (!this.state.formValues.credit_impot_50) return;
 
-  sendForm = () => {
-    const Config = {
+    const userId = this.props.match.params.id;
+
+    const config = {
       headers: {
         Authorization: "Bearer " + localStorage.getItem("token"),
       },
     };
-    let sub_services = "";
 
-    if (input_values.c1) sub_services += "CH";
-    if (input_values.c2) sub_services += " / SIMU";
-    if (input_values.c3) sub_services += " / AR";
-    if (input_values.c4) sub_services += " / AR";
-    if (input_values.c5) sub_services += " / TFD";
-    if (input_values.c6) sub_services += " / ACTU";
-    if (input_values.c7) sub_services += " / RAC";
-    this.setState({ subscribe_services: sub_services });
-    var parameters = {};
-    var userid = this.props.match.params.id;
-    var parentid = this.state.rowData.parent_id;
-    parameters["link_to_documents"] = "N/a";
-    parameters["type"] = "contract";
-    parameters["document_state"] = "En attente";
-    parameters["date"] = "N/a";
-    parameters["subscribe_services"] = sub_services;
-    parameters["status_payment"] = 0;
-    parameters["comment"] =
+    try {
+      // 1) Récupérer les notes actuelles
+      const res = await axios.get(
+        `${global.config.server_url}/users/${userId}`,
+        config
+      );
+
+      const user = res.data || {};
+      // notes probablement au niveau root (comme first_name / last_name)
+      let existingNotes =
+        user.notes ||
+        (user.personal_informations && user.personal_informations.notes) ||
+        "";
+
+      // Éviter les doublons si la phrase est déjà présente
+      if (
+        existingNotes &&
+        existingNotes.includes(CREDIT_IMPOT_NOTE)
+      ) {
+        return;
+      }
+
+      // 2) Construire les nouvelles notes
+      let newNotes;
+      if (existingNotes && existingNotes.trim() !== "") {
+        newNotes = `${existingNotes}\n\n${CREDIT_IMPOT_NOTE}`;
+      } else {
+        newNotes = CREDIT_IMPOT_NOTE;
+      }
+
+      // 3) PUT sur /personal_information/:id
+      await axios.put(
+        `${global.config.server_url}/personal_information/${userId}`,
+        { notes: newNotes },
+        config
+      );
+    } catch (e) {
+      console.error("Erreur mise à jour des notes crédit d'impôt", e);
+      // tu peux mettre un toast si tu veux, mais j'évite de bloquer le contrat
+      // toast.error("Impossible de mettre à jour les notes");
+    }
+  };
+
+sendForm = async () => {
+  const Config = {
+    headers: {
+      Authorization: "Bearer " + localStorage.getItem("token"),
+    },
+  };
+
+  let sub_services = "";
+
+  if (input_values.c1) sub_services += "CH";
+  if (input_values.c2) sub_services += " / SIMU";
+  if (input_values.c3) sub_services += " / AR";
+  if (input_values.c4) sub_services += " / AR";
+  if (input_values.c5) sub_services += " / TFD";
+  if (input_values.c6) sub_services += " / ACTU";
+  if (input_values.c7) sub_services += " / RAC";
+
+  this.setState({ subscribe_services: sub_services });
+
+  const userid = this.props.match.params.id;
+  const parentid = this.state.rowData.parent_id;
+
+  const parameters = {
+    link_to_documents: "N/a",
+    type: "contract",
+    document_state: "En attente",
+    date: "N/a",
+    subscribe_services: sub_services,
+    status_payment: 0,
+    comment:
       "Contract de " +
       this.state.rowData["first_name"] +
       " " +
-      this.state.rowData["last_name"];
-    parameters["advanced_payment"] = this.state.formValues["TOTALTTC"]
+      this.state.rowData["last_name"],
+    advanced_payment: this.state.formValues["TOTALTTC"]
       ? this.state.formValues["TOTALTTC"]
-      : 0;
-    parameters["pre_payment"] = parseFloat(this.state.formValues["FINAL75"])
+      : 0,
+    pre_payment: parseFloat(this.state.formValues["FINAL75"])
       ? parseFloat(this.state.formValues["FINAL75"])
-      : 0;
-    parameters["end_payment"] = parseFloat(this.state.formValues["FINAL25"])
+      : 0,
+    end_payment: parseFloat(this.state.formValues["FINAL25"])
       ? parseFloat(this.state.formValues["FINAL25"])
-      : 0;
-    parameters["user_id"] = userid;
-    parameters["parent_id"] = parentid.toString();
-    parameters["creator_id"] = this.state.creator_id;
-    parameters["values"] = JSON.stringify(input_values);
-    //-------- save Contract ---------
-    axios
-      .post(global.config.server_url + "/documents", parameters, Config)
-      .then(function (result) {
-        history.push("/app/user/edit/" + userid + "/3");
-      })
-      .catch(function (error) {
-        toast.error("API injoignable" + error);
-      });
-
-    //--- set the subscribe services from contract into user table--------
-    this.setSubscribeServices();
+      : 0,
+    user_id: userid,
+    parent_id: parentid.toString(),
+    creator_id: this.state.creator_id,
+    values: JSON.stringify(input_values),
+    unipro: this.state.formValues.credit_impot_50 ? 1 : 0,
   };
+
+  try {
+    // 🔹 On attend que les notes soient bien mises à jour
+    await this.appendCreditImpotNote();
+
+    // 🔹 On enregistre le document
+    await axios.post(
+      global.config.server_url + "/documents",
+      parameters,
+      Config
+    );
+
+    // 🔹 On met à jour les services (tu peux aussi await si tu veux être 100% séquentiel)
+    this.setSubscribeServices();
+
+    // 🔹 Puis seulement on revient sur la page editUser
+    history.push("/app/user/edit/" + userid + "/3");
+  } catch (error) {
+    console.error(error);
+    toast.error("API injoignable " + error);
+  }
+};
+
 
   setSubscribeServices() {
     const Config = {
@@ -444,6 +600,7 @@ axios
         toast.error("API injoignable" + error);
       });
   }
+
   print = () => {
     //---- save the form data before printing
     const Config = {
@@ -485,30 +642,21 @@ axios
       ? this.state.formValues["TOTALTTC"]
       : 0;
     parameters["user_id"] = userid;
-    parameters["parent_id"] = parentid.toString(); //parentid;//localStorage.getItem("userid");
+    parameters["parent_id"] = parentid.toString(); //parentid;
     parameters["creator_id"] = this.state.creator_id;
     parameters["values"] = JSON.stringify(input_values);
-
+    parameters["unipro"] = this.state.formValues.credit_impot_50 ? 1 : 0;
+    this.appendCreditImpotNote();
     axios
       .post(global.config.server_url + "/documents", parameters, Config)
-
       .catch(function (error) {
         toast.error("API injoignable" + error);
       });
 
     //--- set the subscribe services from contract into user table--------
     this.setSubscribeServices();
-
-    //------ print action -----------
-    document.getElementById("send_contract_section").remove();
-    document.getElementById("button_section").remove();
-    document.getElementById("print-section").style.marginTop = "-90px";
-    var userid = this.state.user_id;
-    window.onafterprint = function (e) {
-      history.push("/app/user/edit/" + userid + "/3");
-    };
-    window.print();
   };
+
   render() {
     return (
       <React.Fragment>
@@ -543,22 +691,22 @@ axios
             sm="12"
             id="send_contract_section"
           >
-          <InputGroup>
-            <Input
-              placeholder="Email"
-              value={this.state.recipientEmail}
-              onChange={(e) => this.setState({ recipientEmail: e.target.value })}
-            />
-            <InputGroupAddon addonType="append">
-              <Button.Ripple
-                color="primary"
-                outline
-                onClick={this.sendViaDocusign} // nouveau handler
-              >
-                Envoyer via DocuSign
-              </Button.Ripple>
-            </InputGroupAddon>
-          </InputGroup>
+            <InputGroup>
+              <Input
+                placeholder="Email"
+                value={this.state.recipientEmail}
+                onChange={(e) => this.setState({ recipientEmail: e.target.value })}
+              />
+              <InputGroupAddon addonType="append">
+                <Button.Ripple
+                  color="primary"
+                  outline
+                  onClick={this.sendViaDocusign}
+                >
+                  Envoyer via DocuSign
+                </Button.Ripple>
+              </InputGroupAddon>
+            </InputGroup>
           </Col>
           <Col
             className="d-flex flex-column flex-md-row justify-content-end contract-header mb-1"
@@ -593,88 +741,461 @@ axios
               <span className="align-middle ml-50">Imprimer</span>
             </Button>
           </Col>
-              <Col
-                className="contract-wrapper"
-                style={{ margin: "30px auto 0", width: "794px" }} // 210mm ≈ 794px @96dpi
-              >
-              <div
-                id="pdf-root"
-                ref={this.pdfRef}
-                style={{ width: "100%", maxWidth: "1100px", margin: "0 auto" }}
-              >
-            <Card
-              className="contract-page"
-              style={{ padding: "0.5rem 5.5rem 2.2rem 5.5rem", boxShadow: "none" }}
-              id="print-section"
+          <Col
+            className="contract-wrapper"
+            style={{ margin: "30px auto 0", width: "794px" }}
+          >
+            {/* ====== CONTRAT (édition en haut de page) ====== */}
+            <FormGroup style={{ marginTop: "8px", marginBottom: 0 }}>
+              <Card className="mb-1 shadow-sm" style={{ borderRadius: 10 }}>
+                <CardHeader
+                  className="py-1 d-flex align-items-center"
+                  style={{ background: "#f8f9fa", borderBottom: "1px solid #e9ecef" }}
+                >
+                  <h5 className="mb-0">Contrat</h5>
+                </CardHeader>
+                <CardBody className="pt-1">
+                  {(() => {
+                    const stripe = (i) => ({
+                      background: i % 2 ? "#f7f9fc" : "#ffffff",
+                      borderRadius: 6,
+                      padding: "6px 8px",
+                      marginBottom: 2,
+                    });
+                    const GRID = {
+                      display: "grid",
+                      gridTemplateColumns:
+                        "32px minmax(160px,1fr) 70px 90px 80px 90px 110px 48px 16px 32px minmax(140px,1fr) 24px 70px",
+                      alignItems: "center",
+                      columnGap: 8,
+                    };
+                    const Ghost = ({ children = "" }) => (
+                      <span style={{ visibility: "hidden" }}>{children}</span>
+                    );
+                    const VSep = () => (
+                      <div
+                        aria-hidden="true"
+                        style={{ width: 1, height: 24, background: "#e5e7eb", justifySelf: "center" }}
+                      />
+                    );
+                    // ——— Lignes disponibles
+                    const RowMinutes = ({ i }) => (
+                      <div style={{ ...stripe(i), ...GRID }}>
+                        <LabeledCheckboxMaterialUi
+                          label=""
+                          checked={this.state.formValues["c1"]}
+                          onChange={(checked) => this.onPrimaryToggle(checked, "c1", "r1")}
+                        />
+                        <span>{this.state.formValues["title1"]}</span>
+                        <span className="text-muted">Nb (min)</span>
+                        <Input
+                          type="text"
+                          value={this.state.formValues["nb1"]}
+                          onChange={(e) => this.handleFieldChange("nb1", e.target.value)}
+                          style={{ height: 30, width: 90, textAlign: "right" }}
+                        />
+                        <span className="text-muted">PU (€/h)</span>
+                        <Input
+                          type="text"
+                          value={this.state.formValues["nb1-price"]}
+                          onChange={(e) => this.handleFieldChange("nb1-price", e.target.value)}
+                          style={{ height: 30, width: 90, textAlign: "right" }}
+                        />
+                        <Ghost>
+                          <Input style={{ width: 110, height: 30 }} />
+                        </Ghost>
+                        <Ghost>€ HT</Ghost>
+                        <VSep />
+                        <Ghost>
+                          <LabeledCheckboxMaterialUi label="" checked={false} />
+                        </Ghost>
+                        <Ghost>Option</Ghost>
+                        <Ghost>Nb</Ghost>
+                        <Ghost>
+                          <Input style={{ width: 70, height: 30 }} />
+                        </Ghost>
+                      </div>
+                    );
+                    const RowFixed = ({ i, n }) => (
+                      <div style={{ ...stripe(i), ...GRID }}>
+                        <LabeledCheckboxMaterialUi
+                          label=""
+                          checked={this.state.formValues[`c${n}`]}
+                          onChange={(checked) => this.onPrimaryToggle(checked, `c${n}`, `r${n}`)}
+                        />
+                        <span>{this.state.formValues[`title${n}`]}</span>
+                        <Ghost>Nb (min)</Ghost>
+                        <Ghost>
+                          <Input style={{ width: 90, height: 30 }} />
+                        </Ghost>
+                        <Ghost>PU (€/h)</Ghost>
+                        <Ghost>
+                          <Input style={{ width: 90, height: 30 }} />
+                        </Ghost>
+                        <Input
+                          type="text"
+                          value={this.state.formValues[`p${n}`]}
+                          onChange={(e) => this.handleFieldChange(`p${n}`, e.target.value)}
+                          style={{ height: 30, width: 110, textAlign: "right" }}
+                        />
+                        <span>€ HT</span>
+                        <VSep />
+                        <Ghost>
+                          <LabeledCheckboxMaterialUi label="" checked={false} />
+                        </Ghost>
+                        <Ghost>Option</Ghost>
+                        <Ghost>Nb</Ghost>
+                        <Ghost>
+                          <Input style={{ width: 70, height: 30 }} />
+                        </Ghost>
+                      </div>
+                    );
+                    const RowWithOption = ({ i, n, optionCheckKey, optionLabel, optionNbKey }) => {
+                      const isPensionLine = n === 5; // ligne "liquidation des pensions"
+
+                      return (
+                        <div style={{ ...stripe(i), ...GRID }}>
+                          {/* Checkbox principale + titre */}
+                          <LabeledCheckboxMaterialUi
+                            label=""
+                            checked={this.state.formValues[`c${n}`]}
+                            onChange={(checked) => this.onPrimaryToggle(checked, `c${n}`, `r${n}`)}
+                          />
+                          <span>{this.state.formValues[`title${n}`]}</span>
+
+                          {/* colonnes minutes / PU fantômes */}
+                          <Ghost>Nb (min)</Ghost>
+                          <Ghost><Input style={{ width: 90, height: 30 }} /></Ghost>
+                          <Ghost>PU (€/h)</Ghost>
+                          <Ghost><Input style={{ width: 90, height: 30 }} /></Ghost>
+
+                          {/* prix forfait */}
+                          <Input
+                            type="text"
+                            value={this.state.formValues[`p${n}`]}
+                            onChange={(e) => this.handleFieldChange(`p${n}`, e.target.value)}
+                            style={{ height: 30, width: 110, textAlign: "right" }}
+                          />
+                          <span>€ HT</span>
+
+                          <VSep />
+
+                          {/* Partie option */}
+                          {isPensionLine ? (
+                            // Ligne 5 : option "liquidation des pensions" + cc5 sur la même rangée
+                            <div style={{ gridColumn: "10 / span 4" }}>
+                              {/* Option "liquidation des pensions" (cnb5) */}
+                              <div
+                                style={{
+                                  display: "grid",
+                                  gridTemplateColumns: "32px minmax(0,1fr) 24px 70px",
+                                  columnGap: 8,
+                                  alignItems: "center",
+                                }}
+                              >
+                                <LabeledCheckboxMaterialUi
+                                  label=""
+                                  checked={this.state.formValues[optionCheckKey]}
+                                  onChange={(checked) =>
+                                    this.handleCheckChange(checked, optionCheckKey)
+                                  }
+                                />
+                                <span
+                                  style={{
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                  }}
+                                >
+                                  {optionLabel}
+                                </span>
+                                <span>Nb</span>
+                                <Input
+                                  type="text"
+                                  value={this.state.formValues[optionNbKey]}
+                                  onChange={(e) =>
+                                    this.handleFieldChange(optionNbKey, e.target.value)
+                                  }
+                                  style={{ height: 30, width: "100%", textAlign: "right" }}
+                                />
+                              </div>
+
+                              {/* cc5 : "inclus sous réserve d'un départ en retraite..." */}
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  marginTop: 4,
+                                  gap: 6,
+                                }}
+                              >
+                                <LabeledCheckboxMaterialUi
+                                  label=""
+                                  checked={this.state.formValues.cc5}
+                                  onChange={(checked) =>
+                                    this.handleCheckChange(checked, "cc5")
+                                  }
+                                />
+                                <span style={{ whiteSpace: "normal" }}>
+                                  {this.state.formValues["subcontent5-3"]}
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            // Lignes 2 et 4 : comportement normal
+                            <>
+                              <LabeledCheckboxMaterialUi
+                                label=""
+                                checked={this.state.formValues[optionCheckKey]}
+                                onChange={(checked) =>
+                                  this.handleCheckChange(checked, optionCheckKey)
+                                }
+                              />
+                              <span
+                                style={{
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                }}
+                              >
+                                {optionLabel}
+                              </span>
+                              <span>Nb</span>
+                              <Input
+                                type="text"
+                                value={this.state.formValues[optionNbKey]}
+                                onChange={(e) =>
+                                  this.handleFieldChange(optionNbKey, e.target.value)
+                                }
+                                style={{ height: 30, width: 70, textAlign: "right" }}
+                              />
+                            </>
+                          )}
+                        </div>
+                      );
+                    };
+                    const AddRowSelect = ({ placeholder = "Ajouter une ligne" }) => {
+                      const avail = this.availableRowIds();
+                      if (avail.length === 0) return null;
+                      return (
+                        <div className="d-flex align-items-center" style={{ gap: 8, margin: "6px 0" }}>
+                          <Input
+                            type="select"
+                            style={{ width: 360, height: 40 }}
+                            value=""
+                            onChange={(e) => {
+                              const id = e.target.value;
+                              if (id) this.addRowById(id);
+                            }}
+                          >
+                            <option value="" disabled hidden>
+                              {placeholder}
+                            </option>
+                            {avail.map((id) => (
+                              <option key={id} value={id}>
+                                {this.labelFor(id)}
+                              </option>
+                            ))}
+                          </Input>
+                        </div>
+                      );
+                    };
+                    // ——— Construction du rendu
+                    let i = 0;
+                    const out = [];
+                    out.push(<AddRowSelect key="add-top" placeholder="Ajouter une ligne" />);
+                    (this.state.selectedRows || []).forEach((id) => {
+                      switch (id) {
+                        case "r1":
+                          out.push(<RowMinutes key="r1" i={i++} />);
+                          break;
+                        case "r2":
+                          out.push(
+                            <RowWithOption
+                              key="r2"
+                              i={i++}
+                              n={2}
+                              optionCheckKey="cnb2"
+                              optionLabel={this.state.formValues["subcontent2-2"]}
+                              optionNbKey="nb2"
+                            />
+                          );
+                          break;
+                        case "r3":
+                          out.push(<RowFixed key="r3" i={i++} n={3} />);
+                          break;
+                        case "r4":
+                          out.push(
+                            <RowWithOption
+                              key="r4"
+                              i={i++}
+                              n={4}
+                              optionCheckKey="cnb4"
+                              optionLabel={this.state.formValues["subcontent4-7"]}
+                              optionNbKey="nb4"
+                            />
+                          );
+                          break;
+                        case "r5":
+                          out.push(
+                            <RowWithOption
+                              key="r5"
+                              i={i++}
+                              n={5}
+                              optionCheckKey="cnb5"
+                              optionLabel={this.state.formValues["subcontent5-2"]}
+                              optionNbKey="nb5"
+                            />
+                          );
+                          break;
+                        case "r6":
+                          out.push(<RowFixed key="r6" i={i++} n={6} />);
+                          break;
+                        case "r7":
+                          out.push(<RowFixed key="r7" i={i++} n={7} />);
+                          break;
+                        default:
+                          break;
+                      }
+                    });
+                    out.push(
+                      <div
+                        key="row-tva"
+                        className="d-flex align-items-center flex-wrap"
+                        style={{ ...stripe(i++), borderTop: "1px dashed #e5e7eb", marginTop: 20, gap: 12 }}
+                      >
+                        <span style={{ minWidth: 60 }}>TVA</span>
+                        <Input
+                          type="text"
+                          value={this.state.formValues["TVAP"] ?? 20}
+                          onChange={(e) => this.handleFieldChange("TVAP", e.target.value)}
+                          style={{ height: 30, width: 80, textAlign: "right" }}
+                        />
+                        <span>%</span>
+                        <VSep />
+                        <span style={{ minWidth: 200 }}>
+                          {this.state.formValues["table3-subcontent1"] || "Acompte à la commande :"}
+                        </span>
+                        <Input
+                          type="text"
+                          value={this.state.formValues["fp1"] ?? 100}
+                          onChange={(e) => this.handleFieldChange("fp1", e.target.value)}
+                          style={{ height: 30, width: 80, textAlign: "right" }}
+                        />
+                        <span>%</span>
+                        <VSep />
+                        <span style={{ minWidth: 200 }}>
+                          {this.state.formValues["table3-subcontent2"] || "Solde fin de mission :"}
+                        </span>
+                        <Input
+                          type="text"
+                          value={this.state.formValues["fp2"] ?? 0}
+                          onChange={(e) => this.handleFieldChange("fp2", e.target.value)}
+                          style={{ height: 30, width: 80, textAlign: "right" }}
+                        />
+                        <span>%</span>
+
+                        {/* 👇 séparation avant le crédit d'impôts */}
+                        <VSep />
+
+                        {/* 👇 checkbox + texte avec le même style que les autres spans */}
+                        <div className="d-flex align-items-center" style={{ gap: 6 }}>
+                          <LabeledCheckboxMaterialUi
+                            label="" // important : label vide
+                            checked={!!this.state.formValues.credit_impot_50}
+                            onChange={(checked) =>
+                              this.handleCheckChange(checked, "credit_impot_50")
+                            }
+                          />
+                          <span>Crédit d'impôts 50%</span>
+                        </div>
+                      </div>
+                    );
+                    return out;
+                  })()}
+                </CardBody>
+              </Card>
+            </FormGroup>
+            {/* ====== FIN CONTRAT (carte d'édition) ====== */}
+
+            <div
+              id="pdf-root"
+              ref={this.pdfRef}
+              style={{ width: "100%", maxWidth: "1100px", margin: "0 auto" }}
             >
-              <CardBody>
-                <Row>
-                  <Col md="12" sm="12">
-                    <img src={logo} alt="logo" style={{ height: "130px" }} crossOrigin="anonymous" />
-                  </Col>
-                </Row>
-                <Row style={{ marginTop: "20px" }}>
-                  <Col md="6" sm="12">
-                    <div
-                      className="recipient-info"
-                      style={{
-                        padding: "0.5rem",
-                        border: "2px solid #8a8a8a",
-                        marginBottom: "10px",
-                      }}
-                    >
-                      <Row>
-                        <Col
-                          md="5"
-                          sm="12"
-                          className="contract-caption1-section"
-                        >
-                          {" "}
-                          <h5 className="bold-black">Civilité</h5>{" "}
-                        </Col>
-                        <Col md="7" sm="12">
-                          {" "}
-                          <h6>{this.ifExist("civility")}</h6>{" "}
-                        </Col>
-                      </Row>
-                      <Row>
-                        <Col
-                          md="5"
-                          sm="12"
-                          className="contract-caption1-section"
-                        >
-                          {" "}
-                          <h5 className="bold-black">Nom</h5>{" "}
-                        </Col>
-                        <Col md="7" sm="12">
-                          {" "}
-                          <h6>{this.ifExist("last_name")}</h6>{" "}
-                        </Col>
-                      </Row>
-                      <Row>
-                        <Col
-                          md="5"
-                          sm="12"
-                          className="contract-caption1-section"
-                        >
-                          {" "}
-                          <h5 className="bold-black">Prénom</h5>{" "}
-                        </Col>
-                        <Col md="7" sm="12">
-                          {" "}
-                          <h6>{this.ifExist("first_name")}</h6>{" "}
-                        </Col>
-                      </Row>
-                      <Row>
-                        <Col
-                          md="5"
-                          sm="12"
-                          className="contract-caption1-section"
-                        >
-                          {" "}
-                          <h5 className="bold-black">Date Naissance </h5>{" "}
-                        </Col>
-                        <Col md="7" sm="12">
+              <Card
+                className="contract-page"
+                style={{ padding: "0.5rem 5.5rem 2.2rem 5.5rem", boxShadow: "none" }}
+                id="print-section"
+              >
+                <CardBody>
+                  <Row>
+                    <Col md="12" sm="12">
+                      <img src={logo} alt="logo" style={{ height: "130px" }} crossOrigin="anonymous" />
+                    </Col>
+                  </Row>
+                  <Row style={{ marginTop: "20px" }}>
+                    <Col md="6" sm="12">
+                      <div
+                        className="recipient-info"
+                        style={{
+                          padding: "0.5rem",
+                          border: "2px solid #8a8a8a",
+                          marginBottom: "10px",
+                        }}
+                      >
+                        <Row>
+                          <Col
+                            md="5"
+                            sm="12"
+                            className="contract-caption1-section"
+                          >
+                            {" "}
+                            <h5 className="bold-black">Civilité</h5>{" "}
+                          </Col>
+                          <Col md="7" sm="12">
+                            {" "}
+                            <h6>{this.ifExist("civility")}</h6>{" "}
+                          </Col>
+                        </Row>
+                        <Row>
+                          <Col
+                            md="5"
+                            sm="12"
+                            className="contract-caption1-section"
+                          >
+                            {" "}
+                            <h5 className="bold-black">Nom</h5>{" "}
+                          </Col>
+                          <Col md="7" sm="12">
+                            {" "}
+                            <h6>{this.ifExist("last_name")}</h6>{" "}
+                          </Col>
+                        </Row>
+                        <Row>
+                          <Col
+                            md="5"
+                            sm="12"
+                            className="contract-caption1-section"
+                          >
+                            {" "}
+                            <h5 className="bold-black">Prénom</h5>{" "}
+                          </Col>
+                          <Col md="7" sm="12">
+                            {" "}
+                            <h6>{this.ifExist("first_name")}</h6>{" "}
+                          </Col>
+                        </Row>
+                        <Row>
+                          <Col
+                            md="5"
+                            sm="12"
+                            className="contract-caption1-section"
+                          >
+                            {" "}
+                            <h5 className="bold-black">Date Naissance </h5>{" "}
+                          </Col>
+                            <Col md="7" sm="12">
                           {" "}
                           <h6>{moment(this.ifExist("birth_date")).isValid() ? moment(this.ifExist("birth_date")).format("DD/MM/YYYY") : ""}</h6>
                         </Col>
@@ -1138,7 +1659,7 @@ axios
                               className="bold-black"
                               style={{ display: "inline-block" }}
                             >
-                              Nb mn:
+                              Nb min:
                             </div>
                             <div style={{ display: "inline-block" }}>
                               <Input

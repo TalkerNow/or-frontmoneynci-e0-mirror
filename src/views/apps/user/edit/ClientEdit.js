@@ -13,6 +13,7 @@ import DocumentsHub from "./DocumentsHub";
 import SimulatorHub from "./SimulatorHub";
 import { history } from "../../../../history";
 import Contracts from "./Contracts";
+import SuiviAvancementBox from "./SuiviAvancementBox";
 
 class UserEdit extends React.Component {
   state = {
@@ -163,15 +164,27 @@ class UserEdit extends React.Component {
     }
     return (
         <Row className='align-items-start user-edit-row flex-nowrap'>
-          <Col xs="12" sm="4" md="4" lg="4" className={classnames('profile-left profile-sidebar-fixed client-left', { collapsed: this.state.isCollapsed })}>          <div>
-            <UserDetails
-              user={this.state.rowData || {}}
-              onEdit={() => history.push(`/app/user/edit/${id}/1`)}
-              showCollapse
-              onCollapse={() => this.setState({ isCollapsed: true })}
-            />
-          </div>
-        </Col>
+          <Col
+            xs="12"
+            sm="4"
+            md="4"
+            lg="4"
+            className={classnames('profile-left profile-sidebar-fixed client-left', {
+              collapsed: this.state.isCollapsed,
+            })}
+          >
+            <div>
+              <UserDetails
+                user={this.state.rowData || {}}
+                onEdit={() => history.push(`/app/user/edit/${id}/1`)}
+                showCollapse
+                onCollapse={() => this.setState({ isCollapsed: true })}
+              />
+
+              {/* 👇 Ta box de suivi d'avancement, dans un fichier séparé */}
+              <SuiviAvancementBox clientId={id} />
+            </div>
+          </Col>
         <Col xs="12" sm="8" md="8" lg="8" className={classnames('profile-right', { expanded: this.state.isCollapsed })}>
           <Nav tabs className="border-0 d-flex align-items-center gap-3 mb-1" ref={el => (this.navRef = el)}>
             {this.state.isCollapsed && (
@@ -184,7 +197,7 @@ class UserEdit extends React.Component {
             )}
             <NavItem>
               <NavLink className={classnames({ active: this.state.activeTab === 'notes' })} onClick={() => this.toggle('notes')}>
-                <Info className='text-primary mr-50' size={16}/> Notes
+                <Info className='text-primary mr-50' size={16}/> Infos
               </NavLink>
             </NavItem>
             <NavItem>
@@ -247,7 +260,7 @@ class UserEdit extends React.Component {
               </Card>
             </TabPane>
             <TabPane tabId='simulateur'>
-              <SimulatorHub id={id} alignOffset={this.state.simuOffset} />
+              <SimulatorHub id={id} alignOffset={this.state.simuOffset} user={this.state.rowData} />
             </TabPane>
           </TabContent>
         </Col>

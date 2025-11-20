@@ -56,3 +56,261 @@
 .ag-theme-material .ag-row.client-row .ag-cell[col-id="actions"] {
   cursor: default;
 }
+
+.career-action-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 12px 0 16px;
+}
+
+.career-action-group {
+  display: inline-flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.career-action-row .career-action-btn {
+  min-width: 160px;
+  height: 40px;
+  border-radius: 8px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: filter 160ms ease;
+}
+
+.career-action-row .career-action-btn:not(:disabled):hover {
+  filter: brightness(1.05);
+}
+
+@media (max-width: 768px) {
+  .career-action-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .career-action-row .career-action-btn {
+    width: 100%;
+  }
+}
+
+.career-generated-wrapper,
+.career-upload-wrapper {
+  margin: 12px 0;
+  width: 100%;
+  max-width: 820px;
+}
+
+@media (max-width: 992px) {
+  .career-generated-wrapper,
+  .career-upload-wrapper {
+    max-width: 100%;
+  }
+}
+
+.doc-section-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #4B5563;
+  margin-bottom: 8px;
+}
+
+.career-documents {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.career-doc-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  background: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+  flex-wrap: wrap;
+}
+
+.doc-card-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 300px;
+  min-width: 240px;
+}
+
+.doc-card-icon {
+  width: 44px;
+  height: 44px;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F9FAFB;
+}
+
+.doc-card-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.doc-name-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  font-weight: 600;
+  color: #111827;
+  cursor: pointer;
+}
+
+.doc-name-btn:hover {
+  color: #6D28D9;
+}
+
+.doc-name-input {
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-weight: 600;
+  width: 100%;
+}
+
+.doc-card-subtitle {
+  font-size: 0.85rem;
+  color: #6B7280;
+}
+
+.doc-word-btn,
+.doc-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 40px;
+  height: 34px;
+  border: 1px solid #D1D5DB;
+  border-radius: 8px;
+  font-weight: 600;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background 140ms ease, transform 120ms ease, box-shadow 140ms ease;
+}
+
+.doc-word-btn {
+  background: #FFFFFF;
+  border-radius: 8px;
+  color: #2563EB;
+}
+
+.doc-word-btn:hover {
+  background: #F4F6FB;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(37, 99, 235, 0.15);
+}
+
+.doc-word-btn:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.doc-word-icon {
+  display: inline-flex;
+}
+
+.doc-delete-btn {
+  border-color: #FECACA;
+  background: #FFF5F5;
+  color: #B91C1C;
+}
+
+.doc-delete-btn:hover {
+  background: #FEE2E2;
+  color: #991B1B;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(248, 113, 113, 0.2);
+}
+
+.doc-delete-btn:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.doc-delete-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.doc-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+  width: auto;
+}
+
+@media (max-width: 768px) {
+  .doc-word-btn,
+  .doc-delete-btn {
+    width: 100%;
+  }
+
+  .career-doc-card {
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 640px) {
+  .career-doc-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .doc-card-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+}
+
+.career-card .action-btn {
+  border-radius: 8px !important;
+  min-width: 40px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+}
+
+.career-card .manual-actions {
+  display: inline-flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.career-card .manual-actions .action-btn {
+  border-radius: 8px !important;
+  min-width: 40px;
+  height: 34px;
+  padding: 6px 10px;
+}
+
+.career-card .manual-actions .action-btn.danger {
+  border-color: #FECACA !important;
+  color: #B91C1C;
+  background: #FFF5F5;
+}
+
+.career-card .manual-actions .action-btn.danger:hover {
+  background: #FEE2E2 !important;
+  color: #991B1B;
+}

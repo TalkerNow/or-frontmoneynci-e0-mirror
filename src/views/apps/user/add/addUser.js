@@ -401,19 +401,6 @@ handleZipChange = (zip, which) => {
               <Row>
                 <Col md="12" sm="12">
                   <FormGroup>
-                    <Label for="lastname">Nom</Label>
-                    <Input
-                      type="text"
-                      placeholder="Nom"
-                      onChange={(e) =>
-                        this.setState({ data: { ...this.state.data, last_name: e.target.value } })
-                      }
-                      id="lastname"
-                    />
-                  </FormGroup>
-                </Col>
-                <Col md="12" sm="12">
-                  <FormGroup>
                     <Label for="firstname">Prénom</Label>
                     <Input
                       type="text"
@@ -422,6 +409,19 @@ handleZipChange = (zip, which) => {
                         this.setState({ data: { ...this.state.data, first_name: e.target.value } })
                       }
                       id="firstname"
+                    />
+                  </FormGroup>
+                </Col>
+                <Col md="12" sm="12">
+                  <FormGroup>
+                    <Label for="lastname">Nom</Label>
+                    <Input
+                      type="text"
+                      placeholder="Nom"
+                      onChange={(e) =>
+                        this.setState({ data: { ...this.state.data, last_name: e.target.value } })
+                      }
+                      id="lastname"
                     />
                   </FormGroup>
                 </Col>
@@ -463,7 +463,7 @@ handleZipChange = (zip, which) => {
                 <Label for="notes">Notes</Label>
                 <Input
                   type="textarea"
-                  rows="10"
+                  rows="11"
                   placeholder="Notes"
                   onChange={(e) => this.setState({ data: { ...this.state.data, notes: e.target.value } })}
                   id="notes"
