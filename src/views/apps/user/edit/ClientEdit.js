@@ -123,6 +123,9 @@ class UserEdit extends React.Component {
   };
   render() {
     const id = this.props.match.params.id;
+    const hasComments =
+      this.state.rowData?.comments &&
+      this.state.rowData.comments.trim() !== "";
     if (this.state.showFullForm) {
       return (
         <Row>
@@ -220,8 +223,18 @@ class UserEdit extends React.Component {
               </NavLink>
             </NavItem>
             <NavItem>
-              <NavLink className={classnames({ active: this.state.activeTab === 'commentaires' })} onClick={() => this.toggle('commentaires')}>
-                <MessageCircle className='text-primary mr-50' size={16}/> Commentaires
+              <NavLink
+                className={classnames("d-flex align-items-center", {
+                  active: this.state.activeTab === "commentaires",
+                })}
+                onClick={() => this.toggle("commentaires")}
+              >
+                <MessageCircle className="text-primary mr-50" size={16} />
+                Commentaires
+
+                {hasComments && (
+                  <span className="comment-dot" />
+                )}
               </NavLink>
             </NavItem>
             <NavItem>
