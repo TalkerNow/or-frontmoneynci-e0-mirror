@@ -11,7 +11,7 @@ import {
   FormGroup,
   CustomInput,
 } from "reactstrap";
-import { User, MapPin } from "react-feather";
+import { User, Home, Briefcase, Heart } from "react-feather";
 import "flatpickr/dist/themes/light.css";
 import "../../../../assets/scss/plugins/forms/flatpickr/flatpickr.scss";
 import InputMaskDate from "./InputMaskDate";
@@ -427,7 +427,7 @@ class UserAccountTab extends React.Component {
               {/* Statut marital / Service militaire */}
               <Col md="6" sm="12">
                 <h5 style={{ marginBottom: "5px" }}>
-                  <User className="mr-50" size={16} />
+                  <Heart className="mr-50" size={16} />
                   <span className="align-middle">
                     Statut marital
                   </span>
@@ -815,7 +815,7 @@ class UserAccountTab extends React.Component {
               {/* Adresse client */}
               <Col className="mt-1" md="6" sm="12">
                 <h5 className="mb-1">
-                  <User className="mr-50" size={16} />
+                  <Home className="mr-50" size={16} />
                   <span className="align-middle">Adresse du client</span>
                 </h5>
                 <FormGroup>
@@ -887,7 +887,7 @@ class UserAccountTab extends React.Component {
               {/* Adresse société */}
               <Col className="mt-1" md="6" sm="12">
                 <h5 className="mb-1">
-                  <MapPin className="mr-50" size={16} />
+                  <Briefcase className="mr-50" size={16} />
                   <span className="align-middle">Adresse de sa société</span>
                 </h5>
                 <FormGroup>
