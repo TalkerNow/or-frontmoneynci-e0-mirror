@@ -682,6 +682,7 @@ export default function KpiPage() {
   const [objet, setObjet] = useState("Appel entrant");
   const [showProcessing, setShowProcessing] = useState(false); // Dossiers en cours de traitement
   const [showCompleted, setShowCompleted] = useState(false);   // Contrats terminés
+  const [showAfter5Days, setShowAfter5Days] = useState(true);
   const [action, setAction] = useState("");
   const [creating, setCreating] = useState(false);
   const adminId = localStorage.getItem("userid");
@@ -1287,44 +1288,79 @@ export default function KpiPage() {
     }, [suivis, clientsById, sortField, sortDir]);
     const groupedSuivis = useMemo(() => {
       const res = {
-        active: [],      // ce qu’on affiche par défaut
+        active: [],      // par défaut
+        after5days: [],  // 5 jours atteints / dépassés
         processing: [],  // Paiement du contrat -> Avancement du dossier
-        completed: [],   // Contrats terminés (document_state === "Terminé")
+        completed: [],   // Contrats terminés
       };
 
-      if (!Array.isArray(sortedSuivis)) return res;
+  if (!Array.isArray(sortedSuivis)) return res;
 
-      sortedSuivis.forEach((s) => {
-        const { steps } = buildStepsForSuivi(s);
-        const { last, next } = getLastAndNextSteps(steps);
+  // "Aujourd'hui" tronqué à minuit pour comparer les dates proprement
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-        // 👉 récupère l’objet contrat (adapte si besoin)
-        const contract = s.contract || s;
+  sortedSuivis.forEach((s) => {
+    const { profileKey, steps } = buildStepsForSuivi(s);
+    const { last, next } = getLastAndNextSteps(steps);
 
-        // 👉 ta condition pour dire qu’un contrat est terminé
-        const isContractFinished =
-          contract && contract.document_state === "Terminé";
+    const contract = s.contract || s;
+    const isContractFinished =
+      contract && contract.document_state === "Terminé";
 
-        // Dossier "en cours de traitement"
-        const isProcessing =
-          last &&
-          last.label === "Paiement du contrat" &&
-          next &&
-          next.label === "Avancement du dossier";
+    const isProcessing =
+      last &&
+      last.label === "Paiement du contrat" &&
+      next &&
+      next.label === "Avancement du dossier";
 
-        // Choix du groupe
-        const bucket = isContractFinished
-          ? "completed"
-          : isProcessing
-          ? "processing"
-          : "active";
+    // 🔶 Crédit d'impôt : "5 jours ouvrés d'attente" atteints / dépassés
+    let isAfter5Days = false;
 
-        res[bucket].push({ s, steps, last, next });
-      });
+    if (!isContractFinished && profileKey === "credit_impot") {
+      const step3 = steps.find((st) => st.index === 3); // "5 jours ouvrés d'attente"
+      const step4 = steps.find((st) => st.index === 4); // "Création devis"
 
-      return res;
-    }, [sortedSuivis]);
+      if (step3 && step3.date && (!step4 || !step4.completed)) {
+        const raw = String(step3.date);
+        let datePart = raw;
 
+        if (raw.includes("T")) {
+          datePart = raw.split("T")[0];
+        } else if (raw.includes(" ")) {
+          datePart = raw.split(" ")[0];
+        }
+
+        const [y, m, d] = datePart.split("-");
+        if (y && m && d) {
+          const d3 = new Date(Number(y), Number(m) - 1, Number(d));
+          const d3Only = new Date(
+            d3.getFullYear(),
+            d3.getMonth(),
+            d3.getDate()
+          );
+
+          // 👉 la date de l'étape 3 est arrivée ou passée
+          if (d3Only.getTime() <= today.getTime()) {
+            isAfter5Days = true;
+          }
+        }
+      }
+    }
+
+    const bucket = isContractFinished
+      ? "completed"
+      : isAfter5Days
+      ? "after5days"
+      : isProcessing
+      ? "processing"
+      : "active";
+
+    res[bucket].push({ s, steps, last, next });
+  });
+
+  return res;
+}, [sortedSuivis]);
 
   return (
     <div className="vx-row">
@@ -1366,8 +1402,8 @@ export default function KpiPage() {
                   >
                     <span
                       style={{
-                        width: 8,
-                        height: 8,
+                        width: 18,
+                        height: 18,
                         borderRadius: "50%",
                         marginRight: 6,
                         backgroundColor: showProcessing ? "#198754" : "transparent",
@@ -1390,8 +1426,8 @@ export default function KpiPage() {
                   >
                     <span
                       style={{
-                        width: 8,
-                        height: 8,
+                        width: 18,
+                        height: 18,
                         borderRadius: "50%",
                         marginRight: 6,
                         backgroundColor: showCompleted ? "#6c757d" : "transparent",
@@ -1445,6 +1481,109 @@ export default function KpiPage() {
                 </tr>
               ) : (
                 <>
+                {/* 0) 5 jours ouvrés atteints / dépassés (toujours en haut si présents) */}
+                {groupedSuivis.after5days.length > 0 && (
+                  <>
+                    <tr className="table-warning">
+                      <td colSpan="5" style={{ fontSize: 14, fontWeight: 600 }}>
+                        5 jours ouvrés atteints / dépassés (à traiter en priorité)
+                      </td>
+                    </tr>
+
+                    {groupedSuivis.after5days.map(({ s, steps, last, next }) => {
+                      const clientLabel = getClientDisplayNameFromSuivi(s, clientsById);
+                      const contractId =
+                        s.facture_id || s.document_id || s.contract_id;
+                      const clientId = s.client_id;
+
+                      return (
+                        <tr
+                          key={`after5-${s.suivi_id || s.id || ""}-${s.document_id || s.facture_id || ""}`}
+                          onClick={() => {
+                            if (clientId) {
+                              history.push(`/app/user/edit/${clientId}/2`);
+                            }
+                          }}
+                          style={{ cursor: "pointer" }}
+                        >
+                          {/* Client */}
+                          <td>{clientLabel}</td>
+
+                          {/* À faire */}
+                          <td>{renderTodoCell(next)}</td>
+
+                          {/* Dernière étape validée */}
+                          <td>
+                            {last ? (
+                              <div style={{ fontSize: 14 }}>
+                                <div>
+                                  <strong>{last.label}</strong>
+                                </div>
+                                {last.date && (
+                                  <div className="text-muted">
+                                    {formatDate(last.date)}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-muted" style={{ fontSize: 14 }}>
+                                Aucune étape validée
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Type de contrat */}
+                          <td style={{ whiteSpace: "nowrap", width: 160 }}>
+                            {renderProductBadgeFromSuivi(s)}
+                          </td>
+
+                          {/* Contrat (flèche) */}
+                          <td style={{ width: 60, textAlign: "center" }}>
+                            {contractId ? (
+                              <Button
+                                color="link"
+                                className="p-0"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  history.push(`/pages/contract/${contractId}`);
+                                }}
+                                title="Voir le contrat"
+                              >
+                                <ArrowRight size={18} />
+                              </Button>
+                            ) : (
+                              <span className="text-muted" style={{ fontSize: 14 }}>
+                                -
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </>
+                )}
+                {groupedSuivis.after5days.length > 0 &&
+                  groupedSuivis.active.length > 0 && (
+                    <tr>
+                      <td
+                        colSpan="5"
+                        style={{
+                          padding: "6px 10px",
+                          borderTop: "2px solid #dee2e6",
+                          borderBottom: "1px solid #dee2e6",
+                          background: "#f8f9fa",
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: "#6c757d",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.04em",
+                        }}
+                      >
+                        Autres dossiers
+                      </td>
+                    </tr>
+                  )}
+
                   {/* 1) Dossiers actifs (par défaut) */}
                   {groupedSuivis.active.map(({ s, steps, last, next }) => {
                     const clientLabel = getClientDisplayNameFromSuivi(s, clientsById);
@@ -1672,12 +1811,13 @@ export default function KpiPage() {
 
                   {/* Si rien n’est visible du tout */}
                   {groupedSuivis.active.length === 0 &&
+                    groupedSuivis.after5days.length === 0 &&
                     (!showProcessing || groupedSuivis.processing.length === 0) &&
                     (!showCompleted || groupedSuivis.completed.length === 0) && (
                       <tr>
                         <td colSpan="5">Aucun suivi trouvé.</td>
                       </tr>
-                    )}
+                  )}
                 </>
               )}
             </tbody>
