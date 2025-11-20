@@ -375,6 +375,237 @@ function renderActionBadge(action) {
     </Badge>
   );
 }
+const parseServices = (servicesRaw) => {
+  if (!servicesRaw) return [];
+
+  return servicesRaw
+    .split("/") // ex : "CH / AR / SIMU"
+    .map((s) =>
+      s
+        .replace(/["\\]/g, "") // enlève guillemets / backslashes
+        .trim()
+        .toUpperCase()
+    )
+    .filter(Boolean);
+};
+
+function getProduitLabel(suiviRow, profileKey) {
+  // 1) Si le contrat a un libellé métier, on l'affiche tel quel
+  const raw =
+    suiviRow?.subscribe_services ||
+    suiviRow?.type ||
+    suiviRow?.document_type ||
+    "";
+
+  if (raw && String(raw).trim() !== "") {
+    return raw; // ex: "CH SIMU ACTU RAC", "AR / TFD", etc.
+  }
+
+  // 2) Sinon, on mappe le code vers un label propre
+  switch (profileKey) {
+    case "credit_impot":
+      return "Crédit d’impôt";
+    case "ar_tfd":
+      return "Audit retraite / TFD";
+    case "ch_simu_actu_rac":
+      return "CH - Simulation / Actualisation / Rachat";
+    default:
+      return "Non défini";
+  }
+}
+const getContractTypeLabel = (source) => {
+  if (!source) return "Pas de prestation";
+
+  const typeCode = getContractTypeCode(source);
+  const services = parseServices(source.subscribe_services);
+  const knownCodes = ["CH", "SIMU", "ACTU", "RAC", "AR", "TFD"];
+  const filtered = services.filter((s) => knownCodes.includes(s));
+
+  if (typeCode === "credit_impot") {
+    if (filtered.length > 0) {
+      // Crédit d'impôt (CH / SIMU)
+      return `Crédit d'impôt (${filtered.join(" / ")})`;
+    }
+    return "Crédit d'impôt";
+  }
+
+  if (filtered.length > 0) {
+    return filtered.join(" / ");
+  }
+
+  return "Pas de prestation";
+};
+
+const PRODUCT_BADGE_COLORS = {
+  credit_impot: "success",   // vert
+  ar_tfd: "warning",         // jaune
+  ch_simu_actu_rac: "primary", // bleu
+  none: "secondary",         // gris
+};
+
+// Rendu "Produit" dans la table Suivi des contrats (badge)
+function renderProductBadgeFromSuivi(suiviRow) {
+  const typeCode = getContractTypeCode(suiviRow);
+  const label = getContractTypeLabel(suiviRow);
+  const context = PRODUCT_BADGE_COLORS[typeCode] || "secondary";
+
+  return (
+    <Badge color={`light-${context}`} pill>
+      {label}
+    </Badge>
+  );
+}
+const getContractTypeCode = (source) => {
+  if (!source) return "none";
+
+  // on suppose que le suivi a les mêmes champs qu'un "contract"
+  const unipro = source.unipro;
+  const subscribe_services = source.subscribe_services;
+
+  if (unipro === 1 || unipro === "1") {
+    return "credit_impot";
+  }
+
+  const services = parseServices(subscribe_services);
+  const groupCH = ["CH", "SIMU", "ACTU", "RAC"];
+  const groupAR = ["AR", "TFD"];
+
+  const hasGroupCH = services.some((s) => groupCH.includes(s));
+  const hasGroupAR = services.some((s) => groupAR.includes(s));
+
+  if (hasGroupCH) return "ch_simu_actu_rac";
+  if (hasGroupAR) return "ar_tfd";
+
+  return "none";
+};
+
+const STEP_DEFINITION = {
+  credit_impot: {
+    totalSteps: 8,
+    dateSteps: [1, 2, 3, 4, 5, 6, 7],
+    labels: [
+      "Signature du contrat", // 1
+      "Activation compte Urssaf", // 2
+      "5 jours ouvrés d'attente", // 3
+      "Création devis", // 4
+      "Transformer devis en facture", // 5
+      "Paiement automatique Unipro", // 6
+      "Paiement du contrat", // 7
+      "Avancement du dossier", // 8
+    ],
+  },
+  ar_tfd: {
+    totalSteps: 5,
+    dateSteps: [1, 2, 3, 4],
+    labels: [
+      "Signature du contrat", // 1
+      "Création devis", // 2
+      "Transformer devis en facture", // 3
+      "Paiement du contrat", // 4
+      "Avancement du dossier", // 5 (sans date)
+    ],
+  },
+  ch_simu_actu_rac: {
+    totalSteps: 5,
+    dateSteps: [1, 2, 3, 4],
+    labels: [
+      "Étape 1", // 1
+      "Prise de RDV", // 2
+      "Facturation", // 3
+      "Paiement du contrat", // 4
+      "Avancement du dossier", // 5
+    ],
+  },
+  none: {
+    totalSteps: 0,
+    dateSteps: [],
+    labels: [],
+  },
+};
+function getClientDisplayNameFromSuivi(suiviRow, clientsMap) {
+  const clientId = suiviRow?.client_id;
+  if (!clientId) return "Client inconnu";
+
+  // Si on a la data dans la map, priorité
+  const fromMap = clientsMap?.[clientId];
+  if (fromMap && fromMap.trim() !== "") return fromMap;
+
+  // Fallback sur les champs renvoyés dans le suivi (au cas où)
+  const full =
+    suiviRow?.client_full_name ||
+    suiviRow?.client_name ||
+    [suiviRow?.client_first_name, suiviRow?.client_last_name]
+      .filter(Boolean)
+      .join(" ") ||
+    suiviRow?.client ||
+    null;
+
+  if (full && full.trim() !== "") return full;
+
+  // Dernier recours : ID
+  return `Client #${clientId}`;
+}
+
+
+// Récupère la "clé produit" à partir du suivi (document)
+// Récupère la "clé produit" (credit_impot / ar_tfd / ch_simu_actu_rac / none)
+function getStepProfileKeyFromSuivi(suiviRow) {
+  const contract = {
+    unipro: suiviRow?.unipro,
+    subscribe_services: suiviRow?.subscribe_services,
+  };
+
+  const code = getContractTypeCode(contract);
+  return STEP_DEFINITION[code] ? code : "none";
+}
+
+function getLastAndNextSteps(steps = []) {
+  if (!steps || steps.length === 0) {
+    return { last: null, next: null };
+  }
+
+  const sorted = [...steps].sort((a, b) => a.index - b.index);
+
+  const completed = sorted.filter((s) => s.completed);
+  const last = completed.length ? completed[completed.length - 1] : null;
+
+  let next = null;
+  if (!last) {
+    next = sorted[0] || null;
+  } else {
+    next = sorted.find((s) => s.index > last.index) || null;
+  }
+
+  return { last, next };
+}
+
+// Construit un tableau d'étapes pour un suivi donné
+function buildStepsForSuivi(suiviRow) {
+  const profileKey = getStepProfileKeyFromSuivi(suiviRow);
+  const config = STEP_DEFINITION[profileKey] || STEP_DEFINITION.none;
+
+  const steps = [];
+  // Pour ch_simu_actu_rac : on ne montre pas la step 1, on commence à 2
+  const startIndex = profileKey === "ch_simu_actu_rac" ? 2 : 1;
+
+  for (let i = startIndex; i <= config.totalSteps; i++) {
+    const label = config.labels[i - 1] || `Étape ${i}`;
+    const dateField = `step${i}_completed_at`;
+    const dateVal = suiviRow[dateField] || null;
+    const hasDate = !!dateVal;
+
+    steps.push({
+      index: i,
+      label,
+      date: dateVal,
+      hasDate,
+      isDatedStep: config.dateSteps.includes(i),
+      completed: hasDate && config.dateSteps.includes(i),
+    });
+  }
+  return { profileKey, config, steps };
+}
+
 
 /** =============================
  *  UI bits
@@ -428,6 +659,12 @@ export default function KpiPage() {
   // Données complètes pour le GRAPHIQUE
   const [allItems, setAllItems] = useState([]);
   const [loadingChart, setLoadingChart] = useState(false);
+  const [clientsById, setClientsById] = useState({});
+
+  // Suivis d'avancement (backend Laravel)
+  const [suivis, setSuivis] = useState([]);
+  const [loadingSuivis, setLoadingSuivis] = useState(false);
+  const [suivisError, setSuivisError] = useState("");
 
   // Graph controls
   const [groupBy, setGroupBy] = useState("day");
@@ -490,9 +727,12 @@ export default function KpiPage() {
   useEffect(() => {
     fetchAllKpis();
     fetchMembers();
+    fetchClients();
     fetchAdminEmailFromApi();
+    fetchSuivis();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
 
   async function fetchKpis(p = 1) {
     try {
@@ -522,6 +762,24 @@ export default function KpiPage() {
       );
     } finally {
       setLoadingList(false);
+    }
+  }
+  async function fetchSuivis() {
+    try {
+      setLoadingSuivis(true);
+      setSuivisError("");
+
+      const res = await API.get("/suivi-avancement/all");
+      const data = Array.isArray(res.data) ? res.data : [];
+      setSuivis(data);
+    } catch (e) {
+      console.error(e);
+      setSuivisError(
+        e?.response?.data?.message ||
+          "Erreur lors du chargement des suivis d'avancement."
+      );
+    } finally {
+      setLoadingSuivis(false);
     }
   }
 
@@ -563,18 +821,47 @@ export default function KpiPage() {
       setLoadingChart(false);
     }
   }
+  async function fetchClients() {
+    try {
+      const res = await API.get("/users", {
+        // adapte si ton backend attend plutôt ?kind=client
+        params: { role: "Client" },
+      });
+
+      const payload = res.data;
+      const list = Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload)
+        ? payload
+        : [];
+
+      const map = {};
+      list.forEach((u) => {
+        const id = u.id;
+        if (!id) return;
+
+        const first =
+          u.first_name ?? u.firstname ?? u.firstName ?? u.prenom ?? "";
+        const last = u.last_name ?? u.lastname ?? u.lastName ?? u.nom ?? "";
+        const fallback = u.name ?? u.email ?? `Client #${id}`;
+        const name = `${first} ${last}`.trim() || fallback;
+        map[id] = name;
+      });
+
+      setClientsById(map);
+    } catch (e) {
+      console.error("fetchClients error:", e);
+      // on ne bloque pas l'écran si ça foire, on garde juste le fallback Client #ID
+    }
+  }
+
 
   async function fetchMembers() {
     try {
       setLoadingUsers(true);
-      const token =
-        localStorage.getItem("token") ||
-        localStorage.getItem("access_token") ||
-        localStorage.getItem("jwt");
 
-      const res = await axios.get("https://api.optionretraite.net/api/users", {
+      const res = await API.get("/users", {
         params: { kind: "member" },
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 
       const payload = res.data;
@@ -603,20 +890,13 @@ export default function KpiPage() {
     }
   }
 
-  async function fetchAdminEmailFromApi() {
+   async function fetchAdminEmailFromApi() {
     try {
-      const token =
-        localStorage.getItem("token") ||
-        localStorage.getItem("access_token") ||
-        localStorage.getItem("jwt");
+      if (!adminId) return;
 
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const params = adminId ? { id: adminId } : undefined;
-
-      const res = await axios.get(
-        `https://api.optionretraite.net/api/users/${adminId}`,
-        { headers, params }
-      );
+      const res = await API.get(`/users/${adminId}`, {
+        params: { id: adminId },
+      });
 
       const payload = res.data || {};
       const email =
@@ -627,6 +907,7 @@ export default function KpiPage() {
       console.error("fetchAdminEmailFromApi error:", e);
     }
   }
+
 
   // ✅ createKpi modifié
   async function createKpi() {
@@ -832,6 +1113,142 @@ export default function KpiPage() {
 
   return (
     <div className="vx-row">
+            {/* ====== Suivis d'avancement ====== */}
+      <div className="vx-col w-100">
+        <Card>
+          <CardHeader className="d-flex align-items-center justify-content-between">
+            <h4 className="mb-0">Suivi des contrats</h4>
+          </CardHeader>
+          <CardBody>
+            {suivisError && (
+              <div
+                style={{
+                  background: "#ffe9e9",
+                  border: "1px solid #ffb3b3",
+                  color: "#b10000",
+                  padding: 10,
+                  borderRadius: 6,
+                  marginBottom: 14,
+                }}
+              >
+                {suivisError}
+              </div>
+            )}
+
+            <Table responsive hover>
+              <thead>
+                <tr>
+                  <th>Client</th>
+                  <th>Produit</th>
+                  <th>Avancement</th>
+                  <th>Dernière étape validée</th>
+                  <th>Contrat</th>
+                </tr>
+              </thead>
+              <tbody>
+        {loadingSuivis ? (
+          <tr>
+            <td colSpan="5">Chargement des suivis…</td>
+          </tr>
+        ) : suivis && suivis.length ? (
+          suivis.map((s) => {
+            const { profileKey, steps } = buildStepsForSuivi(s);
+      const clientLabel = getClientDisplayNameFromSuivi(s, clientsById);
+      const { last, next } = getLastAndNextSteps(steps);
+
+      const contractId = s.facture_id || s.document_id || s.contract_id;
+
+      return (
+        <tr
+          key={`${s.suivi_id || s.id || ""}-${s.document_id || s.facture_id || ""}`}
+        >
+          {/* Client */}
+          <td>{clientLabel}</td>
+
+          {/* Produit : même rendu que dans SuiviAvancementBox */}
+          <td>{renderProductBadgeFromSuivi(s)}</td>
+
+          {/* Avancement : seulement la prochaine étape */}
+          <td>
+            {next ? (
+              <div style={{ fontSize: 12 }}>
+                <div>
+                  <strong>{next.label}</strong>
+                </div>
+                {next.isDatedStep && !next.date && (
+                  <div className="text-muted">
+                    À planifier
+                  </div>
+                )}
+                {!next.isDatedStep && (
+                  <div className="text-muted">
+                    Étape de suivi
+                  </div>
+                )}
+              </div>
+            ) : (
+              <span
+                className="text-success"
+                style={{ fontSize: 12, fontWeight: 600 }}
+              >
+                Dossier terminé
+              </span>
+            )}
+          </td>
+
+          {/* Dernière étape validée */}
+          <td>
+            {last ? (
+              <div style={{ fontSize: 12 }}>
+                <div>
+                  <strong>{last.label}</strong>
+                </div>
+                {last.date && (
+                  <div className="text-muted">
+                    {formatDate(last.date)}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <span className="text-muted" style={{ fontSize: 12 }}>
+                Aucune étape validée
+              </span>
+            )}
+          </td>
+
+          {/* Bouton contrat */}
+          <td>
+            {contractId ? (
+              <Button
+                color="primary"
+                size="sm"
+                onClick={() =>
+                  history.push(`/pages/contract/${contractId}`)
+                }
+              >
+                Voir le contrat
+              </Button>
+            ) : (
+              <span className="text-muted" style={{ fontSize: 12 }}>
+                -
+              </span>
+            )}
+          </td>
+        </tr>
+      );
+    })
+  ) : (
+    <tr>
+      <td colSpan="5">Aucun suivi trouvé.</td>
+    </tr>
+  )}
+</tbody>
+            </Table>
+
+          </CardBody>
+        </Card>
+      </div>
+
       <Row className="align-items-stretch">
         <Col xs="12" className="d-flex">
           <Card className="flex-fill d-flex flex-column" style={{ padding: "10px 16px" }}>
