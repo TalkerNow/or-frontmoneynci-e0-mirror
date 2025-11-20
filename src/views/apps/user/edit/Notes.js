@@ -154,25 +154,26 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
     persistDocs(generatedDocs)
   }, [generatedDocs])
   useEffect(() => {
-    const handleArrcoMessage = (event) => {
-      if (!event || !event.data || event.data.type !== 'ARRCO_POINTS_SAVE') return
+    const handleComplementaryPointsMessage = (event) => {
+      const eventType = event?.data?.type
+      if (eventType !== 'ARRCO_POINTS_SAVE' && eventType !== 'IRCANTEC_POINTS_SAVE') return
       const payload = event.data.payload || {}
       const year = Number(payload.year) || 2024
-      const arrcoValue = Number(payload.pointsYear != null ? payload.pointsYear : payload.pointsTotal) || 0
+      const pointsValue = Number(payload.pointsYear != null ? payload.pointsYear : payload.pointsTotal) || 0
       setManualCareerRows(prev => {
         const safeRows = Array.isArray(prev) ? [...prev] : []
         const idx = safeRows.findIndex(row => Number(row?.annee) === year)
         if (idx >= 0) {
-          safeRows[idx] = { ...safeRows[idx], arrcoPoints: arrcoValue }
+          safeRows[idx] = { ...safeRows[idx], arrcoPoints: pointsValue }
         } else {
           safeRows.push({
-            id: `arrco-${year}-${Date.now()}`,
+            id: `comp-${year}-${Date.now()}`,
             annee: year,
             revenu: '',
             trimBase: '',
             trimAR: '',
             cnavPoints: '',
-            arrcoPoints: arrcoValue,
+            arrcoPoints: pointsValue,
             ta: '',
             tb: '',
             tc: '',
@@ -182,10 +183,10 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         }
         return safeRows
       })
-      toast.success('Points ARRCO mis à jour')
+      toast.success(`Points ${eventType === 'ARRCO_POINTS_SAVE' ? 'ARRCO' : 'IRCANTEC'} mis à jour`)
     }
-    window.addEventListener('message', handleArrcoMessage)
-    return () => window.removeEventListener('message', handleArrcoMessage)
+    window.addEventListener('message', handleComplementaryPointsMessage)
+    return () => window.removeEventListener('message', handleComplementaryPointsMessage)
   }, [])
 
   const handleNotesChange = (e) => {
@@ -555,7 +556,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
                             const val = sanitizeSalaryInput(e.target.value)
                             setManualCareerRows(prev => prev.map(r => r.id === row.id ? { ...r, cnavPoints: val } : r))
                           }}
-                          aria-label='Cnav (points)'
+                          aria-label='CNAV (points)'
                         />
                       </td>
                       <td className='medium'>
@@ -568,7 +569,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
                             const val = sanitizeSalaryInput(e.target.value)
                             setManualCareerRows(prev => prev.map(r => r.id === row.id ? { ...r, arrcoPoints: val } : r))
                           }}
-                          aria-label='Arrco Agirc (points)'
+                          aria-label='ARRCO (points)'
                         />
                       </td>
                       <td className='medium'>
