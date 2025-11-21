@@ -3,15 +3,10 @@ import {
   Card,
   CardBody,
   CardHeader,
-  CardTitle,
   Button,
   Input,
-  Label,
-  FormGroup,
-  Row,
-  Col,
 } from "reactstrap";
-import { Mail, Upload, Download, Trash2, Eye } from "react-feather";
+import { Mail, Download, Trash2 } from "react-feather";
 import axios from "axios";
 import { toast } from "react-toastify";
 
