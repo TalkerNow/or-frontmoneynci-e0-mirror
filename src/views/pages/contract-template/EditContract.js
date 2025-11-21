@@ -1461,7 +1461,7 @@ class EditContract extends React.Component {
                       <Row>
                         <Col md="6" sm="12" className="mb-1">
                           <div className="mb-1">
-                            <h6 className="mb-0 text-muted">Dates d'acompte</h6>
+                            <h6 className="mb-0">Dates d'acompte</h6>
                           </div>
                           {(this.state.acompte_dates || []).map((d, idx) => {
                             const isEditing = (this.state
@@ -1562,7 +1562,7 @@ class EditContract extends React.Component {
 
                         <Col md="6" sm="12" className="mb-1">
                           <div className="mb-1">
-                            <h6 className="mb-0 text-muted">
+                            <h6 className="mb-0">
                               Dates de paiement
                             </h6>
                           </div>
