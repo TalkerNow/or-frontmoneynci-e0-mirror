@@ -1,7 +1,7 @@
 import React from "react";
 import { Card, CardBody, Row, Col, Nav, NavItem, NavLink, TabContent, TabPane, Button, UncontrolledTooltip } from "reactstrap";
 import classnames from "classnames";
-import { Info, Folder, CheckSquare, MessageCircle, ArrowLeft, Circle, Activity, FileText } from "react-feather";
+import { Info, Folder, CheckSquare, MessageCircle, ArrowLeft, Circle, Activity, FileText, Mail } from "react-feather";
 import UserDetails from "../../profile/UserDetails";
 import AccountTab from "./Informations";
 import NotesTab from "./Notes";
@@ -217,6 +217,11 @@ class UserEdit extends React.Component {
             <NavItem>
               <NavLink className={classnames({ active: this.state.activeTab === 'tasks' })} onClick={() => this.toggle('tasks')}>
                 <CheckSquare className='text-primary mr-50' size={16}/> Tâches
+              </NavLink>
+            </NavItem>
+            <NavItem>
+              <NavLink className={classnames({ active: this.state.activeTab === 'tasks' })} onClick={() => this.toggle('tasks')}>
+                <Mail className='text-primary mr-50' size={16}/> Courriers
               </NavLink>
             </NavItem>
             <NavItem>
