@@ -78,11 +78,11 @@ class TaskList extends React.Component {
                       onChange={(e) => e.stopPropagation()}
                     />
                     <h5 className="todo-title mt-50 mx-50">
-                      {todo.task_customer.name}
+                      {todo.task_customer?.name}
                     </h5>
                     <h6 className="todo-title mt-50 mx-50">{todo.title}</h6>
                   </div>
-                  {todo.task_customer.subscribe_services != null && (
+                  {todo.task_customer?.subscribe_services != null && (
                     <div className="chip-wrapper">
                       <div className="chip mb-0" key={i}>
                         <div className="chip-body">
@@ -94,7 +94,7 @@ class TaskList extends React.Component {
                               className="text-capitalize ml-25"
                               style={{ color: "red" }}
                             >
-                              {todo.task_customer.subscribe_services}
+                              {todo.task_customer?.subscribe_services}
                             </span>
                           </span>
                         </div>
