@@ -1,12 +1,13 @@
 import React from "react";
 import { Card, CardBody, Row, Col, Nav, NavItem, NavLink, TabContent, TabPane, Button } from "reactstrap";
 import classnames from "classnames";
-import { Info, Folder, CheckSquare, MessageCircle, ArrowLeft, Circle, Activity } from "react-feather";
+import { Info, Folder, CheckSquare, MessageCircle, ArrowLeft, Circle, Activity, Mail } from "react-feather";
 import UserDetails from "../../profile/UserDetails";
 import AccountTab from "./oldInformations";
 import NotesTab from "./Notes";
 import CommentsTab from "./Comments";
 import DocumentsHub from "./DocumentsHub";
+import CourriersHub from "./CourriersHub";
 import SimulatorHub from "./SimulatorHub";
 import { history } from "../../../../history";
 import "../../../../assets/scss/pages/users.scss";
@@ -21,6 +22,7 @@ class UserEdit extends React.Component {
     isCollapsed: false,
     simuOffset: 0,
     docsOffset: 0,
+    courriersOffset: 0,
   };
 
   navRef = null;
@@ -43,6 +45,17 @@ class UserEdit extends React.Component {
       if (nav && label) {
         const delta = label.getBoundingClientRect().left - nav.getBoundingClientRect().left;
         this.setState({ docsOffset: Math.max(0, Math.round(delta)) });
+      }
+    } catch (e) {}
+  };
+
+  computeCourriersOffset = () => {
+    try {
+      const nav = this.navRef;
+      const label = document.getElementById(`courriers-label-old-${this.props.match.params.id}`);
+      if (nav && label) {
+        const delta = label.getBoundingClientRect().left - nav.getBoundingClientRect().left;
+        this.setState({ courriersOffset: Math.max(0, Math.round(delta)) });
       }
     } catch (e) {}
   };
@@ -91,6 +104,7 @@ class UserEdit extends React.Component {
       this.setState(next, () => {
         if (tab === 'simulateur') setTimeout(this.computeSimuOffset, 0);
         if (tab === 'documents') setTimeout(this.computeDocsOffset, 0);
+        if (tab === 'courriers') setTimeout(this.computeCourriersOffset, 0);
       });
     }
   };
@@ -155,6 +169,12 @@ class UserEdit extends React.Component {
               </NavLink>
             </NavItem>
             <NavItem>
+              <NavLink className={classnames({ active: this.state.activeTab === 'courriers' })} onClick={() => this.toggle('courriers')}>
+                <Mail className='text-primary mr-50' size={16}/>
+                <span id={`courriers-label-old-${id}`}> Courriers</span>
+              </NavLink>
+            </NavItem>
+            <NavItem>
               <NavLink className={classnames({ active: this.state.activeTab === 'commentaires' })} onClick={() => this.toggle('commentaires')}>
                 <MessageCircle className='text-primary mr-50' size={16}/> Commentaires
               </NavLink>
@@ -183,6 +203,9 @@ class UserEdit extends React.Component {
             </TabPane>
             <TabPane tabId='documents'>
               <DocumentsHub id={id} userFullName={`${userView.first_name || ''} ${userView.last_name || ''}`.trim()} alignOffset={this.state.docsOffset} labelId={`documents-label-old-${id}`} />
+            </TabPane>
+            <TabPane tabId='courriers'>
+              <CourriersHub id={id} alignOffset={this.state.courriersOffset} labelId={`courriers-label-old-${id}`} />
             </TabPane>
             <TabPane tabId='commentaires'>
               <Card className='mb-1'>
