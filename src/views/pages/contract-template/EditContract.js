@@ -11,12 +11,20 @@ import {
   Button,
   FormGroup,
   CustomInput,
-  CardHeader
+  CardHeader,
 } from "reactstrap";
 import Chip from "../../../../src/components/@vuexy/chips/ChipComponent";
 import LabeledCheckboxMaterialUi from "labeled-checkbox-material-ui";
 import logo from "../../../assets/img/logo/contract_logo.jpg";
-import { Download, ArrowLeft, Save, Aperture } from "react-feather";
+import {
+  Download,
+  ArrowLeft,
+  Save,
+  Aperture,
+  Trash2,
+  Check,
+  Edit2,
+} from "react-feather";
 import "../../../assets/scss/pages/contract.scss";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -104,28 +112,44 @@ class EditContract extends React.Component {
 
   rowPrimaryKey = (id) => {
     switch (id) {
-      case "r1": return "c1";
-      case "r2": return "c2";
-      case "r3": return "c3";
-      case "r4": return "c4";
-      case "r5": return "c5";
-      case "r6": return "c6";
-      case "r7": return "c7";
-      default: return null;
+      case "r1":
+        return "c1";
+      case "r2":
+        return "c2";
+      case "r3":
+        return "c3";
+      case "r4":
+        return "c4";
+      case "r5":
+        return "c5";
+      case "r6":
+        return "c6";
+      case "r7":
+        return "c7";
+      default:
+        return null;
     }
   };
 
   labelFor = (id) => {
     const fv = this.state.formValues || {};
     switch (id) {
-      case "r1": return fv["title1"] || "Minutes + PU (min / €/h)";
-      case "r2": return fv["title2"] || "Forfait + option rachat/chômage";
-      case "r3": return fv["title3"] || "Ligne 3 (forfait)";
-      case "r4": return fv["title4"] || "Forfait + 1ère période à l’étranger";
-      case "r5": return fv["title5"] || "Forfait + 2ème période à l’étranger";
-      case "r6": return fv["title6"] || "Ligne 6 (forfait)";
-      case "r7": return fv["title7"] || "Ligne 7 (forfait)";
-      default: return id;
+      case "r1":
+        return fv["title1"] || "Minutes + PU (min / €/h)";
+      case "r2":
+        return fv["title2"] || "Forfait + option rachat/chômage";
+      case "r3":
+        return fv["title3"] || "Ligne 3 (forfait)";
+      case "r4":
+        return fv["title4"] || "Forfait + 1ère période à l’étranger";
+      case "r5":
+        return fv["title5"] || "Forfait + 2ème période à l’étranger";
+      case "r6":
+        return fv["title6"] || "Ligne 6 (forfait)";
+      case "r7":
+        return fv["title7"] || "Ligne 7 (forfait)";
+      default:
+        return id;
     }
   };
 
@@ -148,21 +172,31 @@ class EditContract extends React.Component {
 
   addRowById = (id) => {
     const key = this.rowPrimaryKey(id);
-    this.setState((prev) => ({
-      selectedRows: prev.selectedRows.includes(id) ? prev.selectedRows : [...prev.selectedRows, id],
-      formValues: key ? { ...prev.formValues, [key]: true } : prev.formValues,
-      isDirty: true,
-    }), this.calculate);
+    this.setState(
+      (prev) => ({
+        selectedRows: prev.selectedRows.includes(id)
+          ? prev.selectedRows
+          : [...prev.selectedRows, id],
+        formValues: key ? { ...prev.formValues, [key]: true } : prev.formValues,
+        isDirty: true,
+      }),
+      this.calculate
+    );
     if (key) input_values[key] = true;
   };
 
   removeRowById = (id) => {
     const key = this.rowPrimaryKey(id);
-    this.setState((prev) => ({
-      selectedRows: prev.selectedRows.filter((r) => r !== id),
-      formValues: key ? { ...prev.formValues, [key]: false } : prev.formValues,
-      isDirty: true,
-    }), this.calculate);
+    this.setState(
+      (prev) => ({
+        selectedRows: prev.selectedRows.filter((r) => r !== id),
+        formValues: key
+          ? { ...prev.formValues, [key]: false }
+          : prev.formValues,
+        isDirty: true,
+      }),
+      this.calculate
+    );
     if (key) input_values[key] = false;
   };
 
@@ -318,24 +352,24 @@ class EditContract extends React.Component {
 
     axios
       .get(
-        global.config.server_url + "/get_contract/" + this.props.match.params.id,
+        global.config.server_url +
+          "/get_contract/" +
+          this.props.match.params.id,
         Config
       )
       .then((response) => {
         let rowData = response.data.data;
-        const acompteDates =
-          Array.isArray(rowData.acompte_dates)
-            ? rowData.acompte_dates
-            : rowData.acompte_dates
-              ? JSON.parse(rowData.acompte_dates)
-              : [];
+        const acompteDates = Array.isArray(rowData.acompte_dates)
+          ? rowData.acompte_dates
+          : rowData.acompte_dates
+          ? JSON.parse(rowData.acompte_dates)
+          : [];
 
-        const soldDates =
-          Array.isArray(rowData.sold_dates)
-            ? rowData.sold_dates
-            : rowData.sold_dates
-              ? JSON.parse(rowData.sold_dates)
-              : [];
+        const soldDates = Array.isArray(rowData.sold_dates)
+          ? rowData.sold_dates
+          : rowData.sold_dates
+          ? JSON.parse(rowData.sold_dates)
+          : [];
         const KNOWN_PAYMENT_METHODS = [
           "Virement bancaire",
           "Chèque de banque",
@@ -352,28 +386,33 @@ class EditContract extends React.Component {
           payment_method = "Autre";
         }
 
-this.setState({
-  rowData,
-  user_id: rowData.id,
-  parent_id: rowData.parent_id,
-  deposit_date: rowData.deposit_date,
-  sold_date: rowData.sold_date,
-  status: rowData.document_state,
-  status_payment: rowData.status_payment,
-  payment_method,          // <-- on garde la valeur calculée
-  payment_method_other,    // <-- et le champ "Autre"
-  subscribe_services: rowData.subscribe_services,
-  acompte_dates: acompteDates,
-  sold_dates: soldDates,
-});
-
+        this.setState({
+          rowData,
+          user_id: rowData.id,
+          parent_id: rowData.parent_id,
+          deposit_date: rowData.deposit_date,
+          sold_date: rowData.sold_date,
+          status: rowData.document_state,
+          status_payment: rowData.status_payment,
+          payment_method, // <-- on garde la valeur calculée
+          payment_method_other, // <-- et le champ "Autre"
+          subscribe_services: rowData.subscribe_services,
+          acompte_dates: acompteDates,
+          sold_dates: soldDates,
+          // Initialize editing states: existing dates are validated (false), empty are in edit mode (true)
+          acompte_dates_editing: acompteDates.map((d) => !d || d === ""),
+          sold_dates_editing: soldDates.map((d) => !d || d === ""),
+        });
 
         if (rowData.values != null) {
           let values = JSON.parse(rowData.values);
           input_values = { ...values };
           // calcule les montants puis active les lignes concernées
           this.setState(
-            { formValues: values, selectedRows: this.computeSelectedRows(values) },
+            {
+              formValues: values,
+              selectedRows: this.computeSelectedRows(values),
+            },
             this.calculate
           );
         } else {
@@ -388,7 +427,7 @@ this.setState({
     // Si la case n'est pas cochée, on ne fait rien
     if (!this.state.formValues.credit_impot_50) return;
 
-    const userId = this.state.user_id;   // 👈 CORRECTION ICI
+    const userId = this.state.user_id; // 👈 CORRECTION ICI
     if (!userId) return;
 
     const config = {
@@ -550,7 +589,10 @@ this.setState({
     axios
       .post(
         global.config.server_url + "/set_user_subscribe_services",
-        { user_id: userid, subscribe_services: JSON.stringify(subscribe_services) },
+        {
+          user_id: userid,
+          subscribe_services: JSON.stringify(subscribe_services),
+        },
         Config
       )
       .catch(function (error) {
@@ -580,7 +622,7 @@ this.setState({
     parameters["user_id"] = this.state.user_id;
     parameters["parent_id"] = this.state.parent_id;
     parameters["acompte_dates"] = this.state.acompte_dates;
-    parameters["sold_dates"]    = this.state.sold_dates;
+    parameters["sold_dates"] = this.state.sold_dates;
     parameters["subscribe_services"] = sub_services;
     parameters["comment"] =
       "Contract de " +
@@ -592,8 +634,10 @@ this.setState({
     parameters["unipro"] = this.state.formValues.credit_impot_50 ? 1 : 0;
     this.appendCreditImpotNote();
     parameters["advanced_payment"] = this.state.formValues["TOTALTTC"] || 0;
-    parameters["pre_payment"] = parseFloat(this.state.formValues["FINAL75"]) || 0;
-    parameters["end_payment"] = parseFloat(this.state.formValues["FINAL25"]) || 0;
+    parameters["pre_payment"] =
+      parseFloat(this.state.formValues["FINAL75"]) || 0;
+    parameters["end_payment"] =
+      parseFloat(this.state.formValues["FINAL25"]) || 0;
     parameters["deposit_date"] = this.state.deposit_date;
     parameters["sold_date"] = this.state.sold_date;
 
@@ -618,22 +662,47 @@ this.setState({
     window.print();
   };
 
-  toInputValue = (sql) => { // "YYYY-MM-DD HH:mm:ss" -> "YYYY-MM-DDTHH:mm"
-    if (!sql) return '';
-    return sql.replace(' ', 'T').slice(0, 16);
+  toInputValue = (sql) => {
+    // "YYYY-MM-DD HH:mm:ss" -> "YYYY-MM-DDTHH:mm"
+    if (!sql) return "";
+    return sql.replace(" ", "T").slice(0, 16);
   };
 
-  fromInputValue = (v) => { // "YYYY-MM-DDTHH:mm" -> "YYYY-MM-DD HH:mm:00"
-    if (!v) return '';
-    return v.replace('T', ' ') + ':00';
+  fromInputValue = (v) => {
+    // "YYYY-MM-DDTHH:mm" -> "YYYY-MM-DD HH:mm:00"
+    if (!v) return "";
+    return v.replace("T", " ") + ":00";
   };
 
   addDate = (key) => {
-    this.setState(prev => ({ [key]: [...(prev[key] || []), '' ], isDirty: true }));
+    const editKey = `${key}_editing`;
+    this.setState((prev) => ({
+      [key]: [...(prev[key] || []), ""],
+      [editKey]: [...(prev[editKey] || []), true], // New dates start in edit mode
+      isDirty: true,
+    }));
+  };
+
+  validateDate = (key, idx) => {
+    const editKey = `${key}_editing`;
+    this.setState((prev) => {
+      const editArr = [...(prev[editKey] || [])];
+      editArr[idx] = false; // Switch to view mode
+      return { [editKey]: editArr };
+    });
+  };
+
+  editDate = (key, idx) => {
+    const editKey = `${key}_editing`;
+    this.setState((prev) => {
+      const editArr = [...(prev[editKey] || [])];
+      editArr[idx] = true; // Switch to edit mode
+      return { [editKey]: editArr };
+    });
   };
 
   updateDate = (key, idx, v) => {
-    this.setState(prev => {
+    this.setState((prev) => {
       const arr = [...(prev[key] || [])];
       arr[idx] = v;
       return { [key]: arr, isDirty: true };
@@ -641,10 +710,13 @@ this.setState({
   };
 
   removeDate = (key, idx) => {
-    this.setState(prev => {
+    const editKey = `${key}_editing`;
+    this.setState((prev) => {
       const arr = [...(prev[key] || [])];
+      const editArr = [...(prev[editKey] || [])];
       arr.splice(idx, 1);
-      return { [key]: arr, isDirty: true };
+      editArr.splice(idx, 1);
+      return { [key]: arr, [editKey]: editArr, isDirty: true };
     });
   };
 
@@ -653,7 +725,10 @@ this.setState({
       <React.Fragment>
         <Row>
           <Col xs="12" md="12" className="contract-header mb-1 px-0">
-            <div className="d-flex align-items-center justify-content-between" style={{ minHeight: 50, gap: 12 }}>
+            <div
+              className="d-flex align-items-center justify-content-between"
+              style={{ minHeight: 50, gap: 12 }}
+            >
               {/* Gauche : Retour + Prestation */}
               <div className="d-flex align-items-center" style={{ gap: 10 }}>
                 <Button.Ripple
@@ -662,7 +737,9 @@ this.setState({
                   title="Retour"
                   className="btn-icon rounded-circle p-0 d-flex align-items-center justify-content-center"
                   style={{ width: 32, height: 32 }}
-                  onClick={() => history.push("/app/user/edit/" + this.state.user_id + "/3")}
+                  onClick={() =>
+                    history.push("/app/user/edit/" + this.state.user_id + "/3")
+                  }
                 >
                   <ArrowLeft size={16} />
                 </Button.Ripple>
@@ -673,13 +750,19 @@ this.setState({
                     <span className="align-middle">Prestation :</span>
                   </h5>
 
-                  <div className="d-flex align-items-center flex-wrap" style={{ gap: 4 }}>
+                  <div
+                    className="d-flex align-items-center flex-wrap"
+                    style={{ gap: 4 }}
+                  >
                     {(() => {
                       let subscribe_service = this.state.subscribe_services;
                       if (!subscribe_service) return <div>No</div>;
-                      let lst = subscribe_service.replaceAll('"', "").trim().split("/");
+                      let lst = subscribe_service
+                        .replaceAll('"', "")
+                        .trim()
+                        .split("/");
                       return lst
-                        .filter(s => s && s.trim() !== "")
+                        .filter((s) => s && s.trim() !== "")
                         .map((service, idx) => (
                           <Chip
                             key={idx}
@@ -699,10 +782,14 @@ this.setState({
                   color={this.state.isDirty ? "success" : "secondary"}
                   disabled={!this.state.isDirty}
                   style={{ height: 40, lineHeight: "40px", padding: "0 16px" }}
-                  onClick={() => { if (this.state.isDirty) this.sendForm(); }}
+                  onClick={() => {
+                    if (this.state.isDirty) this.sendForm();
+                  }}
                 >
                   <Save size="15" />
-                  <span className="align-middle ml-50">Enregistrer le contrat</span>
+                  <span className="align-middle ml-50">
+                    Enregistrer le contrat
+                  </span>
                 </Button>
 
                 <Button
@@ -718,13 +805,15 @@ this.setState({
 
             {/* ====== CONTRAT (affichage conditionnel) ====== */}
 
-
             {/* ====== CONTRAT (affichage conditionnel) ====== */}
             <FormGroup style={{ marginTop: "8px", marginBottom: 0 }}>
               <Card className="mb-1 shadow-sm" style={{ borderRadius: 10 }}>
                 <CardHeader
                   className="py-1 d-flex align-items-center"
-                  style={{ background: "#f8f9fa", borderBottom: "1px solid #e9ecef" }}
+                  style={{
+                    background: "#f8f9fa",
+                    borderBottom: "1px solid #e9ecef",
+                  }}
                 >
                   <h5 className="mb-0">Contrat</h5>
                 </CardHeader>
@@ -751,7 +840,15 @@ this.setState({
                     );
 
                     const VSep = () => (
-                      <div aria-hidden="true" style={{ width: 1, height: 24, background: "#e5e7eb", justifySelf: "center" }} />
+                      <div
+                        aria-hidden="true"
+                        style={{
+                          width: 1,
+                          height: 24,
+                          background: "#e5e7eb",
+                          justifySelf: "center",
+                        }}
+                      />
                     );
 
                     // ——— Lignes
@@ -760,7 +857,9 @@ this.setState({
                         <LabeledCheckboxMaterialUi
                           label=""
                           checked={this.state.formValues["c1"]}
-                          onChange={(checked) => this.onPrimaryToggle(checked, "c1", "r1")}
+                          onChange={(checked) =>
+                            this.onPrimaryToggle(checked, "c1", "r1")
+                          }
                         />
                         <span>{this.state.formValues["title1"]}</span>
 
@@ -768,7 +867,9 @@ this.setState({
                         <Input
                           type="text"
                           value={this.state.formValues["nb1"]}
-                          onChange={(e) => this.handleFieldChange("nb1", e.target.value)}
+                          onChange={(e) =>
+                            this.handleFieldChange("nb1", e.target.value)
+                          }
                           style={{ height: 30, width: 90, textAlign: "right" }}
                         />
 
@@ -776,19 +877,27 @@ this.setState({
                         <Input
                           type="text"
                           value={this.state.formValues["nb1-price"]}
-                          onChange={(e) => this.handleFieldChange("nb1-price", e.target.value)}
+                          onChange={(e) =>
+                            this.handleFieldChange("nb1-price", e.target.value)
+                          }
                           style={{ height: 30, width: 90, textAlign: "right" }}
                         />
 
-                        <Ghost><Input style={{ width: 110, height: 30 }} /></Ghost>
+                        <Ghost>
+                          <Input style={{ width: 110, height: 30 }} />
+                        </Ghost>
                         <Ghost>€ HT</Ghost>
 
                         <VSep />
 
-                        <Ghost><LabeledCheckboxMaterialUi label="" checked={false} /></Ghost>
+                        <Ghost>
+                          <LabeledCheckboxMaterialUi label="" checked={false} />
+                        </Ghost>
                         <Ghost>Option</Ghost>
                         <Ghost>Nb</Ghost>
-                        <Ghost><Input style={{ width: 70, height: 30 }} /></Ghost>
+                        <Ghost>
+                          <Input style={{ width: 70, height: 30 }} />
+                        </Ghost>
                       </div>
                     );
 
@@ -797,32 +906,50 @@ this.setState({
                         <LabeledCheckboxMaterialUi
                           label=""
                           checked={this.state.formValues[`c${n}`]}
-                          onChange={(checked) => this.onPrimaryToggle(checked, `c${n}`, `r${n}`)}
+                          onChange={(checked) =>
+                            this.onPrimaryToggle(checked, `c${n}`, `r${n}`)
+                          }
                         />
                         <span>{this.state.formValues[`title${n}`]}</span>
 
                         <Ghost>Nb (min)</Ghost>
-                        <Ghost><Input style={{ width: 90, height: 30 }} /></Ghost>
+                        <Ghost>
+                          <Input style={{ width: 90, height: 30 }} />
+                        </Ghost>
                         <Ghost>PU (€/h)</Ghost>
-                        <Ghost><Input style={{ width: 90, height: 30 }} /></Ghost>
+                        <Ghost>
+                          <Input style={{ width: 90, height: 30 }} />
+                        </Ghost>
 
                         <Input
                           type="text"
                           value={this.state.formValues[`p${n}`]}
-                          onChange={(e) => this.handleFieldChange(`p${n}`, e.target.value)}
+                          onChange={(e) =>
+                            this.handleFieldChange(`p${n}`, e.target.value)
+                          }
                           style={{ height: 30, width: 110, textAlign: "right" }}
                         />
                         <span>€ HT</span>
 
                         <VSep />
 
-                        <Ghost><LabeledCheckboxMaterialUi label="" checked={false} /></Ghost>
+                        <Ghost>
+                          <LabeledCheckboxMaterialUi label="" checked={false} />
+                        </Ghost>
                         <Ghost>Option</Ghost>
                         <Ghost>Nb</Ghost>
-                        <Ghost><Input style={{ width: 70, height: 30 }} /></Ghost>
+                        <Ghost>
+                          <Input style={{ width: 70, height: 30 }} />
+                        </Ghost>
                       </div>
                     );
-                    const RowWithOption = ({ i, n, optionCheckKey, optionLabel, optionNbKey }) => {
+                    const RowWithOption = ({
+                      i,
+                      n,
+                      optionCheckKey,
+                      optionLabel,
+                      optionNbKey,
+                    }) => {
                       const isPensionLine = n === 5; // ligne "liquidation des pensions"
                       return (
                         <div style={{ ...stripe(i), ...GRID }}>
@@ -830,22 +957,34 @@ this.setState({
                           <LabeledCheckboxMaterialUi
                             label=""
                             checked={this.state.formValues[`c${n}`]}
-                            onChange={(checked) => this.onPrimaryToggle(checked, `c${n}`, `r${n}`)}
+                            onChange={(checked) =>
+                              this.onPrimaryToggle(checked, `c${n}`, `r${n}`)
+                            }
                           />
                           <span>{this.state.formValues[`title${n}`]}</span>
 
                           {/* colonnes minutes / PU fantômes */}
                           <Ghost>Nb (min)</Ghost>
-                          <Ghost><Input style={{ width: 90, height: 30 }} /></Ghost>
+                          <Ghost>
+                            <Input style={{ width: 90, height: 30 }} />
+                          </Ghost>
                           <Ghost>PU (€/h)</Ghost>
-                          <Ghost><Input style={{ width: 90, height: 30 }} /></Ghost>
+                          <Ghost>
+                            <Input style={{ width: 90, height: 30 }} />
+                          </Ghost>
 
                           {/* prix forfait */}
                           <Input
                             type="text"
                             value={this.state.formValues[`p${n}`]}
-                            onChange={(e) => this.handleFieldChange(`p${n}`, e.target.value)}
-                            style={{ height: 30, width: 110, textAlign: "right" }}
+                            onChange={(e) =>
+                              this.handleFieldChange(`p${n}`, e.target.value)
+                            }
+                            style={{
+                              height: 30,
+                              width: 110,
+                              textAlign: "right",
+                            }}
                           />
                           <span>€ HT</span>
 
@@ -859,16 +998,22 @@ this.setState({
                               <div
                                 style={{
                                   display: "grid",
-                                  gridTemplateColumns: "32px minmax(0,1fr) 24px 70px",
+                                  gridTemplateColumns:
+                                    "32px minmax(0,1fr) 24px 70px",
                                   columnGap: 8,
                                   alignItems: "center",
                                 }}
                               >
                                 <LabeledCheckboxMaterialUi
                                   label=""
-                                  checked={this.state.formValues[optionCheckKey]}
+                                  checked={
+                                    this.state.formValues[optionCheckKey]
+                                  }
                                   onChange={(checked) =>
-                                    this.handleCheckChange(checked, optionCheckKey)
+                                    this.handleCheckChange(
+                                      checked,
+                                      optionCheckKey
+                                    )
                                   }
                                 />
                                 <span
@@ -885,9 +1030,16 @@ this.setState({
                                   type="text"
                                   value={this.state.formValues[optionNbKey]}
                                   onChange={(e) =>
-                                    this.handleFieldChange(optionNbKey, e.target.value)
+                                    this.handleFieldChange(
+                                      optionNbKey,
+                                      e.target.value
+                                    )
                                   }
-                                  style={{ height: 30, width: "100%", textAlign: "right" }}
+                                  style={{
+                                    height: 30,
+                                    width: "100%",
+                                    textAlign: "right",
+                                  }}
                                 />
                               </div>
 
@@ -919,7 +1071,10 @@ this.setState({
                                 label=""
                                 checked={this.state.formValues[optionCheckKey]}
                                 onChange={(checked) =>
-                                  this.handleCheckChange(checked, optionCheckKey)
+                                  this.handleCheckChange(
+                                    checked,
+                                    optionCheckKey
+                                  )
                                 }
                               />
                               <span
@@ -936,9 +1091,16 @@ this.setState({
                                 type="text"
                                 value={this.state.formValues[optionNbKey]}
                                 onChange={(e) =>
-                                  this.handleFieldChange(optionNbKey, e.target.value)
+                                  this.handleFieldChange(
+                                    optionNbKey,
+                                    e.target.value
+                                  )
                                 }
-                                style={{ height: 30, width: 70, textAlign: "right" }}
+                                style={{
+                                  height: 30,
+                                  width: 70,
+                                  textAlign: "right",
+                                }}
                               />
                             </>
                           )}
@@ -947,11 +1109,16 @@ this.setState({
                     };
 
                     // Sélecteur d’ajout
-                    const AddRowSelect = ({ placeholder = "Ajouter une ligne" }) => {
+                    const AddRowSelect = ({
+                      placeholder = "Ajouter une ligne",
+                    }) => {
                       const avail = this.availableRowIds();
                       if (avail.length === 0) return null;
                       return (
-                        <div className="d-flex align-items-center" style={{ gap: 8, margin: "6px 0" }}>
+                        <div
+                          className="d-flex align-items-center"
+                          style={{ gap: 8, margin: "6px 0" }}
+                        >
                           <Input
                             type="select"
                             style={{ width: 360, height: 40 }}
@@ -961,9 +1128,13 @@ this.setState({
                               if (id) this.addRowById(id);
                             }}
                           >
-                            <option value="" disabled hidden>{placeholder}</option>
+                            <option value="" disabled hidden>
+                              {placeholder}
+                            </option>
                             {avail.map((id) => (
-                              <option key={id} value={id}>{this.labelFor(id)}</option>
+                              <option key={id} value={id}>
+                                {this.labelFor(id)}
+                              </option>
                             ))}
                           </Input>
                         </div>
@@ -973,7 +1144,12 @@ this.setState({
                     // ——— rendu
                     let i = 0;
                     const out = [];
-                    out.push(<AddRowSelect key="add-top" placeholder="Ajouter une ligne" />);
+                    out.push(
+                      <AddRowSelect
+                        key="add-top"
+                        placeholder="Ajouter une ligne"
+                      />
+                    );
 
                     (this.state.selectedRows || []).forEach((id) => {
                       switch (id) {
@@ -987,7 +1163,9 @@ this.setState({
                               i={i++}
                               n={2}
                               optionCheckKey="cnb2"
-                              optionLabel={this.state.formValues["subcontent2-2"]}
+                              optionLabel={
+                                this.state.formValues["subcontent2-2"]
+                              }
                               optionNbKey="nb2"
                             />
                           );
@@ -1002,7 +1180,9 @@ this.setState({
                               i={i++}
                               n={4}
                               optionCheckKey="cnb4"
-                              optionLabel={this.state.formValues["subcontent4-7"]}
+                              optionLabel={
+                                this.state.formValues["subcontent4-7"]
+                              }
                               optionNbKey="nb4"
                             />
                           );
@@ -1014,7 +1194,9 @@ this.setState({
                               i={i++}
                               n={5}
                               optionCheckKey="cnb5"
-                              optionLabel={this.state.formValues["subcontent5-2"]}
+                              optionLabel={
+                                this.state.formValues["subcontent5-2"]
+                              }
                               optionNbKey="nb5"
                             />
                           );
@@ -1033,35 +1215,48 @@ this.setState({
                       <div
                         key="row-tva"
                         className="d-flex align-items-center flex-wrap"
-                        style={{ ...stripe(i++), borderTop: "1px dashed #e5e7eb", marginTop: 20, gap: 12 }}
+                        style={{
+                          ...stripe(i++),
+                          borderTop: "1px dashed #e5e7eb",
+                          marginTop: 20,
+                          gap: 12,
+                        }}
                       >
                         <span style={{ minWidth: 60 }}>TVA</span>
                         <Input
                           type="text"
                           value={this.state.formValues["TVAP"] ?? 20}
-                          onChange={(e) => this.handleFieldChange("TVAP", e.target.value)}
+                          onChange={(e) =>
+                            this.handleFieldChange("TVAP", e.target.value)
+                          }
                           style={{ height: 30, width: 80, textAlign: "right" }}
                         />
                         <span>%</span>
                         <VSep />
                         <span style={{ minWidth: 200 }}>
-                          {this.state.formValues["table3-subcontent1"] || "Acompte à la commande :"}
+                          {this.state.formValues["table3-subcontent1"] ||
+                            "Acompte à la commande :"}
                         </span>
                         <Input
                           type="text"
                           value={this.state.formValues["fp1"] ?? 100}
-                          onChange={(e) => this.handleFieldChange("fp1", e.target.value)}
+                          onChange={(e) =>
+                            this.handleFieldChange("fp1", e.target.value)
+                          }
                           style={{ height: 30, width: 80, textAlign: "right" }}
                         />
                         <span>%</span>
                         <VSep />
                         <span style={{ minWidth: 200 }}>
-                          {this.state.formValues["table3-subcontent2"] || "Solde fin de mission :"}
+                          {this.state.formValues["table3-subcontent2"] ||
+                            "Solde fin de mission :"}
                         </span>
                         <Input
                           type="text"
                           value={this.state.formValues["fp2"] ?? 0}
-                          onChange={(e) => this.handleFieldChange("fp2", e.target.value)}
+                          onChange={(e) =>
+                            this.handleFieldChange("fp2", e.target.value)
+                          }
                           style={{ height: 30, width: 80, textAlign: "right" }}
                         />
                         <span>%</span>
@@ -1070,7 +1265,10 @@ this.setState({
                         <VSep />
 
                         {/* 👇 checkbox + texte avec le même style que les autres spans */}
-                        <div className="d-flex align-items-center" style={{ gap: 6 }}>
+                        <div
+                          className="d-flex align-items-center"
+                          style={{ gap: 6 }}
+                        >
                           <LabeledCheckboxMaterialUi
                             label="" // important : label vide
                             checked={!!this.state.formValues.credit_impot_50}
@@ -1093,7 +1291,10 @@ this.setState({
                   <Card className="mb-1 shadow-sm" style={{ borderRadius: 10 }}>
                     <CardHeader
                       className="py-1 d-flex align-items-center"
-                      style={{ background: "#f8f9fa", borderBottom: "1px solid #e9ecef" }}
+                      style={{
+                        background: "#f8f9fa",
+                        borderBottom: "1px solid #e9ecef",
+                      }}
                     >
                       <h5 className="mb-0">Statut & Paiements</h5>
                     </CardHeader>
@@ -1102,36 +1303,95 @@ this.setState({
                       <Row className="align-items-center">
                         <Col md="6" sm="12" className="mb-1">
                           <div className="d-flex flex-wrap" style={{ gap: 8 }}>
-                            <Radio label="En attente" color="primary" name="status"
+                            <Radio
+                              label="En attente"
+                              color="primary"
+                              name="status"
                               checked={this.state.status === "En attente"}
-                              onChange={() => this.setState({ status: "En attente", isDirty: true })} />
-                            <Radio label="En cours" color="primary" name="status"
+                              onChange={() =>
+                                this.setState({
+                                  status: "En attente",
+                                  isDirty: true,
+                                })
+                              }
+                            />
+                            <Radio
+                              label="En cours"
+                              color="primary"
+                              name="status"
                               checked={this.state.status === "En cours"}
-                              onChange={() => this.setState({ status: "En cours", isDirty: true })} />
-                            <Radio label="Terminé" color="primary" name="status"
+                              onChange={() =>
+                                this.setState({
+                                  status: "En cours",
+                                  isDirty: true,
+                                })
+                              }
+                            />
+                            <Radio
+                              label="Terminé"
+                              color="primary"
+                              name="status"
                               checked={this.state.status === "Terminé"}
-                              onChange={() => this.setState({ status: "Terminé", isDirty: true })} />
-                            <Radio label="Perdu" color="primary" name="status"
+                              onChange={() =>
+                                this.setState({
+                                  status: "Terminé",
+                                  isDirty: true,
+                                })
+                              }
+                            />
+                            <Radio
+                              label="Perdu"
+                              color="primary"
+                              name="status"
                               checked={this.state.status === "Perdu"}
-                              onChange={() => this.setState({ status: "Perdu", isDirty: true })} />
+                              onChange={() =>
+                                this.setState({
+                                  status: "Perdu",
+                                  isDirty: true,
+                                })
+                              }
+                            />
                           </div>
-                          <div className="d-flex align-items-center mt-1" style={{ gap: 8 }}>
-                            <span className="text-muted" style={{ minWidth: 130 }}>Moyen de paiement</span>
+                          <div
+                            className="d-flex align-items-center mt-1"
+                            style={{ gap: 8 }}
+                          >
+                            <span
+                              className="text-muted"
+                              style={{ minWidth: 130 }}
+                            >
+                              Moyen de paiement
+                            </span>
 
                             {/* Liste de choix */}
-                              <Input
-                                type="select"
-                                style={{ minWidth: 100, maxWidth: 200, height: 40 }}
-                                value={this.state.payment_method || ""}
-                                color="primary"
-                                onChange={(e) =>
-                                  this.setState({ payment_method: e.target.value, isDirty: true })
-                                }
-                              >
-                              <option value="" disabled hidden>Sélectionner…</option>
-                              <option value="Virement bancaire">Virement bancaire</option>
-                              <option value="Chèque de banque">Chèque de banque</option>
-                              <option value="Carte bancaire">Carte bancaire</option>
+                            <Input
+                              type="select"
+                              style={{
+                                minWidth: 100,
+                                maxWidth: 200,
+                                height: 40,
+                              }}
+                              value={this.state.payment_method || ""}
+                              color="primary"
+                              onChange={(e) =>
+                                this.setState({
+                                  payment_method: e.target.value,
+                                  isDirty: true,
+                                })
+                              }
+                            >
+                              <option value="" disabled hidden>
+                                Sélectionner…
+                              </option>
+                              <option value="Virement bancaire">
+                                Virement bancaire
+                              </option>
+                              <option value="Chèque de banque">
+                                Chèque de banque
+                              </option>
+                              <option value="Carte bancaire">
+                                Carte bancaire
+                              </option>
                               <option value="Espèce">Espèce</option>
                               <option value="Autre">Autre</option>
                             </Input>
@@ -1156,14 +1416,41 @@ this.setState({
                         </Col>
 
                         <Col md="6" sm="12" className="mb-1">
-                          <div className="d-flex align-items-center" style={{ gap: 18 }}>
-                            <CustomInput className="custom-switch-success" type="switch" id="acompte" name="Acompte" inline
-                              checked={this.state.status_payment > 0} onChange={() => this.setStatusPayment(1)}>
-                              <span className="mb-0 switch-label" style={{ paddingTop: 3 }}>Acompte</span>
+                          <div
+                            className="d-flex align-items-center"
+                            style={{ gap: 18 }}
+                          >
+                            <CustomInput
+                              className="custom-switch-success"
+                              type="switch"
+                              id="acompte"
+                              name="Acompte"
+                              inline
+                              checked={this.state.status_payment > 0}
+                              onChange={() => this.setStatusPayment(1)}
+                            >
+                              <span
+                                className="mb-0 switch-label"
+                                style={{ paddingTop: 3 }}
+                              >
+                                Acompte
+                              </span>
                             </CustomInput>
-                            <CustomInput className="custom-switch-success" type="switch" id="sold" name="Sold" inline
-                              checked={this.state.status_payment > 1} onChange={() => this.setStatusPayment(2)}>
-                              <span className="mb-0 switch-label" style={{ paddingTop: 3 }}>Soldé</span>
+                            <CustomInput
+                              className="custom-switch-success"
+                              type="switch"
+                              id="sold"
+                              name="Sold"
+                              inline
+                              checked={this.state.status_payment > 1}
+                              onChange={() => this.setStatusPayment(2)}
+                            >
+                              <span
+                                className="mb-0 switch-label"
+                                style={{ paddingTop: 3 }}
+                              >
+                                Soldé
+                              </span>
                             </CustomInput>
                           </div>
                         </Col>
@@ -1173,29 +1460,204 @@ this.setState({
 
                       <Row>
                         <Col md="6" sm="12" className="mb-1">
-                          <div className="mb-1"><h6 className="mb-0 text-muted">Dates d’acompte</h6></div>
-                          {(this.state.acompte_dates || []).map((d, idx) => (
-                            <div key={`ad-${idx}`} className="d-flex align-items-center" style={{ gap: 8, marginBottom: 8 }}>
-                              <Input type="datetime-local" style={{ width: 240, height: 34 }}
-                                value={this.toInputValue(d)}
-                                onChange={(e) => this.updateDate('acompte_dates', idx, this.fromInputValue(e.target.value))} />
-                              <Button color="danger" size="sm" onClick={() => this.removeDate('acompte_dates', idx)}>Supprimer</Button>
-                            </div>
-                          ))}
-                          <Button outline color="primary" size="sm" className="mt-1" onClick={() => this.addDate('acompte_dates')}>+ Ajouter</Button>
+                          <div className="mb-1">
+                            <h6 className="mb-0 text-muted">Dates d'acompte</h6>
+                          </div>
+                          {(this.state.acompte_dates || []).map((d, idx) => {
+                            const isEditing = (this.state
+                              .acompte_dates_editing || [])[idx];
+                            return (
+                              <div
+                                key={`ad-${idx}`}
+                                className="d-flex align-items-center"
+                                style={{ gap: 8, marginBottom: 8 }}
+                              >
+                                {isEditing ? (
+                                  <>
+                                    <Input
+                                      type="datetime-local"
+                                      style={{ width: 240, height: 34 }}
+                                      value={this.toInputValue(d)}
+                                      onClick={(e) => {
+                                        try {
+                                          e.currentTarget.showPicker();
+                                        } catch (err) {}
+                                      }}
+                                      onChange={(e) =>
+                                        this.updateDate(
+                                          "acompte_dates",
+                                          idx,
+                                          this.fromInputValue(e.target.value)
+                                        )
+                                      }
+                                    />
+                                    <Check
+                                      size={20}
+                                      style={{
+                                        color: d ? "#28a745" : "#d1d5db",
+                                        cursor: d ? "pointer" : "not-allowed",
+                                        minWidth: 20,
+                                        opacity: d ? 1 : 0.5,
+                                      }}
+                                      onClick={() => {
+                                        if (d) {
+                                          this.validateDate(
+                                            "acompte_dates",
+                                            idx
+                                          );
+                                        }
+                                      }}
+                                    />
+                                  </>
+                                ) : (
+                                  <>
+                                    <span
+                                      style={{
+                                        fontWeight: 600,
+                                        color: "#1f2d3d",
+                                        minWidth: 160,
+                                      }}
+                                    >
+                                      {d
+                                        ? moment(d).format("DD/MM/YYYY HH:mm")
+                                        : ""}
+                                    </span>
+                                    <Edit2
+                                      size={18}
+                                      style={{
+                                        color: "#6c757d",
+                                        cursor: "pointer",
+                                        minWidth: 18,
+                                      }}
+                                      onClick={() =>
+                                        this.editDate("acompte_dates", idx)
+                                      }
+                                    />
+                                  </>
+                                )}
+                                <Trash2
+                                  size={18}
+                                  style={{
+                                    color: "#dc3545",
+                                    cursor: "pointer",
+                                    minWidth: 18,
+                                  }}
+                                  onClick={() =>
+                                    this.removeDate("acompte_dates", idx)
+                                  }
+                                />
+                              </div>
+                            );
+                          })}
+                          <Button
+                            outline
+                            color="primary"
+                            size="sm"
+                            className="mt-1"
+                            onClick={() => this.addDate("acompte_dates")}
+                          >
+                            + Ajouter
+                          </Button>
                         </Col>
 
                         <Col md="6" sm="12" className="mb-1">
-                          <div className="mb-1"><h6 className="mb-0 text-muted">Dates de paiement</h6></div>
-                          {(this.state.sold_dates || []).map((d, idx) => (
-                            <div key={`sd-${idx}`} className="d-flex align-items-center" style={{ gap: 8, marginBottom: 8 }}>
-                              <Input type="datetime-local" style={{ width: 240, height: 34 }}
-                                value={this.toInputValue(d)}
-                                onChange={(e) => this.updateDate('sold_dates', idx, this.fromInputValue(e.target.value))} />
-                              <Button color="danger" size="sm" onClick={() => this.removeDate('sold_dates', idx)}>Supprimer</Button>
-                            </div>
-                          ))}
-                          <Button outline color="primary" size="sm" className="mt-1" onClick={() => this.addDate('sold_dates')}>+ Ajouter</Button>
+                          <div className="mb-1">
+                            <h6 className="mb-0 text-muted">
+                              Dates de paiement
+                            </h6>
+                          </div>
+                          {(this.state.sold_dates || []).map((d, idx) => {
+                            const isEditing = (this.state.sold_dates_editing ||
+                              [])[idx];
+                            return (
+                              <div
+                                key={`sd-${idx}`}
+                                className="d-flex align-items-center"
+                                style={{ gap: 8, marginBottom: 8 }}
+                              >
+                                {isEditing ? (
+                                  <>
+                                    <Input
+                                      type="datetime-local"
+                                      style={{ width: 240, height: 34 }}
+                                      value={this.toInputValue(d)}
+                                      onClick={(e) => {
+                                        try {
+                                          e.currentTarget.showPicker();
+                                        } catch (err) {}
+                                      }}
+                                      onChange={(e) =>
+                                        this.updateDate(
+                                          "sold_dates",
+                                          idx,
+                                          this.fromInputValue(e.target.value)
+                                        )
+                                      }
+                                    />
+                                    <Check
+                                      size={20}
+                                      style={{
+                                        color: d ? "#28a745" : "#d1d5db",
+                                        cursor: d ? "pointer" : "not-allowed",
+                                        minWidth: 20,
+                                        opacity: d ? 1 : 0.5,
+                                      }}
+                                      onClick={() => {
+                                        if (d) {
+                                          this.validateDate("sold_dates", idx);
+                                        }
+                                      }}
+                                    />
+                                  </>
+                                ) : (
+                                  <>
+                                    <span
+                                      style={{
+                                        fontWeight: 600,
+                                        color: "#1f2d3d",
+                                        minWidth: 160,
+                                      }}
+                                    >
+                                      {d
+                                        ? moment(d).format("DD/MM/YYYY HH:mm")
+                                        : ""}
+                                    </span>
+                                    <Edit2
+                                      size={18}
+                                      style={{
+                                        color: "#6c757d",
+                                        cursor: "pointer",
+                                        minWidth: 18,
+                                      }}
+                                      onClick={() =>
+                                        this.editDate("sold_dates", idx)
+                                      }
+                                    />
+                                  </>
+                                )}
+                                <Trash2
+                                  size={18}
+                                  style={{
+                                    color: "#dc3545",
+                                    cursor: "pointer",
+                                    minWidth: 18,
+                                  }}
+                                  onClick={() =>
+                                    this.removeDate("sold_dates", idx)
+                                  }
+                                />
+                              </div>
+                            );
+                          })}
+                          <Button
+                            outline
+                            color="primary"
+                            size="sm"
+                            className="mt-1"
+                            onClick={() => this.addDate("sold_dates")}
+                          >
+                            + Ajouter
+                          </Button>
                         </Col>
                       </Row>
                     </CardBody>
@@ -1286,7 +1748,13 @@ this.setState({
                         </Col>
                         <Col md="7" sm="12">
                           {" "}
-                          <h6>{moment(this.ifExist("birth_date")).isValid() ? moment(this.ifExist("birth_date")).format("DD/MM/YYYY") : ""}</h6>
+                          <h6>
+                            {moment(this.ifExist("birth_date")).isValid()
+                              ? moment(this.ifExist("birth_date")).format(
+                                  "DD/MM/YYYY"
+                                )
+                              : ""}
+                          </h6>
                         </Col>
                       </Row>
                     </div>
@@ -1451,9 +1919,15 @@ this.setState({
                           sm="12"
                           className="contract-caption1-section"
                         >
-                        <h5 className="bold-black" style={{ textDecoration: "underline", textUnderlineOffset: "2px" }}>
-                          Société
-                        </h5>                        
+                          <h5
+                            className="bold-black"
+                            style={{
+                              textDecoration: "underline",
+                              textUnderlineOffset: "2px",
+                            }}
+                          >
+                            Société
+                          </h5>
                         </Col>
                       </Row>
                       <Row>
@@ -1539,9 +2013,15 @@ this.setState({
                           className="contract-caption1-section"
                         >
                           {" "}
-                        <h5 className="bold-black" style={{ textDecoration: "underline", textUnderlineOffset: "2px" }}>
-                          Société
-                        </h5>                        
+                          <h5
+                            className="bold-black"
+                            style={{
+                              textDecoration: "underline",
+                              textUnderlineOffset: "2px",
+                            }}
+                          >
+                            Société
+                          </h5>
                         </Col>
                         <Col
                           md="8"
@@ -2650,20 +3130,29 @@ this.setState({
                       </td>
                     </tr>
                     <tr>
-                    <td width="75%" style={{ paddingBottom: 0, paddingTop: 0 }}>
-                      <div style={{ display: "flex", alignItems: "flex-start", marginLeft: "20px" }}>
-                        <div style={{ marginRight: 10 }}>
-                          <LabeledCheckboxMaterialUi
-                            label="" // pas de label → pas de styles MUI sur le texte
-                            checked={this.state.formValues.cc5}
-                            onChange={(e) => this.handleCheckChange(e, "cc5")}
-                          />
+                      <td
+                        width="75%"
+                        style={{ paddingBottom: 0, paddingTop: 0 }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            marginLeft: "20px",
+                          }}
+                        >
+                          <div style={{ marginRight: 10 }}>
+                            <LabeledCheckboxMaterialUi
+                              label="" // pas de label → pas de styles MUI sur le texte
+                              checked={this.state.formValues.cc5}
+                              onChange={(e) => this.handleCheckChange(e, "cc5")}
+                            />
+                          </div>
+                          <div style={{ lineHeight: 1.4 }}>
+                            {this.state.formValues["subcontent5-3"]}
+                          </div>
                         </div>
-                        <div style={{ lineHeight: 1.4 }}>
-                          {this.state.formValues["subcontent5-3"]}
-                        </div>
-                      </div>
-                    </td>
+                      </td>
                       <td
                         width="25%"
                         style={{ paddingBottom: 0, paddingTop: 0 }}
