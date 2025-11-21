@@ -453,11 +453,14 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
                   <tr>
                     <th className='narrow'>Année</th>
                     <th className='large-column'>Rémunération annuelle brute</th>
-                    <th className='narrow'>Trimestres</th>
+                    <th className='narrow'>TRIM</th>
                     <th className='narrow'>AR</th>
                     <th className='narrow'>Total</th>
-                    <th className='medium'>Cnav (points)</th>
-                    <th className='medium'>Arrco Agirc (points)</th>
+                    <th className='medium'>CNAV (points)</th>
+                    <th className='medium'>ARRCO (points)</th>
+                    <th className='medium'>IRCANTEC (points)</th>
+                    <th className='medium'>RCI (points)</th>
+                    <th className='medium'>PER (points)</th>
                     <th className='medium'>Tranche A (TA)</th>
                     <th className='medium'>Tranche B (TB)</th>
                     <th className='actions-col'>Actions</th>
