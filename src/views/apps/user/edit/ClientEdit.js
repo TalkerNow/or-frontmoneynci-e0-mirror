@@ -10,6 +10,7 @@ import "../../../../assets/scss/pages/users.scss";
 import "../../profile/Profile.css";
 import axios from "axios";
 import DocumentsHub from "./DocumentsHub";
+import CourriersHub from "./CourriersHub";
 import SimulatorHub from "./SimulatorHub";
 import { history } from "../../../../history";
 import Contracts from "./Contracts";
@@ -24,6 +25,7 @@ class UserEdit extends React.Component {
     isCollapsed: false,
     simuOffset: 0,
     docsOffset: 0,
+    courriersOffset: 0,
   };
 
   navRef = null;
@@ -46,6 +48,17 @@ class UserEdit extends React.Component {
       if (nav && label) {
         const delta = label.getBoundingClientRect().left - nav.getBoundingClientRect().left;
         this.setState({ docsOffset: Math.max(0, Math.round(delta)) });
+      }
+    } catch (e) {}
+  };
+
+  computeCourriersOffset = () => {
+    try {
+      const nav = this.navRef;
+      const label = document.getElementById(`courriers-label-client-${this.props.match.params.id}`);
+      if (nav && label) {
+        const delta = label.getBoundingClientRect().left - nav.getBoundingClientRect().left;
+        this.setState({ courriersOffset: Math.max(0, Math.round(delta)) });
       }
     } catch (e) {}
   };
@@ -118,6 +131,7 @@ class UserEdit extends React.Component {
       this.setState(next, () => {
         if (tab === 'simulateur') setTimeout(this.computeSimuOffset, 0);
         if (tab === 'documents') setTimeout(this.computeDocsOffset, 0);
+        if (tab === 'courriers') setTimeout(this.computeCourriersOffset, 0);
       });
     }
   };
@@ -223,8 +237,9 @@ class UserEdit extends React.Component {
               </NavLink>
             </NavItem>
             <NavItem>
-              <NavLink className={classnames({ active: this.state.activeTab === 'tasks' })} onClick={() => this.toggle('tasks')}>
-                <Mail className='text-primary mr-50' size={16}/> Courriers
+              <NavLink className={classnames({ active: this.state.activeTab === 'courriers' })} onClick={() => this.toggle('courriers')}>
+                <Mail className='text-primary mr-50' size={16}/>
+                <span id={`courriers-label-client-${id}`}> Courriers</span>
               </NavLink>
             </NavItem>
             <NavItem>
@@ -269,6 +284,9 @@ class UserEdit extends React.Component {
                   <div className='text-muted'>Utilise le module tâches dédié: <a href={`/app/user/clientTask/${id}/all`}>Ouvrir</a></div>
                 </CardBody>
               </Card>
+            </TabPane>
+            <TabPane tabId='courriers'>
+              <CourriersHub id={id} alignOffset={this.state.courriersOffset} labelId={`courriers-label-client-${id}`} />
             </TabPane>
             <TabPane tabId='commentaires'>
               <Card className='mb-1'>

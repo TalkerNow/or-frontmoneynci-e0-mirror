@@ -11,11 +11,22 @@
       .sim-title { font-weight: 800; text-transform: uppercase; letter-spacing: .02em; margin: 6px 0 8px; font-size: 20px; color:#1f2d3d; }
       .sim-help { font-size:14px; line-height:1.55; margin: 0 0 12px; }
       .sim-help strong { color: var(--accent); }
-      table { width:100%; border-collapse:collapse; font-size: 13px; }
+      table { width:auto; max-width:100%; border-collapse:collapse; font-size: 13px; }
       tbody tr:nth-child(even) { background-color: var(--alt); }
       tbody tr:nth-child(odd) { background-color: var(--bg); }
-      td { border: 1px solid var(--border); padding: 8px; vertical-align: middle; text-align:center; }
-      th { background-color: var(--head); color: #fff; border: 1px solid var(--border); padding: 8px; text-align:center; }
+      td { border: 1px solid var(--border); padding: 8px; vertical-align: middle; text-align:center; white-space: nowrap; }
+      th { background-color: var(--head); color: #fff; border: 1px solid var(--border); padding: 8px; text-align:center; white-space: nowrap; width: 1%; }
+      .tableizer-table th:nth-child(2) { white-space: nowrap; width: 1%; }
+      .tableizer-table td:nth-child(2) input[type="text"],
+      .tableizer-table td:nth-child(2) input[type="number"] {
+        width: 110px;
+        max-width: 110px;
+      }
+      .tableizer-table th.ris-header { white-space: nowrap; width: 1%; }
+      .tableizer-table td .ris-input {
+        width: 110px;
+        max-width: 110px;
+      }
       input[type="text"],
       input[type="number"],
       input[type="date"] {
@@ -263,9 +274,33 @@
           });
         });
       }
+      function appendRisColumn(){
+        document.querySelectorAll('.tableizer-table').forEach(function(table){
+          var headerRow = table.querySelector('thead tr');
+          if (headerRow && !headerRow.querySelector('.ris-header')) {
+            var risTh = document.createElement('th');
+            risTh.textContent = 'Points importés RIS';
+            risTh.className = 'ris-header';
+            headerRow.appendChild(risTh);
+          }
+          table.querySelectorAll('tbody tr').forEach(function(row){
+            if (row.querySelector('td.ris-cell')) return;
+            var risTd = document.createElement('td');
+            risTd.className = 'ris-cell';
+            var input = document.createElement('input');
+            input.type = 'number';
+            input.placeholder = 'Points';
+            input.inputMode = 'decimal';
+            input.className = 'ris-input';
+            risTd.appendChild(input);
+            row.appendChild(risTd);
+          });
+        });
+      }
       document.addEventListener('DOMContentLoaded', function(){
         sortTablesDescending();
         initCollapsibles();
+        appendRisColumn();
 
         var saveBtn = document.getElementById('save-ircantec-btn');
         var dateInput = document.getElementById('ircantec-date');

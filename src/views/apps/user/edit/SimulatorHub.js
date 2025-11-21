@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Nav, NavItem, NavLink, Card, CardBody, TabContent, TabPane, FormGroup, Collapse, Modal, ModalHeader, ModalBody, ModalFooter, Button } from 'reactstrap'
 import classnames from 'classnames'
 import ButtonRadioSwitch from '../../../../components/reactstrap/buttons/ButtonRadioSwitch'
@@ -46,6 +46,8 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
   const [innerOffset, setInnerOffset] = useState(0)
   const [visible, setVisible] = useState(false)
   const [innerVisible, setInnerVisible] = useState(false)
+  const arrcoIframeRef = useRef(null)
+  const ircantecIframeRef = useRef(null)
   // (refs to Nav/innerNav removed to avoid function-component ref warnings)
 
   // const clientFullName = useMemo(() => {
@@ -138,6 +140,20 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
       setInnerVisible(false)
     }
   }, [subTab, innerOffset, regimeTab])
+
+  const hideSimulatorSaveButtons = useCallback(() => {
+    [arrcoIframeRef.current, ircantecIframeRef.current].forEach((iframe) => {
+      if (!iframe) return
+      try {
+        const doc = iframe.contentDocument || iframe.contentWindow?.document
+        if (!doc) return
+        const buttons = doc.querySelectorAll('.points-save-btn')
+        buttons.forEach((btn) => {
+          btn.style.display = 'none'
+        })
+      } catch (e) {}
+    })
+  }, [])
 
   // HYDRATE: load persisted amounts on mount
   useEffect(() => {
@@ -1056,6 +1072,8 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                   <iframe
                     title='arrco-agirc-simulator'
                     src={`${publicUrl}/arrco-simulator.html`}
+                    ref={arrcoIframeRef}
+                    onLoad={hideSimulatorSaveButtons}
                     style={{ width: '100%', height: '1150px', border: '0', borderRadius: '8px', background: 'transparent' }}
                   />
                 </CardBody>
@@ -1068,6 +1086,8 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                   <iframe
                     title='ircantec-simulator'
                     src={`${publicUrl}/ircantec-simulator.html`}
+                    ref={ircantecIframeRef}
+                    onLoad={hideSimulatorSaveButtons}
                     style={{ width: '100%', height: '1150px', border: '0', borderRadius: '8px', background: 'transparent' }}
                   />
                 </CardBody>
