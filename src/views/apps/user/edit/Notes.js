@@ -330,32 +330,6 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
     },
     [id]
   );
-
-      const response = await axios.post(`${global.config.server_url}/uploadFiles`, formData, Config)
-      const files = Array.isArray(response?.data?.files) ? response.data.files : []
-      if (files.length) {
-        const mapped = files.map(f => ({
-          id: f.id || generateDocId(),
-          name: f.filename || 'Document importé',
-          uploadedAt: f.created_at || new Date().toISOString(),
-          url: f.url || '',
-          size: f.size || 0,
-          type: f.mimetype || ''
-        }))
-        setUploadedDocs(prev => {
-          const next = [...(Array.isArray(prev) ? prev : []), ...mapped]
-          persistUploadedDocs(next)
-          return next
-        })
-        toast.success(files.length > 1 ? 'Documents importés' : 'Relevé importé')
-      }
-    } catch {
-      toast.error('Le téléversement a échoué')
-    } finally {
-      setIsUploading(false)
-    }
-  }, [id])
-
   const handleGenerateDoc = useCallback(async (type) => {
     const normalizedType = type === 'consult' ? 'consult' : 'pre'
 
