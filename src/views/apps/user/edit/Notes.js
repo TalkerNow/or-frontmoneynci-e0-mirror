@@ -124,6 +124,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
   const [generatedDocs, setGeneratedDocs] = useState(() => loadStoredDocs())
   const [reportType, setReportType] = useState('pre')
   const [deleteConfirmTarget, setDeleteConfirmTarget] = useState(null)
+  const [fileToSend, setFileToSend] = useState(null)
   const [manualCareerRows, setManualCareerRows] = useState([
     {
       id: Date.now(),
@@ -217,6 +218,10 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
 
   const handleUpload = useCallback(async (acceptedFiles) => {
     if (!acceptedFiles || !acceptedFiles.length || !id) return
+
+    // On garde le fichier en mémoire pour l'affichage et l'envoi futur
+    setFileToSend(acceptedFiles[0])
+
     setIsUploading(true)
     try {
       const formData = new FormData()
@@ -255,8 +260,30 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
     }
   }, [id])
 
-  const handleGenerateDoc = useCallback((type) => {
+  const handleGenerateDoc = useCallback(async (type) => {
     const normalizedType = type === 'consult' ? 'consult' : 'pre'
+
+    if (normalizedType === 'pre' && fileToSend) {
+      try {
+        const formData = new FormData()
+        formData.append('file', fileToSend)
+
+        const Config = {
+          headers: {
+            Authorization: 'Bearer ' + localStorage.getItem('token'),
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+
+        toast.info('Envoi vers n8n en cours...')
+        await axios.post(`${global.config.server_url}/sendToN8n`, formData, Config)
+        toast.success('Envoyé à n8n avec succès')
+      } catch (error) {
+        console.error(error)
+        toast.error('Erreur lors de l\'envoi à n8n')
+      }
+    }
+
     setReportType(normalizedType)
     const label = normalizedType === 'consult' ? 'Rapport consultation' : 'Rapport pré-entretien'
     const doc = {
@@ -267,7 +294,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
       url: DEFAULT_DOC_URLS[normalizedType]
     }
     setGeneratedDocs(prev => [doc, ...prev])
-  }, [clientNames.displayName])
+  }, [clientNames.displayName, fileToSend])
 
   const handleOpenDoc = useCallback((doc) => {
     if (!doc || !doc.url) {
@@ -379,6 +406,28 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
               onDrop={handleUpload}
               isUploading={isUploading}
             />
+
+            {/* --- VISUAL FEEDBACK POUR L'UPLOAD --- */}
+            {fileToSend && (
+              <div style={{
+                marginTop: '10px',
+                padding: '10px',
+                backgroundColor: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                borderRadius: '6px',
+                textAlign: 'center'
+              }}>
+                <div style={{ color: '#166534', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                  <span role="img" aria-label="check" style={{ marginRight: '6px' }}>✅</span>
+                  Fichier chargé : {fileToSend.name}
+                </div>
+                <div style={{ color: '#15803d', fontSize: '0.75rem', marginTop: '2px' }}>
+                  Prêt pour l'analyse
+                </div>
+              </div>
+            )}
+            {/* ------------------------------------- */}
+
             <div className='notes-upload-actions notes-action-row'>
               <Button
                 className={`notes-report-btn notes-action-btn ${reportType === 'pre' ? 'is-active' : ''}`}
