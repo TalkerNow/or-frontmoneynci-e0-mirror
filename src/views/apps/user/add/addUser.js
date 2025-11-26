@@ -708,7 +708,7 @@ class AddUser extends React.Component {
             </Col>
             <Col md="6" sm="12">
               <FormGroup>
-                <Label for="member">Expert</Label>
+                <Label for="member">Consultant</Label>
                 <CustomInput
                   type="select"
                   name="member"

@@ -11,7 +11,7 @@ import {
   Button,
   FormGroup,
   CustomInput,
-  CardHeader
+  CardHeader,
 } from "reactstrap";
 import Chip from "../../../../src/components/@vuexy/chips/ChipComponent";
 import LabeledCheckboxMaterialUi from "labeled-checkbox-material-ui";
@@ -106,28 +106,44 @@ class EditContract extends React.Component {
 
   rowPrimaryKey = (id) => {
     switch (id) {
-      case "r1": return "c1";
-      case "r2": return "c2";
-      case "r3": return "c3";
-      case "r4": return "c4";
-      case "r5": return "c5";
-      case "r6": return "c6";
-      case "r7": return "c7";
-      default: return null;
+      case "r1":
+        return "c1";
+      case "r2":
+        return "c2";
+      case "r3":
+        return "c3";
+      case "r4":
+        return "c4";
+      case "r5":
+        return "c5";
+      case "r6":
+        return "c6";
+      case "r7":
+        return "c7";
+      default:
+        return null;
     }
   };
 
   labelFor = (id) => {
     const fv = this.state.formValues || {};
     switch (id) {
-      case "r1": return fv["title1"] || "Minutes + PU (min / €/h)";
-      case "r2": return fv["title2"] || "Forfait + option rachat/chômage";
-      case "r3": return fv["title3"] || "Ligne 3 (forfait)";
-      case "r4": return fv["title4"] || "Forfait + 1ère période à l’étranger";
-      case "r5": return fv["title5"] || "Forfait + 2ème période à l’étranger";
-      case "r6": return fv["title6"] || "Ligne 6 (forfait)";
-      case "r7": return fv["title7"] || "Ligne 7 (forfait)";
-      default: return id;
+      case "r1":
+        return fv["title1"] || "Minutes + PU (min / €/h)";
+      case "r2":
+        return fv["title2"] || "Forfait + option rachat/chômage";
+      case "r3":
+        return fv["title3"] || "Ligne 3 (forfait)";
+      case "r4":
+        return fv["title4"] || "Forfait + 1ère période à l’étranger";
+      case "r5":
+        return fv["title5"] || "Forfait + 2ème période à l’étranger";
+      case "r6":
+        return fv["title6"] || "Ligne 6 (forfait)";
+      case "r7":
+        return fv["title7"] || "Ligne 7 (forfait)";
+      default:
+        return id;
     }
   };
 
@@ -150,21 +166,31 @@ class EditContract extends React.Component {
 
   addRowById = (id) => {
     const key = this.rowPrimaryKey(id);
-    this.setState((prev) => ({
-      selectedRows: prev.selectedRows.includes(id) ? prev.selectedRows : [...prev.selectedRows, id],
-      formValues: key ? { ...prev.formValues, [key]: true } : prev.formValues,
-      isDirty: true,
-    }), this.calculate);
+    this.setState(
+      (prev) => ({
+        selectedRows: prev.selectedRows.includes(id)
+          ? prev.selectedRows
+          : [...prev.selectedRows, id],
+        formValues: key ? { ...prev.formValues, [key]: true } : prev.formValues,
+        isDirty: true,
+      }),
+      this.calculate
+    );
     if (key) input_values[key] = true;
   };
 
   removeRowById = (id) => {
     const key = this.rowPrimaryKey(id);
-    this.setState((prev) => ({
-      selectedRows: prev.selectedRows.filter((r) => r !== id),
-      formValues: key ? { ...prev.formValues, [key]: false } : prev.formValues,
-      isDirty: true,
-    }), this.calculate);
+    this.setState(
+      (prev) => ({
+        selectedRows: prev.selectedRows.filter((r) => r !== id),
+        formValues: key
+          ? { ...prev.formValues, [key]: false }
+          : prev.formValues,
+        isDirty: true,
+      }),
+      this.calculate
+    );
     if (key) input_values[key] = false;
   };
 
@@ -320,24 +346,24 @@ class EditContract extends React.Component {
 
     axios
       .get(
-        global.config.server_url + "/get_contract/" + this.props.match.params.id,
+        global.config.server_url +
+          "/get_contract/" +
+          this.props.match.params.id,
         Config
       )
       .then((response) => {
         let rowData = response.data.data;
-        const acompteDates =
-          Array.isArray(rowData.acompte_dates)
-            ? rowData.acompte_dates
-            : rowData.acompte_dates
-              ? JSON.parse(rowData.acompte_dates)
-              : [];
+        const acompteDates = Array.isArray(rowData.acompte_dates)
+          ? rowData.acompte_dates
+          : rowData.acompte_dates
+          ? JSON.parse(rowData.acompte_dates)
+          : [];
 
-        const soldDates =
-          Array.isArray(rowData.sold_dates)
-            ? rowData.sold_dates
-            : rowData.sold_dates
-              ? JSON.parse(rowData.sold_dates)
-              : [];
+        const soldDates = Array.isArray(rowData.sold_dates)
+          ? rowData.sold_dates
+          : rowData.sold_dates
+          ? JSON.parse(rowData.sold_dates)
+          : [];
         const KNOWN_PAYMENT_METHODS = [
           "Virement bancaire",
           "Chèque de banque",
@@ -375,7 +401,10 @@ class EditContract extends React.Component {
           input_values = { ...values };
           // calcule les montants puis active les lignes concernées
           this.setState(
-            { formValues: values, selectedRows: this.computeSelectedRows(values) },
+            {
+              formValues: values,
+              selectedRows: this.computeSelectedRows(values),
+            },
             this.calculate
           );
         } else {
@@ -390,7 +419,7 @@ class EditContract extends React.Component {
     // Si la case n'est pas cochée, on ne fait rien
     if (!this.state.formValues.credit_impot_50) return;
 
-    const userId = this.state.user_id;   // 👈 CORRECTION ICI
+    const userId = this.state.user_id; // 👈 CORRECTION ICI
     if (!userId) return;
 
     const config = {
@@ -607,7 +636,10 @@ class EditContract extends React.Component {
     axios
       .post(
         global.config.server_url + "/set_user_subscribe_services",
-        { user_id: userid, subscribe_services: JSON.stringify(subscribe_services) },
+        {
+          user_id: userid,
+          subscribe_services: JSON.stringify(subscribe_services),
+        },
         Config
       )
       .catch(function (error) {
@@ -649,8 +681,10 @@ class EditContract extends React.Component {
     parameters["unipro"] = this.state.formValues.credit_impot_50 ? 1 : 0;
     this.appendCreditImpotNote();
     parameters["advanced_payment"] = this.state.formValues["TOTALTTC"] || 0;
-    parameters["pre_payment"] = parseFloat(this.state.formValues["FINAL75"]) || 0;
-    parameters["end_payment"] = parseFloat(this.state.formValues["FINAL25"]) || 0;
+    parameters["pre_payment"] =
+      parseFloat(this.state.formValues["FINAL75"]) || 0;
+    parameters["end_payment"] =
+      parseFloat(this.state.formValues["FINAL25"]) || 0;
     parameters["deposit_date"] = this.state.deposit_date;
     parameters["sold_date"] = this.state.sold_date;
 
@@ -675,14 +709,16 @@ class EditContract extends React.Component {
     window.print();
   };
 
-  toInputValue = (sql) => { // "YYYY-MM-DD HH:mm:ss" -> "YYYY-MM-DDTHH:mm"
-    if (!sql) return '';
-    return sql.replace(' ', 'T').slice(0, 16);
+  toInputValue = (sql) => {
+    // "YYYY-MM-DD HH:mm:ss" -> "YYYY-MM-DDTHH:mm"
+    if (!sql) return "";
+    return sql.replace(" ", "T").slice(0, 16);
   };
 
-  fromInputValue = (v) => { // "YYYY-MM-DDTHH:mm" -> "YYYY-MM-DD HH:mm:00"
-    if (!v) return '';
-    return v.replace('T', ' ') + ':00';
+  fromInputValue = (v) => {
+    // "YYYY-MM-DDTHH:mm" -> "YYYY-MM-DD HH:mm:00"
+    if (!v) return "";
+    return v.replace("T", " ") + ":00";
   };
 
   addDate = (key) => {
@@ -699,7 +735,7 @@ class EditContract extends React.Component {
   };
 
   updateDate = (key, idx, v) => {
-    this.setState(prev => {
+    this.setState((prev) => {
       const arr = [...(prev[key] || [])];
       arr[idx] = v;
       return { [key]: arr, isDirty: true };
@@ -707,10 +743,13 @@ class EditContract extends React.Component {
   };
 
   removeDate = (key, idx) => {
-    this.setState(prev => {
+    const editKey = `${key}_editing`;
+    this.setState((prev) => {
       const arr = [...(prev[key] || [])];
+      const editArr = [...(prev[editKey] || [])];
       arr.splice(idx, 1);
-      return { [key]: arr, isDirty: true };
+      editArr.splice(idx, 1);
+      return { [key]: arr, [editKey]: editArr, isDirty: true };
     });
   };
 
@@ -719,7 +758,10 @@ class EditContract extends React.Component {
       <React.Fragment>
         <Row>
           <Col xs="12" md="12" className="contract-header mb-1 px-0">
-            <div className="d-flex align-items-center justify-content-between" style={{ minHeight: 50, gap: 12 }}>
+            <div
+              className="d-flex align-items-center justify-content-between"
+              style={{ minHeight: 50, gap: 12 }}
+            >
               {/* Gauche : Retour + Prestation */}
               <div className="d-flex align-items-center" style={{ gap: 10 }}>
                 <Button.Ripple
@@ -728,7 +770,9 @@ class EditContract extends React.Component {
                   title="Retour"
                   className="btn-icon rounded-circle p-0 d-flex align-items-center justify-content-center"
                   style={{ width: 32, height: 32 }}
-                  onClick={() => history.push("/app/user/edit/" + this.state.user_id + "/3")}
+                  onClick={() =>
+                    history.push("/app/user/edit/" + this.state.user_id + "/3")
+                  }
                 >
                   <ArrowLeft size={16} />
                 </Button.Ripple>
@@ -739,13 +783,19 @@ class EditContract extends React.Component {
                     <span className="align-middle">Prestation :</span>
                   </h5>
 
-                  <div className="d-flex align-items-center flex-wrap" style={{ gap: 4 }}>
+                  <div
+                    className="d-flex align-items-center flex-wrap"
+                    style={{ gap: 4 }}
+                  >
                     {(() => {
                       let subscribe_service = this.state.subscribe_services;
                       if (!subscribe_service) return <div>No</div>;
-                      let lst = subscribe_service.replaceAll('"', "").trim().split("/");
+                      let lst = subscribe_service
+                        .replaceAll('"', "")
+                        .trim()
+                        .split("/");
                       return lst
-                        .filter(s => s && s.trim() !== "")
+                        .filter((s) => s && s.trim() !== "")
                         .map((service, idx) => (
                           <Chip
                             key={idx}
@@ -765,10 +815,14 @@ class EditContract extends React.Component {
                   color={this.state.isDirty ? "success" : "secondary"}
                   disabled={!this.state.isDirty}
                   style={{ height: 40, lineHeight: "40px", padding: "0 16px" }}
-                  onClick={() => { if (this.state.isDirty) this.sendForm(); }}
+                  onClick={() => {
+                    if (this.state.isDirty) this.sendForm();
+                  }}
                 >
                   <Save size="15" />
-                  <span className="align-middle ml-50">Enregistrer le contrat</span>
+                  <span className="align-middle ml-50">
+                    Enregistrer le contrat
+                  </span>
                 </Button>
 
                 <Button
@@ -784,13 +838,15 @@ class EditContract extends React.Component {
 
             {/* ====== CONTRAT (affichage conditionnel) ====== */}
 
-
             {/* ====== CONTRAT (affichage conditionnel) ====== */}
             <FormGroup style={{ marginTop: "8px", marginBottom: 0 }}>
               <Card className="mb-1 shadow-sm" style={{ borderRadius: 10 }}>
                 <CardHeader
                   className="py-1 d-flex align-items-center"
-                  style={{ background: "#f8f9fa", borderBottom: "1px solid #e9ecef" }}
+                  style={{
+                    background: "#f8f9fa",
+                    borderBottom: "1px solid #e9ecef",
+                  }}
                 >
                   <h5 className="mb-0">Contrat</h5>
                 </CardHeader>
@@ -841,7 +897,9 @@ class EditContract extends React.Component {
                         <LabeledCheckboxMaterialUi
                           label=""
                           checked={this.state.formValues["c1"]}
-                          onChange={(checked) => this.onPrimaryToggle(checked, "c1", "r1")}
+                          onChange={(checked) =>
+                            this.onPrimaryToggle(checked, "c1", "r1")
+                          }
                         />
                         <span style={{ fontWeight: 500, color: "#5e5873" }}>{this.state.formValues["title1"]}</span>
 
@@ -866,7 +924,9 @@ class EditContract extends React.Component {
 
                         <VSep />
 
-                        <Ghost><LabeledCheckboxMaterialUi label="" checked={false} /></Ghost>
+                        <Ghost>
+                          <LabeledCheckboxMaterialUi label="" checked={false} />
+                        </Ghost>
                         <Ghost>Option</Ghost>
                         <Ghost>Nb</Ghost>
                         <Ghost><Input style={{ ...inputStyle, width: 70 }} /></Ghost>
@@ -878,7 +938,9 @@ class EditContract extends React.Component {
                         <LabeledCheckboxMaterialUi
                           label=""
                           checked={this.state.formValues[`c${n}`]}
-                          onChange={(checked) => this.onPrimaryToggle(checked, `c${n}`, `r${n}`)}
+                          onChange={(checked) =>
+                            this.onPrimaryToggle(checked, `c${n}`, `r${n}`)
+                          }
                         />
                         <span style={{ fontWeight: 500, color: "#5e5873" }}>{this.state.formValues[`title${n}`]}</span>
 
@@ -897,7 +959,9 @@ class EditContract extends React.Component {
 
                         <VSep />
 
-                        <Ghost><LabeledCheckboxMaterialUi label="" checked={false} /></Ghost>
+                        <Ghost>
+                          <LabeledCheckboxMaterialUi label="" checked={false} />
+                        </Ghost>
                         <Ghost>Option</Ghost>
                         <Ghost>Nb</Ghost>
                         <Ghost><Input style={{ ...inputStyle, width: 70 }} /></Ghost>
@@ -912,7 +976,9 @@ class EditContract extends React.Component {
                           <LabeledCheckboxMaterialUi
                             label=""
                             checked={this.state.formValues[`c${n}`]}
-                            onChange={(checked) => this.onPrimaryToggle(checked, `c${n}`, `r${n}`)}
+                            onChange={(checked) =>
+                              this.onPrimaryToggle(checked, `c${n}`, `r${n}`)
+                            }
                           />
                           <span style={{ fontWeight: 500, color: "#5e5873" }}>{this.state.formValues[`title${n}`]}</span>
 
@@ -941,16 +1007,22 @@ class EditContract extends React.Component {
                               <div
                                 style={{
                                   display: "grid",
-                                  gridTemplateColumns: "32px minmax(0,1fr) 24px 70px",
+                                  gridTemplateColumns:
+                                    "32px minmax(0,1fr) 24px 70px",
                                   columnGap: 8,
                                   alignItems: "center",
                                 }}
                               >
                                 <LabeledCheckboxMaterialUi
                                   label=""
-                                  checked={this.state.formValues[optionCheckKey]}
+                                  checked={
+                                    this.state.formValues[optionCheckKey]
+                                  }
                                   onChange={(checked) =>
-                                    this.handleCheckChange(checked, optionCheckKey)
+                                    this.handleCheckChange(
+                                      checked,
+                                      optionCheckKey
+                                    )
                                   }
                                 />
                                 <span
@@ -970,7 +1042,10 @@ class EditContract extends React.Component {
                                   type="text"
                                   value={this.state.formValues[optionNbKey]}
                                   onChange={(e) =>
-                                    this.handleFieldChange(optionNbKey, e.target.value)
+                                    this.handleFieldChange(
+                                      optionNbKey,
+                                      e.target.value
+                                    )
                                   }
                                   style={{ ...inputStyle, width: "100%" }}
                                 />
@@ -1004,7 +1079,10 @@ class EditContract extends React.Component {
                                 label=""
                                 checked={this.state.formValues[optionCheckKey]}
                                 onChange={(checked) =>
-                                  this.handleCheckChange(checked, optionCheckKey)
+                                  this.handleCheckChange(
+                                    checked,
+                                    optionCheckKey
+                                  )
                                 }
                               />
                               <span
@@ -1024,7 +1102,10 @@ class EditContract extends React.Component {
                                 type="text"
                                 value={this.state.formValues[optionNbKey]}
                                 onChange={(e) =>
-                                  this.handleFieldChange(optionNbKey, e.target.value)
+                                  this.handleFieldChange(
+                                    optionNbKey,
+                                    e.target.value
+                                  )
                                 }
                                 style={{ ...inputStyle, width: 70 }}
                               />
@@ -1035,7 +1116,9 @@ class EditContract extends React.Component {
                     };
 
                     // Sélecteur d’ajout
-                    const AddRowSelect = ({ placeholder = "Ajouter une ligne" }) => {
+                    const AddRowSelect = ({
+                      placeholder = "Ajouter une ligne",
+                    }) => {
                       const avail = this.availableRowIds();
                       if (avail.length === 0) return null;
                       return (
@@ -1092,7 +1175,9 @@ class EditContract extends React.Component {
                               i={i++}
                               n={2}
                               optionCheckKey="cnb2"
-                              optionLabel={this.state.formValues["subcontent2-2"]}
+                              optionLabel={
+                                this.state.formValues["subcontent2-2"]
+                              }
                               optionNbKey="nb2"
                             />
                           );
@@ -1107,7 +1192,9 @@ class EditContract extends React.Component {
                               i={i++}
                               n={4}
                               optionCheckKey="cnb4"
-                              optionLabel={this.state.formValues["subcontent4-7"]}
+                              optionLabel={
+                                this.state.formValues["subcontent4-7"]
+                              }
                               optionNbKey="nb4"
                             />
                           );
@@ -1119,7 +1206,9 @@ class EditContract extends React.Component {
                               i={i++}
                               n={5}
                               optionCheckKey="cnb5"
-                              optionLabel={this.state.formValues["subcontent5-2"]}
+                              optionLabel={
+                                this.state.formValues["subcontent5-2"]
+                              }
                               optionNbKey="nb5"
                             />
                           );
@@ -1216,7 +1305,10 @@ class EditContract extends React.Component {
                   <Card className="mb-1 shadow-sm" style={{ borderRadius: 10 }}>
                     <CardHeader
                       className="py-1 d-flex align-items-center"
-                      style={{ background: "#f8f9fa", borderBottom: "1px solid #e9ecef" }}
+                      style={{
+                        background: "#f8f9fa",
+                        borderBottom: "1px solid #e9ecef",
+                      }}
                     >
                       <h5 className="mb-0">Statut & Paiements</h5>
                     </CardHeader>
@@ -1225,21 +1317,65 @@ class EditContract extends React.Component {
                       <Row className="align-items-center">
                         <Col md="6" sm="12" className="mb-1">
                           <div className="d-flex flex-wrap" style={{ gap: 8 }}>
-                            <Radio label="En attente" color="primary" name="status"
+                            <Radio
+                              label="En attente"
+                              color="primary"
+                              name="status"
                               checked={this.state.status === "En attente"}
-                              onChange={() => this.setState({ status: "En attente", isDirty: true })} />
-                            <Radio label="En cours" color="primary" name="status"
+                              onChange={() =>
+                                this.setState({
+                                  status: "En attente",
+                                  isDirty: true,
+                                })
+                              }
+                            />
+                            <Radio
+                              label="En cours"
+                              color="primary"
+                              name="status"
                               checked={this.state.status === "En cours"}
-                              onChange={() => this.setState({ status: "En cours", isDirty: true })} />
-                            <Radio label="Terminé" color="primary" name="status"
+                              onChange={() =>
+                                this.setState({
+                                  status: "En cours",
+                                  isDirty: true,
+                                })
+                              }
+                            />
+                            <Radio
+                              label="Terminé"
+                              color="primary"
+                              name="status"
                               checked={this.state.status === "Terminé"}
-                              onChange={() => this.setState({ status: "Terminé", isDirty: true })} />
-                            <Radio label="Perdu" color="primary" name="status"
+                              onChange={() =>
+                                this.setState({
+                                  status: "Terminé",
+                                  isDirty: true,
+                                })
+                              }
+                            />
+                            <Radio
+                              label="Perdu"
+                              color="primary"
+                              name="status"
                               checked={this.state.status === "Perdu"}
-                              onChange={() => this.setState({ status: "Perdu", isDirty: true })} />
+                              onChange={() =>
+                                this.setState({
+                                  status: "Perdu",
+                                  isDirty: true,
+                                })
+                              }
+                            />
                           </div>
-                          <div className="d-flex align-items-center mt-1" style={{ gap: 8 }}>
-                            <span className="text-muted" style={{ minWidth: 130 }}>Moyen de paiement</span>
+                          <div
+                            className="d-flex align-items-center mt-1"
+                            style={{ gap: 8 }}
+                          >
+                            <span
+                              className="text-muted"
+                              style={{ minWidth: 130 }}
+                            >
+                              Moyen de paiement
+                            </span>
 
                             {/* Liste de choix */}
                             <Input
@@ -1279,14 +1415,41 @@ class EditContract extends React.Component {
                         </Col>
 
                         <Col md="6" sm="12" className="mb-1">
-                          <div className="d-flex align-items-center" style={{ gap: 18 }}>
-                            <CustomInput className="custom-switch-success" type="switch" id="acompte" name="Acompte" inline
-                              checked={this.state.status_payment > 0} onChange={() => this.setStatusPayment(1)}>
-                              <span className="mb-0 switch-label" style={{ paddingTop: 3 }}>Acompte</span>
+                          <div
+                            className="d-flex align-items-center"
+                            style={{ gap: 18 }}
+                          >
+                            <CustomInput
+                              className="custom-switch-success"
+                              type="switch"
+                              id="acompte"
+                              name="Acompte"
+                              inline
+                              checked={this.state.status_payment > 0}
+                              onChange={() => this.setStatusPayment(1)}
+                            >
+                              <span
+                                className="mb-0 switch-label"
+                                style={{ paddingTop: 3 }}
+                              >
+                                Acompte
+                              </span>
                             </CustomInput>
-                            <CustomInput className="custom-switch-success" type="switch" id="sold" name="Sold" inline
-                              checked={this.state.status_payment > 1} onChange={() => this.setStatusPayment(2)}>
-                              <span className="mb-0 switch-label" style={{ paddingTop: 3 }}>Soldé</span>
+                            <CustomInput
+                              className="custom-switch-success"
+                              type="switch"
+                              id="sold"
+                              name="Sold"
+                              inline
+                              checked={this.state.status_payment > 1}
+                              onChange={() => this.setStatusPayment(2)}
+                            >
+                              <span
+                                className="mb-0 switch-label"
+                                style={{ paddingTop: 3 }}
+                              >
+                                Soldé
+                              </span>
                             </CustomInput>
                           </div>
                         </Col>
@@ -1525,7 +1688,13 @@ class EditContract extends React.Component {
                         </Col>
                         <Col md="7" sm="12">
                           {" "}
-                          <h6>{moment(this.ifExist("birth_date")).isValid() ? moment(this.ifExist("birth_date")).format("DD/MM/YYYY") : ""}</h6>
+                          <h6>
+                            {moment(this.ifExist("birth_date")).isValid()
+                              ? moment(this.ifExist("birth_date")).format(
+                                  "DD/MM/YYYY"
+                                )
+                              : ""}
+                          </h6>
                         </Col>
                       </Row>
                     </div>
