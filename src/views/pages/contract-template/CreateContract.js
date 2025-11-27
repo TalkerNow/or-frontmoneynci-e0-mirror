@@ -1206,7 +1206,11 @@ class CreateContract extends React.Component {
                         >
                           <Input
                             type="select"
-                            style={{ width: 360, height: 40 }}
+                            style={{
+                              maxWidth: "360px",
+                              width: "100%",
+                              height: 40,
+                            }}
                             value=""
                             onChange={(e) => {
                               const id = e.target.value;

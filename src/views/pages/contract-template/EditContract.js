@@ -1277,7 +1277,13 @@ class EditContract extends React.Component {
                           className="d-flex align-items-center justify-content-center"
                           style={{ margin: "12px 0" }}
                         >
-                          <div style={{ position: "relative", width: 400 }}>
+                          <div
+                            style={{
+                              position: "relative",
+                              maxWidth: "400px",
+                              width: "100%",
+                            }}
+                          >
                             <Input
                               type="select"
                               style={{
@@ -1587,9 +1593,7 @@ class EditContract extends React.Component {
                             className="d-flex align-items-center mt-1"
                             style={{ gap: 8 }}
                           >
-                            <span
-                              style={{ minWidth: 130 }}
-                            >
+                            <span style={{ minWidth: 130 }}>
                               Moyen de paiement
                             </span>
 
@@ -1691,9 +1695,7 @@ class EditContract extends React.Component {
                       <Row>
                         <Col md="6" sm="12" className="mb-1">
                           <div className="mb-1">
-                            <h6 className="mb-0">
-                              Dates d’acompte
-                            </h6>
+                            <h6 className="mb-0">Dates d’acompte</h6>
                           </div>
                           {(this.state.acompte_dates || []).map((d, idx) => {
                             const isEditing =
@@ -1785,9 +1787,7 @@ class EditContract extends React.Component {
 
                         <Col md="6" sm="12" className="mb-1">
                           <div className="mb-1">
-                            <h6 className="mb-0">
-                              Dates de paiement
-                            </h6>
+                            <h6 className="mb-0">Dates de paiement</h6>
                           </div>
                           {(this.state.sold_dates || []).map((d, idx) => {
                             const isEditing =
