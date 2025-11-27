@@ -14,6 +14,7 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import UploadCard from "./components/UploadCard";
 import GeneratedDocumentItem from "./components/GeneratedDocumentItem";
+import { AlertTriangle } from "react-feather";
 import "../../../../assets/scss/pages/notes-hub.scss";
 
 const DOC_STORAGE_KEY = "career_generated_docs_v1";
@@ -443,6 +444,20 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
     toast.info("Import manuel à venir");
   }, []);
 
+  const handleReportRisBug = useCallback(() => {
+    const dummyDoc = {
+      id: "ris-report",
+      name: "Relevé de carrière (RIS)",
+      type: "ris",
+      url: "",
+    };
+    if (typeof onReportError === "function") {
+      onReportError("ris", dummyDoc);
+    } else {
+      toast.info("Signalement enregistré");
+    }
+  }, [onReportError]);
+
   return (
     <div className="notes-layout">
       <div className="notes-top-row">
@@ -474,8 +489,29 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
 
         <Card className="notes-card notes-card--compact notes-card--upload">
           <CardBody className="notes-upload-body">
+            <div className="d-flex justify-content-between align-items-center mb-1">
+              <h5 className="notes-card-title mb-0">
+                RIS relevé de carrière du client
+              </h5>
+              <Button
+                color="warning"
+                outline
+                size="sm"
+                onClick={handleReportRisBug}
+                style={{
+                  fontSize: "0.8rem",
+                  padding: "4px 10px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <AlertTriangle size={14} />
+                Signaler un bug
+              </Button>
+            </div>
             <UploadCard
-              title="Relevé de carrière du client"
+              title={null}
               description="Glissez et déposez des fichiers ici, ou cliquez pour sélectionner des fichiers à télécharger."
               onDrop={handleUpload}
               isUploading={isUploading}

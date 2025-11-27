@@ -184,6 +184,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
     };
   });
   const [isRciDashboardOpen, setIsRciDashboardOpen] = useState(true);
+  const [isRciCalculatorOpen, setIsRciCalculatorOpen] = useState(false);
 
   // Safe public URL (avoid ReferenceError when process is undefined)
   const publicUrl =
@@ -862,6 +863,8 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
       <>
         <style>{`
         .hypo-grid { display: flex; flex-direction: column; gap: 20px; }
+        .hypo-indent-lg { padding: 24px 40px !important; }
+        @media (max-width: 576px) { .hypo-indent-lg { padding: 20px 16px !important; } }
         .hypo-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; }
         .hypo-row + .hypo-row { margin-top: 4px; }
         .hypo-ctrl { display: inline-flex; align-items: center; gap: 12px; }
@@ -1048,7 +1051,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
         .bilan-wrap {
           border: 1px solid #e9e9e9; border-radius: 0; overflow: hidden;
           box-shadow: 0 6px 20px rgba(16,24,40,.04); background: #fff;
-          width: 100%; max-width: 820px; margin: 0; display: block;
+          width: 100%; max-width: 820px; margin-left: auto; display: block;
         }
         .bilan-wrap .table-responsive { width: 100%; max-width: 100%; }
         /* Ensure responsive scroll on narrow screens */
@@ -1197,6 +1200,31 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
           .regime-table { min-width: 680px; }
           .regime-table thead th { font-size: 12px; padding: 7px; } /* slightly larger on mobile */
           .regime-table td { font-size: 12px; padding: 8px; }
+        }
+
+        /* RCI Specific Styles to match IRCANTEC */
+        .sim-title { font-weight: 800; text-transform: uppercase; letter-spacing: .02em; margin: 6px 0 8px; font-size: 20px; color: #1f2d3d; }
+        .points-section { display: flex; flex-direction: column; gap: 15px; margin-top: 0.75rem; padding: 0 16px 16px; }
+        .points-row { display: flex; align-items: center; justify-content: flex-start; margin-bottom: 15px; gap: 10px; flex-wrap: wrap; }
+        
+        /* Fixed width for the left column (labels) */
+        .points-label { display: inline-block; width: 350px; min-width: 350px; margin-right: 0; font-size: 14px; font-weight: 600; color: #1f2d3d; text-transform: none; }
+        
+        /* Special case for the date row where the "label" is a wrapper containing text + input */
+        .rci-date-wrapper { width: 350px; min-width: 350px; display: flex; align-items: center; gap: 10px; }
+        .rci-date-wrapper .points-label { width: auto; min-width: auto; margin-right: 0; }
+
+        /* Special case for "Projection rente capital à [Age] ans" */
+        .rci-age-wrapper { width: 350px; min-width: 350px; display: flex; align-items: center; }
+        .rci-age-wrapper .points-label { width: auto; min-width: auto; margin-right: 10px; }
+
+        .points-input { width: 150px; padding: 6px 8px; border: 1px solid #ddd; border-radius: 6px; outline: none; display: block; background-color: #fff; color: #1f2d3d; }
+
+        @media (max-width: 768px) {
+          .points-row { flex-direction: column; align-items: flex-start; gap: 6px; }
+          .points-label, .rci-date-wrapper, .rci-age-wrapper { width: 100%; min-width: 0; }
+          .points-input { width: 100% !important; }
+          .rci-date-wrapper, .rci-age-wrapper { justify-content: space-between; }
         }
       `}</style>
 
@@ -1378,28 +1406,6 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
         .collapsible-header { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; border:0; background:transparent; cursor:pointer; border-radius:16px; font-size:18px; font-weight:700; color:#1f2d3d; }
         .collapsible-header .chevron { transition: transform .25s ease; color:#6b7280; }
         .collapsible-header.open .chevron { transform: rotate(180deg); }
-        
-        .sim-title { font-weight: 800; text-transform: uppercase; letter-spacing: .02em; margin: 6px 0 8px; font-size: 20px; color:#1f2d3d; }
-        
-        .points-section { display:flex; flex-direction:column; gap:15px; margin-top:0.75rem; padding: 16px; }
-        
-        .points-row { display:flex; align-items:center; justify-content:flex-start; margin-bottom:15px; gap:10px; flex-wrap:wrap; }
-        .points-row:last-child { margin-bottom: 0; }
-        
-        .points-label { display:inline-block; min-width:220px; margin-right:10px; font-size:14px; font-weight:600; color:#1f2d3d; text-transform:none; }
-        
-        .points-input {
-          width: 130px;
-          padding: 4px;
-          font-size: 14px;
-          border: 1px solid #ddd;
-          border-radius: 6px;
-          outline: none;
-          display: block;
-          background-color: #fff;
-          color: #1f2d3d;
-        }
-        .points-input:focus { outline: none; border-color: #7367f0; }
         
         .points-suffix { font-size: 14px; color: #6b7280; font-weight: 500; text-transform: lowercase; }
         
@@ -1603,222 +1609,200 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
             </TabPane>
 
             <TabPane tabId="rci">
-              <div className="points-collapsible">
-                <div className="collapsible">
-                  <button
-                    type="button"
-                    className={classnames("collapsible-header", {
-                      open: isRciDashboardOpen,
-                    })}
-                    onClick={() => setIsRciDashboardOpen((prev) => !prev)}
-                    aria-expanded={isRciDashboardOpen}
-                    aria-controls="rci-dashboard-panel"
-                  >
-                    <span className="sim-title" style={{ margin: 0 }}>
-                      TABLEAU DE BORD
-                    </span>
-                    <span className="chevron" aria-hidden="true">
-                      <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
+              <Card className="mb-1" style={{ minHeight: "1150px" }}>
+                <CardBody>
+                  <div className="points-collapsible">
+                    <div className="collapsible">
+                      <button
+                        type="button"
+                        className={classnames("collapsible-header", {
+                          open: isRciDashboardOpen,
+                        })}
+                        onClick={() => setIsRciDashboardOpen((prev) => !prev)}
+                        aria-expanded={isRciDashboardOpen}
+                        aria-controls="rci-dashboard-panel"
                       >
-                        <polyline points="6 9 12 15 18 9"></polyline>
-                      </svg>
-                    </span>
-                  </button>
-                  <Collapse isOpen={isRciDashboardOpen}>
-                    <div id="rci-dashboard-panel" className="points-section">
-                      <div
-                        className="points-row"
-                        style={{ justifyContent: "flex-start" }}
-                      >
+                        <span className="sim-title" style={{ margin: 0 }}>
+                          TABLEAU DE BORD
+                        </span>
+                        <span className="chevron" aria-hidden="true">
+                          <svg
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                          </svg>
+                        </span>
+                      </button>
+                      <Collapse isOpen={isRciDashboardOpen}>
                         <div
-                          className="rci-date-wrapper"
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            minWidth: "350px",
-                            gap: "10px",
-                          }}
+                          id="rci-dashboard-panel"
+                          className="points-section"
                         >
-                          <label
-                            className="points-label"
-                            htmlFor="rci-capital-date"
-                            style={{ minWidth: "auto", marginRight: 0 }}
-                          >
-                            Capital acquis au
-                          </label>
-                          <input
-                            type="date"
-                            id="rci-capital-date"
-                            className="points-input"
-                            value={normalizeDate(
-                              rciDashboardValues.capitalDate
-                            )}
-                            onClick={(e) => {
-                              try {
-                                e.currentTarget.showPicker();
-                              } catch (err) {}
-                            }}
-                            onChange={(e) =>
-                              handleRciDashboardChange(
-                                "capitalDate",
-                                normalizeDate(e.target.value)
-                              )
-                            }
-                            onKeyDown={handleRciKeyDown}
-                          />
-                        </div>
-                        <input
-                          type="text"
-                          id="rci-capital-amount"
-                          className="points-input"
-                          placeholder="Montant (€)"
-                          inputMode="numeric"
-                          value={rciDashboardValues.capitalAmount}
-                          style={{ width: "150px" }}
-                          onChange={(e) =>
-                            handleRciDashboardChange(
-                              "capitalAmount",
-                              e.target.value
-                            )
-                          }
-                          onKeyDown={handleRciKeyDown}
-                        />
-                      </div>
-
-                      <div
-                        className="points-row"
-                        style={{ justifyContent: "flex-start" }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            minWidth: "350px",
-                          }}
-                        >
-                          <label
-                            className="points-label"
-                            htmlFor="rci-projection-age-amount"
-                            style={{ minWidth: "auto", marginRight: "10px" }}
-                          >
-                            Projection rente capital à
-                          </label>
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "6px",
-                            }}
-                          >
+                          <div className="points-row">
+                            <div className="rci-date-wrapper">
+                              <label
+                                className="points-label"
+                                htmlFor="rci-capital-date"
+                              >
+                                Capital acquis au
+                              </label>
+                              <input
+                                type="date"
+                                id="rci-capital-date"
+                                className="points-input"
+                                value={normalizeDate(
+                                  rciDashboardValues.capitalDate
+                                )}
+                                onClick={(e) => {
+                                  try {
+                                    e.currentTarget.showPicker();
+                                  } catch (err) {}
+                                }}
+                                onChange={(e) =>
+                                  handleRciDashboardChange(
+                                    "capitalDate",
+                                    normalizeDate(e.target.value)
+                                  )
+                                }
+                                onKeyDown={handleRciKeyDown}
+                                style={{ width: "130px" }}
+                              />
+                            </div>
                             <input
-                              type="number"
-                              id="rci-projection-age-input"
+                              type="text"
+                              id="rci-capital-amount"
                               className="points-input"
-                              style={{ width: "60px", textAlign: "center" }}
-                              aria-label="Âge de projection"
-                              min="0"
-                              max="99"
-                              step="1"
+                              placeholder="Montant (€)"
                               inputMode="numeric"
-                              value={rciDashboardValues.projectionAge}
+                              value={rciDashboardValues.capitalAmount}
+                              style={{ width: "150px" }}
                               onChange={(e) =>
                                 handleRciDashboardChange(
-                                  "projectionAge",
+                                  "capitalAmount",
                                   e.target.value
                                 )
                               }
                               onKeyDown={handleRciKeyDown}
                             />
-                            <span className="points-suffix">ans</span>
+                          </div>
+
+                          <div className="points-row">
+                            <div className="rci-age-wrapper">
+                              <label
+                                className="points-label"
+                                htmlFor="rci-projection-age-amount"
+                              >
+                                Projection rente capital à
+                              </label>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                }}
+                              >
+                                <input
+                                  type="number"
+                                  id="rci-projection-age-input"
+                                  className="points-input"
+                                  style={{ width: "60px", textAlign: "center" }}
+                                  aria-label="Âge de projection"
+                                  min="0"
+                                  max="99"
+                                  step="1"
+                                  inputMode="numeric"
+                                  value={rciDashboardValues.projectionAge}
+                                  onChange={(e) =>
+                                    handleRciDashboardChange(
+                                      "projectionAge",
+                                      e.target.value
+                                    )
+                                  }
+                                  onKeyDown={handleRciKeyDown}
+                                />
+                                <span className="points-suffix">ans</span>
+                              </div>
+                            </div>
+                            <input
+                              type="text"
+                              id="rci-projection-age-amount"
+                              className="points-input"
+                              placeholder="Montant rente (€)"
+                              inputMode="numeric"
+                              value={rciDashboardValues.projectionAgeAmount}
+                              style={{ width: "150px" }}
+                              onChange={(e) =>
+                                handleRciDashboardChange(
+                                  "projectionAgeAmount",
+                                  e.target.value
+                                )
+                              }
+                              onKeyDown={handleRciKeyDown}
+                            />
+                          </div>
+
+                          <div className="points-row">
+                            <label
+                              className="points-label"
+                              htmlFor="rci-projection-64"
+                            >
+                              Projection rente capital à 64 ans
+                            </label>
+                            <input
+                              type="text"
+                              id="rci-projection-64"
+                              className="points-input"
+                              placeholder="Montant rente (€)"
+                              inputMode="numeric"
+                              value={rciDashboardValues.projection64Amount}
+                              style={{ width: "150px" }}
+                              onChange={(e) =>
+                                handleRciDashboardChange(
+                                  "projection64Amount",
+                                  e.target.value
+                                )
+                              }
+                              onKeyDown={handleRciKeyDown}
+                            />
+                          </div>
+
+                          <div className="points-row">
+                            <label
+                              className="points-label"
+                              htmlFor="rci-projection-67"
+                            >
+                              Projection rente capital à 67 ans
+                            </label>
+                            <input
+                              type="text"
+                              id="rci-projection-67"
+                              className="points-input"
+                              placeholder="Montant rente (€)"
+                              inputMode="numeric"
+                              value={rciDashboardValues.projection67Amount}
+                              style={{ width: "150px" }}
+                              onChange={(e) =>
+                                handleRciDashboardChange(
+                                  "projection67Amount",
+                                  e.target.value
+                                )
+                              }
+                              onKeyDown={handleRciKeyDown}
+                            />
                           </div>
                         </div>
-                        <input
-                          type="text"
-                          id="rci-projection-age-amount"
-                          className="points-input"
-                          placeholder="Montant rente (€)"
-                          inputMode="numeric"
-                          value={rciDashboardValues.projectionAgeAmount}
-                          style={{ width: "150px" }}
-                          onChange={(e) =>
-                            handleRciDashboardChange(
-                              "projectionAgeAmount",
-                              e.target.value
-                            )
-                          }
-                          onKeyDown={handleRciKeyDown}
-                        />
-                      </div>
-
-                      <div
-                        className="points-row"
-                        style={{ justifyContent: "flex-start" }}
-                      >
-                        <label
-                          className="points-label"
-                          htmlFor="rci-projection-64"
-                          style={{ minWidth: "350px", marginRight: 0 }}
-                        >
-                          Projection rente capital à 64 ans
-                        </label>
-                        <input
-                          type="text"
-                          id="rci-projection-64"
-                          className="points-input"
-                          placeholder="Montant rente (€)"
-                          inputMode="numeric"
-                          value={rciDashboardValues.projection64Amount}
-                          style={{ width: "150px" }}
-                          onChange={(e) =>
-                            handleRciDashboardChange(
-                              "projection64Amount",
-                              e.target.value
-                            )
-                          }
-                          onKeyDown={handleRciKeyDown}
-                        />
-                      </div>
-
-                      <div
-                        className="points-row"
-                        style={{ justifyContent: "flex-start" }}
-                      >
-                        <label
-                          className="points-label"
-                          htmlFor="rci-projection-67"
-                          style={{ minWidth: "350px", marginRight: 0 }}
-                        >
-                          Projection rente capital à 67 ans
-                        </label>
-                        <input
-                          type="text"
-                          id="rci-projection-67"
-                          className="points-input"
-                          placeholder="Montant rente (€)"
-                          inputMode="numeric"
-                          value={rciDashboardValues.projection67Amount}
-                          style={{ width: "150px" }}
-                          onChange={(e) =>
-                            handleRciDashboardChange(
-                              "projection67Amount",
-                              e.target.value
-                            )
-                          }
-                          onKeyDown={handleRciKeyDown}
-                        />
-                      </div>
+                      </Collapse>
                     </div>
-                  </Collapse>
-                </div>
-              </div>
+                  </div>
+                </CardBody>
+              </Card>
             </TabPane>
             <TabPane tabId="per">
               <Card className="mb-1">
@@ -1833,1000 +1817,257 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
         <TabPane tabId="hypotheses">
           <Card className="mb-1 bilan-card">
             <CardBody className="hypo-indent-lg">
-              <FormGroup tag="fieldset" style={{ fontSize: "1rem" }}>
-                <legend className="h6">Hypothèses de fin de carrière</legend>
-                <div className="hypo-grid" style={{ marginBottom: 8 }}>
-                  {/* Sans */}
-                  <div className="hypo-row">
-                    <span className="hypo-label">Sans</span>
-                    <div className="hypo-ctrl">
-                      <ButtonRadioSwitch
-                        noLabel
-                        checked={sans}
-                        onChange={(e) => setSans(e.target.checked)}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Rachat de trimestres (VPLR) */}
-                  <div className="hypo-row">
-                    <span className="hypo-label">
-                      Rachat de trimestres (VPLR)
-                    </span>
-                    <div className="hypo-ctrl">
-                      <div className="vplr-stack">
-                        <div className="vplr-switch-line">
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "24px",
+                  alignItems: "flex-start",
+                }}
+              >
+                <div style={{ flex: "1 1 500px" }}>
+                  <FormGroup tag="fieldset" style={{ fontSize: "1rem" }}>
+                    <legend className="h6">
+                      Hypothèses de fin de carrière
+                    </legend>
+                    <div className="hypo-grid" style={{ marginBottom: 8 }}>
+                      {/* Sans */}
+                      <div className="hypo-row">
+                        <span className="hypo-label">Sans</span>
+                        <div className="hypo-ctrl">
                           <ButtonRadioSwitch
                             noLabel
-                            className={classnames(
-                              "vplr-toggle",
-                              vplrChoice === "etude"
-                                ? "primary-right"
-                                : "primary-left"
-                            )}
-                            checked={vplrChoice === "etude"}
-                            onChange={(e) =>
-                              setVplrChoice(
-                                e.target.checked ? "etude" : "incomplete"
-                              )
-                            }
+                            checked={sans}
+                            onChange={(e) => setSans(e.target.checked)}
                           />
-                          {vplrChoice === "etude" && (
-                            <button
-                              type="button"
-                              className="vplr-add-btn"
-                              style={{
-                                width: 28,
-                                height: 28,
-                                borderRadius: "45%",
-                                padding: 0,
-                                display: "inline-flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                              }}
-                              onClick={() =>
-                                setVplrEntries((prev) => [
-                                  ...(Array.isArray(prev) ? prev : []),
-                                  { id: Date.now(), year: "", trimestres: "" },
-                                ])
-                              }
-                              aria-label="Ajouter un rachat d'année d'étude"
-                            >
-                              +
-                            </button>
-                          )}
                         </div>
                       </div>
-                    </div>
-                  </div>
 
-                  <Collapse isOpen={vplrChoice === "etude"}>
-                    <div className="hypo-row" style={{ paddingTop: 0, gap: 0 }}>
-                      <span className="hypo-label spacer" aria-hidden="true" />
-                      <div className="hypo-ctrl">
-                        <div
-                          className="hypo-panel"
-                          style={{ marginTop: 8, maxWidth: 480 }}
-                        >
-                          {Array.isArray(vplrEntries) && vplrEntries.length ? (
-                            <div className="vplr-entries">
-                              {vplrEntries.map((row) => (
-                                <div key={row.id} className="vplr-entry-row">
-                                  <span className="vplr-entry-label">
-                                    Année
-                                  </span>
-                                  <input
-                                    type="number"
-                                    className="inline-input vplr-entry-input"
-                                    value={(row && row.year) || ""}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      setVplrEntries((prev) =>
-                                        (Array.isArray(prev) ? prev : []).map(
-                                          (r) =>
-                                            r && r.id === row.id
-                                              ? { ...r, year: val }
-                                              : r
-                                        )
-                                      );
-                                    }}
-                                    min="0"
-                                    inputMode="numeric"
-                                  />
-                                  <span className="vplr-entry-label">
-                                    Nombre de trimestres
-                                  </span>
-                                  <input
-                                    type="number"
-                                    className="inline-input vplr-entry-input"
-                                    value={(row && row.trimestres) || ""}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      setVplrEntries((prev) =>
-                                        (Array.isArray(prev) ? prev : []).map(
-                                          (r) =>
-                                            r && r.id === row.id
-                                              ? { ...r, trimestres: val }
-                                              : r
-                                        )
-                                      );
-                                    }}
-                                    min="0"
-                                    inputMode="numeric"
-                                  />
-                                  <button
-                                    type="button"
-                                    className="action-btn danger"
-                                    aria-label="Supprimer cette ligne"
-                                    onClick={() =>
-                                      setVplrEntries((prev) =>
-                                        Array.isArray(prev)
-                                          ? prev.filter(
-                                              (r) => r && r.id !== row.id
-                                            )
-                                          : []
-                                      )
-                                    }
-                                  >
-                                    <svg
-                                      width="16"
-                                      height="16"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeWidth="2"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      aria-hidden="true"
-                                    >
-                                      <polyline points="3 6 5 6 21 6"></polyline>
-                                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
-                                      <path d="M10 11v6"></path>
-                                      <path d="M14 11v6"></path>
-                                      <path d="M9 6V4h6v2"></path>
-                                    </svg>
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p
-                              className="mb-0 text-muted"
-                              style={{ fontSize: "0.9rem" }}
-                            >
-                              Ajoutez vos années à racheter avec le bouton +.
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </Collapse>
-
-                  {/* Salaire par défaut jusqu'au départ (même comportement que les lignes Non) */}
-                  <div
-                    className="hypo-row"
-                    style={{ display: sans ? undefined : "none" }}
-                  >
-                    <div className="hypo-label label-with-info">
-                      <span className="nowrap">Salaire(s) à projeter</span>
-                      {!isSalaryProjected && (
-                        <span
-                          className="hypo-info-icon"
-                          aria-label="Informations sur la projection de salaire"
-                          tabIndex={0}
-                        >
-                          i
-                          <span className="hypo-tooltip">
-                            Prise en compte par défaut des dernières
-                            rémunérations enregistrées
-                          </span>
+                      {/* Rachat de trimestres (VPLR) */}
+                      <div className="hypo-row">
+                        <span className="hypo-label">
+                          Rachat de trimestres (VPLR)
                         </span>
-                      )}
-                    </div>
-                    <div className="hypo-ctrl">
-                      <ButtonRadioSwitch
-                        noLabel
-                        checked={isSalaryProjected}
-                        onChange={(e) => setIsSalaryProjected(e.target.checked)}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Panel animé pour le cas Oui: saisir le salaire par défaut */}
-                <Collapse isOpen={isSalaryProjected && !!sans}>
-                  <div
-                    className="hypo-panel mb-50"
-                    style={{ marginTop: 12, maxWidth: "70%" }}
-                  >
-                    <div
-                      className="hypo-salary-row nowrap"
-                      style={{
-                        marginBottom: 0,
-                        alignItems: "center",
-                        flexWrap: "nowrap",
-                        gap: 12,
-                      }}
-                    >
-                      <span className="hypo-salary-label">
-                        Salaire actuel jusqu’au départ
-                      </span>
-                      <div className="hypo-salary-inputwrap">
-                        <span
-                          aria-hidden="true"
-                          style={{
-                            position: "absolute",
-                            right: 10,
-                            top: "50%",
-                            transform: "translateY(-50%)",
-                            color: "#6e6b7b",
-                            pointerEvents: "none",
-                            fontWeight: 600,
-                          }}
-                        >
-                          €
-                        </span>
-
-                        {salaireDefautRowSafe.fixed ? (
-                          <input
-                            type="text"
-                            readOnly
-                            className="form-control"
-                            value={salaireDefautRowSafe.value ?? ""}
-                            onClick={() => {
-                              setSalaireDefautRow((prev) => ({
-                                ...(prev && typeof prev === "object"
-                                  ? prev
-                                  : { id: "def", value: "", fixed: false }),
-                                fixed: false,
-                              }));
-                              setTimeout(() => {
-                                const el = document.getElementById(
-                                  "salaire-defaut-input"
-                                );
-                                if (el) {
-                                  el.focus();
-                                  const len = el.value.length;
-                                  el.setSelectionRange(len, len);
-                                }
-                              }, 0);
-                            }}
-                            title="Cliquez pour modifier"
-                            style={{
-                              paddingRight: 26,
-                              textAlign: "right",
-                              borderRadius: 6,
-                              background: "#fff",
-                            }}
-                          />
-                        ) : (
-                          <input
-                            id="salaire-defaut-input"
-                            type="text"
-                            inputMode="decimal"
-                            pattern="[0-9]*"
-                            className="form-control"
-                            value={salaireDefautRowSafe.value ?? ""}
-                            onKeyDown={(e) => {
-                              if (!isAllowedKey(e)) e.preventDefault();
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                const raw = (
-                                  (salaireDefautRowSafe &&
-                                    salaireDefautRowSafe.value) ||
-                                  ""
-                                )
-                                  .toString()
-                                  .replace(/\s/g, "")
-                                  .replace(",", ".");
-                                const num = parseFloat(raw);
-                                const formatted = isNaN(num)
-                                  ? salaireDefautRowSafe
-                                    ? salaireDefautRowSafe.value
-                                    : ""
-                                  : new Intl.NumberFormat("fr-FR", {
-                                      minimumFractionDigits: 2,
-                                      maximumFractionDigits: 2,
-                                    }).format(num);
-                                setSalaireDefautRow((prev) => ({
-                                  ...(prev && typeof prev === "object"
-                                    ? prev
-                                    : { id: "def", value: "", fixed: false }),
-                                  value: formatted,
-                                  fixed: true,
-                                }));
-                                e.currentTarget.blur();
-                              }
-                            }}
-                            onChange={(e) => {
-                              const val = sanitizeSalaryInput(e.target.value);
-                              setSalaireDefautRow((prev) => ({
-                                ...(prev && typeof prev === "object"
-                                  ? prev
-                                  : { id: "def", value: "", fixed: false }),
-                                value: val,
-                              }));
-                            }}
-                            placeholder="0,00"
-                            style={{
-                              paddingRight: 26,
-                              textAlign: "right",
-                              borderRadius: 6,
-                              background: "#fff",
-                            }}
-                          />
-                        )}
-                      </div>
-                      <div className="hypo-date-row" style={{ marginLeft: 8 }}>
-                        <span className="hypo-date-sep">Du</span>
-                        <input
-                          type="date"
-                          className="hypo-date-input"
-                          value={normalizeDate(
-                            salaireDefautRowSafe && salaireDefautRowSafe.from
-                          )}
-                          onMouseDown={(e) => {
-                            try {
-                              e.currentTarget.showPicker &&
-                                e.currentTarget.showPicker();
-                            } catch {}
-                          }}
-                          onFocus={(e) => {
-                            try {
-                              e.currentTarget.showPicker &&
-                                e.currentTarget.showPicker();
-                            } catch {}
-                          }}
-                          onChange={(e) => {
-                            const v = e.currentTarget.value || "";
-                            setSalaireDefautRow((prev) => ({
-                              ...(prev && typeof prev === "object"
-                                ? prev
-                                : { id: "def", value: "", fixed: false }),
-                              from: v,
-                            }));
-                          }}
-                          aria-label="Date de début (salaire actuel)"
-                        />
-                        <span className="hypo-date-sep">au</span>
-                        <input
-                          type="date"
-                          className="hypo-date-input"
-                          value={normalizeDate(
-                            salaireDefautRowSafe && salaireDefautRowSafe.to
-                          )}
-                          onMouseDown={(e) => {
-                            try {
-                              e.currentTarget.showPicker &&
-                                e.currentTarget.showPicker();
-                            } catch {}
-                          }}
-                          onFocus={(e) => {
-                            try {
-                              e.currentTarget.showPicker &&
-                                e.currentTarget.showPicker();
-                            } catch {}
-                          }}
-                          onChange={(e) => {
-                            const v = e.currentTarget.value || "";
-                            setSalaireDefautRow((prev) => ({
-                              ...(prev && typeof prev === "object"
-                                ? prev
-                                : { id: "def", value: "", fixed: false }),
-                              to: v,
-                            }));
-                          }}
-                          aria-label="Date de fin (salaire actuel)"
-                        />
-                      </div>
-                      <div className="hypo-salary-toggle inline">
-                        <span className="label">
-                          Projeter plusieurs salaires&nbsp;?
-                        </span>
-                        <ButtonRadioSwitch
-                          noLabel
-                          checked={projectMultiple}
-                          onChange={(e) => setProjectMultiple(e.target.checked)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  {projectMultiple && (
-                    <div
-                      className="hypo-panel mb-50"
-                      style={{ marginTop: 16, maxWidth: 640 }}
-                    >
-                      <div className="hypo-panel-header mb-1">
-                        <span className="text-body" style={{ fontWeight: 600 }}>
-                          Salaire(s) supplémentaires
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setSalaireJusquaDepartRows((prev) => [
-                              ...(Array.isArray(prev) ? prev : []),
-                              { id: Date.now(), value: "", fixed: false },
-                            ])
-                          }
-                          aria-label="Ajouter un salaire supplémentaire"
-                          style={{
-                            border: "1px solid var(--bs-primary, #7367F0)",
-                            color: "var(--bs-primary, #7367F0)",
-                            background: "#fff",
-                            borderRadius: 20,
-                            padding: "2px 8px",
-                            lineHeight: 1.2,
-                            cursor: "pointer",
-                            fontWeight: 600,
-                            alignSelf: "flex-start",
-                            width: "auto",
-                            display: "inline-flex",
-                          }}
-                        >
-                          +
-                        </button>
-                      </div>
-                      <div>
-                        {renderSalaireRows(safeSalaireRows, {
-                          labelOffset: 2,
-                          canDeleteFirst: true,
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </Collapse>
-
-                {/* Zone dynamique "Salaire(s) jusqu’au départ" quand Non */}
-                {/* <Collapse isOpen={!isSalaryProjected && !!sans}>
-                  <div
-                    className='hypo-panel mb-50'
-                    style={{ marginTop: 12, maxWidth: 640 }}
-                  >
-                    <div className='hypo-panel-header mb-1'>
-                      <span className='text-body' style={{ fontWeight: 600 }}>Salaire(s) jusqu’au départ</span>
-                    </div>
-
-                    <div>
-                      {renderSalaireRows(safeSalaireRows, { labelOffset: 1, canDeleteFirst: false })}
-                    </div>
-                  </div>
-                </Collapse> */}
-
-                {/* Autres switches */}
-                <div className="hypo-grid" style={{ marginTop: 16 }}>
-                  <div className="hypo-row">
-                    <span className="hypo-label">Chômage</span>
-                    <div className="hypo-ctrl">
-                      <ButtonRadioSwitch
-                        noLabel
-                        checked={chomage}
-                        onChange={(e) => setChomage(e.target.checked)}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Pavé Chômage – visible quand Oui */}
-                  <Collapse isOpen={!!chomage}>
-                    <div
-                      className="hypo-panel mb-50"
-                      style={{ maxWidth: "57%" }}
-                    >
-                      <div className="chomage-panel-fields">
-                        <div className="chomage-dual-row">
-                          <span
-                            className="hypo-salary-label"
-                            style={{ minWidth: "auto" }}
-                          >
-                            À partir de
-                          </span>
-                          <input
-                            type="date"
-                            className="hypo-date-input"
-                            value={normalizeDate(chomageStartDate)}
-                            onMouseDown={(e) => {
-                              try {
-                                e.currentTarget.showPicker &&
-                                  e.currentTarget.showPicker();
-                              } catch {}
-                            }}
-                            onFocus={(e) => {
-                              try {
-                                e.currentTarget.showPicker &&
-                                  e.currentTarget.showPicker();
-                              } catch {}
-                            }}
-                            onChange={(e) =>
-                              setChomageStartDate(e.currentTarget.value || "")
-                            }
-                            placeholder="JJ/MM/AAAA"
-                          />
-                          <span
-                            className="hypo-salary-label"
-                            style={{ minWidth: "auto" }}
-                          >
-                            Nombre de jours
-                          </span>
-                          {chomageJoursFixed ? (
-                            <input
-                              type="number"
-                              readOnly
-                              className="form-control chomage-days"
-                              value={chomageJours}
-                              onClick={() => {
-                                setChomageJoursFixed(false);
-                                setTimeout(() => {
-                                  const el =
-                                    document.getElementById("chomage-jours");
-                                  if (el) {
-                                    el.focus();
-                                    const len = el.value.length;
-                                    el.setSelectionRange(len, len);
-                                  }
-                                }, 0);
-                              }}
-                              title="Cliquez pour modifier"
-                              placeholder="0"
-                            />
-                          ) : (
-                            <input
-                              id="chomage-jours"
-                              type="number"
-                              min={0}
-                              step={1}
-                              className="form-control chomage-days"
-                              value={chomageJours}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault();
-                                  setChomageJoursFixed(true);
-                                  e.currentTarget.blur();
-                                }
-                              }}
-                              onChange={(e) =>
-                                setChomageJours(
-                                  e.target.value.replace(/[^0-9]/g, "")
-                                )
-                              }
-                              placeholder="0"
-                            />
-                          )}
-                          <span />
-                          <span
-                            className="hypo-salary-label"
-                            style={{ minWidth: "auto" }}
-                          >
-                            Années
-                          </span>
-                          {chomageAnneesFixed ? (
-                            <input
-                              type="number"
-                              readOnly
-                              className="form-control chomage-days"
-                              value={chomageAnnees}
-                              onClick={() => {
-                                setChomageAnneesFixed(false);
-                                setTimeout(() => {
-                                  const el =
-                                    document.getElementById("chomage-annees");
-                                  if (el) {
-                                    el.focus();
-                                    const len = el.value.length;
-                                    el.setSelectionRange(len, len);
-                                  }
-                                }, 0);
-                              }}
-                              title="Cliquez pour modifier"
-                              placeholder="0"
-                            />
-                          ) : (
-                            <input
-                              id="chomage-annees"
-                              type="number"
-                              min={0}
-                              step={1}
-                              className="form-control chomage-days"
-                              value={chomageAnnees}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault();
-                                  setChomageAnneesFixed(true);
-                                  e.currentTarget.blur();
-                                }
-                              }}
-                              onChange={(e) =>
-                                setChomageAnnees(
-                                  e.target.value.replace(/[^0-9]/g, "")
-                                )
-                              }
-                              placeholder="0"
-                            />
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </Collapse>
-
-                  <div
-                    className={classnames("hypo-row", {
-                      "ui-disabled": isCarriereLongueLocked,
-                    })}
-                    aria-disabled={isCarriereLongueLocked}
-                  >
-                    <span className="hypo-label">Carrière longue</span>
-                    <div className="hypo-ctrl">
-                      <ButtonRadioSwitch
-                        noLabel
-                        checked={carriereLongue}
-                        onToggle={handleCarriereLongueToggle}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Pavé Carrière longue – visible quand Oui */}
-                  <Collapse isOpen={!!carriereLongue}>
-                    <div
-                      className="hypo-panel mb-50"
-                      style={{ marginTop: 0, maxWidth: 650 }}
-                    >
-                      <div className="chomage-panel-fields">
-                        {[21, 20, 18, 16].map((age) => (
-                          <div
-                            key={age}
-                            className="chomage-row"
-                            style={{ marginBottom: 6 }}
-                          >
-                            <span
-                              className="hypo-salary-label"
-                              style={{ marginRight: 0, minWidth: "auto" }}
-                            >{`Trimestre avant ${age} ans`}</span>
-                            {clAvantFixed[String(age)] ? (
-                              <input
-                                type="number"
-                                readOnly
-                                className="form-control chomage-trim"
-                                value={clAvantCount[String(age)]}
-                                onClick={() =>
-                                  setClAvantFixed((prev) => ({
-                                    ...(prev || {}),
-                                    [String(age)]: false,
-                                  }))
-                                }
-                                title="Cliquez pour modifier"
-                                placeholder="0"
-                              />
-                            ) : (
-                              <input
-                                id={`cl-trim-avant-${age}`}
-                                type="number"
-                                min={0}
-                                step={1}
-                                className="form-control chomage-trim"
-                                value={clAvantCount[String(age)]}
-                                max={172}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    setClAvantFixed((prev) => ({
-                                      ...(prev || {}),
-                                      [String(age)]: true,
-                                    }));
-                                    e.currentTarget.blur();
-                                  }
-                                }}
-                                onChange={(e) => {
-                                  const raw = (e.target.value || "").replace(
-                                    /[^0-9]/g,
-                                    ""
-                                  );
-                                  if (raw === "") {
-                                    setClAvantCount((prev) => ({
-                                      ...(prev || {}),
-                                      [String(age)]: "",
-                                    }));
-                                    return;
-                                  }
-                                  let n = parseInt(raw, 10);
-                                  if (isNaN(n)) n = 0;
-                                  if (n < 0) n = 0;
-                                  if (n > 172) n = 172;
-                                  setClAvantCount((prev) => ({
-                                    ...(prev || {}),
-                                    [String(age)]: String(n),
-                                  }));
-                                }}
-                                placeholder="0"
-                              />
-                            )}
-                            <span className="hypo-date-sep">Du</span>
-                            <input
-                              type="date"
-                              className="hypo-date-input"
-                              value={normalizeDate(
-                                clAvantDates[String(age)] &&
-                                  clAvantDates[String(age)].from
-                              )}
-                              onMouseDown={(e) => {
-                                try {
-                                  e.currentTarget.showPicker &&
-                                    e.currentTarget.showPicker();
-                                } catch {}
-                              }}
-                              onFocus={(e) => {
-                                try {
-                                  e.currentTarget.showPicker &&
-                                    e.currentTarget.showPicker();
-                                } catch {}
-                              }}
-                              onChange={(e) => {
-                                const v = e.currentTarget.value || "";
-                                setClAvantDates((prev) => ({
-                                  ...(prev || {}),
-                                  [String(age)]: {
-                                    ...(prev && prev[String(age)]
-                                      ? prev[String(age)]
-                                      : { from: "", to: "" }),
-                                    from: v,
-                                  },
-                                }));
-                              }}
-                              aria-label={`Date de début pour trimestre avant ${age} ans (Carrière longue)`}
-                            />
-                            <span className="hypo-date-sep">au</span>
-                            <input
-                              type="date"
-                              className="hypo-date-input"
-                              value={normalizeDate(
-                                clAvantDates[String(age)] &&
-                                  clAvantDates[String(age)].to
-                              )}
-                              onMouseDown={(e) => {
-                                try {
-                                  e.currentTarget.showPicker &&
-                                    e.currentTarget.showPicker();
-                                } catch {}
-                              }}
-                              onFocus={(e) => {
-                                try {
-                                  e.currentTarget.showPicker &&
-                                    e.currentTarget.showPicker();
-                                } catch {}
-                              }}
-                              onChange={(e) => {
-                                const v = e.currentTarget.value || "";
-                                setClAvantDates((prev) => ({
-                                  ...(prev || {}),
-                                  [String(age)]: {
-                                    ...(prev && prev[String(age)]
-                                      ? prev[String(age)]
-                                      : { from: "", to: "" }),
-                                    to: v,
-                                  },
-                                }));
-                              }}
-                              aria-label={`Date de fin pour trimestre avant ${age} ans (Carrière longue)`}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </Collapse>
-
-                  <div
-                    className={classnames("hypo-row", {
-                      "ui-disabled": isRetraiteProgressiveLocked,
-                    })}
-                    style={{ marginBottom: 0 }}
-                    aria-disabled={isRetraiteProgressiveLocked}
-                  >
-                    <span className="hypo-label">Retraite progressive</span>
-                    <div className="hypo-ctrl">
-                      <ButtonRadioSwitch
-                        noLabel
-                        checked={retraiteProgressive}
-                        onToggle={handleRetraiteToggle}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Pavé Retraite progressive – visible quand Oui */}
-                  <Collapse isOpen={!!retraiteProgressive}>
-                    <div
-                      className="hypo-panel mb-50"
-                      style={{
-                        marginTop: 0,
-                        maxWidth: 705,
-                        background: "#fff",
-                        border: "1px solid #E5E7EB",
-                        borderRadius: 8,
-                        padding: "1rem",
-                      }}
-                    >
-                      {/* Partie 1 — Données principales */}
-                      <div className="prog-panel-fields nowrap">
-                        {/* Date de début */}
-                        <div className="prog-field">
-                          <label htmlFor="prog-start">Date de début</label>
-                          {progStartDateFixed ? (
-                            <input
-                              type="date"
-                              readOnly
-                              className="form-control hypo-date-input prog-date"
-                              value={normalizeDate(progStartDate)}
-                              onClick={() => {
-                                setProgStartDateFixed(false);
-                                setTimeout(() => {
-                                  const el =
-                                    document.getElementById("prog-start");
-                                  if (el) el.focus();
-                                }, 0);
-                              }}
-                              title="Cliquez pour modifier"
-                            />
-                          ) : (
-                            <input
-                              id="prog-start"
-                              type="date"
-                              className="form-control hypo-date-input prog-date"
-                              value={normalizeDate(progStartDate)}
-                              onMouseDown={(e) => {
-                                try {
-                                  e.currentTarget.showPicker &&
-                                    e.currentTarget.showPicker();
-                                } catch {}
-                              }}
-                              onFocus={(e) => {
-                                try {
-                                  e.currentTarget.showPicker &&
-                                    e.currentTarget.showPicker();
-                                } catch {}
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault();
-                                  setProgStartDateFixed(true);
-                                  e.currentTarget.blur();
-                                }
-                              }}
-                              onChange={(e) =>
-                                setProgStartDate(e.currentTarget.value || "")
-                              }
-                            />
-                          )}
-                        </div>
-
-                        {/* Pourcentage d’activité */}
-                        <div className="prog-field">
-                          <label htmlFor="prog-pct">
-                            Pourcentage d’activité
-                          </label>
-                          <div className="prog-inputwrap">
-                            {progPctFixed ? (
-                              <input
-                                type="number"
-                                readOnly
-                                className="form-control prog-pct"
-                                value={progPct}
-                                onClick={() => setProgPctFixed(false)}
-                                title="Cliquez pour modifier"
-                                placeholder="0"
-                                style={{
-                                  textAlign: "center",
-                                  paddingRight: 22,
-                                }}
-                              />
-                            ) : (
-                              <input
-                                id="prog-pct"
-                                type="number"
-                                min={0}
-                                max={100}
-                                step={1}
-                                className="form-control prog-pct"
-                                value={progPct}
-                                onKeyDown={(e) => {
-                                  if (!isDigitKeyOnly(e)) e.preventDefault();
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    setProgPctFixed(true);
-                                    e.currentTarget.blur();
-                                  }
-                                }}
-                                onChange={(e) => {
-                                  const raw = (e.target.value || "").replace(
-                                    /[^0-9]/g,
-                                    ""
-                                  );
-                                  if (raw === "") {
-                                    setProgPct("");
-                                    return;
-                                  }
-                                  let n = parseInt(raw, 10);
-                                  if (isNaN(n)) n = 0;
-                                  if (n < 0) n = 0;
-                                  if (n > 100) n = 100;
-                                  setProgPct(String(n));
-                                }}
-                                placeholder="0"
-                                style={{
-                                  textAlign: "center",
-                                  paddingRight: 22,
-                                }}
-                              />
-                            )}
-                            <span
-                              aria-hidden="true"
-                              style={{
-                                position: "absolute",
-                                right: 10,
-                                top: "50%",
-                                transform: "translateY(-50%)",
-                                color: "#6e6b7b",
-                                pointerEvents: "none",
-                                fontWeight: 600,
-                              }}
-                            >
-                              %
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Salaire */}
-                        <div className="prog-field">
-                          <label htmlFor="prog-salary">Salaire</label>
-                          <div className="prog-salary-wrap">
-                            {progSalaryFixed ? (
-                              <input
-                                type="text"
-                                readOnly
-                                className="form-control"
-                                value={progSalary}
-                                onClick={() => {
-                                  setProgSalaryFixed(false);
-                                  setTimeout(() => {
-                                    const el =
-                                      document.getElementById("prog-salary");
-                                    if (el) {
-                                      el.focus();
-                                      const len = el.value.length;
-                                      el.setSelectionRange(len, len);
-                                    }
-                                  }, 0);
-                                }}
-                                title="Cliquez pour modifier"
-                                placeholder="0,00"
-                                style={{
-                                  textAlign: "center",
-                                  paddingRight: 22,
-                                }}
-                              />
-                            ) : (
-                              <input
-                                id="prog-salary"
-                                type="text"
-                                inputMode="decimal"
-                                pattern="[0-9]*"
-                                className="form-control"
-                                value={progSalary}
-                                onKeyDown={(e) => {
-                                  if (!isAllowedKey(e)) e.preventDefault();
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    setProgSalaryFixed(true);
-                                    e.currentTarget.blur();
-                                  }
-                                }}
+                        <div className="hypo-ctrl">
+                          <div className="vplr-stack">
+                            <div className="vplr-switch-line">
+                              <ButtonRadioSwitch
+                                noLabel
+                                className={classnames(
+                                  "vplr-toggle",
+                                  vplrChoice === "etude"
+                                    ? "primary-right"
+                                    : "primary-left"
+                                )}
+                                checked={vplrChoice === "etude"}
                                 onChange={(e) =>
-                                  setProgSalary(
-                                    sanitizeSalaryInput(e.target.value)
+                                  setVplrChoice(
+                                    e.target.checked ? "etude" : "incomplete"
                                   )
                                 }
-                                placeholder="0,00"
-                                style={{
-                                  textAlign: "center",
-                                  paddingRight: 22,
-                                }}
                               />
-                            )}
+                              {vplrChoice === "etude" && (
+                                <button
+                                  type="button"
+                                  className="vplr-add-btn"
+                                  style={{
+                                    width: 28,
+                                    height: 28,
+                                    borderRadius: "45%",
+                                    padding: 0,
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                  }}
+                                  onClick={() =>
+                                    setVplrEntries((prev) => [
+                                      ...(Array.isArray(prev) ? prev : []),
+                                      {
+                                        id: Date.now(),
+                                        year: "",
+                                        trimestres: "",
+                                      },
+                                    ])
+                                  }
+                                  aria-label="Ajouter un rachat d'année d'étude"
+                                >
+                                  +
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <Collapse isOpen={vplrChoice === "etude"}>
+                        <div
+                          className="hypo-row"
+                          style={{ paddingTop: 0, gap: 0 }}
+                        >
+                          <span
+                            className="hypo-label spacer"
+                            aria-hidden="true"
+                          />
+                          <div className="hypo-ctrl">
+                            <div
+                              className="hypo-panel"
+                              style={{ marginTop: 8, maxWidth: 480 }}
+                            >
+                              {Array.isArray(vplrEntries) &&
+                              vplrEntries.length ? (
+                                <div className="vplr-entries">
+                                  {vplrEntries.map((row) => (
+                                    <div
+                                      key={row.id}
+                                      className="vplr-entry-row"
+                                    >
+                                      <span className="vplr-entry-label">
+                                        Année
+                                      </span>
+                                      <input
+                                        type="number"
+                                        className="inline-input vplr-entry-input"
+                                        value={(row && row.year) || ""}
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          setVplrEntries((prev) =>
+                                            (Array.isArray(prev)
+                                              ? prev
+                                              : []
+                                            ).map((r) =>
+                                              r && r.id === row.id
+                                                ? { ...r, year: val }
+                                                : r
+                                            )
+                                          );
+                                        }}
+                                        min="0"
+                                        inputMode="numeric"
+                                      />
+                                      <span className="vplr-entry-label">
+                                        Nombre de trimestres
+                                      </span>
+                                      <input
+                                        type="number"
+                                        className="inline-input vplr-entry-input"
+                                        value={(row && row.trimestres) || ""}
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          setVplrEntries((prev) =>
+                                            (Array.isArray(prev)
+                                              ? prev
+                                              : []
+                                            ).map((r) =>
+                                              r && r.id === row.id
+                                                ? { ...r, trimestres: val }
+                                                : r
+                                            )
+                                          );
+                                        }}
+                                        min="0"
+                                        inputMode="numeric"
+                                      />
+                                      <button
+                                        type="button"
+                                        className="action-btn danger"
+                                        aria-label="Supprimer cette ligne"
+                                        onClick={() =>
+                                          setVplrEntries((prev) =>
+                                            Array.isArray(prev)
+                                              ? prev.filter(
+                                                  (r) => r && r.id !== row.id
+                                                )
+                                              : []
+                                          )
+                                        }
+                                      >
+                                        <svg
+                                          width="16"
+                                          height="16"
+                                          viewBox="0 0 24 24"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          strokeWidth="2"
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          aria-hidden="true"
+                                        >
+                                          <polyline points="3 6 5 6 21 6"></polyline>
+                                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                                          <path d="M10 11v6"></path>
+                                          <path d="M14 11v6"></path>
+                                          <path d="M9 6V4h6v2"></path>
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p
+                                  className="mb-0 text-muted"
+                                  style={{ fontSize: "0.9rem" }}
+                                >
+                                  Ajoutez vos années à racheter avec le bouton
+                                  +.
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </Collapse>
+
+                      {/* Salaire par défaut jusqu'au départ (même comportement que les lignes Non) */}
+                      <div
+                        className="hypo-row"
+                        style={{ display: sans ? undefined : "none" }}
+                      >
+                        <div className="hypo-label label-with-info">
+                          <span className="nowrap">Salaire(s) à projeter</span>
+                          {!isSalaryProjected && (
+                            <span
+                              className="hypo-info-icon"
+                              aria-label="Informations sur la projection de salaire"
+                              tabIndex={0}
+                            >
+                              i
+                              <span className="hypo-tooltip">
+                                Prise en compte par défaut des dernières
+                                rémunérations enregistrées
+                              </span>
+                            </span>
+                          )}
+                        </div>
+                        <div className="hypo-ctrl">
+                          <ButtonRadioSwitch
+                            noLabel
+                            checked={isSalaryProjected}
+                            onChange={(e) =>
+                              setIsSalaryProjected(e.target.checked)
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Panel animé pour le cas Oui: saisir le salaire par défaut */}
+                    <Collapse isOpen={isSalaryProjected && !!sans}>
+                      <div
+                        className="hypo-panel mb-50"
+                        style={{ marginTop: 12, maxWidth: "70%" }}
+                      >
+                        <div
+                          className="hypo-salary-row nowrap"
+                          style={{
+                            marginBottom: 0,
+                            alignItems: "center",
+                            flexWrap: "nowrap",
+                            gap: 12,
+                          }}
+                        >
+                          <span className="hypo-salary-label">
+                            Salaire actuel jusqu’au départ
+                          </span>
+                          <div className="hypo-salary-inputwrap">
                             <span
                               aria-hidden="true"
                               style={{
@@ -2841,235 +2082,278 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                             >
                               €
                             </span>
-                          </div>
-                        </div>
-                      </div>
 
-                      {/* Partie 2 — Surcôtisation */}
-                      {retraiteProgressive && (
-                        <div className="prog-surco-row">
-                          <span className="prog-label">Surcôtisation</span>
-                          <div>
+                            {salaireDefautRowSafe.fixed ? (
+                              <input
+                                type="text"
+                                readOnly
+                                className="form-control"
+                                value={salaireDefautRowSafe.value ?? ""}
+                                onClick={() => {
+                                  setSalaireDefautRow((prev) => ({
+                                    ...(prev && typeof prev === "object"
+                                      ? prev
+                                      : { id: "def", value: "", fixed: false }),
+                                    fixed: false,
+                                  }));
+                                  setTimeout(() => {
+                                    const el = document.getElementById(
+                                      "salaire-defaut-input"
+                                    );
+                                    if (el) {
+                                      el.focus();
+                                      const len = el.value.length;
+                                      el.setSelectionRange(len, len);
+                                    }
+                                  }, 0);
+                                }}
+                                title="Cliquez pour modifier"
+                                style={{
+                                  paddingRight: 26,
+                                  textAlign: "right",
+                                  borderRadius: 6,
+                                  background: "#fff",
+                                }}
+                              />
+                            ) : (
+                              <input
+                                id="salaire-defaut-input"
+                                type="text"
+                                inputMode="decimal"
+                                pattern="[0-9]*"
+                                className="form-control"
+                                value={salaireDefautRowSafe.value ?? ""}
+                                onKeyDown={(e) => {
+                                  if (!isAllowedKey(e)) e.preventDefault();
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    const raw = (
+                                      (salaireDefautRowSafe &&
+                                        salaireDefautRowSafe.value) ||
+                                      ""
+                                    )
+                                      .toString()
+                                      .replace(/\s/g, "")
+                                      .replace(",", ".");
+                                    const num = parseFloat(raw);
+                                    const formatted = isNaN(num)
+                                      ? salaireDefautRowSafe
+                                        ? salaireDefautRowSafe.value
+                                        : ""
+                                      : new Intl.NumberFormat("fr-FR", {
+                                          minimumFractionDigits: 2,
+                                          maximumFractionDigits: 2,
+                                        }).format(num);
+                                    setSalaireDefautRow((prev) => ({
+                                      ...(prev && typeof prev === "object"
+                                        ? prev
+                                        : {
+                                            id: "def",
+                                            value: "",
+                                            fixed: false,
+                                          }),
+                                      value: formatted,
+                                      fixed: true,
+                                    }));
+                                    e.currentTarget.blur();
+                                  }
+                                }}
+                                onChange={(e) => {
+                                  const val = sanitizeSalaryInput(
+                                    e.target.value
+                                  );
+                                  setSalaireDefautRow((prev) => ({
+                                    ...(prev && typeof prev === "object"
+                                      ? prev
+                                      : { id: "def", value: "", fixed: false }),
+                                    value: val,
+                                  }));
+                                }}
+                                placeholder="0,00"
+                                style={{
+                                  paddingRight: 26,
+                                  textAlign: "right",
+                                  borderRadius: 6,
+                                  background: "#fff",
+                                }}
+                              />
+                            )}
+                          </div>
+                          <div
+                            className="hypo-date-row"
+                            style={{ marginLeft: 8 }}
+                          >
+                            <span className="hypo-date-sep">Du</span>
+                            <input
+                              type="date"
+                              className="hypo-date-input"
+                              value={normalizeDate(
+                                salaireDefautRowSafe &&
+                                  salaireDefautRowSafe.from
+                              )}
+                              onMouseDown={(e) => {
+                                try {
+                                  e.currentTarget.showPicker &&
+                                    e.currentTarget.showPicker();
+                                } catch {}
+                              }}
+                              onFocus={(e) => {
+                                try {
+                                  e.currentTarget.showPicker &&
+                                    e.currentTarget.showPicker();
+                                } catch {}
+                              }}
+                              onChange={(e) => {
+                                const v = e.currentTarget.value || "";
+                                setSalaireDefautRow((prev) => ({
+                                  ...(prev && typeof prev === "object"
+                                    ? prev
+                                    : { id: "def", value: "", fixed: false }),
+                                  from: v,
+                                }));
+                              }}
+                              aria-label="Date de début (salaire actuel)"
+                            />
+                            <span className="hypo-date-sep">au</span>
+                            <input
+                              type="date"
+                              className="hypo-date-input"
+                              value={normalizeDate(
+                                salaireDefautRowSafe && salaireDefautRowSafe.to
+                              )}
+                              onMouseDown={(e) => {
+                                try {
+                                  e.currentTarget.showPicker &&
+                                    e.currentTarget.showPicker();
+                                } catch {}
+                              }}
+                              onFocus={(e) => {
+                                try {
+                                  e.currentTarget.showPicker &&
+                                    e.currentTarget.showPicker();
+                                } catch {}
+                              }}
+                              onChange={(e) => {
+                                const v = e.currentTarget.value || "";
+                                setSalaireDefautRow((prev) => ({
+                                  ...(prev && typeof prev === "object"
+                                    ? prev
+                                    : { id: "def", value: "", fixed: false }),
+                                  to: v,
+                                }));
+                              }}
+                              aria-label="Date de fin (salaire actuel)"
+                            />
+                          </div>
+                          <div className="hypo-salary-toggle inline">
+                            <span className="label">
+                              Projeter plusieurs salaires&nbsp;?
+                            </span>
                             <ButtonRadioSwitch
                               noLabel
-                              checked={progSurcotisation}
+                              checked={projectMultiple}
                               onChange={(e) =>
-                                setProgSurcotisation(e.target.checked)
+                                setProjectMultiple(e.target.checked)
                               }
                             />
                           </div>
                         </div>
+                      </div>
+                      {projectMultiple && (
+                        <div
+                          className="hypo-panel mb-50"
+                          style={{ marginTop: 16, maxWidth: 640 }}
+                        >
+                          <div className="hypo-panel-header mb-1">
+                            <span
+                              className="text-body"
+                              style={{ fontWeight: 600 }}
+                            >
+                              Salaire(s) supplémentaires
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSalaireJusquaDepartRows((prev) => [
+                                  ...(Array.isArray(prev) ? prev : []),
+                                  { id: Date.now(), value: "", fixed: false },
+                                ])
+                              }
+                              aria-label="Ajouter un salaire supplémentaire"
+                              style={{
+                                border: "1px solid var(--bs-primary, #7367F0)",
+                                color: "var(--bs-primary, #7367F0)",
+                                background: "#fff",
+                                borderRadius: 20,
+                                padding: "2px 8px",
+                                lineHeight: 1.2,
+                                cursor: "pointer",
+                                fontWeight: 600,
+                                alignSelf: "flex-start",
+                                width: "auto",
+                                display: "inline-flex",
+                              }}
+                            >
+                              +
+                            </button>
+                          </div>
+                          <div>
+                            {renderSalaireRows(safeSalaireRows, {
+                              labelOffset: 2,
+                              canDeleteFirst: true,
+                            })}
+                          </div>
+                        </div>
                       )}
-                    </div>
-                  </Collapse>
-                  {/* Cumul emploi de retraite */}
+                    </Collapse>
+
+                    {/* Zone dynamique "Salaire(s) jusqu’au départ" quand Non */}
+                    {/* <Collapse isOpen={!isSalaryProjected && !!sans}>
                   <div
-                    className={classnames("hypo-row", {
-                      "ui-disabled": isCumulLocked,
-                    })}
-                    aria-disabled={isCumulLocked}
+                    className='hypo-panel mb-50'
+                    style={{ marginTop: 12, maxWidth: 640 }}
                   >
-                    <span className="hypo-label">Cumul emploi de retraite</span>
-                    <div className="hypo-ctrl">
-                      <ButtonRadioSwitch
-                        noLabel
-                        checked={cumulEmploiRetraite}
-                        onToggle={handleCumulToggle}
-                      />
+                    <div className='hypo-panel-header mb-1'>
+                      <span className='text-body' style={{ fontWeight: 600 }}>Salaire(s) jusqu’au départ</span>
+                    </div>
+
+                    <div>
+                      {renderSalaireRows(safeSalaireRows, { labelOffset: 1, canDeleteFirst: false })}
                     </div>
                   </div>
-                </div>
-              </FormGroup>
+                </Collapse> */}
 
-              <div
-                className="bilan-wrap"
-                style={{ overflow: "hidden", marginBottom: 16 }}
-              >
-                <div className="table-responsive">
-                  <table className="choice-table cols-3">
-                    <colgroup>
-                      <col style={{ width: "36%" }} />
-                      <col style={{ width: "32%" }} />
-                      <col style={{ width: "32%" }} />
-                    </colgroup>
-                    <thead>
-                      <tr>
-                        <th>Âge</th>
-                        <th>Date correspondante</th>
-                        <th>Choisir la date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {safeRetirementChoices.map((row) => (
-                        <tr key={row.id}>
-                          <td>
-                            <div className="age-cell">
-                              <span className="age-label">{row.label}</span>
-                              {row.fixedAge ? (
-                                <span className="age-value">
-                                  <input
-                                    type="text"
-                                    readOnly
-                                    className="inline-input"
-                                    value={(row && row.age) ?? ""}
-                                    onClick={() =>
-                                      setRetirementChoices((prev) =>
-                                        prev.map((r) =>
-                                          r && r.id === row.id
-                                            ? { ...r, fixedAge: false }
-                                            : r
-                                        )
-                                      )
-                                    }
-                                    style={{
-                                      width: 90,
-                                      textAlign: "center",
-                                      background: "#F9FAFB",
-                                      cursor: "pointer",
-                                    }}
-                                    aria-label={`Âge pour ${row.label}`}
-                                  />
-                                  <span>ans</span>
-                                </span>
-                              ) : (
-                                <span className="age-value">
-                                  <input
-                                    type="text"
-                                    inputMode="decimal"
-                                    pattern="[0-9,\\.]*"
-                                    className="inline-input"
-                                    style={{ width: 90, textAlign: "center" }}
-                                    value={(row && row.age) ?? ""}
-                                    onChange={(e) =>
-                                      setRetirementChoices((prev) =>
-                                        prev.map((r) =>
-                                          r && r.id === row.id
-                                            ? { ...r, age: e.target.value }
-                                            : r
-                                        )
-                                      )
-                                    }
-                                    onBlur={(e) => {
-                                      const v = e.target.value.trim();
-                                      const parts = v.split(/[,.]/);
-                                      let next = "";
-                                      if (parts.length) {
-                                        next =
-                                          parts[0] +
-                                          (parts.length > 1
-                                            ? "," +
-                                              parts
-                                                .slice(1)
-                                                .join("")
-                                                .replace(/,/g, "")
-                                            : "");
-                                      }
-                                      const dob = getBirthDate();
-                                      let nextDate = (row && row.date) || "";
-                                      if (dob && next !== "") {
-                                        const y = parseInt(next, 10);
-                                        if (!Number.isNaN(y)) {
-                                          const d = new Date(
-                                            dob.getFullYear() + y,
-                                            dob.getMonth(),
-                                            dob.getDate()
-                                          );
-                                          if (!isNaN(d.getTime()))
-                                            nextDate = d
-                                              .toISOString()
-                                              .slice(0, 10);
-                                        }
-                                      }
-                                      setRetirementChoices((prev) =>
-                                        prev.map((r) =>
-                                          r && r.id === row.id
-                                            ? {
-                                                ...r,
-                                                age: next,
-                                                date: nextDate,
-                                                fixedAge: true,
-                                              }
-                                            : r
-                                        )
-                                      );
-                                    }}
-                                    onKeyDown={(e) => {
-                                      if (!isDigitKeyOnly(e))
-                                        e.preventDefault();
-                                      if (e.key === "Enter") {
-                                        const n = parseInt(
-                                          (row && row.age) || "",
-                                          10
-                                        );
-                                        if (!Number.isNaN(n)) {
-                                          const clamped = Math.min(
-                                            120,
-                                            Math.max(18, n)
-                                          );
-                                          setRetirementChoices((prev) =>
-                                            prev.map((r) =>
-                                              r && r.id === row.id
-                                                ? {
-                                                    ...r,
-                                                    age: String(clamped),
-                                                    fixedAge: true,
-                                                  }
-                                                : r
-                                            )
-                                          );
-                                        } else {
-                                          setRetirementChoices((prev) =>
-                                            prev.map((r) =>
-                                              r && r.id === row.id
-                                                ? { ...r, fixedAge: true }
-                                                : r
-                                            )
-                                          );
-                                        }
-                                      }
-                                    }}
-                                    placeholder="Ex: 62"
-                                    aria-label={`Âge pour ${row.label}`}
-                                  />
-                                  <span>ans</span>
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td>
-                            {row.fixedDate ? (
-                              <input
-                                type="text"
-                                readOnly
-                                className="inline-input"
-                                onClick={() =>
-                                  setRetirementChoices((prev) =>
-                                    prev.map((r) =>
-                                      r && r.id === row.id
-                                        ? { ...r, fixedDate: false }
-                                        : r
-                                    )
-                                  )
-                                }
-                                style={{
-                                  width: 130,
-                                  textAlign: "center",
-                                  background: "#F9FAFB",
-                                  cursor: "pointer",
-                                }}
-                                value={(row && row.date) ?? ""}
-                                aria-label={`Date correspondante pour ${row.label}`}
-                              />
-                            ) : (
+                    {/* Autres switches */}
+                    <div className="hypo-grid" style={{ marginTop: 16 }}>
+                      <div className="hypo-row">
+                        <span className="hypo-label">Chômage</span>
+                        <div className="hypo-ctrl">
+                          <ButtonRadioSwitch
+                            noLabel
+                            checked={chomage}
+                            onChange={(e) => setChomage(e.target.checked)}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Pavé Chômage – visible quand Oui */}
+                      <Collapse isOpen={!!chomage}>
+                        <div
+                          className="hypo-panel mb-50"
+                          style={{ maxWidth: "57%" }}
+                        >
+                          <div className="chomage-panel-fields">
+                            <div className="chomage-dual-row">
+                              <span
+                                className="hypo-salary-label"
+                                style={{ minWidth: "auto" }}
+                              >
+                                À partir de
+                              </span>
                               <input
                                 type="date"
-                                className="inline-input"
-                                style={{
-                                  width: 130,
-                                  textAlign: "center",
-                                  cursor: "pointer",
-                                }}
-                                value={(row && row.date) ?? ""}
+                                className="hypo-date-input"
+                                value={normalizeDate(chomageStartDate)}
                                 onMouseDown={(e) => {
                                   try {
                                     e.currentTarget.showPicker &&
@@ -3082,69 +2366,845 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                       e.currentTarget.showPicker();
                                   } catch {}
                                 }}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  const dob = getBirthDate();
-                                  let nextAge = (row && row.age) || "";
-                                  if (dob && val) {
-                                    const at = new Date(val);
-                                    if (!isNaN(at.getTime())) {
-                                      let age =
-                                        at.getFullYear() - dob.getFullYear();
-                                      const m = at.getMonth() - dob.getMonth();
-                                      if (
-                                        m < 0 ||
-                                        (m === 0 &&
-                                          at.getDate() < dob.getDate())
-                                      )
-                                        age--;
-                                      if (age >= 0) nextAge = String(age);
-                                    }
-                                  }
-                                  setRetirementChoices((prev) =>
-                                    prev.map((r) =>
-                                      r && r.id === row.id
-                                        ? { ...r, date: val, age: nextAge }
-                                        : r
-                                    )
-                                  );
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter")
-                                    setRetirementChoices((prev) =>
-                                      prev.map((r) =>
-                                        r && r.id === row.id
-                                          ? { ...r, fixedDate: true }
-                                          : r
-                                      )
-                                    );
-                                }}
-                                aria-label={`Date correspondante pour ${row.label}`}
-                              />
-                            )}
-                          </td>
-                          <td>
-                            <ButtonRadioSwitch
-                              noLabel
-                              textWeight={700}
-                              checked={!!(row && row.selected)}
-                              onToggle={(val) =>
-                                setRetirementChoices((prev) =>
-                                  (Array.isArray(prev) ? prev : []).map((r) =>
-                                    r && r.id === row.id
-                                      ? !!r.selected === !!val
-                                        ? r
-                                        : { ...r, selected: !!val }
-                                      : r
+                                onChange={(e) =>
+                                  setChomageStartDate(
+                                    e.currentTarget.value || ""
                                   )
-                                )
-                              }
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                                }
+                                placeholder="JJ/MM/AAAA"
+                              />
+                              <span
+                                className="hypo-salary-label"
+                                style={{ minWidth: "auto" }}
+                              >
+                                Nombre de jours
+                              </span>
+                              {chomageJoursFixed ? (
+                                <input
+                                  type="number"
+                                  readOnly
+                                  className="form-control chomage-days"
+                                  value={chomageJours}
+                                  onClick={() => {
+                                    setChomageJoursFixed(false);
+                                    setTimeout(() => {
+                                      const el =
+                                        document.getElementById(
+                                          "chomage-jours"
+                                        );
+                                      if (el) {
+                                        el.focus();
+                                        const len = el.value.length;
+                                        el.setSelectionRange(len, len);
+                                      }
+                                    }, 0);
+                                  }}
+                                  title="Cliquez pour modifier"
+                                  placeholder="0"
+                                />
+                              ) : (
+                                <input
+                                  id="chomage-jours"
+                                  type="number"
+                                  min={0}
+                                  step={1}
+                                  className="form-control chomage-days"
+                                  value={chomageJours}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      setChomageJoursFixed(true);
+                                      e.currentTarget.blur();
+                                    }
+                                  }}
+                                  onChange={(e) =>
+                                    setChomageJours(
+                                      e.target.value.replace(/[^0-9]/g, "")
+                                    )
+                                  }
+                                  placeholder="0"
+                                />
+                              )}
+                              <span />
+                              <span
+                                className="hypo-salary-label"
+                                style={{ minWidth: "auto" }}
+                              >
+                                Années
+                              </span>
+                              {chomageAnneesFixed ? (
+                                <input
+                                  type="number"
+                                  readOnly
+                                  className="form-control chomage-days"
+                                  value={chomageAnnees}
+                                  onClick={() => {
+                                    setChomageAnneesFixed(false);
+                                    setTimeout(() => {
+                                      const el =
+                                        document.getElementById(
+                                          "chomage-annees"
+                                        );
+                                      if (el) {
+                                        el.focus();
+                                        const len = el.value.length;
+                                        el.setSelectionRange(len, len);
+                                      }
+                                    }, 0);
+                                  }}
+                                  title="Cliquez pour modifier"
+                                  placeholder="0"
+                                />
+                              ) : (
+                                <input
+                                  id="chomage-annees"
+                                  type="number"
+                                  min={0}
+                                  step={1}
+                                  className="form-control chomage-days"
+                                  value={chomageAnnees}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      setChomageAnneesFixed(true);
+                                      e.currentTarget.blur();
+                                    }
+                                  }}
+                                  onChange={(e) =>
+                                    setChomageAnnees(
+                                      e.target.value.replace(/[^0-9]/g, "")
+                                    )
+                                  }
+                                  placeholder="0"
+                                />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </Collapse>
+
+                      <div
+                        className={classnames("hypo-row", {
+                          "ui-disabled": isCarriereLongueLocked,
+                        })}
+                        aria-disabled={isCarriereLongueLocked}
+                      >
+                        <span className="hypo-label">Carrière longue</span>
+                        <div className="hypo-ctrl">
+                          <ButtonRadioSwitch
+                            noLabel
+                            checked={carriereLongue}
+                            onToggle={handleCarriereLongueToggle}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Pavé Carrière longue – visible quand Oui */}
+                      <Collapse isOpen={!!carriereLongue}>
+                        <div
+                          className="hypo-panel mb-50"
+                          style={{ marginTop: 0, maxWidth: 650 }}
+                        >
+                          <div className="chomage-panel-fields">
+                            {[21, 20, 18, 16].map((age) => (
+                              <div
+                                key={age}
+                                className="chomage-row"
+                                style={{ marginBottom: 6 }}
+                              >
+                                <span
+                                  className="hypo-salary-label"
+                                  style={{ marginRight: 0, minWidth: "auto" }}
+                                >{`Trimestre avant ${age} ans`}</span>
+                                {clAvantFixed[String(age)] ? (
+                                  <input
+                                    type="number"
+                                    readOnly
+                                    className="form-control chomage-trim"
+                                    value={clAvantCount[String(age)]}
+                                    onClick={() =>
+                                      setClAvantFixed((prev) => ({
+                                        ...(prev || {}),
+                                        [String(age)]: false,
+                                      }))
+                                    }
+                                    title="Cliquez pour modifier"
+                                    placeholder="0"
+                                  />
+                                ) : (
+                                  <input
+                                    id={`cl-trim-avant-${age}`}
+                                    type="number"
+                                    min={0}
+                                    step={1}
+                                    className="form-control chomage-trim"
+                                    value={clAvantCount[String(age)]}
+                                    max={172}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        setClAvantFixed((prev) => ({
+                                          ...(prev || {}),
+                                          [String(age)]: true,
+                                        }));
+                                        e.currentTarget.blur();
+                                      }
+                                    }}
+                                    onChange={(e) => {
+                                      const raw = (
+                                        e.target.value || ""
+                                      ).replace(/[^0-9]/g, "");
+                                      if (raw === "") {
+                                        setClAvantCount((prev) => ({
+                                          ...(prev || {}),
+                                          [String(age)]: "",
+                                        }));
+                                        return;
+                                      }
+                                      let n = parseInt(raw, 10);
+                                      if (isNaN(n)) n = 0;
+                                      if (n < 0) n = 0;
+                                      if (n > 172) n = 172;
+                                      setClAvantCount((prev) => ({
+                                        ...(prev || {}),
+                                        [String(age)]: String(n),
+                                      }));
+                                    }}
+                                    placeholder="0"
+                                  />
+                                )}
+                                <span className="hypo-date-sep">Du</span>
+                                <input
+                                  type="date"
+                                  className="hypo-date-input"
+                                  value={normalizeDate(
+                                    clAvantDates[String(age)] &&
+                                      clAvantDates[String(age)].from
+                                  )}
+                                  onMouseDown={(e) => {
+                                    try {
+                                      e.currentTarget.showPicker &&
+                                        e.currentTarget.showPicker();
+                                    } catch {}
+                                  }}
+                                  onFocus={(e) => {
+                                    try {
+                                      e.currentTarget.showPicker &&
+                                        e.currentTarget.showPicker();
+                                    } catch {}
+                                  }}
+                                  onChange={(e) => {
+                                    const v = e.currentTarget.value || "";
+                                    setClAvantDates((prev) => ({
+                                      ...(prev || {}),
+                                      [String(age)]: {
+                                        ...(prev && prev[String(age)]
+                                          ? prev[String(age)]
+                                          : { from: "", to: "" }),
+                                        from: v,
+                                      },
+                                    }));
+                                  }}
+                                  aria-label={`Date de début pour trimestre avant ${age} ans (Carrière longue)`}
+                                />
+                                <span className="hypo-date-sep">au</span>
+                                <input
+                                  type="date"
+                                  className="hypo-date-input"
+                                  value={normalizeDate(
+                                    clAvantDates[String(age)] &&
+                                      clAvantDates[String(age)].to
+                                  )}
+                                  onMouseDown={(e) => {
+                                    try {
+                                      e.currentTarget.showPicker &&
+                                        e.currentTarget.showPicker();
+                                    } catch {}
+                                  }}
+                                  onFocus={(e) => {
+                                    try {
+                                      e.currentTarget.showPicker &&
+                                        e.currentTarget.showPicker();
+                                    } catch {}
+                                  }}
+                                  onChange={(e) => {
+                                    const v = e.currentTarget.value || "";
+                                    setClAvantDates((prev) => ({
+                                      ...(prev || {}),
+                                      [String(age)]: {
+                                        ...(prev && prev[String(age)]
+                                          ? prev[String(age)]
+                                          : { from: "", to: "" }),
+                                        to: v,
+                                      },
+                                    }));
+                                  }}
+                                  aria-label={`Date de fin pour trimestre avant ${age} ans (Carrière longue)`}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </Collapse>
+
+                      <div
+                        className={classnames("hypo-row", {
+                          "ui-disabled": isRetraiteProgressiveLocked,
+                        })}
+                        style={{ marginBottom: 0 }}
+                        aria-disabled={isRetraiteProgressiveLocked}
+                      >
+                        <span className="hypo-label">Retraite progressive</span>
+                        <div className="hypo-ctrl">
+                          <ButtonRadioSwitch
+                            noLabel
+                            checked={retraiteProgressive}
+                            onToggle={handleRetraiteToggle}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Pavé Retraite progressive – visible quand Oui */}
+                      <Collapse isOpen={!!retraiteProgressive}>
+                        <div
+                          className="hypo-panel mb-50"
+                          style={{
+                            marginTop: 0,
+                            maxWidth: 705,
+                            background: "#fff",
+                            border: "1px solid #E5E7EB",
+                            borderRadius: 8,
+                            padding: "1rem",
+                          }}
+                        >
+                          {/* Partie 1 — Données principales */}
+                          <div className="prog-panel-fields nowrap">
+                            {/* Date de début */}
+                            <div className="prog-field">
+                              <label htmlFor="prog-start">Date de début</label>
+                              {progStartDateFixed ? (
+                                <input
+                                  type="date"
+                                  readOnly
+                                  className="form-control hypo-date-input prog-date"
+                                  value={normalizeDate(progStartDate)}
+                                  onClick={() => {
+                                    setProgStartDateFixed(false);
+                                    setTimeout(() => {
+                                      const el =
+                                        document.getElementById("prog-start");
+                                      if (el) el.focus();
+                                    }, 0);
+                                  }}
+                                  title="Cliquez pour modifier"
+                                />
+                              ) : (
+                                <input
+                                  id="prog-start"
+                                  type="date"
+                                  className="form-control hypo-date-input prog-date"
+                                  value={normalizeDate(progStartDate)}
+                                  onMouseDown={(e) => {
+                                    try {
+                                      e.currentTarget.showPicker &&
+                                        e.currentTarget.showPicker();
+                                    } catch {}
+                                  }}
+                                  onFocus={(e) => {
+                                    try {
+                                      e.currentTarget.showPicker &&
+                                        e.currentTarget.showPicker();
+                                    } catch {}
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      setProgStartDateFixed(true);
+                                      e.currentTarget.blur();
+                                    }
+                                  }}
+                                  onChange={(e) =>
+                                    setProgStartDate(
+                                      e.currentTarget.value || ""
+                                    )
+                                  }
+                                />
+                              )}
+                            </div>
+
+                            {/* Pourcentage d’activité */}
+                            <div className="prog-field">
+                              <label htmlFor="prog-pct">
+                                Pourcentage d’activité
+                              </label>
+                              <div className="prog-inputwrap">
+                                {progPctFixed ? (
+                                  <input
+                                    type="number"
+                                    readOnly
+                                    className="form-control prog-pct"
+                                    value={progPct}
+                                    onClick={() => setProgPctFixed(false)}
+                                    title="Cliquez pour modifier"
+                                    placeholder="0"
+                                    style={{
+                                      textAlign: "center",
+                                      paddingRight: 22,
+                                    }}
+                                  />
+                                ) : (
+                                  <input
+                                    id="prog-pct"
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    step={1}
+                                    className="form-control prog-pct"
+                                    value={progPct}
+                                    onKeyDown={(e) => {
+                                      if (!isDigitKeyOnly(e))
+                                        e.preventDefault();
+                                      if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        setProgPctFixed(true);
+                                        e.currentTarget.blur();
+                                      }
+                                    }}
+                                    onChange={(e) => {
+                                      const raw = (
+                                        e.target.value || ""
+                                      ).replace(/[^0-9]/g, "");
+                                      if (raw === "") {
+                                        setProgPct("");
+                                        return;
+                                      }
+                                      let n = parseInt(raw, 10);
+                                      if (isNaN(n)) n = 0;
+                                      if (n < 0) n = 0;
+                                      if (n > 100) n = 100;
+                                      setProgPct(String(n));
+                                    }}
+                                    placeholder="0"
+                                    style={{
+                                      textAlign: "center",
+                                      paddingRight: 22,
+                                    }}
+                                  />
+                                )}
+                                <span
+                                  aria-hidden="true"
+                                  style={{
+                                    position: "absolute",
+                                    right: 10,
+                                    top: "50%",
+                                    transform: "translateY(-50%)",
+                                    color: "#6e6b7b",
+                                    pointerEvents: "none",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  %
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Salaire */}
+                            <div className="prog-field">
+                              <label htmlFor="prog-salary">Salaire</label>
+                              <div className="prog-salary-wrap">
+                                {progSalaryFixed ? (
+                                  <input
+                                    type="text"
+                                    readOnly
+                                    className="form-control"
+                                    value={progSalary}
+                                    onClick={() => {
+                                      setProgSalaryFixed(false);
+                                      setTimeout(() => {
+                                        const el =
+                                          document.getElementById(
+                                            "prog-salary"
+                                          );
+                                        if (el) {
+                                          el.focus();
+                                          const len = el.value.length;
+                                          el.setSelectionRange(len, len);
+                                        }
+                                      }, 0);
+                                    }}
+                                    title="Cliquez pour modifier"
+                                    placeholder="0,00"
+                                    style={{
+                                      textAlign: "center",
+                                      paddingRight: 22,
+                                    }}
+                                  />
+                                ) : (
+                                  <input
+                                    id="prog-salary"
+                                    type="text"
+                                    inputMode="decimal"
+                                    pattern="[0-9]*"
+                                    className="form-control"
+                                    value={progSalary}
+                                    onKeyDown={(e) => {
+                                      if (!isAllowedKey(e)) e.preventDefault();
+                                      if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        setProgSalaryFixed(true);
+                                        e.currentTarget.blur();
+                                      }
+                                    }}
+                                    onChange={(e) =>
+                                      setProgSalary(
+                                        sanitizeSalaryInput(e.target.value)
+                                      )
+                                    }
+                                    placeholder="0,00"
+                                    style={{
+                                      textAlign: "center",
+                                      paddingRight: 22,
+                                    }}
+                                  />
+                                )}
+                                <span
+                                  aria-hidden="true"
+                                  style={{
+                                    position: "absolute",
+                                    right: 10,
+                                    top: "50%",
+                                    transform: "translateY(-50%)",
+                                    color: "#6e6b7b",
+                                    pointerEvents: "none",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  €
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Partie 2 — Surcôtisation */}
+                          {retraiteProgressive && (
+                            <div className="prog-surco-row">
+                              <span className="prog-label">Surcôtisation</span>
+                              <div>
+                                <ButtonRadioSwitch
+                                  noLabel
+                                  checked={progSurcotisation}
+                                  onChange={(e) =>
+                                    setProgSurcotisation(e.target.checked)
+                                  }
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </Collapse>
+                      {/* Cumul emploi de retraite */}
+                      <div
+                        className={classnames("hypo-row", {
+                          "ui-disabled": isCumulLocked,
+                        })}
+                        aria-disabled={isCumulLocked}
+                      >
+                        <span className="hypo-label">
+                          Cumul emploi de retraite
+                        </span>
+                        <div className="hypo-ctrl">
+                          <ButtonRadioSwitch
+                            noLabel
+                            checked={cumulEmploiRetraite}
+                            onToggle={handleCumulToggle}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </FormGroup>
+                </div>
+                <div style={{ flex: "1 1 300px", minWidth: 0 }}>
+                  <div
+                    className="bilan-wrap"
+                    style={{
+                      overflow: "hidden",
+                      marginBottom: 16,
+                      width: "100%",
+                      margin: 0,
+                    }}
+                  >
+                    <div className="table-responsive">
+                      <table
+                        className="choice-table cols-3"
+                        style={{ minWidth: "500px" }}
+                      >
+                        <colgroup>
+                          <col style={{ width: "50%" }} />
+                          <col style={{ width: "25%" }} />
+                          <col style={{ width: "25%" }} />
+                        </colgroup>
+                        <thead>
+                          <tr>
+                            <th>Âge</th>
+                            <th>Date correspondante</th>
+                            <th>Choisir la date</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {safeRetirementChoices.map((row) => (
+                            <tr key={row.id}>
+                              <td>
+                                <div className="age-cell">
+                                  <span className="age-label">{row.label}</span>
+                                  {row.fixedAge ? (
+                                    <span className="age-value">
+                                      <input
+                                        type="text"
+                                        readOnly
+                                        className="inline-input"
+                                        value={(row && row.age) ?? ""}
+                                        onClick={() =>
+                                          setRetirementChoices((prev) =>
+                                            prev.map((r) =>
+                                              r && r.id === row.id
+                                                ? { ...r, fixedAge: false }
+                                                : r
+                                            )
+                                          )
+                                        }
+                                        style={{
+                                          width: 90,
+                                          textAlign: "center",
+                                          background: "#F9FAFB",
+                                          cursor: "pointer",
+                                        }}
+                                        aria-label={`Âge pour ${row.label}`}
+                                      />
+                                      <span>ans</span>
+                                    </span>
+                                  ) : (
+                                    <span className="age-value">
+                                      <input
+                                        type="text"
+                                        inputMode="decimal"
+                                        pattern="[0-9,\\.]*"
+                                        className="inline-input"
+                                        style={{
+                                          width: 90,
+                                          textAlign: "center",
+                                        }}
+                                        value={(row && row.age) ?? ""}
+                                        onChange={(e) =>
+                                          setRetirementChoices((prev) =>
+                                            prev.map((r) =>
+                                              r && r.id === row.id
+                                                ? { ...r, age: e.target.value }
+                                                : r
+                                            )
+                                          )
+                                        }
+                                        onBlur={(e) => {
+                                          const v = e.target.value.trim();
+                                          const parts = v.split(/[,.]/);
+                                          let next = "";
+                                          if (parts.length) {
+                                            next =
+                                              parts[0] +
+                                              (parts.length > 1
+                                                ? "," +
+                                                  parts
+                                                    .slice(1)
+                                                    .join("")
+                                                    .replace(/,/g, "")
+                                                : "");
+                                          }
+                                          const dob = getBirthDate();
+                                          let nextDate =
+                                            (row && row.date) || "";
+                                          if (dob && next !== "") {
+                                            const y = parseInt(next, 10);
+                                            if (!Number.isNaN(y)) {
+                                              const d = new Date(
+                                                dob.getFullYear() + y,
+                                                dob.getMonth(),
+                                                dob.getDate()
+                                              );
+                                              if (!isNaN(d.getTime()))
+                                                nextDate = d
+                                                  .toISOString()
+                                                  .slice(0, 10);
+                                            }
+                                          }
+                                          setRetirementChoices((prev) =>
+                                            prev.map((r) =>
+                                              r && r.id === row.id
+                                                ? {
+                                                    ...r,
+                                                    age: next,
+                                                    date: nextDate,
+                                                    fixedAge: true,
+                                                  }
+                                                : r
+                                            )
+                                          );
+                                        }}
+                                        onKeyDown={(e) => {
+                                          if (!isDigitKeyOnly(e))
+                                            e.preventDefault();
+                                          if (e.key === "Enter") {
+                                            const n = parseInt(
+                                              (row && row.age) || "",
+                                              10
+                                            );
+                                            if (!Number.isNaN(n)) {
+                                              const clamped = Math.min(
+                                                120,
+                                                Math.max(18, n)
+                                              );
+                                              setRetirementChoices((prev) =>
+                                                prev.map((r) =>
+                                                  r && r.id === row.id
+                                                    ? {
+                                                        ...r,
+                                                        age: String(clamped),
+                                                        fixedAge: true,
+                                                      }
+                                                    : r
+                                                )
+                                              );
+                                            } else {
+                                              setRetirementChoices((prev) =>
+                                                prev.map((r) =>
+                                                  r && r.id === row.id
+                                                    ? { ...r, fixedAge: true }
+                                                    : r
+                                                )
+                                              );
+                                            }
+                                          }
+                                        }}
+                                        placeholder="Ex: 62"
+                                        aria-label={`Âge pour ${row.label}`}
+                                      />
+                                      <span>ans</span>
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td>
+                                {row.fixedDate ? (
+                                  <input
+                                    type="text"
+                                    readOnly
+                                    className="inline-input"
+                                    onClick={() =>
+                                      setRetirementChoices((prev) =>
+                                        prev.map((r) =>
+                                          r && r.id === row.id
+                                            ? { ...r, fixedDate: false }
+                                            : r
+                                        )
+                                      )
+                                    }
+                                    style={{
+                                      width: 130,
+                                      textAlign: "center",
+                                      background: "#F9FAFB",
+                                      cursor: "pointer",
+                                    }}
+                                    value={(row && row.date) ?? ""}
+                                    aria-label={`Date correspondante pour ${row.label}`}
+                                  />
+                                ) : (
+                                  <input
+                                    type="date"
+                                    className="inline-input"
+                                    style={{
+                                      width: 130,
+                                      textAlign: "center",
+                                      cursor: "pointer",
+                                    }}
+                                    value={(row && row.date) ?? ""}
+                                    onMouseDown={(e) => {
+                                      try {
+                                        e.currentTarget.showPicker &&
+                                          e.currentTarget.showPicker();
+                                      } catch {}
+                                    }}
+                                    onFocus={(e) => {
+                                      try {
+                                        e.currentTarget.showPicker &&
+                                          e.currentTarget.showPicker();
+                                      } catch {}
+                                    }}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      const dob = getBirthDate();
+                                      let nextAge = (row && row.age) || "";
+                                      if (dob && val) {
+                                        const at = new Date(val);
+                                        if (!isNaN(at.getTime())) {
+                                          let age =
+                                            at.getFullYear() -
+                                            dob.getFullYear();
+                                          const m =
+                                            at.getMonth() - dob.getMonth();
+                                          if (
+                                            m < 0 ||
+                                            (m === 0 &&
+                                              at.getDate() < dob.getDate())
+                                          )
+                                            age--;
+                                          if (age >= 0) nextAge = String(age);
+                                        }
+                                      }
+                                      setRetirementChoices((prev) =>
+                                        prev.map((r) =>
+                                          r && r.id === row.id
+                                            ? { ...r, date: val, age: nextAge }
+                                            : r
+                                        )
+                                      );
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter")
+                                        setRetirementChoices((prev) =>
+                                          prev.map((r) =>
+                                            r && r.id === row.id
+                                              ? { ...r, fixedDate: true }
+                                              : r
+                                          )
+                                        );
+                                    }}
+                                    aria-label={`Date correspondante pour ${row.label}`}
+                                  />
+                                )}
+                              </td>
+                              <td>
+                                <ButtonRadioSwitch
+                                  noLabel
+                                  textWeight={700}
+                                  checked={!!(row && row.selected)}
+                                  onToggle={(val) =>
+                                    setRetirementChoices((prev) =>
+                                      (Array.isArray(prev) ? prev : []).map(
+                                        (r) =>
+                                          r && r.id === row.id
+                                            ? !!r.selected === !!val
+                                              ? r
+                                              : { ...r, selected: !!val }
+                                            : r
+                                      )
+                                    )
+                                  }
+                                />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardBody>
