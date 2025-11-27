@@ -12,11 +12,24 @@ import {
   FormGroup,
   CustomInput,
   CardHeader,
+  Modal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
 } from "reactstrap";
 import Chip from "../../../../src/components/@vuexy/chips/ChipComponent";
 import LabeledCheckboxMaterialUi from "labeled-checkbox-material-ui";
 import logo from "../../../assets/img/logo/contract_logo.jpg";
-import { Download, ArrowLeft, Save, Aperture, Edit, Trash, Check, Plus } from "react-feather";
+import {
+  Download,
+  ArrowLeft,
+  Save,
+  Aperture,
+  Edit,
+  Trash,
+  Check,
+  Plus,
+} from "react-feather";
 import "../../../assets/scss/pages/contract.scss";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -72,6 +85,7 @@ class EditContract extends React.Component {
     activeTab: "1",
     // Indique si des modifications ont été faites (pour activer le bouton Enregistrer)
     isDirty: false,
+    showUnsavedModal: false,
     // ← nouvelles: lignes visibles dans la carte "Contrat"
     selectedRows: [],
 
@@ -238,7 +252,7 @@ class EditContract extends React.Component {
     if (input_values["c1"])
       nbHT1 = Math.trunc(
         (this.state.formValues["nb1-price"] / 60) *
-        parseInt(this.state.formValues["nb1"], 10)
+          parseInt(this.state.formValues["nb1"], 10)
       );
     this.state.formValues["nbHT1"] = nbHT1;
     this.state.formValues["TTC1"] = nbHT1 * VTA;
@@ -388,13 +402,12 @@ class EditContract extends React.Component {
           sold_date: rowData.sold_date,
           status: rowData.document_state,
           status_payment: rowData.status_payment,
-          payment_method,          // <-- on garde la valeur calculée
-          payment_method_other,    // <-- et le champ "Autre"
+          payment_method, // <-- on garde la valeur calculée
+          payment_method_other, // <-- et le champ "Autre"
           subscribe_services: rowData.subscribe_services,
           acompte_dates: acompteDates,
           sold_dates: soldDates,
         });
-
 
         if (rowData.values != null) {
           let values = JSON.parse(rowData.values);
@@ -530,7 +543,7 @@ class EditContract extends React.Component {
 
       if (redirect) {
         // 🔁 4) retour sur la fiche user
-        history.push("/app/user/edit/" + userid + "/3");
+        history.push("/app/user/edit/" + userid + "/8");
       } else {
         this.setState({ isDirty: false });
         toast.success("Date enregistrée");
@@ -580,8 +593,8 @@ class EditContract extends React.Component {
 
   handleDeleteDate = async (key, idx) => {
     // Remove date from state first
-    await new Promise(resolve => {
-      this.setState(prev => {
+    await new Promise((resolve) => {
+      this.setState((prev) => {
         const arr = [...(prev[key] || [])];
         arr.splice(idx, 1);
         return { [key]: arr, isDirty: true };
@@ -725,7 +738,8 @@ class EditContract extends React.Component {
     this.setState((prev) => {
       const newArr = [...(prev[key] || []), ""];
       const newIdx = newArr.length - 1;
-      const editKey = key === "acompte_dates" ? "editingAcompte" : "editingSold";
+      const editKey =
+        key === "acompte_dates" ? "editingAcompte" : "editingSold";
       return {
         [key]: newArr,
         [editKey]: [...prev[editKey], newIdx],
@@ -753,6 +767,24 @@ class EditContract extends React.Component {
     });
   };
 
+  handleBack = () => {
+    if (!this.state.isDirty) {
+      history.push("/app/user/edit/" + this.state.user_id + "/8");
+    } else {
+      this.setState({ showUnsavedModal: true });
+    }
+  };
+
+  handleLeaveWithoutSaving = () => {
+    this.setState({ showUnsavedModal: false, isDirty: false });
+    history.push("/app/user/edit/" + this.state.user_id + "/8");
+  };
+
+  handleSaveAndLeave = () => {
+    this.setState({ showUnsavedModal: false });
+    this.saveDocument(true);
+  };
+
   render() {
     return (
       <React.Fragment>
@@ -770,12 +802,44 @@ class EditContract extends React.Component {
                   title="Retour"
                   className="btn-icon rounded-circle p-0 d-flex align-items-center justify-content-center"
                   style={{ width: 32, height: 32 }}
-                  onClick={() =>
-                    history.push("/app/user/edit/" + this.state.user_id + "/3")
-                  }
+                  onClick={this.handleBack}
                 >
                   <ArrowLeft size={16} />
                 </Button.Ripple>
+                <Modal
+                  isOpen={this.state.showUnsavedModal}
+                  toggle={() =>
+                    this.setState({
+                      showUnsavedModal: !this.state.showUnsavedModal,
+                    })
+                  }
+                  className="modal-dialog-centered"
+                >
+                  <ModalHeader
+                    toggle={() =>
+                      this.setState({
+                        showUnsavedModal: !this.state.showUnsavedModal,
+                      })
+                    }
+                  >
+                    Modifications non enregistrées
+                  </ModalHeader>
+                  <ModalBody>
+                    Voulez-vous enregistrer vos modifications avant de quitter ?
+                  </ModalBody>
+                  <ModalFooter>
+                    <Button color="primary" onClick={this.handleSaveAndLeave}>
+                      Enregistrer et Quitter
+                    </Button>
+                    <Button
+                      color="danger"
+                      outline
+                      onClick={this.handleLeaveWithoutSaving}
+                    >
+                      Quitter sans sauvegarder
+                    </Button>
+                  </ModalFooter>
+                </Modal>
 
                 <div className="d-flex align-items-center" style={{ gap: 8 }}>
                   <h5 className="mb-0 d-flex align-items-center">
@@ -888,7 +952,15 @@ class EditContract extends React.Component {
                     );
 
                     const VSep = () => (
-                      <div aria-hidden="true" style={{ width: 1, height: 24, background: "#ebe9f1", justifySelf: "center" }} />
+                      <div
+                        aria-hidden="true"
+                        style={{
+                          width: 1,
+                          height: 24,
+                          background: "#ebe9f1",
+                          justifySelf: "center",
+                        }}
+                      />
                     );
 
                     // ——— Lignes
@@ -901,25 +973,43 @@ class EditContract extends React.Component {
                             this.onPrimaryToggle(checked, "c1", "r1")
                           }
                         />
-                        <span style={{ fontWeight: 500, color: "#5e5873" }}>{this.state.formValues["title1"]}</span>
+                        <span style={{ fontWeight: 500, color: "#5e5873" }}>
+                          {this.state.formValues["title1"]}
+                        </span>
 
-                        <span className="text-muted" style={{ fontSize: "0.85rem" }}>Nb (min)</span>
+                        <span
+                          className="text-muted"
+                          style={{ fontSize: "0.85rem" }}
+                        >
+                          Nb (min)
+                        </span>
                         <Input
                           type="text"
                           value={this.state.formValues["nb1"]}
-                          onChange={(e) => this.handleFieldChange("nb1", e.target.value)}
+                          onChange={(e) =>
+                            this.handleFieldChange("nb1", e.target.value)
+                          }
                           style={{ ...inputStyle, width: "100%" }}
                         />
 
-                        <span className="text-muted" style={{ fontSize: "0.85rem" }}>PU (€/h)</span>
+                        <span
+                          className="text-muted"
+                          style={{ fontSize: "0.85rem" }}
+                        >
+                          PU (€/h)
+                        </span>
                         <Input
                           type="text"
                           value={this.state.formValues["nb1-price"]}
-                          onChange={(e) => this.handleFieldChange("nb1-price", e.target.value)}
+                          onChange={(e) =>
+                            this.handleFieldChange("nb1-price", e.target.value)
+                          }
                           style={{ ...inputStyle, width: "100%" }}
                         />
 
-                        <Ghost><Input style={{ ...inputStyle }} /></Ghost>
+                        <Ghost>
+                          <Input style={{ ...inputStyle }} />
+                        </Ghost>
                         <Ghost>€ HT</Ghost>
 
                         <VSep />
@@ -929,7 +1019,9 @@ class EditContract extends React.Component {
                         </Ghost>
                         <Ghost>Option</Ghost>
                         <Ghost>Nb</Ghost>
-                        <Ghost><Input style={{ ...inputStyle, width: 70 }} /></Ghost>
+                        <Ghost>
+                          <Input style={{ ...inputStyle, width: 70 }} />
+                        </Ghost>
                       </div>
                     );
 
@@ -942,20 +1034,34 @@ class EditContract extends React.Component {
                             this.onPrimaryToggle(checked, `c${n}`, `r${n}`)
                           }
                         />
-                        <span style={{ fontWeight: 500, color: "#5e5873" }}>{this.state.formValues[`title${n}`]}</span>
+                        <span style={{ fontWeight: 500, color: "#5e5873" }}>
+                          {this.state.formValues[`title${n}`]}
+                        </span>
 
                         <Ghost>Nb (min)</Ghost>
-                        <Ghost><Input style={{ ...inputStyle }} /></Ghost>
+                        <Ghost>
+                          <Input style={{ ...inputStyle }} />
+                        </Ghost>
                         <Ghost>PU (€/h)</Ghost>
-                        <Ghost><Input style={{ ...inputStyle }} /></Ghost>
+                        <Ghost>
+                          <Input style={{ ...inputStyle }} />
+                        </Ghost>
 
                         <Input
                           type="text"
                           value={this.state.formValues[`p${n}`]}
-                          onChange={(e) => this.handleFieldChange(`p${n}`, e.target.value)}
-                          style={{ ...inputStyle, fontWeight: 600, color: "#5e5873" }}
+                          onChange={(e) =>
+                            this.handleFieldChange(`p${n}`, e.target.value)
+                          }
+                          style={{
+                            ...inputStyle,
+                            fontWeight: 600,
+                            color: "#5e5873",
+                          }}
                         />
-                        <span style={{ fontSize: "0.85rem", color: "#b9b9c3" }}>€ HT</span>
+                        <span style={{ fontSize: "0.85rem", color: "#b9b9c3" }}>
+                          € HT
+                        </span>
 
                         <VSep />
 
@@ -964,11 +1070,19 @@ class EditContract extends React.Component {
                         </Ghost>
                         <Ghost>Option</Ghost>
                         <Ghost>Nb</Ghost>
-                        <Ghost><Input style={{ ...inputStyle, width: 70 }} /></Ghost>
+                        <Ghost>
+                          <Input style={{ ...inputStyle, width: 70 }} />
+                        </Ghost>
                       </div>
                     );
 
-                    const RowWithOption = ({ i, n, optionCheckKey, optionLabel, optionNbKey }) => {
+                    const RowWithOption = ({
+                      i,
+                      n,
+                      optionCheckKey,
+                      optionLabel,
+                      optionNbKey,
+                    }) => {
                       const isPensionLine = n === 5; // ligne "liquidation des pensions"
                       return (
                         <div style={{ ...stripe(i), ...GRID }}>
@@ -980,22 +1094,38 @@ class EditContract extends React.Component {
                               this.onPrimaryToggle(checked, `c${n}`, `r${n}`)
                             }
                           />
-                          <span style={{ fontWeight: 500, color: "#5e5873" }}>{this.state.formValues[`title${n}`]}</span>
+                          <span style={{ fontWeight: 500, color: "#5e5873" }}>
+                            {this.state.formValues[`title${n}`]}
+                          </span>
 
                           {/* colonnes minutes / PU fantômes */}
                           <Ghost>Nb (min)</Ghost>
-                          <Ghost><Input style={{ ...inputStyle }} /></Ghost>
+                          <Ghost>
+                            <Input style={{ ...inputStyle }} />
+                          </Ghost>
                           <Ghost>PU (€/h)</Ghost>
-                          <Ghost><Input style={{ ...inputStyle }} /></Ghost>
+                          <Ghost>
+                            <Input style={{ ...inputStyle }} />
+                          </Ghost>
 
                           {/* prix forfait */}
                           <Input
                             type="text"
                             value={this.state.formValues[`p${n}`]}
-                            onChange={(e) => this.handleFieldChange(`p${n}`, e.target.value)}
-                            style={{ ...inputStyle, fontWeight: 600, color: "#5e5873" }}
+                            onChange={(e) =>
+                              this.handleFieldChange(`p${n}`, e.target.value)
+                            }
+                            style={{
+                              ...inputStyle,
+                              fontWeight: 600,
+                              color: "#5e5873",
+                            }}
                           />
-                          <span style={{ fontSize: "0.85rem", color: "#b9b9c3" }}>€ HT</span>
+                          <span
+                            style={{ fontSize: "0.85rem", color: "#b9b9c3" }}
+                          >
+                            € HT
+                          </span>
 
                           <VSep />
 
@@ -1031,13 +1161,20 @@ class EditContract extends React.Component {
                                     overflow: "hidden",
                                     textOverflow: "ellipsis",
                                     fontSize: "0.85rem",
-                                    color: "#5e5873"
+                                    color: "#5e5873",
                                   }}
                                   title={optionLabel}
                                 >
                                   {optionLabel}
                                 </span>
-                                <span style={{ fontSize: "0.85rem", color: "#b9b9c3" }}>Nb</span>
+                                <span
+                                  style={{
+                                    fontSize: "0.85rem",
+                                    color: "#b9b9c3",
+                                  }}
+                                >
+                                  Nb
+                                </span>
                                 <Input
                                   type="text"
                                   value={this.state.formValues[optionNbKey]}
@@ -1067,7 +1204,14 @@ class EditContract extends React.Component {
                                     this.handleCheckChange(checked, "cc5")
                                   }
                                 />
-                                <span style={{ whiteSpace: "normal", fontSize: "0.8rem", color: "#b9b9c3", fontStyle: "italic" }}>
+                                <span
+                                  style={{
+                                    whiteSpace: "normal",
+                                    fontSize: "0.8rem",
+                                    color: "#b9b9c3",
+                                    fontStyle: "italic",
+                                  }}
+                                >
                                   {this.state.formValues["subcontent5-3"]}
                                 </span>
                               </div>
@@ -1091,13 +1235,20 @@ class EditContract extends React.Component {
                                   overflow: "hidden",
                                   textOverflow: "ellipsis",
                                   fontSize: "0.85rem",
-                                  color: "#5e5873"
+                                  color: "#5e5873",
                                 }}
                                 title={optionLabel}
                               >
                                 {optionLabel}
                               </span>
-                              <span style={{ fontSize: "0.85rem", color: "#b9b9c3" }}>Nb</span>
+                              <span
+                                style={{
+                                  fontSize: "0.85rem",
+                                  color: "#b9b9c3",
+                                }}
+                              >
+                                Nb
+                              </span>
                               <Input
                                 type="text"
                                 value={this.state.formValues[optionNbKey]}
@@ -1122,7 +1273,10 @@ class EditContract extends React.Component {
                       const avail = this.availableRowIds();
                       if (avail.length === 0) return null;
                       return (
-                        <div className="d-flex align-items-center justify-content-center" style={{ margin: "12px 0" }}>
+                        <div
+                          className="d-flex align-items-center justify-content-center"
+                          style={{ margin: "12px 0" }}
+                        >
                           <div style={{ position: "relative", width: 400 }}>
                             <Input
                               type="select"
@@ -1137,7 +1291,7 @@ class EditContract extends React.Component {
                                 textAlign: "center",
                                 cursor: "pointer",
                                 appearance: "none",
-                                paddingLeft: "20px"
+                                paddingLeft: "20px",
                               }}
                               value=""
                               onChange={(e) => {
@@ -1145,12 +1299,28 @@ class EditContract extends React.Component {
                                 if (id) this.addRowById(id);
                               }}
                             >
-                              <option value="" disabled hidden>+ {placeholder}</option>
+                              <option value="" disabled hidden>
+                                + {placeholder}
+                              </option>
                               {avail.map((id) => (
-                                <option key={id} value={id} style={{ color: "#000" }}>{this.labelFor(id)}</option>
+                                <option
+                                  key={id}
+                                  value={id}
+                                  style={{ color: "#000" }}
+                                >
+                                  {this.labelFor(id)}
+                                </option>
                               ))}
                             </Input>
-                            <div style={{ position: "absolute", right: 15, top: 10, pointerEvents: "none", color: "#7367f0" }}>
+                            <div
+                              style={{
+                                position: "absolute",
+                                right: 15,
+                                top: 10,
+                                pointerEvents: "none",
+                                color: "#7367f0",
+                              }}
+                            >
                               <Plus size={18} />
                             </div>
                           </div>
@@ -1161,7 +1331,12 @@ class EditContract extends React.Component {
                     // ——— rendu
                     let i = 0;
                     const out = [];
-                    out.push(<AddRowSelect key="add-top" placeholder="Ajouter une prestation" />);
+                    out.push(
+                      <AddRowSelect
+                        key="add-top"
+                        placeholder="Ajouter une prestation"
+                      />
+                    );
 
                     (this.state.selectedRows || []).forEach((id) => {
                       switch (id) {
@@ -1234,46 +1409,77 @@ class EditContract extends React.Component {
                           padding: "15px 20px",
                           marginTop: 25,
                           gap: 15,
-                          justifyContent: "space-between"
+                          justifyContent: "space-between",
                         }}
                       >
-                        <div className="d-flex align-items-center" style={{ gap: 10 }}>
-                          <span style={{ fontWeight: 600, color: "#5e5873" }}>TVA</span>
+                        <div
+                          className="d-flex align-items-center"
+                          style={{ gap: 10 }}
+                        >
+                          <span style={{ fontWeight: 600, color: "#5e5873" }}>
+                            TVA
+                          </span>
                           <Input
                             type="text"
                             value={this.state.formValues["TVAP"] ?? 20}
-                            onChange={(e) => this.handleFieldChange("TVAP", e.target.value)}
-                            style={{ ...inputStyle, width: 60, textAlign: "center" }}
+                            onChange={(e) =>
+                              this.handleFieldChange("TVAP", e.target.value)
+                            }
+                            style={{
+                              ...inputStyle,
+                              width: 60,
+                              textAlign: "center",
+                            }}
                           />
                           <span style={{ color: "#b9b9c3" }}>%</span>
                         </div>
 
                         <VSep />
 
-                        <div className="d-flex align-items-center" style={{ gap: 10 }}>
+                        <div
+                          className="d-flex align-items-center"
+                          style={{ gap: 10 }}
+                        >
                           <span style={{ color: "#5e5873" }}>
-                            {this.state.formValues["table3-subcontent1"] || "Acompte à la commande :"}
+                            {this.state.formValues["table3-subcontent1"] ||
+                              "Acompte à la commande :"}
                           </span>
                           <Input
                             type="text"
                             value={this.state.formValues["fp1"] ?? 100}
-                            onChange={(e) => this.handleFieldChange("fp1", e.target.value)}
-                            style={{ ...inputStyle, width: 60, textAlign: "center" }}
+                            onChange={(e) =>
+                              this.handleFieldChange("fp1", e.target.value)
+                            }
+                            style={{
+                              ...inputStyle,
+                              width: 60,
+                              textAlign: "center",
+                            }}
                           />
                           <span style={{ color: "#b9b9c3" }}>%</span>
                         </div>
 
                         <VSep />
 
-                        <div className="d-flex align-items-center" style={{ gap: 10 }}>
+                        <div
+                          className="d-flex align-items-center"
+                          style={{ gap: 10 }}
+                        >
                           <span style={{ color: "#5e5873" }}>
-                            {this.state.formValues["table3-subcontent2"] || "Solde fin de mission :"}
+                            {this.state.formValues["table3-subcontent2"] ||
+                              "Solde fin de mission :"}
                           </span>
                           <Input
                             type="text"
                             value={this.state.formValues["fp2"] ?? 0}
-                            onChange={(e) => this.handleFieldChange("fp2", e.target.value)}
-                            style={{ ...inputStyle, width: 60, textAlign: "center" }}
+                            onChange={(e) =>
+                              this.handleFieldChange("fp2", e.target.value)
+                            }
+                            style={{
+                              ...inputStyle,
+                              width: 60,
+                              textAlign: "center",
+                            }}
                           />
                           <span style={{ color: "#b9b9c3" }}>%</span>
                         </div>
@@ -1282,7 +1488,16 @@ class EditContract extends React.Component {
                         <VSep />
 
                         {/* 👇 checkbox + texte avec le même style que les autres spans */}
-                        <div className="d-flex align-items-center" style={{ gap: 8, backgroundColor: "#fff", padding: "5px 10px", borderRadius: 6, border: "1px solid #eee" }}>
+                        <div
+                          className="d-flex align-items-center"
+                          style={{
+                            gap: 8,
+                            backgroundColor: "#fff",
+                            padding: "5px 10px",
+                            borderRadius: 6,
+                            border: "1px solid #eee",
+                          }}
+                        >
                           <LabeledCheckboxMaterialUi
                             label="" // important : label vide
                             checked={!!this.state.formValues.credit_impot_50}
@@ -1290,7 +1505,9 @@ class EditContract extends React.Component {
                               this.handleCheckChange(checked, "credit_impot_50")
                             }
                           />
-                          <span style={{ fontWeight: 500, color: "#28c76f" }}>Crédit d'impôts 50%</span>
+                          <span style={{ fontWeight: 500, color: "#28c76f" }}>
+                            Crédit d'impôts 50%
+                          </span>
                         </div>
                       </div>
                     );
@@ -1380,17 +1597,32 @@ class EditContract extends React.Component {
                             {/* Liste de choix */}
                             <Input
                               type="select"
-                              style={{ minWidth: 100, maxWidth: 200, height: 40 }}
+                              style={{
+                                minWidth: 100,
+                                maxWidth: 200,
+                                height: 40,
+                              }}
                               value={this.state.payment_method || ""}
                               color="primary"
                               onChange={(e) =>
-                                this.setState({ payment_method: e.target.value, isDirty: true })
+                                this.setState({
+                                  payment_method: e.target.value,
+                                  isDirty: true,
+                                })
                               }
                             >
-                              <option value="" disabled hidden>Sélectionner…</option>
-                              <option value="Virement bancaire">Virement bancaire</option>
-                              <option value="Chèque de banque">Chèque de banque</option>
-                              <option value="Carte bancaire">Carte bancaire</option>
+                              <option value="" disabled hidden>
+                                Sélectionner…
+                              </option>
+                              <option value="Virement bancaire">
+                                Virement bancaire
+                              </option>
+                              <option value="Chèque de banque">
+                                Chèque de banque
+                              </option>
+                              <option value="Carte bancaire">
+                                Carte bancaire
+                              </option>
                               <option value="Espèce">Espèce</option>
                               <option value="Autre">Autre</option>
                             </Input>
@@ -1459,11 +1691,18 @@ class EditContract extends React.Component {
 
                       <Row>
                         <Col md="6" sm="12" className="mb-1">
-                          <div className="mb-1"><h6 className="mb-0 text-muted">Dates d’acompte</h6></div>
+                          <div className="mb-1">
+                            <h6 className="mb-0 text-muted">Dates d’acompte</h6>
+                          </div>
                           {(this.state.acompte_dates || []).map((d, idx) => {
-                            const isEditing = this.state.editingAcompte.includes(idx);
+                            const isEditing =
+                              this.state.editingAcompte.includes(idx);
                             return (
-                              <div key={`ad-${idx}`} className="d-flex align-items-center" style={{ gap: 8, marginBottom: 8 }}>
+                              <div
+                                key={`ad-${idx}`}
+                                className="d-flex align-items-center"
+                                style={{ gap: 8, marginBottom: 8 }}
+                              >
                                 {isEditing ? (
                                   <>
                                     <Input
@@ -1482,7 +1721,9 @@ class EditContract extends React.Component {
                                       className="btn-icon rounded-circle"
                                       color="success"
                                       size="sm"
-                                      onClick={() => this.handleSaveDate("acompte", idx)}
+                                      onClick={() =>
+                                        this.handleSaveDate("acompte", idx)
+                                      }
                                     >
                                       <Check size={16} />
                                     </Button.Ripple>
@@ -1501,13 +1742,17 @@ class EditContract extends React.Component {
                                         backgroundColor: "#f8f9fa",
                                       }}
                                     >
-                                      {d ? moment(d).format("DD/MM/YYYY HH:mm") : "-"}
+                                      {d
+                                        ? moment(d).format("DD/MM/YYYY HH:mm")
+                                        : "-"}
                                     </div>
                                     <Button.Ripple
                                       className="btn-icon rounded-circle"
                                       color="primary"
                                       size="sm"
-                                      onClick={() => this.toggleEditAcompte(idx)}
+                                      onClick={() =>
+                                        this.toggleEditAcompte(idx)
+                                      }
                                     >
                                       <Edit size={16} />
                                     </Button.Ripple>
@@ -1517,24 +1762,41 @@ class EditContract extends React.Component {
                                   className="btn-icon rounded-circle"
                                   color="danger"
                                   size="sm"
-                                  onClick={() => this.handleDeleteDate("acompte_dates", idx)}
+                                  onClick={() =>
+                                    this.handleDeleteDate("acompte_dates", idx)
+                                  }
                                 >
                                   <Trash size={16} />
                                 </Button.Ripple>
                               </div>
                             );
                           })}
-                          <Button outline color="primary" size="sm" className="mt-1" onClick={() => this.addDate('acompte_dates')}>
+                          <Button
+                            outline
+                            color="primary"
+                            size="sm"
+                            className="mt-1"
+                            onClick={() => this.addDate("acompte_dates")}
+                          >
                             <Plus size={14} className="mr-50" /> Ajouter
                           </Button>
                         </Col>
 
                         <Col md="6" sm="12" className="mb-1">
-                          <div className="mb-1"><h6 className="mb-0 text-muted">Dates de paiement</h6></div>
+                          <div className="mb-1">
+                            <h6 className="mb-0 text-muted">
+                              Dates de paiement
+                            </h6>
+                          </div>
                           {(this.state.sold_dates || []).map((d, idx) => {
-                            const isEditing = this.state.editingSold.includes(idx);
+                            const isEditing =
+                              this.state.editingSold.includes(idx);
                             return (
-                              <div key={`sd-${idx}`} className="d-flex align-items-center" style={{ gap: 8, marginBottom: 8 }}>
+                              <div
+                                key={`sd-${idx}`}
+                                className="d-flex align-items-center"
+                                style={{ gap: 8, marginBottom: 8 }}
+                              >
                                 {isEditing ? (
                                   <>
                                     <Input
@@ -1553,7 +1815,9 @@ class EditContract extends React.Component {
                                       className="btn-icon rounded-circle"
                                       color="success"
                                       size="sm"
-                                      onClick={() => this.handleSaveDate("sold", idx)}
+                                      onClick={() =>
+                                        this.handleSaveDate("sold", idx)
+                                      }
                                     >
                                       <Check size={16} />
                                     </Button.Ripple>
@@ -1572,7 +1836,9 @@ class EditContract extends React.Component {
                                         backgroundColor: "#f8f9fa",
                                       }}
                                     >
-                                      {d ? moment(d).format("DD/MM/YYYY HH:mm") : "-"}
+                                      {d
+                                        ? moment(d).format("DD/MM/YYYY HH:mm")
+                                        : "-"}
                                     </div>
                                     <Button.Ripple
                                       className="btn-icon rounded-circle"
@@ -1588,14 +1854,22 @@ class EditContract extends React.Component {
                                   className="btn-icon rounded-circle"
                                   color="danger"
                                   size="sm"
-                                  onClick={() => this.handleDeleteDate("sold_dates", idx)}
+                                  onClick={() =>
+                                    this.handleDeleteDate("sold_dates", idx)
+                                  }
                                 >
                                   <Trash size={16} />
                                 </Button.Ripple>
                               </div>
                             );
                           })}
-                          <Button outline color="primary" size="sm" className="mt-1" onClick={() => this.addDate('sold_dates')}>
+                          <Button
+                            outline
+                            color="primary"
+                            size="sm"
+                            className="mt-1"
+                            onClick={() => this.addDate("sold_dates")}
+                          >
                             <Plus size={14} className="mr-50" /> Ajouter
                           </Button>
                         </Col>
@@ -1859,7 +2133,13 @@ class EditContract extends React.Component {
                           sm="12"
                           className="contract-caption1-section"
                         >
-                          <h5 className="bold-black" style={{ textDecoration: "underline", textUnderlineOffset: "2px" }}>
+                          <h5
+                            className="bold-black"
+                            style={{
+                              textDecoration: "underline",
+                              textUnderlineOffset: "2px",
+                            }}
+                          >
                             Société
                           </h5>
                         </Col>
@@ -1947,7 +2227,13 @@ class EditContract extends React.Component {
                           className="contract-caption1-section"
                         >
                           {" "}
-                          <h5 className="bold-black" style={{ textDecoration: "underline", textUnderlineOffset: "2px" }}>
+                          <h5
+                            className="bold-black"
+                            style={{
+                              textDecoration: "underline",
+                              textUnderlineOffset: "2px",
+                            }}
+                          >
                             Société
                           </h5>
                         </Col>
@@ -3058,8 +3344,17 @@ class EditContract extends React.Component {
                       </td>
                     </tr>
                     <tr>
-                      <td width="75%" style={{ paddingBottom: 0, paddingTop: 0 }}>
-                        <div style={{ display: "flex", alignItems: "flex-start", marginLeft: "20px" }}>
+                      <td
+                        width="75%"
+                        style={{ paddingBottom: 0, paddingTop: 0 }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            marginLeft: "20px",
+                          }}
+                        >
                           <div style={{ marginRight: 10 }}>
                             <LabeledCheckboxMaterialUi
                               label="" // pas de label → pas de styles MUI sur le texte

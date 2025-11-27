@@ -28,7 +28,7 @@ const FOLDERS = [
   { id: 1, name: "Contrat / Procuration", color: "#007bff" },
   { id: 2, name: "Documents familiaux", color: "#28a745" },
   { id: 3, name: "Documents carrières", color: "#17a2b8" },
-  { id: 4, name: "Echanges avec les organismes", color: "#ffc107" },
+  { id: 4, name: "Échanges avec les organismes", color: "#ffc107" },
   { id: 5, name: "Notifications retraite", color: "#dc3545" },
   { id: 6, name: "Autre", color: "#6f42c1" }
 ]

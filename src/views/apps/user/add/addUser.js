@@ -873,10 +873,10 @@ class AddUser extends React.Component {
                 />
               </FormGroup>
               <FormGroup>
-                <Label for="officeadress2">Adresse 2</Label>
+                <Label for="officeadress2">Adresse n°2</Label>
                 <Input
                   type="text"
-                  placeholder="Adresse 2"
+                  placeholder="Adresse n°2"
                   onChange={(e) =>
                     this.setState({
                       data: {
