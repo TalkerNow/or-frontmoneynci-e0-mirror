@@ -1208,7 +1208,10 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
         .points-row { display: flex; align-items: center; justify-content: flex-start; margin-bottom: 15px; gap: 10px; flex-wrap: wrap; }
         
         /* Fixed width for the left column (labels) */
-        .points-label { display: inline-block; width: 350px; min-width: 350px; margin-right: 0; font-size: 14px; font-weight: 600; color: #1f2d3d; text-transform: none; }
+        .points-label { display: inline-block; width: 100%; min-width: 0; margin-right: 0; font-size: 14px; font-weight: 600; color: #1f2d3d; text-transform: none; }
+        @media (min-width: 769px) {
+          .points-label { width: 350px; min-width: 350px; }
+        }
         
         /* Special case for the date row where the "label" is a wrapper containing text + input */
         .rci-date-wrapper { width: 350px; min-width: 350px; display: flex; align-items: center; gap: 10px; }
@@ -1409,19 +1412,28 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
         
         .points-suffix { font-size: 14px; color: #6b7280; font-weight: 500; text-transform: lowercase; }
         
+        .rci-card-height { min-height: 1150px; }
+        
         /* RCI Responsive Styles */
         @media (max-width: 768px) {
+          .rci-card-height { min-height: auto !important; }
           .points-row { 
             flex-direction: column !important; 
             align-items: flex-start !important; 
             gap: 8px !important;
           }
           .points-row > div[style*="minWidth"],
-          .rci-date-wrapper {
+          .rci-date-wrapper,
+          .rci-age-wrapper {
             min-width: 100% !important;
             width: 100% !important;
             flex-direction: column !important;
             align-items: flex-start !important;
+          }
+          .rci-age-wrapper .points-label {
+            margin-right: 0 !important;
+            margin-bottom: 4px !important;
+            width: 100% !important;
           }
           .points-label {
             min-width: auto !important;
@@ -1609,7 +1621,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
             </TabPane>
 
             <TabPane tabId="rci">
-              <Card className="mb-1" style={{ minHeight: "1150px" }}>
+              <Card className="mb-1 rci-card-height">
                 <CardBody>
                   <div className="points-collapsible">
                     <div className="collapsible">
