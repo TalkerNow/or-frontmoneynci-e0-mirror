@@ -101,49 +101,49 @@ class AddUser extends React.Component {
       });
   }
   zipTimeout = null;
-handleDataChange = (field) => (e) => {
-  const value = e && e.target ? e.target.value : e; // safe
-  this.setState(prev => ({ data: { ...prev.data, [field]: value } }));
-};
-fetchCitiesByZip = async (zip, which /* 'personal' | 'society' */) => {
-  const key = `${which}_city_options`;
-  if (!/^\d{5}$/.test(zip)) {
-    this.setState(prev => ({
-      data: { ...prev.data, [key]: [], [`${which}_city`]: "" }
-    }));
-    return;
-  }
-  try {
-    const { data } = await axios.get(
-      `https://geo.api.gouv.fr/communes?codePostal=${zip}&fields=nom&format=json`
-    );
-    const options = (data || []).map(c => c.nom);
-
-    this.setState(prev => ({
-      data: { ...prev.data, [key]: options }
-    }));
-
-    if (options.length === 1) {
+  handleDataChange = (field) => (e) => {
+    const value = e && e.target ? e.target.value : e; // safe
+    this.setState(prev => ({ data: { ...prev.data, [field]: value } }));
+  };
+  fetchCitiesByZip = async (zip, which /* 'personal' | 'society' */) => {
+    const key = `${which}_city_options`;
+    if (!/^\d{5}$/.test(zip)) {
       this.setState(prev => ({
-        data: { ...prev.data, [`${which}_city`]: options[0] }
+        data: { ...prev.data, [key]: [], [`${which}_city`]: "" }
+      }));
+      return;
+    }
+    try {
+      const { data } = await axios.get(
+        `https://geo.api.gouv.fr/communes?codePostal=${zip}&fields=nom&format=json`
+      );
+      const options = (data || []).map(c => c.nom);
+
+      this.setState(prev => ({
+        data: { ...prev.data, [key]: options }
+      }));
+
+      if (options.length === 1) {
+        this.setState(prev => ({
+          data: { ...prev.data, [`${which}_city`]: options[0] }
+        }));
+      }
+    } catch (e) {
+      console.error(e);
+      this.setState(prev => ({
+        data: { ...prev.data, [key]: [] }
       }));
     }
-  } catch (e) {
-    console.error(e);
-    this.setState(prev => ({
-      data: { ...prev.data, [key]: [] }
-    }));
-  }
-};
+  };
 
-handleZipChange = (zip, which) => {
-  const sanitized = (zip || "").replace(/\D/g, "").slice(0, 5);
-  this.setState(prev => ({
-    data: { ...prev.data, [`${which}_zip_code`]: sanitized }
-  }));
-  if (this.zipTimeout) clearTimeout(this.zipTimeout);
-  this.zipTimeout = setTimeout(() => this.fetchCitiesByZip(sanitized, which), 300);
-};
+  handleZipChange = (zip, which) => {
+    const sanitized = (zip || "").replace(/\D/g, "").slice(0, 5);
+    this.setState(prev => ({
+      data: { ...prev.data, [`${which}_zip_code`]: sanitized }
+    }));
+    if (this.zipTimeout) clearTimeout(this.zipTimeout);
+    this.zipTimeout = setTimeout(() => this.fetchCitiesByZip(sanitized, which), 300);
+  };
   handleCopyCompanyToggle = (checked) => {
     this.setState((prev) => {
       const d = { ...prev.data };
@@ -299,8 +299,8 @@ handleZipChange = (zip, which) => {
     axios
       .get(
         global.config.server_url +
-          "/duplicated_email?email=" +
-          this.state.data.email,
+        "/duplicated_email?email=" +
+        this.state.data.email,
         Config
       )
       .then((response) => {
@@ -546,7 +546,7 @@ handleZipChange = (zip, which) => {
                 <Label for="secu_social">Sécurité Sociale</Label>
                 <Input
                   type="text"
-                placeholder="N°"
+                  placeholder="N°"
                   onChange={(e) =>
                     this.setState({
                       data: { ...this.state.data, secu_social: e.target.value },
@@ -708,7 +708,7 @@ handleZipChange = (zip, which) => {
             </Col>
             <Col md="6" sm="12">
               <FormGroup>
-                <Label for="member">Expert</Label>
+                <Label for="member">Consultant</Label>
                 <CustomInput
                   type="select"
                   name="member"
@@ -720,7 +720,7 @@ handleZipChange = (zip, which) => {
                   }
                 >
                   {this.state.members.map((member, index) => (
-                    <option key={index}>
+                    <option key={index} value={member.id}>
                       {member.first_name + " " + member.last_name}
                     </option>
                   ))}
@@ -786,35 +786,35 @@ handleZipChange = (zip, which) => {
                   id="adress2"
                 />
               </FormGroup>
-                <FormGroup>
-                  <Label for="postalcode">Code postal</Label>
-                  <Input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="\d{5}"
-                    id="postalcode"
-                    placeholder="Code postal"
-                    value={this.state.data.personal_zip_code || ""}
-                    onChange={(e) => this.handleZipChange(e.target.value, "personal")}
-                  />
-                </FormGroup>
+              <FormGroup>
+                <Label for="postalcode">Code postal</Label>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="\d{5}"
+                  id="postalcode"
+                  placeholder="Code postal"
+                  value={this.state.data.personal_zip_code || ""}
+                  onChange={(e) => this.handleZipChange(e.target.value, "personal")}
+                />
+              </FormGroup>
 
-                <FormGroup>
-                  <Label for="city">Ville</Label>
-                    <Input
-                      type="text"
-                      id="city"
-                      list="personalCityList"
-                      placeholder="Ville"
-                      value={this.state.data.personal_city || ""}
-                      onChange={this.handleDataChange("personal_city")}
-                    />
-                  <datalist id="personalCityList">
-                    {(this.state.data.personal_city_options || []).map((v) => (
-                      <option key={v} value={v} />
-                    ))}
-                  </datalist>
-                </FormGroup>
+              <FormGroup>
+                <Label for="city">Ville</Label>
+                <Input
+                  type="text"
+                  id="city"
+                  list="personalCityList"
+                  placeholder="Ville"
+                  value={this.state.data.personal_city || ""}
+                  onChange={this.handleDataChange("personal_city")}
+                />
+                <datalist id="personalCityList">
+                  {(this.state.data.personal_city_options || []).map((v) => (
+                    <option key={v} value={v} />
+                  ))}
+                </datalist>
+              </FormGroup>
 
               <FormGroup>
                 <Label for="country">Pays</Label>

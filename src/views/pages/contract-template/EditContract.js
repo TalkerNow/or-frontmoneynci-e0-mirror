@@ -11,12 +11,12 @@ import {
   Button,
   FormGroup,
   CustomInput,
-  CardHeader
+  CardHeader,
 } from "reactstrap";
 import Chip from "../../../../src/components/@vuexy/chips/ChipComponent";
 import LabeledCheckboxMaterialUi from "labeled-checkbox-material-ui";
 import logo from "../../../assets/img/logo/contract_logo.jpg";
-import { Download, ArrowLeft, Save, Aperture } from "react-feather";
+import { Download, ArrowLeft, Save, Aperture, Edit, Trash, Check, Plus } from "react-feather";
 import "../../../assets/scss/pages/contract.scss";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -67,6 +67,8 @@ class EditContract extends React.Component {
     services: [],
     acompte_dates: [],
     sold_dates: [],
+    editingAcompte: [],
+    editingSold: [],
     activeTab: "1",
     // Indique si des modifications ont été faites (pour activer le bouton Enregistrer)
     isDirty: false,
@@ -104,28 +106,44 @@ class EditContract extends React.Component {
 
   rowPrimaryKey = (id) => {
     switch (id) {
-      case "r1": return "c1";
-      case "r2": return "c2";
-      case "r3": return "c3";
-      case "r4": return "c4";
-      case "r5": return "c5";
-      case "r6": return "c6";
-      case "r7": return "c7";
-      default: return null;
+      case "r1":
+        return "c1";
+      case "r2":
+        return "c2";
+      case "r3":
+        return "c3";
+      case "r4":
+        return "c4";
+      case "r5":
+        return "c5";
+      case "r6":
+        return "c6";
+      case "r7":
+        return "c7";
+      default:
+        return null;
     }
   };
 
   labelFor = (id) => {
     const fv = this.state.formValues || {};
     switch (id) {
-      case "r1": return fv["title1"] || "Minutes + PU (min / €/h)";
-      case "r2": return fv["title2"] || "Forfait + option rachat/chômage";
-      case "r3": return fv["title3"] || "Ligne 3 (forfait)";
-      case "r4": return fv["title4"] || "Forfait + 1ère période à l’étranger";
-      case "r5": return fv["title5"] || "Forfait + 2ème période à l’étranger";
-      case "r6": return fv["title6"] || "Ligne 6 (forfait)";
-      case "r7": return fv["title7"] || "Ligne 7 (forfait)";
-      default: return id;
+      case "r1":
+        return fv["title1"] || "Minutes + PU (min / €/h)";
+      case "r2":
+        return fv["title2"] || "Forfait + option rachat/chômage";
+      case "r3":
+        return fv["title3"] || "Ligne 3 (forfait)";
+      case "r4":
+        return fv["title4"] || "Forfait + 1ère période à l’étranger";
+      case "r5":
+        return fv["title5"] || "Forfait + 2ème période à l’étranger";
+      case "r6":
+        return fv["title6"] || "Ligne 6 (forfait)";
+      case "r7":
+        return fv["title7"] || "Ligne 7 (forfait)";
+      default:
+        return id;
     }
   };
 
@@ -148,21 +166,31 @@ class EditContract extends React.Component {
 
   addRowById = (id) => {
     const key = this.rowPrimaryKey(id);
-    this.setState((prev) => ({
-      selectedRows: prev.selectedRows.includes(id) ? prev.selectedRows : [...prev.selectedRows, id],
-      formValues: key ? { ...prev.formValues, [key]: true } : prev.formValues,
-      isDirty: true,
-    }), this.calculate);
+    this.setState(
+      (prev) => ({
+        selectedRows: prev.selectedRows.includes(id)
+          ? prev.selectedRows
+          : [...prev.selectedRows, id],
+        formValues: key ? { ...prev.formValues, [key]: true } : prev.formValues,
+        isDirty: true,
+      }),
+      this.calculate
+    );
     if (key) input_values[key] = true;
   };
 
   removeRowById = (id) => {
     const key = this.rowPrimaryKey(id);
-    this.setState((prev) => ({
-      selectedRows: prev.selectedRows.filter((r) => r !== id),
-      formValues: key ? { ...prev.formValues, [key]: false } : prev.formValues,
-      isDirty: true,
-    }), this.calculate);
+    this.setState(
+      (prev) => ({
+        selectedRows: prev.selectedRows.filter((r) => r !== id),
+        formValues: key
+          ? { ...prev.formValues, [key]: false }
+          : prev.formValues,
+        isDirty: true,
+      }),
+      this.calculate
+    );
     if (key) input_values[key] = false;
   };
 
@@ -210,7 +238,7 @@ class EditContract extends React.Component {
     if (input_values["c1"])
       nbHT1 = Math.trunc(
         (this.state.formValues["nb1-price"] / 60) *
-          parseInt(this.state.formValues["nb1"], 10)
+        parseInt(this.state.formValues["nb1"], 10)
       );
     this.state.formValues["nbHT1"] = nbHT1;
     this.state.formValues["TTC1"] = nbHT1 * VTA;
@@ -318,24 +346,24 @@ class EditContract extends React.Component {
 
     axios
       .get(
-        global.config.server_url + "/get_contract/" + this.props.match.params.id,
+        global.config.server_url +
+          "/get_contract/" +
+          this.props.match.params.id,
         Config
       )
       .then((response) => {
         let rowData = response.data.data;
-        const acompteDates =
-          Array.isArray(rowData.acompte_dates)
-            ? rowData.acompte_dates
-            : rowData.acompte_dates
-              ? JSON.parse(rowData.acompte_dates)
-              : [];
+        const acompteDates = Array.isArray(rowData.acompte_dates)
+          ? rowData.acompte_dates
+          : rowData.acompte_dates
+          ? JSON.parse(rowData.acompte_dates)
+          : [];
 
-        const soldDates =
-          Array.isArray(rowData.sold_dates)
-            ? rowData.sold_dates
-            : rowData.sold_dates
-              ? JSON.parse(rowData.sold_dates)
-              : [];
+        const soldDates = Array.isArray(rowData.sold_dates)
+          ? rowData.sold_dates
+          : rowData.sold_dates
+          ? JSON.parse(rowData.sold_dates)
+          : [];
         const KNOWN_PAYMENT_METHODS = [
           "Virement bancaire",
           "Chèque de banque",
@@ -352,20 +380,20 @@ class EditContract extends React.Component {
           payment_method = "Autre";
         }
 
-this.setState({
-  rowData,
-  user_id: rowData.id,
-  parent_id: rowData.parent_id,
-  deposit_date: rowData.deposit_date,
-  sold_date: rowData.sold_date,
-  status: rowData.document_state,
-  status_payment: rowData.status_payment,
-  payment_method,          // <-- on garde la valeur calculée
-  payment_method_other,    // <-- et le champ "Autre"
-  subscribe_services: rowData.subscribe_services,
-  acompte_dates: acompteDates,
-  sold_dates: soldDates,
-});
+        this.setState({
+          rowData,
+          user_id: rowData.id,
+          parent_id: rowData.parent_id,
+          deposit_date: rowData.deposit_date,
+          sold_date: rowData.sold_date,
+          status: rowData.document_state,
+          status_payment: rowData.status_payment,
+          payment_method,          // <-- on garde la valeur calculée
+          payment_method_other,    // <-- et le champ "Autre"
+          subscribe_services: rowData.subscribe_services,
+          acompte_dates: acompteDates,
+          sold_dates: soldDates,
+        });
 
 
         if (rowData.values != null) {
@@ -373,7 +401,10 @@ this.setState({
           input_values = { ...values };
           // calcule les montants puis active les lignes concernées
           this.setState(
-            { formValues: values, selectedRows: this.computeSelectedRows(values) },
+            {
+              formValues: values,
+              selectedRows: this.computeSelectedRows(values),
+            },
             this.calculate
           );
         } else {
@@ -388,7 +419,7 @@ this.setState({
     // Si la case n'est pas cochée, on ne fait rien
     if (!this.state.formValues.credit_impot_50) return;
 
-    const userId = this.state.user_id;   // 👈 CORRECTION ICI
+    const userId = this.state.user_id; // 👈 CORRECTION ICI
     if (!userId) return;
 
     const config = {
@@ -435,7 +466,7 @@ this.setState({
     }
   };
 
-  sendForm = async () => {
+  saveDocument = async (redirect = true) => {
     const moyenPaiementFinal =
       this.state.payment_method === "Autre"
         ? this.state.payment_method_other || "Autre"
@@ -497,12 +528,67 @@ this.setState({
       // 📡 3) maj des services liés
       this.setSubscribeServices();
 
-      // 🔁 4) retour sur la fiche user
-      history.push("/app/user/edit/" + userid + "/3");
+      if (redirect) {
+        // 🔁 4) retour sur la fiche user
+        history.push("/app/user/edit/" + userid + "/3");
+      } else {
+        this.setState({ isDirty: false });
+        toast.success("Date enregistrée");
+      }
     } catch (error) {
       console.error(error);
       toast.error("API injoignable " + error);
     }
+  };
+
+  sendForm = async () => {
+    await this.saveDocument(true);
+  };
+
+  toggleEditAcompte = (idx) => {
+    this.setState((prev) => {
+      const list = prev.editingAcompte.includes(idx)
+        ? prev.editingAcompte.filter((i) => i !== idx)
+        : [...prev.editingAcompte, idx];
+      return { editingAcompte: list };
+    });
+  };
+
+  toggleEditSold = (idx) => {
+    this.setState((prev) => {
+      const list = prev.editingSold.includes(idx)
+        ? prev.editingSold.filter((i) => i !== idx)
+        : [...prev.editingSold, idx];
+      return { editingSold: list };
+    });
+  };
+
+  handleSaveDate = async (type, idx) => {
+    // Save document without redirect
+    await this.saveDocument(false);
+    // Remove from edit mode
+    if (type === "acompte") {
+      this.setState((prev) => ({
+        editingAcompte: prev.editingAcompte.filter((i) => i !== idx),
+      }));
+    } else {
+      this.setState((prev) => ({
+        editingSold: prev.editingSold.filter((i) => i !== idx),
+      }));
+    }
+  };
+
+  handleDeleteDate = async (key, idx) => {
+    // Remove date from state first
+    await new Promise(resolve => {
+      this.setState(prev => {
+        const arr = [...(prev[key] || [])];
+        arr.splice(idx, 1);
+        return { [key]: arr, isDirty: true };
+      }, resolve);
+    });
+    // Then save
+    await this.saveDocument(false);
   };
 
   setStatusPayment(value) {
@@ -550,7 +636,10 @@ this.setState({
     axios
       .post(
         global.config.server_url + "/set_user_subscribe_services",
-        { user_id: userid, subscribe_services: JSON.stringify(subscribe_services) },
+        {
+          user_id: userid,
+          subscribe_services: JSON.stringify(subscribe_services),
+        },
         Config
       )
       .catch(function (error) {
@@ -580,7 +669,7 @@ this.setState({
     parameters["user_id"] = this.state.user_id;
     parameters["parent_id"] = this.state.parent_id;
     parameters["acompte_dates"] = this.state.acompte_dates;
-    parameters["sold_dates"]    = this.state.sold_dates;
+    parameters["sold_dates"] = this.state.sold_dates;
     parameters["subscribe_services"] = sub_services;
     parameters["comment"] =
       "Contract de " +
@@ -592,8 +681,10 @@ this.setState({
     parameters["unipro"] = this.state.formValues.credit_impot_50 ? 1 : 0;
     this.appendCreditImpotNote();
     parameters["advanced_payment"] = this.state.formValues["TOTALTTC"] || 0;
-    parameters["pre_payment"] = parseFloat(this.state.formValues["FINAL75"]) || 0;
-    parameters["end_payment"] = parseFloat(this.state.formValues["FINAL25"]) || 0;
+    parameters["pre_payment"] =
+      parseFloat(this.state.formValues["FINAL75"]) || 0;
+    parameters["end_payment"] =
+      parseFloat(this.state.formValues["FINAL25"]) || 0;
     parameters["deposit_date"] = this.state.deposit_date;
     parameters["sold_date"] = this.state.sold_date;
 
@@ -618,22 +709,33 @@ this.setState({
     window.print();
   };
 
-  toInputValue = (sql) => { // "YYYY-MM-DD HH:mm:ss" -> "YYYY-MM-DDTHH:mm"
-    if (!sql) return '';
-    return sql.replace(' ', 'T').slice(0, 16);
+  toInputValue = (sql) => {
+    // "YYYY-MM-DD HH:mm:ss" -> "YYYY-MM-DDTHH:mm"
+    if (!sql) return "";
+    return sql.replace(" ", "T").slice(0, 16);
   };
 
-  fromInputValue = (v) => { // "YYYY-MM-DDTHH:mm" -> "YYYY-MM-DD HH:mm:00"
-    if (!v) return '';
-    return v.replace('T', ' ') + ':00';
+  fromInputValue = (v) => {
+    // "YYYY-MM-DDTHH:mm" -> "YYYY-MM-DD HH:mm:00"
+    if (!v) return "";
+    return v.replace("T", " ") + ":00";
   };
 
   addDate = (key) => {
-    this.setState(prev => ({ [key]: [...(prev[key] || []), '' ], isDirty: true }));
+    this.setState((prev) => {
+      const newArr = [...(prev[key] || []), ""];
+      const newIdx = newArr.length - 1;
+      const editKey = key === "acompte_dates" ? "editingAcompte" : "editingSold";
+      return {
+        [key]: newArr,
+        [editKey]: [...prev[editKey], newIdx],
+        isDirty: true,
+      };
+    });
   };
 
   updateDate = (key, idx, v) => {
-    this.setState(prev => {
+    this.setState((prev) => {
       const arr = [...(prev[key] || [])];
       arr[idx] = v;
       return { [key]: arr, isDirty: true };
@@ -641,10 +743,13 @@ this.setState({
   };
 
   removeDate = (key, idx) => {
-    this.setState(prev => {
+    const editKey = `${key}_editing`;
+    this.setState((prev) => {
       const arr = [...(prev[key] || [])];
+      const editArr = [...(prev[editKey] || [])];
       arr.splice(idx, 1);
-      return { [key]: arr, isDirty: true };
+      editArr.splice(idx, 1);
+      return { [key]: arr, [editKey]: editArr, isDirty: true };
     });
   };
 
@@ -653,7 +758,10 @@ this.setState({
       <React.Fragment>
         <Row>
           <Col xs="12" md="12" className="contract-header mb-1 px-0">
-            <div className="d-flex align-items-center justify-content-between" style={{ minHeight: 50, gap: 12 }}>
+            <div
+              className="d-flex align-items-center justify-content-between"
+              style={{ minHeight: 50, gap: 12 }}
+            >
               {/* Gauche : Retour + Prestation */}
               <div className="d-flex align-items-center" style={{ gap: 10 }}>
                 <Button.Ripple
@@ -662,7 +770,9 @@ this.setState({
                   title="Retour"
                   className="btn-icon rounded-circle p-0 d-flex align-items-center justify-content-center"
                   style={{ width: 32, height: 32 }}
-                  onClick={() => history.push("/app/user/edit/" + this.state.user_id + "/3")}
+                  onClick={() =>
+                    history.push("/app/user/edit/" + this.state.user_id + "/3")
+                  }
                 >
                   <ArrowLeft size={16} />
                 </Button.Ripple>
@@ -673,13 +783,19 @@ this.setState({
                     <span className="align-middle">Prestation :</span>
                   </h5>
 
-                  <div className="d-flex align-items-center flex-wrap" style={{ gap: 4 }}>
+                  <div
+                    className="d-flex align-items-center flex-wrap"
+                    style={{ gap: 4 }}
+                  >
                     {(() => {
                       let subscribe_service = this.state.subscribe_services;
                       if (!subscribe_service) return <div>No</div>;
-                      let lst = subscribe_service.replaceAll('"', "").trim().split("/");
+                      let lst = subscribe_service
+                        .replaceAll('"', "")
+                        .trim()
+                        .split("/");
                       return lst
-                        .filter(s => s && s.trim() !== "")
+                        .filter((s) => s && s.trim() !== "")
                         .map((service, idx) => (
                           <Chip
                             key={idx}
@@ -699,10 +815,14 @@ this.setState({
                   color={this.state.isDirty ? "success" : "secondary"}
                   disabled={!this.state.isDirty}
                   style={{ height: 40, lineHeight: "40px", padding: "0 16px" }}
-                  onClick={() => { if (this.state.isDirty) this.sendForm(); }}
+                  onClick={() => {
+                    if (this.state.isDirty) this.sendForm();
+                  }}
                 >
                   <Save size="15" />
-                  <span className="align-middle ml-50">Enregistrer le contrat</span>
+                  <span className="align-middle ml-50">
+                    Enregistrer le contrat
+                  </span>
                 </Button>
 
                 <Button
@@ -718,13 +838,15 @@ this.setState({
 
             {/* ====== CONTRAT (affichage conditionnel) ====== */}
 
-
             {/* ====== CONTRAT (affichage conditionnel) ====== */}
             <FormGroup style={{ marginTop: "8px", marginBottom: 0 }}>
               <Card className="mb-1 shadow-sm" style={{ borderRadius: 10 }}>
                 <CardHeader
                   className="py-1 d-flex align-items-center"
-                  style={{ background: "#f8f9fa", borderBottom: "1px solid #e9ecef" }}
+                  style={{
+                    background: "#f8f9fa",
+                    borderBottom: "1px solid #e9ecef",
+                  }}
                 >
                   <h5 className="mb-0">Contrat</h5>
                 </CardHeader>
@@ -732,18 +854,33 @@ this.setState({
                 <CardBody className="pt-1">
                   {(() => {
                     const stripe = (i) => ({
-                      background: i % 2 ? "#f7f9fc" : "#ffffff",
-                      borderRadius: 6,
-                      padding: "6px 8px",
-                      marginBottom: 2,
+                      backgroundColor: "#fff",
+                      border: "1px solid #ebe9f1",
+                      borderRadius: "8px",
+                      padding: "12px 16px",
+                      marginBottom: "8px",
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.03)",
+                      transition: "all 0.2s ease",
                     });
 
                     const GRID = {
                       display: "grid",
                       gridTemplateColumns:
-                        "32px minmax(160px,1fr) 70px 90px 80px 90px 110px 48px 16px 32px minmax(140px,1fr) 24px 70px",
+                        "30px minmax(180px, 1.5fr) 60px 90px 70px 90px 110px 40px 10px 30px minmax(150px, 1fr) 24px 70px",
                       alignItems: "center",
-                      columnGap: 8,
+                      columnGap: 10,
+                      fontSize: "0.9rem",
+                    };
+
+                    const inputStyle = {
+                      height: 34,
+                      borderRadius: 6,
+                      border: "1px solid #d8d6de",
+                      padding: "0 10px",
+                      fontSize: "0.9rem",
+                      textAlign: "right",
+                      width: "100%",
+                      backgroundColor: "#fff",
                     };
 
                     const Ghost = ({ children = "" }) => (
@@ -751,7 +888,7 @@ this.setState({
                     );
 
                     const VSep = () => (
-                      <div aria-hidden="true" style={{ width: 1, height: 24, background: "#e5e7eb", justifySelf: "center" }} />
+                      <div aria-hidden="true" style={{ width: 1, height: 24, background: "#ebe9f1", justifySelf: "center" }} />
                     );
 
                     // ——— Lignes
@@ -760,35 +897,39 @@ this.setState({
                         <LabeledCheckboxMaterialUi
                           label=""
                           checked={this.state.formValues["c1"]}
-                          onChange={(checked) => this.onPrimaryToggle(checked, "c1", "r1")}
+                          onChange={(checked) =>
+                            this.onPrimaryToggle(checked, "c1", "r1")
+                          }
                         />
-                        <span>{this.state.formValues["title1"]}</span>
+                        <span style={{ fontWeight: 500, color: "#5e5873" }}>{this.state.formValues["title1"]}</span>
 
-                        <span className="text-muted">Nb (min)</span>
+                        <span className="text-muted" style={{ fontSize: "0.85rem" }}>Nb (min)</span>
                         <Input
                           type="text"
                           value={this.state.formValues["nb1"]}
                           onChange={(e) => this.handleFieldChange("nb1", e.target.value)}
-                          style={{ height: 30, width: 90, textAlign: "right" }}
+                          style={{ ...inputStyle, width: "100%" }}
                         />
 
-                        <span className="text-muted">PU (€/h)</span>
+                        <span className="text-muted" style={{ fontSize: "0.85rem" }}>PU (€/h)</span>
                         <Input
                           type="text"
                           value={this.state.formValues["nb1-price"]}
                           onChange={(e) => this.handleFieldChange("nb1-price", e.target.value)}
-                          style={{ height: 30, width: 90, textAlign: "right" }}
+                          style={{ ...inputStyle, width: "100%" }}
                         />
 
-                        <Ghost><Input style={{ width: 110, height: 30 }} /></Ghost>
+                        <Ghost><Input style={{ ...inputStyle }} /></Ghost>
                         <Ghost>€ HT</Ghost>
 
                         <VSep />
 
-                        <Ghost><LabeledCheckboxMaterialUi label="" checked={false} /></Ghost>
+                        <Ghost>
+                          <LabeledCheckboxMaterialUi label="" checked={false} />
+                        </Ghost>
                         <Ghost>Option</Ghost>
                         <Ghost>Nb</Ghost>
-                        <Ghost><Input style={{ width: 70, height: 30 }} /></Ghost>
+                        <Ghost><Input style={{ ...inputStyle, width: 70 }} /></Ghost>
                       </div>
                     );
 
@@ -797,31 +938,36 @@ this.setState({
                         <LabeledCheckboxMaterialUi
                           label=""
                           checked={this.state.formValues[`c${n}`]}
-                          onChange={(checked) => this.onPrimaryToggle(checked, `c${n}`, `r${n}`)}
+                          onChange={(checked) =>
+                            this.onPrimaryToggle(checked, `c${n}`, `r${n}`)
+                          }
                         />
-                        <span>{this.state.formValues[`title${n}`]}</span>
+                        <span style={{ fontWeight: 500, color: "#5e5873" }}>{this.state.formValues[`title${n}`]}</span>
 
                         <Ghost>Nb (min)</Ghost>
-                        <Ghost><Input style={{ width: 90, height: 30 }} /></Ghost>
+                        <Ghost><Input style={{ ...inputStyle }} /></Ghost>
                         <Ghost>PU (€/h)</Ghost>
-                        <Ghost><Input style={{ width: 90, height: 30 }} /></Ghost>
+                        <Ghost><Input style={{ ...inputStyle }} /></Ghost>
 
                         <Input
                           type="text"
                           value={this.state.formValues[`p${n}`]}
                           onChange={(e) => this.handleFieldChange(`p${n}`, e.target.value)}
-                          style={{ height: 30, width: 110, textAlign: "right" }}
+                          style={{ ...inputStyle, fontWeight: 600, color: "#5e5873" }}
                         />
-                        <span>€ HT</span>
+                        <span style={{ fontSize: "0.85rem", color: "#b9b9c3" }}>€ HT</span>
 
                         <VSep />
 
-                        <Ghost><LabeledCheckboxMaterialUi label="" checked={false} /></Ghost>
+                        <Ghost>
+                          <LabeledCheckboxMaterialUi label="" checked={false} />
+                        </Ghost>
                         <Ghost>Option</Ghost>
                         <Ghost>Nb</Ghost>
-                        <Ghost><Input style={{ width: 70, height: 30 }} /></Ghost>
+                        <Ghost><Input style={{ ...inputStyle, width: 70 }} /></Ghost>
                       </div>
                     );
+
                     const RowWithOption = ({ i, n, optionCheckKey, optionLabel, optionNbKey }) => {
                       const isPensionLine = n === 5; // ligne "liquidation des pensions"
                       return (
@@ -830,24 +976,26 @@ this.setState({
                           <LabeledCheckboxMaterialUi
                             label=""
                             checked={this.state.formValues[`c${n}`]}
-                            onChange={(checked) => this.onPrimaryToggle(checked, `c${n}`, `r${n}`)}
+                            onChange={(checked) =>
+                              this.onPrimaryToggle(checked, `c${n}`, `r${n}`)
+                            }
                           />
-                          <span>{this.state.formValues[`title${n}`]}</span>
+                          <span style={{ fontWeight: 500, color: "#5e5873" }}>{this.state.formValues[`title${n}`]}</span>
 
                           {/* colonnes minutes / PU fantômes */}
                           <Ghost>Nb (min)</Ghost>
-                          <Ghost><Input style={{ width: 90, height: 30 }} /></Ghost>
+                          <Ghost><Input style={{ ...inputStyle }} /></Ghost>
                           <Ghost>PU (€/h)</Ghost>
-                          <Ghost><Input style={{ width: 90, height: 30 }} /></Ghost>
+                          <Ghost><Input style={{ ...inputStyle }} /></Ghost>
 
                           {/* prix forfait */}
                           <Input
                             type="text"
                             value={this.state.formValues[`p${n}`]}
                             onChange={(e) => this.handleFieldChange(`p${n}`, e.target.value)}
-                            style={{ height: 30, width: 110, textAlign: "right" }}
+                            style={{ ...inputStyle, fontWeight: 600, color: "#5e5873" }}
                           />
-                          <span>€ HT</span>
+                          <span style={{ fontSize: "0.85rem", color: "#b9b9c3" }}>€ HT</span>
 
                           <VSep />
 
@@ -859,16 +1007,22 @@ this.setState({
                               <div
                                 style={{
                                   display: "grid",
-                                  gridTemplateColumns: "32px minmax(0,1fr) 24px 70px",
+                                  gridTemplateColumns:
+                                    "32px minmax(0,1fr) 24px 70px",
                                   columnGap: 8,
                                   alignItems: "center",
                                 }}
                               >
                                 <LabeledCheckboxMaterialUi
                                   label=""
-                                  checked={this.state.formValues[optionCheckKey]}
+                                  checked={
+                                    this.state.formValues[optionCheckKey]
+                                  }
                                   onChange={(checked) =>
-                                    this.handleCheckChange(checked, optionCheckKey)
+                                    this.handleCheckChange(
+                                      checked,
+                                      optionCheckKey
+                                    )
                                   }
                                 />
                                 <span
@@ -876,18 +1030,24 @@ this.setState({
                                     whiteSpace: "nowrap",
                                     overflow: "hidden",
                                     textOverflow: "ellipsis",
+                                    fontSize: "0.85rem",
+                                    color: "#5e5873"
                                   }}
+                                  title={optionLabel}
                                 >
                                   {optionLabel}
                                 </span>
-                                <span>Nb</span>
+                                <span style={{ fontSize: "0.85rem", color: "#b9b9c3" }}>Nb</span>
                                 <Input
                                   type="text"
                                   value={this.state.formValues[optionNbKey]}
                                   onChange={(e) =>
-                                    this.handleFieldChange(optionNbKey, e.target.value)
+                                    this.handleFieldChange(
+                                      optionNbKey,
+                                      e.target.value
+                                    )
                                   }
-                                  style={{ height: 30, width: "100%", textAlign: "right" }}
+                                  style={{ ...inputStyle, width: "100%" }}
                                 />
                               </div>
 
@@ -896,7 +1056,7 @@ this.setState({
                                 style={{
                                   display: "flex",
                                   alignItems: "center",
-                                  marginTop: 4,
+                                  marginTop: 6,
                                   gap: 6,
                                 }}
                               >
@@ -907,7 +1067,7 @@ this.setState({
                                     this.handleCheckChange(checked, "cc5")
                                   }
                                 />
-                                <span style={{ whiteSpace: "normal" }}>
+                                <span style={{ whiteSpace: "normal", fontSize: "0.8rem", color: "#b9b9c3", fontStyle: "italic" }}>
                                   {this.state.formValues["subcontent5-3"]}
                                 </span>
                               </div>
@@ -919,7 +1079,10 @@ this.setState({
                                 label=""
                                 checked={this.state.formValues[optionCheckKey]}
                                 onChange={(checked) =>
-                                  this.handleCheckChange(checked, optionCheckKey)
+                                  this.handleCheckChange(
+                                    checked,
+                                    optionCheckKey
+                                  )
                                 }
                               />
                               <span
@@ -927,18 +1090,24 @@ this.setState({
                                   whiteSpace: "nowrap",
                                   overflow: "hidden",
                                   textOverflow: "ellipsis",
+                                  fontSize: "0.85rem",
+                                  color: "#5e5873"
                                 }}
+                                title={optionLabel}
                               >
                                 {optionLabel}
                               </span>
-                              <span>Nb</span>
+                              <span style={{ fontSize: "0.85rem", color: "#b9b9c3" }}>Nb</span>
                               <Input
                                 type="text"
                                 value={this.state.formValues[optionNbKey]}
                                 onChange={(e) =>
-                                  this.handleFieldChange(optionNbKey, e.target.value)
+                                  this.handleFieldChange(
+                                    optionNbKey,
+                                    e.target.value
+                                  )
                                 }
-                                style={{ height: 30, width: 70, textAlign: "right" }}
+                                style={{ ...inputStyle, width: 70 }}
                               />
                             </>
                           )}
@@ -947,25 +1116,44 @@ this.setState({
                     };
 
                     // Sélecteur d’ajout
-                    const AddRowSelect = ({ placeholder = "Ajouter une ligne" }) => {
+                    const AddRowSelect = ({
+                      placeholder = "Ajouter une ligne",
+                    }) => {
                       const avail = this.availableRowIds();
                       if (avail.length === 0) return null;
                       return (
-                        <div className="d-flex align-items-center" style={{ gap: 8, margin: "6px 0" }}>
-                          <Input
-                            type="select"
-                            style={{ width: 360, height: 40 }}
-                            value=""
-                            onChange={(e) => {
-                              const id = e.target.value;
-                              if (id) this.addRowById(id);
-                            }}
-                          >
-                            <option value="" disabled hidden>{placeholder}</option>
-                            {avail.map((id) => (
-                              <option key={id} value={id}>{this.labelFor(id)}</option>
-                            ))}
-                          </Input>
+                        <div className="d-flex align-items-center justify-content-center" style={{ margin: "12px 0" }}>
+                          <div style={{ position: "relative", width: 400 }}>
+                            <Input
+                              type="select"
+                              style={{
+                                width: "100%",
+                                height: 42,
+                                borderRadius: 20,
+                                border: "2px dashed #7367f0",
+                                backgroundColor: "#f8f8f8",
+                                color: "#7367f0",
+                                fontWeight: 600,
+                                textAlign: "center",
+                                cursor: "pointer",
+                                appearance: "none",
+                                paddingLeft: "20px"
+                              }}
+                              value=""
+                              onChange={(e) => {
+                                const id = e.target.value;
+                                if (id) this.addRowById(id);
+                              }}
+                            >
+                              <option value="" disabled hidden>+ {placeholder}</option>
+                              {avail.map((id) => (
+                                <option key={id} value={id} style={{ color: "#000" }}>{this.labelFor(id)}</option>
+                              ))}
+                            </Input>
+                            <div style={{ position: "absolute", right: 15, top: 10, pointerEvents: "none", color: "#7367f0" }}>
+                              <Plus size={18} />
+                            </div>
+                          </div>
                         </div>
                       );
                     };
@@ -973,7 +1161,7 @@ this.setState({
                     // ——— rendu
                     let i = 0;
                     const out = [];
-                    out.push(<AddRowSelect key="add-top" placeholder="Ajouter une ligne" />);
+                    out.push(<AddRowSelect key="add-top" placeholder="Ajouter une prestation" />);
 
                     (this.state.selectedRows || []).forEach((id) => {
                       switch (id) {
@@ -987,7 +1175,9 @@ this.setState({
                               i={i++}
                               n={2}
                               optionCheckKey="cnb2"
-                              optionLabel={this.state.formValues["subcontent2-2"]}
+                              optionLabel={
+                                this.state.formValues["subcontent2-2"]
+                              }
                               optionNbKey="nb2"
                             />
                           );
@@ -1002,7 +1192,9 @@ this.setState({
                               i={i++}
                               n={4}
                               optionCheckKey="cnb4"
-                              optionLabel={this.state.formValues["subcontent4-7"]}
+                              optionLabel={
+                                this.state.formValues["subcontent4-7"]
+                              }
                               optionNbKey="nb4"
                             />
                           );
@@ -1014,7 +1206,9 @@ this.setState({
                               i={i++}
                               n={5}
                               optionCheckKey="cnb5"
-                              optionLabel={this.state.formValues["subcontent5-2"]}
+                              optionLabel={
+                                this.state.formValues["subcontent5-2"]
+                              }
                               optionNbKey="nb5"
                             />
                           );
@@ -1033,44 +1227,62 @@ this.setState({
                       <div
                         key="row-tva"
                         className="d-flex align-items-center flex-wrap"
-                        style={{ ...stripe(i++), borderTop: "1px dashed #e5e7eb", marginTop: 20, gap: 12 }}
+                        style={{
+                          backgroundColor: "#f8f9fa",
+                          border: "1px solid #ebe9f1",
+                          borderRadius: 8,
+                          padding: "15px 20px",
+                          marginTop: 25,
+                          gap: 15,
+                          justifyContent: "space-between"
+                        }}
                       >
-                        <span style={{ minWidth: 60 }}>TVA</span>
-                        <Input
-                          type="text"
-                          value={this.state.formValues["TVAP"] ?? 20}
-                          onChange={(e) => this.handleFieldChange("TVAP", e.target.value)}
-                          style={{ height: 30, width: 80, textAlign: "right" }}
-                        />
-                        <span>%</span>
+                        <div className="d-flex align-items-center" style={{ gap: 10 }}>
+                          <span style={{ fontWeight: 600, color: "#5e5873" }}>TVA</span>
+                          <Input
+                            type="text"
+                            value={this.state.formValues["TVAP"] ?? 20}
+                            onChange={(e) => this.handleFieldChange("TVAP", e.target.value)}
+                            style={{ ...inputStyle, width: 60, textAlign: "center" }}
+                          />
+                          <span style={{ color: "#b9b9c3" }}>%</span>
+                        </div>
+
                         <VSep />
-                        <span style={{ minWidth: 200 }}>
-                          {this.state.formValues["table3-subcontent1"] || "Acompte à la commande :"}
-                        </span>
-                        <Input
-                          type="text"
-                          value={this.state.formValues["fp1"] ?? 100}
-                          onChange={(e) => this.handleFieldChange("fp1", e.target.value)}
-                          style={{ height: 30, width: 80, textAlign: "right" }}
-                        />
-                        <span>%</span>
+
+                        <div className="d-flex align-items-center" style={{ gap: 10 }}>
+                          <span style={{ color: "#5e5873" }}>
+                            {this.state.formValues["table3-subcontent1"] || "Acompte à la commande :"}
+                          </span>
+                          <Input
+                            type="text"
+                            value={this.state.formValues["fp1"] ?? 100}
+                            onChange={(e) => this.handleFieldChange("fp1", e.target.value)}
+                            style={{ ...inputStyle, width: 60, textAlign: "center" }}
+                          />
+                          <span style={{ color: "#b9b9c3" }}>%</span>
+                        </div>
+
                         <VSep />
-                        <span style={{ minWidth: 200 }}>
-                          {this.state.formValues["table3-subcontent2"] || "Solde fin de mission :"}
-                        </span>
-                        <Input
-                          type="text"
-                          value={this.state.formValues["fp2"] ?? 0}
-                          onChange={(e) => this.handleFieldChange("fp2", e.target.value)}
-                          style={{ height: 30, width: 80, textAlign: "right" }}
-                        />
-                        <span>%</span>
+
+                        <div className="d-flex align-items-center" style={{ gap: 10 }}>
+                          <span style={{ color: "#5e5873" }}>
+                            {this.state.formValues["table3-subcontent2"] || "Solde fin de mission :"}
+                          </span>
+                          <Input
+                            type="text"
+                            value={this.state.formValues["fp2"] ?? 0}
+                            onChange={(e) => this.handleFieldChange("fp2", e.target.value)}
+                            style={{ ...inputStyle, width: 60, textAlign: "center" }}
+                          />
+                          <span style={{ color: "#b9b9c3" }}>%</span>
+                        </div>
 
                         {/* 👇 séparation avant le crédit d'impôts */}
                         <VSep />
 
                         {/* 👇 checkbox + texte avec le même style que les autres spans */}
-                        <div className="d-flex align-items-center" style={{ gap: 6 }}>
+                        <div className="d-flex align-items-center" style={{ gap: 8, backgroundColor: "#fff", padding: "5px 10px", borderRadius: 6, border: "1px solid #eee" }}>
                           <LabeledCheckboxMaterialUi
                             label="" // important : label vide
                             checked={!!this.state.formValues.credit_impot_50}
@@ -1078,7 +1290,7 @@ this.setState({
                               this.handleCheckChange(checked, "credit_impot_50")
                             }
                           />
-                          <span>Crédit d'impôts 50%</span>
+                          <span style={{ fontWeight: 500, color: "#28c76f" }}>Crédit d'impôts 50%</span>
                         </div>
                       </div>
                     );
@@ -1093,7 +1305,10 @@ this.setState({
                   <Card className="mb-1 shadow-sm" style={{ borderRadius: 10 }}>
                     <CardHeader
                       className="py-1 d-flex align-items-center"
-                      style={{ background: "#f8f9fa", borderBottom: "1px solid #e9ecef" }}
+                      style={{
+                        background: "#f8f9fa",
+                        borderBottom: "1px solid #e9ecef",
+                      }}
                     >
                       <h5 className="mb-0">Statut & Paiements</h5>
                     </CardHeader>
@@ -1102,32 +1317,76 @@ this.setState({
                       <Row className="align-items-center">
                         <Col md="6" sm="12" className="mb-1">
                           <div className="d-flex flex-wrap" style={{ gap: 8 }}>
-                            <Radio label="En attente" color="primary" name="status"
+                            <Radio
+                              label="En attente"
+                              color="primary"
+                              name="status"
                               checked={this.state.status === "En attente"}
-                              onChange={() => this.setState({ status: "En attente", isDirty: true })} />
-                            <Radio label="En cours" color="primary" name="status"
+                              onChange={() =>
+                                this.setState({
+                                  status: "En attente",
+                                  isDirty: true,
+                                })
+                              }
+                            />
+                            <Radio
+                              label="En cours"
+                              color="primary"
+                              name="status"
                               checked={this.state.status === "En cours"}
-                              onChange={() => this.setState({ status: "En cours", isDirty: true })} />
-                            <Radio label="Terminé" color="primary" name="status"
+                              onChange={() =>
+                                this.setState({
+                                  status: "En cours",
+                                  isDirty: true,
+                                })
+                              }
+                            />
+                            <Radio
+                              label="Terminé"
+                              color="primary"
+                              name="status"
                               checked={this.state.status === "Terminé"}
-                              onChange={() => this.setState({ status: "Terminé", isDirty: true })} />
-                            <Radio label="Perdu" color="primary" name="status"
+                              onChange={() =>
+                                this.setState({
+                                  status: "Terminé",
+                                  isDirty: true,
+                                })
+                              }
+                            />
+                            <Radio
+                              label="Perdu"
+                              color="primary"
+                              name="status"
                               checked={this.state.status === "Perdu"}
-                              onChange={() => this.setState({ status: "Perdu", isDirty: true })} />
+                              onChange={() =>
+                                this.setState({
+                                  status: "Perdu",
+                                  isDirty: true,
+                                })
+                              }
+                            />
                           </div>
-                          <div className="d-flex align-items-center mt-1" style={{ gap: 8 }}>
-                            <span className="text-muted" style={{ minWidth: 130 }}>Moyen de paiement</span>
+                          <div
+                            className="d-flex align-items-center mt-1"
+                            style={{ gap: 8 }}
+                          >
+                            <span
+                              className="text-muted"
+                              style={{ minWidth: 130 }}
+                            >
+                              Moyen de paiement
+                            </span>
 
                             {/* Liste de choix */}
-                              <Input
-                                type="select"
-                                style={{ minWidth: 100, maxWidth: 200, height: 40 }}
-                                value={this.state.payment_method || ""}
-                                color="primary"
-                                onChange={(e) =>
-                                  this.setState({ payment_method: e.target.value, isDirty: true })
-                                }
-                              >
+                            <Input
+                              type="select"
+                              style={{ minWidth: 100, maxWidth: 200, height: 40 }}
+                              value={this.state.payment_method || ""}
+                              color="primary"
+                              onChange={(e) =>
+                                this.setState({ payment_method: e.target.value, isDirty: true })
+                              }
+                            >
                               <option value="" disabled hidden>Sélectionner…</option>
                               <option value="Virement bancaire">Virement bancaire</option>
                               <option value="Chèque de banque">Chèque de banque</option>
@@ -1156,14 +1415,41 @@ this.setState({
                         </Col>
 
                         <Col md="6" sm="12" className="mb-1">
-                          <div className="d-flex align-items-center" style={{ gap: 18 }}>
-                            <CustomInput className="custom-switch-success" type="switch" id="acompte" name="Acompte" inline
-                              checked={this.state.status_payment > 0} onChange={() => this.setStatusPayment(1)}>
-                              <span className="mb-0 switch-label" style={{ paddingTop: 3 }}>Acompte</span>
+                          <div
+                            className="d-flex align-items-center"
+                            style={{ gap: 18 }}
+                          >
+                            <CustomInput
+                              className="custom-switch-success"
+                              type="switch"
+                              id="acompte"
+                              name="Acompte"
+                              inline
+                              checked={this.state.status_payment > 0}
+                              onChange={() => this.setStatusPayment(1)}
+                            >
+                              <span
+                                className="mb-0 switch-label"
+                                style={{ paddingTop: 3 }}
+                              >
+                                Acompte
+                              </span>
                             </CustomInput>
-                            <CustomInput className="custom-switch-success" type="switch" id="sold" name="Sold" inline
-                              checked={this.state.status_payment > 1} onChange={() => this.setStatusPayment(2)}>
-                              <span className="mb-0 switch-label" style={{ paddingTop: 3 }}>Soldé</span>
+                            <CustomInput
+                              className="custom-switch-success"
+                              type="switch"
+                              id="sold"
+                              name="Sold"
+                              inline
+                              checked={this.state.status_payment > 1}
+                              onChange={() => this.setStatusPayment(2)}
+                            >
+                              <span
+                                className="mb-0 switch-label"
+                                style={{ paddingTop: 3 }}
+                              >
+                                Soldé
+                              </span>
                             </CustomInput>
                           </div>
                         </Col>
@@ -1174,28 +1460,144 @@ this.setState({
                       <Row>
                         <Col md="6" sm="12" className="mb-1">
                           <div className="mb-1"><h6 className="mb-0 text-muted">Dates d’acompte</h6></div>
-                          {(this.state.acompte_dates || []).map((d, idx) => (
-                            <div key={`ad-${idx}`} className="d-flex align-items-center" style={{ gap: 8, marginBottom: 8 }}>
-                              <Input type="datetime-local" style={{ width: 240, height: 34 }}
-                                value={this.toInputValue(d)}
-                                onChange={(e) => this.updateDate('acompte_dates', idx, this.fromInputValue(e.target.value))} />
-                              <Button color="danger" size="sm" onClick={() => this.removeDate('acompte_dates', idx)}>Supprimer</Button>
-                            </div>
-                          ))}
-                          <Button outline color="primary" size="sm" className="mt-1" onClick={() => this.addDate('acompte_dates')}>+ Ajouter</Button>
+                          {(this.state.acompte_dates || []).map((d, idx) => {
+                            const isEditing = this.state.editingAcompte.includes(idx);
+                            return (
+                              <div key={`ad-${idx}`} className="d-flex align-items-center" style={{ gap: 8, marginBottom: 8 }}>
+                                {isEditing ? (
+                                  <>
+                                    <Input
+                                      type="datetime-local"
+                                      style={{ width: 240, height: 34 }}
+                                      value={this.toInputValue(d)}
+                                      onChange={(e) =>
+                                        this.updateDate(
+                                          "acompte_dates",
+                                          idx,
+                                          this.fromInputValue(e.target.value)
+                                        )
+                                      }
+                                    />
+                                    <Button.Ripple
+                                      className="btn-icon rounded-circle"
+                                      color="success"
+                                      size="sm"
+                                      onClick={() => this.handleSaveDate("acompte", idx)}
+                                    >
+                                      <Check size={16} />
+                                    </Button.Ripple>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div
+                                      style={{
+                                        width: 240,
+                                        height: 34,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        paddingLeft: 10,
+                                        border: "1px solid #d9d9d9",
+                                        borderRadius: 5,
+                                        backgroundColor: "#f8f9fa",
+                                      }}
+                                    >
+                                      {d ? moment(d).format("DD/MM/YYYY HH:mm") : "-"}
+                                    </div>
+                                    <Button.Ripple
+                                      className="btn-icon rounded-circle"
+                                      color="primary"
+                                      size="sm"
+                                      onClick={() => this.toggleEditAcompte(idx)}
+                                    >
+                                      <Edit size={16} />
+                                    </Button.Ripple>
+                                  </>
+                                )}
+                                <Button.Ripple
+                                  className="btn-icon rounded-circle"
+                                  color="danger"
+                                  size="sm"
+                                  onClick={() => this.handleDeleteDate("acompte_dates", idx)}
+                                >
+                                  <Trash size={16} />
+                                </Button.Ripple>
+                              </div>
+                            );
+                          })}
+                          <Button outline color="primary" size="sm" className="mt-1" onClick={() => this.addDate('acompte_dates')}>
+                            <Plus size={14} className="mr-50" /> Ajouter
+                          </Button>
                         </Col>
 
                         <Col md="6" sm="12" className="mb-1">
                           <div className="mb-1"><h6 className="mb-0 text-muted">Dates de paiement</h6></div>
-                          {(this.state.sold_dates || []).map((d, idx) => (
-                            <div key={`sd-${idx}`} className="d-flex align-items-center" style={{ gap: 8, marginBottom: 8 }}>
-                              <Input type="datetime-local" style={{ width: 240, height: 34 }}
-                                value={this.toInputValue(d)}
-                                onChange={(e) => this.updateDate('sold_dates', idx, this.fromInputValue(e.target.value))} />
-                              <Button color="danger" size="sm" onClick={() => this.removeDate('sold_dates', idx)}>Supprimer</Button>
-                            </div>
-                          ))}
-                          <Button outline color="primary" size="sm" className="mt-1" onClick={() => this.addDate('sold_dates')}>+ Ajouter</Button>
+                          {(this.state.sold_dates || []).map((d, idx) => {
+                            const isEditing = this.state.editingSold.includes(idx);
+                            return (
+                              <div key={`sd-${idx}`} className="d-flex align-items-center" style={{ gap: 8, marginBottom: 8 }}>
+                                {isEditing ? (
+                                  <>
+                                    <Input
+                                      type="datetime-local"
+                                      style={{ width: 240, height: 34 }}
+                                      value={this.toInputValue(d)}
+                                      onChange={(e) =>
+                                        this.updateDate(
+                                          "sold_dates",
+                                          idx,
+                                          this.fromInputValue(e.target.value)
+                                        )
+                                      }
+                                    />
+                                    <Button.Ripple
+                                      className="btn-icon rounded-circle"
+                                      color="success"
+                                      size="sm"
+                                      onClick={() => this.handleSaveDate("sold", idx)}
+                                    >
+                                      <Check size={16} />
+                                    </Button.Ripple>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div
+                                      style={{
+                                        width: 240,
+                                        height: 34,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        paddingLeft: 10,
+                                        border: "1px solid #d9d9d9",
+                                        borderRadius: 5,
+                                        backgroundColor: "#f8f9fa",
+                                      }}
+                                    >
+                                      {d ? moment(d).format("DD/MM/YYYY HH:mm") : "-"}
+                                    </div>
+                                    <Button.Ripple
+                                      className="btn-icon rounded-circle"
+                                      color="primary"
+                                      size="sm"
+                                      onClick={() => this.toggleEditSold(idx)}
+                                    >
+                                      <Edit size={16} />
+                                    </Button.Ripple>
+                                  </>
+                                )}
+                                <Button.Ripple
+                                  className="btn-icon rounded-circle"
+                                  color="danger"
+                                  size="sm"
+                                  onClick={() => this.handleDeleteDate("sold_dates", idx)}
+                                >
+                                  <Trash size={16} />
+                                </Button.Ripple>
+                              </div>
+                            );
+                          })}
+                          <Button outline color="primary" size="sm" className="mt-1" onClick={() => this.addDate('sold_dates')}>
+                            <Plus size={14} className="mr-50" /> Ajouter
+                          </Button>
                         </Col>
                       </Row>
                     </CardBody>
@@ -1286,7 +1688,13 @@ this.setState({
                         </Col>
                         <Col md="7" sm="12">
                           {" "}
-                          <h6>{moment(this.ifExist("birth_date")).isValid() ? moment(this.ifExist("birth_date")).format("DD/MM/YYYY") : ""}</h6>
+                          <h6>
+                            {moment(this.ifExist("birth_date")).isValid()
+                              ? moment(this.ifExist("birth_date")).format(
+                                  "DD/MM/YYYY"
+                                )
+                              : ""}
+                          </h6>
                         </Col>
                       </Row>
                     </div>
@@ -1451,9 +1859,9 @@ this.setState({
                           sm="12"
                           className="contract-caption1-section"
                         >
-                        <h5 className="bold-black" style={{ textDecoration: "underline", textUnderlineOffset: "2px" }}>
-                          Société
-                        </h5>                        
+                          <h5 className="bold-black" style={{ textDecoration: "underline", textUnderlineOffset: "2px" }}>
+                            Société
+                          </h5>
                         </Col>
                       </Row>
                       <Row>
@@ -1539,9 +1947,9 @@ this.setState({
                           className="contract-caption1-section"
                         >
                           {" "}
-                        <h5 className="bold-black" style={{ textDecoration: "underline", textUnderlineOffset: "2px" }}>
-                          Société
-                        </h5>                        
+                          <h5 className="bold-black" style={{ textDecoration: "underline", textUnderlineOffset: "2px" }}>
+                            Société
+                          </h5>
                         </Col>
                         <Col
                           md="8"
@@ -2650,20 +3058,20 @@ this.setState({
                       </td>
                     </tr>
                     <tr>
-                    <td width="75%" style={{ paddingBottom: 0, paddingTop: 0 }}>
-                      <div style={{ display: "flex", alignItems: "flex-start", marginLeft: "20px" }}>
-                        <div style={{ marginRight: 10 }}>
-                          <LabeledCheckboxMaterialUi
-                            label="" // pas de label → pas de styles MUI sur le texte
-                            checked={this.state.formValues.cc5}
-                            onChange={(e) => this.handleCheckChange(e, "cc5")}
-                          />
+                      <td width="75%" style={{ paddingBottom: 0, paddingTop: 0 }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", marginLeft: "20px" }}>
+                          <div style={{ marginRight: 10 }}>
+                            <LabeledCheckboxMaterialUi
+                              label="" // pas de label → pas de styles MUI sur le texte
+                              checked={this.state.formValues.cc5}
+                              onChange={(e) => this.handleCheckChange(e, "cc5")}
+                            />
+                          </div>
+                          <div style={{ lineHeight: 1.4 }}>
+                            {this.state.formValues["subcontent5-3"]}
+                          </div>
                         </div>
-                        <div style={{ lineHeight: 1.4 }}>
-                          {this.state.formValues["subcontent5-3"]}
-                        </div>
-                      </div>
-                    </td>
+                      </td>
                       <td
                         width="25%"
                         style={{ paddingBottom: 0, paddingTop: 0 }}

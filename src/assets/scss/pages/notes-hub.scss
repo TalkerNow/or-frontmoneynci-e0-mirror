@@ -135,15 +135,15 @@
   padding: 0.55rem 1.2rem;
   font-size: 0.95rem;
   transition: transform 160ms ease, box-shadow 160ms ease;
-  box-shadow: 0 4px 16px rgba(115,103,240,0.2);
+  box-shadow: 0 4px 16px rgba(115, 103, 240, 0.2);
 }
 .notes-action-btn:not(:disabled):hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 24px rgba(115,103,240,0.35);
+  box-shadow: 0 12px 24px rgba(115, 103, 240, 0.35);
 }
 .notes-action-btn:active {
   transform: translateY(0);
-  box-shadow: 0 4px 12px rgba(115,103,240,0.2);
+  box-shadow: 0 4px 12px rgba(115, 103, 240, 0.2);
 }
 .notes-upload-actions .btn {
   background: #e5e7eb;
@@ -153,7 +153,7 @@
 .notes-upload-actions .btn.is-active {
   background: #7367f0;
   color: #fff;
-  box-shadow: 0 8px 20px rgba(115,103,240,0.2);
+  box-shadow: 0 8px 20px rgba(115, 103, 240, 0.2);
 }
 
 .notes-report-btn:not(.is-active) {
@@ -168,7 +168,7 @@
 
 .notes-report-btn.is-active:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 24px rgba(115,103,240,0.35);
+  box-shadow: 0 12px 24px rgba(115, 103, 240, 0.35);
 }
 
 .notes-documents-block h6 {
@@ -258,64 +258,104 @@
 
 .manual-table-wrap {
   width: 100%;
-  overflow: hidden;
+  overflow-x: auto;
 }
 .manual-table {
   width: 100%;
   border-collapse: collapse;
   background: #fff;
-  table-layout: auto;
-  min-width: 100%;
+  table-layout: fixed;
+  min-width: 2000px;
 }
 .manual-table thead th {
-  background: var(--bs-primary, #7367F0);
-  color: #FFFFFF;
-  border: 1px solid #E5E7EB;
-  padding: 6px 8px;
+  background: var(--bs-primary, #7367f0);
+  color: #ffffff;
+  border: 1px solid #e5e7eb;
+  padding: 4px;
   font-size: 12px;
   text-align: center;
   font-weight: 600;
-  white-space: nowrap;
+  vertical-align: bottom;
+  white-space: nowrap !important;
 }
 .manual-table td {
-  border: 1px solid #E5E7EB;
-  padding: 6px 8px;
+  border: 1px solid #e5e7eb;
+  padding: 4px;
   vertical-align: middle;
   text-align: center;
 }
+.col-micro { width: 40px; }
+.col-year { width: 55px; }
+.col-small { width: 75px; }
+.col-medium { width: 48px; }
+.col-ircantec { width: 70px; }
+.col-large { width: 190px; }
 .manual-table th.actions-col,
-.manual-table td.actions-col { width: 80px; text-align: center; }
-.manual-table .hidden-tc { display: none; }
+.manual-table td.actions-col {
+  width: 80px;
+  text-align: center;
+}
+.manual-table .hidden-tc {
+  display: none;
+}
 .manual-input {
   width: 100%;
-  border: 1px solid #E5E7EB;
+  border: 1px solid #e5e7eb;
   border-radius: 6px;
-  padding: 6px 8px;
+  padding: 2px 4px;
   background: #fff;
 }
 .manual-input:focus {
   outline: none;
-  border-color: #A5B4FC;
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.2);
+  border-color: #a5b4fc;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
 }
 .manual-input.err {
   border-color: #ef4444;
-  box-shadow: 0 0 0 2px rgba(239,68,68,0.15);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
 }
 .manual-num {
   width: 100%;
-  border: 1px solid #E5E7EB;
+  border: 1px solid #e5e7eb;
   border-radius: 6px;
-  padding: 6px 8px;
+  padding: 2px 4px;
   background: #fff;
   text-align: center;
 }
+.manual-num::placeholder {
+  font-size: 10px;
+  color: #b9b9c3;
+}
+.manual-input::placeholder {
+  font-size: 10px;
+  color: #b9b9c3;}
 .manual-num:focus {
   outline: none;
-  border-color: #A5B4FC;
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.2);
+  border-color: #a5b4fc;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
 }
-.manual-actions { display: inline-flex; gap: 6px; }
+.manual-num-left {
+  width: 100%;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 2px 4px;
+  background: #fff;
+  text-align: left;
+}
+.manual-num-left::placeholder {
+  font-size: 10px;
+  color: #b9b9c3;
+  text-align: left;
+}
+.manual-num-left:focus {
+  outline: none;
+  border-color: #a5b4fc;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+.manual-actions {
+  display: inline-flex;
+  gap: 6px;
+}
 
 .notes-empty-doc-card {
   border-radius: 12px;
@@ -337,15 +377,15 @@
   height: 34px;
   padding: 6px 12px;
   border-radius: 8px;
-  border: 1px solid #FDE68A;
-  background: #FFFBEB;
-  color: #92400E;
+  border: 1px solid #fde68a;
+  background: #fffbeb;
+  color: #92400e;
   font-weight: 600;
   transition: background 140ms ease, transform 120ms ease, box-shadow 140ms ease;
 }
 
 .doc-warning-btn:hover {
-  background: #FEF3C7;
+  background: #fef3c7;
   transform: translateY(-1px);
   box-shadow: 0 3px 8px rgba(250, 204, 21, 0.18);
 }
