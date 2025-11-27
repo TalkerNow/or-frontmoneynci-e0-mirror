@@ -217,21 +217,20 @@
     min-height: 50px; // Hauteur minimale de sécurité
   }
 
-  // Conteneur principal : on laisse flexbox gérer la largeur, mais on active le scroll
+  // Conteneur principal : on laisse la page gérer le scroll horizontal
+  // Cela corrige le bug du "select" qui s'affiche hors écran à cause de l'overflow interne
   .contract-wrapper {
-    // On retire width: 100% !important qui peut casser le layout flex
     flex: 1 1 auto !important; 
-    max-width: 100vw !important; // Empêche de dépasser l'écran
-    margin: 10px auto 0 !important; // Rétablit le centrage horizontal
+    // max-width: 100vw !important; // On supprime pour laisser dépasser si besoin
+    margin: 10px auto 0 !important;
     padding: 0 !important;
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch;
+    overflow-x: visible !important; // Plus de scroll interne, on utilise le scroll de la page
     
     // Force l'aperçu A4 à garder sa largeur
     #pdf-root, .contract-page {
       min-width: 794px !important;
       width: 794px !important;
-      margin-left: auto !important; // Centre le contenu si l'écran est plus large
+      margin-left: auto !important;
       margin-right: auto !important;
     }
 
@@ -248,8 +247,26 @@
 
   // Sélecteurs d'ajout de ligne : s'adaptent à la largeur mobile
   .contract-wrapper .form-control[type="select"] {
-    max-width: 100% !important;
+    max-width: none !important; // On laisse prendre toute la place
     width: 100% !important;
+    
+    // Gestion du contenu trop long : on tronque avec "..."
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    padding-right: 20px; // Espace pour la flèche du select
+  }
+  
+  // Conteneur du sélecteur (le div avec position relative)
+  .contract-wrapper div[style*="position: relative"] {
+      max-width: none !important;
+      width: 100% !important;
+  }
+
+  // Force l'alignement à gauche du conteneur du sélecteur
+  .contract-wrapper .d-flex.align-items-center.justify-content-center {
+    justify-content: flex-start !important;
+    width: 100% !important; // S'assure que le conteneur parent prend aussi la largeur
   }
 
   // Ajustement du padding pour les cartes sur mobile
