@@ -873,12 +873,6 @@ class CreateContract extends React.Component {
                 >
                   Quitter sans sauvegarder
                 </Button>
-                <Button
-                  color="secondary"
-                  onClick={() => this.setState({ showUnsavedModal: false })}
-                >
-                  Annuler
-                </Button>
               </ModalFooter>
             </Modal>
           </Col>
