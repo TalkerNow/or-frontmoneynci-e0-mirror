@@ -751,14 +751,17 @@ export default function KpiPage() {
   };
 
   // ---- styles filtres jolis ----
+  // ---- styles filtres jolis ----
   const filterWrapperStyle = {
-    display: "inline-flex",
+    display: "flex",
+    flexWrap: "wrap",
     alignItems: "center",
     gap: 12,
     padding: "6px 10px",
     borderRadius: 10,
     backgroundColor: "#f8f9fa",
     border: "1px solid #e9ecef",
+    justifyContent: "flex-end", // Align right on desktop
   };
 
   const filterTitleStyle = {
@@ -767,6 +770,7 @@ export default function KpiPage() {
     letterSpacing: "0.04em",
     color: "#6c757d",
     fontWeight: 600,
+    marginRight: "auto", // Push title to left if wrapped
   };
 
   const filterPillBase = {
@@ -779,6 +783,8 @@ export default function KpiPage() {
     display: "inline-flex",
     alignItems: "center",
     cursor: "pointer",
+    whiteSpace: "nowrap",
+    flexShrink: 0,
   };
 
   const filterPillActive = {
@@ -1354,7 +1360,7 @@ export default function KpiPage() {
             )}
 
             {/* Filtres d'affichage (propre, aligné) */}
-            <div className="d-flex justify-content-end mb-2">
+            <div className="d-flex justify-content-start justify-content-md-end mb-2">
               <div style={filterWrapperStyle}>
                 <span style={filterTitleStyle}>Afficher</span>
 
@@ -1888,9 +1894,9 @@ export default function KpiPage() {
             className="flex-fill d-flex flex-column"
             style={{ padding: "10px 16px" }}
           >
-            <CardHeader className="d-flex align-items-center justify-content-between">
+            <CardHeader className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between">
               <h4 className="mb-0">Créer un KPI</h4>
-              <div>
+              <div className="mt-1 mt-md-0">
                 <Button
                   className="mr-1 mb-1"
                   color="primary"
@@ -1920,29 +1926,31 @@ export default function KpiPage() {
 
               {/* OBJET + Date */}
               <div
-                className="d-flex align-items-center flex-wrap"
+                className="d-flex align-items-center flex-wrap mb-2"
                 style={{ gap: 8 }}
               >
                 <div
-                  className="d-inline-flex align-items-center"
+                  className="d-flex align-items-center flex-wrap flex-fill"
                   style={{ gap: 8 }}
                 >
                   {OBJETS.map((o) => {
                     const Icon = OBJET_ICON[o] || PhoneCall;
                     const selected = objet === o;
-                    const isEmail = o === "Email";
                     return (
                       <Button
                         key={o}
                         color={selected ? "primary" : "light"}
-                        className="d-inline-flex align-items-center"
+                        className="d-inline-flex align-items-center justify-content-center flex-grow-1 flex-md-grow-0"
                         onClick={() => setObjet(o)}
                         title={o}
                         aria-label={o}
-                        style={{ gap: 6, padding: "8px 12px" }}
+                        style={{ gap: 6, padding: "10px 12px" }}
                       >
                         <Icon size={16} style={{ opacity: 0.9 }} />
-                        {!isEmail && <span>{o}</span>}
+                        <span className="d-none d-sm-inline">{o}</span>
+                        <span className="d-inline d-sm-none">
+                          {o === "Email" ? "Email" : o.split(" ")[1]}
+                        </span>
                       </Button>
                     );
                   })}
@@ -1953,7 +1961,8 @@ export default function KpiPage() {
                   onChange={(e) => setKpiDate(e.target.value)}
                   max={todayStr()}
                   aria-label="Date du KPI"
-                  style={{ width: 170, marginLeft: "auto" }}
+                  style={{ width: 170, height: "42px", marginLeft: "auto" }}
+                  className="flex-grow-1 flex-md-grow-0"
                 />
               </div>
 
@@ -2001,8 +2010,8 @@ export default function KpiPage() {
 
               {/* Champs contact */}
               <div className="mt-2">
-                <div className="d-flex" style={{ gap: 8, flexWrap: "wrap" }}>
-                  <div style={{ minWidth: 220, flex: 1 }}>
+                <Row>
+                  <Col lg="3" md="6" xs="12" className="mb-1">
                     <Label
                       className="mb-1"
                       style={{ fontWeight: 600, fontSize: 13 }}
@@ -2015,8 +2024,8 @@ export default function KpiPage() {
                       value={nomPrenom}
                       onChange={(e) => setNomPrenom(e.target.value)}
                     />
-                  </div>
-                  <div style={{ minWidth: 220, flex: 1 }}>
+                  </Col>
+                  <Col lg="3" md="6" xs="12" className="mb-1">
                     <Label
                       className="mb-1"
                       style={{ fontWeight: 600, fontSize: 13 }}
@@ -2029,8 +2038,8 @@ export default function KpiPage() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
-                  </div>
-                  <div style={{ minWidth: 180, flex: 1 }}>
+                  </Col>
+                  <Col lg="3" md="6" xs="12" className="mb-1">
                     <Label
                       className="mb-1"
                       style={{ fontWeight: 600, fontSize: 13 }}
@@ -2045,8 +2054,8 @@ export default function KpiPage() {
                         setTelephone(formatPhone(e.target.value))
                       }
                     />
-                  </div>
-                  <div style={{ minWidth: 220, flex: 1 }}>
+                  </Col>
+                  <Col lg="3" md="6" xs="12" className="mb-1">
                     <Label
                       className="mb-1"
                       style={{ fontWeight: 600, fontSize: 13 }}
@@ -2064,8 +2073,8 @@ export default function KpiPage() {
                         lineHeight: "1.5",
                       }}
                     />
-                  </div>
-                </div>
+                  </Col>
+                </Row>
               </div>
 
               {/* Actions */}
@@ -2131,17 +2140,17 @@ export default function KpiPage() {
       <div className="vx-col w-100">
         <Card>
           <CardHeader
-            className="d-flex align-items-center justify-content-between flex-wrap"
+            className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between"
             style={{ gap: 8 }}
           >
             <h4 className="mb-0">Vue d’ensemble</h4>
 
             <div
-              className="d-flex align-items-center flex-wrap"
+              className="d-flex align-items-center flex-wrap mt-1 mt-md-0"
               style={{ gap: 8 }}
             >
               {/* GroupBy */}
-              <UncontrolledButtonDropdown className="mr-1">
+              <UncontrolledButtonDropdown>
                 <DropdownToggle caret color="primary">
                   {groupBy === "week"
                     ? "Par semaine"
@@ -2156,7 +2165,6 @@ export default function KpiPage() {
                   <DropdownItem onClick={() => setGroupBy("month")}>
                     Par mois
                   </DropdownItem>
-                  {/* NEW */}
                   <DropdownItem onClick={() => setGroupBy("day")}>
                     Par jour (semaine)
                   </DropdownItem>
@@ -2164,7 +2172,7 @@ export default function KpiPage() {
               </UncontrolledButtonDropdown>
 
               {/* Year filter */}
-              <UncontrolledButtonDropdown className="mr-1">
+              <UncontrolledButtonDropdown>
                 <DropdownToggle caret color="primary">
                   Année : {year}
                 </DropdownToggle>
@@ -2178,7 +2186,7 @@ export default function KpiPage() {
               </UncontrolledButtonDropdown>
 
               {groupBy === "day" && (
-                <ButtonGroup className="mr-1">
+                <ButtonGroup>
                   <Button
                     color="primary"
                     onClick={() => stepWeek(-1)}
@@ -2194,7 +2202,7 @@ export default function KpiPage() {
                       className="px-3"
                       style={{
                         minWidth: 180,
-                        maxWidth: "90vw",
+                        maxWidth: "200px",
                         whiteSpace: "nowrap",
                         textOverflow: "ellipsis",
                         overflow: "hidden",
@@ -2311,12 +2319,12 @@ export default function KpiPage() {
       {/* ====== Liste KPI ====== */}
       <div className="vx-col w-100">
         <Card>
-          <CardHeader className="d-flex align-items-center justify-content-between">
+          <CardHeader className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between">
             <h4 className="mb-0">Tous les KPI</h4>
-            <div>
+            <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center mt-1 mt-md-0">
               <Button
                 color="light"
-                className="mr-1"
+                className="mb-2 mb-md-0 mr-md-1"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
               >
@@ -2324,12 +2332,16 @@ export default function KpiPage() {
               </Button>
               <Button
                 color="light"
+                className="mb-2 mb-md-0"
                 disabled={page >= lastPage}
                 onClick={() => setPage((p) => Math.min(lastPage, p + 1))}
               >
                 Suivant →
               </Button>
-              <Badge color="light-secondary" className="ml-1">
+              <Badge
+                color="light-secondary"
+                className="ml-md-1 text-center py-2 py-md-1"
+              >
                 Page {page}/{lastPage}
               </Badge>
             </div>

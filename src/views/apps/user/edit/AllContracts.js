@@ -490,85 +490,87 @@ class AllContracts extends React.Component {
         <Row className="app-user-list" style={{ height: "100vh" }}>
           <Col sm="12" className="h-100 d-flex flex-column">
             <Card className="h-100 d-flex flex-column">
-              <CardBody className="h-100 d-flex flex-column" style={{ paddingBottom: "0.5rem" }}>
+              <CardBody
+                className="h-100 d-flex flex-column"
+                style={{ paddingBottom: "0.5rem" }}
+              >
                 <div className="ag-grid-actions d-flex justify-content-between align-items-center flex-wrap mb-1">
                   <div className="sort-dropdown">
                     <UncontrolledDropdown className="ag-dropdown p-1">
                       <DropdownToggle tag="div">
-                          1 - {pageSize} sur 150
-                          <ChevronDown className="ml-50" size={15} />
-                        </DropdownToggle>
-                        <DropdownMenu right>
-                          <DropdownItem
-                            tag="div"
-                            onClick={() => this.filterSize(20)}
+                        1 - {pageSize} sur 150
+                        <ChevronDown className="ml-50" size={15} />
+                      </DropdownToggle>
+                      <DropdownMenu right>
+                        <DropdownItem
+                          tag="div"
+                          onClick={() => this.filterSize(20)}
+                        >
+                          20
+                        </DropdownItem>
+                        <DropdownItem
+                          tag="div"
+                          onClick={() => this.filterSize(50)}
+                        >
+                          50
+                        </DropdownItem>
+                        <DropdownItem
+                          tag="div"
+                          onClick={() => this.filterSize(100)}
+                        >
+                          100
+                        </DropdownItem>
+                        <DropdownItem
+                          tag="div"
+                          onClick={() => this.filterSize(150)}
+                        >
+                          150
+                        </DropdownItem>
+                      </DropdownMenu>
+                    </UncontrolledDropdown>
+                  </div>
+                  <div className="filter-actions d-flex flex-wrap align-items-center">
+                    <Input
+                      className="mr-1 mb-1"
+                      style={{ flex: "1 1 200px" }}
+                      type="text"
+                      placeholder="Rechercher..."
+                      onChange={(e) => this.updateSearchQuery(e.target.value)}
+                      value={this.state.searchVal}
+                    />
+                    <div className="d-flex flex-wrap align-items-center">
+                      {consultant_id !== -1 && this.state.filter === true && (
+                        <>
+                          <Button
+                            className="mb-1 mr-1"
+                            style={{ height: 40 }}
+                            outline
+                            color="primary"
+                            onClick={() => this.externalFilterChanged(-1)}
                           >
-                            20
-                          </DropdownItem>
-                          <DropdownItem
-                            tag="div"
-                            onClick={() => this.filterSize(50)}
+                            Tous les contrats
+                          </Button>
+                        </>
+                      )}
+                      {consultant_id === -1 && this.state.filter === false && (
+                        <>
+                          <Button
+                            className="mb-1 mr-1"
+                            style={{ height: 40 }}
+                            outline
+                            color="primary"
+                            onClick={() =>
+                              this.externalFilterChanged(
+                                localStorage.getItem("userid")
+                              )
+                            }
                           >
-                            50
-                          </DropdownItem>
-                          <DropdownItem
-                            tag="div"
-                            onClick={() => this.filterSize(100)}
-                          >
-                            100
-                          </DropdownItem>
-                          <DropdownItem
-                            tag="div"
-                            onClick={() => this.filterSize(150)}
-                          >
-                            150
-                          </DropdownItem>
-                        </DropdownMenu>
-                      </UncontrolledDropdown>
-                    </div>
-                    <div className="filter-actions d-flex">
-                      <Input
-                        className="w-50 mr-1 mb-1 mb-sm-0"
-                        type="text"
-                        placeholder="Rechercher..."
-                        onChange={(e) => this.updateSearchQuery(e.target.value)}
-                        value={this.state.searchVal}
-                      />
-                      <div>
-                        {consultant_id !== -1 && this.state.filter === true && (
-                          <>
-                            <Button
-                              className="mb-1"
-                              style={{ width: 180, height: 40 }}
-                              outline
-                              color="primary"
-                              onClick={() => this.externalFilterChanged(-1)}
-                            >
-                              Tous les contrats
-                            </Button>
-                          </>
-                        )}
-                        {consultant_id === -1 &&
-                          this.state.filter === false && (
-                            <>
-                              <Button
-                                className="mb-1"
-                                style={{ width: 170, height: 40 }}
-                                outline
-                                color="primary"
-                                onClick={() =>
-                                  this.externalFilterChanged(
-                                    localStorage.getItem("userid")
-                                  )
-                                }
-                              >
-                                Mes contrats
-                              </Button>
-                            </>
-                          )}
-                      </div>
+                            Mes contrats
+                          </Button>
+                        </>
+                      )}
                       <Button
-                        className="mb-2 ml-1"
+                        className="mb-1"
                         outline
                         color="primary"
                         onClick={() => this.onBtExport()}
@@ -577,10 +579,14 @@ class AllContracts extends React.Component {
                       </Button>
                     </div>
                   </div>
+                </div>
                 {this.state.rowData !== null ? (
                   <ContextLayout.Consumer>
                     {(context) => (
-                      <div className="ag-theme-material ag-grid-table flex-grow-1" style={{ width: "100%", minHeight: 0 }}>
+                      <div
+                        className="ag-theme-material ag-grid-table flex-grow-1"
+                        style={{ width: "100%", minHeight: 0 }}
+                      >
                         <AgGridReact
                           gridOptions={{}}
                           rowSelection="multiple"

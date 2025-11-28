@@ -315,7 +315,7 @@ class MembersList extends React.Component {
             this.handleAlert("confirmAlert", false, 0);
           }}
         >
-          <p className="sweet-alert-text">Your file has been deleted.</p>
+          <p className="sweet-alert-text">Le compte a été supprimé</p>
         </SweetAlert>
 
         <SweetAlert
