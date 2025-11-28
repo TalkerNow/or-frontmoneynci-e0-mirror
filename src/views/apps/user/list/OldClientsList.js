@@ -85,7 +85,9 @@ class OldClientsList extends React.Component {
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
-              onClick={() => history.push(`/app/olduser/edit/${rowData.data.clcleunik}/2`)}
+              onClick={() =>
+                history.push(`/app/olduser/edit/${rowData.data.clcleunik}/2`)
+              }
             >
               <span>{rowData.data.cl_prenom}</span>
             </div>
@@ -103,7 +105,9 @@ class OldClientsList extends React.Component {
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
-              onClick={() => history.push(`/app/olduser/edit/${rowData.data.clcleunik}/2`)}
+              onClick={() =>
+                history.push(`/app/olduser/edit/${rowData.data.clcleunik}/2`)
+              }
             >
               <span>{rowData.data.cl_nom}</span>
             </div>
@@ -501,13 +505,16 @@ class OldClientsList extends React.Component {
         <Row className="app-user-list" style={{ height: "100vh" }}>
           <Col sm="12" className="h-100 d-flex flex-column">
             <Card
-              className={classnames("card-action card-reload h-100 d-flex flex-column", {
-                "d-none": this.state.isVisible === false,
-                "card-collapsed": this.state.status === "Closed",
-                closing: this.state.status === "Closing...",
-                opening: this.state.status === "Opening...",
-                refreshing: this.state.reload,
-              })}
+              className={classnames(
+                "card-action card-reload h-100 d-flex flex-column",
+                {
+                  "d-none": this.state.isVisible === false,
+                  "card-collapsed": this.state.status === "Closed",
+                  closing: this.state.status === "Closing...",
+                  opening: this.state.status === "Opening...",
+                  refreshing: this.state.reload,
+                }
+              )}
             >
               <CardHeader>
                 <CardTitle>
@@ -539,9 +546,11 @@ class OldClientsList extends React.Component {
                           id="role"
                           value={this.state.role}
                           onChange={(e) => {
-                            this.setState(
-                              { role: e.target.value },
-                              () => this.filterData("role", this.state.role.toLowerCase())
+                            this.setState({ role: e.target.value }, () =>
+                              this.filterData(
+                                "role",
+                                this.state.role.toLowerCase()
+                              )
                             );
                           }}
                         >
@@ -563,7 +572,11 @@ class OldClientsList extends React.Component {
                           onChange={(e) => {
                             this.setState(
                               { selectStatus: e.target.value },
-                              () => this.filterData("status", this.state.selectStatus.toLowerCase())
+                              () =>
+                                this.filterData(
+                                  "status",
+                                  this.state.selectStatus.toLowerCase()
+                                )
                             );
                           }}
                         >
@@ -583,9 +596,11 @@ class OldClientsList extends React.Component {
                           id="verified"
                           value={this.state.verified}
                           onChange={(e) => {
-                            this.setState(
-                              { verified: e.target.value },
-                              () => this.filterData("is_verified", this.state.verified.toLowerCase())
+                            this.setState({ verified: e.target.value }, () =>
+                              this.filterData(
+                                "is_verified",
+                                this.state.verified.toLowerCase()
+                              )
                             );
                           }}
                         >
@@ -604,9 +619,11 @@ class OldClientsList extends React.Component {
                           id="department"
                           value={this.state.department}
                           onChange={(e) => {
-                            this.setState(
-                              { department: e.target.value },
-                              () => this.filterData("department", this.state.department.toLowerCase())
+                            this.setState({ department: e.target.value }, () =>
+                              this.filterData(
+                                "department",
+                                this.state.department.toLowerCase()
+                              )
                             );
                           }}
                         >
@@ -622,7 +639,10 @@ class OldClientsList extends React.Component {
               </Collapse>
 
               {/* Corps principal en flex pour faire grandir la grille */}
-              <CardBody className="h-100 d-flex flex-column" style={{ paddingBottom: "0.5rem" }}>
+              <CardBody
+                className="h-100 d-flex flex-column"
+                style={{ paddingBottom: "0.5rem" }}
+              >
                 <div className="ag-grid-actions d-flex justify-content-between flex-wrap mb-1">
                   <div className="sort-dropdown">
                     <UncontrolledDropdown className="ag-dropdown p-1">
@@ -631,16 +651,28 @@ class OldClientsList extends React.Component {
                         <ChevronDown className="ml-50" size={20} />
                       </DropdownToggle>
                       <DropdownMenu right>
-                        <DropdownItem tag="div" onClick={() => this.filterSize(20)}>
+                        <DropdownItem
+                          tag="div"
+                          onClick={() => this.filterSize(20)}
+                        >
                           20
                         </DropdownItem>
-                        <DropdownItem tag="div" onClick={() => this.filterSize(50)}>
+                        <DropdownItem
+                          tag="div"
+                          onClick={() => this.filterSize(50)}
+                        >
                           50
                         </DropdownItem>
-                        <DropdownItem tag="div" onClick={() => this.filterSize(100)}>
+                        <DropdownItem
+                          tag="div"
+                          onClick={() => this.filterSize(100)}
+                        >
                           100
                         </DropdownItem>
-                        <DropdownItem tag="div" onClick={() => this.filterSize(150)}>
+                        <DropdownItem
+                          tag="div"
+                          onClick={() => this.filterSize(150)}
+                        >
                           150
                         </DropdownItem>
                       </DropdownMenu>
@@ -681,8 +713,11 @@ class OldClientsList extends React.Component {
                               const field = params?.colDef?.field;
                               const header = params?.colDef?.headerName;
                               if (!params?.data?.clcleunik) return;
-                              if (field === "cl_mail" || header === "Actions") return;
-                              history.push(`/app/olduser/edit/${params.data.clcleunik}/2`);
+                              if (field === "cl_mail" || header === "Actions")
+                                return;
+                              history.push(
+                                `/app/olduser/edit/${params.data.clcleunik}/2`
+                              );
                             },
                           }}
                           onFirstDataRendered={this.sizeToFit}
@@ -694,7 +729,7 @@ class OldClientsList extends React.Component {
                           onGridReady={this.onGridReady}
                           colResizeDefault={"shift"}
                           animateRows={true}
-                          floatingFilter={true}
+                          floatingFilter={false}
                           pagination={true}
                           pivotPanelShow="always"
                           paginationPageSize={pageSize}
