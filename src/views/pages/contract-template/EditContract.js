@@ -1612,12 +1612,18 @@ class EditContract extends React.Component {
                               color="primary"
                               name="status"
                               checked={this.state.status === "Terminé"}
-                              onChange={() =>
+                              onChange={() => {
+                                if (this.state.status_payment < 2) {
+                                  toast.error(
+                                    "Attention : Impossible de terminer le dossier. Veuillez vérifier le paiement (le dossier doit être 'Soldé')."
+                                  );
+                                  return;
+                                }
                                 this.setState({
                                   status: "Terminé",
                                   isDirty: true,
-                                })
-                              }
+                                });
+                              }}
                             />
                             <Radio
                               label="Perdu"
