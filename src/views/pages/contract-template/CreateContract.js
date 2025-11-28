@@ -887,7 +887,7 @@ class CreateContract extends React.Component {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "32px minmax(0,1fr) 24px 70px",
+                gridTemplateColumns: "32px minmax(0,auto) 24px 70px",
                 columnGap: 8,
                 alignItems: "center",
               }}
@@ -1025,7 +1025,7 @@ class CreateContract extends React.Component {
     const GRID = {
       display: "grid",
       gridTemplateColumns:
-        "32px minmax(160px,1fr) 70px 90px 80px 90px 110px 48px 16px 32px minmax(140px,1fr) 24px 70px",
+        "32px minmax(160px,1fr) 70px 90px 80px 90px 110px 48px 16px 32px minmax(140px,auto) 24px 70px",
       alignItems: "center",
       columnGap: 8,
     };

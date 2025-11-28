@@ -74,6 +74,373 @@ var input_values = {
 const CREDIT_IMPOT_NOTE =
   "Prestation éligible à l'avance immédiate de crédit d'impôt soit 50 % pris en charge immédiatement par l'URSSAF après enregistrement du client.";
 
+const stripe = (i) => ({
+  backgroundColor: "#fff",
+  border: "1px solid #ebe9f1",
+  borderRadius: "8px",
+  padding: "12px 16px",
+  marginBottom: "8px",
+  boxShadow: "0 2px 6px rgba(0,0,0,0.03)",
+  transition: "all 0.2s ease",
+});
+
+const GRID = {
+  display: "grid",
+  gridTemplateColumns:
+    "30px minmax(180px, 1.5fr) 60px 90px 70px 90px 110px 40px 10px 30px minmax(150px, auto) 24px 70px",
+  alignItems: "center",
+  columnGap: 10,
+  fontSize: "0.9rem",
+};
+
+const inputStyle = {
+  height: 34,
+  borderRadius: 6,
+  border: "1px solid #d8d6de",
+  padding: "0 10px",
+  fontSize: "0.9rem",
+  textAlign: "right",
+  width: "100%",
+  backgroundColor: "#fff",
+};
+
+const Ghost = ({ children = "" }) => (
+  <span style={{ visibility: "hidden" }}>{children}</span>
+);
+
+const VSep = () => (
+  <div
+    aria-hidden="true"
+    style={{
+      width: 1,
+      height: 24,
+      background: "#ebe9f1",
+      justifySelf: "center",
+    }}
+  />
+);
+
+const RowMinutes = ({ i, formValues, onPrimaryToggle, handleFieldChange }) => (
+  <div style={{ ...stripe(i), ...GRID }}>
+    <LabeledCheckboxMaterialUi
+      label=""
+      checked={formValues["c1"]}
+      onChange={(checked) => onPrimaryToggle(checked, "c1", "r1")}
+    />
+    <span style={{ fontWeight: 500, color: "#5e5873" }}>
+      {formValues["title1"]}
+    </span>
+
+    <span className="text-muted" style={{ fontSize: "0.85rem" }}>
+      Nb (min)
+    </span>
+    <Input
+      type="text"
+      value={formValues["nb1"]}
+      onChange={(e) => handleFieldChange("nb1", e.target.value)}
+      style={{ ...inputStyle, width: "100%" }}
+    />
+
+    <span className="text-muted" style={{ fontSize: "0.85rem" }}>
+      PU (€/h)
+    </span>
+    <Input
+      type="text"
+      value={formValues["nb1-price"]}
+      onChange={(e) => handleFieldChange("nb1-price", e.target.value)}
+      style={{ ...inputStyle, width: "100%" }}
+    />
+
+    <Ghost>
+      <Input style={{ ...inputStyle }} />
+    </Ghost>
+    <Ghost>€ HT</Ghost>
+
+    <VSep />
+
+    <Ghost>
+      <LabeledCheckboxMaterialUi label="" checked={false} />
+    </Ghost>
+    <Ghost>Option</Ghost>
+    <Ghost>Nb</Ghost>
+    <Ghost>
+      <Input style={{ ...inputStyle, width: 70 }} />
+    </Ghost>
+  </div>
+);
+
+const RowFixed = ({ i, n, formValues, onPrimaryToggle, handleFieldChange }) => (
+  <div style={{ ...stripe(i), ...GRID }}>
+    <LabeledCheckboxMaterialUi
+      label=""
+      checked={formValues[`c${n}`]}
+      onChange={(checked) => onPrimaryToggle(checked, `c${n}`, `r${n}`)}
+    />
+    <span style={{ fontWeight: 500, color: "#5e5873" }}>
+      {formValues[`title${n}`]}
+    </span>
+
+    <Ghost>Nb (min)</Ghost>
+    <Ghost>
+      <Input style={{ ...inputStyle }} />
+    </Ghost>
+    <Ghost>PU (€/h)</Ghost>
+    <Ghost>
+      <Input style={{ ...inputStyle }} />
+    </Ghost>
+
+    <Input
+      type="text"
+      value={formValues[`p${n}`]}
+      onChange={(e) => handleFieldChange(`p${n}`, e.target.value)}
+      style={{
+        ...inputStyle,
+        fontWeight: 600,
+        color: "#5e5873",
+      }}
+    />
+    <span style={{ fontSize: "0.85rem", color: "#b9b9c3" }}>€ HT</span>
+
+    <VSep />
+
+    <Ghost>
+      <LabeledCheckboxMaterialUi label="" checked={false} />
+    </Ghost>
+    <Ghost>Option</Ghost>
+    <Ghost>Nb</Ghost>
+    <Ghost>
+      <Input style={{ ...inputStyle, width: 70 }} />
+    </Ghost>
+  </div>
+);
+
+const RowWithOption = ({
+  i,
+  n,
+  optionCheckKey,
+  optionLabel,
+  optionNbKey,
+  formValues,
+  onPrimaryToggle,
+  handleFieldChange,
+  handleCheckChange,
+}) => {
+  const isPensionLine = n === 5; // ligne "liquidation des pensions"
+  return (
+    <div style={{ ...stripe(i), ...GRID }}>
+      {/* Checkbox principale + titre */}
+      <LabeledCheckboxMaterialUi
+        label=""
+        checked={formValues[`c${n}`]}
+        onChange={(checked) => onPrimaryToggle(checked, `c${n}`, `r${n}`)}
+      />
+      <span style={{ fontWeight: 500, color: "#5e5873" }}>
+        {formValues[`title${n}`]}
+      </span>
+
+      {/* colonnes minutes / PU fantômes */}
+      <Ghost>Nb (min)</Ghost>
+      <Ghost>
+        <Input style={{ ...inputStyle }} />
+      </Ghost>
+      <Ghost>PU (€/h)</Ghost>
+      <Ghost>
+        <Input style={{ ...inputStyle }} />
+      </Ghost>
+
+      {/* prix forfait */}
+      <Input
+        type="text"
+        value={formValues[`p${n}`]}
+        onChange={(e) => handleFieldChange(`p${n}`, e.target.value)}
+        style={{
+          ...inputStyle,
+          fontWeight: 600,
+          color: "#5e5873",
+        }}
+      />
+      <span style={{ fontSize: "0.85rem", color: "#b9b9c3" }}>€ HT</span>
+
+      <VSep />
+
+      {/* Partie option */}
+      {isPensionLine ? (
+        // Ligne 5 : option "liquidation des pensions" + cc5 sur la même rangée
+        <div style={{ gridColumn: "10 / span 4" }}>
+          {/* Option "liquidation des pensions" (cnb5) */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "32px minmax(0, auto) 24px 70px",
+              columnGap: 8,
+              alignItems: "center",
+            }}
+          >
+            <LabeledCheckboxMaterialUi
+              label=""
+              checked={formValues[optionCheckKey]}
+              onChange={(checked) => handleCheckChange(checked, optionCheckKey)}
+            />
+            <span
+              style={{
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                fontSize: "0.85rem",
+                color: "#5e5873",
+              }}
+              title={optionLabel}
+            >
+              {optionLabel}
+            </span>
+            <span
+              style={{
+                fontSize: "0.85rem",
+                color: "#b9b9c3",
+              }}
+            >
+              Nb
+            </span>
+            <Input
+              type="text"
+              value={formValues[optionNbKey]}
+              onChange={(e) => handleFieldChange(optionNbKey, e.target.value)}
+              style={{ ...inputStyle, width: 70 }}
+            />
+          </div>
+
+          {/* cc5 : "inclus sous réserve d'un départ en retraite..." */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              marginTop: 6,
+              gap: 6,
+            }}
+          >
+            <LabeledCheckboxMaterialUi
+              label=""
+              checked={formValues.cc5}
+              onChange={(checked) => handleCheckChange(checked, "cc5")}
+            />
+            <span
+              style={{
+                whiteSpace: "normal",
+                fontSize: "0.8rem",
+                color: "#b9b9c3",
+                fontStyle: "italic",
+              }}
+            >
+              {formValues["subcontent5-3"]}
+            </span>
+          </div>
+        </div>
+      ) : (
+        // Lignes 2 et 4 : comportement normal
+        <>
+          <LabeledCheckboxMaterialUi
+            label=""
+            checked={formValues[optionCheckKey]}
+            onChange={(checked) => handleCheckChange(checked, optionCheckKey)}
+          />
+          <span
+            style={{
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              fontSize: "0.85rem",
+              color: "#5e5873",
+            }}
+            title={optionLabel}
+          >
+            {optionLabel}
+          </span>
+          <span
+            style={{
+              fontSize: "0.85rem",
+              color: "#b9b9c3",
+            }}
+          >
+            Nb
+          </span>
+          <Input
+            type="text"
+            value={formValues[optionNbKey]}
+            onChange={(e) => handleFieldChange(optionNbKey, e.target.value)}
+            style={{ ...inputStyle, width: 70 }}
+          />
+        </>
+      )}
+    </div>
+  );
+};
+
+const AddRowSelect = ({
+  placeholder = "Ajouter une ligne",
+  availableRowIds,
+  addRowById,
+  labelFor,
+}) => {
+  const avail = availableRowIds();
+  if (avail.length === 0) return null;
+  return (
+    <div
+      className="d-flex align-items-center justify-content-center"
+      style={{ margin: "12px 0" }}
+    >
+      <div
+        style={{
+          position: "relative",
+          maxWidth: "400px",
+          width: "100%",
+        }}
+      >
+        <Input
+          type="select"
+          style={{
+            width: "100%",
+            height: 42,
+            borderRadius: 20,
+            border: "2px dashed #7367f0",
+            backgroundColor: "#f8f8f8",
+            color: "#7367f0",
+            fontWeight: 600,
+            textAlign: "center",
+            cursor: "pointer",
+            appearance: "none",
+            paddingLeft: "20px",
+          }}
+          value=""
+          onChange={(e) => {
+            const id = e.target.value;
+            if (id) addRowById(id);
+          }}
+        >
+          <option value="" disabled hidden>
+            + {placeholder}
+          </option>
+          {avail.map((id) => (
+            <option key={id} value={id} style={{ color: "#000" }}>
+              {labelFor(id)}
+            </option>
+          ))}
+        </Input>
+        <div
+          style={{
+            position: "absolute",
+            right: 15,
+            top: 10,
+            pointerEvents: "none",
+            color: "#7367f0",
+          }}
+        >
+          <Plus size={18} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 class EditContract extends React.Component {
   state = {
     rowData: [],
@@ -947,609 +1314,254 @@ class EditContract extends React.Component {
                 </CardHeader>
 
                 <CardBody className="pt-1">
-                  {(() => {
-                    const stripe = (i) => ({
-                      backgroundColor: "#fff",
+                  <AddRowSelect
+                    key="add-top"
+                    placeholder="Ajouter une prestation"
+                    availableRowIds={() => this.availableRowIds()}
+                    addRowById={(id) => this.addRowById(id)}
+                    labelFor={(id) => this.labelFor(id)}
+                  />
+
+                  {(this.state.selectedRows || []).map((id, index) => {
+                    switch (id) {
+                      case "r1":
+                        return (
+                          <RowMinutes
+                            key="r1"
+                            i={index}
+                            formValues={this.state.formValues}
+                            onPrimaryToggle={(c, k, r) =>
+                              this.onPrimaryToggle(c, k, r)
+                            }
+                            handleFieldChange={(k, v) =>
+                              this.handleFieldChange(k, v)
+                            }
+                          />
+                        );
+                      case "r2":
+                        return (
+                          <RowWithOption
+                            key="r2"
+                            i={index}
+                            n={2}
+                            optionCheckKey="cnb2"
+                            optionLabel={this.state.formValues["subcontent2-2"]}
+                            optionNbKey="nb2"
+                            formValues={this.state.formValues}
+                            onPrimaryToggle={(c, k, r) =>
+                              this.onPrimaryToggle(c, k, r)
+                            }
+                            handleFieldChange={(k, v) =>
+                              this.handleFieldChange(k, v)
+                            }
+                            handleCheckChange={(c, k) =>
+                              this.handleCheckChange(c, k)
+                            }
+                          />
+                        );
+                      case "r3":
+                        return (
+                          <RowFixed
+                            key="r3"
+                            i={index}
+                            n={3}
+                            formValues={this.state.formValues}
+                            onPrimaryToggle={(c, k, r) =>
+                              this.onPrimaryToggle(c, k, r)
+                            }
+                            handleFieldChange={(k, v) =>
+                              this.handleFieldChange(k, v)
+                            }
+                          />
+                        );
+                      case "r4":
+                        return (
+                          <RowWithOption
+                            key="r4"
+                            i={index}
+                            n={4}
+                            optionCheckKey="cnb4"
+                            optionLabel={this.state.formValues["subcontent4-7"]}
+                            optionNbKey="nb4"
+                            formValues={this.state.formValues}
+                            onPrimaryToggle={(c, k, r) =>
+                              this.onPrimaryToggle(c, k, r)
+                            }
+                            handleFieldChange={(k, v) =>
+                              this.handleFieldChange(k, v)
+                            }
+                            handleCheckChange={(c, k) =>
+                              this.handleCheckChange(c, k)
+                            }
+                          />
+                        );
+                      case "r5":
+                        return (
+                          <RowWithOption
+                            key="r5"
+                            i={index}
+                            n={5}
+                            optionCheckKey="cnb5"
+                            optionLabel={this.state.formValues["subcontent5-2"]}
+                            optionNbKey="nb5"
+                            formValues={this.state.formValues}
+                            onPrimaryToggle={(c, k, r) =>
+                              this.onPrimaryToggle(c, k, r)
+                            }
+                            handleFieldChange={(k, v) =>
+                              this.handleFieldChange(k, v)
+                            }
+                            handleCheckChange={(c, k) =>
+                              this.handleCheckChange(c, k)
+                            }
+                          />
+                        );
+                      case "r6":
+                        return (
+                          <RowFixed
+                            key="r6"
+                            i={index}
+                            n={6}
+                            formValues={this.state.formValues}
+                            onPrimaryToggle={(c, k, r) =>
+                              this.onPrimaryToggle(c, k, r)
+                            }
+                            handleFieldChange={(k, v) =>
+                              this.handleFieldChange(k, v)
+                            }
+                          />
+                        );
+                      case "r7":
+                        return (
+                          <RowFixed
+                            key="r7"
+                            i={index}
+                            n={7}
+                            formValues={this.state.formValues}
+                            onPrimaryToggle={(c, k, r) =>
+                              this.onPrimaryToggle(c, k, r)
+                            }
+                            handleFieldChange={(k, v) =>
+                              this.handleFieldChange(k, v)
+                            }
+                          />
+                        );
+                      default:
+                        return null;
+                    }
+                  })}
+
+                  <div
+                    key="row-tva"
+                    className="d-flex align-items-center flex-wrap"
+                    style={{
+                      backgroundColor: "#f8f9fa",
                       border: "1px solid #ebe9f1",
-                      borderRadius: "8px",
-                      padding: "12px 16px",
-                      marginBottom: "8px",
-                      boxShadow: "0 2px 6px rgba(0,0,0,0.03)",
-                      transition: "all 0.2s ease",
-                    });
-
-                    const GRID = {
-                      display: "grid",
-                      gridTemplateColumns:
-                        "30px minmax(180px, 1.5fr) 60px 90px 70px 90px 110px 40px 10px 30px minmax(150px, 1fr) 24px 70px",
-                      alignItems: "center",
-                      columnGap: 10,
-                      fontSize: "0.9rem",
-                    };
-
-                    const inputStyle = {
-                      height: 34,
-                      borderRadius: 6,
-                      border: "1px solid #d8d6de",
-                      padding: "0 10px",
-                      fontSize: "0.9rem",
-                      textAlign: "right",
-                      width: "100%",
-                      backgroundColor: "#fff",
-                    };
-
-                    const Ghost = ({ children = "" }) => (
-                      <span style={{ visibility: "hidden" }}>{children}</span>
-                    );
-
-                    const VSep = () => (
-                      <div
-                        aria-hidden="true"
+                      borderRadius: 8,
+                      padding: "15px 20px",
+                      marginTop: 25,
+                      gap: 15,
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <div
+                      className="d-flex align-items-center"
+                      style={{ gap: 10 }}
+                    >
+                      <span style={{ fontWeight: 600, color: "#5e5873" }}>
+                        TVA
+                      </span>
+                      <Input
+                        type="text"
+                        value={this.state.formValues["TVAP"] ?? 20}
+                        onChange={(e) =>
+                          this.handleFieldChange("TVAP", e.target.value)
+                        }
                         style={{
-                          width: 1,
-                          height: 24,
-                          background: "#ebe9f1",
-                          justifySelf: "center",
+                          ...inputStyle,
+                          width: 60,
+                          textAlign: "center",
                         }}
                       />
-                    );
+                      <span style={{ color: "#b9b9c3" }}>%</span>
+                    </div>
 
-                    // ——— Lignes
-                    const RowMinutes = ({ i }) => (
-                      <div style={{ ...stripe(i), ...GRID }}>
-                        <LabeledCheckboxMaterialUi
-                          label=""
-                          checked={this.state.formValues["c1"]}
-                          onChange={(checked) =>
-                            this.onPrimaryToggle(checked, "c1", "r1")
-                          }
-                        />
-                        <span style={{ fontWeight: 500, color: "#5e5873" }}>
-                          {this.state.formValues["title1"]}
-                        </span>
+                    <VSep />
 
-                        <span
-                          className="text-muted"
-                          style={{ fontSize: "0.85rem" }}
-                        >
-                          Nb (min)
-                        </span>
-                        <Input
-                          type="text"
-                          value={this.state.formValues["nb1"]}
-                          onChange={(e) =>
-                            this.handleFieldChange("nb1", e.target.value)
-                          }
-                          style={{ ...inputStyle, width: "100%" }}
-                        />
-
-                        <span
-                          className="text-muted"
-                          style={{ fontSize: "0.85rem" }}
-                        >
-                          PU (€/h)
-                        </span>
-                        <Input
-                          type="text"
-                          value={this.state.formValues["nb1-price"]}
-                          onChange={(e) =>
-                            this.handleFieldChange("nb1-price", e.target.value)
-                          }
-                          style={{ ...inputStyle, width: "100%" }}
-                        />
-
-                        <Ghost>
-                          <Input style={{ ...inputStyle }} />
-                        </Ghost>
-                        <Ghost>€ HT</Ghost>
-
-                        <VSep />
-
-                        <Ghost>
-                          <LabeledCheckboxMaterialUi label="" checked={false} />
-                        </Ghost>
-                        <Ghost>Option</Ghost>
-                        <Ghost>Nb</Ghost>
-                        <Ghost>
-                          <Input style={{ ...inputStyle, width: 70 }} />
-                        </Ghost>
-                      </div>
-                    );
-
-                    const RowFixed = ({ i, n }) => (
-                      <div style={{ ...stripe(i), ...GRID }}>
-                        <LabeledCheckboxMaterialUi
-                          label=""
-                          checked={this.state.formValues[`c${n}`]}
-                          onChange={(checked) =>
-                            this.onPrimaryToggle(checked, `c${n}`, `r${n}`)
-                          }
-                        />
-                        <span style={{ fontWeight: 500, color: "#5e5873" }}>
-                          {this.state.formValues[`title${n}`]}
-                        </span>
-
-                        <Ghost>Nb (min)</Ghost>
-                        <Ghost>
-                          <Input style={{ ...inputStyle }} />
-                        </Ghost>
-                        <Ghost>PU (€/h)</Ghost>
-                        <Ghost>
-                          <Input style={{ ...inputStyle }} />
-                        </Ghost>
-
-                        <Input
-                          type="text"
-                          value={this.state.formValues[`p${n}`]}
-                          onChange={(e) =>
-                            this.handleFieldChange(`p${n}`, e.target.value)
-                          }
-                          style={{
-                            ...inputStyle,
-                            fontWeight: 600,
-                            color: "#5e5873",
-                          }}
-                        />
-                        <span style={{ fontSize: "0.85rem", color: "#b9b9c3" }}>
-                          € HT
-                        </span>
-
-                        <VSep />
-
-                        <Ghost>
-                          <LabeledCheckboxMaterialUi label="" checked={false} />
-                        </Ghost>
-                        <Ghost>Option</Ghost>
-                        <Ghost>Nb</Ghost>
-                        <Ghost>
-                          <Input style={{ ...inputStyle, width: 70 }} />
-                        </Ghost>
-                      </div>
-                    );
-
-                    const RowWithOption = ({
-                      i,
-                      n,
-                      optionCheckKey,
-                      optionLabel,
-                      optionNbKey,
-                    }) => {
-                      const isPensionLine = n === 5; // ligne "liquidation des pensions"
-                      return (
-                        <div style={{ ...stripe(i), ...GRID }}>
-                          {/* Checkbox principale + titre */}
-                          <LabeledCheckboxMaterialUi
-                            label=""
-                            checked={this.state.formValues[`c${n}`]}
-                            onChange={(checked) =>
-                              this.onPrimaryToggle(checked, `c${n}`, `r${n}`)
-                            }
-                          />
-                          <span style={{ fontWeight: 500, color: "#5e5873" }}>
-                            {this.state.formValues[`title${n}`]}
-                          </span>
-
-                          {/* colonnes minutes / PU fantômes */}
-                          <Ghost>Nb (min)</Ghost>
-                          <Ghost>
-                            <Input style={{ ...inputStyle }} />
-                          </Ghost>
-                          <Ghost>PU (€/h)</Ghost>
-                          <Ghost>
-                            <Input style={{ ...inputStyle }} />
-                          </Ghost>
-
-                          {/* prix forfait */}
-                          <Input
-                            type="text"
-                            value={this.state.formValues[`p${n}`]}
-                            onChange={(e) =>
-                              this.handleFieldChange(`p${n}`, e.target.value)
-                            }
-                            style={{
-                              ...inputStyle,
-                              fontWeight: 600,
-                              color: "#5e5873",
-                            }}
-                          />
-                          <span
-                            style={{ fontSize: "0.85rem", color: "#b9b9c3" }}
-                          >
-                            € HT
-                          </span>
-
-                          <VSep />
-
-                          {/* Partie option */}
-                          {isPensionLine ? (
-                            // Ligne 5 : option "liquidation des pensions" + cc5 sur la même rangée
-                            <div style={{ gridColumn: "10 / span 4" }}>
-                              {/* Option "liquidation des pensions" (cnb5) */}
-                              <div
-                                style={{
-                                  display: "grid",
-                                  gridTemplateColumns:
-                                    "32px minmax(0,1fr) 24px 70px",
-                                  columnGap: 8,
-                                  alignItems: "center",
-                                }}
-                              >
-                                <LabeledCheckboxMaterialUi
-                                  label=""
-                                  checked={
-                                    this.state.formValues[optionCheckKey]
-                                  }
-                                  onChange={(checked) =>
-                                    this.handleCheckChange(
-                                      checked,
-                                      optionCheckKey
-                                    )
-                                  }
-                                />
-                                <span
-                                  style={{
-                                    whiteSpace: "nowrap",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    fontSize: "0.85rem",
-                                    color: "#5e5873",
-                                  }}
-                                  title={optionLabel}
-                                >
-                                  {optionLabel}
-                                </span>
-                                <span
-                                  style={{
-                                    fontSize: "0.85rem",
-                                    color: "#b9b9c3",
-                                  }}
-                                >
-                                  Nb
-                                </span>
-                                <Input
-                                  type="text"
-                                  value={this.state.formValues[optionNbKey]}
-                                  onChange={(e) =>
-                                    this.handleFieldChange(
-                                      optionNbKey,
-                                      e.target.value
-                                    )
-                                  }
-                                  style={{ ...inputStyle, width: "100%" }}
-                                />
-                              </div>
-
-                              {/* cc5 : "inclus sous réserve d'un départ en retraite..." */}
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  marginTop: 6,
-                                  gap: 6,
-                                }}
-                              >
-                                <LabeledCheckboxMaterialUi
-                                  label=""
-                                  checked={this.state.formValues.cc5}
-                                  onChange={(checked) =>
-                                    this.handleCheckChange(checked, "cc5")
-                                  }
-                                />
-                                <span
-                                  style={{
-                                    whiteSpace: "normal",
-                                    fontSize: "0.8rem",
-                                    color: "#b9b9c3",
-                                    fontStyle: "italic",
-                                  }}
-                                >
-                                  {this.state.formValues["subcontent5-3"]}
-                                </span>
-                              </div>
-                            </div>
-                          ) : (
-                            // Lignes 2 et 4 : comportement normal
-                            <>
-                              <LabeledCheckboxMaterialUi
-                                label=""
-                                checked={this.state.formValues[optionCheckKey]}
-                                onChange={(checked) =>
-                                  this.handleCheckChange(
-                                    checked,
-                                    optionCheckKey
-                                  )
-                                }
-                              />
-                              <span
-                                style={{
-                                  whiteSpace: "nowrap",
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  fontSize: "0.85rem",
-                                  color: "#5e5873",
-                                }}
-                                title={optionLabel}
-                              >
-                                {optionLabel}
-                              </span>
-                              <span
-                                style={{
-                                  fontSize: "0.85rem",
-                                  color: "#b9b9c3",
-                                }}
-                              >
-                                Nb
-                              </span>
-                              <Input
-                                type="text"
-                                value={this.state.formValues[optionNbKey]}
-                                onChange={(e) =>
-                                  this.handleFieldChange(
-                                    optionNbKey,
-                                    e.target.value
-                                  )
-                                }
-                                style={{ ...inputStyle, width: 70 }}
-                              />
-                            </>
-                          )}
-                        </div>
-                      );
-                    };
-
-                    // Sélecteur d’ajout
-                    const AddRowSelect = ({
-                      placeholder = "Ajouter une ligne",
-                    }) => {
-                      const avail = this.availableRowIds();
-                      if (avail.length === 0) return null;
-                      return (
-                        <div
-                          className="d-flex align-items-center justify-content-center"
-                          style={{ margin: "12px 0" }}
-                        >
-                          <div
-                            style={{
-                              position: "relative",
-                              maxWidth: "400px",
-                              width: "100%",
-                            }}
-                          >
-                            <Input
-                              type="select"
-                              style={{
-                                width: "100%",
-                                height: 42,
-                                borderRadius: 20,
-                                border: "2px dashed #7367f0",
-                                backgroundColor: "#f8f8f8",
-                                color: "#7367f0",
-                                fontWeight: 600,
-                                textAlign: "center",
-                                cursor: "pointer",
-                                appearance: "none",
-                                paddingLeft: "20px",
-                              }}
-                              value=""
-                              onChange={(e) => {
-                                const id = e.target.value;
-                                if (id) this.addRowById(id);
-                              }}
-                            >
-                              <option value="" disabled hidden>
-                                + {placeholder}
-                              </option>
-                              {avail.map((id) => (
-                                <option
-                                  key={id}
-                                  value={id}
-                                  style={{ color: "#000" }}
-                                >
-                                  {this.labelFor(id)}
-                                </option>
-                              ))}
-                            </Input>
-                            <div
-                              style={{
-                                position: "absolute",
-                                right: 15,
-                                top: 10,
-                                pointerEvents: "none",
-                                color: "#7367f0",
-                              }}
-                            >
-                              <Plus size={18} />
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    };
-
-                    // ——— rendu
-                    let i = 0;
-                    const out = [];
-                    out.push(
-                      <AddRowSelect
-                        key="add-top"
-                        placeholder="Ajouter une prestation"
-                      />
-                    );
-
-                    (this.state.selectedRows || []).forEach((id) => {
-                      switch (id) {
-                        case "r1":
-                          out.push(<RowMinutes key="r1" i={i++} />);
-                          break;
-                        case "r2":
-                          out.push(
-                            <RowWithOption
-                              key="r2"
-                              i={i++}
-                              n={2}
-                              optionCheckKey="cnb2"
-                              optionLabel={
-                                this.state.formValues["subcontent2-2"]
-                              }
-                              optionNbKey="nb2"
-                            />
-                          );
-                          break;
-                        case "r3":
-                          out.push(<RowFixed key="r3" i={i++} n={3} />);
-                          break;
-                        case "r4":
-                          out.push(
-                            <RowWithOption
-                              key="r4"
-                              i={i++}
-                              n={4}
-                              optionCheckKey="cnb4"
-                              optionLabel={
-                                this.state.formValues["subcontent4-7"]
-                              }
-                              optionNbKey="nb4"
-                            />
-                          );
-                          break;
-                        case "r5":
-                          out.push(
-                            <RowWithOption
-                              key="r5"
-                              i={i++}
-                              n={5}
-                              optionCheckKey="cnb5"
-                              optionLabel={
-                                this.state.formValues["subcontent5-2"]
-                              }
-                              optionNbKey="nb5"
-                            />
-                          );
-                          break;
-                        case "r6":
-                          out.push(<RowFixed key="r6" i={i++} n={6} />);
-                          break;
-                        case "r7":
-                          out.push(<RowFixed key="r7" i={i++} n={7} />);
-                          break;
-                        default:
-                          break;
-                      }
-                    });
-                    out.push(
-                      <div
-                        key="row-tva"
-                        className="d-flex align-items-center flex-wrap"
+                    <div
+                      className="d-flex align-items-center"
+                      style={{ gap: 10 }}
+                    >
+                      <span style={{ color: "#5e5873" }}>
+                        {this.state.formValues["table3-subcontent1"] ||
+                          "Acompte à la commande :"}
+                      </span>
+                      <Input
+                        type="text"
+                        value={this.state.formValues["fp1"] ?? 100}
+                        onChange={(e) =>
+                          this.handleFieldChange("fp1", e.target.value)
+                        }
                         style={{
-                          backgroundColor: "#f8f9fa",
-                          border: "1px solid #ebe9f1",
-                          borderRadius: 8,
-                          padding: "15px 20px",
-                          marginTop: 25,
-                          gap: 15,
-                          justifyContent: "space-between",
+                          ...inputStyle,
+                          width: 60,
+                          textAlign: "center",
                         }}
-                      >
-                        <div
-                          className="d-flex align-items-center"
-                          style={{ gap: 10 }}
-                        >
-                          <span style={{ fontWeight: 600, color: "#5e5873" }}>
-                            TVA
-                          </span>
-                          <Input
-                            type="text"
-                            value={this.state.formValues["TVAP"] ?? 20}
-                            onChange={(e) =>
-                              this.handleFieldChange("TVAP", e.target.value)
-                            }
-                            style={{
-                              ...inputStyle,
-                              width: 60,
-                              textAlign: "center",
-                            }}
-                          />
-                          <span style={{ color: "#b9b9c3" }}>%</span>
-                        </div>
+                      />
+                      <span style={{ color: "#b9b9c3" }}>%</span>
+                    </div>
 
-                        <VSep />
+                    <VSep />
 
-                        <div
-                          className="d-flex align-items-center"
-                          style={{ gap: 10 }}
-                        >
-                          <span style={{ color: "#5e5873" }}>
-                            {this.state.formValues["table3-subcontent1"] ||
-                              "Acompte à la commande :"}
-                          </span>
-                          <Input
-                            type="text"
-                            value={this.state.formValues["fp1"] ?? 100}
-                            onChange={(e) =>
-                              this.handleFieldChange("fp1", e.target.value)
-                            }
-                            style={{
-                              ...inputStyle,
-                              width: 60,
-                              textAlign: "center",
-                            }}
-                          />
-                          <span style={{ color: "#b9b9c3" }}>%</span>
-                        </div>
+                    <div
+                      className="d-flex align-items-center"
+                      style={{ gap: 10 }}
+                    >
+                      <span style={{ color: "#5e5873" }}>
+                        {this.state.formValues["table3-subcontent2"] ||
+                          "Solde fin de mission :"}
+                      </span>
+                      <Input
+                        type="text"
+                        value={this.state.formValues["fp2"] ?? 0}
+                        onChange={(e) =>
+                          this.handleFieldChange("fp2", e.target.value)
+                        }
+                        style={{
+                          ...inputStyle,
+                          width: 60,
+                          textAlign: "center",
+                        }}
+                      />
+                      <span style={{ color: "#b9b9c3" }}>%</span>
+                    </div>
 
-                        <VSep />
+                    {/* 👇 séparation avant le crédit d'impôts */}
+                    <VSep />
 
-                        <div
-                          className="d-flex align-items-center"
-                          style={{ gap: 10 }}
-                        >
-                          <span style={{ color: "#5e5873" }}>
-                            {this.state.formValues["table3-subcontent2"] ||
-                              "Solde fin de mission :"}
-                          </span>
-                          <Input
-                            type="text"
-                            value={this.state.formValues["fp2"] ?? 0}
-                            onChange={(e) =>
-                              this.handleFieldChange("fp2", e.target.value)
-                            }
-                            style={{
-                              ...inputStyle,
-                              width: 60,
-                              textAlign: "center",
-                            }}
-                          />
-                          <span style={{ color: "#b9b9c3" }}>%</span>
-                        </div>
-
-                        {/* 👇 séparation avant le crédit d'impôts */}
-                        <VSep />
-
-                        {/* 👇 checkbox + texte avec le même style que les autres spans */}
-                        <div
-                          className="d-flex align-items-center"
-                          style={{
-                            gap: 8,
-                            backgroundColor: "#fff",
-                            padding: "5px 10px",
-                            borderRadius: 6,
-                            border: "1px solid #eee",
-                          }}
-                        >
-                          <LabeledCheckboxMaterialUi
-                            label="" // important : label vide
-                            checked={!!this.state.formValues.credit_impot_50}
-                            onChange={(checked) =>
-                              this.handleCheckChange(checked, "credit_impot_50")
-                            }
-                          />
-                          <span style={{ fontWeight: 500, color: "#28c76f" }}>
-                            Crédit d'impôts 50%
-                          </span>
-                        </div>
-                      </div>
-                    );
-                    return out;
-                  })()}
+                    {/* 👇 checkbox + texte avec le même style que les autres spans */}
+                    <div
+                      className="d-flex align-items-center"
+                      style={{
+                        gap: 8,
+                        backgroundColor: "#fff",
+                        padding: "5px 10px",
+                        borderRadius: 6,
+                        border: "1px solid #eee",
+                      }}
+                    >
+                      <LabeledCheckboxMaterialUi
+                        label="" // important : label vide
+                        checked={!!this.state.formValues.credit_impot_50}
+                        onChange={(checked) =>
+                          this.handleCheckChange(checked, "credit_impot_50")
+                        }
+                      />
+                      <span style={{ fontWeight: 500, color: "#28c76f" }}>
+                        Crédit d'impôts 50%
+                      </span>
+                    </div>
+                  </div>
                 </CardBody>
               </Card>
 
