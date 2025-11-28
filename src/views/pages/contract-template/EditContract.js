@@ -145,7 +145,7 @@ class EditContract extends React.Component {
       case "r1":
         return fv["title1"] || "Minutes + PU (min / €/h)";
       case "r2":
-        return fv["title2"] || "Forfait + option rachat/chômage";
+        return fv["title2"] || "Forfait + Option rachat/chômage";
       case "r3":
         return fv["title3"] || "Ligne 3 (forfait)";
       case "r4":

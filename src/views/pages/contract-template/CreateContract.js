@@ -294,7 +294,7 @@ class CreateContract extends React.Component {
       case "r1":
         return fv["title1"] || "Minutes + PU (min / €/h)";
       case "r2":
-        return fv["title2"] || "Forfait + option rachat/chômage";
+        return fv["title2"] || "Forfait + Option rachat/chômage";
       case "r3":
         return fv["title3"] || "Ligne 3 (forfait)";
       case "r4":
@@ -758,6 +758,404 @@ class CreateContract extends React.Component {
     this.setSubscribeServices();
   };
 
+  // ——— Méthodes de rendu extraites pour éviter la perte de focus ———
+
+  renderGhost = (children = "") => (
+    <span style={{ visibility: "hidden" }}>{children}</span>
+  );
+
+  renderVSep = () => (
+    <div
+      aria-hidden="true"
+      style={{
+        width: 1,
+        height: 24,
+        background: "#e5e7eb",
+        justifySelf: "center",
+      }}
+    />
+  );
+
+  renderRowMinutes = (i, stripe, GRID) => (
+    <div key="r1" style={{ ...stripe(i), ...GRID }}>
+      <LabeledCheckboxMaterialUi
+        label=""
+        checked={this.state.formValues["c1"]}
+        onChange={(checked) => this.onPrimaryToggle(checked, "c1", "r1")}
+      />
+      <span>{this.state.formValues["title1"]}</span>
+      <span className="text-muted">Nb (min)</span>
+      <Input
+        type="text"
+        value={this.state.formValues["nb1"]}
+        onChange={(e) => this.handleFieldChange("nb1", e.target.value)}
+        style={{ height: 30, width: 90, textAlign: "right" }}
+      />
+      <span className="text-muted">PU (€/h)</span>
+      <Input
+        type="text"
+        value={this.state.formValues["nb1-price"]}
+        onChange={(e) => this.handleFieldChange("nb1-price", e.target.value)}
+        style={{ height: 30, width: 90, textAlign: "right" }}
+      />
+      {this.renderGhost(<Input style={{ width: 110, height: 30 }} />)}
+      {this.renderGhost("€ HT")}
+      {this.renderVSep()}
+      {this.renderGhost(<LabeledCheckboxMaterialUi label="" checked={false} />)}
+      {this.renderGhost("Option")}
+      {this.renderGhost("Nb")}
+      {this.renderGhost(<Input style={{ width: 70, height: 30 }} />)}
+    </div>
+  );
+
+  renderRowFixed = (i, n, stripe, GRID) => (
+    <div key={`r${n}`} style={{ ...stripe(i), ...GRID }}>
+      <LabeledCheckboxMaterialUi
+        label=""
+        checked={this.state.formValues[`c${n}`]}
+        onChange={(checked) => this.onPrimaryToggle(checked, `c${n}`, `r${n}`)}
+      />
+      <span>{this.state.formValues[`title${n}`]}</span>
+      {this.renderGhost("Nb (min)")}
+      {this.renderGhost(<Input style={{ width: 90, height: 30 }} />)}
+      {this.renderGhost("PU (€/h)")}
+      {this.renderGhost(<Input style={{ width: 90, height: 30 }} />)}
+      <Input
+        type="text"
+        value={this.state.formValues[`p${n}`]}
+        onChange={(e) => this.handleFieldChange(`p${n}`, e.target.value)}
+        style={{ height: 30, width: 110, textAlign: "right" }}
+      />
+      <span>€ HT</span>
+      {this.renderVSep()}
+      {this.renderGhost(<LabeledCheckboxMaterialUi label="" checked={false} />)}
+      {this.renderGhost("Option")}
+      {this.renderGhost("Nb")}
+      {this.renderGhost(<Input style={{ width: 70, height: 30 }} />)}
+    </div>
+  );
+
+  renderRowWithOption = (
+    i,
+    n,
+    optionCheckKey,
+    optionLabel,
+    optionNbKey,
+    stripe,
+    GRID
+  ) => {
+    const isPensionLine = n === 5; // ligne "liquidation des pensions"
+
+    return (
+      <div key={`r${n}`} style={{ ...stripe(i), ...GRID }}>
+        {/* Checkbox principale + titre */}
+        <LabeledCheckboxMaterialUi
+          label=""
+          checked={this.state.formValues[`c${n}`]}
+          onChange={(checked) =>
+            this.onPrimaryToggle(checked, `c${n}`, `r${n}`)
+          }
+        />
+        <span>{this.state.formValues[`title${n}`]}</span>
+
+        {/* colonnes minutes / PU fantômes */}
+        {this.renderGhost("Nb (min)")}
+        {this.renderGhost(<Input style={{ width: 90, height: 30 }} />)}
+        {this.renderGhost("PU (€/h)")}
+        {this.renderGhost(<Input style={{ width: 90, height: 30 }} />)}
+
+        {/* prix forfait */}
+        <Input
+          type="text"
+          value={this.state.formValues[`p${n}`]}
+          onChange={(e) => this.handleFieldChange(`p${n}`, e.target.value)}
+          style={{
+            height: 30,
+            width: 110,
+            textAlign: "right",
+          }}
+        />
+        <span>€ HT</span>
+
+        {this.renderVSep()}
+
+        {/* Partie option */}
+        {isPensionLine ? (
+          // Ligne 5 : option "liquidation des pensions" + cc5 sur la même rangée
+          <div style={{ gridColumn: "10 / span 4" }}>
+            {/* Option "liquidation des pensions" (cnb5) */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "32px minmax(0,1fr) 24px 70px",
+                columnGap: 8,
+                alignItems: "center",
+              }}
+            >
+              <LabeledCheckboxMaterialUi
+                label=""
+                checked={this.state.formValues[optionCheckKey]}
+                onChange={(checked) =>
+                  this.handleCheckChange(checked, optionCheckKey)
+                }
+              />
+              <span
+                style={{
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {optionLabel}
+              </span>
+              <span>Nb</span>
+              <Input
+                type="text"
+                value={this.state.formValues[optionNbKey]}
+                onChange={(e) =>
+                  this.handleFieldChange(optionNbKey, e.target.value)
+                }
+                style={{
+                  height: 30,
+                  width: "100%",
+                  textAlign: "right",
+                }}
+              />
+            </div>
+
+            {/* cc5 : "Inclus sous réserve d'un départ en retraite..." */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                marginTop: 4,
+                gap: 6,
+              }}
+            >
+              <LabeledCheckboxMaterialUi
+                label=""
+                checked={this.state.formValues.cc5}
+                onChange={(checked) => this.handleCheckChange(checked, "cc5")}
+              />
+              <span style={{ whiteSpace: "normal" }}>
+                {this.state.formValues["subcontent5-3"]}
+              </span>
+            </div>
+          </div>
+        ) : (
+          // Lignes 2 et 4 : comportement normal
+          <>
+            <LabeledCheckboxMaterialUi
+              label=""
+              checked={this.state.formValues[optionCheckKey]}
+              onChange={(checked) =>
+                this.handleCheckChange(checked, optionCheckKey)
+              }
+            />
+            <span
+              style={{
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {optionLabel}
+            </span>
+            <span>Nb</span>
+            <Input
+              type="text"
+              value={this.state.formValues[optionNbKey]}
+              onChange={(e) =>
+                this.handleFieldChange(optionNbKey, e.target.value)
+              }
+              style={{
+                height: 30,
+                width: 70,
+                textAlign: "right",
+              }}
+            />
+          </>
+        )}
+      </div>
+    );
+  };
+
+  renderAddRowSelect = () => {
+    const avail = this.availableRowIds();
+    if (avail.length === 0) return null;
+    return (
+      <div
+        key="add-top"
+        className="d-flex align-items-center"
+        style={{ gap: 8, margin: "6px 0" }}
+      >
+        <Input
+          type="select"
+          style={{
+            maxWidth: "360px",
+            width: "100%",
+            height: 40,
+          }}
+          value=""
+          onChange={(e) => {
+            const id = e.target.value;
+            if (id) this.addRowById(id);
+          }}
+        >
+          <option value="" disabled hidden>
+            Ajouter une ligne
+          </option>
+          {avail.map((id) => (
+            <option key={id} value={id}>
+              {this.labelFor(id)}
+            </option>
+          ))}
+        </Input>
+      </div>
+    );
+  };
+
+  renderContractRows = () => {
+    const stripe = (i) => ({
+      background: i % 2 ? "#f7f9fc" : "#ffffff",
+      borderRadius: 6,
+      padding: "6px 8px",
+      marginBottom: 2,
+    });
+    const GRID = {
+      display: "grid",
+      gridTemplateColumns:
+        "32px minmax(160px,1fr) 70px 90px 80px 90px 110px 48px 16px 32px minmax(140px,1fr) 24px 70px",
+      alignItems: "center",
+      columnGap: 8,
+    };
+
+    let i = 0;
+    const out = [];
+    out.push(this.renderAddRowSelect());
+
+    (this.state.selectedRows || []).forEach((id) => {
+      switch (id) {
+        case "r1":
+          out.push(this.renderRowMinutes(i++, stripe, GRID));
+          break;
+        case "r2":
+          out.push(
+            this.renderRowWithOption(
+              i++,
+              2,
+              "cnb2",
+              this.state.formValues["subcontent2-2"],
+              "nb2",
+              stripe,
+              GRID
+            )
+          );
+          break;
+        case "r3":
+          out.push(this.renderRowFixed(i++, 3, stripe, GRID));
+          break;
+        case "r4":
+          out.push(
+            this.renderRowWithOption(
+              i++,
+              4,
+              "cnb4",
+              this.state.formValues["subcontent4-7"],
+              "nb4",
+              stripe,
+              GRID
+            )
+          );
+          break;
+        case "r5":
+          out.push(
+            this.renderRowWithOption(
+              i++,
+              5,
+              "cnb5",
+              this.state.formValues["subcontent5-2"],
+              "nb5",
+              stripe,
+              GRID
+            )
+          );
+          break;
+        case "r6":
+          out.push(this.renderRowFixed(i++, 6, stripe, GRID));
+          break;
+        case "r7":
+          out.push(this.renderRowFixed(i++, 7, stripe, GRID));
+          break;
+        default:
+          break;
+      }
+    });
+
+    out.push(
+      <div
+        key="row-tva"
+        className="d-flex align-items-center flex-wrap"
+        style={{
+          ...stripe(i++),
+          borderTop: "1px dashed #e5e7eb",
+          marginTop: 20,
+          gap: 12,
+        }}
+      >
+        <span style={{ minWidth: 60 }}>TVA</span>
+        <Input
+          type="text"
+          value={this.state.formValues["TVAP"] ?? 20}
+          onChange={(e) => this.handleFieldChange("TVAP", e.target.value)}
+          style={{ height: 30, width: 80, textAlign: "right" }}
+        />
+        <span>%</span>
+        {this.renderVSep()}
+        <span style={{ minWidth: 200 }}>
+          {this.state.formValues["table3-subcontent1"] ||
+            "Acompte à la commande :"}
+        </span>
+        <Input
+          type="text"
+          value={this.state.formValues["fp1"] ?? 100}
+          onChange={(e) => this.handleFieldChange("fp1", e.target.value)}
+          style={{ height: 30, width: 80, textAlign: "right" }}
+        />
+        <span>%</span>
+        {this.renderVSep()}
+        <span style={{ minWidth: 200 }}>
+          {this.state.formValues["table3-subcontent2"] ||
+            "Solde fin de mission :"}
+        </span>
+        <Input
+          type="text"
+          value={this.state.formValues["fp2"] ?? 0}
+          onChange={(e) => this.handleFieldChange("fp2", e.target.value)}
+          style={{ height: 30, width: 80, textAlign: "right" }}
+        />
+        <span>%</span>
+
+        {/* 👇 séparation avant le crédit d'impôts */}
+        {this.renderVSep()}
+
+        {/* 👇 checkbox + texte avec le même style que les autres spans */}
+        <div className="d-flex align-items-center" style={{ gap: 6 }}>
+          <LabeledCheckboxMaterialUi
+            label="" // important : label vide
+            checked={!!this.state.formValues.credit_impot_50}
+            onChange={(checked) =>
+              this.handleCheckChange(checked, "credit_impot_50")
+            }
+          />
+          <span>Crédit d'impôts 50%</span>
+        </div>
+      </div>
+    );
+
+    return out;
+  };
+
   render() {
     return (
       <React.Fragment>
@@ -919,456 +1317,7 @@ class CreateContract extends React.Component {
                   <h5 className="mb-0">Contrat</h5>
                 </CardHeader>
                 <CardBody className="pt-1">
-                  {(() => {
-                    const stripe = (i) => ({
-                      background: i % 2 ? "#f7f9fc" : "#ffffff",
-                      borderRadius: 6,
-                      padding: "6px 8px",
-                      marginBottom: 2,
-                    });
-                    const GRID = {
-                      display: "grid",
-                      gridTemplateColumns:
-                        "32px minmax(160px,1fr) 70px 90px 80px 90px 110px 48px 16px 32px minmax(140px,1fr) 24px 70px",
-                      alignItems: "center",
-                      columnGap: 8,
-                    };
-                    const Ghost = ({ children = "" }) => (
-                      <span style={{ visibility: "hidden" }}>{children}</span>
-                    );
-                    const VSep = () => (
-                      <div
-                        aria-hidden="true"
-                        style={{
-                          width: 1,
-                          height: 24,
-                          background: "#e5e7eb",
-                          justifySelf: "center",
-                        }}
-                      />
-                    );
-                    // ——— Lignes disponibles
-                    const RowMinutes = ({ i }) => (
-                      <div style={{ ...stripe(i), ...GRID }}>
-                        <LabeledCheckboxMaterialUi
-                          label=""
-                          checked={this.state.formValues["c1"]}
-                          onChange={(checked) =>
-                            this.onPrimaryToggle(checked, "c1", "r1")
-                          }
-                        />
-                        <span>{this.state.formValues["title1"]}</span>
-                        <span className="text-muted">Nb (min)</span>
-                        <Input
-                          type="text"
-                          value={this.state.formValues["nb1"]}
-                          onChange={(e) =>
-                            this.handleFieldChange("nb1", e.target.value)
-                          }
-                          style={{ height: 30, width: 90, textAlign: "right" }}
-                        />
-                        <span className="text-muted">PU (€/h)</span>
-                        <Input
-                          type="text"
-                          value={this.state.formValues["nb1-price"]}
-                          onChange={(e) =>
-                            this.handleFieldChange("nb1-price", e.target.value)
-                          }
-                          style={{ height: 30, width: 90, textAlign: "right" }}
-                        />
-                        <Ghost>
-                          <Input style={{ width: 110, height: 30 }} />
-                        </Ghost>
-                        <Ghost>€ HT</Ghost>
-                        <VSep />
-                        <Ghost>
-                          <LabeledCheckboxMaterialUi label="" checked={false} />
-                        </Ghost>
-                        <Ghost>Option</Ghost>
-                        <Ghost>Nb</Ghost>
-                        <Ghost>
-                          <Input style={{ width: 70, height: 30 }} />
-                        </Ghost>
-                      </div>
-                    );
-                    const RowFixed = ({ i, n }) => (
-                      <div style={{ ...stripe(i), ...GRID }}>
-                        <LabeledCheckboxMaterialUi
-                          label=""
-                          checked={this.state.formValues[`c${n}`]}
-                          onChange={(checked) =>
-                            this.onPrimaryToggle(checked, `c${n}`, `r${n}`)
-                          }
-                        />
-                        <span>{this.state.formValues[`title${n}`]}</span>
-                        <Ghost>Nb (min)</Ghost>
-                        <Ghost>
-                          <Input style={{ width: 90, height: 30 }} />
-                        </Ghost>
-                        <Ghost>PU (€/h)</Ghost>
-                        <Ghost>
-                          <Input style={{ width: 90, height: 30 }} />
-                        </Ghost>
-                        <Input
-                          type="text"
-                          value={this.state.formValues[`p${n}`]}
-                          onChange={(e) =>
-                            this.handleFieldChange(`p${n}`, e.target.value)
-                          }
-                          style={{ height: 30, width: 110, textAlign: "right" }}
-                        />
-                        <span>€ HT</span>
-                        <VSep />
-                        <Ghost>
-                          <LabeledCheckboxMaterialUi label="" checked={false} />
-                        </Ghost>
-                        <Ghost>Option</Ghost>
-                        <Ghost>Nb</Ghost>
-                        <Ghost>
-                          <Input style={{ width: 70, height: 30 }} />
-                        </Ghost>
-                      </div>
-                    );
-                    const RowWithOption = ({
-                      i,
-                      n,
-                      optionCheckKey,
-                      optionLabel,
-                      optionNbKey,
-                    }) => {
-                      const isPensionLine = n === 5; // ligne "liquidation des pensions"
-
-                      return (
-                        <div style={{ ...stripe(i), ...GRID }}>
-                          {/* Checkbox principale + titre */}
-                          <LabeledCheckboxMaterialUi
-                            label=""
-                            checked={this.state.formValues[`c${n}`]}
-                            onChange={(checked) =>
-                              this.onPrimaryToggle(checked, `c${n}`, `r${n}`)
-                            }
-                          />
-                          <span>{this.state.formValues[`title${n}`]}</span>
-
-                          {/* colonnes minutes / PU fantômes */}
-                          <Ghost>Nb (min)</Ghost>
-                          <Ghost>
-                            <Input style={{ width: 90, height: 30 }} />
-                          </Ghost>
-                          <Ghost>PU (€/h)</Ghost>
-                          <Ghost>
-                            <Input style={{ width: 90, height: 30 }} />
-                          </Ghost>
-
-                          {/* prix forfait */}
-                          <Input
-                            type="text"
-                            value={this.state.formValues[`p${n}`]}
-                            onChange={(e) =>
-                              this.handleFieldChange(`p${n}`, e.target.value)
-                            }
-                            style={{
-                              height: 30,
-                              width: 110,
-                              textAlign: "right",
-                            }}
-                          />
-                          <span>€ HT</span>
-
-                          <VSep />
-
-                          {/* Partie option */}
-                          {isPensionLine ? (
-                            // Ligne 5 : option "liquidation des pensions" + cc5 sur la même rangée
-                            <div style={{ gridColumn: "10 / span 4" }}>
-                              {/* Option "liquidation des pensions" (cnb5) */}
-                              <div
-                                style={{
-                                  display: "grid",
-                                  gridTemplateColumns:
-                                    "32px minmax(0,1fr) 24px 70px",
-                                  columnGap: 8,
-                                  alignItems: "center",
-                                }}
-                              >
-                                <LabeledCheckboxMaterialUi
-                                  label=""
-                                  checked={
-                                    this.state.formValues[optionCheckKey]
-                                  }
-                                  onChange={(checked) =>
-                                    this.handleCheckChange(
-                                      checked,
-                                      optionCheckKey
-                                    )
-                                  }
-                                />
-                                <span
-                                  style={{
-                                    whiteSpace: "nowrap",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                  }}
-                                >
-                                  {optionLabel}
-                                </span>
-                                <span>Nb</span>
-                                <Input
-                                  type="text"
-                                  value={this.state.formValues[optionNbKey]}
-                                  onChange={(e) =>
-                                    this.handleFieldChange(
-                                      optionNbKey,
-                                      e.target.value
-                                    )
-                                  }
-                                  style={{
-                                    height: 30,
-                                    width: "100%",
-                                    textAlign: "right",
-                                  }}
-                                />
-                              </div>
-
-                              {/* cc5 : "inclus sous réserve d'un départ en retraite..." */}
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  marginTop: 4,
-                                  gap: 6,
-                                }}
-                              >
-                                <LabeledCheckboxMaterialUi
-                                  label=""
-                                  checked={this.state.formValues.cc5}
-                                  onChange={(checked) =>
-                                    this.handleCheckChange(checked, "cc5")
-                                  }
-                                />
-                                <span style={{ whiteSpace: "normal" }}>
-                                  {this.state.formValues["subcontent5-3"]}
-                                </span>
-                              </div>
-                            </div>
-                          ) : (
-                            // Lignes 2 et 4 : comportement normal
-                            <>
-                              <LabeledCheckboxMaterialUi
-                                label=""
-                                checked={this.state.formValues[optionCheckKey]}
-                                onChange={(checked) =>
-                                  this.handleCheckChange(
-                                    checked,
-                                    optionCheckKey
-                                  )
-                                }
-                              />
-                              <span
-                                style={{
-                                  whiteSpace: "nowrap",
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                }}
-                              >
-                                {optionLabel}
-                              </span>
-                              <span>Nb</span>
-                              <Input
-                                type="text"
-                                value={this.state.formValues[optionNbKey]}
-                                onChange={(e) =>
-                                  this.handleFieldChange(
-                                    optionNbKey,
-                                    e.target.value
-                                  )
-                                }
-                                style={{
-                                  height: 30,
-                                  width: 70,
-                                  textAlign: "right",
-                                }}
-                              />
-                            </>
-                          )}
-                        </div>
-                      );
-                    };
-                    const AddRowSelect = ({
-                      placeholder = "Ajouter une ligne",
-                    }) => {
-                      const avail = this.availableRowIds();
-                      if (avail.length === 0) return null;
-                      return (
-                        <div
-                          className="d-flex align-items-center"
-                          style={{ gap: 8, margin: "6px 0" }}
-                        >
-                          <Input
-                            type="select"
-                            style={{
-                              maxWidth: "360px",
-                              width: "100%",
-                              height: 40,
-                            }}
-                            value=""
-                            onChange={(e) => {
-                              const id = e.target.value;
-                              if (id) this.addRowById(id);
-                            }}
-                          >
-                            <option value="" disabled hidden>
-                              {placeholder}
-                            </option>
-                            {avail.map((id) => (
-                              <option key={id} value={id}>
-                                {this.labelFor(id)}
-                              </option>
-                            ))}
-                          </Input>
-                        </div>
-                      );
-                    };
-                    // ——— Construction du rendu
-                    let i = 0;
-                    const out = [];
-                    out.push(
-                      <AddRowSelect
-                        key="add-top"
-                        placeholder="Ajouter une ligne"
-                      />
-                    );
-                    (this.state.selectedRows || []).forEach((id) => {
-                      switch (id) {
-                        case "r1":
-                          out.push(<RowMinutes key="r1" i={i++} />);
-                          break;
-                        case "r2":
-                          out.push(
-                            <RowWithOption
-                              key="r2"
-                              i={i++}
-                              n={2}
-                              optionCheckKey="cnb2"
-                              optionLabel={
-                                this.state.formValues["subcontent2-2"]
-                              }
-                              optionNbKey="nb2"
-                            />
-                          );
-                          break;
-                        case "r3":
-                          out.push(<RowFixed key="r3" i={i++} n={3} />);
-                          break;
-                        case "r4":
-                          out.push(
-                            <RowWithOption
-                              key="r4"
-                              i={i++}
-                              n={4}
-                              optionCheckKey="cnb4"
-                              optionLabel={
-                                this.state.formValues["subcontent4-7"]
-                              }
-                              optionNbKey="nb4"
-                            />
-                          );
-                          break;
-                        case "r5":
-                          out.push(
-                            <RowWithOption
-                              key="r5"
-                              i={i++}
-                              n={5}
-                              optionCheckKey="cnb5"
-                              optionLabel={
-                                this.state.formValues["subcontent5-2"]
-                              }
-                              optionNbKey="nb5"
-                            />
-                          );
-                          break;
-                        case "r6":
-                          out.push(<RowFixed key="r6" i={i++} n={6} />);
-                          break;
-                        case "r7":
-                          out.push(<RowFixed key="r7" i={i++} n={7} />);
-                          break;
-                        default:
-                          break;
-                      }
-                    });
-                    out.push(
-                      <div
-                        key="row-tva"
-                        className="d-flex align-items-center flex-wrap"
-                        style={{
-                          ...stripe(i++),
-                          borderTop: "1px dashed #e5e7eb",
-                          marginTop: 20,
-                          gap: 12,
-                        }}
-                      >
-                        <span style={{ minWidth: 60 }}>TVA</span>
-                        <Input
-                          type="text"
-                          value={this.state.formValues["TVAP"] ?? 20}
-                          onChange={(e) =>
-                            this.handleFieldChange("TVAP", e.target.value)
-                          }
-                          style={{ height: 30, width: 80, textAlign: "right" }}
-                        />
-                        <span>%</span>
-                        <VSep />
-                        <span style={{ minWidth: 200 }}>
-                          {this.state.formValues["table3-subcontent1"] ||
-                            "Acompte à la commande :"}
-                        </span>
-                        <Input
-                          type="text"
-                          value={this.state.formValues["fp1"] ?? 100}
-                          onChange={(e) =>
-                            this.handleFieldChange("fp1", e.target.value)
-                          }
-                          style={{ height: 30, width: 80, textAlign: "right" }}
-                        />
-                        <span>%</span>
-                        <VSep />
-                        <span style={{ minWidth: 200 }}>
-                          {this.state.formValues["table3-subcontent2"] ||
-                            "Solde fin de mission :"}
-                        </span>
-                        <Input
-                          type="text"
-                          value={this.state.formValues["fp2"] ?? 0}
-                          onChange={(e) =>
-                            this.handleFieldChange("fp2", e.target.value)
-                          }
-                          style={{ height: 30, width: 80, textAlign: "right" }}
-                        />
-                        <span>%</span>
-
-                        {/* 👇 séparation avant le crédit d'impôts */}
-                        <VSep />
-
-                        {/* 👇 checkbox + texte avec le même style que les autres spans */}
-                        <div
-                          className="d-flex align-items-center"
-                          style={{ gap: 6 }}
-                        >
-                          <LabeledCheckboxMaterialUi
-                            label="" // important : label vide
-                            checked={!!this.state.formValues.credit_impot_50}
-                            onChange={(checked) =>
-                              this.handleCheckChange(checked, "credit_impot_50")
-                            }
-                          />
-                          <span>Crédit d'impôts 50%</span>
-                        </div>
-                      </div>
-                    );
-                    return out;
-                  })()}
+                  {this.renderContractRows()}
                 </CardBody>
               </Card>
             </FormGroup>
