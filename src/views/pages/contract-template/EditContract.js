@@ -716,7 +716,38 @@ class EditContract extends React.Component {
     document.getElementById("button_section").remove();
     document.getElementById("print-section").style.marginTop = "-20px";
     document.getElementById("print-section").style.fontSize = "18px";
+
+    // 🔹 Modification du titre pour le nom du fichier PDF
+    const originalTitle = document.title;
+    const firstName = this.state.rowData["first_name"] || "";
+    const lastName = this.state.rowData["last_name"] || "";
+
+    // Récupération des prestations cochées
+    const selectedServices = [];
+    for (let i = 1; i <= 7; i++) {
+      if (input_values[`c${i}`]) {
+        let title = this.state.formValues[`title${i}`] || "";
+        // Nettoyage : enlève tout ce qui est entre parenthèses (ex: prix) et trim
+        title = title.replace(/\s*\(.*?\)/g, "").trim();
+        if (title) selectedServices.push(title);
+      }
+    }
+
+    // Construction du nom des services
+    let serviceString = "Audit Retraite EOR Consultants"; // Fallback
+    if (selectedServices.length === 1) {
+      serviceString = selectedServices[0];
+    } else if (selectedServices.length === 2) {
+      serviceString = `${selectedServices[0]} + ${selectedServices[1]}`;
+    } else if (selectedServices.length > 2) {
+      serviceString = `${selectedServices[0]} et autres`;
+    }
+
+    const fileName = `${serviceString} - ${firstName} ${lastName}`;
+    document.title = fileName;
+
     window.onafterprint = function () {
+      document.title = originalTitle; // Restauration du titre
       history.push("/app/user/edit/" + userid + "/3");
     };
     window.print();
