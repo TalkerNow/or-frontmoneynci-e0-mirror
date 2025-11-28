@@ -450,12 +450,13 @@ class OldClientsList extends React.Component {
     return (
       <div>
         <SweetAlert
-          title="Êtes vous sûrs?"
+          title="Êtes-vous sûrs?"
           warning
           show={this.state.defaultAlert}
           showCancel
           reverseButtons
-          cancelBtnBsStyle="danger"
+          cancelBtnBsStyle="primary"
+          confirmBtnBsStyle="danger"
           confirmBtnText="Oui, supprimer"
           cancelBtnText="Annuler"
           onConfirm={() => {
