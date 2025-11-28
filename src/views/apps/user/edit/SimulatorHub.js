@@ -184,7 +184,6 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
     };
   });
   const [isRciDashboardOpen, setIsRciDashboardOpen] = useState(true);
-  const [isRciCalculatorOpen, setIsRciCalculatorOpen] = useState(false);
 
   // Safe public URL (avoid ReferenceError when process is undefined)
   const publicUrl =

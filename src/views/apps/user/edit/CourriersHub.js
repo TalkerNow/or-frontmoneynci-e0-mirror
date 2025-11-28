@@ -1,11 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
-import {
-  Card,
-  CardBody,
-  CardHeader,
-  Button,
-  Input,
-} from "reactstrap";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Card, CardBody, CardHeader, Button, Input } from "reactstrap";
 import { Mail, Download, Trash2 } from "react-feather";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -23,12 +17,7 @@ export default function CourriersHub({ id, alignOffset = 0, labelId }) {
     return () => cancelAnimationFrame(raf);
   }, [alignOffset]);
 
-  // Charger les courriers
-  useEffect(() => {
-    loadCourriers();
-  }, [id]);
-
-  const loadCourriers = async () => {
+  const loadCourriers = useCallback(async () => {
     try {
       setLoading(true);
       const Config = {
@@ -48,7 +37,12 @@ export default function CourriersHub({ id, alignOffset = 0, labelId }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  // Charger les courriers
+  useEffect(() => {
+    loadCourriers();
+  }, [loadCourriers]);
 
   const handleUpload = async (e) => {
     const file = e.target.files?.[0];
