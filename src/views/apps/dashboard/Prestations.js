@@ -58,31 +58,73 @@ const DROPDOWN_CSS = `
   .tab-dd .dropdown-item:hover,
   .tab-dd .dropdown-item:focus { background: rgba(34,41,47,.06) !important; color: #212529 !important; }
   .tab-dd .dropdown-item.active { background: rgba(115,103,240,.12) !important; color: #212529 !important; font-weight: 600; }
+
+  /* ---------- Chart Grid ---------- */
+  .chart-grid {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+  }
+  .chart-item {
+    margin-left: 1rem;
+    margin-top: 0.25rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .chart-title {
+    width: 50%;
+    margin-left: 1.5rem;
+    display: flex;
+    justify-content: center;
+  }
+  @media (max-width: 600px) {
+    .chart-grid {
+      flex-direction: column;
+      align-items: flex-start;
+      padding-left: 0;
+    }
+    .chart-item {
+      margin-left: 0;
+      align-items: flex-start;
+      width: 100%;
+      margin-bottom: 1rem;
+    }
+    .chart-title {
+      width: 100%;
+      margin-left: 0;
+      justify-content: flex-start !important;
+      text-align: left;
+    }
+  }
 `;
 
 // ==== Helpers ISO week ====
 function isoWeekInfo(dateInput) {
-  const d = new Date(dateInput)
-  const day = (d.getDay() + 6) % 7
-  const thursday = new Date(d)
-  thursday.setDate(d.getDate() - day + 3)
-  const isoYear = thursday.getFullYear()
-  const firstThursday = new Date(isoYear, 0, 4)
-  const firstThursdayDay = (firstThursday.getDay() + 6) % 7
-  firstThursday.setDate(firstThursday.getDate() - firstThursdayDay + 3)
-  const isoWeek = 1 + Math.round((thursday - firstThursday) / (7 * 24 * 3600 * 1000))
-  return { isoYear, isoWeek }
+  const d = new Date(dateInput);
+  const day = (d.getDay() + 6) % 7;
+  const thursday = new Date(d);
+  thursday.setDate(d.getDate() - day + 3);
+  const isoYear = thursday.getFullYear();
+  const firstThursday = new Date(isoYear, 0, 4);
+  const firstThursdayDay = (firstThursday.getDay() + 6) % 7;
+  firstThursday.setDate(firstThursday.getDate() - firstThursdayDay + 3);
+  const isoWeek =
+    1 + Math.round((thursday - firstThursday) / (7 * 24 * 3600 * 1000));
+  return { isoYear, isoWeek };
 }
 function isoWeeksInYear(isoYear) {
-  const dec28 = new Date(isoYear, 11, 28)
-  return isoWeekInfo(dec28).isoWeek
+  const dec28 = new Date(isoYear, 11, 28);
+  return isoWeekInfo(dec28).isoWeek;
 }
 function isoWeekStart(isoYear, isoWeek) {
-  const simple = new Date(isoYear, 0, 1 + (isoWeek - 1) * 7)
-  const dow = (simple.getDay() + 6) % 7
-  const monday = new Date(simple)
-  monday.setDate(simple.getDate() - dow)
-  return monday
+  const simple = new Date(isoYear, 0, 1 + (isoWeek - 1) * 7);
+  const dow = (simple.getDay() + 6) % 7;
+  const monday = new Date(simple);
+  monday.setDate(simple.getDate() - dow);
+  return monday;
 }
 
 const FrenchMonth = [
@@ -204,22 +246,22 @@ class PrestationStatistics extends React.Component {
     let tmp = new Date();
     await this.getMonthdata(FrenchMonth[tmp.getMonth()], tmp.getFullYear());
     // initialise the week dropdown to current ISO week
-    const { isoWeek, isoYear } = isoWeekInfo(new Date())
-    this.setState({ currentWeek: `W${isoWeek}`, year: isoYear })
+    const { isoWeek, isoYear } = isoWeekInfo(new Date());
+    this.setState({ currentWeek: `W${isoWeek}`, year: isoYear });
     // optional: prepare weekly series for current week (doesn't switch tab)
-    this.getWeekData(`W${isoWeek}`, isoYear)
+    this.getWeekData(`W${isoWeek}`, isoYear);
     // optional auto-refresh check (daily) to update currentWeek when week changes
     this._weekTimer = setInterval(() => {
-      const { isoWeek: w, isoYear: y } = isoWeekInfo(new Date())
-      const next = `W${w}`
+      const { isoWeek: w, isoYear: y } = isoWeekInfo(new Date());
+      const next = `W${w}`;
       if (next !== this.state.currentWeek || y !== this.state.year) {
-        this.setState({ currentWeek: next, year: y })
+        this.setState({ currentWeek: next, year: y });
       }
-    }, 24 * 60 * 60 * 1000)
+    }, 24 * 60 * 60 * 1000);
   }
 
   componentWillUnmount() {
-    if (this._weekTimer) clearInterval(this._weekTimer)
+    if (this._weekTimer) clearInterval(this._weekTimer);
   }
 
   async getYearData(newYear) {
@@ -485,20 +527,28 @@ class PrestationStatistics extends React.Component {
 
   async getWeekData(weekStr, newYear) {
     if (newYear !== this.state.year) {
-      await this.getYearData(newYear)
+      await this.getYearData(newYear);
     }
-    const totalWeeks = isoWeeksInYear(Number(newYear))
-    let w = parseInt(String(weekStr).replace(/[^0-9]/g, ""), 10)
-    if (!Number.isFinite(w) || w < 1) w = 1
-    if (w > totalWeeks) w = totalWeeks
-    const monday = isoWeekStart(Number(newYear), w)
-    const m = monday.getMonth() // map week to month index
+    const totalWeeks = isoWeeksInYear(Number(newYear));
+    let w = parseInt(String(weekStr).replace(/[^0-9]/g, ""), 10);
+    if (!Number.isFinite(w) || w < 1) w = 1;
+    if (w > totalWeeks) w = totalWeeks;
+    const monday = isoWeekStart(Number(newYear), w);
+    const m = monday.getMonth(); // map week to month index
 
-    const safe = (arr) => (arr && arr[m] && arr[m][1]) || { CH: 0, SIMU: 0, AR: 0, TFD: 0, ACTU: 0, RAC: 0 }
-    const waiting = Object.values(safe(this.state.prestation?.["En attente"]))
-    const ongoing = Object.values(safe(this.state.prestation?.["En cours"]))
-    const finished = Object.values(safe(this.state.prestation?.["Termine"]))
-    const lost = Object.values(safe(this.state.prestation?.["Perdu"]))
+    const safe = (arr) =>
+      (arr && arr[m] && arr[m][1]) || {
+        CH: 0,
+        SIMU: 0,
+        AR: 0,
+        TFD: 0,
+        ACTU: 0,
+        RAC: 0,
+      };
+    const waiting = Object.values(safe(this.state.prestation?.["En attente"]));
+    const ongoing = Object.values(safe(this.state.prestation?.["En cours"]));
+    const finished = Object.values(safe(this.state.prestation?.["Termine"]));
+    const lost = Object.values(safe(this.state.prestation?.["Perdu"]));
 
     this.setState({
       seriesWW: waiting,
@@ -508,574 +558,652 @@ class PrestationStatistics extends React.Component {
       currentWeek: `W${w}`,
       year: Number(newYear),
       activeTab: this.state.activeTab === "4" ? "4" : this.state.activeTab,
-    })
+    });
   }
   render() {
     return (
       <>
-      <style>{DROPDOWN_CSS}</style>
-      <Card>
-        <CardHeader>
-          <div className="icon-section form-inline">
-            <div
-              className={`avatar avatar-stats p-50 ${
-                this.props.iconBg
-                  ? `bg-rgba-${this.props.iconBg}`
-                  : "bg-rgba-primary"
-              }`}
-            >
-              <div className="avatar-content">
-                <PenTool className="success" size={22} />
+        <style>{DROPDOWN_CSS}</style>
+        <Card>
+          <CardHeader>
+            <div className="icon-section form-inline">
+              <div
+                className={`avatar avatar-stats p-50 ${
+                  this.props.iconBg
+                    ? `bg-rgba-${this.props.iconBg}`
+                    : "bg-rgba-primary"
+                }`}
+              >
+                <div className="avatar-content">
+                  <PenTool className="success" size={22} />
+                </div>
               </div>
+              <CardTitle>Prestations</CardTitle>
             </div>
-            <CardTitle>Prestations</CardTitle>
-          </div>
-          <Nav tabs className="px-2">
-            {/* Semaines */}
-            <NavItem>
-              <NavLink
-                className={classnames({ active: this.state.activeTab === "4" })}
-                onClick={() => {
-                  this.getWeekData(this.state.currentWeek, this.state.year)
-                  this.toggle("4")
-                }}
-              >
-                Semaines
-              </NavLink>
-            </NavItem>
-            {/* Mois */}
-            <NavItem>
-              <NavLink
-                className={classnames({ active: this.state.activeTab === "1" })}
-                onClick={() => {
-                  this.getMonthdata(this.state.month, this.state.year)
-                  this.toggle("1")
-                }}
-              >
-                Mois
-              </NavLink>
-            </NavItem>
-            {/* Trimestre */}
-            <NavItem>
-              <NavLink
-                className={classnames({ active: this.state.activeTab === "2" })}
-                onClick={() => {
-                  this.getTrimData(this.state.trim, this.state.year)
-                  this.toggle("2")
-                }}
-              >
-                Trimestre
-              </NavLink>
-            </NavItem>
-            {/* Année */}
-            <NavItem>
-              <NavLink
-                className={classnames({ active: this.state.activeTab === "3" })}
-                onClick={() => {
-                  this.getYearData(this.state.year)
-                  this.toggle("3")
-                }}
-              >
-                Années
-              </NavLink>
-            </NavItem>
-          </Nav>
-        </CardHeader>
-        <CardBody
-          className={`${
-            this.props.className ? this.props.className : "stats-card-body"
-          } d-flex ${
-            !this.props.iconRight && !this.props.hideChart
-              ? "flex-column align-items-start"
-              : this.props.iconRight
-              ? "justify-content-between flex-row-reverse align-items-center"
-              : this.props.hideChart && !this.props.iconRight
-              ? "justify-content-center flex-column text-center"
-              : null
-          } ${!this.props.hideChart ? "pb-0" : "pb-2"} pt-2`}
-        >
-          <TabContent activeTab={this.state.activeTab}>
-            <TabPane tabId="1">
-              <div
-                className="title-section"
-                style={{
-                  textAlign: "center",
-                  marginLeft: "auto",
-                  marginRight: "auto",
-                  marginTop: "10px",
-                  display: "inline-block",
-                }}
-              >
-                <Nav className="d-inline-flex align-items-center">
-                  <NavItem className="mr-1">
-                    <TabDropdown
-                      label="Année"
-                      valueLabel={String(this.state.year || new Date().getFullYear())}
-                      isOpen={this.state.openYear}
-                      toggle={() => this.setState({ openYear: !this.state.openYear })}
-                      minWidth={70}
-                    >
-                      {Array.from({ length: 13 }, (_, i) => 2018 + i).map((y) => (
-                        <DropdownItem toggle={false}
-                          key={y}
-                          active={y === this.state.year}
-                          onClick={() => {
-                            this.setState({ openYear: false })
-                            this.getMonthdata(this.state.month, y)
-                          }}
-                        >
-                          {y}
-                        </DropdownItem>
-                      ))}
-                    </TabDropdown>
-                  </NavItem>
+            <Nav tabs className="px-2">
+              {/* Semaines */}
+              <NavItem>
+                <NavLink
+                  className={classnames({
+                    active: this.state.activeTab === "4",
+                  })}
+                  onClick={() => {
+                    this.getWeekData(this.state.currentWeek, this.state.year);
+                    this.toggle("4");
+                  }}
+                >
+                  Semaines
+                </NavLink>
+              </NavItem>
+              {/* Mois */}
+              <NavItem>
+                <NavLink
+                  className={classnames({
+                    active: this.state.activeTab === "1",
+                  })}
+                  onClick={() => {
+                    this.getMonthdata(this.state.month, this.state.year);
+                    this.toggle("1");
+                  }}
+                >
+                  Mois
+                </NavLink>
+              </NavItem>
+              {/* Trimestre */}
+              <NavItem>
+                <NavLink
+                  className={classnames({
+                    active: this.state.activeTab === "2",
+                  })}
+                  onClick={() => {
+                    this.getTrimData(this.state.trim, this.state.year);
+                    this.toggle("2");
+                  }}
+                >
+                  Trimestre
+                </NavLink>
+              </NavItem>
+              {/* Année */}
+              <NavItem>
+                <NavLink
+                  className={classnames({
+                    active: this.state.activeTab === "3",
+                  })}
+                  onClick={() => {
+                    this.getYearData(this.state.year);
+                    this.toggle("3");
+                  }}
+                >
+                  Années
+                </NavLink>
+              </NavItem>
+            </Nav>
+          </CardHeader>
+          <CardBody
+            className={`${
+              this.props.className ? this.props.className : "stats-card-body"
+            } d-flex ${
+              !this.props.iconRight && !this.props.hideChart
+                ? "flex-column align-items-start"
+                : this.props.iconRight
+                ? "justify-content-between flex-row-reverse align-items-center"
+                : this.props.hideChart && !this.props.iconRight
+                ? "justify-content-center flex-column text-center"
+                : null
+            } ${!this.props.hideChart ? "pb-0" : "pb-2"} pt-2`}
+          >
+            <TabContent activeTab={this.state.activeTab}>
+              <TabPane tabId="1">
+                <div
+                  className="title-section"
+                  style={{
+                    textAlign: "center",
+                    marginLeft: "auto",
+                    marginRight: "auto",
+                    marginTop: "10px",
+                    display: "inline-block",
+                  }}
+                >
+                  <Nav className="d-inline-flex align-items-center">
+                    <NavItem className="mr-1">
+                      <TabDropdown
+                        label="Année"
+                        valueLabel={String(
+                          this.state.year || new Date().getFullYear()
+                        )}
+                        isOpen={this.state.openYear}
+                        toggle={() =>
+                          this.setState({ openYear: !this.state.openYear })
+                        }
+                        minWidth={70}
+                      >
+                        {Array.from({ length: 13 }, (_, i) => 2018 + i).map(
+                          (y) => (
+                            <DropdownItem
+                              toggle={false}
+                              key={y}
+                              active={y === this.state.year}
+                              onClick={() => {
+                                this.setState({ openYear: false });
+                                this.getMonthdata(this.state.month, y);
+                              }}
+                            >
+                              {y}
+                            </DropdownItem>
+                          )
+                        )}
+                      </TabDropdown>
+                    </NavItem>
 
-                  <NavItem className="mr-1">
-                    <TabDropdown
-                      label="Mois"
-                      valueLabel={this.state.month || FrenchMonth[new Date().getMonth()]}
-                      isOpen={this.state.openMonth}
-                      toggle={() => this.setState({ openMonth: !this.state.openMonth })}
-                      minWidth={90}
-                    >
-                      {FrenchMonth.map((m) => (
-                        <DropdownItem
-                          key={m}
-                          active={m === this.state.month}
-                          onClick={() => {
-                            this.setState({ openMonth: false })
-                            this.getMonthdata(m, this.state.year)
-                          }}
-                        >
-                          {m}
-                        </DropdownItem>
-                      ))}
-                    </TabDropdown>
-                  </NavItem>
-                </Nav>
-              </div>
-              <div style={{ width: "100%" }} className="form-inline mt-1 mb-1">
-                <div className="ml-3 mt-1">
-                  <h4 className="w-50 ml-4 d-flex justify-content-sm-center">
-                    En Attente
-                  </h4>
-                  <div id="chart">
-                    <ReactApexChart
-                      key={`waiting-month`}
-                      options={this.state.options}
-                      series={
-                        this.state.seriesW.some((elem) => elem > 0)
-                          ? this.state.seriesW
-                          : []
-                      }
-                      type="pie"
-                      width={300}
-                      height={175}
-                    />
+                    <NavItem className="mr-1">
+                      <TabDropdown
+                        label="Mois"
+                        valueLabel={
+                          this.state.month || FrenchMonth[new Date().getMonth()]
+                        }
+                        isOpen={this.state.openMonth}
+                        toggle={() =>
+                          this.setState({ openMonth: !this.state.openMonth })
+                        }
+                        minWidth={90}
+                      >
+                        {FrenchMonth.map((m) => (
+                          <DropdownItem
+                            key={m}
+                            active={m === this.state.month}
+                            onClick={() => {
+                              this.setState({ openMonth: false });
+                              this.getMonthdata(m, this.state.year);
+                            }}
+                          >
+                            {m}
+                          </DropdownItem>
+                        ))}
+                      </TabDropdown>
+                    </NavItem>
+                  </Nav>
+                </div>
+                <div className="chart-grid">
+                  <div className="chart-item">
+                    <h4 className="chart-title">En Attente</h4>
+                    <div id="chart">
+                      <ReactApexChart
+                        key={`waiting-month`}
+                        options={this.state.options}
+                        series={
+                          this.state.seriesW.some((elem) => elem > 0)
+                            ? this.state.seriesW
+                            : []
+                        }
+                        type="pie"
+                        width={300}
+                        height={175}
+                      />
+                    </div>
+                  </div>
+                  <div className="chart-item">
+                    <h4 className="chart-title">En Cours</h4>
+                    <div id="chart">
+                      <ReactApexChart
+                        key={`ongoing-month`}
+                        options={this.state.options}
+                        series={
+                          this.state.seriesOg.some((elem) => elem > 0)
+                            ? this.state.seriesOg
+                            : []
+                        }
+                        type="pie"
+                        width={300}
+                        height={175}
+                      />
+                    </div>
+                  </div>
+                  <div className="chart-item">
+                    <h4 className="chart-title">Terminé</h4>
+                    <div id="chart">
+                      <ReactApexChart
+                        key={`finished-month`}
+                        options={this.state.options}
+                        series={
+                          this.state.seriesF.some((elem) => elem > 0)
+                            ? this.state.seriesF
+                            : []
+                        }
+                        type="pie"
+                        width={300}
+                        height={175}
+                      />
+                    </div>
+                  </div>
+                  <div className="chart-item">
+                    <h4 className="chart-title">Perdu</h4>
+                    <div id="chart">
+                      <ReactApexChart
+                        key={`lost-month`}
+                        options={this.state.options}
+                        series={
+                          this.state.seriesL.some((elem) => elem > 0)
+                            ? this.state.seriesL
+                            : []
+                        }
+                        type="pie"
+                        width={300}
+                        height={175}
+                      />
+                    </div>
                   </div>
                 </div>
-                <div className="ml-3 mt-1">
-                  <h4 className="w-50 ml-4 d-flex justify-content-sm-center">
-                    En Cours
-                  </h4>
-                  <div id="chart">
-                    <ReactApexChart
-                      key={`ongoing-month`}
-                      options={this.state.options}
-                      series={
-                        this.state.seriesOg.some((elem) => elem > 0)
-                          ? this.state.seriesOg
-                          : []
-                      }
-                      type="pie"
-                      width={300}
-                      height={175}
-                    />
+              </TabPane>
+              <TabPane tabId="2">
+                <div
+                  className="title-section"
+                  style={{
+                    textAlign: "center",
+                    marginLeft: "auto",
+                    marginRight: "auto",
+                    marginTop: "10px",
+                    display: "inline-block",
+                  }}
+                >
+                  <Nav className="d-inline-flex align-items-center">
+                    <NavItem className="mr-1">
+                      <TabDropdown
+                        label="Année"
+                        valueLabel={String(
+                          this.state.year || new Date().getFullYear()
+                        )}
+                        isOpen={this.state.openYear}
+                        toggle={() =>
+                          this.setState({ openYear: !this.state.openYear })
+                        }
+                        minWidth={70}
+                      >
+                        {Array.from({ length: 13 }, (_, i) => 2018 + i).map(
+                          (y) => (
+                            <DropdownItem
+                              toggle={false}
+                              key={y}
+                              active={y === this.state.year}
+                              onClick={() => {
+                                this.setState({ openYear: false });
+                                this.getTrimData(this.state.trim, y);
+                              }}
+                            >
+                              {y}
+                            </DropdownItem>
+                          )
+                        )}
+                      </TabDropdown>
+                    </NavItem>
+                    <NavItem className="mr-1">
+                      <TabDropdown
+                        label="Trimestre"
+                        valueLabel={this.state.trim}
+                        isOpen={this.state.openTrim}
+                        toggle={() =>
+                          this.setState({ openTrim: !this.state.openTrim })
+                        }
+                        minWidth={120}
+                      >
+                        {[
+                          "Trimestre 1",
+                          "Trimestre 2",
+                          "Trimestre 3",
+                          "Trimestre 4",
+                        ].map((t) => (
+                          <DropdownItem
+                            key={t}
+                            active={t === this.state.trim}
+                            onClick={() => {
+                              this.setState({ openTrim: false });
+                              this.getTrimData(t, this.state.year);
+                            }}
+                          >
+                            {t}
+                          </DropdownItem>
+                        ))}
+                      </TabDropdown>
+                    </NavItem>
+                  </Nav>
+                </div>
+                <div className="chart-grid">
+                  <div className="chart-item">
+                    <h4 className="chart-title">En Attente</h4>
+                    <div id="chart">
+                      <ReactApexChart
+                        key={`waiting-trimester`}
+                        options={this.state.options}
+                        series={
+                          this.state.seriesTW.some((elem) => elem > 0)
+                            ? this.state.seriesTW
+                            : []
+                        }
+                        type="pie"
+                        width={300}
+                        height={175}
+                      />
+                    </div>
+                  </div>
+                  <div className="chart-item">
+                    <h4 className="chart-title">En Cours</h4>
+                    <div id="chart">
+                      <ReactApexChart
+                        key={`ongoing-trimester`}
+                        options={this.state.options}
+                        series={
+                          this.state.seriesTOg.some((elem) => elem > 0)
+                            ? this.state.seriesTOg
+                            : []
+                        }
+                        type="pie"
+                        width={300}
+                        height={175}
+                      />
+                    </div>
+                  </div>
+                  <div className="chart-item">
+                    <h4 className="chart-title">Terminé</h4>
+                    <div id="chart">
+                      <ReactApexChart
+                        key={`finished-trimester`}
+                        options={this.state.options}
+                        series={
+                          this.state.seriesTF.some((elem) => elem > 0)
+                            ? this.state.seriesTF
+                            : []
+                        }
+                        type="pie"
+                        width={300}
+                        height={175}
+                      />
+                    </div>
+                  </div>
+                  <div className="chart-item">
+                    <h4 className="chart-title">Perdu</h4>
+                    <div id="chart">
+                      <ReactApexChart
+                        key={`lost-trimester`}
+                        options={this.state.options}
+                        series={
+                          this.state.seriesTL.some((elem) => elem > 0)
+                            ? this.state.seriesTL
+                            : []
+                        }
+                        type="pie"
+                        width={300}
+                        height={175}
+                      />
+                    </div>
                   </div>
                 </div>
-                <div className="ml-3 mt-1">
-                  <h4 className="w-50 ml-5 d-flex justify-content-sm-center">
-                    Terminé
-                  </h4>
-                  <div id="chart">
-                    <ReactApexChart
-                      key={`finished-month`}
-                      options={this.state.options}
-                      series={
-                        this.state.seriesF.some((elem) => elem > 0)
-                          ? this.state.seriesF
-                          : []
-                      }
-                      type="pie"
-                      width={300}
-                      height={175}
-                    />
+              </TabPane>
+              <TabPane tabId="3">
+                <div
+                  className="title-section"
+                  style={{
+                    textAlign: "center",
+                    marginLeft: "auto",
+                    marginRight: "auto",
+                    marginTop: "10px",
+                    display: "inline-block",
+                  }}
+                >
+                  <Nav className="d-inline-flex align-items-center">
+                    <NavItem className="mr-1">
+                      <TabDropdown
+                        label="Année"
+                        valueLabel={String(
+                          this.state.year || new Date().getFullYear()
+                        )}
+                        isOpen={this.state.openYear}
+                        toggle={() =>
+                          this.setState({ openYear: !this.state.openYear })
+                        }
+                        minWidth={70}
+                      >
+                        {Array.from({ length: 13 }, (_, i) => 2018 + i).map(
+                          (y) => (
+                            <DropdownItem
+                              toggle={false}
+                              key={y}
+                              active={y === this.state.year}
+                              onClick={() => {
+                                this.setState({ openYear: false });
+                                this.getYearData(y);
+                              }}
+                            >
+                              {y}
+                            </DropdownItem>
+                          )
+                        )}
+                      </TabDropdown>
+                    </NavItem>
+                  </Nav>
+                </div>
+                <div className="chart-grid">
+                  <div className="chart-item">
+                    <h4 className="chart-title">En Attente</h4>
+                    <div id="chart">
+                      <ReactApexChart
+                        key={`waiting-year`}
+                        options={this.state.options}
+                        series={
+                          this.state.seriesYW.some((elem) => {
+                            return elem > 0;
+                          })
+                            ? this.state.seriesYW
+                            : []
+                        }
+                        type="pie"
+                        width={300}
+                        height={175}
+                      />
+                    </div>
+                  </div>
+                  <div className="chart-item">
+                    <h4 className="chart-title">En Cours</h4>
+                    <div id="chart">
+                      <ReactApexChart
+                        key={`ongoing-year`}
+                        options={this.state.options}
+                        series={
+                          this.state.seriesYOg.some((elem) => elem > 0)
+                            ? this.state.seriesYOg
+                            : []
+                        }
+                        type="pie"
+                        width={300}
+                        height={175}
+                      />
+                    </div>
+                  </div>
+                  <div className="chart-item">
+                    <h4 className="chart-title">Terminé</h4>
+                    <div id="chart">
+                      <ReactApexChart
+                        key={`finished-year`}
+                        options={this.state.options}
+                        series={
+                          this.state.seriesYF.some((elem) => elem > 0)
+                            ? this.state.seriesYF
+                            : []
+                        }
+                        type="pie"
+                        width={300}
+                        height={175}
+                      />
+                    </div>
+                  </div>
+                  <div className="chart-item">
+                    <h4 className="chart-title">Perdu</h4>
+                    <div id="chart">
+                      <ReactApexChart
+                        key={`lost-year`}
+                        options={this.state.options}
+                        series={
+                          this.state.seriesYL.some((elem) => elem > 0)
+                            ? this.state.seriesYL
+                            : []
+                        }
+                        type="pie"
+                        width={300}
+                        height={175}
+                      />
+                    </div>
                   </div>
                 </div>
-                <div className="ml-3 mt-1">
-                  <h4 className="w-50 ml-5 d-flex justify-content-sm-center">
-                    Perdu
-                  </h4>
-                  <div id="chart">
-                    <ReactApexChart
-                      key={`lost-month`}
-                      options={this.state.options}
-                      series={
-                        this.state.seriesL.some((elem) => elem > 0)
-                          ? this.state.seriesL
-                          : []
-                      }
-                      type="pie"
-                      width={300}
-                      height={175}
-                    />
-                  </div>
-                </div>
-              </div>
-            </TabPane>
-            <TabPane tabId="2">
-              <div
-                className="title-section"
-                style={{
-                  textAlign: "center",
-                  marginLeft: "auto",
-                  marginRight: "auto",
-                  marginTop: "10px",
-                  display: "inline-block",
-                }}
-              >
-                <Nav className="d-inline-flex align-items-center">
-                  <NavItem className="mr-1">
-                    <TabDropdown
-                      label="Année"
-                      valueLabel={String(this.state.year || new Date().getFullYear())}
-                      isOpen={this.state.openYear}
-                      toggle={() => this.setState({ openYear: !this.state.openYear })}
-                      minWidth={70}
-                    >
-                      {Array.from({ length: 13 }, (_, i) => 2018 + i).map((y) => (
-                        <DropdownItem toggle={false} key={y} active={y === this.state.year} onClick={() => { this.setState({ openYear: false }); this.getTrimData(this.state.trim, y); }}>{y}</DropdownItem>
-                      ))}
-                    </TabDropdown>
-                  </NavItem>
-                  <NavItem className="mr-1">
-                    <TabDropdown
-                      label="Trimestre"
-                      valueLabel={this.state.trim}
-                      isOpen={this.state.openTrim}
-                      toggle={() => this.setState({ openTrim: !this.state.openTrim })}
-                      minWidth={120}
-                    >
-                      {["Trimestre 1","Trimestre 2","Trimestre 3","Trimestre 4"].map((t) => (
-                        <DropdownItem key={t} active={t === this.state.trim} onClick={() => { this.setState({ openTrim: false }); this.getTrimData(t, this.state.year); }}>{t}</DropdownItem>
-                      ))}
-                    </TabDropdown>
-                  </NavItem>
-                </Nav>
-              </div>
-              <div style={{ width: "100%" }} className="form-inline mt-1 mb-1">
-                <div className="ml-3  mt-1">
-                  <h4 className="w-50 ml-4 d-flex justify-content-sm-center">
-                    En Attente
-                  </h4>
-                  <div id="chart">
-                    <ReactApexChart
-                      key={`waiting-trimester`}
-                      options={this.state.options}
-                      series={
-                        this.state.seriesTW.some((elem) => elem > 0)
-                          ? this.state.seriesTW
-                          : []
-                      }
-                      type="pie"
-                      width={300}
-                      height={175}
-                    />
-                  </div>
-                </div>
-                <div className="ml-3 mt-1">
-                  <h4 className="w-50 ml-4 d-flex justify-content-sm-center">
-                    En Cours
-                  </h4>
-                  <div id="chart">
-                    <ReactApexChart
-                      key={`ongoing-trimester`}
-                      options={this.state.options}
-                      series={
-                        this.state.seriesTOg.some((elem) => elem > 0)
-                          ? this.state.seriesTOg
-                          : []
-                      }
-                      type="pie"
-                      width={300}
-                      height={175}
-                    />
-                  </div>
-                </div>
-                <div className="ml-3 mt-1">
-                  <h4 className="w-50 ml-5 d-flex justify-content-sm-center">
-                    Terminé
-                  </h4>
-                  <div id="chart">
-                    <ReactApexChart
-                      key={`finished-trimester`}
-                      options={this.state.options}
-                      series={
-                        this.state.seriesTF.some((elem) => elem > 0)
-                          ? this.state.seriesTF
-                          : []
-                      }
-                      type="pie"
-                      width={300}
-                      height={175}
-                    />
-                  </div>
-                </div>
-                <div className="ml-3 mt-1">
-                  <h4 className="w-50 ml-5 d-flex justify-content-sm-center">
-                    Perdu
-                  </h4>
-                  <div id="chart">
-                    <ReactApexChart
-                      key={`lost-trimester`}
-                      options={this.state.options}
-                      series={
-                        this.state.seriesTL.some((elem) => elem > 0)
-                          ? this.state.seriesTL
-                          : []
-                      }
-                      type="pie"
-                      width={300}
-                      height={175}
-                    />
-                  </div>
-                </div>
-              </div>
-            </TabPane>
-            <TabPane tabId="3">
-              <div
-                className="title-section"
-                style={{
-                  textAlign: "center",
-                  marginLeft: "auto",
-                  marginRight: "auto",
-                  marginTop: "10px",
-                  display: "inline-block",
-                }}
-              >
-                <Nav className="d-inline-flex align-items-center">
-                  <NavItem className="mr-1">
-                    <TabDropdown
-                      label="Année"
-                      valueLabel={String(this.state.year || new Date().getFullYear())}
-                      isOpen={this.state.openYear}
-                      toggle={() => this.setState({ openYear: !this.state.openYear })}
-                      minWidth={70}
-                    >
-                      {Array.from({ length: 13 }, (_, i) => 2018 + i).map((y) => (
-                        <DropdownItem toggle={false} key={y} active={y === this.state.year} onClick={() => { this.setState({ openYear: false }); this.getYearData(y); }}>{y}</DropdownItem>
-                      ))}
-                    </TabDropdown>
-                  </NavItem>
-                </Nav>
-              </div>
-              <div style={{ width: "100%" }} className="form-inline mt-1 mb-1">
-                <div className="ml-3 mt-1">
-                  <h4 className="w-50 ml-4 d-flex justify-content-sm-center">
-                    En Attente
-                  </h4>
-                  <div id="chart">
-                    <ReactApexChart
-                      key={`waiting-year`}
-                      options={this.state.options}
-                      series={
-                        this.state.seriesYW.some((elem) => {
-                          return elem > 0;
-                        })
-                          ? this.state.seriesYW
-                          : []
-                      }
-                      type="pie"
-                      width={300}
-                      height={175}
-                    />
-                  </div>
-                </div>
-                <div className="ml-3 mt-1">
-                  <h4 className="w-50 ml-4 d-flex justify-content-sm-center">
-                    En Cours
-                  </h4>
-                  <div id="chart">
-                    <ReactApexChart
-                      key={`ongoing-year`}
-                      options={this.state.options}
-                      series={
-                        this.state.seriesYOg.some((elem) => elem > 0)
-                          ? this.state.seriesYOg
-                          : []
-                      }
-                      type="pie"
-                      width={300}
-                      height={175}
-                    />
-                  </div>
-                </div>
-                <div className="ml-3 mt-1">
-                  <h4 className="w-50 ml-5 d-flex justify-content-sm-center">
-                    Terminé
-                  </h4>
-                  <div id="chart">
-                    <ReactApexChart
-                      key={`finished-year`}
-                      options={this.state.options}
-                      series={
-                        this.state.seriesYF.some((elem) => elem > 0)
-                          ? this.state.seriesYF
-                          : []
-                      }
-                      type="pie"
-                      width={300}
-                      height={175}
-                    />
-                  </div>
-                </div>
-                <div className="ml-3 mt-1">
-                  <h4 className="w-50 ml-5 d-flex justify-content-sm-center">
-                    Perdu
-                  </h4>
-                  <div id="chart">
-                    <ReactApexChart
-                      key={`lost-year`}
-                      options={this.state.options}
-                      series={
-                        this.state.seriesYL.some((elem) => elem > 0)
-                          ? this.state.seriesYL
-                          : []
-                      }
-                      type="pie"
-                      width={300}
-                      height={175}
-                    />
-                  </div>
-                </div>
-              </div>
-            </TabPane>
-            <TabPane tabId="4">
-              <div
-                className="title-section"
-                style={{
-                  textAlign: "center",
-                  marginLeft: "auto",
-                  marginRight: "auto",
-                  marginTop: "10px",
-                  display: "inline-block",
-                }}
-              >
-                <Nav className="d-inline-flex align-items-center">
-                  <NavItem className="mr-1">
-                    <TabDropdown
-                      label="Année"
-                      valueLabel={String(this.state.year || new Date().getFullYear())}
-                      isOpen={this.state.openYear}
-                      toggle={() => this.setState({ openYear: !this.state.openYear })}
-                      minWidth={70}
-                    >
-                      {Array.from({ length: 13 }, (_, i) => 2018 + i).map((y) => (
-                        <DropdownItem toggle={false} key={y} active={y === this.state.year} onClick={() => { this.setState({ openYear: false }); this.getWeekData(this.state.currentWeek, y); }}>{y}</DropdownItem>
-                      ))}
-                    </TabDropdown>
-                  </NavItem>
+              </TabPane>
+              <TabPane tabId="4">
+                <div
+                  className="title-section"
+                  style={{
+                    textAlign: "center",
+                    marginLeft: "auto",
+                    marginRight: "auto",
+                    marginTop: "10px",
+                    display: "inline-block",
+                  }}
+                >
+                  <Nav className="d-inline-flex align-items-center">
+                    <NavItem className="mr-1">
+                      <TabDropdown
+                        label="Année"
+                        valueLabel={String(
+                          this.state.year || new Date().getFullYear()
+                        )}
+                        isOpen={this.state.openYear}
+                        toggle={() =>
+                          this.setState({ openYear: !this.state.openYear })
+                        }
+                        minWidth={70}
+                      >
+                        {Array.from({ length: 13 }, (_, i) => 2018 + i).map(
+                          (y) => (
+                            <DropdownItem
+                              toggle={false}
+                              key={y}
+                              active={y === this.state.year}
+                              onClick={() => {
+                                this.setState({ openYear: false });
+                                this.getWeekData(this.state.currentWeek, y);
+                              }}
+                            >
+                              {y}
+                            </DropdownItem>
+                          )
+                        )}
+                      </TabDropdown>
+                    </NavItem>
 
-                  <NavItem className="mr-1">
-                    <TabDropdown
-                      label="Semaine"
-                      valueLabel={this.state.currentWeek}
-                      isOpen={this.state.openWeek}
-                      toggle={() => this.setState({ openWeek: !this.state.openWeek })}
-                      minWidth={110}
-                    >
-                      {Array.from({ length: (this.state.year === new Date().getFullYear() ? isoWeekInfo(new Date()).isoWeek : isoWeeksInYear(this.state.year || new Date().getFullYear())) }, (_, i) => (
-                        <DropdownItem key={`W${i + 1}`} active={`W${i + 1}` === this.state.currentWeek} onClick={() => { this.setState({ openWeek: false }); this.getWeekData(`W${i + 1}`, this.state.year); }}>{`W${i + 1}`}</DropdownItem>
-                      ))}
-                    </TabDropdown>
-                  </NavItem>
-                </Nav>
-              </div>
+                    <NavItem className="mr-1">
+                      <TabDropdown
+                        label="Semaine"
+                        valueLabel={this.state.currentWeek}
+                        isOpen={this.state.openWeek}
+                        toggle={() =>
+                          this.setState({ openWeek: !this.state.openWeek })
+                        }
+                        minWidth={110}
+                      >
+                        {Array.from(
+                          {
+                            length:
+                              this.state.year === new Date().getFullYear()
+                                ? isoWeekInfo(new Date()).isoWeek
+                                : isoWeeksInYear(
+                                    this.state.year || new Date().getFullYear()
+                                  ),
+                          },
+                          (_, i) => (
+                            <DropdownItem
+                              key={`W${i + 1}`}
+                              active={`W${i + 1}` === this.state.currentWeek}
+                              onClick={() => {
+                                this.setState({ openWeek: false });
+                                this.getWeekData(`W${i + 1}`, this.state.year);
+                              }}
+                            >{`W${i + 1}`}</DropdownItem>
+                          )
+                        )}
+                      </TabDropdown>
+                    </NavItem>
+                  </Nav>
+                </div>
 
-              <div style={{ width: "100%" }} className="form-inline mt-1 mb-1">
-                <div className="ml-3  mt-1">
-                  <h4 className="w-50 ml-4 d-flex justify-content-sm-center">En Attente</h4>
-                  <div id="chart">
-                    <ReactApexChart
-                      key={`waiting-week`}
-                      options={this.state.options}
-                      series={
-                        this.state.seriesWW.some((elem) => elem > 0)
-                          ? this.state.seriesWW
-                          : []
-                      }
-                      type="pie"
-                      width={300}
-                      height={175}
-                    />
+                <div className="chart-grid">
+                  <div className="chart-item">
+                    <h4 className="chart-title">En Attente</h4>
+                    <div id="chart">
+                      <ReactApexChart
+                        key={`waiting-week`}
+                        options={this.state.options}
+                        series={
+                          this.state.seriesWW.some((elem) => elem > 0)
+                            ? this.state.seriesWW
+                            : []
+                        }
+                        type="pie"
+                        width={300}
+                        height={175}
+                      />
+                    </div>
+                  </div>
+                  <div className="chart-item">
+                    <h4 className="chart-title">En Cours</h4>
+                    <div id="chart">
+                      <ReactApexChart
+                        key={`ongoing-week`}
+                        options={this.state.options}
+                        series={
+                          this.state.seriesWOg.some((elem) => elem > 0)
+                            ? this.state.seriesWOg
+                            : []
+                        }
+                        type="pie"
+                        width={300}
+                        height={175}
+                      />
+                    </div>
+                  </div>
+                  <div className="chart-item">
+                    <h4 className="chart-title">Terminé</h4>
+                    <div id="chart">
+                      <ReactApexChart
+                        key={`finished-week`}
+                        options={this.state.options}
+                        series={
+                          this.state.seriesWF.some((elem) => elem > 0)
+                            ? this.state.seriesWF
+                            : []
+                        }
+                        type="pie"
+                        width={300}
+                        height={175}
+                      />
+                    </div>
+                  </div>
+                  <div className="chart-item">
+                    <h4 className="chart-title">Perdu</h4>
+                    <div id="chart">
+                      <ReactApexChart
+                        key={`lost-week`}
+                        options={this.state.options}
+                        series={
+                          this.state.seriesWL.some((elem) => elem > 0)
+                            ? this.state.seriesWL
+                            : []
+                        }
+                        type="pie"
+                        width={300}
+                        height={175}
+                      />
+                    </div>
                   </div>
                 </div>
-                <div className="ml-3 mt-1">
-                  <h4 className="w-50 ml-4 d-flex justify-content-sm-center">En Cours</h4>
-                  <div id="chart">
-                    <ReactApexChart
-                      key={`ongoing-week`}
-                      options={this.state.options}
-                      series={
-                        this.state.seriesWOg.some((elem) => elem > 0)
-                          ? this.state.seriesWOg
-                          : []
-                      }
-                      type="pie"
-                      width={300}
-                      height={175}
-                    />
-                  </div>
-                </div>
-                <div className="ml-3 mt-1">
-                  <h4 className="w-50 ml-5 d-flex justify-content-sm-center">Terminé</h4>
-                  <div id="chart">
-                    <ReactApexChart
-                      key={`finished-week`}
-                      options={this.state.options}
-                      series={
-                        this.state.seriesWF.some((elem) => elem > 0)
-                          ? this.state.seriesWF
-                          : []
-                      }
-                      type="pie"
-                      width={300}
-                      height={175}
-                    />
-                  </div>
-                </div>
-                <div className="ml-3 mt-1">
-                  <h4 className="w-50 ml-5 d-flex justify-content-sm-center">Perdu</h4>
-                  <div id="chart">
-                    <ReactApexChart
-                      key={`lost-week`}
-                      options={this.state.options}
-                      series={
-                        this.state.seriesWL.some((elem) => elem > 0)
-                          ? this.state.seriesWL
-                          : []
-                      }
-                      type="pie"
-                      width={300}
-                      height={175}
-                    />
-                  </div>
-                </div>
-              </div>
-            </TabPane>
-          </TabContent>
-        </CardBody>
-      </Card>
+              </TabPane>
+            </TabContent>
+          </CardBody>
+        </Card>
       </>
     );
   }

@@ -142,8 +142,210 @@
     margin: 0;
   }
 }
+
+// Media queries pour responsive mobile
+@media (max-width: 768px) {
+  // Conteneur principal : prend toute la largeur sur mobile
+  .contract-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 10px auto 0 !important;
+    padding: 0 10px !important;
+  }
+
+  // Grilles et tableaux : scroll horizontal propre
+  .card-body {
+    overflow-x: auto !important;
+  }
+
+  // Sélecteurs d'ajout de ligne : s'adaptent à la largeur mobile
+  .contract-wrapper .form-control[type="select"] {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  // Ajustement du padding pour les cartes sur mobile
+  .contract-page {
+    padding: 1rem !important;
+  }
+
+  // Réduction de la hauteur de la ligne verticale sur mobile
+  .vertical-line {
+    height: 400px;
+  }
+
+  // --- FIX HEADER RESPONSIVE ---
+
+  // 1. Section Email + DocuSign (CreateContract)
+  #send_contract_section {
+    margin-bottom: 15px;
+
+    .input-group {
+      flex-direction: row !important; // Remettre sur la même ligne
+      flex-wrap: nowrap !important; // Empêcher le retour à la ligne si possible
+
+      .form-control {
+        width: auto !important;
+        flex: 1 1 auto !important; // Prend l'espace disponible
+        min-width: 0; // Permet de rétrécir si nécessaire
+        margin-bottom: 0 !important;
+        border-top-right-radius: 0 !important;
+        border-bottom-right-radius: 0 !important;
+      }
+
+      .input-group-append {
+        width: auto !important;
+        margin-left: -1px !important;
+
+        button {
+          width: auto !important;
+          border-top-left-radius: 0 !important;
+          border-bottom-left-radius: 0 !important;
+          padding-left: 10px !important;
+          padding-right: 10px !important;
+          font-size: 0.8rem !important; // Réduire un peu la police si nécessaire
+        }
+      }
+    }
+  }
+
+  // 2. Section Boutons Actions (CreateContract & EditContract)
+  #button_section {
+    width: 100%;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    min-height: 50px; // Hauteur minimale de sécurité
+  }
+
+  // Conteneur principal : on laisse la page gérer le scroll horizontal
+  // Cela corrige le bug du "select" qui s'affiche hors écran à cause de l'overflow interne
+  .contract-wrapper {
+    flex: 1 1 auto !important; 
+    // max-width: 100vw !important; // On supprime pour laisser dépasser si besoin
+    margin: 10px auto 0 !important;
+    padding: 0 !important;
+    overflow-x: visible !important; // Plus de scroll interne, on utilise le scroll de la page
+    
+    // Force l'aperçu A4 à garder sa largeur
+    #pdf-root, .contract-page {
+      min-width: 794px !important;
+      width: 794px !important;
+      margin-left: auto !important;
+      margin-right: auto !important;
+    }
+
+    // Pour la partie édition (cartes du haut)
+    .card {
+       min-width: 100%;
+    }
+  }
+
+  // Grilles et tableaux : scroll horizontal propre
+  .card-body {
+    overflow-x: auto !important;
+  }
+
+  // Sélecteurs d'ajout de ligne : s'adaptent à la largeur mobile
+  .contract-wrapper .form-control[type="select"] {
+    max-width: none !important; // On laisse prendre toute la place
+    width: 100% !important;
+    
+    // Gestion du contenu trop long : on tronque avec "..."
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    padding-right: 20px; // Espace pour la flèche du select
+  }
+  
+  // Conteneur du sélecteur (le div avec position relative)
+  .contract-wrapper div[style*="position: relative"] {
+      max-width: none !important;
+      width: 100% !important;
+  }
+
+  // Force l'alignement à gauche du conteneur du sélecteur
+  .contract-wrapper .d-flex.align-items-center.justify-content-center {
+    justify-content: flex-start !important;
+    width: 100% !important; // S'assure que le conteneur parent prend aussi la largeur
+  }
+
+  // Ajustement du padding pour les cartes sur mobile
+  .contract-page {
+    padding: 10px !important; // Padding standard pour ne pas coller au bord
+    box-sizing: border-box !important;
+  }
+
+  // 4. Header spécifique EditContract
+  .contract-header {
+    > div.d-flex {
+      flex-direction: column !important;
+      height: auto !important;
+      gap: 15px !important;
+
+      > div:first-child {
+        width: 100%;
+        flex-wrap: wrap;
+        margin-bottom: 5px;
+      }
+    }
+  }
+}
+
+
+
 @page {
   //  margin for print page
   margin: 0;
   padding: 0;
+}
+
+// FIX FINAL : Sélecteur qui déborde
+@media (max-width: 768px) {
+  .contract-wrapper select.form-control {
+      max-width: 100% !important;
+      width: 100% !important;
+  }
+  
+  // Cible le conteneur div spécifique du sélecteur (celui avec position: relative)
+  .contract-wrapper div[style*="position: relative"] {
+      max-width: 100% !important;
+      width: 100% !important;
+  }
+}
+
+// FIX FINAL : Alignement des totaux (0 €)
+// On force les lignes de totaux à ne pas wrapper, peu importe la taille de l'écran
+// car le conteneur parent a un scroll horizontal si nécessaire.
+.contract-page table td .row {
+  flex-wrap: nowrap !important;
+  min-width: max-content;
+}
+
+
+@media (max-width: 768px) {
+  // FIX FINAL : Alignement des totaux (0 €)
+  // On force les lignes à ne pas wrapper pour garder "Total HT ... 0 €" aligné
+  .contract-page table td .row {
+    flex-wrap: nowrap !important;
+  }
+  
+
+  .contract-page {
+    // Cible le texte "Nb :"
+    .bold-black {
+      vertical-align: middle !important;
+      margin-top: 0 !important;
+      margin-left: 5px !important; // Réduit la marge (30px -> 5px) pour gagner de la place
+    }
+    
+    // Cible le div contenant l'input "0"
+    .bold-black + div {
+      vertical-align: middle !important;
+      padding-top: 0 !important;
+      
+      input {
+        margin-top: 0 !important;
+      }
+    }
+  }
 }

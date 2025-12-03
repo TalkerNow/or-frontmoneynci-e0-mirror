@@ -50,7 +50,7 @@ class BasicSweetCallback extends React.Component {
             this.handleAlert("confirmAlert", false)
           }}
         >
-            <p className="sweet-alert-text">Your file has been deleted.</p>
+            <p className="sweet-alert-text">Le document a été supprimé</p>
         </SweetAlert>
 
         <SweetAlert error title="Cancelled" 

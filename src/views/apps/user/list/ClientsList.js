@@ -1,5 +1,5 @@
 import React from "react";
-import { UserPlus, Trash2 } from "react-feather";
+import { UserPlus, Trash2, User } from "react-feather";
 import { Button, Card, CardBody, Input, Row, Col } from "reactstrap";
 import axios from "axios";
 import * as XLSX from "xlsx";
@@ -416,10 +416,7 @@ class ClientsList extends React.Component {
       const tsStr = doc?.updated_at || doc?.created_at || null;
       const ts = tsStr ? Date.parse(tsStr) : 0;
 
-      if (
-        latestTsByUser[userId] === undefined ||
-        ts > latestTsByUser[userId]
-      ) {
+      if (latestTsByUser[userId] === undefined || ts > latestTsByUser[userId]) {
         latestTsByUser[userId] = ts;
         map[userId] = services;
       }
@@ -630,12 +627,10 @@ class ClientsList extends React.Component {
     const Config = {
       headers: { Authorization: "Bearer " + localStorage.getItem("token") },
     };
-    axios
-      .delete(global.config.server_url + "/users/" + id, Config)
-      .then(() => {
-        var SelectedData = this.gridApi.getSelectedRows();
-        this.gridApi.updateRowData({ remove: SelectedData });
-      });
+    axios.delete(global.config.server_url + "/users/" + id, Config).then(() => {
+      var SelectedData = this.gridApi.getSelectedRows();
+      this.gridApi.updateRowData({ remove: SelectedData });
+    });
   }
 
   onGridReady = (params) => {
@@ -772,14 +767,14 @@ class ClientsList extends React.Component {
                 style={{ paddingBottom: "0.5rem" }}
               >
                 {/* HEADER: recherche à gauche, boutons à droite */}
-                <div className="ag-grid-actions d-flex justify-content-between align-items-center flex-wrap mb-1">
+                <div className="ag-grid-actions d-flex justify-content-between flex-wrap align-items-center mb-1">
                   {/* Gauche : Recherche */}
                   <div
-                    className="d-flex align-items-center mb-1"
-                    style={{ minWidth: 280, flex: 1 }}
+                    className="d-flex align-items-center mb-1 mr-1"
+                    style={{ flex: "1 1 200px" }}
                   >
                     <Input
-                      className="mr-1 w-100"
+                      className="w-100 mb-1"
                       type="text"
                       placeholder="Rechercher..."
                       onChange={(e) => this.updateSearchQuery(e.target.value)}
@@ -788,14 +783,16 @@ class ClientsList extends React.Component {
                   </div>
 
                   {/* Droite : Mes/Tous les clients (non consultant) + Créer un compte */}
-                  <div className="d-flex align-items-center mb-1">
+                  <div className="d-flex flex-wrap align-items-center mb-1">
                     {!this.state.isConsultant && (
                       <Button
                         outline
                         color="primary"
-                        className="mr-1"
+                        className="mr-1 mb-1"
+                        style={{ whiteSpace: "nowrap" }}
                         onClick={this.toggleMyClients}
                       >
+                        <User size={15} className="mr-50" />
                         {this.state.myFilterId === null
                           ? "Mes clients"
                           : "Tous les clients"}
@@ -804,9 +801,9 @@ class ClientsList extends React.Component {
 
                     <Button
                       color="success"
-                      onClick={() =>
-                        history.push("/app/user/createUser")
-                      }
+                      className="mb-1"
+                      style={{ whiteSpace: "nowrap" }}
+                      onClick={() => history.push("/app/user/createUser")}
                     >
                       <UserPlus size={15} className="mr-50" />
                       Créer un compte
@@ -826,9 +823,7 @@ class ClientsList extends React.Component {
                           rowBuffer={10}
                           gridOptions={this.state.gridOptions}
                           doesExternalFilterPass={this.doesExternalFilterPass}
-                          isExternalFilterPresent={
-                            this.isExternalFilterPresent
-                          }
+                          isExternalFilterPresent={this.isExternalFilterPresent}
                           defaultColDef={defaultColDef}
                           columnDefs={columnDefs}
                           rowData={rowData}

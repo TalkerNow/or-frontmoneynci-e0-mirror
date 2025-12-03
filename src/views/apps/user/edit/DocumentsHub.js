@@ -85,11 +85,11 @@ export default function DocumentsHub({ id, name, parent_id, userFullName, alignO
             <span>Cerfa</span>
           </NavLink>
         </NavItem>
-        <NavItem>
+        {/* <NavItem>
           <NavLink className={classnames({ active: subTab === 'courriers' })} onClick={() => setSubTab('courriers')}>
             <span>Courriers caisse</span>
           </NavLink>
-        </NavItem>
+        </NavItem> */}
         {/* <NavItem>
           <NavLink className={classnames({ active: subTab === 'contrats' })} onClick={() => setSubTab('contrats')}>
             <span id='docs-label-contrats'>Contrats</span>
