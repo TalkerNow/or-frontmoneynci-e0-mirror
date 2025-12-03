@@ -1,5 +1,12 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { CheckCircle, DollarSign, Inbox, Package, TrendingUp, Users } from "react-feather";
+import {
+  CheckCircle,
+  DollarSign,
+  Inbox,
+  Package,
+  TrendingUp,
+  Users,
+} from "react-feather";
 import axios from "axios";
 import {
   Card,
@@ -135,8 +142,25 @@ const DROPDOWN_CSS = `
   .header-right .nav-link { padding: .25rem .5rem; margin-right: .25rem; white-space: nowrap; }
 
   /* ---------- Petits écrans ---------- */
-  @media (max-width: 600px) {
-    .header-grid { min-height: 72px; }
+  @media (max-width: 900px) {
+    .header-grid {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      padding-bottom: 10px;
+      min-height: auto;
+    }
+    .header-title {
+      position: static;
+      transform: none;
+      order: -1; /* Le titre passe tout en haut */
+      margin-bottom: 5px;
+    }
+    .header-left, .header-right {
+      width: 100%;
+      justify-content: center;
+    }
     .tab-dd .nav-link { padding: 0.3rem 0.6rem; }
     .header-right .nav-link { padding: .2rem .45rem; font-size: .95rem; }
   }
@@ -150,8 +174,11 @@ const getMonthsOfTrim = (i) => { const s = i * 3; return [s, s + 1, s + 2]; };
 
 /* ===================== UI: Items ===================== */
 const StatItem = ({ icon: Icon, value, label, color }) => (
-  <div className="mx-auto d-flex align-items-start" style={{ minWidth: 240 }}>
-    <div style={{ marginTop: 10 }}>
+  <div
+    className="d-flex align-items-center justify-content-start"
+    style={{ minWidth: 240 }}
+  >
+    <div>
       <div
         className="avatar avatar-stats p-75"
         style={{
@@ -167,7 +194,7 @@ const StatItem = ({ icon: Icon, value, label, color }) => (
         </div>
       </div>
     </div>
-    <div className="ml-1 mt-1" style={{ minWidth: 0 }}>
+    <div className="ml-1" style={{ minWidth: 0 }}>
       <h2
         className="mb-25"
         style={{ fontSize: "clamp(20px, 2.2vw, 28px)", lineHeight: 1.1 }}
@@ -193,8 +220,8 @@ const StatGrid = ({ stats }) => (
     className="icon-section form-inline text-bold-600 w-100"
     style={{
       width: "100%",
-      margin: "10px 20px",
-      padding: "10px 20px",
+      margin: "10px 0",
+      padding: "10px 0",
       minHeight: 100,
       boxSizing: "border-box",
       fontSize: 25,
@@ -205,21 +232,26 @@ const StatGrid = ({ stats }) => (
       gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
     }}
   >
-    {stats.map((s) => <StatItem key={s.label} {...s} />)}
+    {stats.map((s) => (
+      <StatItem key={s.label} {...s} />
+    ))}
   </div>
 );
 
 /* ===================== Data shaping ===================== */
 function normalizeApiYear(dataByMonthIndex1to12) {
-  const months = Array.from({ length: 12 }, (_, i) => dataByMonthIndex1to12[i + 1] || {});
+  const months = Array.from(
+    { length: 12 },
+    (_, i) => dataByMonthIndex1to12[i + 1] || {}
+  );
   return {
-    client_count:           months.map((m) => m.current_acompte_count   || 0),
-    current_total_amount:   months.map((m) => m.current_total_amount     || 0),
-    total_ended_count:      months.map((m) => m.total_ended_count        || 0),
-    current_acompte_amount: months.map((m) => m.current_acompte_amount   || 0),
-    current_solde_amount:   months.map((m) => m.current_solde_amount     || 0),
-    opportunite_amount:     months.map((m) => m.opportunite_amount       || 0),
-    opportunite_count:      months.map((m) => m.opportunite_count        || 0),
+    client_count: months.map((m) => m.current_acompte_count || 0),
+    current_total_amount: months.map((m) => m.current_total_amount || 0),
+    total_ended_count: months.map((m) => m.total_ended_count || 0),
+    current_acompte_amount: months.map((m) => m.current_acompte_amount || 0),
+    current_solde_amount: months.map((m) => m.current_solde_amount || 0),
+    opportunite_amount: months.map((m) => m.opportunite_amount || 0),
+    opportunite_count: months.map((m) => m.opportunite_count || 0),
   };
 }
 
@@ -231,17 +263,22 @@ export default function OverallCard() {
   const [monthIndex, setMonthIndex] = useState(now.getMonth());
   const [trimIndex, setTrimIndex] = useState(Math.floor(now.getMonth() / 3));
   const [openWeek, setOpenWeek] = useState(false);
-  const [currentWeek, setCurrentWeek] = useState(() => `W${isoWeekInfo(new Date()).isoWeek}`);
+  const [currentWeek, setCurrentWeek] = useState(
+    () => `W${isoWeekInfo(new Date()).isoWeek}`
+  );
 
   const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState("");
-  const [data, setData]       = useState(() => normalizeApiYear({}));
+  const [error, setError] = useState("");
+  const [data, setData] = useState(() => normalizeApiYear({}));
 
   const fetchYear = useCallback(async (y) => {
     try {
       setLoading(true);
       setError("");
-      const res = await axios.get(`${global.config.server_url}/get_statistics_total_income?year=${y}`, AUTH_CONFIG);
+      const res = await axios.get(
+        `${global.config.server_url}/get_statistics_total_income?year=${y}`,
+        AUTH_CONFIG
+      );
       setData(normalizeApiYear(res.data || {}));
     } catch (e) {
       console.error(e);
@@ -250,29 +287,43 @@ export default function OverallCard() {
       setLoading(false);
     }
   }, []);
-  useEffect(() => { fetchYear(year); }, [fetchYear, year]);
+  useEffect(() => {
+    fetchYear(year);
+  }, [fetchYear, year]);
 
-  const statsForMonth = useCallback((i) => ({
-    ca: fmt(data.current_total_amount[i]),
-    acompte: fmt(data.current_acompte_amount[i]),
-    solde: fmt(data.current_solde_amount[i]),
-    oppoAmount: fmt(data.opportunite_amount[i]),
-    clientsSignes: fmt(data.client_count[i]),
-    prospects: fmt(data.opportunite_count[i]),
-    totalClients: fmt((Number(data.client_count[i]) || 0) + (Number(data.opportunite_count[i]) || 0)),
-    contratsClotures: fmt(data.total_ended_count[i]),
-  }), [data]);
+  const statsForMonth = useCallback(
+    (i) => ({
+      ca: fmt(data.current_total_amount[i]),
+      acompte: fmt(data.current_acompte_amount[i]),
+      solde: fmt(data.current_solde_amount[i]),
+      oppoAmount: fmt(data.opportunite_amount[i]),
+      clientsSignes: fmt(data.client_count[i]),
+      prospects: fmt(data.opportunite_count[i]),
+      totalClients: fmt(
+        (Number(data.client_count[i]) || 0) +
+          (Number(data.opportunite_count[i]) || 0)
+      ),
+      contratsClotures: fmt(data.total_ended_count[i]),
+    }),
+    [data]
+  );
 
-  const monthlyStats = useMemo(() => ({
-    ca: fmt(data.current_total_amount[monthIndex]),
-    acompte: fmt(data.current_acompte_amount[monthIndex]),
-    solde: fmt(data.current_solde_amount[monthIndex]),
-    oppoAmount: fmt(data.opportunite_amount[monthIndex]),
-    clientsSignes: fmt(data.client_count[monthIndex]),
-    prospects: fmt(data.opportunite_count[monthIndex]),
-    totalClients: fmt((Number(data.client_count[monthIndex]) || 0) + (Number(data.opportunite_count[monthIndex]) || 0)),
-    contratsClotures: fmt(data.total_ended_count[monthIndex]),
-  }), [data, monthIndex]);
+  const monthlyStats = useMemo(
+    () => ({
+      ca: fmt(data.current_total_amount[monthIndex]),
+      acompte: fmt(data.current_acompte_amount[monthIndex]),
+      solde: fmt(data.current_solde_amount[monthIndex]),
+      oppoAmount: fmt(data.opportunite_amount[monthIndex]),
+      clientsSignes: fmt(data.client_count[monthIndex]),
+      prospects: fmt(data.opportunite_count[monthIndex]),
+      totalClients: fmt(
+        (Number(data.client_count[monthIndex]) || 0) +
+          (Number(data.opportunite_count[monthIndex]) || 0)
+      ),
+      contratsClotures: fmt(data.total_ended_count[monthIndex]),
+    }),
+    [data, monthIndex]
+  );
 
   const trimesterStats = useMemo(() => {
     const m = getMonthsOfTrim(trimIndex);
@@ -284,24 +335,31 @@ export default function OverallCard() {
       oppoAmount: fmt(sum(pick(data.opportunite_amount))),
       clientsSignes: fmt(sum(pick(data.client_count))),
       prospects: fmt(sum(pick(data.opportunite_count))),
-      totalClients: fmt(sum(pick(data.client_count)) + sum(pick(data.opportunite_count))),
+      totalClients: fmt(
+        sum(pick(data.client_count)) + sum(pick(data.opportunite_count))
+      ),
       contratsClotures: fmt(sum(pick(data.total_ended_count))),
     };
   }, [data, trimIndex]);
 
-  const yearlyStats = useMemo(() => ({
-    ca: fmt(sum(data.current_total_amount)),
-    acompte: fmt(sum(data.current_acompte_amount)),
-    solde: fmt(sum(data.current_solde_amount)),
-    oppoAmount: fmt(sum(data.opportunite_amount)),
-    clientsSignes: fmt(sum(data.client_count)),
-    prospects: fmt(sum(data.opportunite_count)),
-    totalClients: fmt(sum(data.client_count) + sum(data.opportunite_count)),
-    contratsClotures: fmt(sum(data.total_ended_count)),
-  }), [data]);
+  const yearlyStats = useMemo(
+    () => ({
+      ca: fmt(sum(data.current_total_amount)),
+      acompte: fmt(sum(data.current_acompte_amount)),
+      solde: fmt(sum(data.current_solde_amount)),
+      oppoAmount: fmt(sum(data.opportunite_amount)),
+      clientsSignes: fmt(sum(data.client_count)),
+      prospects: fmt(sum(data.opportunite_count)),
+      totalClients: fmt(sum(data.client_count) + sum(data.opportunite_count)),
+      contratsClotures: fmt(sum(data.total_ended_count)),
+    }),
+    [data]
+  );
 
   const weeklyStats = useMemo(() => {
-    const num = Number(String(currentWeek).replace(/\D/g, "")) || isoWeekInfo(new Date()).isoWeek;
+    const num =
+      Number(String(currentWeek).replace(/\D/g, "")) ||
+      isoWeekInfo(new Date()).isoWeek;
     const monday = isoWeekStart(year, num);
     const mi = monday.getMonth();
     return statsForMonth(mi);
@@ -315,26 +373,88 @@ export default function OverallCard() {
   const tabStats = useMemo(() => {
     const UL = (v) => v;
     const common = [
-      { icon: TrendingUp, bubbleClass: "bg-rgba-warning", valueKey: "ca",              label: "Chiffre d'affaires", color: "#7367f0" },
-      { icon: Inbox,      bubbleClass: "bg-rgba-info",    valueKey: "acompte",         label: "Acomptes",            color: "#00cfe8" },
-      { icon: Package,    bubbleClass: "bg-rgba-info",    valueKey: "solde",           label: "Soldes",              color: "#00cfe8" },
-      { icon: DollarSign, bubbleClass: "bg-rgba-success", valueKey: "oppoAmount",      label: "Opportunités",        color: "#28c76f" },
-      { icon: Users,      bubbleClass: "bg-rgba-primary", valueKey: "clientsSignes",   label: "Clients signés",      color: "#28c76f" },
-      { icon: Users,      bubbleClass: "bg-rgba-primary", valueKey: "prospects",       label: "Prospects",           color: "#ff9f43" },
-      { icon: Users,      bubbleClass: "bg-rgba-primary", valueKey: "totalClients",    label: "Total clients",       color: "#7367f0" },
-      { icon: CheckCircle,bubbleClass: "bg-rgba-danger",  valueKey: "contratsClotures",label: "Contrats cloturés",   color: "#ea5455" },
+      {
+        icon: TrendingUp,
+        bubbleClass: "bg-rgba-warning",
+        valueKey: "ca",
+        label: "Chiffre d'affaires",
+        color: "#7367f0",
+      },
+      {
+        icon: Inbox,
+        bubbleClass: "bg-rgba-info",
+        valueKey: "acompte",
+        label: "Acomptes",
+        color: "#00cfe8",
+      },
+      {
+        icon: Package,
+        bubbleClass: "bg-rgba-info",
+        valueKey: "solde",
+        label: "Soldes",
+        color: "#00cfe8",
+      },
+      {
+        icon: DollarSign,
+        bubbleClass: "bg-rgba-success",
+        valueKey: "oppoAmount",
+        label: "Opportunités",
+        color: "#28c76f",
+      },
+      {
+        icon: Users,
+        bubbleClass: "bg-rgba-primary",
+        valueKey: "clientsSignes",
+        label: "Clients signés",
+        color: "#28c76f",
+      },
+      {
+        icon: Users,
+        bubbleClass: "bg-rgba-primary",
+        valueKey: "prospects",
+        label: "Prospects",
+        color: "#ff9f43",
+      },
+      {
+        icon: Users,
+        bubbleClass: "bg-rgba-primary",
+        valueKey: "totalClients",
+        label: "Total clients",
+        color: "#7367f0",
+      },
+      {
+        icon: CheckCircle,
+        bubbleClass: "bg-rgba-danger",
+        valueKey: "contratsClotures",
+        label: "Contrats cloturés",
+        color: "#ea5455",
+      },
     ];
-    const toCards = (obj) => common.map(({ icon, bubbleClass, valueKey, label, color }) => ({
-      icon, bubbleClass, color,
-      value: UL(obj[valueKey]) + (label !== "Clients signés" && label !== "Prospects" && label !== "Total clients" && label !== "Contrats cloturés" ? " €" : ""),
-      label,
-    }));
-    return { month: toCards(monthlyStats), trim: toCards(trimesterStats), year: toCards(yearlyStats) };
+    const toCards = (obj) =>
+      common.map(({ icon, bubbleClass, valueKey, label, color }) => ({
+        icon,
+        bubbleClass,
+        color,
+        value:
+          UL(obj[valueKey]) +
+          (label !== "Clients signés" &&
+          label !== "Prospects" &&
+          label !== "Total clients" &&
+          label !== "Contrats cloturés"
+            ? " €"
+            : ""),
+        label,
+      }));
+    return {
+      month: toCards(monthlyStats),
+      trim: toCards(trimesterStats),
+      year: toCards(yearlyStats),
+    };
   }, [monthlyStats, trimesterStats, yearlyStats]);
 
-  const [openYear, setOpenYear]   = useState(false);
+  const [openYear, setOpenYear] = useState(false);
   const [openMonth, setOpenMonth] = useState(false);
-  const [openTrim, setOpenTrim]   = useState(false);
+  const [openTrim, setOpenTrim] = useState(false);
 
   const FiltersLeft = () => (
     <Nav className="d-flex align-items-center flex-wrap">
@@ -347,7 +467,14 @@ export default function OverallCard() {
           minWidth={70}
         >
           {yearOptions.map((y) => (
-            <DropdownItem key={y} active={y === year} onClick={() => { setYear(y); setOpenYear(false); }}>
+            <DropdownItem
+              key={y}
+              active={y === year}
+              onClick={() => {
+                setYear(y);
+                setOpenYear(false);
+              }}
+            >
               {y}
             </DropdownItem>
           ))}
@@ -364,7 +491,14 @@ export default function OverallCard() {
             minWidth={90}
           >
             {FRENCH_MONTHS.map((m, idx) => (
-              <DropdownItem key={m} active={idx === monthIndex} onClick={() => { setMonthIndex(idx); setOpenMonth(false); }}>
+              <DropdownItem
+                key={m}
+                active={idx === monthIndex}
+                onClick={() => {
+                  setMonthIndex(idx);
+                  setOpenMonth(false);
+                }}
+              >
                 {m}
               </DropdownItem>
             ))}
@@ -382,7 +516,14 @@ export default function OverallCard() {
             minWidth={120}
           >
             {[1, 2, 3, 4].map((t, i) => (
-              <DropdownItem key={t} active={i === trimIndex} onClick={() => { setTrimIndex(i); setOpenTrim(false); }}>
+              <DropdownItem
+                key={t}
+                active={i === trimIndex}
+                onClick={() => {
+                  setTrimIndex(i);
+                  setOpenTrim(false);
+                }}
+              >
                 {`Trimestre ${t}`}
               </DropdownItem>
             ))}
@@ -399,8 +540,23 @@ export default function OverallCard() {
             toggle={() => setOpenWeek(!openWeek)}
             minWidth={90}
           >
-            {Array.from({ length: (year === new Date().getFullYear() ? isoWeekInfo(new Date()).isoWeek : isoWeeksInYear(year)) }, (_, i) => `W${i + 1}`).map((w) => (
-              <DropdownItem key={w} active={w === currentWeek} onClick={() => { setCurrentWeek(w); setOpenWeek(false); }}>
+            {Array.from(
+              {
+                length:
+                  year === new Date().getFullYear()
+                    ? isoWeekInfo(new Date()).isoWeek
+                    : isoWeeksInYear(year),
+              },
+              (_, i) => `W${i + 1}`
+            ).map((w) => (
+              <DropdownItem
+                key={w}
+                active={w === currentWeek}
+                onClick={() => {
+                  setCurrentWeek(w);
+                  setOpenWeek(false);
+                }}
+              >
                 {w}
               </DropdownItem>
             ))}
@@ -414,22 +570,34 @@ export default function OverallCard() {
     <div className="header-right">
       <Nav tabs className="nav-tabs d-flex align-items-center flex-wrap">
         <NavItem>
-          <NavLink className={classNames({ active: activeTab === "4" })} onClick={() => setActiveTab("4")}>
+          <NavLink
+            className={classNames({ active: activeTab === "4" })}
+            onClick={() => setActiveTab("4")}
+          >
             Semaines
           </NavLink>
         </NavItem>
         <NavItem>
-          <NavLink className={classNames({ active: activeTab === "1" })} onClick={() => setActiveTab("1")}>
+          <NavLink
+            className={classNames({ active: activeTab === "1" })}
+            onClick={() => setActiveTab("1")}
+          >
             Mois
           </NavLink>
         </NavItem>
         <NavItem>
-          <NavLink className={classNames({ active: activeTab === "2" })} onClick={() => setActiveTab("2")}>
+          <NavLink
+            className={classNames({ active: activeTab === "2" })}
+            onClick={() => setActiveTab("2")}
+          >
             Trimestre
           </NavLink>
         </NavItem>
         <NavItem>
-          <NavLink className={classNames({ active: activeTab === "3" })} onClick={() => setActiveTab("3")}>
+          <NavLink
+            className={classNames({ active: activeTab === "3" })}
+            onClick={() => setActiveTab("3")}
+          >
             Années
           </NavLink>
         </NavItem>
@@ -449,7 +617,9 @@ export default function OverallCard() {
 
             {/* Titre ABSOLU centré : ne bouge plus */}
             <div className="header-title">
-              <CardTitle tag="h4" className="info-title">Informations Clés</CardTitle>
+              <CardTitle tag="h4" className="info-title">
+                Informations Clés
+              </CardTitle>
             </div>
 
             <TabsRight />
@@ -457,38 +627,119 @@ export default function OverallCard() {
         </CardHeader>
 
         <CardBody>
-          {error && <div className="w-100 alert alert-danger" role="alert">{error}</div>}
+          {error && (
+            <div className="w-100 alert alert-danger" role="alert">
+              {error}
+            </div>
+          )}
 
           <TabContent activeTab={activeTab} className="w-100">
             <TabPane tabId="4">
-              {loading ? <div className="w-100 text-center py-3">Chargement…</div> : <StatGrid stats={(() => {
-                const UL = (v) => v;
-                const common = [
-                  { icon: TrendingUp, bubbleClass: "bg-rgba-warning", valueKey: "ca",              label: "Chiffre d'affaires", color: "#7367f0" },
-                  { icon: Inbox,      bubbleClass: "bg-rgba-info",    valueKey: "acompte",         label: "Acomptes",            color: "#00cfe8" },
-                  { icon: Package,    bubbleClass: "bg-rgba-info",    valueKey: "solde",           label: "Soldes",              color: "#00cfe8" },
-                  { icon: DollarSign, bubbleClass: "bg-rgba-success", valueKey: "oppoAmount",      label: "Opportunités",        color: "#28c76f" },
-                  { icon: Users,      bubbleClass: "bg-rgba-primary", valueKey: "clientsSignes",   label: "Clients signés",      color: "#28c76f" },
-                  { icon: Users,      bubbleClass: "bg-rgba-primary", valueKey: "prospects",       label: "Prospects",           color: "#ff9f43" },
-                  { icon: Users,      bubbleClass: "bg-rgba-primary", valueKey: "totalClients",    label: "Total clients",       color: "#7367f0" },
-                  { icon: CheckCircle,bubbleClass: "bg-rgba-danger",  valueKey: "contratsClotures",label: "Contrats cloturés",   color: "#ea5455" },
-                ];
-                const obj = weeklyStats;
-                return common.map(({ icon, bubbleClass, valueKey, label, color }) => ({
-                  icon, bubbleClass, color,
-                  value: UL(obj[valueKey]) + (label !== "Clients signés" && label !== "Prospects" && label !== "Total clients" && label !== "Contrats cloturés" ? " €" : ""),
-                  label,
-                }));
-              })()} />}
+              {loading ? (
+                <div className="w-100 text-center py-3">Chargement…</div>
+              ) : (
+                <StatGrid
+                  stats={(() => {
+                    const UL = (v) => v;
+                    const common = [
+                      {
+                        icon: TrendingUp,
+                        bubbleClass: "bg-rgba-warning",
+                        valueKey: "ca",
+                        label: "Chiffre d'affaires",
+                        color: "#7367f0",
+                      },
+                      {
+                        icon: Inbox,
+                        bubbleClass: "bg-rgba-info",
+                        valueKey: "acompte",
+                        label: "Acomptes",
+                        color: "#00cfe8",
+                      },
+                      {
+                        icon: Package,
+                        bubbleClass: "bg-rgba-info",
+                        valueKey: "solde",
+                        label: "Soldes",
+                        color: "#00cfe8",
+                      },
+                      {
+                        icon: DollarSign,
+                        bubbleClass: "bg-rgba-success",
+                        valueKey: "oppoAmount",
+                        label: "Opportunités",
+                        color: "#28c76f",
+                      },
+                      {
+                        icon: Users,
+                        bubbleClass: "bg-rgba-primary",
+                        valueKey: "clientsSignes",
+                        label: "Clients signés",
+                        color: "#28c76f",
+                      },
+                      {
+                        icon: Users,
+                        bubbleClass: "bg-rgba-primary",
+                        valueKey: "prospects",
+                        label: "Prospects",
+                        color: "#ff9f43",
+                      },
+                      {
+                        icon: Users,
+                        bubbleClass: "bg-rgba-primary",
+                        valueKey: "totalClients",
+                        label: "Total clients",
+                        color: "#7367f0",
+                      },
+                      {
+                        icon: CheckCircle,
+                        bubbleClass: "bg-rgba-danger",
+                        valueKey: "contratsClotures",
+                        label: "Contrats cloturés",
+                        color: "#ea5455",
+                      },
+                    ];
+                    const obj = weeklyStats;
+                    return common.map(
+                      ({ icon, bubbleClass, valueKey, label, color }) => ({
+                        icon,
+                        bubbleClass,
+                        color,
+                        value:
+                          UL(obj[valueKey]) +
+                          (label !== "Clients signés" &&
+                          label !== "Prospects" &&
+                          label !== "Total clients" &&
+                          label !== "Contrats cloturés"
+                            ? " €"
+                            : ""),
+                        label,
+                      })
+                    );
+                  })()}
+                />
+              )}
             </TabPane>
             <TabPane tabId="1">
-              {loading ? <div className="w-100 text-center py-3">Chargement…</div> : <StatGrid stats={tabStats.month} />}
+              {loading ? (
+                <div className="w-100 text-center py-3">Chargement…</div>
+              ) : (
+                <StatGrid stats={tabStats.month} />
+              )}
             </TabPane>
             <TabPane tabId="2">
-              {loading ? <div className="w-100 text-center py-3">Chargement…</div> : <StatGrid stats={tabStats.trim} />}
+              {loading ? (
+                <div className="w-100 text-center py-3">Chargement…</div>
+              ) : (
+                <StatGrid stats={tabStats.trim} />
+              )}
             </TabPane>
             <TabPane tabId="3">
-              {loading ? <div className="w-100 text-center py-3">Chargement…</div> : <StatGrid stats={tabStats.year} />}
+              {loading ? (
+                <div className="w-100 text-center py-3">Chargement…</div>
+              ) : (
+                <StatGrid stats={tabStats.year} />
+              )}
             </TabPane>
           </TabContent>
         </CardBody>

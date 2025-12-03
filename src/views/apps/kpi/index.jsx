@@ -39,7 +39,7 @@ import {
   PhoneOutgoing,
   PhoneCall,
   UserPlus,
-  ArrowRight
+  ArrowRight,
 } from "react-feather"; // icônes
 
 /** =============================
@@ -390,30 +390,6 @@ const parseServices = (servicesRaw) => {
     .filter(Boolean);
 };
 
-function getProduitLabel(suiviRow, profileKey) {
-  // 1) Si le contrat a un libellé métier, on l'affiche tel quel
-  const raw =
-    suiviRow?.subscribe_services ||
-    suiviRow?.type ||
-    suiviRow?.document_type ||
-    "";
-
-  if (raw && String(raw).trim() !== "") {
-    return raw; // ex: "CH SIMU ACTU RAC", "AR / TFD", etc.
-  }
-
-  // 2) Sinon, on mappe le code vers un label propre
-  switch (profileKey) {
-    case "credit_impot":
-      return "Crédit d’impôt";
-    case "ar_tfd":
-      return "Audit retraite / TFD";
-    case "ch_simu_actu_rac":
-      return "CH - Simulation / Actualisation / Rachat";
-    default:
-      return "Non défini";
-  }
-}
 const getContractTypeLabel = (source) => {
   if (!source) return "Pas de prestation";
 
@@ -438,10 +414,10 @@ const getContractTypeLabel = (source) => {
 };
 
 const PRODUCT_BADGE_COLORS = {
-  credit_impot: "success",   // vert
-  ar_tfd: "warning",         // jaune
+  credit_impot: "success", // vert
+  ar_tfd: "warning", // jaune
   ch_simu_actu_rac: "primary", // bleu
-  none: "secondary",         // gris
+  none: "secondary", // gris
 };
 
 // Rendu "Produit" dans la table Suivi des contrats (badge)
@@ -547,7 +523,6 @@ function getClientDisplayNameFromSuivi(suiviRow, clientsMap) {
   return `Client #${clientId}`;
 }
 
-
 // Récupère la "clé produit" à partir du suivi (document)
 // Récupère la "clé produit" (credit_impot / ar_tfd / ch_simu_actu_rac / none)
 function getStepProfileKeyFromSuivi(suiviRow) {
@@ -612,7 +587,7 @@ const todoBadgeWrapper = {
   alignItems: "center",
   gap: 6,
   padding: "3px 9px",
-  borderRadius: 10,          // pill
+  borderRadius: 10, // pill
   backgroundColor: "#f1f1f1ff", // gris très léger
   maxWidth: 260,
 };
@@ -641,10 +616,7 @@ const todoSubText = {
 function renderTodoCell(next) {
   if (!next) {
     return (
-      <span
-        className="text-success"
-        style={{ fontSize: 14, fontWeight: 600 }}
-      >
+      <span className="text-success" style={{ fontSize: 14, fontWeight: 600 }}>
         Dossier terminé
       </span>
     );
@@ -665,7 +637,6 @@ function renderTodoCell(next) {
   );
 }
 
-
 /** =============================
  *  UI bits
  *  =============================*/
@@ -673,23 +644,25 @@ function renderTodoCell(next) {
 export default function KpiPage() {
   // Création KPI
   const history = useHistory();
-  const [winW, setWinW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+  const [winW, setWinW] = useState(
+    typeof window !== "undefined" ? window.innerWidth : 1200
+  );
   useEffect(() => {
     const onResize = () => setWinW(window.innerWidth);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, []);
   const [objet, setObjet] = useState("Appel entrant");
   const [showProcessing, setShowProcessing] = useState(false); // Dossiers en cours de traitement
-  const [showCompleted, setShowCompleted] = useState(false);   // Contrats terminés
-  const [showAfter5Days, setShowAfter5Days] = useState(true);
+  const [showCompleted, setShowCompleted] = useState(false); // Contrats terminés
+
   const [action, setAction] = useState("");
   const [creating, setCreating] = useState(false);
   const adminId = localStorage.getItem("userid");
   const [error, setError] = useState("");
   const [kpiDate, setKpiDate] = useState(todayStr());
   const [sortField, setSortField] = useState("client"); // client | todo | last | type
-  const [sortDir, setSortDir] = useState("asc");        // asc | desc
+  const [sortDir, setSortDir] = useState("asc"); // asc | desc
   // >>> Nouveaux champs contact (optionnels)
   const [nomPrenom, setNomPrenom] = useState("");
   const [email, setEmail] = useState("");
@@ -767,9 +740,7 @@ export default function KpiPage() {
       return <span style={{ opacity: 0.3, marginLeft: 4 }}>↕</span>;
     }
     return (
-      <span style={{ marginLeft: 4 }}>
-        {sortDir === "asc" ? "↑" : "↓"}
-      </span>
+      <span style={{ marginLeft: 4 }}>{sortDir === "asc" ? "↑" : "↓"}</span>
     );
   };
 
@@ -780,14 +751,17 @@ export default function KpiPage() {
   };
 
   // ---- styles filtres jolis ----
+  // ---- styles filtres jolis ----
   const filterWrapperStyle = {
-    display: "inline-flex",
+    display: "flex",
+    flexWrap: "wrap",
     alignItems: "center",
     gap: 12,
     padding: "6px 10px",
     borderRadius: 10,
     backgroundColor: "#f8f9fa",
     border: "1px solid #e9ecef",
+    justifyContent: "flex-end", // Align right on desktop
   };
 
   const filterTitleStyle = {
@@ -796,6 +770,7 @@ export default function KpiPage() {
     letterSpacing: "0.04em",
     color: "#6c757d",
     fontWeight: 600,
+    marginRight: "auto", // Push title to left if wrapped
   };
 
   const filterPillBase = {
@@ -808,6 +783,8 @@ export default function KpiPage() {
     display: "inline-flex",
     alignItems: "center",
     cursor: "pointer",
+    whiteSpace: "nowrap",
+    flexShrink: 0,
   };
 
   const filterPillActive = {
@@ -816,7 +793,6 @@ export default function KpiPage() {
     color: "#0d6efd",
     fontWeight: 600,
   };
-
 
   // Libellé clair
   const weekLabel = useMemo(
@@ -863,7 +839,6 @@ export default function KpiPage() {
     fetchSuivis();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
 
   async function fetchKpis(p = 1) {
     try {
@@ -986,7 +961,6 @@ export default function KpiPage() {
     }
   }
 
-
   async function fetchMembers() {
     try {
       setLoadingUsers(true);
@@ -1021,7 +995,7 @@ export default function KpiPage() {
     }
   }
 
-   async function fetchAdminEmailFromApi() {
+  async function fetchAdminEmailFromApi() {
     try {
       if (!adminId) return;
 
@@ -1038,7 +1012,6 @@ export default function KpiPage() {
       console.error("fetchAdminEmailFromApi error:", e);
     }
   }
-
 
   // ✅ createKpi modifié
   async function createKpi() {
@@ -1241,264 +1214,391 @@ export default function KpiPage() {
       .map(([period, counts]) => ({ period, ...counts }))
       .sort((a, b) => (a.period > b.period ? 1 : -1));
   }, [allItems, groupBy, year, week]);
-    const sortedSuivis = useMemo(() => {
-      if (!Array.isArray(suivis)) return [];
+  const sortedSuivis = useMemo(() => {
+    if (!Array.isArray(suivis)) return [];
 
-      const data = [...suivis];
+    const data = [...suivis];
 
-      const getSortKey = (s) => {
-        switch (sortField) {
-          case "client": {
-            const label = getClientDisplayNameFromSuivi(s, clientsById);
-            return (label || "").toLowerCase();
-          }
-          case "todo": {
-            const { steps } = buildStepsForSuivi(s);
-            const { next } = getLastAndNextSteps(steps);
-            if (!next) return "zzz"; // dossiers terminés à la fin
-            return (next.label || "").toLowerCase();
-          }
-          case "last": {
-            const { steps } = buildStepsForSuivi(s);
-            const { last } = getLastAndNextSteps(steps);
-            // on trie d'abord par date si dispo
-            if (last && last.date) return last.date;
-            if (last && last.label) return last.label.toLowerCase();
-            return "";
-          }
-          case "type": {
-            const label = getContractTypeLabel(s);
-            return (label || "").toLowerCase();
-          }
-          default:
-            return "";
+    const getSortKey = (s) => {
+      switch (sortField) {
+        case "client": {
+          const label = getClientDisplayNameFromSuivi(s, clientsById);
+          return (label || "").toLowerCase();
         }
-      };
-
-      data.sort((a, b) => {
-        const ka = getSortKey(a);
-        const kb = getSortKey(b);
-
-        if (ka < kb) return sortDir === "asc" ? -1 : 1;
-        if (ka > kb) return sortDir === "asc" ? 1 : -1;
-        return 0;
-      });
-
-      return data;
-    }, [suivis, clientsById, sortField, sortDir]);
-    const groupedSuivis = useMemo(() => {
-      const res = {
-        active: [],      // par défaut
-        after5days: [],  // 5 jours atteints / dépassés
-        processing: [],  // Paiement du contrat -> Avancement du dossier
-        completed: [],   // Contrats terminés
-      };
-
-  if (!Array.isArray(sortedSuivis)) return res;
-
-  // "Aujourd'hui" tronqué à minuit pour comparer les dates proprement
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  sortedSuivis.forEach((s) => {
-    const { profileKey, steps } = buildStepsForSuivi(s);
-    const { last, next } = getLastAndNextSteps(steps);
-
-    const contract = s.contract || s;
-    const isContractFinished =
-      contract && contract.document_state === "Terminé";
-
-    const isProcessing =
-      last &&
-      last.label === "Paiement du contrat" &&
-      next &&
-      next.label === "Avancement du dossier";
-
-    // 🔶 Crédit d'impôt : "5 jours ouvrés d'attente" atteints / dépassés
-    let isAfter5Days = false;
-
-    if (!isContractFinished && profileKey === "credit_impot") {
-      const step3 = steps.find((st) => st.index === 3); // "5 jours ouvrés d'attente"
-      const step4 = steps.find((st) => st.index === 4); // "Création devis"
-
-      if (step3 && step3.date && (!step4 || !step4.completed)) {
-        const raw = String(step3.date);
-        let datePart = raw;
-
-        if (raw.includes("T")) {
-          datePart = raw.split("T")[0];
-        } else if (raw.includes(" ")) {
-          datePart = raw.split(" ")[0];
+        case "todo": {
+          const { steps } = buildStepsForSuivi(s);
+          const { next } = getLastAndNextSteps(steps);
+          if (!next) return "zzz"; // dossiers terminés à la fin
+          return (next.label || "").toLowerCase();
         }
+        case "last": {
+          const { steps } = buildStepsForSuivi(s);
+          const { last } = getLastAndNextSteps(steps);
+          // on trie d'abord par date si dispo
+          if (last && last.date) return last.date;
+          if (last && last.label) return last.label.toLowerCase();
+          return "";
+        }
+        case "type": {
+          const label = getContractTypeLabel(s);
+          return (label || "").toLowerCase();
+        }
+        default:
+          return "";
+      }
+    };
 
-        const [y, m, d] = datePart.split("-");
-        if (y && m && d) {
-          const d3 = new Date(Number(y), Number(m) - 1, Number(d));
-          const d3Only = new Date(
-            d3.getFullYear(),
-            d3.getMonth(),
-            d3.getDate()
-          );
+    data.sort((a, b) => {
+      const ka = getSortKey(a);
+      const kb = getSortKey(b);
 
-          // 👉 la date de l'étape 3 est arrivée ou passée
-          if (d3Only.getTime() <= today.getTime()) {
-            isAfter5Days = true;
+      if (ka < kb) return sortDir === "asc" ? -1 : 1;
+      if (ka > kb) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return data;
+  }, [suivis, clientsById, sortField, sortDir]);
+  const groupedSuivis = useMemo(() => {
+    const res = {
+      active: [], // par défaut
+      after5days: [], // 5 jours atteints / dépassés
+      processing: [], // Paiement du contrat -> Avancement du dossier
+      completed: [], // Contrats terminés
+    };
+
+    if (!Array.isArray(sortedSuivis)) return res;
+
+    // "Aujourd'hui" tronqué à minuit pour comparer les dates proprement
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    sortedSuivis.forEach((s) => {
+      const { profileKey, steps } = buildStepsForSuivi(s);
+      const { last, next } = getLastAndNextSteps(steps);
+
+      const contract = s.contract || s;
+      const isContractFinished =
+        contract && contract.document_state === "Terminé";
+
+      const isProcessing =
+        last &&
+        last.label === "Paiement du contrat" &&
+        next &&
+        next.label === "Avancement du dossier";
+
+      // 🔶 Crédit d'impôt : "5 jours ouvrés d'attente" atteints / dépassés
+      let isAfter5Days = false;
+
+      if (!isContractFinished && profileKey === "credit_impot") {
+        const step3 = steps.find((st) => st.index === 3); // "5 jours ouvrés d'attente"
+        const step4 = steps.find((st) => st.index === 4); // "Création devis"
+
+        if (step3 && step3.date && (!step4 || !step4.completed)) {
+          const raw = String(step3.date);
+          let datePart = raw;
+
+          if (raw.includes("T")) {
+            datePart = raw.split("T")[0];
+          } else if (raw.includes(" ")) {
+            datePart = raw.split(" ")[0];
+          }
+
+          const [y, m, d] = datePart.split("-");
+          if (y && m && d) {
+            const d3 = new Date(Number(y), Number(m) - 1, Number(d));
+            const d3Only = new Date(
+              d3.getFullYear(),
+              d3.getMonth(),
+              d3.getDate()
+            );
+
+            // 👉 la date de l'étape 3 est arrivée ou passée
+            if (d3Only.getTime() <= today.getTime()) {
+              isAfter5Days = true;
+            }
           }
         }
       }
-    }
 
-    const bucket = isContractFinished
-      ? "completed"
-      : isAfter5Days
-      ? "after5days"
-      : isProcessing
-      ? "processing"
-      : "active";
+      const bucket = isContractFinished
+        ? "completed"
+        : isAfter5Days
+        ? "after5days"
+        : isProcessing
+        ? "processing"
+        : "active";
 
-    res[bucket].push({ s, steps, last, next });
-  });
+      res[bucket].push({ s, steps, last, next });
+    });
 
-  return res;
-}, [sortedSuivis]);
+    return res;
+  }, [sortedSuivis]);
 
   return (
     <div className="vx-row">
-            {/* ====== Suivis d'avancement ====== */}
+      {/* ====== Suivis d'avancement ====== */}
       <div className="vx-col w-100">
         <Card>
           <CardHeader className="d-flex align-items-center justify-content-between">
             <h4 className="mb-0">Suivi des contrats</h4>
           </CardHeader>
-            <CardBody>
-              {suivisError && (
-                <div
+          <CardBody>
+            {suivisError && (
+              <div
+                style={{
+                  background: "#ffe9e9",
+                  border: "1px solid #ffb3b3",
+                  color: "#b10000",
+                  padding: 10,
+                  borderRadius: 6,
+                  marginBottom: 14,
+                }}
+              >
+                {suivisError}
+              </div>
+            )}
+
+            {/* Filtres d'affichage (propre, aligné) */}
+            <div className="d-flex justify-content-start justify-content-md-end mb-2">
+              <div style={filterWrapperStyle}>
+                <span style={filterTitleStyle}>Afficher</span>
+
+                {/* Dossiers en cours */}
+                <button
+                  type="button"
+                  onClick={() => setShowProcessing((v) => !v)}
                   style={{
-                    background: "#ffe9e9",
-                    border: "1px solid #ffb3b3",
-                    color: "#b10000",
-                    padding: 10,
-                    borderRadius: 6,
-                    marginBottom: 14,
+                    ...filterPillBase,
+                    ...(showProcessing ? filterPillActive : {}),
                   }}
                 >
-                  {suivisError}
-                </div>
-              )}
-
-              {/* Filtres d'affichage (propre, aligné) */}
-              <div className="d-flex justify-content-end mb-2">
-                <div style={filterWrapperStyle}>
-                  <span style={filterTitleStyle}>Afficher</span>
-
-                  {/* Dossiers en cours */}
-                  <button
-                    type="button"
-                    onClick={() => setShowProcessing((v) => !v)}
+                  <span
                     style={{
-                      ...filterPillBase,
-                      ...(showProcessing ? filterPillActive : {}),
+                      width: 18,
+                      height: 18,
+                      borderRadius: "50%",
+                      marginRight: 6,
+                      backgroundColor: showProcessing
+                        ? "#198754"
+                        : "transparent",
+                      border: `1px solid ${
+                        showProcessing ? "#198754" : "#ced4da"
+                      }`,
                     }}
-                  >
-                    <span
-                      style={{
-                        width: 18,
-                        height: 18,
-                        borderRadius: "50%",
-                        marginRight: 6,
-                        backgroundColor: showProcessing ? "#198754" : "transparent",
-                        border: `1px solid ${
-                          showProcessing ? "#198754" : "#ced4da"
-                        }`,
-                      }}
-                    />
-                    Dossiers en cours
-                  </button>
+                  />
+                  Dossiers en cours
+                </button>
 
-                  {/* Contrats terminés */}
-                  <button
-                    type="button"
-                    onClick={() => setShowCompleted((v) => !v)}
+                {/* Contrats terminés */}
+                <button
+                  type="button"
+                  onClick={() => setShowCompleted((v) => !v)}
+                  style={{
+                    ...filterPillBase,
+                    ...(showCompleted ? filterPillActive : {}),
+                  }}
+                >
+                  <span
                     style={{
-                      ...filterPillBase,
-                      ...(showCompleted ? filterPillActive : {}),
+                      width: 18,
+                      height: 18,
+                      borderRadius: "50%",
+                      marginRight: 6,
+                      backgroundColor: showCompleted
+                        ? "#6c757d"
+                        : "transparent",
+                      border: `1px solid ${
+                        showCompleted ? "#6c757d" : "#ced4da"
+                      }`,
                     }}
-                  >
-                    <span
-                      style={{
-                        width: 18,
-                        height: 18,
-                        borderRadius: "50%",
-                        marginRight: 6,
-                        backgroundColor: showCompleted ? "#6c757d" : "transparent",
-                        border: `1px solid ${
-                          showCompleted ? "#6c757d" : "#ced4da"
-                        }`,
-                      }}
-                    />
-                    Contrats terminés
-                  </button>
-                </div>
+                  />
+                  Contrats terminés
+                </button>
               </div>
+            </div>
             <Table responsive hover>
-            <thead>
-              <tr>
-                <th
-                  style={headerClickableStyle}
-                  onClick={() => handleSort("client")}
-                >
-                  Client
-                  {renderSortIcon("client")}
-                </th>
-                <th
-                  style={headerClickableStyle}
-                  onClick={() => handleSort("todo")}
-                >
-                  À faire
-                  {renderSortIcon("todo")}
-                </th>
-                <th
-                  style={headerClickableStyle}
-                  onClick={() => handleSort("last")}
-                >
-                  Dernière étape validée
-                  {renderSortIcon("last")}
-                </th>
-                <th
-                  style={headerClickableStyle}
-                  onClick={() => handleSort("type")}
-                >
-                  Type de contrat
-                  {renderSortIcon("type")}
-                </th>
-                <th>Voir le contrat</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loadingSuivis ? (
+              <thead>
                 <tr>
-                  <td colSpan="5">Chargement des suivis…</td>
+                  <th
+                    style={headerClickableStyle}
+                    onClick={() => handleSort("client")}
+                  >
+                    Client
+                    {renderSortIcon("client")}
+                  </th>
+                  <th
+                    style={headerClickableStyle}
+                    onClick={() => handleSort("todo")}
+                  >
+                    À faire
+                    {renderSortIcon("todo")}
+                  </th>
+                  <th
+                    style={headerClickableStyle}
+                    onClick={() => handleSort("last")}
+                  >
+                    Dernière étape validée
+                    {renderSortIcon("last")}
+                  </th>
+                  <th
+                    style={headerClickableStyle}
+                    onClick={() => handleSort("type")}
+                  >
+                    Type de contrat
+                    {renderSortIcon("type")}
+                  </th>
+                  <th>Voir le contrat</th>
                 </tr>
-              ) : (
-                <>
-                {/* 0) 5 jours ouvrés atteints / dépassés (toujours en haut si présents) */}
-                {groupedSuivis.after5days.length > 0 && (
+              </thead>
+              <tbody>
+                {loadingSuivis ? (
+                  <tr>
+                    <td colSpan="5">Chargement des suivis…</td>
+                  </tr>
+                ) : (
                   <>
-                    <tr className="table-warning">
-                      <td colSpan="5" style={{ fontSize: 14, fontWeight: 600 }}>
-                        5 jours ouvrés atteints / dépassés (à traiter en priorité)
-                      </td>
-                    </tr>
+                    {/* 0) 5 jours ouvrés atteints / dépassés (toujours en haut si présents) */}
+                    {groupedSuivis.after5days.length > 0 && (
+                      <>
+                        <tr className="table-warning">
+                          <td
+                            colSpan="5"
+                            style={{ fontSize: 14, fontWeight: 600 }}
+                          >
+                            5 jours ouvrés atteints / dépassés (à traiter en
+                            priorité)
+                          </td>
+                        </tr>
 
-                    {groupedSuivis.after5days.map(({ s, steps, last, next }) => {
-                      const clientLabel = getClientDisplayNameFromSuivi(s, clientsById);
+                        {groupedSuivis.after5days.map(
+                          ({ s, steps, last, next }) => {
+                            const clientLabel = getClientDisplayNameFromSuivi(
+                              s,
+                              clientsById
+                            );
+                            const contractId =
+                              s.facture_id || s.document_id || s.contract_id;
+                            const clientId = s.client_id;
+
+                            return (
+                              <tr
+                                key={`after5-${s.suivi_id || s.id || ""}-${
+                                  s.document_id || s.facture_id || ""
+                                }`}
+                                onClick={() => {
+                                  if (clientId) {
+                                    history.push(
+                                      `/app/user/edit/${clientId}/2`
+                                    );
+                                  }
+                                }}
+                                style={{ cursor: "pointer" }}
+                              >
+                                {/* Client */}
+                                <td>{clientLabel}</td>
+
+                                {/* À faire */}
+                                <td>{renderTodoCell(next)}</td>
+
+                                {/* Dernière étape validée */}
+                                <td>
+                                  {last ? (
+                                    <div style={{ fontSize: 14 }}>
+                                      <div>
+                                        <strong>{last.label}</strong>
+                                      </div>
+                                      {last.date && (
+                                        <div className="text-muted">
+                                          {formatDate(last.date)}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span
+                                      className="text-muted"
+                                      style={{ fontSize: 14 }}
+                                    >
+                                      Aucune étape validée
+                                    </span>
+                                  )}
+                                </td>
+
+                                {/* Type de contrat */}
+                                <td
+                                  style={{ whiteSpace: "nowrap", width: 160 }}
+                                >
+                                  {renderProductBadgeFromSuivi(s)}
+                                </td>
+
+                                {/* Contrat (flèche) */}
+                                <td style={{ width: 60, textAlign: "center" }}>
+                                  {contractId ? (
+                                    <Button
+                                      color="link"
+                                      className="p-0"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        history.push(
+                                          `/pages/contract/${contractId}`
+                                        );
+                                      }}
+                                      title="Voir le contrat"
+                                    >
+                                      <ArrowRight size={18} />
+                                    </Button>
+                                  ) : (
+                                    <span
+                                      className="text-muted"
+                                      style={{ fontSize: 14 }}
+                                    >
+                                      -
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          }
+                        )}
+                      </>
+                    )}
+                    {groupedSuivis.after5days.length > 0 &&
+                      groupedSuivis.active.length > 0 && (
+                        <tr>
+                          <td
+                            colSpan="5"
+                            style={{
+                              padding: "6px 10px",
+                              borderTop: "2px solid #dee2e6",
+                              borderBottom: "1px solid #dee2e6",
+                              background: "#f8f9fa",
+                              fontSize: 13,
+                              fontWeight: 600,
+                              color: "#6c757d",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.04em",
+                            }}
+                          >
+                            Autres dossiers
+                          </td>
+                        </tr>
+                      )}
+
+                    {/* 1) Dossiers actifs (par défaut) */}
+                    {groupedSuivis.active.map(({ s, steps, last, next }) => {
+                      const clientLabel = getClientDisplayNameFromSuivi(
+                        s,
+                        clientsById
+                      );
                       const contractId =
                         s.facture_id || s.document_id || s.contract_id;
                       const clientId = s.client_id;
 
                       return (
                         <tr
-                          key={`after5-${s.suivi_id || s.id || ""}-${s.document_id || s.facture_id || ""}`}
+                          key={`${s.suivi_id || s.id || ""}-${
+                            s.document_id || s.facture_id || ""
+                          }`}
                           onClick={() => {
                             if (clientId) {
                               history.push(`/app/user/edit/${clientId}/2`);
@@ -1511,7 +1611,6 @@ export default function KpiPage() {
 
                           {/* À faire */}
                           <td>{renderTodoCell(next)}</td>
-
                           {/* Dernière étape validée */}
                           <td>
                             {last ? (
@@ -1526,7 +1625,10 @@ export default function KpiPage() {
                                 )}
                               </div>
                             ) : (
-                              <span className="text-muted" style={{ fontSize: 14 }}>
+                              <span
+                                className="text-muted"
+                                style={{ fontSize: 14 }}
+                              >
                                 Aucune étape validée
                               </span>
                             )}
@@ -1552,7 +1654,10 @@ export default function KpiPage() {
                                 <ArrowRight size={18} />
                               </Button>
                             ) : (
-                              <span className="text-muted" style={{ fontSize: 14 }}>
+                              <span
+                                className="text-muted"
+                                style={{ fontSize: 14 }}
+                              >
                                 -
                               </span>
                             )}
@@ -1560,268 +1665,224 @@ export default function KpiPage() {
                         </tr>
                       );
                     })}
+
+                    {/* 2) Dossiers en cours de traitement (tiroir) */}
+                    {showProcessing && groupedSuivis.processing.length > 0 && (
+                      <>
+                        <tr className="table-secondary">
+                          <td
+                            colSpan="5"
+                            style={{ fontSize: 14, fontWeight: 600 }}
+                          >
+                            Dossiers en cours de traitement
+                          </td>
+                        </tr>
+
+                        {groupedSuivis.processing.map(
+                          ({ s, steps, last, next }) => {
+                            const clientLabel = getClientDisplayNameFromSuivi(
+                              s,
+                              clientsById
+                            );
+                            const contractId =
+                              s.facture_id || s.document_id || s.contract_id;
+                            const clientId = s.client_id;
+
+                            return (
+                              <tr
+                                key={`processing-${s.suivi_id || s.id || ""}-${
+                                  s.document_id || s.facture_id || ""
+                                }`}
+                                onClick={() => {
+                                  if (clientId) {
+                                    history.push(
+                                      `/app/user/edit/${clientId}/2`
+                                    );
+                                  }
+                                }}
+                                style={{ cursor: "pointer" }}
+                              >
+                                <td>{clientLabel}</td>
+                                <td>{renderTodoCell(next)}</td>
+                                <td>
+                                  {last ? (
+                                    <div style={{ fontSize: 14 }}>
+                                      <div>
+                                        <strong>{last.label}</strong>
+                                      </div>
+                                      {last.date && (
+                                        <div className="text-muted">
+                                          {formatDate(last.date)}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span
+                                      className="text-muted"
+                                      style={{ fontSize: 14 }}
+                                    >
+                                      Aucune étape validée
+                                    </span>
+                                  )}
+                                </td>
+
+                                <td
+                                  style={{ whiteSpace: "nowrap", width: 160 }}
+                                >
+                                  {renderProductBadgeFromSuivi(s)}
+                                </td>
+
+                                <td style={{ width: 60, textAlign: "center" }}>
+                                  {contractId ? (
+                                    <Button
+                                      color="link"
+                                      className="p-0"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        history.push(
+                                          `/pages/contract/${contractId}`
+                                        );
+                                      }}
+                                      title="Voir le contrat"
+                                    >
+                                      <ArrowRight size={18} />
+                                    </Button>
+                                  ) : (
+                                    <span
+                                      className="text-muted"
+                                      style={{ fontSize: 14 }}
+                                    >
+                                      -
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          }
+                        )}
+                      </>
+                    )}
+
+                    {/* 3) Contrats terminés (tiroir) */}
+                    {showCompleted && groupedSuivis.completed.length > 0 && (
+                      <>
+                        <tr className="table-secondary">
+                          <td
+                            colSpan="5"
+                            style={{ fontSize: 14, fontWeight: 600 }}
+                          >
+                            Contrats terminés
+                          </td>
+                        </tr>
+
+                        {groupedSuivis.completed.map(
+                          ({ s, steps, last, next }) => {
+                            const clientLabel = getClientDisplayNameFromSuivi(
+                              s,
+                              clientsById
+                            );
+                            const contractId =
+                              s.facture_id || s.document_id || s.contract_id;
+                            const clientId = s.client_id;
+
+                            return (
+                              <tr
+                                key={`completed-${s.suivi_id || s.id || ""}-${
+                                  s.document_id || s.facture_id || ""
+                                }`}
+                                onClick={() => {
+                                  if (clientId) {
+                                    history.push(
+                                      `/app/user/edit/${clientId}/2`
+                                    );
+                                  }
+                                }}
+                                style={{ cursor: "pointer" }}
+                              >
+                                <td>{clientLabel}</td>
+
+                                <td>
+                                  <span
+                                    className="text-success"
+                                    style={{ fontSize: 14, fontWeight: 600 }}
+                                  >
+                                    Dossier terminé
+                                  </span>
+                                </td>
+
+                                <td>
+                                  {last ? (
+                                    <div style={{ fontSize: 14 }}>
+                                      <div>
+                                        <strong>{last.label}</strong>
+                                      </div>
+                                      {last.date && (
+                                        <div className="text-muted">
+                                          {formatDate(last.date)}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span
+                                      className="text-muted"
+                                      style={{ fontSize: 14 }}
+                                    >
+                                      Aucune étape validée
+                                    </span>
+                                  )}
+                                </td>
+
+                                <td
+                                  style={{ whiteSpace: "nowrap", width: 160 }}
+                                >
+                                  {renderProductBadgeFromSuivi(s)}
+                                </td>
+
+                                <td style={{ width: 60, textAlign: "center" }}>
+                                  {contractId ? (
+                                    <Button
+                                      color="link"
+                                      className="p-0"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        history.push(
+                                          `/pages/contract/${contractId}`
+                                        );
+                                      }}
+                                      title="Voir le contrat"
+                                    >
+                                      <ArrowRight size={18} />
+                                    </Button>
+                                  ) : (
+                                    <span
+                                      className="text-muted"
+                                      style={{ fontSize: 14 }}
+                                    >
+                                      -
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          }
+                        )}
+                      </>
+                    )}
+
+                    {/* Si rien n’est visible du tout */}
+                    {groupedSuivis.active.length === 0 &&
+                      groupedSuivis.after5days.length === 0 &&
+                      (!showProcessing ||
+                        groupedSuivis.processing.length === 0) &&
+                      (!showCompleted ||
+                        groupedSuivis.completed.length === 0) && (
+                        <tr>
+                          <td colSpan="5">Aucun suivi trouvé.</td>
+                        </tr>
+                      )}
                   </>
                 )}
-                {groupedSuivis.after5days.length > 0 &&
-                  groupedSuivis.active.length > 0 && (
-                    <tr>
-                      <td
-                        colSpan="5"
-                        style={{
-                          padding: "6px 10px",
-                          borderTop: "2px solid #dee2e6",
-                          borderBottom: "1px solid #dee2e6",
-                          background: "#f8f9fa",
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: "#6c757d",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.04em",
-                        }}
-                      >
-                        Autres dossiers
-                      </td>
-                    </tr>
-                  )}
-
-                  {/* 1) Dossiers actifs (par défaut) */}
-                  {groupedSuivis.active.map(({ s, steps, last, next }) => {
-                    const clientLabel = getClientDisplayNameFromSuivi(s, clientsById);
-                    const contractId = s.facture_id || s.document_id || s.contract_id;
-                    const clientId = s.client_id;
-
-                    return (
-                      <tr
-                        key={`${s.suivi_id || s.id || ""}-${s.document_id || s.facture_id || ""}`}
-                        onClick={() => {
-                          if (clientId) {
-                            history.push(`/app/user/edit/${clientId}/2`);
-                          }
-                        }}
-                        style={{ cursor: "pointer" }}
-                      >
-                        {/* Client */}
-                        <td>{clientLabel}</td>
-
-                        {/* À faire */}
-                        <td>{renderTodoCell(next)}</td>
-                        {/* Dernière étape validée */}
-                        <td>
-                          {last ? (
-                            <div style={{ fontSize: 14 }}>
-                              <div>
-                                <strong>{last.label}</strong>
-                              </div>
-                              {last.date && (
-                                <div className="text-muted">{formatDate(last.date)}</div>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-muted" style={{ fontSize: 14 }}>
-                              Aucune étape validée
-                            </span>
-                          )}
-                        </td>
-
-                        {/* Type de contrat */}
-                        <td style={{ whiteSpace: "nowrap", width: 160 }}>
-                          {renderProductBadgeFromSuivi(s)}
-                        </td>
-
-                        {/* Contrat (flèche) */}
-                        <td style={{ width: 60, textAlign: "center" }}>
-                          {contractId ? (
-                            <Button
-                              color="link"
-                              className="p-0"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                history.push(`/pages/contract/${contractId}`);
-                              }}
-                              title="Voir le contrat"
-                            >
-                              <ArrowRight size={18} />
-                            </Button>
-                          ) : (
-                            <span className="text-muted" style={{ fontSize: 14 }}>
-                              -
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-
-                  {/* 2) Dossiers en cours de traitement (tiroir) */}
-                  {showProcessing && groupedSuivis.processing.length > 0 && (
-                    <>
-                      <tr className="table-secondary">
-                        <td colSpan="5" style={{ fontSize: 14, fontWeight: 600 }}>
-                          Dossiers en cours de traitement
-                        </td>
-                      </tr>
-
-                      {groupedSuivis.processing.map(({ s, steps, last, next }) => {
-                        const clientLabel = getClientDisplayNameFromSuivi(s, clientsById);
-                        const contractId = s.facture_id || s.document_id || s.contract_id;
-                        const clientId = s.client_id;
-
-                        return (
-                          <tr
-                            key={`processing-${s.suivi_id || s.id || ""}-${s.document_id || s.facture_id || ""}`}
-                            onClick={() => {
-                              if (clientId) {
-                                history.push(`/app/user/edit/${clientId}/2`);
-                              }
-                            }}
-                            style={{ cursor: "pointer" }}
-                          >
-                            <td>{clientLabel}</td>
-                          <td>{renderTodoCell(next)}</td>
-                            <td>
-                              {last ? (
-                                <div style={{ fontSize: 14 }}>
-                                  <div>
-                                    <strong>{last.label}</strong>
-                                  </div>
-                                  {last.date && (
-                                    <div className="text-muted">
-                                      {formatDate(last.date)}
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-muted" style={{ fontSize: 14 }}>
-                                  Aucune étape validée
-                                </span>
-                              )}
-                            </td>
-
-                            <td style={{ whiteSpace: "nowrap", width: 160 }}>
-                              {renderProductBadgeFromSuivi(s)}
-                            </td>
-
-                            <td style={{ width: 60, textAlign: "center" }}>
-                              {contractId ? (
-                                <Button
-                                  color="link"
-                                  className="p-0"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    history.push(`/pages/contract/${contractId}`);
-                                  }}
-                                  title="Voir le contrat"
-                                >
-                                  <ArrowRight size={18} />
-                                </Button>
-                              ) : (
-                                <span className="text-muted" style={{ fontSize: 14 }}>
-                                  -
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </>
-                  )}
-
-                  {/* 3) Contrats terminés (tiroir) */}
-                  {showCompleted && groupedSuivis.completed.length > 0 && (
-                    <>
-                      <tr className="table-secondary">
-                        <td colSpan="5" style={{ fontSize: 14, fontWeight: 600 }}>
-                          Contrats terminés
-                        </td>
-                      </tr>
-
-                      {groupedSuivis.completed.map(({ s, steps, last, next }) => {
-                        const clientLabel = getClientDisplayNameFromSuivi(s, clientsById);
-                        const contractId = s.facture_id || s.document_id || s.contract_id;
-                        const clientId = s.client_id;
-
-                        return (
-                          <tr
-                            key={`completed-${s.suivi_id || s.id || ""}-${s.document_id || s.facture_id || ""}`}
-                            onClick={() => {
-                              if (clientId) {
-                                history.push(`/app/user/edit/${clientId}/2`);
-                              }
-                            }}
-                            style={{ cursor: "pointer" }}
-                          >
-                            <td>{clientLabel}</td>
-
-                            <td>
-                              <span
-                                className="text-success"
-                                style={{ fontSize: 14, fontWeight: 600 }}
-                              >
-                                Dossier terminé
-                              </span>
-                            </td>
-
-                            <td>
-                              {last ? (
-                                <div style={{ fontSize: 14 }}>
-                                  <div>
-                                    <strong>{last.label}</strong>
-                                  </div>
-                                  {last.date && (
-                                    <div className="text-muted">
-                                      {formatDate(last.date)}
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-muted" style={{ fontSize: 14 }}>
-                                  Aucune étape validée
-                                </span>
-                              )}
-                            </td>
-
-                            <td style={{ whiteSpace: "nowrap", width: 160 }}>
-                              {renderProductBadgeFromSuivi(s)}
-                            </td>
-
-                            <td style={{ width: 60, textAlign: "center" }}>
-                              {contractId ? (
-                                <Button
-                                  color="link"
-                                  className="p-0"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    history.push(`/pages/contract/${contractId}`);
-                                  }}
-                                  title="Voir le contrat"
-                                >
-                                  <ArrowRight size={18} />
-                                </Button>
-                              ) : (
-                                <span className="text-muted" style={{ fontSize: 14 }}>
-                                  -
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </>
-                  )}
-
-                  {/* Si rien n’est visible du tout */}
-                  {groupedSuivis.active.length === 0 &&
-                    groupedSuivis.after5days.length === 0 &&
-                    (!showProcessing || groupedSuivis.processing.length === 0) &&
-                    (!showCompleted || groupedSuivis.completed.length === 0) && (
-                      <tr>
-                        <td colSpan="5">Aucun suivi trouvé.</td>
-                      </tr>
-                  )}
-                </>
-              )}
-            </tbody>
-
+              </tbody>
             </Table>
           </CardBody>
         </Card>
@@ -1829,10 +1890,13 @@ export default function KpiPage() {
 
       <Row className="align-items-stretch">
         <Col xs="12" className="d-flex">
-          <Card className="flex-fill d-flex flex-column" style={{ padding: "10px 16px" }}>
-            <CardHeader className="d-flex align-items-center justify-content-between">
+          <Card
+            className="flex-fill d-flex flex-column"
+            style={{ padding: "10px 16px" }}
+          >
+            <CardHeader className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between">
               <h4 className="mb-0">Créer un KPI</h4>
-              <div>
+              <div className="mt-1 mt-md-0">
                 <Button
                   className="mr-1 mb-1"
                   color="primary"
@@ -1862,29 +1926,31 @@ export default function KpiPage() {
 
               {/* OBJET + Date */}
               <div
-                className="d-flex align-items-center flex-wrap"
+                className="d-flex align-items-center flex-wrap mb-2"
                 style={{ gap: 8 }}
               >
                 <div
-                  className="d-inline-flex align-items-center"
+                  className="d-flex align-items-center flex-wrap flex-fill"
                   style={{ gap: 8 }}
                 >
                   {OBJETS.map((o) => {
                     const Icon = OBJET_ICON[o] || PhoneCall;
                     const selected = objet === o;
-                    const isEmail = o === "Email";
                     return (
                       <Button
                         key={o}
                         color={selected ? "primary" : "light"}
-                        className="d-inline-flex align-items-center"
+                        className="d-inline-flex align-items-center justify-content-center flex-grow-1 flex-md-grow-0"
                         onClick={() => setObjet(o)}
                         title={o}
                         aria-label={o}
-                        style={{ gap: 6, padding: "8px 12px" }}
+                        style={{ gap: 6, padding: "10px 12px" }}
                       >
                         <Icon size={16} style={{ opacity: 0.9 }} />
-                        {!isEmail && <span>{o}</span>}
+                        <span className="d-none d-sm-inline">{o}</span>
+                        <span className="d-inline d-sm-none">
+                          {o === "Email" ? "Email" : o.split(" ")[1]}
+                        </span>
                       </Button>
                     );
                   })}
@@ -1895,7 +1961,8 @@ export default function KpiPage() {
                   onChange={(e) => setKpiDate(e.target.value)}
                   max={todayStr()}
                   aria-label="Date du KPI"
-                  style={{ width: 170, marginLeft: "auto" }}
+                  style={{ width: 170, height: "42px", marginLeft: "auto" }}
+                  className="flex-grow-1 flex-md-grow-0"
                 />
               </div>
 
@@ -1943,8 +2010,8 @@ export default function KpiPage() {
 
               {/* Champs contact */}
               <div className="mt-2">
-                <div className="d-flex" style={{ gap: 8, flexWrap: "wrap" }}>
-                  <div style={{ minWidth: 220, flex: 1 }}>
+                <Row>
+                  <Col lg="3" md="6" xs="12" className="mb-1">
                     <Label
                       className="mb-1"
                       style={{ fontWeight: 600, fontSize: 13 }}
@@ -1957,8 +2024,8 @@ export default function KpiPage() {
                       value={nomPrenom}
                       onChange={(e) => setNomPrenom(e.target.value)}
                     />
-                  </div>
-                  <div style={{ minWidth: 220, flex: 1 }}>
+                  </Col>
+                  <Col lg="3" md="6" xs="12" className="mb-1">
                     <Label
                       className="mb-1"
                       style={{ fontWeight: 600, fontSize: 13 }}
@@ -1971,8 +2038,8 @@ export default function KpiPage() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
-                  </div>
-                  <div style={{ minWidth: 180, flex: 1 }}>
+                  </Col>
+                  <Col lg="3" md="6" xs="12" className="mb-1">
                     <Label
                       className="mb-1"
                       style={{ fontWeight: 600, fontSize: 13 }}
@@ -1987,8 +2054,8 @@ export default function KpiPage() {
                         setTelephone(formatPhone(e.target.value))
                       }
                     />
-                  </div>
-                  <div style={{ minWidth: 220, flex: 1 }}>
+                  </Col>
+                  <Col lg="3" md="6" xs="12" className="mb-1">
                     <Label
                       className="mb-1"
                       style={{ fontWeight: 600, fontSize: 13 }}
@@ -2006,8 +2073,8 @@ export default function KpiPage() {
                         lineHeight: "1.5",
                       }}
                     />
-                  </div>
-                </div>
+                  </Col>
+                </Row>
               </div>
 
               {/* Actions */}
@@ -2072,12 +2139,18 @@ export default function KpiPage() {
       {/* ====== Graph ====== */}
       <div className="vx-col w-100">
         <Card>
-          <CardHeader className="d-flex align-items-center justify-content-between flex-wrap" style={{ gap: 8 }}>
+          <CardHeader
+            className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between"
+            style={{ gap: 8 }}
+          >
             <h4 className="mb-0">Vue d’ensemble</h4>
 
-            <div className="d-flex align-items-center flex-wrap" style={{ gap: 8 }}>
+            <div
+              className="d-flex align-items-center flex-wrap mt-1 mt-md-0"
+              style={{ gap: 8 }}
+            >
               {/* GroupBy */}
-              <UncontrolledButtonDropdown className="mr-1">
+              <UncontrolledButtonDropdown>
                 <DropdownToggle caret color="primary">
                   {groupBy === "week"
                     ? "Par semaine"
@@ -2092,7 +2165,6 @@ export default function KpiPage() {
                   <DropdownItem onClick={() => setGroupBy("month")}>
                     Par mois
                   </DropdownItem>
-                  {/* NEW */}
                   <DropdownItem onClick={() => setGroupBy("day")}>
                     Par jour (semaine)
                   </DropdownItem>
@@ -2100,7 +2172,7 @@ export default function KpiPage() {
               </UncontrolledButtonDropdown>
 
               {/* Year filter */}
-              <UncontrolledButtonDropdown className="mr-1">
+              <UncontrolledButtonDropdown>
                 <DropdownToggle caret color="primary">
                   Année : {year}
                 </DropdownToggle>
@@ -2114,7 +2186,7 @@ export default function KpiPage() {
               </UncontrolledButtonDropdown>
 
               {groupBy === "day" && (
-                <ButtonGroup className="mr-1">
+                <ButtonGroup>
                   <Button
                     color="primary"
                     onClick={() => stepWeek(-1)}
@@ -2128,7 +2200,13 @@ export default function KpiPage() {
                       color="primary"
                       caret={false}
                       className="px-3"
-                      style={{ minWidth: 180, maxWidth: "90vw", whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden" }}
+                      style={{
+                        minWidth: 180,
+                        maxWidth: "200px",
+                        whiteSpace: "nowrap",
+                        textOverflow: "ellipsis",
+                        overflow: "hidden",
+                      }}
                     >
                       {weekLabel}
                     </DropdownToggle>
@@ -2178,7 +2256,9 @@ export default function KpiPage() {
               </UncontrolledButtonDropdown>
             </div>
           </CardHeader>
-          <CardBody style={{ height: winW < 576 ? 280 : winW < 768 ? 320 : 420 }}>
+          <CardBody
+            style={{ height: winW < 576 ? 280 : winW < 768 ? 320 : 420 }}
+          >
             {loadingChart ? (
               <div className="text-center" style={{ opacity: 0.7 }}>
                 Chargement du graphique…
@@ -2239,12 +2319,12 @@ export default function KpiPage() {
       {/* ====== Liste KPI ====== */}
       <div className="vx-col w-100">
         <Card>
-          <CardHeader className="d-flex align-items-center justify-content-between">
+          <CardHeader className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between">
             <h4 className="mb-0">Tous les KPI</h4>
-            <div>
+            <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center mt-1 mt-md-0">
               <Button
                 color="light"
-                className="mr-1"
+                className="mb-2 mb-md-0 mr-md-1"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
               >
@@ -2252,12 +2332,16 @@ export default function KpiPage() {
               </Button>
               <Button
                 color="light"
+                className="mb-2 mb-md-0"
                 disabled={page >= lastPage}
                 onClick={() => setPage((p) => Math.min(lastPage, p + 1))}
               >
                 Suivant →
               </Button>
-              <Badge color="light-secondary" className="ml-1">
+              <Badge
+                color="light-secondary"
+                className="ml-md-1 text-center py-2 py-md-1"
+              >
                 Page {page}/{lastPage}
               </Badge>
             </div>

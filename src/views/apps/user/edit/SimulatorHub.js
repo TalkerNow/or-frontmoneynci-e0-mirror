@@ -184,7 +184,6 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
     };
   });
   const [isRciDashboardOpen, setIsRciDashboardOpen] = useState(true);
-  const [isRciCalculatorOpen, setIsRciCalculatorOpen] = useState(false);
 
   // Safe public URL (avoid ReferenceError when process is undefined)
   const publicUrl =
@@ -1051,7 +1050,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
         .bilan-wrap {
           border: 1px solid #e9e9e9; border-radius: 0; overflow: hidden;
           box-shadow: 0 6px 20px rgba(16,24,40,.04); background: #fff;
-          width: 100%; max-width: 820px; margin-left: auto; display: block;
+          width: 100%; max-width: 820px; display: block;
         }
         .bilan-wrap .table-responsive { width: 100%; max-width: 100%; }
         /* Ensure responsive scroll on narrow screens */
@@ -1208,7 +1207,10 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
         .points-row { display: flex; align-items: center; justify-content: flex-start; margin-bottom: 15px; gap: 10px; flex-wrap: wrap; }
         
         /* Fixed width for the left column (labels) */
-        .points-label { display: inline-block; width: 350px; min-width: 350px; margin-right: 0; font-size: 14px; font-weight: 600; color: #1f2d3d; text-transform: none; }
+        .points-label { display: inline-block; width: 100%; min-width: 0; margin-right: 0; font-size: 14px; font-weight: 600; color: #1f2d3d; text-transform: none; }
+        @media (min-width: 769px) {
+          .points-label { width: 350px; min-width: 350px; }
+        }
         
         /* Special case for the date row where the "label" is a wrapper containing text + input */
         .rci-date-wrapper { width: 350px; min-width: 350px; display: flex; align-items: center; gap: 10px; }
@@ -1251,7 +1253,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
         @media (min-width: 1200px) {
           .choice-table,
           .history-table {
-            max-width: 1020px;
+            max-width: 100%;
           }
         }
         .history-table-wrap {
@@ -1409,19 +1411,28 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
         
         .points-suffix { font-size: 14px; color: #6b7280; font-weight: 500; text-transform: lowercase; }
         
+        .rci-card-height { min-height: 1150px; }
+        
         /* RCI Responsive Styles */
         @media (max-width: 768px) {
+          .rci-card-height { min-height: auto !important; }
           .points-row { 
             flex-direction: column !important; 
             align-items: flex-start !important; 
             gap: 8px !important;
           }
           .points-row > div[style*="minWidth"],
-          .rci-date-wrapper {
+          .rci-date-wrapper,
+          .rci-age-wrapper {
             min-width: 100% !important;
             width: 100% !important;
             flex-direction: column !important;
             align-items: flex-start !important;
+          }
+          .rci-age-wrapper .points-label {
+            margin-right: 0 !important;
+            margin-bottom: 4px !important;
+            width: 100% !important;
           }
           .points-label {
             min-width: auto !important;
@@ -1449,6 +1460,14 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
           .points-row { flex-direction:column; align-items:flex-start; }
           .points-row .points-input { width:100%; }
           .points-label { min-width:0; }
+        }
+
+        .hypo-flex-container { display: flex; flex-direction: column; gap: 24px; align-items: flex-start; width: 100%; }
+        .hypo-col-form { width: 100%; max-width: 100%; } /* Prend toute la largeur disponible */
+        .hypo-col-table { width: 100%; min-width: 0; }
+        
+        @media (max-width: 992px) {
+          .hypo-col-form, .hypo-col-table { width: 100%; max-width: 100%; }
         }
 
       `}</style>
@@ -1609,7 +1628,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
             </TabPane>
 
             <TabPane tabId="rci">
-              <Card className="mb-1" style={{ minHeight: "1150px" }}>
+              <Card className="mb-1 rci-card-height">
                 <CardBody>
                   <div className="points-collapsible">
                     <div className="collapsible">
@@ -1817,15 +1836,8 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
         <TabPane tabId="hypotheses">
           <Card className="mb-1 bilan-card">
             <CardBody className="hypo-indent-lg">
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: "24px",
-                  alignItems: "flex-start",
-                }}
-              >
-                <div style={{ flex: "1 1 500px" }}>
+              <div className="hypo-flex-container">
+                <div className="hypo-col-form">
                   <FormGroup tag="fieldset" style={{ fontSize: "1rem" }}>
                     <legend className="h6">
                       Hypothèses de fin de carrière
@@ -2923,7 +2935,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                     </div>
                   </FormGroup>
                 </div>
-                <div style={{ flex: "1 1 300px", minWidth: 0 }}>
+                <div className="hypo-col-table">
                   <div
                     className="bilan-wrap"
                     style={{
@@ -2934,10 +2946,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                     }}
                   >
                     <div className="table-responsive">
-                      <table
-                        className="choice-table cols-3"
-                        style={{ minWidth: "500px" }}
-                      >
+                      <table className="choice-table cols-3">
                         <colgroup>
                           <col style={{ width: "50%" }} />
                           <col style={{ width: "25%" }} />
@@ -3212,228 +3221,429 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
         </TabPane>
 
         <TabPane tabId="bilan">
-          <Card className="mb-1">
-            <CardBody className="compact-lg">
-              {/* Dates libres */}
-              <div style={{ marginTop: 16 }}>
-                <h6 className="mb-1 section-title">Dates libres</h6>
-                <div className="bilan-wrap" style={{ overflow: "hidden" }}>
-                  <div className="table-responsive">
-                    <table className="choice-table cols-3">
-                      <colgroup>
-                        <col style={{ width: "40%" }} />
-                        <col style={{ width: "40%" }} />
-                        <col style={{ width: "68px" }} />
-                      </colgroup>
-                      <thead>
-                        <tr>
-                          <th>Date libre</th>
-                          <th>Âge calculé</th>
-                          <th>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {safeFreeDates.map((row, idx) => (
-                          <tr key={row.id}>
-                            <td>
-                              <input
-                                type="date"
-                                className="inline-input"
-                                style={{ width: 130, cursor: "pointer" }}
-                                value={(row && row.date) ?? ""}
-                                onMouseDown={(e) => {
-                                  try {
-                                    e.currentTarget.showPicker &&
-                                      e.currentTarget.showPicker();
-                                  } catch {}
-                                }}
-                                onFocus={(e) => {
-                                  try {
-                                    e.currentTarget.showPicker &&
-                                      e.currentTarget.showPicker();
-                                  } catch {}
-                                }}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  setFreeDates((prev) =>
-                                    (Array.isArray(prev) ? prev : []).map(
-                                      (r) => {
-                                        if (r && r.id === row.id) {
-                                          const dob = getBirthDate();
-                                          const at = val ? new Date(val) : null;
-                                          const years =
-                                            dob && at
-                                              ? diffYearsAtDate(dob, at)
+          <div
+            style={{
+              width: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+            }}
+          >
+            <Card className="mb-1" style={{ width: "100%" }}>
+              <CardBody>
+                {/* Dates libres */}
+                <div style={{ marginTop: 16 }}>
+                  <h6 className="mb-1 section-title">Dates libres</h6>
+                  <div className="bilan-wrap" style={{ overflow: "hidden" }}>
+                    <div className="table-responsive">
+                      <table className="choice-table cols-3">
+                        <colgroup>
+                          <col style={{ width: "40%" }} />
+                          <col style={{ width: "40%" }} />
+                          <col style={{ width: "68px" }} />
+                        </colgroup>
+                        <thead>
+                          <tr>
+                            <th>Date libre</th>
+                            <th>Âge calculé</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {safeFreeDates.map((row, idx) => (
+                            <tr key={row.id}>
+                              <td>
+                                <input
+                                  type="date"
+                                  className="inline-input"
+                                  style={{ width: 130, cursor: "pointer" }}
+                                  value={(row && row.date) ?? ""}
+                                  onMouseDown={(e) => {
+                                    try {
+                                      e.currentTarget.showPicker &&
+                                        e.currentTarget.showPicker();
+                                    } catch {}
+                                  }}
+                                  onFocus={(e) => {
+                                    try {
+                                      e.currentTarget.showPicker &&
+                                        e.currentTarget.showPicker();
+                                    } catch {}
+                                  }}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setFreeDates((prev) =>
+                                      (Array.isArray(prev) ? prev : []).map(
+                                        (r) => {
+                                          if (r && r.id === row.id) {
+                                            const dob = getBirthDate();
+                                            const at = val
+                                              ? new Date(val)
                                               : null;
-                                          const newAge =
-                                            years != null &&
-                                            years >= 0 &&
-                                            !r.fixedAge
-                                              ? String(years)
-                                              : r.age || "";
-                                          return {
-                                            ...r,
-                                            date: val,
-                                            age: newAge,
-                                          };
+                                            const years =
+                                              dob && at
+                                                ? diffYearsAtDate(dob, at)
+                                                : null;
+                                            const newAge =
+                                              years != null &&
+                                              years >= 0 &&
+                                              !r.fixedAge
+                                                ? String(years)
+                                                : r.age || "";
+                                            return {
+                                              ...r,
+                                              date: val,
+                                              age: newAge,
+                                            };
+                                          }
+                                          return r;
                                         }
-                                        return r;
-                                      }
-                                    )
-                                  );
-                                }}
-                                aria-label={`Date libre ${idx + 1}`}
-                              />
-                            </td>
-                            <td>
-                              {(() => {
-                                const dob = getBirthDate();
-                                const at =
-                                  row && row.date ? new Date(row.date) : null;
-                                const years =
-                                  dob && at ? diffYearsAtDate(dob, at) : null;
-                                const computed =
-                                  years != null && years >= 0
-                                    ? String(years)
-                                    : "";
-                                const current =
-                                  row &&
-                                  row.age != null &&
-                                  String(row.age).trim() !== ""
-                                    ? String(row.age)
-                                    : computed;
-                                return (
-                                  <div
-                                    style={{
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                      gap: 6,
-                                    }}
-                                  >
-                                    <input
-                                      type="text"
-                                      inputMode="decimal"
-                                      pattern="[0-9,\.]*"
-                                      className="inline-input"
-                                      style={{ width: 90, textAlign: "center" }}
-                                      value={current}
-                                      onKeyDown={(e) => {
-                                        if (!isDigitKeyOnly(e))
-                                          e.preventDefault();
+                                      )
+                                    );
+                                  }}
+                                  aria-label={`Date libre ${idx + 1}`}
+                                />
+                              </td>
+                              <td>
+                                {(() => {
+                                  const dob = getBirthDate();
+                                  const at =
+                                    row && row.date ? new Date(row.date) : null;
+                                  const years =
+                                    dob && at ? diffYearsAtDate(dob, at) : null;
+                                  const computed =
+                                    years != null && years >= 0
+                                      ? String(years)
+                                      : "";
+                                  const current =
+                                    row &&
+                                    row.age != null &&
+                                    String(row.age).trim() !== ""
+                                      ? String(row.age)
+                                      : computed;
+                                  return (
+                                    <div
+                                      style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 6,
                                       }}
-                                      onChange={(e) => {
-                                        let v =
-                                          e.target.value == null
-                                            ? ""
-                                            : String(e.target.value);
-                                        v = v.replace(/\./g, ",");
-                                        const parts = v
-                                          .replace(/[^0-9,]/g, "")
-                                          .split(",");
-                                        v =
-                                          parts[0] +
-                                          (parts.length > 1
-                                            ? "," +
-                                              parts
-                                                .slice(1)
-                                                .join("")
-                                                .replace(/,/g, "")
-                                            : "");
-                                        setFreeDates((prev) =>
-                                          (Array.isArray(prev) ? prev : []).map(
-                                            (r) =>
+                                    >
+                                      <input
+                                        type="text"
+                                        inputMode="decimal"
+                                        pattern="[0-9,\.]*"
+                                        className="inline-input"
+                                        style={{
+                                          width: 90,
+                                          textAlign: "center",
+                                        }}
+                                        value={current}
+                                        onKeyDown={(e) => {
+                                          if (!isDigitKeyOnly(e))
+                                            e.preventDefault();
+                                        }}
+                                        onChange={(e) => {
+                                          let v =
+                                            e.target.value == null
+                                              ? ""
+                                              : String(e.target.value);
+                                          v = v.replace(/\./g, ",");
+                                          const parts = v
+                                            .replace(/[^0-9,]/g, "")
+                                            .split(",");
+                                          v =
+                                            parts[0] +
+                                            (parts.length > 1
+                                              ? "," +
+                                                parts
+                                                  .slice(1)
+                                                  .join("")
+                                                  .replace(/,/g, "")
+                                              : "");
+                                          setFreeDates((prev) =>
+                                            (Array.isArray(prev)
+                                              ? prev
+                                              : []
+                                            ).map((r) =>
                                               r && r.id === row.id
                                                 ? { ...r, age: v }
                                                 : r
-                                          )
-                                        );
-                                      }}
-                                      onBlur={(e) => {
-                                        const v = e.target.value;
-                                        if (v === "") return;
-                                        const n = parseInt(v, 10);
-                                        if (Number.isNaN(n)) return;
-                                        const clamped = Math.min(
-                                          120,
-                                          Math.max(18, n)
-                                        );
-                                        setFreeDates((prev) =>
-                                          (Array.isArray(prev) ? prev : []).map(
-                                            (r) =>
+                                            )
+                                          );
+                                        }}
+                                        onBlur={(e) => {
+                                          const v = e.target.value;
+                                          if (v === "") return;
+                                          const n = parseInt(v, 10);
+                                          if (Number.isNaN(n)) return;
+                                          const clamped = Math.min(
+                                            120,
+                                            Math.max(18, n)
+                                          );
+                                          setFreeDates((prev) =>
+                                            (Array.isArray(prev)
+                                              ? prev
+                                              : []
+                                            ).map((r) =>
                                               r && r.id === row.id
                                                 ? { ...r, age: String(clamped) }
                                                 : r
+                                            )
+                                          );
+                                        }}
+                                        placeholder="Ex: 62"
+                                        aria-label={`Âge calculé pour la date libre ${
+                                          idx + 1
+                                        }`}
+                                      />
+                                      <span>ans</span>
+                                    </div>
+                                  );
+                                })()}
+                              </td>
+                              <td>
+                                <div style={{ display: "inline-flex", gap: 8 }}>
+                                  {/* Bouton + seulement sur la première ligne */}
+                                  {idx === 0 && (
+                                    <button
+                                      type="button"
+                                      className="action-btn"
+                                      title="Ajouter une date libre"
+                                      onClick={() =>
+                                        setFreeDates((prev) => [
+                                          ...(Array.isArray(prev) ? prev : []),
+                                          { id: Date.now(), date: "", age: "" },
+                                        ])
+                                      }
+                                    >
+                                      <svg
+                                        width="14"
+                                        height="14"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        aria-hidden="true"
+                                      >
+                                        <line
+                                          x1="12"
+                                          y1="5"
+                                          x2="12"
+                                          y2="19"
+                                        ></line>
+                                        <line
+                                          x1="5"
+                                          y1="12"
+                                          x2="19"
+                                          y2="12"
+                                        ></line>
+                                      </svg>
+                                    </button>
+                                  )}
+                                  {idx > 0 && (
+                                    <button
+                                      type="button"
+                                      className="action-btn danger"
+                                      title="Supprimer cette date libre"
+                                      onClick={() =>
+                                        setFreeDates((prev) =>
+                                          (Array.isArray(prev)
+                                            ? prev
+                                            : []
+                                          ).filter((r) => r && r.id !== row.id)
+                                        )
+                                      }
+                                    >
+                                      <svg
+                                        width="18"
+                                        height="18"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        aria-hidden="true"
+                                      >
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                                        <path d="M10 11v6"></path>
+                                        <path d="M14 11v6"></path>
+                                        <path d="M9 6V4h6v2"></path>
+                                      </svg>
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </CardBody>
+            </Card>
+
+            {/* Historique des bilans retraite */}
+            <Card className="mb-1" style={{ width: "100%" }}>
+              <CardBody>
+                <h6 className="mb-1 section-title">
+                  Historique des bilans retraite
+                </h6>
+                <div className="bilan-wrap" style={{ overflow: "hidden" }}>
+                  <div className="history-table-wrap">
+                    <table className="history-table">
+                      <colgroup>
+                        <col style={{ width: "25%" }} />
+                        <col style={{ width: "14%" }} />
+                        <col style={{ width: "20%" }} />
+                        <col style={{ width: "14%" }} />
+                        <col style={{ width: "20%" }} />
+                        <col style={{ width: "110px" }} />
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          <th>Nom du bilan</th>
+                          <th>Âge simulé</th>
+                          <th>Simulation réalisée</th>
+                          <th>Date d’édition</th>
+                          <th>Rachat / Quotement</th>
+                          <th className="actions-col">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(Array.isArray(bilanHistory) ? bilanHistory : []).map(
+                          (item) => (
+                            <tr key={item.id}>
+                              <td>
+                                <input
+                                  type="text"
+                                  className="inline-input"
+                                  value={item.name || ""}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setBilanHistory((prev) =>
+                                      (Array.isArray(prev) ? prev : []).map(
+                                        (r) =>
+                                          r && r.id === item.id
+                                            ? { ...r, name: val }
+                                            : r
+                                      )
+                                    );
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      const trimmed = (
+                                        e.currentTarget.value || ""
+                                      ).toString();
+                                      setBilanHistory((prev) =>
+                                        (Array.isArray(prev) ? prev : []).map(
+                                          (r) =>
+                                            r && r.id === item.id
+                                              ? { ...r, name: trimmed }
+                                              : r
+                                        )
+                                      );
+                                      e.currentTarget.blur();
+                                      try {
+                                        localStorage.setItem(
+                                          "bilan_history_ui",
+                                          JSON.stringify(
+                                            Array.isArray(bilanHistory)
+                                              ? bilanHistory
+                                              : []
                                           )
                                         );
-                                      }}
-                                      placeholder="Ex: 62"
-                                      aria-label={`Âge calculé pour la date libre ${
-                                        idx + 1
-                                      }`}
-                                    />
-                                    <span>ans</span>
-                                  </div>
-                                );
-                              })()}
-                            </td>
-                            <td>
-                              <div style={{ display: "inline-flex", gap: 8 }}>
-                                {/* Bouton + seulement sur la première ligne */}
-                                {idx === 0 && (
+                                      } catch {}
+                                    }
+                                  }}
+                                  placeholder="Nom du bilan"
+                                  aria-label="Nom du bilan"
+                                />
+                              </td>
+                              <td>{item.age}</td>
+                              <td>{item.type}</td>
+                              <td>{item.date}</td>
+                              <td>
+                                <input
+                                  type="text"
+                                  className="inline-input"
+                                  value={item.rachat || ""}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setBilanHistory((prev) =>
+                                      (Array.isArray(prev) ? prev : []).map(
+                                        (r) =>
+                                          r && r.id === item.id
+                                            ? { ...r, rachat: val }
+                                            : r
+                                      )
+                                    );
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      const trimmed = (
+                                        e.currentTarget.value || ""
+                                      ).toString();
+                                      setBilanHistory((prev) =>
+                                        (Array.isArray(prev) ? prev : []).map(
+                                          (r) =>
+                                            r && r.id === item.id
+                                              ? { ...r, rachat: trimmed }
+                                              : r
+                                        )
+                                      );
+                                      e.currentTarget.blur();
+                                      try {
+                                        localStorage.setItem(
+                                          "bilan_history_ui",
+                                          JSON.stringify(
+                                            Array.isArray(bilanHistory)
+                                              ? bilanHistory
+                                              : []
+                                          )
+                                        );
+                                      } catch {}
+                                    }
+                                  }}
+                                  placeholder="—"
+                                  aria-label="Rachat / Quotement"
+                                />
+                              </td>
+                              <td className="actions-col">
+                                <div style={{ display: "inline-flex", gap: 4 }}>
                                   <button
                                     type="button"
                                     className="action-btn"
-                                    title="Ajouter une date libre"
-                                    onClick={() =>
-                                      setFreeDates((prev) => [
-                                        ...(Array.isArray(prev) ? prev : []),
-                                        { id: Date.now(), date: "", age: "" },
-                                      ])
-                                    }
+                                    title="Télécharger (Word)"
+                                    onClick={(e) => {
+                                      e.preventDefault(); /* à implémenter plus tard */
+                                    }}
+                                  >
+                                    <img
+                                      src={wordIcon2025}
+                                      alt="Word"
+                                      width={18}
+                                      height={18}
+                                      style={{ display: "block" }}
+                                    />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="action-btn danger"
+                                    title="Supprimer le bilan"
+                                    onClick={() => setDeleteConfirmId(item.id)}
+                                    aria-label="Supprimer le bilan"
                                   >
                                     <svg
                                       width="14"
                                       height="14"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeWidth="2"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      aria-hidden="true"
-                                    >
-                                      <line
-                                        x1="12"
-                                        y1="5"
-                                        x2="12"
-                                        y2="19"
-                                      ></line>
-                                      <line
-                                        x1="5"
-                                        y1="12"
-                                        x2="19"
-                                        y2="12"
-                                      ></line>
-                                    </svg>
-                                  </button>
-                                )}
-                                {idx > 0 && (
-                                  <button
-                                    type="button"
-                                    className="action-btn danger"
-                                    title="Supprimer cette date libre"
-                                    onClick={() =>
-                                      setFreeDates((prev) =>
-                                        (Array.isArray(prev)
-                                          ? prev
-                                          : []
-                                        ).filter((r) => r && r.id !== row.id)
-                                      )
-                                    }
-                                  >
-                                    <svg
-                                      width="18"
-                                      height="18"
                                       viewBox="0 0 24 24"
                                       fill="none"
                                       stroke="currentColor"
@@ -3449,233 +3659,52 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                       <path d="M9 6V4h6v2"></path>
                                     </svg>
                                   </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        )}
                       </tbody>
                     </table>
                   </div>
                 </div>
-              </div>
-            </CardBody>
-          </Card>
 
-          {/* Historique des bilans retraite */}
-          <Card className="mb-1">
-            <CardBody className="compact-lg">
-              <h6 className="mb-1 section-title">
-                Historique des bilans retraite
-              </h6>
-              <div className="bilan-wrap" style={{ overflow: "hidden" }}>
-                <div className="history-table-wrap">
-                  <table className="history-table cols-6">
-                    <colgroup>
-                      <col style={{ width: "25%" }} />
-                      <col style={{ width: "14%" }} />
-                      <col style={{ width: "20%" }} />
-                      <col style={{ width: "14%" }} />
-                      <col style={{ width: "20%" }} />
-                      <col style={{ width: "110px" }} />
-                    </colgroup>
-                    <thead>
-                      <tr>
-                        <th>Nom du bilan</th>
-                        <th>Âge simulé</th>
-                        <th>Simulation réalisée</th>
-                        <th>Date d’édition</th>
-                        <th>Rachat / Quotement</th>
-                        <th className="actions-col">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(Array.isArray(bilanHistory) ? bilanHistory : []).map(
-                        (item) => (
-                          <tr key={item.id}>
-                            <td>
-                              <input
-                                type="text"
-                                className="inline-input"
-                                value={item.name || ""}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  setBilanHistory((prev) =>
-                                    (Array.isArray(prev) ? prev : []).map((r) =>
-                                      r && r.id === item.id
-                                        ? { ...r, name: val }
-                                        : r
-                                    )
-                                  );
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    const trimmed = (
-                                      e.currentTarget.value || ""
-                                    ).toString();
-                                    setBilanHistory((prev) =>
-                                      (Array.isArray(prev) ? prev : []).map(
-                                        (r) =>
-                                          r && r.id === item.id
-                                            ? { ...r, name: trimmed }
-                                            : r
-                                      )
-                                    );
-                                    e.currentTarget.blur();
-                                    try {
-                                      localStorage.setItem(
-                                        "bilan_history_ui",
-                                        JSON.stringify(
-                                          Array.isArray(bilanHistory)
-                                            ? bilanHistory
-                                            : []
-                                        )
-                                      );
-                                    } catch {}
-                                  }
-                                }}
-                                placeholder="Nom du bilan"
-                                aria-label="Nom du bilan"
-                              />
-                            </td>
-                            <td>{item.age}</td>
-                            <td>{item.type}</td>
-                            <td>{item.date}</td>
-                            <td>
-                              <input
-                                type="text"
-                                className="inline-input"
-                                value={item.rachat || ""}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  setBilanHistory((prev) =>
-                                    (Array.isArray(prev) ? prev : []).map((r) =>
-                                      r && r.id === item.id
-                                        ? { ...r, rachat: val }
-                                        : r
-                                    )
-                                  );
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    const trimmed = (
-                                      e.currentTarget.value || ""
-                                    ).toString();
-                                    setBilanHistory((prev) =>
-                                      (Array.isArray(prev) ? prev : []).map(
-                                        (r) =>
-                                          r && r.id === item.id
-                                            ? { ...r, rachat: trimmed }
-                                            : r
-                                      )
-                                    );
-                                    e.currentTarget.blur();
-                                    try {
-                                      localStorage.setItem(
-                                        "bilan_history_ui",
-                                        JSON.stringify(
-                                          Array.isArray(bilanHistory)
-                                            ? bilanHistory
-                                            : []
-                                        )
-                                      );
-                                    } catch {}
-                                  }
-                                }}
-                                placeholder="—"
-                                aria-label="Rachat / Quotement"
-                              />
-                            </td>
-                            <td className="actions-col">
-                              <div style={{ display: "inline-flex", gap: 4 }}>
-                                <button
-                                  type="button"
-                                  className="action-btn"
-                                  title="Télécharger (Word)"
-                                  onClick={(e) => {
-                                    e.preventDefault(); /* à implémenter plus tard */
-                                  }}
-                                >
-                                  <img
-                                    src={wordIcon2025}
-                                    alt="Word"
-                                    width={18}
-                                    height={18}
-                                    style={{ display: "block" }}
-                                  />
-                                </button>
-                                <button
-                                  type="button"
-                                  className="action-btn danger"
-                                  title="Supprimer le bilan"
-                                  onClick={() => setDeleteConfirmId(item.id)}
-                                  aria-label="Supprimer le bilan"
-                                >
-                                  <svg
-                                    width="14"
-                                    height="14"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    aria-hidden="true"
-                                  >
-                                    <polyline points="3 6 5 6 21 6"></polyline>
-                                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
-                                    <path d="M10 11v6"></path>
-                                    <path d="M14 11v6"></path>
-                                    <path d="M9 6V4h6v2"></path>
-                                  </svg>
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        )
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Confirmation de suppression */}
-              <Modal
-                isOpen={!!deleteConfirmId}
-                toggle={() => setDeleteConfirmId(null)}
-              >
-                <ModalHeader toggle={() => setDeleteConfirmId(null)}>
-                  Confirmation
-                </ModalHeader>
-                <ModalBody>
-                  Êtes-vous sûr de vouloir supprimer ce bilan ?
-                </ModalBody>
-                <ModalFooter>
-                  <Button
-                    color="secondary"
-                    onClick={() => setDeleteConfirmId(null)}
-                  >
-                    Non
-                  </Button>{" "}
-                  <Button
-                    color="danger"
-                    onClick={() => {
-                      setBilanHistory((prev) =>
-                        (Array.isArray(prev) ? prev : []).filter(
-                          (r) => r && r.id !== deleteConfirmId
-                        )
-                      );
-                      setDeleteConfirmId(null);
-                    }}
-                  >
-                    Oui
-                  </Button>
-                </ModalFooter>
-              </Modal>
-            </CardBody>
-          </Card>
+                {/* Confirmation de suppression */}
+                <Modal
+                  isOpen={!!deleteConfirmId}
+                  toggle={() => setDeleteConfirmId(null)}
+                >
+                  <ModalHeader toggle={() => setDeleteConfirmId(null)}>
+                    Confirmation
+                  </ModalHeader>
+                  <ModalBody>
+                    Êtes-vous sûr de vouloir supprimer ce bilan ?
+                  </ModalBody>
+                  <ModalFooter>
+                    <Button
+                      color="secondary"
+                      onClick={() => setDeleteConfirmId(null)}
+                    >
+                      Non
+                    </Button>{" "}
+                    <Button
+                      color="danger"
+                      onClick={() => {
+                        setBilanHistory((prev) =>
+                          (Array.isArray(prev) ? prev : []).filter(
+                            (r) => r && r.id !== deleteConfirmId
+                          )
+                        );
+                        setDeleteConfirmId(null);
+                      }}
+                    >
+                      Oui
+                    </Button>
+                  </ModalFooter>
+                </Modal>
+              </CardBody>
+            </Card>
+          </div>
         </TabPane>
       </TabContent>
     </div>

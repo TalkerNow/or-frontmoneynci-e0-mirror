@@ -1,7 +1,33 @@
 import React from "react";
-import { Card, CardBody, Row, Col, Nav, NavItem, NavLink, TabContent, TabPane, Button, UncontrolledTooltip } from "reactstrap";
+import {
+  Card,
+  CardBody,
+  Row,
+  Col,
+  Nav,
+  NavItem,
+  NavLink,
+  TabContent,
+  TabPane,
+  Button,
+  UncontrolledTooltip,
+  Modal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+} from "reactstrap";
 import classnames from "classnames";
-import { Info, Folder, CheckSquare, MessageCircle, ArrowLeft, Circle, Activity, FileText, Mail } from "react-feather";
+import {
+  Info,
+  Folder,
+  CheckSquare,
+  MessageCircle,
+  ArrowLeft,
+  Circle,
+  Activity,
+  FileText,
+  Mail,
+} from "react-feather";
 import UserDetails from "../../profile/UserDetails";
 import AccountTab from "./Informations";
 import NotesTab from "./Notes";
@@ -26,6 +52,8 @@ class UserEdit extends React.Component {
     simuOffset: 0,
     docsOffset: 0,
     courriersOffset: 0,
+    isDirty: false,
+    showUnsavedModal: false,
   };
 
   navRef = null;
@@ -33,9 +61,12 @@ class UserEdit extends React.Component {
   computeSimuOffset = () => {
     try {
       const nav = this.navRef;
-      const label = document.getElementById(`simulateur-label-client-${this.props.match.params.id}`);
+      const label = document.getElementById(
+        `simulateur-label-client-${this.props.match.params.id}`
+      );
       if (nav && label) {
-        const delta = label.getBoundingClientRect().left - nav.getBoundingClientRect().left;
+        const delta =
+          label.getBoundingClientRect().left - nav.getBoundingClientRect().left;
         this.setState({ simuOffset: Math.max(0, Math.round(delta)) });
       }
     } catch (e) {}
@@ -44,9 +75,12 @@ class UserEdit extends React.Component {
   computeDocsOffset = () => {
     try {
       const nav = this.navRef;
-      const label = document.getElementById(`documents-label-client-${this.props.match.params.id}`);
+      const label = document.getElementById(
+        `documents-label-client-${this.props.match.params.id}`
+      );
       if (nav && label) {
-        const delta = label.getBoundingClientRect().left - nav.getBoundingClientRect().left;
+        const delta =
+          label.getBoundingClientRect().left - nav.getBoundingClientRect().left;
         this.setState({ docsOffset: Math.max(0, Math.round(delta)) });
       }
     } catch (e) {}
@@ -55,9 +89,12 @@ class UserEdit extends React.Component {
   computeCourriersOffset = () => {
     try {
       const nav = this.navRef;
-      const label = document.getElementById(`courriers-label-client-${this.props.match.params.id}`);
+      const label = document.getElementById(
+        `courriers-label-client-${this.props.match.params.id}`
+      );
       if (nav && label) {
-        const delta = label.getBoundingClientRect().left - nav.getBoundingClientRect().left;
+        const delta =
+          label.getBoundingClientRect().left - nav.getBoundingClientRect().left;
         this.setState({ courriersOffset: Math.max(0, Math.round(delta)) });
       }
     } catch (e) {}
@@ -67,8 +104,19 @@ class UserEdit extends React.Component {
     if (tabParam === "1") {
       this.setState({ showFullForm: true });
     } else if (tabParam) {
-      const mapNumToKey = { "2": "notes", "3": "documents", "4": "documents", "5": "tasks", "6": "commentaires", "7": "simulateur", "8": "contrats" };
-      this.setState({ showFullForm: false, activeTab: mapNumToKey[tabParam] || "notes" });
+      const mapNumToKey = {
+        2: "notes",
+        3: "documents",
+        4: "documents",
+        5: "tasks",
+        6: "commentaires",
+        7: "simulateur",
+        8: "contrats",
+      };
+      this.setState({
+        showFullForm: false,
+        activeTab: mapNumToKey[tabParam] || "notes",
+      });
     }
   }
 
@@ -80,7 +128,10 @@ class UserEdit extends React.Component {
       headers: { Authorization: "Bearer " + localStorage.getItem("token") },
     };
     const { id } = this.props.match.params;
-    const response = await axios.get(global.config.server_url + "/users/" + id, Config);
+    const response = await axios.get(
+      global.config.server_url + "/users/" + id,
+      Config
+    );
     this.setState({ rowData: response.data });
   };
 
@@ -88,13 +139,19 @@ class UserEdit extends React.Component {
     const Config = {
       headers: { Authorization: "Bearer " + localStorage.getItem("token") },
     };
-    const response = await axios.get(global.config.server_url + "/users?kind=member", Config);
+    const response = await axios.get(
+      global.config.server_url + "/users?kind=member",
+      Config
+    );
     this.setState({ members: response.data });
   };
 
   async componentDidMount() {
     // Déterminer le mode selon l'URL (si ":tab" vaut "1" => plein formulaire)
-    const tabParam = this.props.match && this.props.match.params && this.props.match.params.tab;
+    const tabParam =
+      this.props.match &&
+      this.props.match.params &&
+      this.props.match.params.tab;
     this.applyTabFromRoute(tabParam);
 
     // Utilise les méthodes centralisées
@@ -103,8 +160,12 @@ class UserEdit extends React.Component {
   }
 
   componentDidUpdate(prevProps) {
-    const prevTab = prevProps.match && prevProps.match.params && prevProps.match.params.tab;
-    const currTab = this.props.match && this.props.match.params && this.props.match.params.tab;
+    const prevTab =
+      prevProps.match && prevProps.match.params && prevProps.match.params.tab;
+    const currTab =
+      this.props.match &&
+      this.props.match.params &&
+      this.props.match.params.tab;
     if (prevTab !== currTab) {
       this.applyTabFromRoute(currTab);
       // Recharger les infos quand on quitte le plein formulaire (1 -> autre)
@@ -113,8 +174,10 @@ class UserEdit extends React.Component {
       }
     }
 
-    const prevId = prevProps.match && prevProps.match.params && prevProps.match.params.id;
-    const currId = this.props.match && this.props.match.params && this.props.match.params.id;
+    const prevId =
+      prevProps.match && prevProps.match.params && prevProps.match.params.id;
+    const currId =
+      this.props.match && this.props.match.params && this.props.match.params.id;
     if (prevId !== currId) {
       // reset display mode when navigating between users
       this.applyTabFromRoute(currTab);
@@ -127,19 +190,53 @@ class UserEdit extends React.Component {
   toggle = (tab) => {
     if (this.state.activeTab !== tab) {
       const next = { activeTab: tab };
-      if (tab === 'simulateur' && !this.state.isCollapsed) next.isCollapsed = true;
+      if (tab === "simulateur" && !this.state.isCollapsed)
+        next.isCollapsed = true;
       this.setState(next, () => {
-        if (tab === 'simulateur') setTimeout(this.computeSimuOffset, 0);
-        if (tab === 'documents') setTimeout(this.computeDocsOffset, 0);
-        if (tab === 'courriers') setTimeout(this.computeCourriersOffset, 0);
+        if (tab === "simulateur") setTimeout(this.computeSimuOffset, 0);
+        if (tab === "documents") setTimeout(this.computeDocsOffset, 0);
+        if (tab === "courriers") setTimeout(this.computeCourriersOffset, 0);
       });
     }
   };
+
+  setDirty = (val) => {
+    if (this.state.isDirty !== val) {
+      this.setState({ isDirty: val });
+    }
+  };
+
+  handleBack = () => {
+    const { id } = this.props.match.params;
+    if (!this.state.isDirty) {
+      history.push(`/app/user/edit/${id}/2`);
+    } else {
+      this.setState({ showUnsavedModal: true });
+    }
+  };
+
+  handleLeaveWithoutSaving = () => {
+    const { id } = this.props.match.params;
+    this.setState({ showUnsavedModal: false, isDirty: false });
+    history.push(`/app/user/edit/${id}/2`);
+  };
+
+  handleSaveAndLeave = () => {
+    this.setState({ showUnsavedModal: false });
+    // Trigger form submit
+    const form = document.getElementById("user-edit-form");
+    if (form) {
+      // The form submit handler in Informations.js handles the save and navigation
+      form.dispatchEvent(
+        new Event("submit", { cancelable: true, bubbles: true })
+      );
+    }
+  };
+
   render() {
     const id = this.props.match.params.id;
     const hasComments =
-      this.state.rowData?.comments &&
-      this.state.rowData.comments.trim() !== "";
+      this.state.rowData?.comments && this.state.rowData.comments.trim() !== "";
     if (this.state.showFullForm) {
       return (
         <Row>
@@ -153,7 +250,7 @@ class UserEdit extends React.Component {
                     title="Retour"
                     className="btn-icon rounded-circle p-0 d-flex align-items-center justify-content-center"
                     style={{ width: 32, height: 32 }}
-                    onClick={() => history.push(`/app/user/edit/${id}/2`)}
+                    onClick={this.handleBack}
                   >
                     <ArrowLeft size={16} />
                   </Button.Ripple>
@@ -172,73 +269,159 @@ class UserEdit extends React.Component {
                   id={id}
                   dob={this.state.rowData["birth_date"]}
                   backTo={`/app/user/edit/${id}/2`}
+                  setDirty={this.setDirty}
                 />
               </CardBody>
             </Card>
+            <Modal
+              isOpen={this.state.showUnsavedModal}
+              toggle={() =>
+                this.setState({
+                  showUnsavedModal: !this.state.showUnsavedModal,
+                })
+              }
+              className="modal-dialog-centered"
+            >
+              <ModalHeader
+                toggle={() =>
+                  this.setState({
+                    showUnsavedModal: !this.state.showUnsavedModal,
+                  })
+                }
+              >
+                Modifications non enregistrées
+              </ModalHeader>
+              <ModalBody>
+                Voulez-vous enregistrer vos modifications avant de quitter ?
+              </ModalBody>
+              <ModalFooter>
+                <Button color="primary" onClick={this.handleSaveAndLeave}>
+                  Enregistrer et Quitter
+                </Button>
+                <Button
+                  color="danger"
+                  // outline
+                  onClick={this.handleLeaveWithoutSaving}
+                >
+                  Quitter sans sauvegarder
+                </Button>
+              </ModalFooter>
+            </Modal>
           </Col>
         </Row>
       );
     }
     return (
-        <Row className='align-items-start user-edit-row flex-nowrap'>
-          <Col
-            xs="12"
-            sm="4"
-            md="4"
-            lg="4"
-            className={classnames('profile-left profile-sidebar-fixed client-left', {
+      <Row className="align-items-start user-edit-row flex-nowrap">
+        <Col
+          xs="12"
+          sm="4"
+          md="4"
+          lg="4"
+          className={classnames(
+            "profile-left profile-sidebar-fixed client-left",
+            {
               collapsed: this.state.isCollapsed,
-            })}
-          >
-            <div>
-              <UserDetails
-                user={this.state.rowData || {}}
-                onEdit={() => history.push(`/app/user/edit/${id}/1`)}
-                showCollapse
-                onCollapse={() => this.setState({ isCollapsed: true })}
-              />
+            }
+          )}
+        >
+          <div>
+            <UserDetails
+              user={this.state.rowData || {}}
+              onEdit={() => history.push(`/app/user/edit/${id}/1`)}
+              showCollapse
+              onCollapse={() => this.setState({ isCollapsed: true })}
+            />
 
-              {/* 👇 Ta box de suivi d'avancement, dans un fichier séparé */}
-              <SuiviAvancementBox clientId={id} />
-            </div>
-          </Col>
-        <Col xs="12" sm="8" md="8" lg="8" className={classnames('profile-right', { expanded: this.state.isCollapsed })}>
-          <Nav tabs className="border-0 d-flex align-items-center gap-3 mb-1" ref={el => (this.navRef = el)}>
+            {/* 👇 Ta box de suivi d'avancement, dans un fichier séparé */}
+            <SuiviAvancementBox clientId={id} />
+          </div>
+        </Col>
+        <Col
+          xs="12"
+          sm="8"
+          md="8"
+          lg="8"
+          className={classnames("profile-right", {
+            expanded: this.state.isCollapsed,
+          })}
+        >
+          <Nav
+            tabs
+            className="border-0 d-flex align-items-center gap-3 mb-1"
+            ref={(el) => (this.navRef = el)}
+          >
             {this.state.isCollapsed && (
               <NavItem>
-                <NavLink onClick={() => this.setState({ isCollapsed: false })} className='p-0' aria-label='Afficher la fiche'>
-                  <Circle id={`clientOpenToggle-${id}`} className='text-primary profile-toggle-pulse' size={20} />
+                <NavLink
+                  onClick={() => this.setState({ isCollapsed: false })}
+                  className="p-0"
+                  aria-label="Afficher la fiche"
+                >
+                  <Circle
+                    id={`clientOpenToggle-${id}`}
+                    className="text-primary profile-toggle-pulse"
+                    size={20}
+                  />
                 </NavLink>
-                <UncontrolledTooltip placement='top' target={`clientOpenToggle-${id}`}>Afficher la fiche</UncontrolledTooltip>
+                <UncontrolledTooltip
+                  placement="top"
+                  target={`clientOpenToggle-${id}`}
+                >
+                  Afficher la fiche
+                </UncontrolledTooltip>
               </NavItem>
             )}
             <NavItem>
-              <NavLink className={classnames({ active: this.state.activeTab === 'notes' })} onClick={() => this.toggle('notes')}>
-                <Info className='text-primary mr-50' size={16}/> Infos
+              <NavLink
+                className={classnames({
+                  active: this.state.activeTab === "notes",
+                })}
+                onClick={() => this.toggle("notes")}
+              >
+                <Info className="text-primary mr-50" size={16} /> Infos
               </NavLink>
             </NavItem>
             <NavItem>
               <NavLink
-                className={classnames({ active: this.state.activeTab === 'contrats' })}
-                onClick={() => this.toggle('contrats')}
+                className={classnames({
+                  active: this.state.activeTab === "contrats",
+                })}
+                onClick={() => this.toggle("contrats")}
               >
-                <FileText className='text-primary mr-50' size={16}/> Contrats
+                <FileText className="text-primary mr-50" size={16} /> Contrats
               </NavLink>
             </NavItem>
             <NavItem>
-              <NavLink id={`documents-link-client-${id}`} className={classnames({ active: this.state.activeTab === 'documents' })} onClick={() => this.toggle('documents')}>
-                <Folder className='text-primary mr-50' size={16}/>
+              <NavLink
+                id={`documents-link-client-${id}`}
+                className={classnames({
+                  active: this.state.activeTab === "documents",
+                })}
+                onClick={() => this.toggle("documents")}
+              >
+                <Folder className="text-primary mr-50" size={16} />
                 <span id={`documents-label-client-${id}`}> Documents</span>
               </NavLink>
             </NavItem>
             <NavItem>
-              <NavLink className={classnames({ active: this.state.activeTab === 'tasks' })} onClick={() => this.toggle('tasks')}>
-                <CheckSquare className='text-primary mr-50' size={16}/> Tâches
+              <NavLink
+                className={classnames({
+                  active: this.state.activeTab === "tasks",
+                })}
+                onClick={() => this.toggle("tasks")}
+              >
+                <CheckSquare className="text-primary mr-50" size={16} /> Tâches
               </NavLink>
             </NavItem>
             <NavItem>
-              <NavLink className={classnames({ active: this.state.activeTab === 'courriers' })} onClick={() => this.toggle('courriers')}>
-                <Mail className='text-primary mr-50' size={16}/>
+              <NavLink
+                className={classnames({
+                  active: this.state.activeTab === "courriers",
+                })}
+                onClick={() => this.toggle("courriers")}
+              >
+                <Mail className="text-primary mr-50" size={16} />
                 <span id={`courriers-label-client-${id}`}> Courriers</span>
               </NavLink>
             </NavItem>
@@ -251,52 +434,82 @@ class UserEdit extends React.Component {
               >
                 <MessageCircle className="text-primary mr-50" size={16} />
                 Commentaires
-
-                {hasComments && (
-                  <span className="comment-dot" />
-                )}
+                {hasComments && <span className="comment-dot" />}
               </NavLink>
             </NavItem>
             <NavItem>
-              <NavLink id={`simulateur-link-client-${id}`} className={classnames({ active: this.state.activeTab === 'simulateur' })} onClick={() => this.toggle('simulateur')}>
-                <Activity className='text-primary mr-50' size={16}/>
+              <NavLink
+                id={`simulateur-link-client-${id}`}
+                className={classnames({
+                  active: this.state.activeTab === "simulateur",
+                })}
+                onClick={() => this.toggle("simulateur")}
+              >
+                <Activity className="text-primary mr-50" size={16} />
                 <span id={`simulateur-label-client-${id}`}> Simulateur</span>
               </NavLink>
             </NavItem>
           </Nav>
           <TabContent activeTab={this.state.activeTab}>
-            <TabPane tabId='notes'>
-              <Card className='mb-1'>
+            <TabPane tabId="notes">
+              <Card className="mb-1">
                 <CardBody>
-                  <NotesTab data={this.state.rowData} perso={this.state.rowData} members={this.state.members} id={id} />
+                  <NotesTab
+                    data={this.state.rowData}
+                    perso={this.state.rowData}
+                    members={this.state.members}
+                    id={id}
+                  />
                 </CardBody>
               </Card>
             </TabPane>
-            <TabPane tabId='contrats'>
+            <TabPane tabId="contrats">
               <Contracts id={id} />
             </TabPane>
-            <TabPane tabId='documents'>
-              <DocumentsHub id={id} name={this.state.rowData.name} parent_id={this.state.rowData.parent_id} alignOffset={this.state.docsOffset} labelId={`documents-label-client-${id}`} />
+            <TabPane tabId="documents">
+              <DocumentsHub
+                id={id}
+                name={this.state.rowData.name}
+                parent_id={this.state.rowData.parent_id}
+                alignOffset={this.state.docsOffset}
+                labelId={`documents-label-client-${id}`}
+              />
             </TabPane>
-            <TabPane tabId='tasks'>
-              <Card className='mb-1'>
+            <TabPane tabId="tasks">
+              <Card className="mb-1">
                 <CardBody>
-                  <div className='text-muted'>Utilise le module tâches dédié: <a href={`/app/user/clientTask/${id}/all`}>Ouvrir</a></div>
+                  <div className="text-muted">
+                    Utilise le module tâches dédié:{" "}
+                    <a href={`/app/user/clientTask/${id}/all`}>Ouvrir</a>
+                  </div>
                 </CardBody>
               </Card>
             </TabPane>
-            <TabPane tabId='courriers'>
-              <CourriersHub id={id} alignOffset={this.state.courriersOffset} labelId={`courriers-label-client-${id}`} />
+            <TabPane tabId="courriers">
+              <CourriersHub
+                id={id}
+                alignOffset={this.state.courriersOffset}
+                labelId={`courriers-label-client-${id}`}
+              />
             </TabPane>
-            <TabPane tabId='commentaires'>
-              <Card className='mb-1'>
+            <TabPane tabId="commentaires">
+              <Card className="mb-1">
                 <CardBody>
-                  <CommentsTab data={this.state.rowData} perso={this.state.rowData} members={this.state.members} id={id} />
+                  <CommentsTab
+                    data={this.state.rowData}
+                    perso={this.state.rowData}
+                    members={this.state.members}
+                    id={id}
+                  />
                 </CardBody>
               </Card>
             </TabPane>
-            <TabPane tabId='simulateur'>
-              <SimulatorHub id={id} alignOffset={this.state.simuOffset} user={this.state.rowData} />
+            <TabPane tabId="simulateur">
+              <SimulatorHub
+                id={id}
+                alignOffset={this.state.simuOffset}
+                user={this.state.rowData}
+              />
             </TabPane>
           </TabContent>
         </Col>
