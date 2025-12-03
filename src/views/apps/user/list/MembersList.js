@@ -284,12 +284,13 @@ class MembersList extends React.Component {
     return (
       <div>
         <SweetAlert
-          title="Êtes vous sûrs?"
+          title="Êtes-vous sûrs?"
           warning
           show={this.state.defaultAlert}
           showCancel
           reverseButtons
-          cancelBtnBsStyle="danger"
+          cancelBtnBsStyle="primary"
+          confirmBtnBsStyle="danger"
           confirmBtnText="Oui, supprimer"
           cancelBtnText="Annuler"
           onConfirm={() => {
@@ -314,7 +315,7 @@ class MembersList extends React.Component {
             this.handleAlert("confirmAlert", false, 0);
           }}
         >
-          <p className="sweet-alert-text">Your file has been deleted.</p>
+          <p className="sweet-alert-text">Le compte a été supprimé</p>
         </SweetAlert>
 
         <SweetAlert

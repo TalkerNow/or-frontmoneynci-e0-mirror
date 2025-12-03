@@ -28,7 +28,7 @@ const data = [
     total_ttc: "0.00 €"
   },
   {
-    name: "AUDIT RETRAITE ENTREPRISE et LIBERAL",
+    name: "AUDIT RETRAITE ENTREPRISE et LIBÉRAL",
     variable: "€ HT",
     value: "3 990",
     variable1: "Nb",
