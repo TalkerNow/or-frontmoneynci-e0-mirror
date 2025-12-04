@@ -82,7 +82,8 @@
   .task-sidebar {
     height: calc(100vh - 12.16rem);
     width: 400px;
-    display: block;
+    display: flex;
+    flex-direction: column;
     position: absolute;
     top: 0;
     right: 0;
@@ -97,6 +98,10 @@
     .task-header {
       background-color: $body-bg;
       padding: 1rem;
+    }
+    .todo-scroll-area {
+        flex-grow: 1;
+        position: relative;
     }
     .task-body {
       padding: 1rem;

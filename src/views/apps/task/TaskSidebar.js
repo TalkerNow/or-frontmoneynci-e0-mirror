@@ -207,7 +207,7 @@ class FilterSidebar extends React.Component {
             </div>
           </div>
         </div>
-        <PerfectScrollbar>
+        <PerfectScrollbar className="todo-scroll-area">
           <div className="task-body">
             <div
               className="d-flex justify-content-between"
@@ -698,10 +698,11 @@ class FilterSidebar extends React.Component {
             {(this.state.role == "admin" || this.state.role == "Expert") && (
               <>
                 <hr style={{ marginBottom: "10px", marginTop: 0 }} />
-                <div className="d-flex justify-content-end">
+                <div className="d-flex justify-content-between justify-content-md-end mr-2 mr-md-0">
                   <Button.Ripple
-                    className="mr-50"
+                    className="mr-1 mr-md-50 flex-grow-1 flex-md-grow-0"
                     color="primary"
+                    size="sm"
                     onClick={() => {
                       if (this.props.taskToUpdate !== null) {
                         var updateTask = {
@@ -754,8 +755,10 @@ class FilterSidebar extends React.Component {
                       : "Ajouter"}
                   </Button.Ripple>
                   <Button.Ripple
+                    className="flex-grow-1 flex-md-grow-0"
                     color="light"
                     outline
+                    size="sm"
                     onClick={() => {
                       this.props.addTask("close");
                       this.setState({
