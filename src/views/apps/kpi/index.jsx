@@ -38,6 +38,7 @@ import {
   PhoneIncoming,
   PhoneOutgoing,
   PhoneCall,
+  MessageSquare,
   UserPlus,
   ArrowRight,
 } from "react-feather"; // icônes
@@ -353,8 +354,8 @@ function renderActionBadge(action) {
   const key = ACTIONS_KNOWN.includes(action)
     ? action
     : action
-    ? ACTION_OTHER
-    : null;
+      ? ACTION_OTHER
+      : null;
   if (!key) {
     return <em style={{ opacity: 0.6 }}>(vide)</em>;
   }
@@ -673,6 +674,7 @@ export default function KpiPage() {
   const [emailBody, setEmailBody] = useState("");
   const [sending, setSending] = useState(false);
   const [sendMsg, setSendMsg] = useState("");
+  const PHONE_REGEX = /(\+33\s?|0)[1-9](?:[ .-]?\d{2}){4}/;
 
   // Email admin (local + API)
   const adminEmailLocal = useMemo(() => getAdminEmailFromLocal(), []);
@@ -702,6 +704,9 @@ export default function KpiPage() {
   const [loadingSuivis, setLoadingSuivis] = useState(false);
   const [suivisError, setSuivisError] = useState("");
 
+  const [conversations, setConversations] = useState([]);
+  const [loadingConversations, setLoadingConversations] = useState(false);
+  const [convError, setConvError] = useState("");
   // Graph controls
   const [groupBy, setGroupBy] = useState("day");
   const currentYear = new Date().getFullYear();
@@ -734,6 +739,61 @@ export default function KpiPage() {
       return field;
     });
   };
+  // Modal messages conversations
+  const [convModalOpen, setConvModalOpen] = useState(false);
+  const [selectedConv, setSelectedConv] = useState(null);
+
+  function openConvModal(conv) {
+    setSelectedConv(conv);
+    setConvModalOpen(true);
+  }
+  function closeConvModal() {
+    setConvModalOpen(false);
+    setSelectedConv(null);
+  }
+  function renderChatBubble(msg, idx) {
+    const role = msg?.role || "unknown";
+    const isUser = role === "user";
+
+    const wrapperStyle = {
+      display: "flex",
+      justifyContent: isUser ? "flex-end" : "flex-start",
+      marginBottom: 8,
+    };
+
+    const bubbleStyle = {
+      maxWidth: "78%",
+      padding: "10px 12px",
+      borderRadius: 12,
+      fontSize: 13,
+      lineHeight: 1.4,
+      background: isUser ? "#e7f1ff" : "#f8f9fa",
+      border: isUser ? "1px solid #cfe2ff" : "1px solid #e9ecef",
+      color: "#212529",
+      whiteSpace: "pre-wrap",
+      wordBreak: "break-word",
+    };
+
+    const metaStyle = {
+      fontSize: 10,
+      opacity: 0.6,
+      marginTop: 4,
+      textAlign: isUser ? "right" : "left",
+    };
+
+    return (
+      <div key={idx} style={wrapperStyle}>
+        <div>
+          <div style={bubbleStyle}>
+            {msg?.content || <em style={{ opacity: 0.6 }}>(vide)</em>}
+          </div>
+          <div style={metaStyle}>
+            {isUser ? "Client" : role === "assistant" ? "Assistant" : role}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const renderSortIcon = (field) => {
     if (sortField !== field) {
@@ -837,6 +897,7 @@ export default function KpiPage() {
     fetchClients();
     fetchAdminEmailFromApi();
     fetchSuivis();
+    fetchConversationArchives();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -853,8 +914,8 @@ export default function KpiPage() {
       const data = Array.isArray(payload?.data)
         ? payload.data
         : Array.isArray(payload)
-        ? payload
-        : [];
+          ? payload
+          : [];
 
       setItems(data);
 
@@ -864,7 +925,7 @@ export default function KpiPage() {
       console.error(e);
       setError(
         e?.response?.data?.message ||
-          "Erreur lors du chargement des KPI. Vérifie l'API."
+        "Erreur lors du chargement des KPI. Vérifie l'API."
       );
     } finally {
       setLoadingList(false);
@@ -882,12 +943,36 @@ export default function KpiPage() {
       console.error(e);
       setSuivisError(
         e?.response?.data?.message ||
-          "Erreur lors du chargement des suivis d'avancement."
+        "Erreur lors du chargement des suivis d'avancement."
       );
     } finally {
       setLoadingSuivis(false);
     }
   }
+  async function fetchConversationArchives() {
+    try {
+      setLoadingConversations(true);
+      setConvError("");
+
+      // backend : GET /api/conversation-archives → front : "/conversation-archives"
+      const res = await API.get("/conversation-archives");
+
+      const payload = res.data || {};
+      const data = Array.isArray(payload.data) ? payload.data : [];
+
+      setConversations(data);
+    } catch (e) {
+      console.error("fetchConversationArchives error:", e);
+      setConvError(
+        e?.response?.data?.message ||
+        e?.response?.data?.error ||
+        "Erreur lors du chargement des conversations chatbot."
+      );
+    } finally {
+      setLoadingConversations(false);
+    }
+  }
+
 
   async function fetchAllKpis() {
     try {
@@ -906,8 +991,8 @@ export default function KpiPage() {
         const data = Array.isArray(payload?.data)
           ? payload.data
           : Array.isArray(payload)
-          ? payload
-          : [];
+            ? payload
+            : [];
 
         aggregated = aggregated.concat(data);
 
@@ -920,8 +1005,8 @@ export default function KpiPage() {
       console.error(e);
       setError(
         e?.response?.data?.message ||
-          e?.response?.data?.error ||
-          "Erreur lors du chargement complet des KPI pour le graphique."
+        e?.response?.data?.error ||
+        "Erreur lors du chargement complet des KPI pour le graphique."
       );
     } finally {
       setLoadingChart(false);
@@ -938,8 +1023,8 @@ export default function KpiPage() {
       const list = Array.isArray(payload?.data)
         ? payload.data
         : Array.isArray(payload)
-        ? payload
-        : [];
+          ? payload
+          : [];
 
       const map = {};
       list.forEach((u) => {
@@ -973,8 +1058,8 @@ export default function KpiPage() {
       const list = Array.isArray(payload?.data)
         ? payload.data
         : Array.isArray(payload)
-        ? payload
-        : [];
+          ? payload
+          : [];
 
       const map = {};
       list.forEach((u) => {
@@ -1025,8 +1110,8 @@ export default function KpiPage() {
           objet === "Email"
             ? EMAIL_ACTION
             : action && action.trim() !== ""
-            ? action
-            : "Autre", // <<--- ICI ajout de "Autre" par défaut
+              ? action
+              : "Autre", // <<--- ICI ajout de "Autre" par défaut
         kpi_date: kpiDate || todayStr(),
         nom_prenom: nomPrenom || null,
         email: email || null,
@@ -1053,8 +1138,8 @@ export default function KpiPage() {
       console.error(e);
       setError(
         e?.response?.data?.message ||
-          e?.response?.data?.error ||
-          "Impossible de créer le KPI."
+        e?.response?.data?.error ||
+        "Impossible de créer le KPI."
       );
     } finally {
       setCreating(false);
@@ -1081,8 +1166,8 @@ export default function KpiPage() {
           adminEmailSource: adminEmailApi
             ? "api"
             : adminEmailLocal
-            ? "localStorage"
-            : "unknown",
+              ? "localStorage"
+              : "unknown",
           adminId: adminId || null,
           source: "kpi-mini-email",
           sentAt: new Date().toISOString(),
@@ -1129,8 +1214,8 @@ export default function KpiPage() {
       console.error(e);
       setError(
         e?.response?.data?.message ||
-          e?.response?.data?.error ||
-          "Impossible de supprimer le KPI."
+        e?.response?.data?.error ||
+        "Impossible de supprimer le KPI."
       );
     } finally {
       setDeletingId(null);
@@ -1324,10 +1409,10 @@ export default function KpiPage() {
       const bucket = isContractFinished
         ? "completed"
         : isAfter5Days
-        ? "after5days"
-        : isProcessing
-        ? "processing"
-        : "active";
+          ? "after5days"
+          : isProcessing
+            ? "processing"
+            : "active";
 
       res[bucket].push({ s, steps, last, next });
     });
@@ -1382,9 +1467,8 @@ export default function KpiPage() {
                       backgroundColor: showProcessing
                         ? "#198754"
                         : "transparent",
-                      border: `1px solid ${
-                        showProcessing ? "#198754" : "#ced4da"
-                      }`,
+                      border: `1px solid ${showProcessing ? "#198754" : "#ced4da"
+                        }`,
                     }}
                   />
                   Dossiers en cours
@@ -1408,9 +1492,8 @@ export default function KpiPage() {
                       backgroundColor: showCompleted
                         ? "#6c757d"
                         : "transparent",
-                      border: `1px solid ${
-                        showCompleted ? "#6c757d" : "#ced4da"
-                      }`,
+                      border: `1px solid ${showCompleted ? "#6c757d" : "#ced4da"
+                        }`,
                     }}
                   />
                   Contrats terminés
@@ -1483,9 +1566,8 @@ export default function KpiPage() {
 
                             return (
                               <tr
-                                key={`after5-${s.suivi_id || s.id || ""}-${
-                                  s.document_id || s.facture_id || ""
-                                }`}
+                                key={`after5-${s.suivi_id || s.id || ""}-${s.document_id || s.facture_id || ""
+                                  }`}
                                 onClick={() => {
                                   if (clientId) {
                                     history.push(
@@ -1596,9 +1678,8 @@ export default function KpiPage() {
 
                       return (
                         <tr
-                          key={`${s.suivi_id || s.id || ""}-${
-                            s.document_id || s.facture_id || ""
-                          }`}
+                          key={`${s.suivi_id || s.id || ""}-${s.document_id || s.facture_id || ""
+                            }`}
                           onClick={() => {
                             if (clientId) {
                               history.push(`/app/user/edit/${clientId}/2`);
@@ -1690,9 +1771,8 @@ export default function KpiPage() {
 
                             return (
                               <tr
-                                key={`processing-${s.suivi_id || s.id || ""}-${
-                                  s.document_id || s.facture_id || ""
-                                }`}
+                                key={`processing-${s.suivi_id || s.id || ""}-${s.document_id || s.facture_id || ""
+                                  }`}
                                 onClick={() => {
                                   if (clientId) {
                                     history.push(
@@ -1787,9 +1867,8 @@ export default function KpiPage() {
 
                             return (
                               <tr
-                                key={`completed-${s.suivi_id || s.id || ""}-${
-                                  s.document_id || s.facture_id || ""
-                                }`}
+                                key={`completed-${s.suivi_id || s.id || ""}-${s.document_id || s.facture_id || ""
+                                  }`}
                                 onClick={() => {
                                   if (clientId) {
                                     history.push(
@@ -1881,6 +1960,124 @@ export default function KpiPage() {
                         </tr>
                       )}
                   </>
+                )}
+              </tbody>
+            </Table>
+          </CardBody>
+        </Card>
+      </div>
+      {/* ====== Suivi conversations chatbot ====== */}
+      <div className="vx-col w-100">
+        <Card>
+          <CardHeader className="d-flex align-items-center justify-content-between">
+            <h4 className="mb-0">Suivi conversations chatbot</h4>
+          </CardHeader>
+          <CardBody>
+            {convError && (
+              <div
+                style={{
+                  background: "#ffe9e9",
+                  border: "1px solid #ffb3b3",
+                  color: "#b10000",
+                  padding: 10,
+                  borderRadius: 6,
+                  marginBottom: 14,
+                }}
+              >
+                {convError}
+              </div>
+            )}
+
+            <Table responsive hover>
+              <thead>
+                <tr>
+                  <th>Date / heure</th>
+                  <th>Résumé</th>
+                  <th>Messages avec téléphone</th>
+                  <th style={{ width: 90 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {loadingConversations ? (
+                  <tr>
+                    <td colSpan="4">Chargement des conversations…</td>
+                  </tr>
+                ) : conversations.length ? (
+                  conversations.map((conv) => {
+                    const phoneMessages =
+                      (conv.messages || []).filter(
+                        (m) =>
+                          typeof m.content === "string" &&
+                          PHONE_REGEX.test(m.content)
+                      );
+
+                    return (
+                      <tr key={conv.id}>
+                        <td>
+                          {formatDateTime(conv.created_at || conv.updated_at)}
+                        </td>
+                        <td style={{ maxWidth: 420 }}>
+                          <span style={{ display: "block", fontSize: 13 }}>
+                            {conv.summary || <em>(aucun résumé)</em>}
+                          </span>
+                        </td>
+
+                        {/* 🔽 NOUVELLE CELLULE : messages contenant un numéro */}
+                        <td style={{ maxWidth: 420 }}>
+                          {phoneMessages.length ? (
+                            phoneMessages.map((m, index) => {
+                              // on extrait éventuellement les numéros pour les rendre cliquables
+                              const numbers = m.content.match(PHONE_REGEX) || [];
+
+                              return (
+                                <div
+                                  key={index}
+                                  style={{ fontSize: 13, marginBottom: 4 }}
+                                >
+                                  {numbers.length > 0 && (
+                                    <>
+                                      {numbers.map((phone, i) => (
+                                        <a
+                                          key={i}
+                                          href={`tel:${phone.replace(/[ .-]/g, "")}`}
+                                          style={{ textDecoration: "underline" }}
+                                        >
+                                          {phone}
+                                        </a>
+                                      ))}
+                                      <span style={{ margin: "0 4px" }}>–</span>
+                                    </>
+                                  )}
+                                  <span>{m.content}</span>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <em>(aucun numéro détecté)</em>
+                          )}
+                        </td>
+                        <td className="text-right">
+                          <Button
+                            color="light"
+                            size="sm"
+                            onClick={() => openConvModal(conv)}
+                            title="Voir la conversation"
+                            aria-label="Voir la conversation"
+                            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                          >
+                            <MessageSquare size={14} />
+                            <span className="d-none d-md-inline">Voir</span>
+                          </Button>
+                        </td>
+
+                      </tr>
+                    );
+                  })
+
+                ) : (
+                  <tr>
+                    <td colSpan="4">Aucune conversation archivée.</td>
+                  </tr>
                 )}
               </tbody>
             </Table>
@@ -1998,8 +2195,8 @@ export default function KpiPage() {
                         color: sendMsg.startsWith("✅")
                           ? "#0f5132"
                           : sendMsg.startsWith("⚠️")
-                          ? "#8a6d3b"
-                          : "#b10000",
+                            ? "#8a6d3b"
+                            : "#b10000",
                       }}
                     >
                       {sendMsg.replace(/^[✅⚠️]/, "")}
@@ -2155,8 +2352,8 @@ export default function KpiPage() {
                   {groupBy === "week"
                     ? "Par semaine"
                     : groupBy === "month"
-                    ? "Par mois"
-                    : "Par jour (semaine)"}
+                      ? "Par mois"
+                      : "Par jour (semaine)"}
                 </DropdownToggle>
                 <DropdownMenu right>
                   <DropdownItem onClick={() => setGroupBy("week")}>
@@ -2282,28 +2479,28 @@ export default function KpiPage() {
                       groupBy === "week"
                         ? `Semaine ${label.split("-")[1]}`
                         : groupBy === "day"
-                        ? `${label} – ${formatWeekRangeLabel(year, week)}`
-                        : label
+                          ? `${label} – ${formatWeekRangeLabel(year, week)}`
+                          : label
                     }
                   />
                   <Legend />
 
                   {actionFilter === "all"
                     ? ACTIONS_ALL.map((a) => (
-                        <Bar
-                          key={a}
-                          dataKey={a}
-                          stackId="total"
-                          fill={ACTION_FILLS[a]}
-                        />
-                      ))
+                      <Bar
+                        key={a}
+                        dataKey={a}
+                        stackId="total"
+                        fill={ACTION_FILLS[a]}
+                      />
+                    ))
                     : [
-                        <Bar
-                          key={actionFilter}
-                          dataKey={actionFilter}
-                          fill={ACTION_FILLS[actionFilter]}
-                        />,
-                      ]}
+                      <Bar
+                        key={actionFilter}
+                        dataKey={actionFilter}
+                        fill={ACTION_FILLS[actionFilter]}
+                      />,
+                    ]}
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -2417,6 +2614,63 @@ export default function KpiPage() {
           </CardBody>
         </Card>
       </div>
+      <Modal
+        isOpen={convModalOpen}
+        toggle={closeConvModal}
+        size="lg"
+      >
+        <ModalHeader toggle={closeConvModal}>
+          {selectedConv ? `Conversation #${selectedConv.id}` : "Conversation"}
+        </ModalHeader>
+
+        <ModalBody>
+          {/* Résumé */}
+          <div
+            style={{
+              background: "#f8f9fa",
+              border: "1px solid #e9ecef",
+              padding: "10px 12px",
+              borderRadius: 8,
+              marginBottom: 12,
+            }}
+          >
+            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+              Résumé
+            </div>
+            <div style={{ fontSize: 13 }}>
+              {selectedConv?.summary || <em style={{ opacity: 0.6 }}>(vide)</em>}
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div
+            style={{
+              maxHeight: "60vh",
+              overflowY: "auto",
+              paddingRight: 6,
+            }}
+          >
+            {Array.isArray(selectedConv?.messages) &&
+              selectedConv.messages.length > 0 ? (
+              selectedConv.messages.map(renderChatBubble)
+            ) : (
+              <em style={{ opacity: 0.6 }}>Aucun message.</em>
+            )}
+          </div>
+        </ModalBody>
+
+        <ModalFooter className="d-flex justify-content-between">
+          <div style={{ fontSize: 12, opacity: 0.7 }}>
+            Créée le: {formatDateTime(selectedConv?.created_at)}{" "}
+            {selectedConv?.updated_at
+              ? `• MAJ: ${formatDateTime(selectedConv.updated_at)}`
+              : ""}
+          </div>
+          <Button color="secondary" onClick={closeConvModal}>
+            Fermer
+          </Button>
+        </ModalFooter>
+      </Modal>
 
       {/* ====== Modale de confirmation ====== */}
       <Modal
@@ -2455,8 +2709,8 @@ export default function KpiPage() {
                 <strong>Date :</strong>{" "}
                 {formatDate(
                   toDelete.kpi_date ||
-                    toDelete.created_at ||
-                    toDelete.updated_at
+                  toDelete.created_at ||
+                  toDelete.updated_at
                 )}
               </div>
               <div>
