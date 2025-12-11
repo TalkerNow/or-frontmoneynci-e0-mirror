@@ -41,9 +41,6 @@ import {
   MessageSquare,
   UserPlus,
   ArrowRight,
-
-  Check,
-  X,
 } from "react-feather"; // icônes
 
 /** =============================
@@ -730,63 +727,6 @@ export default function KpiPage() {
     setYear(y);
     setWeek(w);
   }
-  const normalizePhone = (phone) =>
-    phone
-      .replace(/[^\d+]/g, "")  // enlève espaces, points, tirets, parenthèses, etc.
-      .replace(/^00/, "+");   // optionnel : 0033 -> +33
-
-  const extractPhonesFromText = (text) => {
-    if (typeof text !== "string") return [];
-    const matches = text.match(new RegExp(PHONE_REGEX.source, "g")) || [];
-    return matches.map(normalizePhone);
-  };
-
-  const extractPhonesFromConv = (conv) => {
-    const msgs = conv?.messages || [];
-    const all = msgs.flatMap((m) => extractPhonesFromText(m.content));
-    // unique
-    return Array.from(new Set(all));
-  };
-
-  const getConvDateValue = (conv) => {
-    const d = conv.created_at || conv.updated_at;
-    const t = d ? new Date(d).getTime() : 0;
-    return Number.isFinite(t) ? t : 0;
-  };
-
-  const pickBestConv = (a, b) => {
-    const aHasSummary = !!(a?.summary && String(a.summary).trim());
-    const bHasSummary = !!(b?.summary && String(b.summary).trim());
-
-    if (aHasSummary && !bHasSummary) return a;
-    if (!aHasSummary && bHasSummary) return b;
-
-    // sinon la plus récente
-    return getConvDateValue(a) >= getConvDateValue(b) ? a : b;
-  };
-  const dedupedConversations = React.useMemo(() => {
-    const map = new Map();
-
-    for (const conv of conversations || []) {
-      const phones = extractPhonesFromConv(conv);
-
-      // clé principale = premier numéro trouvé
-      // fallback: id pour ne pas écraser les conv sans numéro
-      const key = phones[0] || `no-phone:${conv.id}`;
-
-      if (!map.has(key)) {
-        map.set(key, conv);
-      } else {
-        const existing = map.get(key);
-        map.set(key, pickBestConv(existing, conv));
-      }
-    }
-
-    return Array.from(map.values()).sort(
-      (a, b) => getConvDateValue(b) - getConvDateValue(a)
-    );
-  }, [conversations]);
-
   const handleSort = (field) => {
     setSortField((prevField) => {
       if (prevField === field) {
@@ -803,51 +743,14 @@ export default function KpiPage() {
   const [convModalOpen, setConvModalOpen] = useState(false);
   const [selectedConv, setSelectedConv] = useState(null);
 
-  // DELETE Conversation
-
-  const [convConfirmOpen, setConvConfirmOpen] = useState(false);
-  const [convToDelete, setConvToDelete] = useState(null);
-  const [convDeleting, setConvDeleting] = useState(false);
-
   function openConvModal(conv) {
     setSelectedConv(conv);
     setConvModalOpen(true);
   }
-
   function closeConvModal() {
-    setSelectedConv(null);
     setConvModalOpen(false);
+    setSelectedConv(null);
   }
-
-  // --- DELETE logic ---
-  function openDeleteConvModal(conv) {
-    setConvToDelete(conv);
-    setConvConfirmOpen(true);
-  }
-  function closeDeleteConvModal() {
-    setConvToDelete(null);
-    setConvConfirmOpen(false);
-  }
-  async function handleDeleteConv() {
-    if (!convToDelete) return;
-    try {
-      setConvDeleting(true);
-      setConvError("");
-      await API.delete(`/conversation-archives/${convToDelete.id}`);
-
-      // Refresh list
-      await fetchConversationArchives();
-      closeDeleteConvModal();
-    } catch (e) {
-      console.error(e);
-      setConvError("Erreur suppression conversation: " + (e?.response?.data?.message || e.message));
-    } finally {
-      setConvDeleting(false);
-    }
-  }
-
-
-
   function renderChatBubble(msg, idx) {
     const role = msg?.role || "unknown";
     const isUser = role === "user";
@@ -2091,7 +1994,7 @@ export default function KpiPage() {
                   <th>Date / heure</th>
                   <th>Résumé</th>
                   <th>Messages avec téléphone</th>
-                  <th className="text-right">Actions</th>
+                  <th style={{ width: 90 }}></th>
                 </tr>
               </thead>
               <tbody>
@@ -2100,7 +2003,7 @@ export default function KpiPage() {
                     <td colSpan="4">Chargement des conversations…</td>
                   </tr>
                 ) : conversations.length ? (
-                  dedupedConversations.map((conv) => {
+                  conversations.map((conv) => {
                     const phoneMessages =
                       (conv.messages || []).filter(
                         (m) =>
@@ -2124,7 +2027,7 @@ export default function KpiPage() {
                           {phoneMessages.length ? (
                             phoneMessages.map((m, index) => {
                               // on extrait éventuellement les numéros pour les rendre cliquables
-                              const numbers = m.content.match(new RegExp(PHONE_REGEX.source, "g")) || [];
+                              const numbers = m.content.match(PHONE_REGEX) || [];
 
                               return (
                                 <div
@@ -2154,25 +2057,17 @@ export default function KpiPage() {
                           )}
                         </td>
                         <td className="text-right">
-                          <Button.Ripple
-                            className="btn-icon rounded-circle mr-1"
-                            color="flat-primary"
+                          <Button
+                            color="light"
+                            size="sm"
                             onClick={() => openConvModal(conv)}
                             title="Voir la conversation"
+                            aria-label="Voir la conversation"
+                            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
                           >
-                            <MessageSquare size={16} />
-                          </Button.Ripple>
-
-
-
-                          <Button.Ripple
-                            className="btn-icon rounded-circle"
-                            color="flat-danger"
-                            onClick={() => openDeleteConvModal(conv)}
-                            title="Supprimer"
-                          >
-                            <Trash2 size={16} />
-                          </Button.Ripple>
+                            <MessageSquare size={14} />
+                            <span className="d-none d-md-inline">Voir</span>
+                          </Button>
                         </td>
 
                       </tr>
@@ -2842,36 +2737,6 @@ export default function KpiPage() {
             disabled={!toDelete || deletingId === toDelete?.id}
           >
             {deletingId === toDelete?.id ? "Suppression..." : "Supprimer"}
-          </Button>
-        </ModalFooter>
-      </Modal>
-
-
-
-      {/* ====== Modale SUPPRESSION Conversation ====== */}
-      <Modal
-        isOpen={convConfirmOpen}
-        toggle={closeDeleteConvModal}
-        centered
-        size="sm"
-      >
-        <ModalHeader toggle={closeDeleteConvModal} className="border-0">
-          Confirmation
-        </ModalHeader>
-        <ModalBody className="text-center">
-          <div className="mb-2">
-            <Trash2 size={40} color="#ea5455" />
-          </div>
-          <h5>Supprimer cette conversation ?</h5>
-          <p className="text-muted">
-            ID: #{convToDelete?.id}<br />
-            Cette action est irréversible.
-          </p>
-        </ModalBody>
-        <ModalFooter className="justify-content-center border-0">
-          <Button color="secondary" onClick={closeDeleteConvModal}>Non</Button>
-          <Button color="danger" onClick={handleDeleteConv} disabled={convDeleting}>
-            {convDeleting ? "Suppression..." : "Oui, supprimer"}
           </Button>
         </ModalFooter>
       </Modal>
