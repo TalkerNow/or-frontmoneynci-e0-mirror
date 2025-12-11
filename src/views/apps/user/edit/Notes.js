@@ -157,15 +157,17 @@ const sanitizeSalaryInput = (val) => {
 };
 
 const NotesTab = ({ id, perso = {}, onReportError }) => {
-  const [notes, setNotes] = useState(perso?.notes ?? "");
-  const [originalNotes, setOriginalNotes] = useState(perso?.notes ?? "");
-  const [isSaving, setIsSaving] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadedDocs, setUploadedDocs] = useState(() => loadUploadedDocs());
-  const [generatedDocs, setGeneratedDocs] = useState(() => loadStoredDocs());
-  const [reportType, setReportType] = useState("pre");
-  const [deleteConfirmTarget, setDeleteConfirmTarget] = useState(null);
-  const [fileToSend, setFileToSend] = useState(null);
+  const [notes, setNotes] = useState(perso?.notes ?? '')
+  const [originalNotes, setOriginalNotes] = useState(perso?.notes ?? '')
+  const [isSaving, setIsSaving] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [uploadedDocs, setUploadedDocs] = useState(() => loadUploadedDocs())
+  const [generatedDocs, setGeneratedDocs] = useState(() => loadStoredDocs())
+  const [reportType, setReportType] = useState('pre')
+  const [deleteConfirmTarget, setDeleteConfirmTarget] = useState(null)
+  const [fileToSend, setFileToSend] = useState(null)
+  const [n8nMessage, setN8nMessage] = useState("")
   const [manualCareerRows, setManualCareerRows] = useState([
     {
       id: Date.now(),
@@ -359,10 +361,29 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         return;
       }
 
+      // Validation : nombre d'enfants
+      const childrenCountVal = perso?.children_number;
+      if (
+        childrenCountVal === undefined ||
+        childrenCountVal === null ||
+        String(childrenCountVal).trim() === ""
+      ) {
+        toast.error(
+          "Le nombre d'enfants est manquant. Veuillez le renseigner dans les informations du client."
+        );
+        return;
+      }
+
+      setIsGenerating(true)
       try {
         // ---------- CALL 1 : FRONT → n8n (avec le fichier) ----------
         const n8nFormData = new FormData();
         n8nFormData.append("file", fileToSend);
+
+        // Ajout du nombre d'enfants au message n8n
+        const childrenCount = perso?.children_number ?? "Non renseigné";
+        const finalMessage = `${n8nMessage || ""}\n\nNombre d'enfants : ${childrenCount}`.trim();
+        n8nFormData.append("message", finalMessage);
 
         toast.info("Analyse du relevé en cours via n8n…");
 
@@ -441,29 +462,13 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         setGeneratedDocs((prev) => [doc, ...(Array.isArray(prev) ? prev : [])]);
         toast.success(`${label} généré avec succès`);
       } catch (error) {
-        console.error("Generation error:", error);
-        let errorMsg = "Erreur lors de la génération du rapport";
-
-        if (error.response) {
-          // Erreur HTTP (n8n ou backend)
-          errorMsg += ` (Erreur ${error.response.status})`;
-          if (error.config && error.config.url) {
-            if (error.config.url.includes("n8n")) errorMsg += " - n8n";
-            else if (error.config.url.includes("generate-report"))
-              errorMsg += " - Backend";
-          }
-        } else if (error.request) {
-          // Pas de réponse reçue
-          errorMsg += " (Pas de réponse du serveur)";
-        } else {
-          // Autre erreur (ex: parsing)
-          errorMsg += ` (${error.message})`;
-        }
-
-        toast.error(errorMsg);
+        console.error(error);
+        toast.error("Erreur lors de la génération du rapport");
+      } finally {
+        setIsGenerating(false)
       }
     },
-    [clientNames.displayName, fileToSend, id]
+    [clientNames.displayName, fileToSend, id, n8nMessage, perso]
   );
 
   const handleOpenDoc = useCallback(async (doc) => {
@@ -472,19 +477,19 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
       return;
     }
 
-    try {
-      // On force le téléchargement en récupérant le blob
-      toast.info("Téléchargement en cours...");
-      const response = await axios.get(doc.url, { responseType: "blob" });
+  const handleOpenDoc = useCallback((doc) => {
+    if (!doc || !doc.url) {
+      toast.info("Aucun fichier disponible pour ce document");
+      return;
+    }
 
-      // Déduction du nom de fichier
-      let filename = doc.name || "document";
-      const extension = doc.url.split(".").pop().split("?")[0];
-      if (extension && filename.indexOf(extension) === -1) {
-        // On évite de doubler l'extension si elle est déjà dans le nom
-        // Mais ici doc.name est souvent un libellé ("Rapport ...")
-        filename = `${filename}.${extension}`;
-      }
+    try {
+      // Ouvre le docx dans un nouvel onglet (ou déclenche le téléchargement)
+      window.open(doc.url, "_blank", "noopener,noreferrer");
+    } catch {
+      toast.error("Impossible d’ouvrir le document");
+    }
+  }, []);
 
       saveAs(response.data, filename);
       toast.success("Téléchargement terminé");
@@ -620,7 +625,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         </Card>
 
         <Card className="notes-card notes-card--compact notes-card--upload">
-          <CardBody className="notes-upload-body">
+          <CardBody className="notes-upload-body" style={{ position: "relative" }}>
             <div className="d-flex justify-content-between align-items-center mb-1">
               <h5 className="notes-card-title mb-0">
                 RIS relevé de carrière du client
@@ -690,13 +695,30 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
             )}
             {/* ------------------------------------- */}
 
-            <div className="notes-upload-actions notes-action-row">
+            <div className="mt-2 mb-1">
+              <label className="mb-0 font-small-3" htmlFor="n8nMessage">Message d'accompagnement (optionnel)</label>
+              <Input
+                type="textarea"
+                id="n8nMessage"
+                rows="3"
+                placeholder="Ajouter une instruction ou un commentaire pour l'analyse..."
+                value={n8nMessage}
+                onChange={(e) => setN8nMessage(e.target.value)}
+                style={{ resize: 'none' }}
+                disabled={isGenerating}
+              />
+            </div>
+
+
+
+            <div className='notes-upload-actions notes-action-row'>
               <Button
                 className={`notes-report-btn notes-action-btn ${
                   reportType === "pre" ? "is-active" : ""
                 }`}
                 color="link"
                 onClick={() => handleGenerateDoc("pre")}
+                disabled={isGenerating && reportType === 'pre'}
               >
                 Rapport pré-entretien
               </Button>
@@ -706,10 +728,45 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
                 }`}
                 color="link"
                 onClick={() => handleGenerateDoc("consult")}
+                disabled={isGenerating}
               >
                 Rapport consultation
               </Button>
             </div>
+
+            {isGenerating && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: "100%",
+                  backgroundColor: "rgba(255, 255, 255, 0.85)",
+                  zIndex: 10,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backdropFilter: "blur(2px)",
+                  borderRadius: "inherit",
+                }}
+              >
+                <div
+                  className="spinner-border text-primary"
+                  style={{ width: "3rem", height: "3rem" }}
+                  role="status"
+                >
+                  <span className="sr-only">Chargement...</span>
+                </div>
+                <h4 className="mt-2 text-primary font-weight-bold">
+                  Analyse en cours...
+                </h4>
+                <p className="text-dark font-weight-bold">
+                  Merci de ne pas fermer cette page.
+                </p>
+              </div>
+            )}
           </CardBody>
         </Card>
       </div>
