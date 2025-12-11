@@ -15,6 +15,7 @@ import { toast } from "react-toastify";
 import UploadCard from "./components/UploadCard";
 import GeneratedDocumentItem from "./components/GeneratedDocumentItem";
 import { AlertTriangle } from "react-feather";
+import { saveAs } from "file-saver";
 import "../../../../assets/scss/pages/notes-hub.scss";
 
 const DOC_STORAGE_KEY = "career_generated_docs_v1";
@@ -188,12 +189,11 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
   const clientNames = useMemo(() => extractClientNames(perso), [perso]);
   const hasChanged = notes !== originalNotes;
 
-  const persoNotes = perso?.notes;
   useEffect(() => {
-    const incoming = persoNotes ?? "";
+    const incoming = perso?.notes ?? "";
     setNotes(incoming);
     setOriginalNotes(incoming);
-  }, [id, persoNotes]);
+  }, [id, perso?.notes]);
 
   useEffect(() => {
     persistDocs(generatedDocs);
@@ -297,7 +297,6 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         const Config = {
           headers: {
             Authorization: "Bearer " + localStorage.getItem("token"),
-            "Content-Type": "multipart/form-data",
           },
         };
 
@@ -338,59 +337,161 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
   const handleGenerateDoc = useCallback(
     async (type) => {
       const normalizedType = type === "consult" ? "consult" : "pre";
+      setReportType(normalizedType);
 
-      if (normalizedType === "pre" && fileToSend) {
-        try {
-          const formData = new FormData();
-          formData.append("file", fileToSend);
-
-          const Config = {
-            headers: {
-              Authorization: "Bearer " + localStorage.getItem("token"),
-              "Content-Type": "multipart/form-data",
-            },
-          };
-
-          toast.info("Envoi vers n8n en cours...");
-          await axios.post(
-            `${global.config.server_url}/sendToN8n`,
-            formData,
-            Config
-          );
-          toast.success("Envoyé à n8n avec succès");
-        } catch (error) {
-          console.error(error);
-          toast.error("Erreur lors de l'envoi à n8n");
-        }
+      // 1) Cas "consult" : on garde ton comportement actuel (HTML statique)
+      if (normalizedType === "consult") {
+        const label = "Rapport consultation";
+        const doc = {
+          id: generateDocId(),
+          name: `${label} de ${clientNames.displayName}`,
+          type: normalizedType,
+          createdAt: new Date().toISOString(),
+          url: DEFAULT_DOC_URLS[normalizedType],
+        };
+        setGeneratedDocs((prev) => [doc, ...(Array.isArray(prev) ? prev : [])]);
+        return;
       }
 
-      setReportType(normalizedType);
-      const label =
-        normalizedType === "consult"
-          ? "Rapport consultation"
-          : "Rapport pré-entretien";
-      const doc = {
-        id: generateDocId(),
-        name: `${label} de ${clientNames.displayName}`,
-        type: normalizedType,
-        createdAt: new Date().toISOString(),
-        url: DEFAULT_DOC_URLS[normalizedType],
-      };
-      setGeneratedDocs((prev) => [doc, ...prev]);
+      // 2) Cas "pre" : flux n8n + Laravel
+      if (!fileToSend) {
+        toast.error("Merci d'importer d'abord un RIS (PDF)");
+        return;
+      }
+
+      try {
+        // ---------- CALL 1 : FRONT → n8n (avec le fichier) ----------
+        const n8nFormData = new FormData();
+        n8nFormData.append("file", fileToSend);
+
+        toast.info("Analyse du relevé en cours via n8n…");
+
+        // ---------- CALL 1 : FRONT → n8n (avec le fichier) ----------
+        // Utilisation de fetch natif pour mieux gérer le FormData/Boundary que cette version d'axios
+        const n8nRes = await fetch(
+          "https://n8n.srv796541.hstgr.cloud/webhook/f012dfc7-8b2c-479f-af1f-20dcd44cda02",
+          {
+            method: "POST",
+            body: n8nFormData,
+          }
+        );
+
+        if (!n8nRes.ok) {
+          throw new Error(`Erreur n8n: ${n8nRes.status} ${n8nRes.statusText}`);
+        }
+
+        let reportData = await n8nRes.json();
+
+        // Si n8n renvoie [{ text: "```json\n{...}\n```" }]
+        if (Array.isArray(reportData) && reportData[0]?.text) {
+          const text = reportData[0].text || "";
+          // On tente de récupérer le JSON entre { ... }
+          const match = text.match(/\{[\s\S]*\}/);
+          if (match) {
+            reportData = JSON.parse(match[0]);
+          } else {
+            // fallback : on enlève ```json et ``` et on parse
+            const cleaned = text
+              .replace(/```json/gi, "")
+              .replace(/```/g, "")
+              .trim();
+            reportData = JSON.parse(cleaned);
+          }
+        }
+
+        // On ajoute l'id du client et le type de rapport
+        reportData.client_id = id;
+        reportData.report_type = normalizedType;
+
+        // ---------- CALL 2 : FRONT → LARAVEL (/generate-report) ----------
+        const backendConfig = {
+          headers: {
+            Authorization: "Bearer " + localStorage.getItem("token"),
+          },
+        };
+
+        const backendRes = await axios.post(
+          `${global.config.server_url}/generate-report`,
+          reportData,
+          backendConfig
+        );
+
+        const reportUrl =
+          backendRes?.data?.report_urls?.pdf ||
+          backendRes?.data?.report_urls?.docx;
+
+        if (!reportUrl) {
+          console.warn("Réponse backend:", backendRes?.data);
+          toast.error("Le serveur n'a pas renvoyé de lien de rapport");
+          return;
+        }
+
+        const label =
+          normalizedType === "consult"
+            ? "Rapport consultation"
+            : "Rapport pré-entretien";
+        const doc = {
+          id: generateDocId(),
+          name: `${label} de ${clientNames.displayName}`,
+          type: normalizedType,
+          createdAt: new Date().toISOString(),
+          url: reportUrl, // ✅ URL réelle du PDF ou DOCX généré par Laravel
+        };
+
+        setGeneratedDocs((prev) => [doc, ...(Array.isArray(prev) ? prev : [])]);
+        toast.success(`${label} généré avec succès`);
+      } catch (error) {
+        console.error("Generation error:", error);
+        let errorMsg = "Erreur lors de la génération du rapport";
+
+        if (error.response) {
+          // Erreur HTTP (n8n ou backend)
+          errorMsg += ` (Erreur ${error.response.status})`;
+          if (error.config && error.config.url) {
+            if (error.config.url.includes("n8n")) errorMsg += " - n8n";
+            else if (error.config.url.includes("generate-report"))
+              errorMsg += " - Backend";
+          }
+        } else if (error.request) {
+          // Pas de réponse reçue
+          errorMsg += " (Pas de réponse du serveur)";
+        } else {
+          // Autre erreur (ex: parsing)
+          errorMsg += ` (${error.message})`;
+        }
+
+        toast.error(errorMsg);
+      }
     },
-    [clientNames.displayName, fileToSend]
+    [clientNames.displayName, fileToSend, id]
   );
 
-  const handleOpenDoc = useCallback((doc) => {
+  const handleOpenDoc = useCallback(async (doc) => {
     if (!doc || !doc.url) {
       toast.info("Aucun fichier disponible pour ce document");
       return;
     }
+
     try {
-      const wordUrl = `ms-word:ofe|u|${doc.url}`;
-      window.location.href = wordUrl;
-    } catch {
-      toast.error("Impossible d’ouvrir le document");
+      // On force le téléchargement en récupérant le blob
+      toast.info("Téléchargement en cours...");
+      const response = await axios.get(doc.url, { responseType: "blob" });
+
+      // Déduction du nom de fichier
+      let filename = doc.name || "document";
+      const extension = doc.url.split(".").pop().split("?")[0];
+      if (extension && filename.indexOf(extension) === -1) {
+        // On évite de doubler l'extension si elle est déjà dans le nom
+        // Mais ici doc.name est souvent un libellé ("Rapport ...")
+        filename = `${filename}.${extension}`;
+      }
+
+      saveAs(response.data, filename);
+      toast.success("Téléchargement terminé");
+    } catch (error) {
+      console.error(error);
+      // Fallback : ouverture simple
+      window.open(doc.url, "_blank", "noopener,noreferrer");
     }
   }, []);
 
