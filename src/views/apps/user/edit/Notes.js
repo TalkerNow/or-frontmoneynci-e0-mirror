@@ -160,6 +160,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
   const [originalNotes, setOriginalNotes] = useState(perso?.notes ?? '')
   const [isSaving, setIsSaving] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
   const [uploadedDocs, setUploadedDocs] = useState(() => loadUploadedDocs())
   const [generatedDocs, setGeneratedDocs] = useState(() => loadStoredDocs())
   const [reportType, setReportType] = useState('pre')
@@ -356,11 +357,29 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         return;
       }
 
+      // Validation : nombre d'enfants
+      const childrenCountVal = perso?.children_number;
+      if (
+        childrenCountVal === undefined ||
+        childrenCountVal === null ||
+        String(childrenCountVal).trim() === ""
+      ) {
+        toast.error(
+          "Le nombre d'enfants est manquant. Veuillez le renseigner dans les informations du client."
+        );
+        return;
+      }
+
+      setIsGenerating(true)
       try {
         // ---------- CALL 1 : FRONT → n8n (avec le fichier) ----------
         const n8nFormData = new FormData();
         n8nFormData.append("file", fileToSend);
-        n8nFormData.append("message", n8nMessage);
+
+        // Ajout du nombre d'enfants au message n8n
+        const childrenCount = perso?.children_number ?? "Non renseigné";
+        const finalMessage = `${n8nMessage || ""}\n\nNombre d'enfants : ${childrenCount}`.trim();
+        n8nFormData.append("message", finalMessage);
 
         toast.info("Analyse du relevé en cours via n8n…");
 
@@ -431,9 +450,11 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
       } catch (error) {
         console.error(error);
         toast.error("Erreur lors de la génération du rapport");
+      } finally {
+        setIsGenerating(false)
       }
     },
-    [clientNames.displayName, fileToSend, id, n8nMessage]
+    [clientNames.displayName, fileToSend, id, n8nMessage, perso]
   );
 
 
@@ -577,7 +598,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         </Card>
 
         <Card className="notes-card notes-card--compact notes-card--upload">
-          <CardBody className="notes-upload-body">
+          <CardBody className="notes-upload-body" style={{ position: "relative" }}>
             <div className="d-flex justify-content-between align-items-center mb-1">
               <h5 className="notes-card-title mb-0">
                 RIS relevé de carrière du client
@@ -637,8 +658,11 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
                 value={n8nMessage}
                 onChange={(e) => setN8nMessage(e.target.value)}
                 style={{ resize: 'none' }}
+                disabled={isGenerating}
               />
             </div>
+
+
 
             <div className='notes-upload-actions notes-action-row'>
               <Button
@@ -646,6 +670,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
                   }`}
                 color="link"
                 onClick={() => handleGenerateDoc("pre")}
+                disabled={isGenerating && reportType === 'pre'}
               >
                 Rapport pré-entretien
               </Button>
@@ -654,10 +679,45 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
                   }`}
                 color="link"
                 onClick={() => handleGenerateDoc("consult")}
+                disabled={isGenerating}
               >
                 Rapport consultation
               </Button>
             </div>
+
+            {isGenerating && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: "100%",
+                  backgroundColor: "rgba(255, 255, 255, 0.85)",
+                  zIndex: 10,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backdropFilter: "blur(2px)",
+                  borderRadius: "inherit",
+                }}
+              >
+                <div
+                  className="spinner-border text-primary"
+                  style={{ width: "3rem", height: "3rem" }}
+                  role="status"
+                >
+                  <span className="sr-only">Chargement...</span>
+                </div>
+                <h4 className="mt-2 text-primary font-weight-bold">
+                  Analyse en cours...
+                </h4>
+                <p className="text-dark font-weight-bold">
+                  Merci de ne pas fermer cette page.
+                </p>
+              </div>
+            )}
           </CardBody>
         </Card>
       </div>
