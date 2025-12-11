@@ -1121,15 +1121,21 @@ class EditContract extends React.Component {
   };
 
   toInputValue = (sql) => {
-    // "YYYY-MM-DD HH:mm:ss" -> "YYYY-MM-DDTHH:mm"
+    // "YYYY-MM-DD HH:mm:ss" -> "YYYY-MM-DD"
     if (!sql) return "";
-    return sql.replace(" ", "T").slice(0, 16);
+    return sql.split(" ")[0];
   };
 
   fromInputValue = (v) => {
-    // "YYYY-MM-DDTHH:mm" -> "YYYY-MM-DD HH:mm:00"
+    // "YYYY-MM-DD" -> "YYYY-MM-DD HH:mm:ss"
     if (!v) return "";
-    return v.replace("T", " ") + ":00";
+    // prevent year > 4 chars
+    const parts = v.split("-");
+    if (parts.length === 3 && parts[0].length > 4) {
+      parts[0] = parts[0].slice(0, 4);
+      return parts.join("-") + " 00:00:00";
+    }
+    return v + " 00:00:00";
   };
 
   addDate = (key) => {
@@ -1759,6 +1765,7 @@ class EditContract extends React.Component {
                                   <>
                                     <Input
                                       type="date"
+                                      max="9999-12-31"
                                       style={{ width: 240, height: 34 }}
                                       value={this.toInputValue(d)}
                                       onChange={(e) =>
@@ -1794,9 +1801,7 @@ class EditContract extends React.Component {
                                         backgroundColor: "#f8f9fa",
                                       }}
                                     >
-                                      {d
-                                        ? moment(d).format("DD/MM/YYYY")
-                                        : "-"}
+                                      {d ? moment(d).format("DD/MM/YYYY") : "-"}
                                     </div>
                                     <Button.Ripple
                                       className="btn-icon rounded-circle"
@@ -1851,6 +1856,7 @@ class EditContract extends React.Component {
                                   <>
                                     <Input
                                       type="date"
+                                      max="9999-12-31"
                                       style={{ width: 240, height: 34 }}
                                       value={this.toInputValue(d)}
                                       onChange={(e) =>
@@ -1886,9 +1892,7 @@ class EditContract extends React.Component {
                                         backgroundColor: "#f8f9fa",
                                       }}
                                     >
-                                      {d
-                                        ? moment(d).format("DD/MM/YYYY")
-                                        : "-"}
+                                      {d ? moment(d).format("DD/MM/YYYY") : "-"}
                                     </div>
                                     <Button.Ripple
                                       className="btn-icon rounded-circle"
