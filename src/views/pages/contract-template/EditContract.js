@@ -35,8 +35,6 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import { history } from "../../../history";
 import Radio from "../../../components/@vuexy/radio/RadioVuexy";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 const chipColors = {
   CH: "warning",
   SIMU: "success",
@@ -621,7 +619,7 @@ class EditContract extends React.Component {
     if (input_values["c1"])
       nbHT1 = Math.trunc(
         (this.state.formValues["nb1-price"] / 60) *
-        parseInt(this.state.formValues["nb1"], 10)
+          parseInt(this.state.formValues["nb1"], 10)
       );
     this.state.formValues["nbHT1"] = nbHT1;
     this.state.formValues["TTC1"] = nbHT1 * VTA;
@@ -730,8 +728,8 @@ class EditContract extends React.Component {
     axios
       .get(
         global.config.server_url +
-        "/get_contract/" +
-        this.props.match.params.id,
+          "/get_contract/" +
+          this.props.match.params.id,
         Config
       )
       .then((response) => {
@@ -739,14 +737,14 @@ class EditContract extends React.Component {
         const acompteDates = Array.isArray(rowData.acompte_dates)
           ? rowData.acompte_dates
           : rowData.acompte_dates
-            ? JSON.parse(rowData.acompte_dates)
-            : [];
+          ? JSON.parse(rowData.acompte_dates)
+          : [];
 
         const soldDates = Array.isArray(rowData.sold_dates)
           ? rowData.sold_dates
           : rowData.sold_dates
-            ? JSON.parse(rowData.sold_dates)
-            : [];
+          ? JSON.parse(rowData.sold_dates)
+          : [];
         const KNOWN_PAYMENT_METHODS = [
           "Virement bancaire",
           "Chèque de banque",
@@ -1029,9 +1027,7 @@ class EditContract extends React.Component {
       });
   }
 
-  print = async () => {
-    toast.info("Génération du PDF en cours...");
-
+  print = () => {
     const Config = {
       headers: {
         Authorization: "Bearer " + localStorage.getItem("token"),
@@ -1049,21 +1045,21 @@ class EditContract extends React.Component {
     this.setState({ subscribe_services: sub_services });
 
     var parameters = {};
-    // var userid = this.state.user_id; // Unused in original parameters construction directly here (used in setSubscribeServices)
+    var userid = this.state.user_id;
     parameters["user_id"] = this.state.user_id;
     parameters["parent_id"] = this.state.parent_id;
     parameters["acompte_dates"] = this.state.acompte_dates;
     parameters["sold_dates"] = this.state.sold_dates;
     parameters["subscribe_services"] = sub_services;
     parameters["comment"] =
-      "Contrat de " +
+      "Contract de " +
       this.state.rowData["first_name"] +
       " " +
       this.state.rowData["last_name"];
     parameters["status_payment"] = this.state.status_payment;
     parameters["values"] = JSON.stringify(input_values);
     parameters["unipro"] = this.state.formValues.credit_impot_50 ? 1 : 0;
-    if (this.appendCreditImpotNote) this.appendCreditImpotNote();
+    this.appendCreditImpotNote();
     parameters["advanced_payment"] = this.state.formValues["TOTALTTC"] || 0;
     parameters["pre_payment"] =
       parseFloat(this.state.formValues["FINAL75"]) || 0;
@@ -1072,98 +1068,56 @@ class EditContract extends React.Component {
     parameters["deposit_date"] = this.state.deposit_date;
     parameters["sold_date"] = this.state.sold_date;
 
-    try {
-      await axios.put(
+    axios
+      .put(
         global.config.server_url + "/documents/" + this.props.match.params.id,
         parameters,
         Config
-      );
-    } catch (error) {
-      console.error(error);
-      toast.error("Erreur lors de la sauvegarde: " + error);
-    }
+      )
+      .catch(function (error) {
+        toast.error("API injoignable" + error);
+      });
 
-    // MAJ services
     this.setSubscribeServices();
 
-    // Génération PDF via html2canvas + jsPDF
-    const pages = document.getElementsByClassName("contract-page");
-    if (!pages || pages.length === 0) {
-      toast.error("Aucune page de contrat trouvée pour le PDF");
-      return;
-    }
+    document.getElementById("button_section").remove();
+    document.getElementById("print-section").style.marginTop = "-20px";
+    document.getElementById("print-section").style.fontSize = "18px";
 
-    // Sauvegarde temporaire du style du premier élément (margin et font-size ajustés pour impression)
-    const firstPage = document.getElementById("print-section");
-    let originalMarginTop = "";
-    let originalFontSize = "";
+    // 🔹 Modification du titre pour le nom du fichier PDF
+    const originalTitle = document.title;
+    const firstName = this.state.rowData["first_name"] || "";
+    const lastName = this.state.rowData["last_name"] || "";
 
-    if (firstPage) {
-      originalMarginTop = firstPage.style.marginTop;
-      originalFontSize = firstPage.style.fontSize;
-      // Application des styles "print"
-      firstPage.style.marginTop = "-20px";
-      firstPage.style.fontSize = "18px";
-    }
-
-    try {
-      const pdf = new jsPDF("p", "mm", "a4");
-
-      for (let i = 0; i < pages.length; i++) {
-        if (i > 0) pdf.addPage();
-
-        // Capture de l'élément avec html2canvas
-        const canvas = await html2canvas(pages[i], {
-          scale: 2, // Meilleure qualité
-          useCORS: true,
-          logging: false,
-          windowWidth: 1200 // Force une largeur pour éviter les soucis de responsive
-        });
-
-        const imgData = canvas.toDataURL("image/jpeg", 0.9); // JPEG compressé
-        const imgProps = pdf.getImageProperties(imgData);
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-        pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
-      }
-
-      // Construction du nom de fichier
-      const firstName = this.state.rowData["first_name"] || "";
-      const lastName = this.state.rowData["last_name"] || "";
-
-      const selectedServices = [];
-      for (let i = 1; i <= 7; i++) {
-        if (input_values[`c${i}`]) {
-          let title = this.state.formValues[`title${i}`] || "";
-          title = title.replace(/\s*\(.*?\)/g, "").trim();
-          if (title) selectedServices.push(title);
-        }
-      }
-
-      let serviceString = "Audit Retraite EOR Consultants";
-      if (selectedServices.length === 1) {
-        serviceString = selectedServices[0];
-      } else if (selectedServices.length === 2) {
-        serviceString = `${selectedServices[0]} + ${selectedServices[1]}`;
-      } else if (selectedServices.length > 2) {
-        serviceString = `${selectedServices[0]} et autres`;
-      }
-
-      const fileName = `${serviceString} - ${firstName} ${lastName}`;
-      pdf.save(`${fileName}.pdf`);
-      toast.success("Téléchargement du contrat PDF réussi !");
-
-    } catch (err) {
-      console.error(err);
-      toast.error("Erreur lors de la génération du PDF");
-    } finally {
-      // Restauration des styles
-      if (firstPage) {
-        firstPage.style.marginTop = originalMarginTop;
-        firstPage.style.fontSize = originalFontSize;
+    // Récupération des prestations cochées
+    const selectedServices = [];
+    for (let i = 1; i <= 7; i++) {
+      if (input_values[`c${i}`]) {
+        let title = this.state.formValues[`title${i}`] || "";
+        // Nettoyage : enlève tout ce qui est entre parenthèses (ex: prix) et trim
+        title = title.replace(/\s*\(.*?\)/g, "").trim();
+        if (title) selectedServices.push(title);
       }
     }
+
+    // Construction du nom des services
+    let serviceString = "Audit Retraite EOR Consultants"; // Fallback
+    if (selectedServices.length === 1) {
+      serviceString = selectedServices[0];
+    } else if (selectedServices.length === 2) {
+      serviceString = `${selectedServices[0]} + ${selectedServices[1]}`;
+    } else if (selectedServices.length > 2) {
+      serviceString = `${selectedServices[0]} et autres`;
+    }
+
+    const fileName = `${serviceString} - ${firstName} ${lastName}`;
+    document.title = fileName;
+
+    window.onafterprint = function () {
+      document.title = originalTitle; // Restauration du titre
+      history.push("/app/user/edit/" + userid + "/3");
+    };
+    window.print();
   };
 
   toInputValue = (sql) => {
@@ -2061,8 +2015,8 @@ class EditContract extends React.Component {
                           <h6>
                             {moment(this.ifExist("birth_date")).isValid()
                               ? moment(this.ifExist("birth_date")).format(
-                                "DD/MM/YYYY"
-                              )
+                                  "DD/MM/YYYY"
+                                )
                               : ""}
                           </h6>
                         </Col>
