@@ -15,7 +15,6 @@ import { toast } from "react-toastify";
 import UploadCard from "./components/UploadCard";
 import GeneratedDocumentItem from "./components/GeneratedDocumentItem";
 import { AlertTriangle } from "react-feather";
-import { saveAs } from "file-saver";
 import "../../../../assets/scss/pages/notes-hub.scss";
 
 const DOC_STORAGE_KEY = "career_generated_docs_v1";
@@ -157,15 +156,17 @@ const sanitizeSalaryInput = (val) => {
 };
 
 const NotesTab = ({ id, perso = {}, onReportError }) => {
-  const [notes, setNotes] = useState(perso?.notes ?? "");
-  const [originalNotes, setOriginalNotes] = useState(perso?.notes ?? "");
-  const [isSaving, setIsSaving] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadedDocs, setUploadedDocs] = useState(() => loadUploadedDocs());
-  const [generatedDocs, setGeneratedDocs] = useState(() => loadStoredDocs());
-  const [reportType, setReportType] = useState("pre");
-  const [deleteConfirmTarget, setDeleteConfirmTarget] = useState(null);
-  const [fileToSend, setFileToSend] = useState(null);
+  const [notes, setNotes] = useState(perso?.notes ?? '')
+  const [originalNotes, setOriginalNotes] = useState(perso?.notes ?? '')
+  const [isSaving, setIsSaving] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [uploadedDocs, setUploadedDocs] = useState(() => loadUploadedDocs())
+  const [generatedDocs, setGeneratedDocs] = useState(() => loadStoredDocs())
+  const [reportType, setReportType] = useState('pre')
+  const [deleteConfirmTarget, setDeleteConfirmTarget] = useState(null)
+  const [fileToSend, setFileToSend] = useState(null)
+  const [n8nMessage, setN8nMessage] = useState("")
   const [manualCareerRows, setManualCareerRows] = useState([
     {
       id: Date.now(),
@@ -239,8 +240,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         return safeRows;
       });
       toast.success(
-        `Points ${
-          eventType === "ARRCO_POINTS_SAVE" ? "ARRCO" : "IRCANTEC"
+        `Points ${eventType === "ARRCO_POINTS_SAVE" ? "ARRCO" : "IRCANTEC"
         } mis à jour`
       );
     };
@@ -279,59 +279,57 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
     saveNotes();
   };
 
-  const handleUpload = useCallback(
-    async (acceptedFiles) => {
-      if (!acceptedFiles || !acceptedFiles.length || !id) return;
+  const handleUpload = useCallback(async (acceptedFiles) => {
+    if (!acceptedFiles || !acceptedFiles.length || !id) return
 
-      // On garde le fichier en mémoire pour l'affichage et l'envoi futur
-      setFileToSend(acceptedFiles[0]);
+    // On garde le fichier en mémoire pour l'affichage et l'envoi futur
+    setFileToSend(acceptedFiles[0])
 
-      setIsUploading(true);
-      try {
-        const formData = new FormData();
-        formData.set("user_id", id);
-        acceptedFiles.forEach((file, index) =>
-          formData.append(`photoUpload${index}`, file)
+    setIsUploading(true)
+    try {
+      const formData = new FormData()
+      formData.set('user_id', id)
+      acceptedFiles.forEach((file, index) => formData.append(`photoUpload${index}`, file))
+
+      const Config = {
+        headers: {
+          Authorization: "Bearer " + localStorage.getItem("token"),
+          "Content-Type": "multipart/form-data",
+        },
+      };
+
+      const response = await axios.post(
+        `${global.config.server_url}/uploadFiles`,
+        formData,
+        Config
+      );
+      const files = Array.isArray(response?.data?.files)
+        ? response.data.files
+        : [];
+      if (files.length) {
+        const mapped = files.map((f) => ({
+          id: f.id || generateDocId(),
+          name: f.filename || "Document importé",
+          uploadedAt: f.created_at || new Date().toISOString(),
+          url: f.url || "",
+          size: f.size || 0,
+          type: f.mimetype || "",
+        }));
+        setUploadedDocs((prev) => {
+          const next = [...(Array.isArray(prev) ? prev : []), ...mapped];
+          persistUploadedDocs(next);
+          return next;
+        });
+        toast.success(
+          files.length > 1 ? "Documents importés" : "Relevé importé"
         );
-
-        const Config = {
-          headers: {
-            Authorization: "Bearer " + localStorage.getItem("token"),
-          },
-        };
-
-        const response = await axios.post(
-          `${global.config.server_url}/uploadFiles`,
-          formData,
-          Config
-        );
-        const files = Array.isArray(response?.data?.files)
-          ? response.data.files
-          : [];
-        if (files.length) {
-          const mapped = files.map((f) => ({
-            id: f.id || generateDocId(),
-            name: f.filename || "Document importé",
-            uploadedAt: f.created_at || new Date().toISOString(),
-            url: f.url || "",
-            size: f.size || 0,
-            type: f.mimetype || "",
-          }));
-          setUploadedDocs((prev) => {
-            const next = [...(Array.isArray(prev) ? prev : []), ...mapped];
-            persistUploadedDocs(next);
-            return next;
-          });
-          toast.success(
-            files.length > 1 ? "Documents importés" : "Relevé importé"
-          );
-        }
-      } catch {
-        toast.error("Le téléversement a échoué");
-      } finally {
-        setIsUploading(false);
       }
-    },
+    } catch {
+      toast.error("Le téléversement a échoué");
+    } finally {
+      setIsUploading(false);
+    }
+  },
     [id]
   );
   const handleGenerateDoc = useCallback(
@@ -359,28 +357,43 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         return;
       }
 
+      // Validation : nombre d'enfants
+      const childrenCountVal = perso?.children_number;
+      if (
+        childrenCountVal === undefined ||
+        childrenCountVal === null ||
+        String(childrenCountVal).trim() === ""
+      ) {
+        toast.error(
+          "Le nombre d'enfants est manquant. Veuillez le renseigner dans les informations du client."
+        );
+        return;
+      }
+
+      setIsGenerating(true)
       try {
         // ---------- CALL 1 : FRONT → n8n (avec le fichier) ----------
         const n8nFormData = new FormData();
         n8nFormData.append("file", fileToSend);
 
+        // Ajout du nombre d'enfants au message n8n
+        const childrenCount = perso?.children_number ?? "Non renseigné";
+        const finalMessage = `${n8nMessage || ""}\n\nNombre d'enfants : ${childrenCount}`.trim();
+        n8nFormData.append("message", finalMessage);
+
         toast.info("Analyse du relevé en cours via n8n…");
 
-        // ---------- CALL 1 : FRONT → n8n (avec le fichier) ----------
-        // Utilisation de fetch natif pour mieux gérer le FormData/Boundary que cette version d'axios
-        const n8nRes = await fetch(
+        const n8nResponse = await axios.post(
           "https://n8n.srv796541.hstgr.cloud/webhook/f012dfc7-8b2c-479f-af1f-20dcd44cda02",
+          n8nFormData,
           {
-            method: "POST",
-            body: n8nFormData,
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
           }
         );
 
-        if (!n8nRes.ok) {
-          throw new Error(`Erreur n8n: ${n8nRes.status} ${n8nRes.statusText}`);
-        }
-
-        let reportData = await n8nRes.json();
+        let reportData = n8nResponse.data;
 
         // Si n8n renvoie [{ text: "```json\n{...}\n```" }]
         if (Array.isArray(reportData) && reportData[0]?.text) {
@@ -399,9 +412,8 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
           }
         }
 
-        // On ajoute l'id du client et le type de rapport
+        // On ajoute l'id du client si tu veux l'exploiter côté back
         reportData.client_id = id;
-        reportData.report_type = normalizedType;
 
         // ---------- CALL 2 : FRONT → LARAVEL (/generate-report) ----------
         const backendConfig = {
@@ -416,9 +428,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
           backendConfig
         );
 
-        const reportUrl =
-          backendRes?.data?.report_urls?.pdf ||
-          backendRes?.data?.report_urls?.docx;
+        const reportUrl = backendRes?.data?.report_urls?.docx;
 
         if (!reportUrl) {
           console.warn("Réponse backend:", backendRes?.data);
@@ -426,74 +436,42 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
           return;
         }
 
-        const label =
-          normalizedType === "consult"
-            ? "Rapport consultation"
-            : "Rapport pré-entretien";
+        const label = "Rapport pré-entretien";
         const doc = {
           id: generateDocId(),
           name: `${label} de ${clientNames.displayName}`,
           type: normalizedType,
           createdAt: new Date().toISOString(),
-          url: reportUrl, // ✅ URL réelle du PDF ou DOCX généré par Laravel
+          url: reportUrl, // ✅ URL réelle du .docx généré par Laravel
         };
 
         setGeneratedDocs((prev) => [doc, ...(Array.isArray(prev) ? prev : [])]);
-        toast.success(`${label} généré avec succès`);
+        toast.success("Rapport pré-entretien généré avec succès");
       } catch (error) {
-        console.error("Generation error:", error);
-        let errorMsg = "Erreur lors de la génération du rapport";
-
-        if (error.response) {
-          // Erreur HTTP (n8n ou backend)
-          errorMsg += ` (Erreur ${error.response.status})`;
-          if (error.config && error.config.url) {
-            if (error.config.url.includes("n8n")) errorMsg += " - n8n";
-            else if (error.config.url.includes("generate-report"))
-              errorMsg += " - Backend";
-          }
-        } else if (error.request) {
-          // Pas de réponse reçue
-          errorMsg += " (Pas de réponse du serveur)";
-        } else {
-          // Autre erreur (ex: parsing)
-          errorMsg += ` (${error.message})`;
-        }
-
-        toast.error(errorMsg);
+        console.error(error);
+        toast.error("Erreur lors de la génération du rapport");
+      } finally {
+        setIsGenerating(false)
       }
     },
-    [clientNames.displayName, fileToSend, id]
+    [clientNames.displayName, fileToSend, id, n8nMessage, perso]
   );
 
-  const handleOpenDoc = useCallback(async (doc) => {
+
+  const handleOpenDoc = useCallback((doc) => {
     if (!doc || !doc.url) {
       toast.info("Aucun fichier disponible pour ce document");
       return;
     }
 
     try {
-      // On force le téléchargement en récupérant le blob
-      toast.info("Téléchargement en cours...");
-      const response = await axios.get(doc.url, { responseType: "blob" });
-
-      // Déduction du nom de fichier
-      let filename = doc.name || "document";
-      const extension = doc.url.split(".").pop().split("?")[0];
-      if (extension && filename.indexOf(extension) === -1) {
-        // On évite de doubler l'extension si elle est déjà dans le nom
-        // Mais ici doc.name est souvent un libellé ("Rapport ...")
-        filename = `${filename}.${extension}`;
-      }
-
-      saveAs(response.data, filename);
-      toast.success("Téléchargement terminé");
-    } catch (error) {
-      console.error(error);
-      // Fallback : ouverture simple
+      // Ouvre le docx dans un nouvel onglet (ou déclenche le téléchargement)
       window.open(doc.url, "_blank", "noopener,noreferrer");
+    } catch {
+      toast.error("Impossible d’ouvrir le document");
     }
   }, []);
+
 
   const handleDeleteDoc = useCallback((docId) => {
     setGeneratedDocs((prev) =>
@@ -620,7 +598,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         </Card>
 
         <Card className="notes-card notes-card--compact notes-card--upload">
-          <CardBody className="notes-upload-body">
+          <CardBody className="notes-upload-body" style={{ position: "relative" }}>
             <div className="d-flex justify-content-between align-items-center mb-1">
               <h5 className="notes-card-title mb-0">
                 RIS relevé de carrière du client
@@ -651,65 +629,95 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
 
             {/* --- VISUAL FEEDBACK POUR L'UPLOAD --- */}
             {fileToSend && (
-              <div
-                style={{
-                  marginTop: "10px",
-                  padding: "10px",
-                  backgroundColor: "#f0fdf4",
-                  border: "1px solid #bbf7d0",
-                  borderRadius: "6px",
-                  textAlign: "center",
-                }}
-              >
-                <div
-                  style={{
-                    color: "#166534",
-                    fontWeight: "bold",
-                    fontSize: "0.9rem",
-                  }}
-                >
-                  <span
-                    role="img"
-                    aria-label="check"
-                    style={{ marginRight: "6px" }}
-                  >
-                    ✅
-                  </span>
+              <div style={{
+                marginTop: '10px',
+                padding: '10px',
+                backgroundColor: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                borderRadius: '6px',
+                textAlign: 'center'
+              }}>
+                <div style={{ color: '#166534', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                  <span role="img" aria-label="check" style={{ marginRight: '6px' }}>✅</span>
                   Fichier chargé : {fileToSend.name}
                 </div>
-                <div
-                  style={{
-                    color: "#15803d",
-                    fontSize: "0.75rem",
-                    marginTop: "2px",
-                  }}
-                >
+                <div style={{ color: '#15803d', fontSize: '0.75rem', marginTop: '2px' }}>
                   Prêt pour l'analyse
                 </div>
               </div>
             )}
             {/* ------------------------------------- */}
 
-            <div className="notes-upload-actions notes-action-row">
+            <div className="mt-2 mb-1">
+              <label className="mb-0 font-small-3" htmlFor="n8nMessage">Message d'accompagnement (optionnel)</label>
+              <Input
+                type="textarea"
+                id="n8nMessage"
+                rows="3"
+                placeholder="Ajouter une instruction ou un commentaire pour l'analyse..."
+                value={n8nMessage}
+                onChange={(e) => setN8nMessage(e.target.value)}
+                style={{ resize: 'none' }}
+                disabled={isGenerating}
+              />
+            </div>
+
+
+
+            <div className='notes-upload-actions notes-action-row'>
               <Button
-                className={`notes-report-btn notes-action-btn ${
-                  reportType === "pre" ? "is-active" : ""
-                }`}
+                className={`notes-report-btn notes-action-btn ${reportType === "pre" ? "is-active" : ""
+                  }`}
                 color="link"
                 onClick={() => handleGenerateDoc("pre")}
+                disabled={isGenerating && reportType === 'pre'}
               >
                 Rapport pré-entretien
               </Button>
               <Button
-                className={`notes-report-btn notes-action-btn ${
-                  reportType === "consult" ? "is-active" : ""
-                }`}
+                className={`notes-report-btn notes-action-btn ${reportType === "consult" ? "is-active" : ""
+                  }`}
                 color="link"
                 onClick={() => handleGenerateDoc("consult")}
+                disabled={isGenerating}
               >
                 Rapport consultation
               </Button>
             </div>
+
+            {isGenerating && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: "100%",
+                  backgroundColor: "rgba(255, 255, 255, 0.85)",
+                  zIndex: 10,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backdropFilter: "blur(2px)",
+                  borderRadius: "inherit",
+                }}
+              >
+                <div
+                  className="spinner-border text-primary"
+                  style={{ width: "3rem", height: "3rem" }}
+                  role="status"
+                >
+                  <span className="sr-only">Chargement...</span>
+                </div>
+                <h4 className="mt-2 text-primary font-weight-bold">
+                  Analyse en cours...
+                </h4>
+                <p className="text-dark font-weight-bold">
+                  Merci de ne pas fermer cette page.
+                </p>
+              </div>
+            )}
           </CardBody>
         </Card>
       </div>
@@ -856,9 +864,9 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
                             const ok = !isNaN(num) && num >= 0;
                             const formatted = ok
                               ? new Intl.NumberFormat("fr-FR", {
-                                  minimumFractionDigits: 2,
-                                  maximumFractionDigits: 2,
-                                }).format(num)
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              }).format(num)
                               : row.revenu;
                             setManualCareerRows((prev) =>
                               prev.map((r) =>
@@ -1154,4 +1162,4 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
   );
 };
 
-export default NotesTab;
+export default NotesTab
