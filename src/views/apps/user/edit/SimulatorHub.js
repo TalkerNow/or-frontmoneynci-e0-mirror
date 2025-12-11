@@ -17,7 +17,7 @@ import {
 } from "reactstrap";
 import classnames from "classnames";
 import ButtonRadioSwitch from "../../../../components/reactstrap/buttons/ButtonRadioSwitch";
-import wordIcon2025 from "../../../../assets/img/icons/word-icon-2025.png";
+import pdfIcon from "../../../../assets/img/icons/pdf.png";
 
 // UI-only component: no calculation or API logic here per specs
 
@@ -3621,14 +3621,14 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                   <button
                                     type="button"
                                     className="action-btn"
-                                    title="Télécharger (Word)"
+                                    title="Télécharger (PDF)"
                                     onClick={(e) => {
                                       e.preventDefault(); /* à implémenter plus tard */
                                     }}
                                   >
                                     <img
-                                      src={wordIcon2025}
-                                      alt="Word"
+                                      src={pdfIcon}
+                                      alt="PDF"
                                       width={18}
                                       height={18}
                                       style={{ display: "block" }}
