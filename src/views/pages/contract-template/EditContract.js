@@ -621,7 +621,7 @@ class EditContract extends React.Component {
     if (input_values["c1"])
       nbHT1 = Math.trunc(
         (this.state.formValues["nb1-price"] / 60) *
-        parseInt(this.state.formValues["nb1"], 10)
+          parseInt(this.state.formValues["nb1"], 10)
       );
     this.state.formValues["nbHT1"] = nbHT1;
     this.state.formValues["TTC1"] = nbHT1 * VTA;
@@ -730,8 +730,8 @@ class EditContract extends React.Component {
     axios
       .get(
         global.config.server_url +
-        "/get_contract/" +
-        this.props.match.params.id,
+          "/get_contract/" +
+          this.props.match.params.id,
         Config
       )
       .then((response) => {
@@ -739,14 +739,14 @@ class EditContract extends React.Component {
         const acompteDates = Array.isArray(rowData.acompte_dates)
           ? rowData.acompte_dates
           : rowData.acompte_dates
-            ? JSON.parse(rowData.acompte_dates)
-            : [];
+          ? JSON.parse(rowData.acompte_dates)
+          : [];
 
         const soldDates = Array.isArray(rowData.sold_dates)
           ? rowData.sold_dates
           : rowData.sold_dates
-            ? JSON.parse(rowData.sold_dates)
-            : [];
+          ? JSON.parse(rowData.sold_dates)
+          : [];
         const KNOWN_PAYMENT_METHODS = [
           "Virement bancaire",
           "Chèque de banque",
@@ -1117,7 +1117,7 @@ class EditContract extends React.Component {
           scale: 2, // Meilleure qualité
           useCORS: true,
           logging: false,
-          windowWidth: 1200 // Force une largeur pour éviter les soucis de responsive
+          windowWidth: 1200, // Force une largeur pour éviter les soucis de responsive
         });
 
         const imgData = canvas.toDataURL("image/jpeg", 0.9); // JPEG compressé
@@ -1153,7 +1153,6 @@ class EditContract extends React.Component {
       const fileName = `${serviceString} - ${firstName} ${lastName}`;
       pdf.save(`${fileName}.pdf`);
       toast.success("Téléchargement du contrat PDF réussi !");
-
     } catch (err) {
       console.error(err);
       toast.error("Erreur lors de la génération du PDF");
@@ -1167,15 +1166,21 @@ class EditContract extends React.Component {
   };
 
   toInputValue = (sql) => {
-    // "YYYY-MM-DD HH:mm:ss" -> "YYYY-MM-DDTHH:mm"
+    // "YYYY-MM-DD HH:mm:ss" -> "YYYY-MM-DD"
     if (!sql) return "";
-    return sql.replace(" ", "T").slice(0, 16);
+    return sql.split(" ")[0];
   };
 
   fromInputValue = (v) => {
-    // "YYYY-MM-DDTHH:mm" -> "YYYY-MM-DD HH:mm:00"
+    // "YYYY-MM-DD" -> "YYYY-MM-DD HH:mm:ss"
     if (!v) return "";
-    return v.replace("T", " ") + ":00";
+    // prevent year > 4 chars
+    const parts = v.split("-");
+    if (parts.length === 3 && parts[0].length > 4) {
+      parts[0] = parts[0].slice(0, 4);
+      return parts.join("-") + " 00:00:00";
+    }
+    return v + " 00:00:00";
   };
 
   addDate = (key) => {
@@ -1805,6 +1810,7 @@ class EditContract extends React.Component {
                                   <>
                                     <Input
                                       type="date"
+                                      max="9999-12-31"
                                       style={{ width: 240, height: 34 }}
                                       value={this.toInputValue(d)}
                                       onChange={(e) =>
@@ -1840,9 +1846,7 @@ class EditContract extends React.Component {
                                         backgroundColor: "#f8f9fa",
                                       }}
                                     >
-                                      {d
-                                        ? moment(d).format("DD/MM/YYYY")
-                                        : "-"}
+                                      {d ? moment(d).format("DD/MM/YYYY") : "-"}
                                     </div>
                                     <Button.Ripple
                                       className="btn-icon rounded-circle"
@@ -1897,6 +1901,7 @@ class EditContract extends React.Component {
                                   <>
                                     <Input
                                       type="date"
+                                      max="9999-12-31"
                                       style={{ width: 240, height: 34 }}
                                       value={this.toInputValue(d)}
                                       onChange={(e) =>
@@ -1932,9 +1937,7 @@ class EditContract extends React.Component {
                                         backgroundColor: "#f8f9fa",
                                       }}
                                     >
-                                      {d
-                                        ? moment(d).format("DD/MM/YYYY")
-                                        : "-"}
+                                      {d ? moment(d).format("DD/MM/YYYY") : "-"}
                                     </div>
                                     <Button.Ripple
                                       className="btn-icon rounded-circle"
@@ -2061,8 +2064,8 @@ class EditContract extends React.Component {
                           <h6>
                             {moment(this.ifExist("birth_date")).isValid()
                               ? moment(this.ifExist("birth_date")).format(
-                                "DD/MM/YYYY"
-                              )
+                                  "DD/MM/YYYY"
+                                )
                               : ""}
                           </h6>
                         </Col>
