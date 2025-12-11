@@ -133,7 +133,6 @@ class AppRouter extends React.Component {
     const basic_acess = ["admin", "Admin", "Consultant", "Expert", "Client"];
     const employee_acess = ["admin", "Admin", "Consultant", "Expert"];
     const reduced_acess = ["admin", "Consultant", "Admin"];
-    const { user } = this.props;
 
     return (
       // Set the directory path if you are deploying in sub-folder
@@ -142,7 +141,7 @@ class AppRouter extends React.Component {
           <ProtectedRoute
             path="/dashboard"
             component={dashboard}
-            isAuth={{ user }}
+            isAuth={mapStateToProps()}
             authorisation={employee_acess}
           />
           <AppRoute path="/misc/error/404" component={error404} fullLayout />
@@ -170,7 +169,7 @@ class AppRouter extends React.Component {
           <ProtectedRoute
             path="/app/profile"
             component={profile}
-            isAuth={{ user }}
+            isAuth={mapStateToProps()}
             authorisation={basic_acess}
           />
 
@@ -180,112 +179,112 @@ class AppRouter extends React.Component {
             path="/task"
             exact
             component={() => <Redirect to="/task/all" />}
-            isAuth={{ user }}
+            isAuth={mapStateToProps()}
             authorisation={employee_acess}
           />
           <ProtectedRoute
             path="/task/:filter"
             component={task}
-            isAuth={{ user }}
+            isAuth={mapStateToProps()}
             authorisation={employee_acess}
           />
           <ProtectedRoute
             path="/document"
             component={document}
-            isAuth={{ user }}
+            isAuth={mapStateToProps()}
             authorisation={basic_acess}
           />
 
           <ProtectedRoute
             path="/app/user/clientslist"
             component={clientslist}
-            isAuth={{ user }}
+            isAuth={mapStateToProps()}
             authorisation={employee_acess}
           />
           <ProtectedRoute
             path="/app/user/oldclientslist"
             component={oldclientslist}
-            isAuth={{ user }}
+            isAuth={mapStateToProps()}
             authorisation={employee_acess}
           />
           <ProtectedRoute
             path="/app/user/edit/:id/:tab"
             component={userEdit}
-            isAuth={{ user }}
+            isAuth={mapStateToProps()}
             authorisation={employee_acess}
           />
           <ProtectedRoute
             path="/app/olduser/edit/:id/:tab"
             component={userEditOld}
-            isAuth={{ user }}
+            isAuth={mapStateToProps()}
             authorisation={employee_acess}
           />
           <ProtectedRoute
             path="/app/user/clientTask/:id/:filter"
             component={clientTask}
-            isAuth={{ user }}
+            isAuth={mapStateToProps()}
             authorisation={employee_acess}
           />
           <ProtectedRoute
             path="/app/user/createUser"
             component={createUser}
-            isAuth={{ user }}
+            isAuth={mapStateToProps()}
             authorisation={employee_acess}
           />
 
           <ProtectedRoute
             path="/app/member/memberslist"
             component={memberslist}
-            isAuth={{ user }}
+            isAuth={mapStateToProps()}
             authorisation={reduced_acess}
           />
           <ProtectedRoute
             path="/app/member/edit/:id/:tab"
             component={memberEdit}
-            isAuth={{ user }}
+            isAuth={mapStateToProps()}
             authorisation={reduced_acess}
           />
           <ProtectedRoute
             path="/app/member/memberTask/:id/:filter"
             component={memberTask}
-            isAuth={{ user }}
+            isAuth={mapStateToProps()}
             authorisation={reduced_acess}
           />
           <ProtectedRoute
             path="/app/member/createUser"
             component={createUser}
-            isAuth={{ user }}
+            isAuth={mapStateToProps()}
             authorisation={reduced_acess}
           />
 
           <ProtectedRoute
             path="/app/AllContracts"
             component={AllContracts}
-            isAuth={{ user }}
+            isAuth={mapStateToProps()}
             authorisation={employee_acess}
           />
           <ProtectedRoute
             path="/app/contractTemplate"
             component={TemplateContract}
-            isAuth={{ user }}
+            isAuth={mapStateToProps()}
             authorisation={reduced_acess}
           />
           <ProtectedRoute
             path="/pages/contract/:id"
             component={editContract}
-            isAuth={{ user }}
+            isAuth={mapStateToProps()}
             authorisation={basic_acess}
           />
           <ProtectedRoute
             path="/pages/create-contract/:id"
             component={createContract}
-            isAuth={{ user }}
+            isAuth={mapStateToProps()}
             authorisation={employee_acess}
           />
           <ProtectedRoute
             path="/kpi"
             component={kpi}
-            isAuth={{ user }}
+            isAuth={mapStateToProps()}
             authorisation={employee_acess}
           />
           {/* <AppRoute path="/app/user/userlist" component={AdmUserList} /> */}
@@ -299,4 +298,4 @@ class AppRouter extends React.Component {
   }
 }
 
-export default connect(mapStateToProps)(AppRouter);
+export default AppRouter;
