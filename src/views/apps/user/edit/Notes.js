@@ -165,6 +165,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
   const [reportType, setReportType] = useState('pre')
   const [deleteConfirmTarget, setDeleteConfirmTarget] = useState(null)
   const [fileToSend, setFileToSend] = useState(null)
+  const [n8nMessage, setN8nMessage] = useState("")
   const [manualCareerRows, setManualCareerRows] = useState([
     {
       id: Date.now(),
@@ -359,6 +360,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         // ---------- CALL 1 : FRONT → n8n (avec le fichier) ----------
         const n8nFormData = new FormData();
         n8nFormData.append("file", fileToSend);
+        n8nFormData.append("message", n8nMessage);
 
         toast.info("Analyse du relevé en cours via n8n…");
 
@@ -431,23 +433,23 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         toast.error("Erreur lors de la génération du rapport");
       }
     },
-    [clientNames.displayName, fileToSend, id]
+    [clientNames.displayName, fileToSend, id, n8nMessage]
   );
 
 
-const handleOpenDoc = useCallback((doc) => {
-  if (!doc || !doc.url) {
-    toast.info("Aucun fichier disponible pour ce document");
-    return;
-  }
+  const handleOpenDoc = useCallback((doc) => {
+    if (!doc || !doc.url) {
+      toast.info("Aucun fichier disponible pour ce document");
+      return;
+    }
 
-  try {
-    // Ouvre le docx dans un nouvel onglet (ou déclenche le téléchargement)
-    window.open(doc.url, "_blank", "noopener,noreferrer");
-  } catch {
-    toast.error("Impossible d’ouvrir le document");
-  }
-}, []);
+    try {
+      // Ouvre le docx dans un nouvel onglet (ou déclenche le téléchargement)
+      window.open(doc.url, "_blank", "noopener,noreferrer");
+    } catch {
+      toast.error("Impossible d’ouvrir le document");
+    }
+  }, []);
 
 
   const handleDeleteDoc = useCallback((docId) => {
@@ -624,6 +626,19 @@ const handleOpenDoc = useCallback((doc) => {
               </div>
             )}
             {/* ------------------------------------- */}
+
+            <div className="mt-2 mb-1">
+              <label className="mb-0 font-small-3" htmlFor="n8nMessage">Message d'accompagnement (optionnel)</label>
+              <Input
+                type="textarea"
+                id="n8nMessage"
+                rows="3"
+                placeholder="Ajouter une instruction ou un commentaire pour l'analyse..."
+                value={n8nMessage}
+                onChange={(e) => setN8nMessage(e.target.value)}
+                style={{ resize: 'none' }}
+              />
+            </div>
 
             <div className='notes-upload-actions notes-action-row'>
               <Button
