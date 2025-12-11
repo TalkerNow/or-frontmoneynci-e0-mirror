@@ -1804,7 +1804,7 @@ class EditContract extends React.Component {
                                 {isEditing ? (
                                   <>
                                     <Input
-                                      type="datetime-local"
+                                      type="date"
                                       style={{ width: 240, height: 34 }}
                                       value={this.toInputValue(d)}
                                       onChange={(e) =>
@@ -1841,7 +1841,7 @@ class EditContract extends React.Component {
                                       }}
                                     >
                                       {d
-                                        ? moment(d).format("DD/MM/YYYY HH:mm")
+                                        ? moment(d).format("DD/MM/YYYY")
                                         : "-"}
                                     </div>
                                     <Button.Ripple
@@ -1896,7 +1896,7 @@ class EditContract extends React.Component {
                                 {isEditing ? (
                                   <>
                                     <Input
-                                      type="datetime-local"
+                                      type="date"
                                       style={{ width: 240, height: 34 }}
                                       value={this.toInputValue(d)}
                                       onChange={(e) =>
@@ -1933,7 +1933,7 @@ class EditContract extends React.Component {
                                       }}
                                     >
                                       {d
-                                        ? moment(d).format("DD/MM/YYYY HH:mm")
+                                        ? moment(d).format("DD/MM/YYYY")
                                         : "-"}
                                     </div>
                                     <Button.Ripple
