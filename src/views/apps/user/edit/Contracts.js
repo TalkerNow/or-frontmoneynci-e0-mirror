@@ -218,6 +218,10 @@ class Contracts extends React.Component {
     const isSoldePaid = statusPayment === 2; // Assuming 2 means fully paid
     const isSoldeProblem = !isSoldePaid && contract.document_state === "Terminé";
 
+    // Style for darker grey text
+    const darkGreyStyle = { color: '#4b4b4b' };
+    const labelStyle = { fontSize: '10px', letterSpacing: '1px', color: '#4b4b4b', fontWeight: 'bold' };
+
     return (
       <Card key={contract.id} className={`mb-2 border shadow-sm ${isTerminated ? 'border-success' : ''}`} style={{ transition: '0.3s', borderRadius: '12px' }}>
         <CardBody className="p-3">
@@ -233,7 +237,7 @@ class Contracts extends React.Component {
                   >
                     {contract.comment}
                   </h5>
-                  <div className="d-flex align-items-center text-muted small mt-1">
+                  <div className="d-flex align-items-center small mt-1" style={darkGreyStyle}>
                     <Calendar size={12} className="mr-1" />
                     <Moment format="DD/MM/YYYY HH:mm" date={contract.created_at} />
                   </div>
@@ -241,8 +245,7 @@ class Contracts extends React.Component {
               </div>
               <div className="d-flex align-items-center">
                 <Badge color={isTerminated ? "success" : "light-info"} className="mr-3" style={{ fontSize: '12.5px', borderRadius: '4px', padding: '8px 12px' }}>
-                  {isTerminated && <CheckCircle size={12} className="mr-1" />}
-                  {contract.document_state}
+                  {(contract.document_state || "").toUpperCase()}
                 </Badge>
                 <Button.Ripple
                   className="btn-icon rounded-circle"
@@ -264,18 +267,18 @@ class Contracts extends React.Component {
 
             {/* Details Grid */}
             <Col md="4" className="d-flex flex-column justify-content-center border-right">
-              <span className="text-uppercase text-muted font-weight-bold" style={{ fontSize: '10px', letterSpacing: '1px' }}>Services</span>
+              <span className="text-uppercase mb-1" style={labelStyle}>Services</span>
               {this.renderServices(contract.subscribe_services)}
             </Col>
 
             <Col md="8">
               <Row>
                 <Col sm="6" className="mb-2 mb-sm-0">
-                  <span className="d-block text-uppercase text-muted font-weight-bold mb-1" style={{ fontSize: '10px', letterSpacing: '1px' }}>Acompte</span>
+                  <span className="d-block text-uppercase mb-1" style={labelStyle}>Acompte</span>
                   {this.getPaymentStatus(contract.pre_payment, isAcomptePaid, isAcompteProblem)}
                 </Col>
                 <Col sm="6">
-                  <span className="d-block text-uppercase text-muted font-weight-bold mb-1" style={{ fontSize: '10px', letterSpacing: '1px' }}>Solde</span>
+                  <span className="d-block text-uppercase mb-1" style={labelStyle}>Solde</span>
                   {this.getPaymentStatus(contract.end_payment, isSoldePaid, isSoldeProblem)}
                 </Col>
               </Row>
