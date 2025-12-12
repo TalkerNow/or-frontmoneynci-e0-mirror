@@ -1,13 +1,30 @@
 /* eslint-disable */
 
 import React from "react";
-import { Row, Col, Button, Card, CardBody, Spinner } from "reactstrap";
-import { Trash2, FolderPlus } from "react-feather";
+import {
+  Row,
+  Col,
+  Button,
+  Card,
+  CardBody,
+  Spinner,
+  Badge,
+  UncontrolledTooltip,
+} from "reactstrap";
+import {
+  Trash2,
+  FolderPlus,
+  Calendar,
+  CheckCircle,
+  AlertCircle,
+  Clock,
+  FileText,
+  DollarSign,
+  TrendingUp,
+} from "react-feather";
 import { history } from "../../../../history";
 import axios from "axios";
 import { ContextLayout } from "../../../../utility/context/Layout";
-import { AgGridReact } from "ag-grid-react";
-import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss";
 import "../../../../assets/scss/pages/users.scss";
 import Moment from "react-moment";
 import SweetAlert from "react-bootstrap-sweetalert";
@@ -30,190 +47,32 @@ class Contracts extends React.Component {
 
     // Data
     rowData: null,
-    pageSize: 20,
-
-    // Grid
-    defaultColDef: { resizable: true, sortable: true },
+    // pageSize: 20, // Not needed for list view unless we add pagination later
 
     // DocuSign
     requestingSignature: false,
     signatureAlertSuccess: false,
     signatureAlertError: { show: false, message: "" },
-
-    columnDefs: [
-      {
-        headerName: "Contrat",
-        field: "comment",
-        filter: true,
-        width: 300,
-        cellRendererFramework: (params) => (
-          <div
-            className="d-flex align-items-center cursor-pointer"
-            onClick={() => history.push("/pages/contract/" + params.data.id)}
-          >
-            <span>{params.data.comment}</span>
-          </div>
-        ),
-      },
-      {
-        headerName: "Prestation",
-        field: "subscribe_services",
-        filter: true,
-        width: 220,
-        cellRendererFramework: (params) => {
-          const subscribe_service = params.data.subscribe_services;
-          if (!subscribe_service) return <div />;
-          const tags = [];
-          const list = subscribe_service.replaceAll('"', "").trim().split("/");
-          list.forEach((service) => {
-            if (!service) return;
-            tags.push(
-              <Chip
-                className="m-0 text-center ml-1"
-                color={chipColors[service.trim()]}
-                text={service}
-                key={service + params.data.id}
-              />
-            );
-          });
-          return <>{tags}</>;
-        },
-      },
-      {
-        headerName: "Montant",
-        field: "advanced_payment",
-        filter: true,
-        width: 150,
-        cellRendererFramework: (params) => (
-          <div className="d-flex align-items-center cursor-pointer">
-            <span>{params.data.advanced_payment + " €"}</span>
-          </div>
-        ),
-      },
-      {
-        headerName: "Acompte",
-        field: "pre_payment",
-        filter: true,
-        width: 150,
-        cellRendererFramework: (params) => {
-          const red = (
-            <div className="d-flex align-items-center cursor-pointer text-danger">
-              <span>{params.data.pre_payment + " €"}</span>
-            </div>
-          );
-          const green = (
-            <div className="d-flex align-items-center cursor-pointer text-success">
-              <span>{params.data.pre_payment + " €"}</span>
-            </div>
-          );
-          if (
-            (params.data.document_state === "En cours" ||
-              params.data.document_state === "Termine") &&
-            params.data.status_payment >= 1
-          )
-            return green;
-          if (
-            (params.data.document_state === "En cours" ||
-              params.data.document_state === "Termine") &&
-            params.data.status_payment < 1
-          )
-            return red;
-          return (
-            <div className="d-flex align-items-center cursor-pointer">
-              <span>{params.data.pre_payment + " €"}</span>
-            </div>
-          );
-        },
-      },
-      {
-        headerName: "Solde",
-        field: "end_payment",
-        filter: true,
-        width: 150,
-        cellRendererFramework: (params) => {
-          const red = (
-            <div className="d-flex align-items-center cursor-pointer text-danger">
-              <span>{params.data.end_payment + " €"}</span>
-            </div>
-          );
-          const green = (
-            <div className="d-flex align-items-center cursor-pointer text-success">
-              <span>{params.data.end_payment + " €"}</span>
-            </div>
-          );
-          if (
-            (params.data.document_state === "En cours" ||
-              params.data.document_state === "Termine") &&
-            params.data.status_payment == 2
-          )
-            return green;
-          if (
-            params.data.document_state == "Termine" &&
-            params.data.status_payment < 2
-          )
-            return red;
-          return (
-            <div className="d-flex align-items-center cursor-pointer">
-              <span>{params.data.end_payment + " €"}</span>
-            </div>
-          );
-        },
-      },
-      {
-        headerName: "État",
-        field: "document_state",
-        filter: true,
-        width: 170,
-        cellRendererFramework: (params) =>
-          params.data.user && (
-            <div className="d-flex align-items-center cursor-pointer">
-              <span>{params.data.document_state}</span>
-            </div>
-          ),
-      },
-      {
-        headerName: "Date de création",
-        field: "date",
-        filter: true,
-        width: 200,
-        cellRendererFramework: (params) => (
-          <div>
-            <Moment
-              format="DD-MM-YYYY HH:mm"
-              date={params.data.created_at}
-              utc
-            />
-          </div>
-        ),
-      },
-      {
-        headerName: "Actions",
-        field: "transactions",
-        width: 120,
-        cellRendererFramework: (params) => (
-          <div className="actions cursor-pointer">
-            <Trash2
-              size={15}
-              onClick={() =>
-                this.handleAlert("defaultAlert", true, params.data.id)
-              }
-            />
-          </div>
-        ),
-      },
-    ],
   };
 
   async componentDidMount() {
+    this.fetchData();
+  }
+
+  fetchData = async () => {
     const Config = {
       headers: { Authorization: "Bearer " + localStorage.getItem("token") },
     };
-    const response = await axios.get(
-      global.config.server_url + "/documents/user/" + this.props.id,
-      Config
-    );
-    this.setState({ rowData: response.data });
-  }
+    try {
+      const response = await axios.get(
+        global.config.server_url + "/documents/user/" + this.props.id,
+        Config
+      );
+      this.setState({ rowData: response.data });
+    } catch (error) {
+      console.error("Error fetching contracts:", error);
+    }
+  };
 
   // DocuSign
   requestSignature = async () => {
@@ -278,11 +137,19 @@ class Contracts extends React.Component {
     }
   };
 
-  deleteDoc = (id) => {
+  deleteDoc = async (id) => {
     const Config = {
       headers: { Authorization: "Bearer " + localStorage.getItem("token") },
     };
-    axios.delete(global.config.server_url + "/documents/" + id, Config);
+    try {
+      await axios.delete(global.config.server_url + "/documents/" + id, Config);
+      // Refresh data locally
+      this.setState((prevState) => ({
+        rowData: prevState.rowData.filter((row) => row.id !== id),
+      }));
+    } catch (error) {
+      console.error("Error deleting document:", error);
+    }
   };
 
   handleAlert = (state, value, id) => {
@@ -290,24 +157,142 @@ class Contracts extends React.Component {
     if (id !== 0) this.setState({ IdToDelete: id });
     if (state === "confirmAlert" && value === true) {
       this.deleteDoc(this.state.IdToDelete);
-      const SelectedData = this.gridApi.getSelectedRows();
-      this.gridApi.updateRowData({ remove: SelectedData });
       this.setState({ defaultAlert: false });
     }
   };
 
-  onGridReady = (params) => {
-    this.gridApi = params.api;
-    this.gridColumnApi = params.columnApi;
+  // Helper to render services chips
+  renderServices = (servicesString) => {
+    if (!servicesString) return null;
+    const services = servicesString.replaceAll('"', "").trim().split("/");
+    return (
+      <div className="d-flex flex-wrap mt-1">
+        {services.map((service, index) => {
+          if (!service) return null;
+          return (
+            <Chip
+              key={index}
+              className="mr-1 mb-1"
+              color={chipColors[service.trim()] || "primary"}
+              text={service}
+            />
+          );
+        })}
+      </div>
+    );
   };
 
+  // Helper to determine payment status display
+  getPaymentStatus = (amount, isPaid, isProblem) => {
+    let color = "text-warning";
+    let icon = <Clock size={15} className="mr-1" />;
+    let text = "En attente";
+
+    if (isPaid) {
+      color = "text-success";
+      icon = <CheckCircle size={15} className="mr-1" />;
+      text = "Payé";
+    } else if (isProblem) {
+      color = "text-danger";
+      icon = <AlertCircle size={15} className="mr-1" />;
+      text = "Non réglé";
+    }
+
+    return (
+      <div className={`d-flex align-items-center font-weight-bold ${color}`} style={{ fontSize: '0.95rem' }}>
+        {icon}
+        <span className="mr-2">{amount} €</span>
+        <span style={{ fontSize: "0.75rem", opacity: 0.9, fontWeight: 'normal' }}>({text})</span>
+      </div>
+    );
+  };
+
+  renderContractCard = (contract) => {
+    const isTerminated = contract.document_state === "Terminé";
+    const statusPayment = contract.status_payment || 0;
+
+    // Logic from original code for payment coloration
+    const isAcomptePaid = statusPayment >= 1;
+    const isAcompteProblem = !isAcomptePaid && (contract.document_state === "Terminé" || contract.document_state === "En cours");
+
+    const isSoldePaid = statusPayment === 2; // Assuming 2 means fully paid
+    const isSoldeProblem = !isSoldePaid && contract.document_state === "Terminé";
+
+    return (
+      <Card key={contract.id} className={`mb-2 border shadow-sm ${isTerminated ? 'border-success' : ''}`} style={{ transition: '0.3s', borderRadius: '12px' }}>
+        <CardBody className="p-3">
+          <Row>
+            {/* Header / Main Info */}
+            <Col md="12" className="d-flex justify-content-between align-items-center mb-2">
+              <div className="d-flex align-items-center">
+                <div>
+                  <h5
+                    className="mb-0 font-weight-bold cursor-pointer text-primary"
+                    onClick={() => history.push("/pages/contract/" + contract.id)}
+                    title="Ouvrir le contrat"
+                  >
+                    {contract.comment}
+                  </h5>
+                  <div className="d-flex align-items-center text-muted small mt-1">
+                    <Calendar size={12} className="mr-1" />
+                    <Moment format="DD/MM/YYYY HH:mm" date={contract.created_at} />
+                  </div>
+                </div>
+              </div>
+              <div className="d-flex align-items-center">
+                <Badge color={isTerminated ? "success" : "light-info"} className="mr-3" style={{ fontSize: '12.5px', borderRadius: '4px', padding: '8px 12px' }}>
+                  {isTerminated && <CheckCircle size={12} className="mr-1" />}
+                  {contract.document_state}
+                </Badge>
+                <Button.Ripple
+                  className="btn-icon rounded-circle"
+                  color="flat-danger"
+                  size="sm"
+                  onClick={() => this.handleAlert("defaultAlert", true, contract.id)}
+                  id={`delete-btn-${contract.id}`}
+                >
+                  <Trash2 size={18} />
+                </Button.Ripple>
+                <UncontrolledTooltip placement="top" target={`delete-btn-${contract.id}`}>
+                  Supprimer le contrat
+                </UncontrolledTooltip>
+              </div>
+            </Col>
+
+            {/* Separator */}
+            <Col md="12"><hr className="my-2" /></Col>
+
+            {/* Details Grid */}
+            <Col md="4" className="d-flex flex-column justify-content-center border-right">
+              <span className="text-uppercase text-muted font-weight-bold" style={{ fontSize: '10px', letterSpacing: '1px' }}>Services</span>
+              {this.renderServices(contract.subscribe_services)}
+            </Col>
+
+            <Col md="8">
+              <Row>
+                <Col sm="6" className="mb-2 mb-sm-0">
+                  <span className="d-block text-uppercase text-muted font-weight-bold mb-1" style={{ fontSize: '10px', letterSpacing: '1px' }}>Acompte</span>
+                  {this.getPaymentStatus(contract.pre_payment, isAcomptePaid, isAcompteProblem)}
+                </Col>
+                <Col sm="6">
+                  <span className="d-block text-uppercase text-muted font-weight-bold mb-1" style={{ fontSize: '10px', letterSpacing: '1px' }}>Solde</span>
+                  {this.getPaymentStatus(contract.end_payment, isSoldePaid, isSoldeProblem)}
+                </Col>
+              </Row>
+            </Col>
+          </Row>
+        </CardBody>
+      </Card>
+    );
+  }
+
   render() {
-    const { rowData, columnDefs, defaultColDef, pageSize } = this.state;
+    const { rowData } = this.state;
     return (
       <div>
         {/* Alertes */}
         <SweetAlert
-          title="Êtes-vous sûrs?"
+          title="Êtes-vous sûr ?"
           warning
           show={this.state.defaultAlert}
           showCancel
@@ -319,7 +304,7 @@ class Contracts extends React.Component {
           onConfirm={() => this.handleAlert("confirmAlert", true, 0)}
           onCancel={() => this.setState({ defaultAlert: false })}
         >
-          Vous ne pourrez pas revenir en arrière
+          Cette action est irréversible.
         </SweetAlert>
 
         <SweetAlert
@@ -333,7 +318,7 @@ class Contracts extends React.Component {
 
         <SweetAlert
           danger
-          title="Erreur lors de l'envoi"
+          title="Erreur"
           show={this.state.signatureAlertError.show}
           onConfirm={() =>
             this.setState({ signatureAlertError: { show: false, message: "" } })
@@ -342,70 +327,55 @@ class Contracts extends React.Component {
           {this.state.signatureAlertError.message}
         </SweetAlert>
 
-        {/* Contenu minimal : actions principales + grille */}
-        <Row className="app-user-list">
+        {/* Actions Bar */}
+        <div className="d-flex flex-wrap justify-content-between align-items-center mb-3">
+          <h2 className="content-header-title float-left mb-0">Contrats</h2>
+          <div className="actions-right">
+            <Button.Ripple
+              className="mr-2 shadow-sm"
+              color="primary"
+              onClick={() => history.push("/pages/create-contract/" + this.props.id)}
+            >
+              <FolderPlus size={16} className="mr-1" />
+              Nouveau Contrat
+            </Button.Ripple>
+            <Button.Ripple
+              className="shadow-sm"
+              color="success"
+              onClick={this.requestSignature}
+              disabled={this.state.requestingSignature}
+              outline
+            >
+              {this.state.requestingSignature ? (
+                <Spinner size="sm" className="mr-1" />
+              ) : (
+                <FileText size={16} className="mr-1" />
+              )}
+              DocuSign Procuration
+            </Button.Ripple>
+          </div>
+        </div>
+
+        {/* Liste des contrats */}
+        <Row>
           <Col sm="12">
-            <Card>
-              <CardBody>
-                <div className="ag-theme-material ag-grid-table">
-                  <div className="ag-grid-actions d-flex flex-wrap mb-1">
-                    <div className="filter-actions d-flex">
-                      <div>
-                        <Button.Ripple
-                          className="mr-1 mb-1"
-                          outline
-                          color="primary"
-                          onClick={() =>
-                            history.push(
-                              "/pages/create-contract/" + this.props.id
-                            )
-                          }
-                        >
-                          <FolderPlus size={15} /> Contrat
-                        </Button.Ripple>
-                      </div>
-
-                      <div>
-                        <Button.Ripple
-                          className="mr-1 mb-1"
-                          color="success"
-                          onClick={this.requestSignature}
-                          disabled={this.state.requestingSignature}
-                        >
-                          {this.state.requestingSignature && (
-                            <Spinner size="sm" className="mr-50" />
-                          )}
-                          DocuSign procuration EOR
-                        </Button.Ripple>
-                      </div>
-                    </div>
-                  </div>
-
-                  {rowData !== null ? (
-                    <ContextLayout.Consumer>
-                      {(context) => (
-                        <AgGridReact
-                          gridOptions={{}}
-                          rowSelection="multiple"
-                          defaultColDef={defaultColDef}
-                          columnDefs={columnDefs}
-                          rowData={rowData}
-                          onGridReady={this.onGridReady}
-                          colResizeDefault={"shift"}
-                          animateRows={true}
-                          floatingFilter={true}
-                          pagination={true}
-                          pivotPanelShow="always"
-                          paginationPageSize={pageSize}
-                          resizable={true}
-                          enableRtl={context.state.direction === "rtl"}
-                        />
-                      )}
-                    </ContextLayout.Consumer>
-                  ) : null}
-                </div>
-              </CardBody>
-            </Card>
+            {!rowData ? (
+              <div className="text-center p-5">
+                <Spinner color="primary" />
+              </div>
+            ) : rowData.length === 0 ? (
+              <Card>
+                <CardBody className="text-center p-5">
+                  <FolderPlus size={48} className="text-muted mb-2" />
+                  <h4>Aucun contrat trouvé</h4>
+                  <p className="text-muted">Créez un nouveau contrat pour commencer.</p>
+                </CardBody>
+              </Card>
+            ) : (
+              <div className="contract-list">
+                {rowData.map(contract => this.renderContractCard(contract))}
+              </div>
+            )}
           </Col>
         </Row>
       </div>
@@ -414,4 +384,4 @@ class Contracts extends React.Component {
 }
 
 export default Contracts;
-/* eslint-disable */
+/* eslint-enable */
