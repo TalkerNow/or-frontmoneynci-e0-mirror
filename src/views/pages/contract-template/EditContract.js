@@ -1167,15 +1167,21 @@ class EditContract extends React.Component {
   };
 
   toInputValue = (sql) => {
-    // "YYYY-MM-DD HH:mm:ss" -> "YYYY-MM-DDTHH:mm"
+    // "YYYY-MM-DD HH:mm:ss" -> "YYYY-MM-DD"
     if (!sql) return "";
-    return sql.replace(" ", "T").slice(0, 16);
+    return sql.split(" ")[0];
   };
 
   fromInputValue = (v) => {
-    // "YYYY-MM-DDTHH:mm" -> "YYYY-MM-DD HH:mm:00"
+    // "YYYY-MM-DD" -> "YYYY-MM-DD HH:mm:ss"
     if (!v) return "";
-    return v.replace("T", " ") + ":00";
+    // prevent year > 4 chars
+    const parts = v.split("-");
+    if (parts.length === 3 && parts[0].length > 4) {
+      parts[0] = parts[0].slice(0, 4);
+      return parts.join("-") + " 00:00:00";
+    }
+    return v + " 00:00:00";
   };
 
   addDate = (key) => {
@@ -1804,7 +1810,9 @@ class EditContract extends React.Component {
                                 {isEditing ? (
                                   <>
                                     <Input
-                                      type="datetime-local"
+                                      type="date"
+                                      max="9999-12-31"
+                                      min="1900-01-01"
                                       style={{ width: 240, height: 34 }}
                                       value={this.toInputValue(d)}
                                       onChange={(e) =>
@@ -1840,9 +1848,7 @@ class EditContract extends React.Component {
                                         backgroundColor: "#f8f9fa",
                                       }}
                                     >
-                                      {d
-                                        ? moment(d).format("DD/MM/YYYY HH:mm")
-                                        : "-"}
+                                      {d ? moment(d).format("DD/MM/YYYY") : "-"}
                                     </div>
                                     <Button.Ripple
                                       className="btn-icon rounded-circle"
@@ -1896,7 +1902,9 @@ class EditContract extends React.Component {
                                 {isEditing ? (
                                   <>
                                     <Input
-                                      type="datetime-local"
+                                      type="date"
+                                      max="9999-12-31"
+                                      min="1900-01-01"
                                       style={{ width: 240, height: 34 }}
                                       value={this.toInputValue(d)}
                                       onChange={(e) =>
@@ -1932,9 +1940,7 @@ class EditContract extends React.Component {
                                         backgroundColor: "#f8f9fa",
                                       }}
                                     >
-                                      {d
-                                        ? moment(d).format("DD/MM/YYYY HH:mm")
-                                        : "-"}
+                                      {d ? moment(d).format("DD/MM/YYYY") : "-"}
                                     </div>
                                     <Button.Ripple
                                       className="btn-icon rounded-circle"
@@ -2061,7 +2067,7 @@ class EditContract extends React.Component {
                           <h6>
                             {moment(this.ifExist("birth_date")).isValid()
                               ? moment(this.ifExist("birth_date")).format(
-                                "DD/MM/YYYY"
+                                  "DD/MM/YYYY"
                               )
                               : ""}
                           </h6>
@@ -2090,11 +2096,11 @@ class EditContract extends React.Component {
                         <Col md="8" sm="12">
                           {" "}
                           <h6>
-                            <Moment
-                              format="DD-MM-YYYY HH:mm"
-                              date={this.ifExist("updated_at")}
-                              utc
-                            />
+                            {moment(this.ifExist("updated_at")).isValid()
+                              ? moment(this.ifExist("updated_at")).format(
+                                  "DD/MM/YYYY"
+                              )
+                              : ""}
                           </h6>{" "}
                         </Col>
                       </Row>
