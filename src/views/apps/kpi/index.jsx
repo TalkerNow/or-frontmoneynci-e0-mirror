@@ -32,6 +32,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useHistory, useLocation } from "react-router-dom";
+
 import {
   Mail as MailIcon,
   PhoneIncoming,
@@ -40,9 +41,19 @@ import {
   ArrowRight, // Restored
   Briefcase,
   CheckSquare,
+  FileText,
+  Clock,
+  Layout,
+  MessageSquare,
 } from "react-feather"; // icônes
 import KPIModal from "./KPIModal";
-import ChatbotDetailView from "./ChatbotDetailView"; // Imported new Modal component
+import { Plus, Bell } from "lucide-react";
+import ChatbotDetailView from "./ChatbotDetailView";
+// CRM v2 Components
+import InboxView from "./components/InboxView";
+import PipelineView from "./components/PipelineView";
+import AdminView from "./components/AdminView";
+import { SidebarItem } from "./components/SharedComponents"; // If sidebar needs to be adjusted, but we rely on global sidebar for now.
 
 /** =============================
  *  Helpers (token, admin id, date)
@@ -588,6 +599,7 @@ export default function KpiPage() {
 
   const [sortField, setSortField] = useState("client"); // client | todo | last | type
   const [sortDir, setSortDir] = useState("asc"); // asc | desc
+  const [adminSearch, setAdminSearch] = useState(""); // Search for AdminView
   // >>> Nouveaux champs contact (optionnels)
 
   // Mini fenetre email (simple)
@@ -625,6 +637,9 @@ export default function KpiPage() {
   const [convModalOpen, setConvModalOpen] = useState(false);
   const [selectedConv, setSelectedConv] = useState(null);
 
+  // Dropdown state for New Button
+  const [isNewMenuOpen, setIsNewMenuOpen] = useState(false);
+
   const renderSortIcon = (field) => {
     if (sortField !== field) {
       return <span style={{ opacity: 0.3, marginLeft: 4 }}>↕</span>;
@@ -642,26 +657,6 @@ export default function KpiPage() {
 
   // ---- styles filtres jolis ----
   // ---- styles filtres jolis ----
-  const filterWrapperStyle = {
-    display: "flex",
-    flexWrap: "wrap",
-    alignItems: "center",
-    gap: 12,
-    padding: "6px 10px",
-    borderRadius: 10,
-    backgroundColor: "#f8f9fa",
-    border: "1px solid #e9ecef",
-    justifyContent: "flex-end", // Align right on desktop
-  };
-
-  const filterTitleStyle = {
-    fontSize: 14,
-    textTransform: "uppercase",
-    letterSpacing: "0.04em",
-    color: "#6c757d",
-    fontWeight: 600,
-    marginRight: "auto", // Push title to left if wrapped
-  };
 
   const filterPillBase = {
     borderRadius: 999,
@@ -678,9 +673,6 @@ export default function KpiPage() {
   };
 
   const filterPillActive = {
-    backgroundColor: "#e7f1ff",
-    borderColor: "#0d6efd",
-    color: "#0d6efd",
     fontWeight: 600,
   };
 
@@ -918,7 +910,16 @@ export default function KpiPage() {
   const sortedSuivis = useMemo(() => {
     if (!Array.isArray(suivis)) return [];
 
-    const data = [...suivis];
+    let data = [...suivis];
+
+    // Filter by adminSearch (client name)
+    if (adminSearch) {
+      const lower = adminSearch.toLowerCase();
+      data = data.filter((s) => {
+        const name = getClientDisplayNameFromSuivi(s, clientsById) || "";
+        return name.toLowerCase().includes(lower);
+      });
+    }
 
     const getSortKey = (s) => {
       switch (sortField) {
@@ -959,7 +960,7 @@ export default function KpiPage() {
     });
 
     return data;
-  }, [suivis, clientsById, sortField, sortDir]);
+  }, [suivis, clientsById, sortField, sortDir, adminSearch]);
   const groupedSuivis = useMemo(() => {
     const res = {
       active: [], // par défaut
@@ -1135,276 +1136,294 @@ export default function KpiPage() {
     <div
       className="kpi-page-container"
       style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "85vh",
-        overflowY: "auto",
         paddingBottom: 50,
+        overflow: "visible",
       }}
     >
-      {location.pathname === "/kpi/suivi" && (
-        <div style={{ padding: "0 14px" }}>
-          {/* ====== Suivis d'avancement (ANCIENNE TABLE) ====== */}
-          <div className="vx-row mb-4">
-            <div className="vx-col w-100">
-              <Card>
-                <CardHeader className="d-flex align-items-center justify-content-between">
-                  <h4 className="mb-0">Suivi des contrats</h4>
-                </CardHeader>
-                <CardBody>
-                  {suivisError && (
-                    <div
-                      style={{
-                        background: "#ffe9e9",
-                        border: "1px solid #ffb3b3",
-                        color: "#b10000",
-                        padding: 10,
-                        borderRadius: 6,
-                        marginBottom: 14,
-                      }}
+      <header
+        style={{
+          backgroundColor: "white",
+          borderBottom: "1px solid #e5e7eb",
+          height: "64px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0 32px",
+          boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+          position: "relative",
+          zIndex: 50,
+          borderRadius: "8px",
+          margin: "0 0 20px 0",
+          overflow: "visible",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            fontSize: "14px",
+            color: "#6b7280",
+          }}
+        >
+          <span style={{ color: "#6b7280", fontSize: "14px" }}>Accueil</span>
+          <span style={{ color: "#9ca3af", fontSize: "14px" }}>{">"}</span>
+          <span
+            className="font-semibold text-gray-800"
+            style={{
+              fontSize: "14px",
+              fontWeight: 600,
+              color: "#1f2937",
+              textTransform: "capitalize",
+            }}
+          >
+            {location.pathname.includes("/kpi/suivi")
+              ? "Suivi Dossiers"
+              : location.pathname.includes("/kpi/opportunities")
+              ? "Opportunités"
+              : location.pathname.includes("/kpi/clients") // Assuming clients route exists or will exist
+              ? "Clients"
+              : "Boîte De Réception"}
+          </span>
+        </div>
+        <div style={{ marginLeft: "auto" }}>
+          <UncontrolledDropdown>
+            <DropdownToggle
+              tag="button"
+              className="d-flex align-items-center gap-3 border-0"
+              style={{
+                backgroundColor: "#22C55E",
+                color: "white",
+                padding: "8px 16px",
+                borderRadius: "8px",
+                fontWeight: 500,
+                boxShadow:
+                  "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+                cursor: "pointer",
+                transition: "background-color 0.2s",
+              }}
+              onMouseOver={(e) =>
+                (e.currentTarget.style.backgroundColor = "#16a34a")
+              }
+              onMouseOut={(e) =>
+                (e.currentTarget.style.backgroundColor = "#22C55E")
+              }
+            >
+              <Plus size={16} />
+              <span>NOUVEAU</span>
+            </DropdownToggle>
+            <DropdownMenu
+              end
+              style={{
+                border: "1px solid #f3f4f6",
+                boxShadow: "0 6px 16px rgba(0, 0, 0, 0.1)",
+                padding: "4px",
+                width: "160px",
+                minWidth: "auto",
+              }}
+            >
+              <DropdownItem
+                onClick={() => toggleModal()}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  padding: "8px 12px",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  color: "#374151",
+                }}
+              >
+                <PhoneIncoming
+                  size={16}
+                  className="text-green-600"
+                  style={{ color: "#16a34a" }}
+                />
+                <span>Appel Entrant</span>
+              </DropdownItem>
+              <DropdownItem
+                onClick={() =>
+                  alert("Fonctionnalité 'Nouveau Client' à venir !")
+                }
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  padding: "8px 12px",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  color: "#374151",
+                }}
+              >
+                <Briefcase
+                  size={16}
+                  className="text-indigo-600"
+                  style={{ color: "#4f46e5" }}
+                />
+                <span>Nouveau Client</span>
+              </DropdownItem>
+              <DropdownItem
+                onClick={() =>
+                  alert("Fonctionnalité 'Créer une tâche' à venir !")
+                }
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  padding: "8px 12px",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  color: "#374151",
+                }}
+              >
+                <CheckSquare
+                  size={16}
+                  className="text-gray-500"
+                  style={{ color: "#6b7280" }}
+                />
+                <span>Créer une tâche</span>
+              </DropdownItem>
+            </DropdownMenu>
+          </UncontrolledDropdown>
+        </div>
+      </header>
+      {location.pathname.includes("/kpi/suivi") && (
+        <AdminView
+          searchTerm={adminSearch}
+          onSearchChange={setAdminSearch}
+          filters={
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+            >
+              <button
+                type="button"
+                onClick={() => setShowProcessing((v) => !v)}
+                style={{
+                  ...filterPillBase,
+                  ...(showProcessing ? filterPillActive : {}),
+                  // Override defaults for dropdown look
+                  width: "100%",
+                  justifyContent: "flex-start",
+                  border: "none",
+                  background: "transparent",
+                }}
+              >
+                <span
+                  style={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: "50%",
+                    marginRight: 8,
+                    backgroundColor: showProcessing ? "#198754" : "transparent",
+                    border: `1px solid ${
+                      showProcessing ? "#198754" : "#ced4da"
+                    }`,
+                  }}
+                />
+                Dossiers en cours
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCompleted((v) => !v)}
+                style={{
+                  ...filterPillBase,
+                  ...(showCompleted ? filterPillActive : {}),
+                  width: "100%",
+                  justifyContent: "flex-start",
+                  border: "none",
+                  background: "transparent",
+                }}
+              >
+                <span
+                  style={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: "50%",
+                    marginRight: 8,
+                    backgroundColor: showCompleted ? "#6c757d" : "transparent",
+                    border: `1px solid ${
+                      showCompleted ? "#6c757d" : "#ced4da"
+                    }`,
+                  }}
+                />
+                Contrats terminés
+              </button>
+            </div>
+          }
+        >
+          <div style={{ padding: "0 14px" }}>
+            {/* ====== Suivis d'avancement (ANCIENNE TABLE) ====== */}
+            <div className="w-100">
+              {suivisError && (
+                <div
+                  style={{
+                    background: "#ffe9e9",
+                    border: "1px solid #ffb3b3",
+                    color: "#b10000",
+                    padding: 10,
+                    borderRadius: 6,
+                    marginBottom: 14,
+                  }}
+                >
+                  {suivisError}
+                </div>
+              )}
+
+              <Table responsive hover>
+                <thead>
+                  <tr>
+                    <th
+                      style={headerClickableStyle}
+                      onClick={() => handleSort("client")}
                     >
-                      {suivisError}
-                    </div>
-                  )}
-
-                  {/* Filtres d'affichage (propre, aligné) */}
-                  <div className="d-flex justify-content-start justify-content-md-end mb-2">
-                    <div style={filterWrapperStyle}>
-                      <span style={filterTitleStyle}>Afficher</span>
-
-                      {/* Dossiers en cours */}
-                      <button
-                        type="button"
-                        onClick={() => setShowProcessing((v) => !v)}
-                        style={{
-                          ...filterPillBase,
-                          ...(showProcessing ? filterPillActive : {}),
-                        }}
-                      >
-                        <span
-                          style={{
-                            width: 18,
-                            height: 18,
-                            borderRadius: "50%",
-                            marginRight: 6,
-                            backgroundColor: showProcessing
-                              ? "#198754"
-                              : "transparent",
-                            border: `1px solid ${
-                              showProcessing ? "#198754" : "#ced4da"
-                            }`,
-                          }}
-                        />
-                        Dossiers en cours
-                      </button>
-
-                      {/* Contrats terminés */}
-                      <button
-                        type="button"
-                        onClick={() => setShowCompleted((v) => !v)}
-                        style={{
-                          ...filterPillBase,
-                          ...(showCompleted ? filterPillActive : {}),
-                        }}
-                      >
-                        <span
-                          style={{
-                            width: 18,
-                            height: 18,
-                            borderRadius: "50%",
-                            marginRight: 6,
-                            backgroundColor: showCompleted
-                              ? "#6c757d"
-                              : "transparent",
-                            border: `1px solid ${
-                              showCompleted ? "#6c757d" : "#ced4da"
-                            }`,
-                          }}
-                        />
-                        Contrats terminés
-                      </button>
-                    </div>
-                  </div>
-                  <Table responsive hover>
-                    <thead>
-                      <tr>
-                        <th
-                          style={headerClickableStyle}
-                          onClick={() => handleSort("client")}
-                        >
-                          Client
-                          {renderSortIcon("client")}
-                        </th>
-                        <th
-                          style={headerClickableStyle}
-                          onClick={() => handleSort("todo")}
-                        >
-                          À faire
-                          {renderSortIcon("todo")}
-                        </th>
-                        <th
-                          style={headerClickableStyle}
-                          onClick={() => handleSort("last")}
-                        >
-                          Dernière étape validée
-                          {renderSortIcon("last")}
-                        </th>
-                        <th
-                          style={headerClickableStyle}
-                          onClick={() => handleSort("type")}
-                        >
-                          Type de contrat
-                          {renderSortIcon("type")}
-                        </th>
-                        <th>Voir le contrat</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {loadingSuivis ? (
-                        <tr>
-                          <td colSpan="5">Chargement des suivis…</td>
-                        </tr>
-                      ) : (
+                      Client
+                      {renderSortIcon("client")}
+                    </th>
+                    <th
+                      style={headerClickableStyle}
+                      onClick={() => handleSort("todo")}
+                    >
+                      À faire
+                      {renderSortIcon("todo")}
+                    </th>
+                    <th
+                      style={headerClickableStyle}
+                      onClick={() => handleSort("last")}
+                    >
+                      Dernière étape validée
+                      {renderSortIcon("last")}
+                    </th>
+                    <th
+                      style={headerClickableStyle}
+                      onClick={() => handleSort("type")}
+                    >
+                      Type de contrat
+                      {renderSortIcon("type")}
+                    </th>
+                    <th>Voir le contrat</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loadingSuivis ? (
+                    <tr>
+                      <td colSpan="5">Chargement des suivis…</td>
+                    </tr>
+                  ) : (
+                    <>
+                      {/* 0) 5 jours ouvrés atteints / dépassés (toujours en haut si présents) */}
+                      {groupedSuivis.after5days.length > 0 && (
                         <>
-                          {/* 0) 5 jours ouvrés atteints / dépassés (toujours en haut si présents) */}
-                          {groupedSuivis.after5days.length > 0 && (
-                            <>
-                              <tr className="table-warning">
-                                <td
-                                  colSpan="5"
-                                  style={{ fontSize: 14, fontWeight: 600 }}
-                                >
-                                  5 jours ouvrés atteints / dépassés (à traiter
-                                  en priorité)
-                                </td>
-                              </tr>
+                          <tr className="table-warning">
+                            <td
+                              colSpan="5"
+                              style={{ fontSize: 14, fontWeight: 600 }}
+                            >
+                              5 jours ouvrés atteints / dépassés (à traiter en
+                              priorité)
+                            </td>
+                          </tr>
 
-                              {groupedSuivis.after5days.map(
-                                ({ s, steps, last, next }) => {
-                                  const clientLabel =
-                                    getClientDisplayNameFromSuivi(
-                                      s,
-                                      clientsById
-                                    );
-                                  const contractId =
-                                    s.facture_id ||
-                                    s.document_id ||
-                                    s.contract_id;
-                                  const clientId = s.client_id;
-
-                                  return (
-                                    <tr
-                                      key={`after5-${
-                                        s.suivi_id || s.id || ""
-                                      }-${s.document_id || s.facture_id || ""}`}
-                                      onClick={() => {
-                                        if (clientId) {
-                                          history.push(
-                                            `/app/user/edit/${clientId}/2`
-                                          );
-                                        }
-                                      }}
-                                      style={{ cursor: "pointer" }}
-                                    >
-                                      {/* Client */}
-                                      <td>{clientLabel}</td>
-
-                                      {/* À faire */}
-                                      <td>{renderTodoCell(next)}</td>
-
-                                      {/* Dernière étape validée */}
-                                      <td>
-                                        {last ? (
-                                          <div style={{ fontSize: 14 }}>
-                                            <div>
-                                              <strong>{last.label}</strong>
-                                            </div>
-                                            {last.date && (
-                                              <div className="text-muted">
-                                                {formatDate(last.date)}
-                                              </div>
-                                            )}
-                                          </div>
-                                        ) : (
-                                          <span
-                                            className="text-muted"
-                                            style={{ fontSize: 14 }}
-                                          >
-                                            Aucune étape validée
-                                          </span>
-                                        )}
-                                      </td>
-
-                                      {/* Type de contrat */}
-                                      <td
-                                        style={{
-                                          whiteSpace: "nowrap",
-                                          width: 160,
-                                        }}
-                                      >
-                                        {renderProductBadgeFromSuivi(s)}
-                                      </td>
-
-                                      {/* Contrat (flèche) */}
-                                      <td
-                                        style={{
-                                          width: 60,
-                                          textAlign: "center",
-                                        }}
-                                      >
-                                        {contractId ? (
-                                          <Button
-                                            color="link"
-                                            className="p-0"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              history.push(
-                                                `/pages/contract/${contractId}`
-                                              );
-                                            }}
-                                            title="Voir le contrat"
-                                          >
-                                            <ArrowRight size={18} />
-                                          </Button>
-                                        ) : (
-                                          <span
-                                            className="text-muted"
-                                            style={{ fontSize: 14 }}
-                                          >
-                                            -
-                                          </span>
-                                        )}
-                                      </td>
-                                    </tr>
-                                  );
-                                }
-                              )}
-                            </>
-                          )}
-                          {groupedSuivis.after5days.length > 0 &&
-                            groupedSuivis.active.length > 0 && (
-                              <tr>
-                                <td
-                                  colSpan="5"
-                                  style={{
-                                    padding: "6px 10px",
-                                    borderTop: "2px solid #dee2e6",
-                                    borderBottom: "1px solid #dee2e6",
-                                    background: "#f8f9fa",
-                                    fontSize: 13,
-                                    fontWeight: 600,
-                                    color: "#6c757d",
-                                    textTransform: "uppercase",
-                                    letterSpacing: "0.04em",
-                                  }}
-                                >
-                                  Autres dossiers
-                                </td>
-                              </tr>
-                            )}
-
-                          {/* 1) Dossiers actifs (par défaut) */}
-                          {groupedSuivis.active.map(
+                          {groupedSuivis.after5days.map(
                             ({ s, steps, last, next }) => {
                               const clientLabel = getClientDisplayNameFromSuivi(
                                 s,
@@ -1416,7 +1435,7 @@ export default function KpiPage() {
 
                               return (
                                 <tr
-                                  key={`${s.suivi_id || s.id || ""}-${
+                                  key={`after5-${s.suivi_id || s.id || ""}-${
                                     s.document_id || s.facture_id || ""
                                   }`}
                                   onClick={() => {
@@ -1433,6 +1452,7 @@ export default function KpiPage() {
 
                                   {/* À faire */}
                                   <td>{renderTodoCell(next)}</td>
+
                                   {/* Dernière étape validée */}
                                   <td>
                                     {last ? (
@@ -1458,14 +1478,20 @@ export default function KpiPage() {
 
                                   {/* Type de contrat */}
                                   <td
-                                    style={{ whiteSpace: "nowrap", width: 160 }}
+                                    style={{
+                                      whiteSpace: "nowrap",
+                                      width: 160,
+                                    }}
                                   >
                                     {renderProductBadgeFromSuivi(s)}
                                   </td>
 
                                   {/* Contrat (flèche) */}
                                   <td
-                                    style={{ width: 60, textAlign: "center" }}
+                                    style={{
+                                      width: 60,
+                                      textAlign: "center",
+                                    }}
                                   >
                                     {contractId ? (
                                       <Button
@@ -1494,429 +1520,367 @@ export default function KpiPage() {
                               );
                             }
                           )}
-
-                          {/* 2) Dossiers en cours de traitement (tiroir) */}
-                          {showProcessing &&
-                            groupedSuivis.processing.length > 0 && (
-                              <>
-                                <tr className="table-secondary">
-                                  <td
-                                    colSpan="5"
-                                    style={{ fontSize: 14, fontWeight: 600 }}
-                                  >
-                                    Dossiers en cours de traitement
-                                  </td>
-                                </tr>
-
-                                {groupedSuivis.processing.map(
-                                  ({ s, steps, last, next }) => {
-                                    const clientLabel =
-                                      getClientDisplayNameFromSuivi(
-                                        s,
-                                        clientsById
-                                      );
-                                    const contractId =
-                                      s.facture_id ||
-                                      s.document_id ||
-                                      s.contract_id;
-                                    const clientId = s.client_id;
-
-                                    return (
-                                      <tr
-                                        key={`processing-${
-                                          s.suivi_id || s.id || ""
-                                        }-${
-                                          s.document_id || s.facture_id || ""
-                                        }`}
-                                        onClick={() => {
-                                          if (clientId) {
-                                            history.push(
-                                              `/app/user/edit/${clientId}/2`
-                                            );
-                                          }
-                                        }}
-                                        style={{ cursor: "pointer" }}
-                                      >
-                                        <td>{clientLabel}</td>
-                                        <td>{renderTodoCell(next)}</td>
-                                        <td>
-                                          {last ? (
-                                            <div style={{ fontSize: 14 }}>
-                                              <div>
-                                                <strong>{last.label}</strong>
-                                              </div>
-                                              {last.date && (
-                                                <div className="text-muted">
-                                                  {formatDate(last.date)}
-                                                </div>
-                                              )}
-                                            </div>
-                                          ) : (
-                                            <span
-                                              className="text-muted"
-                                              style={{ fontSize: 14 }}
-                                            >
-                                              Aucune étape validée
-                                            </span>
-                                          )}
-                                        </td>
-
-                                        <td
-                                          style={{
-                                            whiteSpace: "nowrap",
-                                            width: 160,
-                                          }}
-                                        >
-                                          {renderProductBadgeFromSuivi(s)}
-                                        </td>
-
-                                        <td
-                                          style={{
-                                            width: 60,
-                                            textAlign: "center",
-                                          }}
-                                        >
-                                          {contractId ? (
-                                            <Button
-                                              color="link"
-                                              className="p-0"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                history.push(
-                                                  `/pages/contract/${contractId}`
-                                                );
-                                              }}
-                                              title="Voir le contrat"
-                                            >
-                                              <ArrowRight size={18} />
-                                            </Button>
-                                          ) : (
-                                            <span
-                                              className="text-muted"
-                                              style={{ fontSize: 14 }}
-                                            >
-                                              -
-                                            </span>
-                                          )}
-                                        </td>
-                                      </tr>
-                                    );
-                                  }
-                                )}
-                              </>
-                            )}
-
-                          {/* 3) Contrats terminés (tiroir) */}
-                          {showCompleted &&
-                            groupedSuivis.completed.length > 0 && (
-                              <>
-                                <tr className="table-secondary">
-                                  <td
-                                    colSpan="5"
-                                    style={{ fontSize: 14, fontWeight: 600 }}
-                                  >
-                                    Contrats terminés
-                                  </td>
-                                </tr>
-
-                                {groupedSuivis.completed.map(
-                                  ({ s, steps, last, next }) => {
-                                    const clientLabel =
-                                      getClientDisplayNameFromSuivi(
-                                        s,
-                                        clientsById
-                                      );
-                                    const contractId =
-                                      s.facture_id ||
-                                      s.document_id ||
-                                      s.contract_id;
-                                    const clientId = s.client_id;
-
-                                    return (
-                                      <tr
-                                        key={`completed-${
-                                          s.suivi_id || s.id || ""
-                                        }-${
-                                          s.document_id || s.facture_id || ""
-                                        }`}
-                                        onClick={() => {
-                                          if (clientId) {
-                                            history.push(
-                                              `/app/user/edit/${clientId}/2`
-                                            );
-                                          }
-                                        }}
-                                        style={{ cursor: "pointer" }}
-                                      >
-                                        <td>{clientLabel}</td>
-
-                                        <td>
-                                          <span
-                                            className="text-success"
-                                            style={{
-                                              fontSize: 14,
-                                              fontWeight: 600,
-                                            }}
-                                          >
-                                            Dossier terminé
-                                          </span>
-                                        </td>
-
-                                        <td>
-                                          {last ? (
-                                            <div style={{ fontSize: 14 }}>
-                                              <div>
-                                                <strong>{last.label}</strong>
-                                              </div>
-                                              {last.date && (
-                                                <div className="text-muted">
-                                                  {formatDate(last.date)}
-                                                </div>
-                                              )}
-                                            </div>
-                                          ) : (
-                                            <span
-                                              className="text-muted"
-                                              style={{ fontSize: 14 }}
-                                            >
-                                              Aucune étape validée
-                                            </span>
-                                          )}
-                                        </td>
-
-                                        <td
-                                          style={{
-                                            whiteSpace: "nowrap",
-                                            width: 160,
-                                          }}
-                                        >
-                                          {renderProductBadgeFromSuivi(s)}
-                                        </td>
-
-                                        <td
-                                          style={{
-                                            width: 60,
-                                            textAlign: "center",
-                                          }}
-                                        >
-                                          {contractId ? (
-                                            <Button
-                                              color="link"
-                                              className="p-0"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                history.push(
-                                                  `/pages/contract/${contractId}`
-                                                );
-                                              }}
-                                              title="Voir le contrat"
-                                            >
-                                              <ArrowRight size={18} />
-                                            </Button>
-                                          ) : (
-                                            <span
-                                              className="text-muted"
-                                              style={{ fontSize: 14 }}
-                                            >
-                                              -
-                                            </span>
-                                          )}
-                                        </td>
-                                      </tr>
-                                    );
-                                  }
-                                )}
-                              </>
-                            )}
-
-                          {/* Si rien n’est visible du tout */}
-                          {groupedSuivis.active.length === 0 &&
-                            groupedSuivis.after5days.length === 0 &&
-                            (!showProcessing ||
-                              groupedSuivis.processing.length === 0) &&
-                            (!showCompleted ||
-                              groupedSuivis.completed.length === 0) && (
-                              <tr>
-                                <td colSpan="5">Aucun suivi trouvé.</td>
-                              </tr>
-                            )}
                         </>
                       )}
-                    </tbody>
-                  </Table>
-                </CardBody>
-              </Card>
+                      {groupedSuivis.after5days.length > 0 &&
+                        groupedSuivis.active.length > 0 && (
+                          <tr>
+                            <td
+                              colSpan="5"
+                              style={{
+                                padding: "6px 10px",
+                                borderTop: "2px solid #dee2e6",
+                                borderBottom: "1px solid #dee2e6",
+                                background: "#f8f9fa",
+                                fontSize: 13,
+                                fontWeight: 600,
+                                color: "#6c757d",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.04em",
+                              }}
+                            >
+                              Autres dossiers
+                            </td>
+                          </tr>
+                        )}
+
+                      {/* 1) Dossiers actifs (par défaut) */}
+                      {groupedSuivis.active.map(({ s, steps, last, next }) => {
+                        const clientLabel = getClientDisplayNameFromSuivi(
+                          s,
+                          clientsById
+                        );
+                        const contractId =
+                          s.facture_id || s.document_id || s.contract_id;
+                        const clientId = s.client_id;
+
+                        return (
+                          <tr
+                            key={`${s.suivi_id || s.id || ""}-${
+                              s.document_id || s.facture_id || ""
+                            }`}
+                            onClick={() => {
+                              if (clientId) {
+                                history.push(`/app/user/edit/${clientId}/2`);
+                              }
+                            }}
+                            style={{ cursor: "pointer" }}
+                          >
+                            {/* Client */}
+                            <td>{clientLabel}</td>
+
+                            {/* À faire */}
+                            <td>{renderTodoCell(next)}</td>
+                            {/* Dernière étape validée */}
+                            <td>
+                              {last ? (
+                                <div style={{ fontSize: 14 }}>
+                                  <div>
+                                    <strong>{last.label}</strong>
+                                  </div>
+                                  {last.date && (
+                                    <div className="text-muted">
+                                      {formatDate(last.date)}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span
+                                  className="text-muted"
+                                  style={{ fontSize: 14 }}
+                                >
+                                  Aucune étape validée
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Type de contrat */}
+                            <td
+                              style={{
+                                whiteSpace: "nowrap",
+                                width: 160,
+                              }}
+                            >
+                              {renderProductBadgeFromSuivi(s)}
+                            </td>
+
+                            {/* Contrat (flèche) */}
+                            <td style={{ width: 60, textAlign: "center" }}>
+                              {contractId ? (
+                                <Button
+                                  color="link"
+                                  className="p-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    history.push(
+                                      `/pages/contract/${contractId}`
+                                    );
+                                  }}
+                                  title="Voir le contrat"
+                                >
+                                  <ArrowRight size={18} />
+                                </Button>
+                              ) : (
+                                <span
+                                  className="text-muted"
+                                  style={{ fontSize: 14 }}
+                                >
+                                  -
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+
+                      {/* 2) Dossiers en cours de traitement (tiroir) */}
+                      {showProcessing &&
+                        groupedSuivis.processing.length > 0 && (
+                          <>
+                            <tr className="table-secondary">
+                              <td
+                                colSpan="5"
+                                style={{ fontSize: 14, fontWeight: 600 }}
+                              >
+                                Dossiers en cours de traitement
+                              </td>
+                            </tr>
+
+                            {groupedSuivis.processing.map(
+                              ({ s, steps, last, next }) => {
+                                const clientLabel =
+                                  getClientDisplayNameFromSuivi(s, clientsById);
+                                const contractId =
+                                  s.facture_id ||
+                                  s.document_id ||
+                                  s.contract_id;
+                                const clientId = s.client_id;
+
+                                return (
+                                  <tr
+                                    key={`processing-${
+                                      s.suivi_id || s.id || ""
+                                    }-${s.document_id || s.facture_id || ""}`}
+                                    onClick={() => {
+                                      if (clientId) {
+                                        history.push(
+                                          `/app/user/edit/${clientId}/2`
+                                        );
+                                      }
+                                    }}
+                                    style={{ cursor: "pointer" }}
+                                  >
+                                    <td>{clientLabel}</td>
+                                    <td>{renderTodoCell(next)}</td>
+                                    <td>
+                                      {last ? (
+                                        <div style={{ fontSize: 14 }}>
+                                          <div>
+                                            <strong>{last.label}</strong>
+                                          </div>
+                                          {last.date && (
+                                            <div className="text-muted">
+                                              {formatDate(last.date)}
+                                            </div>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <span
+                                          className="text-muted"
+                                          style={{ fontSize: 14 }}
+                                        >
+                                          Aucune étape validée
+                                        </span>
+                                      )}
+                                    </td>
+
+                                    <td
+                                      style={{
+                                        whiteSpace: "nowrap",
+                                        width: 160,
+                                      }}
+                                    >
+                                      {renderProductBadgeFromSuivi(s)}
+                                    </td>
+
+                                    <td
+                                      style={{
+                                        width: 60,
+                                        textAlign: "center",
+                                      }}
+                                    >
+                                      {contractId ? (
+                                        <Button
+                                          color="link"
+                                          className="p-0"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            history.push(
+                                              `/pages/contract/${contractId}`
+                                            );
+                                          }}
+                                          title="Voir le contrat"
+                                        >
+                                          <ArrowRight size={18} />
+                                        </Button>
+                                      ) : (
+                                        <span
+                                          className="text-muted"
+                                          style={{ fontSize: 14 }}
+                                        >
+                                          -
+                                        </span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              }
+                            )}
+                          </>
+                        )}
+
+                      {/* 3) Contrats terminés (tiroir) */}
+                      {showCompleted && groupedSuivis.completed.length > 0 && (
+                        <>
+                          <tr className="table-secondary">
+                            <td
+                              colSpan="5"
+                              style={{ fontSize: 14, fontWeight: 600 }}
+                            >
+                              Contrats terminés
+                            </td>
+                          </tr>
+
+                          {groupedSuivis.completed.map(
+                            ({ s, steps, last, next }) => {
+                              const clientLabel = getClientDisplayNameFromSuivi(
+                                s,
+                                clientsById
+                              );
+                              const contractId =
+                                s.facture_id || s.document_id || s.contract_id;
+                              const clientId = s.client_id;
+
+                              return (
+                                <tr
+                                  key={`completed-${s.suivi_id || s.id || ""}-${
+                                    s.document_id || s.facture_id || ""
+                                  }`}
+                                  onClick={() => {
+                                    if (clientId) {
+                                      history.push(
+                                        `/app/user/edit/${clientId}/2`
+                                      );
+                                    }
+                                  }}
+                                  style={{ cursor: "pointer" }}
+                                >
+                                  <td>{clientLabel}</td>
+
+                                  <td>
+                                    <span
+                                      className="text-success"
+                                      style={{
+                                        fontSize: 14,
+                                        fontWeight: 600,
+                                      }}
+                                    >
+                                      Dossier terminé
+                                    </span>
+                                  </td>
+
+                                  <td>
+                                    {last ? (
+                                      <div style={{ fontSize: 14 }}>
+                                        <div>
+                                          <strong>{last.label}</strong>
+                                        </div>
+                                        {last.date && (
+                                          <div className="text-muted">
+                                            {formatDate(last.date)}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <span
+                                        className="text-muted"
+                                        style={{ fontSize: 14 }}
+                                      >
+                                        Aucune étape validée
+                                      </span>
+                                    )}
+                                  </td>
+
+                                  <td
+                                    style={{
+                                      whiteSpace: "nowrap",
+                                      width: 160,
+                                    }}
+                                  >
+                                    {renderProductBadgeFromSuivi(s)}
+                                  </td>
+
+                                  <td
+                                    style={{
+                                      width: 60,
+                                      textAlign: "center",
+                                    }}
+                                  >
+                                    {contractId ? (
+                                      <Button
+                                        color="link"
+                                        className="p-0"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          history.push(
+                                            `/pages/contract/${contractId}`
+                                          );
+                                        }}
+                                        title="Voir le contrat"
+                                      >
+                                        <ArrowRight size={18} />
+                                      </Button>
+                                    ) : (
+                                      <span
+                                        className="text-muted"
+                                        style={{ fontSize: 14 }}
+                                      >
+                                        -
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            }
+                          )}
+                        </>
+                      )}
+
+                      {/* Si rien n’est visible du tout */}
+                      {groupedSuivis.active.length === 0 &&
+                        groupedSuivis.after5days.length === 0 &&
+                        (!showProcessing ||
+                          groupedSuivis.processing.length === 0) &&
+                        (!showCompleted ||
+                          groupedSuivis.completed.length === 0) && (
+                          <tr>
+                            <td colSpan="5">Aucun suivi trouvé.</td>
+                          </tr>
+                        )}
+                    </>
+                  )}
+                </tbody>
+              </Table>
             </div>
           </div>
-        </div>
+        </AdminView>
       )}
-      {/* =========================================
-          CONDITIONAL VIEWS (Inbox vs Others)
-         ========================================= */}
+      {/* 2. OPPORTUNITIES (Pipeline View) */}
+      {location.pathname.includes("/kpi/opportunities") && <PipelineView />}
 
-      {/* 1. INBOX (Default) */}
+      {/* 3. INBOX (Default) */}
       {(location.pathname === "/kpi" ||
-        location.pathname.includes("/inbox")) && (
-        <>
-          {/* Header Inbox */}
-          <div
-            className="d-flex justify-content-between align-items-center"
-            style={{ marginTop: 30, padding: "0 14px", marginBottom: 20 }}
-          >
-            <div>
-              <h2 className="mb-0 fw-bold" style={{ color: "#4B4B4B" }}>
-                Boîte de Réception
-              </h2>
-              <p className="text-muted mb-0">
-                Gérez vos opportunités et conversations
-              </p>
-            </div>
-            <div>
-              <UncontrolledDropdown>
-                <DropdownToggle
-                  color="primary"
-                  className="btn-icon rounded-circle shadow-lg d-flex align-items-center justify-content-center"
-                  style={{
-                    width: 48,
-                    height: 48,
-                    padding: 0,
-                    fontSize: 24,
-                    backgroundImage:
-                      "linear-gradient(135deg, #7367F0 0%, #9e95f5 100%)",
-                    border: "none",
-                    transition: "transform 0.2s ease",
-                  }}
-                >
-                  <span style={{ marginTop: -4 }}>+</span>
-                </DropdownToggle>
-                <DropdownMenu right className="shadow-lg border-0 mt-2">
-                  <DropdownItem
-                    onClick={() => toggleModal()}
-                    tag="a"
-                    className="py-2 px-3"
-                  >
-                    <PhoneIncoming size={16} className="mr-2 text-primary" />
-                    <span className="align-middle font-weight-bold">
-                      Appel Entrant
-                    </span>
-                  </DropdownItem>
-                  <DropdownItem
-                    tag="a"
-                    onClick={() => history.push("/kpi/opportunities")}
-                    className="py-2 px-3"
-                  >
-                    <Briefcase size={16} className="mr-2 text-success" />
-                    <span className="align-middle font-weight-bold">
-                      Nouveau Client
-                    </span>
-                  </DropdownItem>
-                  <DropdownItem divider />
-                  <DropdownItem className="py-2 px-3">
-                    <CheckSquare size={16} className="mr-2 text-muted" />
-                    <span className="align-middle">Créer Tâche</span>
-                  </DropdownItem>
-                </DropdownMenu>
-              </UncontrolledDropdown>
-            </div>
-          </div>
-
-          {/* --- MAIN CONTENT (2 COLUMNS) --- */}
-          <div className="d-flex gap-4" style={{ minHeight: "600px" }}>
-            {/* LEFT: LIST */}
-            <Card
-              className="mb-0"
-              style={{
-                width: "380px",
-                display: "flex",
-                flexDirection: "column",
-                flexShrink: 0,
-                borderRadius: 12,
-                border: "1px solid #e0e0e0",
-                boxShadow: "0 4px 24px 0 rgba(34, 41, 47, 0.05)",
-              }}
-            >
-              <div
-                style={{
-                  padding: "16px 20px",
-                  borderBottom: "1px solid #f0f0f0",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <h5 className="mb-0 fw-bold">Non lus</h5>
-                <span
-                  style={{ fontSize: 12, color: "#999", cursor: "pointer" }}
-                >
-                  Trier par date
-                </span>
-              </div>
-              <div className="flex-grow-1" style={{ overflowY: "auto" }}>
-                {loadingConversations ? (
-                  <div className="p-4 text-center text-muted">
-                    Chargement...
-                  </div>
-                ) : !conversations || conversations.length === 0 ? (
-                  <div className="p-4 text-center text-muted">
-                    Aucune conversation
-                  </div>
-                ) : (
-                  conversations.map(renderConversationItem)
-                )}
-              </div>
-            </Card>
-
-            {/* RIGHT: DETAIL */}
-            <div
-              className="flex-grow-1 d-flex flex-column"
-              style={{ minWidth: 0 }}
-            >
-              {selectedConv ? (
-                <div style={{ height: "100%", overflowY: "auto" }}>
-                  <ChatbotDetailView conversation={selectedConv} />
-                </div>
-              ) : (
-                <div className="h-100 d-flex flex-column align-items-center justify-content-center text-muted">
-                  <div style={{ fontSize: 64, opacity: 0.2 }}>
-                    <span role="img" aria-label="inbox empty">
-                      📭
-                    </span>
-                  </div>
-                  <p>Sélectionnez une conversation pour voir les détails</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* 2. OPPORTUNITIES */}
-      {location.pathname.includes("/opportunities") && (
-        <div className="text-center py-5">
-          <div style={{ fontSize: 48, marginBottom: 20 }}>
-            <span role="img" aria-label="opportunities">
-              💼
-            </span>
-          </div>
-          <h3 className="text-muted">Opportunités (En développement)</h3>
-          <p className="text-muted">
-            La gestion des opportunités sera bientôt disponible ici.
-          </p>
-        </div>
-      )}
-
-      {/* 3. AGENDA */}
-      {location.pathname.includes("/agenda") && (
-        <div className="text-center py-5">
-          <div style={{ fontSize: 48, marginBottom: 20 }}>
-            <span role="img" aria-label="agenda">
-              📅
-            </span>
-          </div>
-          <h3 className="text-muted">Mon Agenda</h3>
-          <p className="text-muted">Module Agenda à venir.</p>
-        </div>
-      )}
+        location.pathname.includes("/inbox")) && <InboxView />}
 
       {/* New KPI Modal (integrated) */}
       <KPIModal
