@@ -1665,12 +1665,6 @@ class EditContract extends React.Component {
                               name="status"
                               checked={this.state.status === "Terminé"}
                               onChange={() => {
-                                if (this.state.status_payment < 2) {
-                                  toast.error(
-                                    "Attention : Impossible de terminer le dossier. Veuillez vérifier le paiement (le dossier doit être 'Soldé')."
-                                  );
-                                  return;
-                                }
                                 this.setState({
                                   status: "Terminé",
                                   isDirty: true,
@@ -2067,7 +2061,7 @@ class EditContract extends React.Component {
                           <h6>
                             {moment(this.ifExist("birth_date")).isValid()
                               ? moment(this.ifExist("birth_date")).format(
-                                  "DD/MM/YYYY"
+                                "DD/MM/YYYY"
                               )
                               : ""}
                           </h6>
@@ -2098,7 +2092,7 @@ class EditContract extends React.Component {
                           <h6>
                             {moment(this.ifExist("updated_at")).isValid()
                               ? moment(this.ifExist("updated_at")).format(
-                                  "DD/MM/YYYY"
+                                "DD/MM/YYYY"
                               )
                               : ""}
                           </h6>{" "}
