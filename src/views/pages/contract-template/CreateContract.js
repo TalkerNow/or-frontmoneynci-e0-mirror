@@ -38,6 +38,8 @@ import axios from "axios";
 import { history } from "../../../history";
 import Chip from "../../../../src/components/@vuexy/chips/ChipComponent";
 import { NavLink } from "react-router-dom";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 const chipColors = {
   CH: "warning",
@@ -1005,7 +1007,7 @@ class CreateContract extends React.Component {
       subscribe_services: sub_services,
       status_payment: 0,
       comment:
-        "Contract de " +
+        "Contrat de " +
         this.state.rowData["first_name"] +
         " " +
         this.state.rowData["last_name"],
@@ -1081,8 +1083,9 @@ class CreateContract extends React.Component {
       });
   }
 
-  print = () => {
-    //---- save the form data before printing
+  print = async () => {
+    toast.info("Génération du PDF en cours...");
+
     const Config = {
       headers: {
         Authorization: "Bearer " + localStorage.getItem("token"),
@@ -1098,6 +1101,7 @@ class CreateContract extends React.Component {
     if (input_values.c6) sub_services += " / ACTU";
     if (input_values.c7) sub_services += " / RAC";
     this.setState({ subscribe_services: sub_services });
+
     var parameters = {};
     var userid = this.props.match.params.id;
     var parentid = this.state.rowData.parent_id;
@@ -1114,7 +1118,7 @@ class CreateContract extends React.Component {
       ? parseFloat(this.state.formValues["FINAL25"])
       : 0;
     parameters["comment"] =
-      "Contract de " +
+      "Contrat de " +
       this.state.rowData["first_name"] +
       " " +
       this.state.rowData["last_name"];
@@ -1122,19 +1126,103 @@ class CreateContract extends React.Component {
       ? this.state.formValues["TOTALTTC"]
       : 0;
     parameters["user_id"] = userid;
-    parameters["parent_id"] = parentid.toString(); //parentid;
+    if (parentid) parameters["parent_id"] = parentid.toString();
     parameters["creator_id"] = this.state.creator_id;
     parameters["values"] = JSON.stringify(input_values);
     parameters["unipro"] = this.state.formValues.credit_impot_50 ? 1 : 0;
-    this.appendCreditImpotNote();
-    axios
-      .post(global.config.server_url + "/documents", parameters, Config)
-      .catch(function (error) {
-        toast.error("API injoignable" + error);
-      });
+    if (this.appendCreditImpotNote) await this.appendCreditImpotNote();
 
-    //--- set the subscribe services from contract into user table--------
-    this.setSubscribeServices();
+    try {
+      // 1. Sauvegarde (Création)
+      await axios.post(global.config.server_url + "/documents", parameters, Config);
+
+      // 2. MAJ Services
+      this.setSubscribeServices();
+
+      // 3. Génération PDF
+      const pages = document.getElementsByClassName("contract-page");
+      if (!pages || pages.length === 0) {
+        toast.error("Aucune page de contrat trouvée pour le PDF");
+        return;
+      }
+
+      // Sauvegarde temporaire du style
+      const firstPage = document.getElementById("print-section");
+      let originalMarginTop = "";
+      let originalFontSize = "";
+
+      if (firstPage) {
+        originalMarginTop = firstPage.style.marginTop;
+        originalFontSize = firstPage.style.fontSize;
+        firstPage.style.marginTop = "-20px";
+        firstPage.style.fontSize = "18px";
+      }
+
+      try {
+        const pdf = new jsPDF("p", "mm", "a4");
+
+        for (let i = 0; i < pages.length; i++) {
+          if (i > 0) pdf.addPage();
+
+          const canvas = await html2canvas(pages[i], {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            windowWidth: 1200
+          });
+
+          const imgData = canvas.toDataURL("image/jpeg", 0.9);
+          const imgProps = pdf.getImageProperties(imgData);
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+          pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+        }
+
+        const firstName = this.state.rowData["first_name"] || "";
+        const lastName = this.state.rowData["last_name"] || "";
+
+        // Récupération des services pour le nom du fichier (copié de EditContract)
+        const selectedServices = [];
+        for (let i = 1; i <= 7; i++) {
+          if (input_values[`c${i}`]) {
+            let title = this.state.formValues[`title${i}`] || "";
+            title = title.replace(/\s*\(.*?\)/g, "").trim();
+            if (title) selectedServices.push(title);
+          }
+        }
+        let serviceString = "Audit Retraite EOR Consultants";
+        if (selectedServices.length === 1) {
+          serviceString = selectedServices[0];
+        } else if (selectedServices.length === 2) {
+          serviceString = `${selectedServices[0]} + ${selectedServices[1]}`;
+        } else if (selectedServices.length > 2) {
+          serviceString = `${selectedServices[0]} et autres`;
+        }
+
+        const fileName = `${serviceString} - ${firstName} ${lastName}`;
+        pdf.save(`${fileName}.pdf`);
+        toast.success("Téléchargement du contract PDF réussi !");
+
+        // 4. Redirection après succès (car création)
+        setTimeout(() => {
+          history.push("/app/user/edit/" + userid + "/8");
+        }, 1500);
+
+      } catch (err) {
+        console.error("Erreur génération PDF", err);
+        toast.error("Erreur lors de la génération du PDF");
+      } finally {
+        if (firstPage) {
+          firstPage.style.marginTop = originalMarginTop;
+          firstPage.style.fontSize = originalFontSize;
+        }
+      }
+
+    } catch (error) {
+      console.error(error);
+      toast.error("Erreur lors de la sauvegarde : " + error);
+    }
   };
 
 
@@ -1274,14 +1362,7 @@ class CreateContract extends React.Component {
               <Save size="15" />
               <span className="align-middle ml-50">Enregistrer le contrat</span>
             </Button>
-            <Button
-              className="mr-1 mb-md-0 mb-1"
-              color="primary"
-              onClick={this.print}
-            >
-              <Download size="15" />
-              <span className="align-middle ml-50">Télécharger</span>
-            </Button>
+
           </Col>
           <Col
             className="contract-wrapper"
