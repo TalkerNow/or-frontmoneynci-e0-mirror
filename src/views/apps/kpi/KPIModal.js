@@ -1,40 +1,26 @@
 import React, { useState, useEffect } from "react";
-import {
-  Modal,
-  ModalHeader,
-  ModalBody,
-  Row,
-  Col,
-  Card,
-  CardHeader,
-  CardBody,
-  Button,
-  Input,
-  Label,
-} from "reactstrap";
-import {
-  UserPlus,
-  Mail,
-  PhoneCall,
-  PhoneIncoming,
-  PhoneOutgoing,
-} from "react-feather";
+import { Modal, ModalBody, Input, Label } from "reactstrap";
+import { UserPlus, Mail, PhoneIncoming, PhoneOutgoing } from "react-feather";
 
-const OBJETS = ["Appel entrant", "Appel sortant", "Email"];
-const OBJET_ICON = {
-  Email: Mail,
-  "Appel entrant": PhoneIncoming,
-  "Appel sortant": PhoneOutgoing,
-};
-const CALL_ACTIONS = ["Rdv pris", "Mail prestation envoyé", "NUL", "Autre"];
-const ACTION_COLORS = {
-  "Rdv pris": "success",
-  "Mail prestation envoyé": "info",
-  NUL: "danger",
-  Autre: "secondary",
-};
+// Configuration constantes
+const CONTACT_TYPES = [
+  { id: "Appel entrant", label: "Appel entrant", icon: PhoneIncoming },
+  { id: "Appel sortant", label: "Appel sortant", icon: PhoneOutgoing },
+  { id: "Email", label: "Email", icon: Mail },
+];
 
-// Simple helpers
+const ACTIONS = [
+  { id: "Rendez-vous pris", label: "Rendez-vous pris", color: "#10b981" },
+  {
+    id: "Mail prestation envoyé",
+    label: "Mail prestation envoyé",
+    color: "#17a2b8",
+  },
+  { id: "NUL", label: "NUL", color: "#ef4444" },
+  { id: "Autre", label: "Autre", color: "#6b7280" },
+];
+
+// Helper functions
 function todayStr() {
   const d = new Date();
   const yyyy = d.getFullYear();
@@ -42,10 +28,10 @@ function todayStr() {
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
 }
+
 function formatPhone(val) {
   if (!val) return "";
   const clean = val.replace(/[^0-9+]/g, "");
-  // Simple fallback logic similar to original
   if (clean.startsWith("0")) {
     return clean.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
   }
@@ -58,48 +44,40 @@ export default function KPIModal({
   onSave,
   loading,
   error,
-  // Props extra pour imiter l'ancien comportement si besoin de context
   history,
 }) {
-  // Local state
-  const [objet, setObjet] = useState("Appel entrant");
+  // États du formulaire
+  const [selectedType, setSelectedType] = useState("Appel entrant");
   const [kpiDate, setKpiDate] = useState(todayStr());
   const [nomPrenom, setNomPrenom] = useState("");
   const [email, setEmail] = useState("");
   const [telephone, setTelephone] = useState("");
   const [note, setNote] = useState("");
-  const [action, setAction] = useState("");
+  const [selectedAction, setSelectedAction] = useState("");
 
-  // Webhook logic isolated here if we want to support it inside the modal
+  // État pour la section "Récupérer diagnostic"
   const [emailBody, setEmailBody] = useState("");
   const [sending, setSending] = useState(false);
   const [sendMsg, setSendMsg] = useState("");
 
-  // Reset
+  // Reset au montage
   useEffect(() => {
     if (isOpen) {
-      setObjet("Appel entrant");
+      setSelectedType("Appel entrant");
       setKpiDate(todayStr());
       setNomPrenom("");
       setEmail("");
       setTelephone("");
       setNote("");
-      setAction("");
+      setSelectedAction("");
       setEmailBody("");
       setSendMsg("");
     }
   }, [isOpen]);
 
-  const actionsDisabled = objet === "Email";
+  const actionsDisabled = selectedType === "Email";
 
-  // Simulate webhook call (if needed, otherwise can just log or skip)
-  // Since we don't have all context (adminId etc) passed in yet, we'll keep it simple or ask to pass method props
   const sendEmailWebhook = async () => {
-    // For now, placeholder or passed via props if really needed
-    // The user asked to COPY the exact code. So I will try to support it if I can access the API.
-    // However, API is defined in index.jsx. I should probably move the logic or keep it inside the modal if I import axios.
-    // For safety, I'll just mock it or ask user if they want full logic.
-    // Actually, let's keep it visual for now as requested.
     setSending(true);
     setTimeout(() => {
       setSending(false);
@@ -109,13 +87,13 @@ export default function KPIModal({
 
   const handleCreate = () => {
     const data = {
-      objet,
+      objet: selectedType,
       kpi_date: kpiDate,
       nom_prenom: nomPrenom,
       email,
       telephone,
       note,
-      action: actionsDisabled ? "Email reçu" : action,
+      action: actionsDisabled ? "Email reçu" : selectedAction,
     };
     onSave(data);
   };
@@ -125,337 +103,544 @@ export default function KPIModal({
       isOpen={isOpen}
       toggle={toggle}
       className="modal-dialog-centered"
-      style={{ maxWidth: "900px", width: "100%", margin: "0 auto" }}
+      style={{ maxWidth: "700px", width: "100%" }}
     >
-      {/* We don't use standard ModalHeader because the user code uses a Card inside */}
-      <ModalBody className="p-0">
-        <Row className="match-height m-0">
-          <Col xs="12" className="p-0">
-            <Card className="m-0 shadow-none">
-              <CardHeader className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between pb-2 pt-3 px-3">
-                <h5 className="mb-0 fw-bold" style={{ fontSize: "1.1rem" }}>
-                  Créer un KPI
-                </h5>
-                <div className="mt-1 mt-md-0">
-                  <Button
-                    className="mr-1 mb-1"
-                    color="primary"
-                    size="sm"
-                    onClick={() =>
-                      history && history.push("/app/user/createUser")
-                    }
-                    title="Créer un utilisateur"
-                    aria-label="Créer un utilisateur"
-                  >
-                    <UserPlus size={14} />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardBody className="d-flex flex-column p-3">
-                {error ? (
-                  <div
-                    style={{
-                      background: "#ffe9e9",
-                      border: "1px solid #ffb3b3",
-                      color: "#b10000",
-                      padding: 10,
-                      borderRadius: 6,
-                      marginBottom: 14,
-                    }}
-                  >
-                    {error}
-                  </div>
-                ) : null}
+      <ModalBody style={{ padding: 0 }}>
+        <div style={{ backgroundColor: "#ffffff", borderRadius: "12px" }}>
+          {/* Header */}
+          <div
+            style={{
+              padding: "20px 24px",
+              borderBottom: "1px solid #f3f4f6",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <h2
+              style={{
+                margin: 0,
+                fontSize: "20px",
+                fontWeight: 600,
+                color: "#111827",
+              }}
+            >
+              Créer un KPI
+            </h2>
+            <button
+              onClick={() => history && history.push("/app/user/createUser")}
+              style={{
+                backgroundColor: "transparent",
+                border: "1px solid #e5e7eb",
+                borderRadius: "8px",
+                width: "36px",
+                height: "36px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                transition: "all 0.2s",
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.backgroundColor = "#f9fafb";
+                e.currentTarget.style.borderColor = "#d1d5db";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.backgroundColor = "transparent";
+                e.currentTarget.style.borderColor = "#e5e7eb";
+              }}
+              title="Créer un utilisateur"
+            >
+              <UserPlus size={18} color="#6b7280" />
+            </button>
+          </div>
 
-                {/* OBJET + Date */}
+          {/* Body */}
+          <div style={{ padding: "20px 24px" }}>
+            {/* Error Message */}
+            {error && (
+              <div
+                style={{
+                  backgroundColor: "#fef2f2",
+                  border: "1px solid #fecaca",
+                  borderRadius: "8px",
+                  padding: "12px 16px",
+                  marginBottom: "24px",
+                  color: "#b91c1c",
+                  fontSize: "14px",
+                }}
+              >
+                {error}
+              </div>
+            )}
+
+            {/* Segmented Control - Type de contact */}
+            <div style={{ marginBottom: "16px" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  color: "#64748b",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                  marginBottom: "8px",
+                }}
+              >
+                Type de contact
+              </label>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  flexWrap: "wrap",
+                }}
+              >
                 <div
-                  className="d-flex align-items-center flex-wrap mb-2"
-                  style={{ gap: 8 }}
+                  style={{
+                    backgroundColor: "#f3f4f6",
+                    borderRadius: "10px",
+                    padding: "4px",
+                    display: "inline-flex",
+                    gap: "4px",
+                    flex: 1,
+                  }}
                 >
-                  <div
-                    className="d-flex align-items-center flex-wrap flex-fill"
-                    style={{ gap: 8 }}
-                  >
-                    {OBJETS.map((o) => {
-                      const Icon = OBJET_ICON[o] || PhoneCall;
-                      const selected = objet === o;
-                      return (
-                        <Button
-                          key={o}
-                          color={selected ? "primary" : "white"}
-                          outline={!selected}
-                          size="sm"
-                          className="d-inline-flex align-items-center justify-content-center flex-grow-1 flex-md-grow-0 shadow-none"
-                          onClick={() => setObjet(o)}
-                          title={o}
-                          aria-label={o}
-                          style={{
-                            gap: 6,
-                            padding: "8px 16px",
-                            borderColor: selected ? "" : "#d8d6de",
-                            color: selected ? "" : "#5e5873",
-                            borderRadius: 6,
-                          }}
-                        >
-                          <Icon size={14} style={{ opacity: 0.9 }} />
-                          <span
-                            className="d-none d-sm-inline"
-                            style={{ fontSize: "0.85rem", fontWeight: 500 }}
-                          >
-                            {o}
-                          </span>
-                          <span
-                            className="d-inline d-sm-none"
-                            style={{ fontSize: "0.85rem" }}
-                          >
-                            {o === "Email" ? "Email" : o.split(" ")[1]}
-                          </span>
-                        </Button>
-                      );
-                    })}
-                  </div>
+                  {CONTACT_TYPES.map((type) => {
+                    const Icon = type.icon;
+                    const isActive = selectedType === type.id;
+                    return (
+                      <button
+                        key={type.id}
+                        onClick={() => setSelectedType(type.id)}
+                        style={{
+                          flex: 1,
+                          backgroundColor: isActive ? "#ffffff" : "transparent",
+                          border: "none",
+                          borderRadius: "8px",
+                          padding: "8px 12px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "6px",
+                          cursor: "pointer",
+                          transition: "all 0.2s",
+                          boxShadow: isActive
+                            ? "0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)"
+                            : "none",
+                          color: isActive ? "#6366f1" : "#6b7280",
+                          fontWeight: isActive ? 600 : 500,
+                          fontSize: "13px",
+                        }}
+                      >
+                        <Icon size={16} />
+                        <span className="d-none d-sm-inline">{type.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Date Picker */}
+                <Input
+                  type="date"
+                  value={kpiDate}
+                  onChange={(e) => setKpiDate(e.target.value)}
+                  max={todayStr()}
+                  style={{
+                    width: "auto",
+                    minWidth: "140px",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "8px",
+                    padding: "10px 12px",
+                    fontSize: "14px",
+                    color: "#374151",
+                    transition: "all 0.2s",
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = "#6366f1";
+                    e.currentTarget.style.boxShadow =
+                      "0 0 0 3px rgba(99, 102, 241, 0.1)";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "#e2e8f0";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Section Récupérer diagnostic (Appel sortant uniquement) */}
+            {selectedType === "Appel sortant" && (
+              <div
+                style={{
+                  backgroundColor: "#f9fafb",
+                  borderRadius: "8px",
+                  padding: "12px",
+                  marginBottom: "16px",
+                }}
+              >
+                <h6
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    color: "#374151",
+                    marginBottom: "12px",
+                  }}
+                >
+                  Récupérer le diagnostic
+                </h6>
+                <div
+                  style={{ display: "flex", gap: "8px", alignItems: "center" }}
+                >
                   <Input
-                    type="date"
-                    bsSize="sm"
-                    value={kpiDate}
-                    onChange={(e) => setKpiDate(e.target.value)}
-                    max={todayStr()}
-                    aria-label="Date du KPI"
+                    type="text"
+                    placeholder="Email du client"
+                    value={emailBody}
+                    onChange={(e) => setEmailBody(e.target.value)}
                     style={{
-                      width: "auto",
-                      minWidth: 140,
-                      fontSize: "0.85rem",
+                      maxWidth: "300px",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "8px",
+                      padding: "10px 12px",
+                      fontSize: "14px",
                     }}
-                    className="flex-grow-1 flex-md-grow-0"
                   />
-                </div>
-
-                {/* Bloc Récupérer le diagnostic - affiché seulement pour Appel sortant */}
-                {objet === "Appel sortant" && (
-                  <div className="mt-1" style={{ marginBottom: 8 }}>
-                    <h6 style={{ fontWeight: 600, marginBottom: 4 }}>
-                      Récupérer le diagnostic
-                    </h6>
-                    <div
-                      className="d-flex align-items-center"
-                      style={{ gap: 6 }}
-                    >
-                      <Input
-                        type="text"
-                        placeholder="Email du client"
-                        value={emailBody}
-                        onChange={(e) => setEmailBody(e.target.value)}
-                        style={{ width: 260, fontSize: 13, height: 36 }}
-                      />
-                      <Button
-                        color="primary"
-                        onClick={sendEmailWebhook}
-                        disabled={sending || !emailBody.trim()}
-                        style={{ height: 36, fontSize: 13, padding: "0 14px" }}
-                      >
-                        {sending ? "Envoi..." : "Recevoir"}
-                      </Button>
-                    </div>
-
-                    {sendMsg && (
-                      <div
-                        className="mt-1"
-                        style={{
-                          fontSize: 14,
-                          color: sendMsg.startsWith("✅")
-                            ? "#0f5132"
-                            : sendMsg.startsWith("⚠️")
-                            ? "#8a6d3b"
-                            : "#b10000",
-                        }}
-                      >
-                        {sendMsg.replace(/^[✅⚠️]/, "")}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Champs contact */}
-                <div className="mt-2">
-                  <Row>
-                    <Col lg="3" md="6" xs="12" className="mb-1">
-                      <Label
-                        className="mb-1 text-muted"
-                        style={{
-                          fontWeight: 600,
-                          fontSize: "0.75rem",
-                          textTransform: "uppercase",
-                        }}
-                      >
-                        Nom / Prénom
-                      </Label>
-                      <Input
-                        type="text"
-                        bsSize="sm"
-                        placeholder="Nom Prénom"
-                        value={nomPrenom}
-                        onChange={(e) => setNomPrenom(e.target.value)}
-                        style={{ fontSize: "0.85rem" }}
-                      />
-                    </Col>
-                    <Col lg="3" md="6" xs="12" className="mb-1">
-                      <Label
-                        className="mb-1 text-muted"
-                        style={{
-                          fontWeight: 600,
-                          fontSize: "0.75rem",
-                          textTransform: "uppercase",
-                        }}
-                      >
-                        Email
-                      </Label>
-                      <Input
-                        type="text"
-                        bsSize="sm"
-                        placeholder="email@example.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        style={{ fontSize: "0.85rem" }}
-                      />
-                    </Col>
-                    <Col lg="3" md="6" xs="12" className="mb-1">
-                      <Label
-                        className="mb-1 text-muted"
-                        style={{
-                          fontWeight: 600,
-                          fontSize: "0.75rem",
-                          textTransform: "uppercase",
-                        }}
-                      >
-                        Téléphone
-                      </Label>
-                      <Input
-                        type="text"
-                        bsSize="sm"
-                        placeholder="Téléphone"
-                        value={telephone}
-                        onChange={(e) =>
-                          setTelephone(formatPhone(e.target.value))
-                        }
-                        style={{ fontSize: "0.85rem" }}
-                      />
-                    </Col>
-                    <Col lg="3" md="6" xs="12" className="mb-1">
-                      <Label
-                        className="mb-1 text-muted"
-                        style={{
-                          fontWeight: 600,
-                          fontSize: "0.75rem",
-                          textTransform: "uppercase",
-                        }}
-                      >
-                        Note
-                      </Label>
-                      <Input
-                        type="textarea"
-                        bsSize="sm"
-                        placeholder="Quelques notes…"
-                        value={note}
-                        onChange={(e) => setNote(e.target.value)}
-                        style={{
-                          height: "34px",
-                          paddingTop: "6px",
-                          lineHeight: "1.3",
-                          fontSize: "0.85rem",
-                          resize: "vertical",
-                        }}
-                      />
-                    </Col>
-                  </Row>
-                </div>
-
-                {/* Actions */}
-                {!actionsDisabled && (
-                  <div className="mb-2 mt-2">
-                    <Label
-                      className="d-block mb-1 text-muted"
-                      style={{
-                        fontWeight: 600,
-                        fontSize: "0.75rem",
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      Action
-                    </Label>
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(2, 1fr)", // Force 2 columns per row for better grid
-                        gap: 8,
-                      }}
-                    >
-                      {CALL_ACTIONS.map((a) => {
-                        const isSelected = action === a;
-                        // Map specific colors for outline buttons
-                        const colorMap = {
-                          "Rdv pris": "success",
-                          "Mail prestation envoyé": "info", // "info" is usually cyan/blue
-                          NUL: "danger",
-                          Autre: "secondary",
-                        };
-                        const color = colorMap[a] || "secondary";
-
-                        return (
-                          <Button
-                            key={a}
-                            color={color}
-                            outline={!isSelected}
-                            onClick={() => setAction(a)}
-                            className="w-100 shadow-none"
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              textAlign: "center",
-                              whiteSpace: "nowrap",
-                              padding: "8px 4px",
-                              borderRadius: 6,
-                              fontWeight: 500,
-                              fontSize: "0.85rem",
-                            }}
-                          >
-                            {a}
-                          </Button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                <div className="d-flex align-items-center mt-3 pt-2 border-top">
-                  <Button
-                    color="secondary"
-                    outline
-                    onClick={toggle}
-                    className="mr-2"
-                    size="sm"
-                  >
-                    Annuler
-                  </Button>
-                  <Button
-                    color="success"
-                    onClick={handleCreate}
-                    disabled={loading}
-                    className="ml-auto"
-                    size="sm"
+                  <button
+                    onClick={sendEmailWebhook}
+                    disabled={sending || !emailBody.trim()}
                     style={{
-                      fontWeight: 600,
-                      paddingLeft: 20,
-                      paddingRight: 20,
+                      backgroundColor: "#6366f1",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "8px",
+                      padding: "10px 20px",
+                      fontSize: "14px",
+                      fontWeight: 500,
+                      cursor:
+                        sending || !emailBody.trim()
+                          ? "not-allowed"
+                          : "pointer",
+                      opacity: sending || !emailBody.trim() ? 0.6 : 1,
                     }}
                   >
-                    {loading ? "Création..." : "Créer le KPI"}
-                  </Button>
+                    {sending ? "Envoi..." : "Recevoir"}
+                  </button>
                 </div>
-              </CardBody>
-            </Card>
-          </Col>
-        </Row>
+                {sendMsg && (
+                  <div
+                    style={{
+                      marginTop: "8px",
+                      fontSize: "13px",
+                      color: "#059669",
+                    }}
+                  >
+                    {sendMsg}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Formulaire - Champs de contact */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: "16px",
+                marginBottom: "12px",
+              }}
+            >
+              {/* Nom / Prénom */}
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: "#64748b",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    marginBottom: "6px",
+                  }}
+                >
+                  Nom / Prénom
+                </label>
+                <Input
+                  type="text"
+                  placeholder="Nom Prénom"
+                  value={nomPrenom}
+                  onChange={(e) => setNomPrenom(e.target.value)}
+                  style={{
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "8px",
+                    padding: "10px 12px",
+                    fontSize: "14px",
+                    color: "#374151",
+                    transition: "all 0.2s",
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = "#6366f1";
+                    e.currentTarget.style.boxShadow =
+                      "0 0 0 3px rgba(99, 102, 241, 0.1)";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "#e2e8f0";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                />
+              </div>
+
+              {/* Email */}
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: "#64748b",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    marginBottom: "6px",
+                  }}
+                >
+                  Email
+                </label>
+                <Input
+                  type="email"
+                  placeholder="email@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  style={{
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "8px",
+                    padding: "10px 12px",
+                    fontSize: "14px",
+                    color: "#374151",
+                    transition: "all 0.2s",
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = "#6366f1";
+                    e.currentTarget.style.boxShadow =
+                      "0 0 0 3px rgba(99, 102, 241, 0.1)";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "#e2e8f0";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                />
+              </div>
+
+              {/* Téléphone */}
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: "#64748b",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    marginBottom: "6px",
+                  }}
+                >
+                  Téléphone
+                </label>
+                <Input
+                  type="text"
+                  placeholder="06 12 34 56 78"
+                  value={telephone}
+                  onChange={(e) => setTelephone(formatPhone(e.target.value))}
+                  style={{
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "8px",
+                    padding: "10px 12px",
+                    fontSize: "14px",
+                    color: "#374151",
+                    transition: "all 0.2s",
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = "#6366f1";
+                    e.currentTarget.style.boxShadow =
+                      "0 0 0 3px rgba(99, 102, 241, 0.1)";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "#e2e8f0";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Note - Full width */}
+            <div style={{ marginBottom: "24px" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  color: "#64748b",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                  marginBottom: "6px",
+                }}
+              >
+                Note
+              </label>
+              <Input
+                type="textarea"
+                placeholder="Quelques notes…"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                style={{
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "8px",
+                  padding: "10px 12px",
+                  fontSize: "14px",
+                  color: "#374151",
+                  transition: "all 0.2s",
+                  minHeight: "80px",
+                  resize: "vertical",
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = "#6366f1";
+                  e.currentTarget.style.boxShadow =
+                    "0 0 0 3px rgba(99, 102, 241, 0.1)";
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = "#e2e8f0";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+              />
+            </div>
+
+            {/* Section Action - Chips sélectionnables */}
+            {!actionsDisabled && (
+              <div style={{ marginBottom: "16px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: "#64748b",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    marginBottom: "12px",
+                  }}
+                >
+                  Action
+                </label>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "8px",
+                  }}
+                >
+                  {ACTIONS.map((action) => {
+                    const isSelected = selectedAction === action.id;
+                    return (
+                      <button
+                        key={action.id}
+                        onClick={() => setSelectedAction(action.id)}
+                        style={{
+                          backgroundColor: isSelected
+                            ? action.color
+                            : "#f3f4f6",
+                          color: isSelected ? "#ffffff" : "#374151",
+                          border: "none",
+                          borderRadius: "20px",
+                          padding: "6px 12px",
+                          fontSize: "12px",
+                          fontWeight: 500,
+                          cursor: "pointer",
+                          transition: "all 0.2s",
+                          whiteSpace: "nowrap",
+                        }}
+                        onMouseOver={(e) => {
+                          if (!isSelected) {
+                            e.currentTarget.style.backgroundColor = "#e5e7eb";
+                          }
+                        }}
+                        onMouseOut={(e) => {
+                          if (!isSelected) {
+                            e.currentTarget.style.backgroundColor = "#f3f4f6";
+                          }
+                        }}
+                      >
+                        {action.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div
+            style={{
+              padding: "12px 24px",
+              borderTop: "1px solid #f3f4f6",
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: "12px",
+            }}
+          >
+            {/* Bouton Annuler - Ghost */}
+            <button
+              onClick={toggle}
+              style={{
+                backgroundColor: "transparent",
+                border: "none",
+                color: "#6b7280",
+                padding: "10px 20px",
+                borderRadius: "8px",
+                fontSize: "14px",
+                fontWeight: 500,
+                cursor: "pointer",
+                transition: "all 0.2s",
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.backgroundColor = "#f3f4f6";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.backgroundColor = "transparent";
+              }}
+            >
+              Annuler
+            </button>
+
+            {/* Bouton Créer - Primary */}
+            <button
+              onClick={handleCreate}
+              disabled={loading}
+              style={{
+                backgroundColor: "#6366f1",
+                border: "none",
+                color: "#ffffff",
+                padding: "10px 24px",
+                borderRadius: "8px",
+                fontSize: "14px",
+                fontWeight: 600,
+                cursor: loading ? "not-allowed" : "pointer",
+                transition: "all 0.2s",
+                opacity: loading ? 0.6 : 1,
+              }}
+              onMouseOver={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.backgroundColor = "#4f46e5";
+                }
+              }}
+              onMouseOut={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.backgroundColor = "#6366f1";
+                }
+              }}
+            >
+              {loading ? "Création..." : "Créer le KPI"}
+            </button>
+          </div>
+        </div>
       </ModalBody>
     </Modal>
   );

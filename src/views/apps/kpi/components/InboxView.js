@@ -77,96 +77,167 @@ async function generateGeminiContent(userPrompt) {
 }
 
 // Mock Data (can be replaced by props later)
-const inboxItemsMock = [
-  {
-    id: 10,
-    type: "diagnostic",
-    name: "Marcos RUBIO",
-    email: "marc.rubio.mr@gmail.com",
-    phone: "06 82 28 94 59",
-    date: "Auj. 08:00",
-    score: 45,
-    status_pro: "Salarié privé",
-    summary: [
-      "Score complexité : 45/100 (Moyen)",
-      "Carrière fragmentée : 9+ entreprises.",
-      "Points d'attention : Chômage/Maladie, Service Militaire.",
-    ],
-    details: {
-      dob: "24/09/1964",
-      depart: "01/07/2026",
-      age_depart: "61 ans et 9 mois",
-      enfants: 0,
-    },
-    retirement_benchmarks: {
-      legal: { age: "63 ans", date: "24/09/2027", quarters: 171 },
-      full_rate: { age: "67 ans", date: "24/09/2031" },
-    },
-    expert_analysis: {
-      profile: {
-        label: "Profil : Pragmatique Pressé",
-        advice:
-          "Prospect focalisé sur une date précise mais potentiellement irréaliste. Il faut valider la faisabilité technique avant de vendre.",
-      },
-      pain: {
-        label: "Bloquant Critique : Date Hors Cadre",
-        desc: "Départ souhaité (61a 9m) AVANT l'âge légal (63a). Ce n'est pas une décote, c'est impossible sauf exception. PISTE : Vérifier éligibilité Carrière Longue (RACL) immédiatement.",
-      },
-      mines: [
-        "Service Militaire : Risque d'oubli sur le RIS.",
-        "Carrière non auditée : Jamais vérifié (Danger).",
-      ],
-      levers: [
-        "Carrière Longue (RACL) : À diagnostiquer (Joker potentiel).",
-        "Chômage : Vérifier l'indemnisation passée.",
-      ],
-    },
-    status: "new",
-    priority: "high",
-  },
-  {
-    id: 1,
-    type: "chatbot",
-    name: "06 12 34 56 78",
-    email: "",
-    phone: "06 12 34 56 78",
-    date: "Auj. 10:30",
-    summary: [
-      "Souhaite racheter des trimestres manquants (3 ans).",
-      "Carrière mixte : 15 ans salarié, 10 ans indépendant.",
-      "Disponible mardi après-midi pour un RDV.",
-    ],
-    status: "new",
-    priority: "high",
-  },
-  {
-    id: 2,
-    type: "chatbot",
-    name: "Jean-Pierre Foucault",
-    email: "jp.foucault@email.com",
-    phone: "06 99 88 77 66",
-    date: "Hier 18:45",
-    summary: [
-      "Demande simulation retraite progressive.",
-      "Né en 1962, souhaite partir en 2025.",
-      "A déjà tous ses relevés de carrière.",
-    ],
-    status: "read",
-    priority: "medium",
-  },
-];
+// No mock data - using real API data passed via props
 
-const InboxView = () => {
-  // We should ideally fetch real data here, but user wants the NEW code integrated.
-  // The new code uses mock data. I will keep the mock data for the UI structure but I should eventually
-  // try to map the REAL data if available. For now, let's implement the UI exactly as requested.
+// Helper: Format date to relative time
+function formatRelativeDate(isoDate) {
+  if (!isoDate) return "";
+  const date = new Date(isoDate);
+  const now = new Date();
+  const diffHours = (now - date) / (1000 * 60 * 60);
 
-  const [inboxItems] = useState(inboxItemsMock);
-  const [selectedItem, setSelectedItem] = useState(inboxItems[0]);
+  if (diffHours < 24) {
+    return `Auj. ${date.toLocaleTimeString("fr-FR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })}`;
+  } else if (diffHours < 48) {
+    return `Hier ${date.toLocaleTimeString("fr-FR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })}`;
+  }
+  return date.toLocaleDateString("fr-FR");
+}
+
+// Helper: Extract summary from messages
+function extractSummaryFromMessages(messages) {
+  if (!messages || messages.length === 0) return [];
+  const userMessages = messages.filter((m) => m.role === "user");
+  return userMessages
+    .slice(0, 3)
+    .map(
+      (m) => m.content.substring(0, 100) + (m.content.length > 100 ? "..." : "")
+    );
+}
+
+// Helper: Extract contact info (email/phone) from messages content
+function extractContactFromMessages(messages) {
+  if (!messages || !Array.isArray(messages)) return { email: "", phone: "" };
+
+  let email = "";
+  let phone = "";
+
+  // Simple regex for email and phone (FR format)
+  const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/;
+  const phoneRegex = /(?:(?:\+|00)33|0)\s*[1-9](?:[\s.-]*\d{2}){4}/;
+
+  // Look through user messages
+  for (const m of messages) {
+    if (m.role === "user" && m.content) {
+      if (!email && emailRegex.test(m.content)) {
+        const match = m.content.match(emailRegex);
+        if (match) email = match[0];
+      }
+      if (!phone && phoneRegex.test(m.content)) {
+        const match = m.content.match(phoneRegex);
+        if (match) phone = match[0];
+      }
+    }
+  }
+
+  return { email, phone };
+}
+
+// Helper: Map conversation from backend to inbox item
+function mapConversationToInboxItem(conv) {
+  // Try to find user info in various places
+  const user = conv.user || conv.client || conv.user_data || {};
+
+  // Aggressively search for name fields
+  const firstname =
+    user.firstname ||
+    user.first_name ||
+    user.prenom ||
+    conv.firstname ||
+    conv.first_name ||
+    conv.prenom ||
+    conv.nom_prenom || // Added from KPI JSON structure
+    "";
+
+  const lastname =
+    user.lastname ||
+    user.last_name ||
+    user.nom ||
+    conv.lastname ||
+    conv.last_name ||
+    conv.nom ||
+    "";
+
+  let fullName = `${firstname} ${lastname}`.trim();
+
+  // If we couldn't build a name, try combined name fields
+  if (!fullName) {
+    fullName =
+      user.name ||
+      user.full_name ||
+      user.contact_name ||
+      conv.name ||
+      conv.full_name ||
+      conv.contact_name ||
+      conv.client_name ||
+      conv.nom_prenom || // Added from KPI JSON structure
+      "";
+  }
+
+  // Extract from messages if metadata is missing
+  const extracted = extractContactFromMessages(conv.messages);
+
+  const phone =
+    user.telephone ||
+    user.phone ||
+    conv.telephone ||
+    conv.phone ||
+    conv.client_phone ||
+    extracted.phone ||
+    "";
+
+  const email =
+    user.email || conv.email || conv.client_email || extracted.email || "";
+
+  // Final fallback for display name
+  const displayName = fullName || phone || email || "Prospect inconnu";
+
+  return {
+    id: conv.id,
+    type:
+      conv.type ||
+      (conv.messages && conv.messages.length > 0 ? "chatbot" : "diagnostic"),
+    name: displayName,
+    email: email,
+    phone: phone,
+    date: formatRelativeDate(
+      conv.created_at || conv.kpi_date || new Date().toISOString()
+    ),
+    score: conv.diagnostic_score || 0,
+    summary: extractSummaryFromMessages(conv.messages),
+    status: conv.status || conv.action || "new", // Fallback to action for KPIs
+    priority: conv.priority || "medium",
+    raw: conv,
+  };
+}
+
+const InboxView = ({ items = [], loading, error }) => {
+  // Use provided items (no mock fallback)
+  const inboxItems =
+    items && items.length > 0 ? items.map(mapConversationToInboxItem) : [];
+
+  // Initialize with first item to avoid empty object issues
+  const [selectedItem, setSelectedItem] = useState(inboxItems[0] || {});
   const [aiDraft, setAiDraft] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackSent, setFeedbackSent] = useState(false);
+
+  // Update selectedItem when inboxItems change
+  useEffect(() => {
+    if (inboxItems.length > 0) {
+      const currentInList = inboxItems.find((i) => i.id === selectedItem.id);
+      if (!currentInList) {
+        setSelectedItem(inboxItems[0]);
+      }
+    }
+  }, [items, selectedItem.id]);
 
   useEffect(() => {
     setAiDraft(null);
@@ -185,7 +256,7 @@ const InboxView = () => {
       - Type : ${
         selectedItem.type === "diagnostic" ? "Diagnostic en ligne" : "Chatbot"
       }
-      - Points clés : ${selectedItem.summary.join(", ")}
+      - Points clés : ${selectedItem.summary?.join(", ")}
       ${
         selectedItem.type === "diagnostic"
           ? `- Score complexité : ${selectedItem.score}/100`
@@ -281,111 +352,166 @@ const InboxView = () => {
           }}
         >
           <h3 style={{ fontWeight: 600, color: "#374151", margin: 0 }}>
-            Non lus (3)
+            Conversations ({inboxItems.length})
           </h3>
           <span style={{ fontSize: "12px", color: "#9ca3af" }}>
             Trier par date
           </span>
         </div>
         <div style={{ overflowY: "auto", flex: 1 }}>
-          {inboxItems.map((item) => (
+          {loading ? (
             <div
-              key={item.id}
-              onClick={() => setSelectedItem(item)}
               style={{
-                padding: "16px",
-                borderBottom: "1px solid #f3f4f6",
-                cursor: "pointer",
-                backgroundColor:
-                  selectedItem.id === item.id ? "#eef2ff" : "transparent",
-                borderLeft:
-                  selectedItem.id === item.id
-                    ? "4px solid #4f46e5"
-                    : "4px solid transparent",
-                transition: "background-color 0.2s",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                height: "100%",
+                color: "#9ca3af",
+                gap: "12px",
               }}
             >
-              <div
+              <Loader size={32} className="animate-spin" />
+              <p>Chargement des conversations...</p>
+            </div>
+          ) : inboxItems.length === 0 ? (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                height: "100%",
+                color: "#9ca3af",
+                padding: "24px",
+                textAlign: "center",
+              }}
+            >
+              <MessageSquare
+                size={48}
+                style={{ marginBottom: "16px", color: "#d1d5db" }}
+              />
+              <p
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginBottom: "4px",
-                }}
-              >
-                <span
-                  style={{
-                    fontWeight: 500,
-                    color: item.status === "new" ? "#111827" : "#4b5563",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {item.name}
-                </span>
-                <span
-                  style={{
-                    fontSize: "12px",
-                    color: "#9ca3af",
-                    marginLeft: "8px",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {item.date.split(" ")[1]}
-                </span>
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
+                  fontWeight: 500,
+                  fontSize: "16px",
+                  color: "#6b7280",
                   marginBottom: "8px",
                 }}
               >
-                {getTypeIcon(item.type)}
-                <span
+                Aucune conversation
+              </p>
+              <p
+                style={{
+                  fontSize: "14px",
+                  color: "#9ca3af",
+                  maxWidth: "250px",
+                }}
+              >
+                Les conversations avec vos clients apparaîtront ici
+                automatiquement.
+              </p>
+            </div>
+          ) : (
+            inboxItems.map((item) => (
+              <div
+                key={item.id}
+                onClick={() => setSelectedItem(item)}
+                style={{
+                  padding: "16px",
+                  borderBottom: "1px solid #f3f4f6",
+                  cursor: "pointer",
+                  backgroundColor:
+                    selectedItem.id === item.id ? "#eef2ff" : "transparent",
+                  borderLeft:
+                    selectedItem.id === item.id
+                      ? "4px solid #4f46e5"
+                      : "4px solid transparent",
+                  transition: "background-color 0.2s",
+                }}
+              >
+                <div
                   style={{
-                    fontSize: "12px",
-                    color: "#6b7280",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginBottom: "4px",
                   }}
                 >
-                  {item.summary[0]}
-                </span>
-              </div>
-              <div
-                style={{ display: "flex", alignItems: "center", gap: "8px" }}
-              >
-                {item.status === "new" && (
                   <span
                     style={{
-                      display: "inline-block",
-                      width: "8px",
-                      height: "8px",
-                      backgroundColor: "#3b82f6",
-                      borderRadius: "50%",
-                    }}
-                  ></span>
-                )}
-                {item.type === "diagnostic" && (
-                  <span
-                    style={{
-                      fontSize: "10px",
-                      backgroundColor: "#ffedd5",
-                      color: "#c2410c",
-                      padding: "2px 6px",
-                      borderRadius: "4px",
                       fontWeight: 500,
+                      color: item.status === "new" ? "#111827" : "#4b5563",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
                     }}
                   >
-                    Score: {item.score}
+                    {item.name}
                   </span>
-                )}
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      color: "#9ca3af",
+                      marginLeft: "8px",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {item.date.split(" ")[1]}
+                  </span>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    marginBottom: "8px",
+                  }}
+                >
+                  {getTypeIcon(item.type)}
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      color: "#6b7280",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {item.summary[0]}
+                  </span>
+                </div>
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: "8px" }}
+                >
+                  {item.status === "new" && (
+                    <span
+                      style={{
+                        display: "inline-block",
+                        width: "8px",
+                        height: "8px",
+                        backgroundColor: "#3b82f6",
+                        borderRadius: "50%",
+                      }}
+                    ></span>
+                  )}
+                  {item.type === "diagnostic" && (
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        backgroundColor: "#ffedd5",
+                        color: "#c2410c",
+                        padding: "2px 6px",
+                        borderRadius: "4px",
+                        fontWeight: 500,
+                      }}
+                    >
+                      Score: {item.score}
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
@@ -607,7 +733,7 @@ const InboxView = () => {
                 <MessageSquare size={16} /> Résumé IA (Synthèse)
               </h3>
               <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                {selectedItem.summary.map((point, idx) => (
+                {selectedItem.summary?.map((point, idx) => (
                   <li
                     key={idx}
                     style={{

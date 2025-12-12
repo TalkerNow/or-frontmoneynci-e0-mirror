@@ -1,31 +1,8 @@
 import React from "react";
 import { FileCheck, Filter } from "lucide-react";
 
-// Mock data for the "new" part of Admin View (if any)
-const adminDossiersMock = [
-  {
-    id: 201,
-    client: "Alexandra Tissot",
-    contract: "AR / TFD",
-    owner: "Jeff C.",
-    step: 2,
-    totalSteps: 6,
-    currentAction: "Activation Compte URSSAF",
-    status: "late",
-    deadline: "Retard de 2j",
-  },
-  {
-    id: 202,
-    client: "Anna Karen Dernis",
-    contract: "RAC",
-    owner: "Marie E.",
-    step: 4,
-    totalSteps: 6,
-    currentAction: "Validation calculs",
-    status: "ontrack",
-    deadline: "J-5",
-  },
-];
+// AdminView receives real data via `children` prop (the table from index.jsx)
+// No need for mock data here
 
 const AdminView = ({ children, searchTerm, onSearchChange, filters }) => {
   const [showFilters, setShowFilters] = React.useState(false);

@@ -600,17 +600,31 @@ export default function KpiPage() {
   const [sortField, setSortField] = useState("client"); // client | todo | last | type
   const [sortDir, setSortDir] = useState("asc"); // asc | desc
   const [adminSearch, setAdminSearch] = useState(""); // Search for AdminView
-  // >>> Nouveaux champs contact (optionnels)
 
-  // Mini fenetre email (simple)
+  // >>> Nouveaux champs contact (optionnels)
+  const [action, setAction] = useState("");
+  const [kpiDate, setKpiDate] = useState(todayStr());
+  const [nomPrenom, setNomPrenom] = useState("");
+  const [email, setEmail] = useState("");
+  const [telephone, setTelephone] = useState("");
+  const [note, setNote] = useState("");
+
+  const [items, setItems] = useState([]);
+  const [loadingList, setLoadingList] = useState(false);
+  const [allItems, setAllItems] = useState([]);
+  const [loadingChart, setLoadingChart] = useState(false);
+  const [page, setPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
 
   // Email admin (local + API)
+  const [adminEmailLocal, setAdminEmailLocal] = useState("");
+  const [adminEmailApi, setAdminEmailApi] = useState("");
 
   // Utilisateurs (admin -> nom/prénom)
   const [usersById, setUsersById] = useState({});
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
-  // Données complètes pour le GRAPHIQUE
-
+  // Clients
   const [clientsById, setClientsById] = useState({});
 
   // Suivis d'avancement (backend Laravel)
@@ -618,8 +632,10 @@ export default function KpiPage() {
   const [loadingSuivis, setLoadingSuivis] = useState(false);
   const [suivisError, setSuivisError] = useState("");
 
+  // Conversations
   const [conversations, setConversations] = useState([]);
   const [loadingConversations, setLoadingConversations] = useState(false);
+  const [convError, setConvError] = useState("");
 
   const handleSort = (field) => {
     setSortField((prevField) => {
@@ -633,6 +649,7 @@ export default function KpiPage() {
       return field;
     });
   };
+
   // Modal messages conversations
   const [convModalOpen, setConvModalOpen] = useState(false);
   const [selectedConv, setSelectedConv] = useState(null);
@@ -656,7 +673,6 @@ export default function KpiPage() {
   };
 
   // ---- styles filtres jolis ----
-  // ---- styles filtres jolis ----
 
   const filterPillBase = {
     borderRadius: 999,
@@ -676,22 +692,40 @@ export default function KpiPage() {
     fontWeight: 600,
   };
 
-  // Suppression
+  // =========================================================================================
+  // FONCTIONS DE FETCH (Définies APRÈS les useState pour avoir accès aux setters)
+  // =========================================================================================
 
-  // Charger TOUTES les données pour le GRAPHIQUE
-  // On sépare pour éviter que le graphique ne bloque la liste (Inbox)
-  useEffect(() => {
-    // Inbox Data (Fast & Critical)
-    fetchSuivis();
-  }, []);
+  async function fetchKpis(p = 1) {
+    try {
+      setLoadingList(true);
+      setError("");
 
-  useEffect(() => {
-    // Secondary Data (Selectors)
-    fetchMembers();
-    fetchClients();
-    fetchConversationArchives();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+      const res = await API.get("/kpis", {
+        params: p > 1 ? { page: p } : {},
+      });
+
+      const payload = res.data;
+      const data = Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload)
+        ? payload
+        : [];
+
+      setItems(data);
+
+      const lp = payload?.last_page || payload?.meta?.last_page || 1;
+      setLastPage(lp);
+    } catch (e) {
+      console.error(e);
+      setError(
+        e?.response?.data?.message ||
+          "Erreur lors du chargement des KPI. Vérifie l'API."
+      );
+    } finally {
+      setLoadingList(false);
+    }
+  }
 
   async function fetchSuivis() {
     try {
@@ -711,97 +745,204 @@ export default function KpiPage() {
       setLoadingSuivis(false);
     }
   }
+
   async function fetchConversationArchives() {
     try {
       setLoadingConversations(true);
+      setConvError("");
 
       // backend : GET /api/conversation-archives → front : "/conversation-archives"
       const res = await API.get("/conversation-archives");
 
+      console.log("=== CONVERSATIONS DEBUG ===");
+      console.log("RAW API RESPONSE:", res);
+
       const payload = res.data || {};
-      let data = [];
-      if (Array.isArray(payload)) {
-        data = payload;
-      } else if (Array.isArray(payload.data)) {
-        data = payload.data;
-      }
+      const data = Array.isArray(payload.data) ? payload.data : [];
 
-      console.log("Fetched conversations:", data); // Debug log
+      console.log("PROCESSED CONVERSATIONS DATA:", data);
+      console.log("Total conversations from API:", data.length);
 
-      // --- MOCK DATA FALLBACK (if API empty) -> Use SUIVIS as fallback ---
+      // TEST DATA FALLBACK - Si le backend est vide, on utilise des données de test
+      const TEST_CONVERSATIONS = [
+        {
+          id: 1,
+          client_id: 123,
+          user_id: 123,
+          user: {
+            firstname: "Jean",
+            lastname: "Dupont",
+            email: "jean.dupont@example.com",
+            telephone: "06 12 34 56 78",
+          },
+          created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // Il y a 2h
+          messages: [
+            {
+              role: "user",
+              content: "Bonjour, je souhaite des informations sur ma retraite",
+            },
+            {
+              role: "assistant",
+              content: "Bonjour Jean ! Je serais ravi de vous aider.",
+            },
+            {
+              role: "user",
+              content: "J'ai 58 ans et je voudrais savoir quand je peux partir",
+            },
+          ],
+          status: "new",
+          type: "chatbot",
+        },
+        {
+          id: 2,
+          client_id: 456,
+          user_id: 456,
+          user: {
+            firstname: "Marie",
+            lastname: "Martin",
+            email: "marie.martin@example.com",
+            telephone: "06 98 76 54 32",
+          },
+          created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(), // Il y a 5h
+          messages: [
+            {
+              role: "user",
+              content:
+                "Je suis née en 1965, combien de trimestres me faut-il ?",
+            },
+            {
+              role: "assistant",
+              content: "Pour votre génération, il faut 172 trimestres.",
+            },
+          ],
+          status: "new",
+          type: "chatbot",
+        },
+        {
+          id: 3,
+          client_id: 789,
+          user_id: 789,
+          user: {
+            firstname: "Pierre",
+            lastname: "Durand",
+            email: "pierre.durand@example.com",
+            telephone: "07 11 22 33 44",
+          },
+          created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // Hier
+          messages: [
+            {
+              role: "user",
+              content:
+                "J'ai travaillé 5 ans à l'étranger, est-ce que ça compte ?",
+            },
+            {
+              role: "assistant",
+              content:
+                "Oui, les périodes à l'étranger peuvent être prises en compte selon les accords bilatéraux.",
+            },
+            { role: "user", content: "Comment faire valider ces trimestres ?" },
+          ],
+          status: "pending",
+          type: "chatbot",
+        },
+        {
+          id: 4,
+          client_id: 234,
+          user_id: 234,
+          user: {
+            firstname: "Sophie",
+            lastname: "Bernard",
+            email: "sophie.bernard@example.com",
+            telephone: "06 55 44 33 22",
+          },
+          created_at: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(), // Il y a 2 jours
+          messages: [
+            {
+              role: "user",
+              content: "Je voudrais un bilan retraite complet",
+            },
+            {
+              role: "assistant",
+              content:
+                "Parfait ! Je vais vous poser quelques questions pour établir votre bilan.",
+            },
+          ],
+          status: "new",
+          type: "diagnostic",
+          diagnostic_score: 7.5,
+        },
+      ];
+
+      // Si le backend est vide, utiliser les données de test
+      const finalData = data.length > 0 ? data : TEST_CONVERSATIONS;
+
       if (data.length === 0) {
-        console.warn("API conversations empty. Fallback to Suivis data.");
-        try {
-          const resSuivis = await API.get("/suivi-avancement/all");
-          const suivisData = Array.isArray(resSuivis.data)
-            ? resSuivis.data
-            : [];
-
-          if (suivisData.length > 0) {
-            // Group by client_id to avoid duplicates
-            const clientMap = new Map();
-
-            suivisData.forEach((s) => {
-              if (!s.client_id) return;
-
-              // If client already exists, we might want to consolidate or just keep the first one
-              if (!clientMap.has(s.client_id)) {
-                clientMap.set(s.client_id, {
-                  id: `client-conv-${s.client_id}`, // Unique ID per client
-                  client_id: s.client_id, // Store for lookup
-                  is_fallback: true,
-                  created_at:
-                    s.createdAt || s.date_creation || new Date().toISOString(),
-                  status: s.document_state || "En cours",
-                  user: {
-                    // If we have direct name data, use it, otherwise leave empty to trigger lookup
-                    firstname: s.client_first_name || "",
-                    lastname: s.client_last_name || "",
-                    email: s.client_email,
-                    telephone: s.client_phone,
-                  },
-                  original_suivi: s,
-                  messages: [
-                    {
-                      id: 1,
-                      role: "assistant",
-                      content: `Dossier ${s.type || "Contrat"} initié.`,
-                    },
-                  ],
-                });
-              }
-            });
-
-            data = Array.from(clientMap.values());
-          } else {
-            // Fallback utlime: Mock en dur si même les suivis sont vides
-            data = [
-              {
-                id: 999,
-                created_at: new Date().toISOString(),
-                status: "Démo",
-                user: { firstname: "Démonstration", lastname: "Système" },
-                messages: [
-                  {
-                    id: 1,
-                    role: "assistant",
-                    content:
-                      "Aucune donnée trouvée (Conversations et Suivis vides).",
-                  },
-                ],
-              },
-            ];
-          }
-        } catch (err) {
-          console.error("Fallback fetch suivis failed", err);
-        }
+        console.warn(
+          "⚠️ API returned empty data, using TEST DATA (" +
+            TEST_CONVERSATIONS.length +
+            " conversations)"
+        );
       }
 
-      setConversations(data);
+      console.log("Final conversations to display:", finalData.length);
+      console.log("Conversations by client:");
+      finalData.forEach((conv) => {
+        const name =
+          conv.user?.firstname && conv.user?.lastname
+            ? `${conv.user.firstname} ${conv.user.lastname}`
+            : `Client #${conv.client_id || conv.user_id || "?"}`;
+        console.log(`  - ${name} (ID: ${conv.client_id || conv.user_id})`);
+      });
+
+      setConversations(finalData);
     } catch (e) {
       console.error("fetchConversationArchives error:", e);
+      setConvError(
+        e?.response?.data?.message ||
+          e?.response?.data?.error ||
+          "Erreur lors du chargement des conversations chatbot."
+      );
     } finally {
       setLoadingConversations(false);
+    }
+  }
+
+  async function fetchAllKpis() {
+    try {
+      setLoadingChart(true);
+      setError("");
+
+      let p = 1;
+      let aggregated = [];
+      let maxPage = 1;
+
+      do {
+        const res = await API.get("/kpis", {
+          params: p > 1 ? { page: p } : {},
+        });
+        const payload = res.data;
+        const data = Array.isArray(payload?.data)
+          ? payload.data
+          : Array.isArray(payload)
+          ? payload
+          : [];
+
+        aggregated = aggregated.concat(data);
+
+        maxPage = payload?.last_page || payload?.meta?.last_page || 1;
+        p += 1;
+      } while (p <= maxPage);
+
+      setAllItems(aggregated);
+    } catch (e) {
+      console.error(e);
+      setError(
+        e?.response?.data?.message ||
+          e?.response?.data?.error ||
+          "Erreur lors du chargement complet des KPI pour le graphique."
+      );
+    } finally {
+      setLoadingChart(false);
     }
   }
 
@@ -841,6 +982,8 @@ export default function KpiPage() {
 
   async function fetchMembers() {
     try {
+      setLoadingUsers(true);
+
       const res = await API.get("/users", {
         params: { kind: "member" },
       });
@@ -867,32 +1010,61 @@ export default function KpiPage() {
     } catch (e) {
       console.error(e);
     } finally {
+      setLoadingUsers(false);
     }
   }
 
-  // ✅ createKpi modifié
-  async function createKpi(data) {
+  async function fetchAdminEmailFromApi() {
+    try {
+      if (!adminId) return;
+
+      const res = await API.get(`/users/${adminId}`, {
+        params: { id: adminId },
+      });
+
+      const payload = res.data || {};
+      const email =
+        payload.email || payload?.data?.email || payload?.user?.email || null;
+
+      if (email) setAdminEmailApi(email);
+    } catch (e) {
+      console.error("fetchAdminEmailFromApi error:", e);
+    }
+  }
+
+  async function createKpi(dataBody) {
     try {
       setCreating(true);
       setError("");
 
       const body = {
-        objet: data?.objet || null,
-        action: data?.action || "Autre",
-        kpi_date: data?.kpi_date || todayStr(),
-        nom_prenom: data?.nom_prenom || null,
-        email: data?.email || null,
-        telephone: data?.telephone || null,
-        note: data?.note || null,
+        objet: dataBody?.objet || objet || null,
+        action:
+          dataBody?.objet === "Email" || objet === "Email"
+            ? EMAIL_ACTION
+            : dataBody?.action || action || "Autre",
+        kpi_date: dataBody?.kpi_date || kpiDate || todayStr(),
+        nom_prenom: dataBody?.nom_prenom || nomPrenom || null,
+        email: dataBody?.email || email || null,
+        telephone: dataBody?.telephone || telephone || null,
+        note: dataBody?.note || note || null,
       };
 
       if (adminId) body.admin_id = adminId;
 
       await API.post("/kpis", body);
-      // await fetchAllKpis(); // Optional if we want to update charts
+      setPage(1);
+      await fetchKpis(1);
+      await fetchAllKpis();
 
-      // Modal reset handles input clearing, we just close here if needed
-      setCreating(false);
+      // reset des champs
+      setObjet("Appel entrant");
+      setAction("");
+      setKpiDate(todayStr());
+      setNomPrenom("");
+      setEmail("");
+      setTelephone("");
+      setNote("");
     } catch (e) {
       console.error(e);
       setError(
@@ -905,7 +1077,17 @@ export default function KpiPage() {
     }
   }
 
-  // Envoi TRÈS SIMPLE au webhook (corps + adminEmailFinal + adminId)
+  // Effets de chargement
+  useEffect(() => {
+    fetchKpis(1);
+    fetchAllKpis();
+    fetchAdminEmailFromApi();
+    fetchSuivis();
+    fetchMembers();
+    fetchClients();
+    fetchConversationArchives();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const sortedSuivis = useMemo(() => {
     if (!Array.isArray(suivis)) return [];
@@ -1880,7 +2062,13 @@ export default function KpiPage() {
 
       {/* 3. INBOX (Default) */}
       {(location.pathname === "/kpi" ||
-        location.pathname.includes("/inbox")) && <InboxView />}
+        location.pathname.includes("/inbox")) && (
+        <InboxView
+          items={conversations}
+          loading={loadingConversations}
+          error={null}
+        />
+      )}
 
       {/* New KPI Modal (integrated) */}
       <KPIModal

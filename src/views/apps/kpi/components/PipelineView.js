@@ -52,7 +52,7 @@ const pipelineColumns = [
   { id: "won", title: "GAGNÉ (À traiter)", color: "border-green-500" },
 ];
 
-const pipelineDeals = [
+const pipelineDealsMock = [
   {
     id: 101,
     name: "Mme. Durand",
@@ -96,7 +96,33 @@ const pipelineDeals = [
   },
 ];
 
-const PipelineView = () => {
+// Helper: Map opportunity from backend to pipeline deal
+function mapOpportunityToDeal(opp) {
+  const stageMap = {
+    contact: "contact",
+    rdv: "rdv",
+    proposition: "prop",
+    proposal: "prop",
+    negotiation: "nego",
+    won: "won",
+    lost: "lost",
+  };
+
+  return {
+    id: opp.id,
+    name: opp.client_name || opp.contact_name || "Client",
+    amount: opp.amount ? `${opp.amount} €` : "0 €",
+    stage: stageMap[opp.pipeline_stage] || "contact",
+    owner: opp.assigned_user_initials || "??",
+    tag: opp.product_type || "Autre",
+    date: opp.next_action_date || null,
+  };
+}
+
+const PipelineView = ({ deals = [], loading, error }) => {
+  // Use provided deals or fallback to mock data
+  const pipelineDeals =
+    deals.length > 0 ? deals.map(mapOpportunityToDeal) : pipelineDealsMock;
   const [analyzingDealId, setAnalyzingDealId] = useState(null);
   const [analysisResult, setAnalysisResult] = useState(null);
 
