@@ -2144,7 +2144,7 @@ class EditContract extends React.Component {
                                 v === "1" ||
                                 String(v).toLowerCase() === "oui" ||
                                 String(v).toLowerCase() === "on";
-                              return yes ? "Service Militaire" : "";
+                              return yes ? "Oui" : "Non";
                             })()}
                           </h6>
                         </Col>
