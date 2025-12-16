@@ -1375,6 +1375,13 @@ export default function KpiPage() {
       // 🔶 Crédit d'impôt : "5 jours ouvrés d'attente" atteints / dépassés
       let isAfter5Days = false;
 
+      // Cas AR/TFD : Création de devis = URGENT
+      if (!isContractFinished && profileKey === "ar_tfd") {
+        if (next && next.index === 2) {
+          isAfter5Days = true;
+        }
+      }
+
       if (!isContractFinished && profileKey === "credit_impot") {
         const step3 = steps.find((st) => st.index === 3); // "5 jours ouvrés d'attente"
         const step4 = steps.find((st) => st.index === 4); // "Création devis"
@@ -1549,8 +1556,7 @@ export default function KpiPage() {
                             colSpan="5"
                             style={{ fontSize: 14, fontWeight: 600 }}
                           >
-                            5 jours ouvrés atteints / dépassés (à traiter en
-                            priorité)
+                            Dossiers urgents (à traiter en priorité)
                           </td>
                         </tr>
 
