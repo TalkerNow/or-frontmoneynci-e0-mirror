@@ -76,6 +76,9 @@ var input_values = {
 const CREDIT_IMPOT_NOTE =
   "Prestation éligible à l'avance immédiate de crédit d'impôt soit 50 % pris en charge immédiatement par l'URSSAF après enregistrement du client.";
 
+const CREDIT_IMPOT_NOTE_AUDIT_ONLY =
+  "Prestations éligibles à hauteur de 80% du montant facturé à l'avance immédiate de crédit d'impôt de 50% pris en charge immédiatement par l'Urssaf après enregistrement du dossier";
+
 const stripe = (i) => ({
   backgroundColor: "#fff",
   border: "1px solid #ebe9f1",
@@ -798,8 +801,18 @@ class EditContract extends React.Component {
       .catch((e) => console.log(e));
   }
   appendCreditImpotNote = async () => {
-    // Si la case n'est pas cochée, on ne fait rien
-    if (!this.state.formValues.credit_impot_50) return;
+    // Si la case n'est pas cochée ou non éligible, on ne fait rien
+    const isEligible =
+      this.state.formValues.c3 ||
+      this.state.formValues.c4 ||
+      this.state.formValues.c5;
+    if (!this.state.formValues.credit_impot_50 || !isEligible) return;
+
+    // DETERMINER LA PHRASE A UTILISER
+    const hasLiquidation = this.state.formValues.c5;
+    const noteToAppend = hasLiquidation
+      ? CREDIT_IMPOT_NOTE
+      : CREDIT_IMPOT_NOTE_AUDIT_ONLY;
 
     const userId = this.state.user_id; // 👈 CORRECTION ICI
     if (!userId) return;
@@ -823,17 +836,21 @@ class EditContract extends React.Component {
         (user.personal_informations && user.personal_informations.notes) ||
         "";
 
-      // Éviter les doublons si la phrase est déjà présente
-      if (existingNotes && existingNotes.includes(CREDIT_IMPOT_NOTE)) {
+      // Éviter les doublons si la phrase est déjà présente (l'une ou l'autre)
+      if (
+        existingNotes &&
+        (existingNotes.includes(CREDIT_IMPOT_NOTE) ||
+          existingNotes.includes(CREDIT_IMPOT_NOTE_AUDIT_ONLY))
+      ) {
         return;
       }
 
       // 2) Construire les nouvelles notes
       let newNotes;
       if (existingNotes && existingNotes.trim() !== "") {
-        newNotes = `${existingNotes}\n\n${CREDIT_IMPOT_NOTE}`;
+        newNotes = `${existingNotes}\n\n${noteToAppend}`;
       } else {
-        newNotes = CREDIT_IMPOT_NOTE;
+        newNotes = noteToAppend;
       }
 
       // 3) PUT sur /personal_information/:id
@@ -886,7 +903,13 @@ class EditContract extends React.Component {
       status_payment: this.state.status_payment,
       payment_method: moyenPaiementFinal,
       values: JSON.stringify(input_values),
-      unipro: this.state.formValues.credit_impot_50 ? 1 : 0,
+      unipro:
+        this.state.formValues.credit_impot_50 &&
+          (this.state.formValues.c3 ||
+            this.state.formValues.c4 ||
+            this.state.formValues.c5)
+          ? 1
+          : 0,
       acompte_dates: this.state.acompte_dates,
       sold_dates: this.state.sold_dates,
       advanced_payment: this.state.formValues["TOTALTTC"] || 0,
@@ -1592,27 +1615,41 @@ class EditContract extends React.Component {
                     <VSep />
 
                     {/* 👇 checkbox + texte avec le même style que les autres spans */}
-                    <div
-                      className="d-flex align-items-center"
-                      style={{
-                        gap: 8,
-                        backgroundColor: "#fff",
-                        padding: "5px 10px",
-                        borderRadius: 6,
-                        border: "1px solid #eee",
-                      }}
-                    >
-                      <LabeledCheckboxMaterialUi
-                        label="" // important : label vide
-                        checked={!!this.state.formValues.credit_impot_50}
-                        onChange={(checked) =>
-                          this.handleCheckChange(checked, "credit_impot_50")
-                        }
-                      />
-                      <span style={{ fontWeight: 500, color: "#28c76f" }}>
-                        Crédit d'impôts 50%
-                      </span>
-                    </div>
+                    {(() => {
+                      const isEligible =
+                        this.state.formValues.c3 ||
+                        this.state.formValues.c4 ||
+                        this.state.formValues.c5;
+
+                      return (
+                        <div
+                          className="d-flex align-items-center"
+                          style={{
+                            gap: 8,
+                            backgroundColor: "#fff",
+                            padding: "5px 10px",
+                            borderRadius: 6,
+                            border: "1px solid #eee",
+                            opacity: isEligible ? 1 : 0.5,
+                            pointerEvents: isEligible ? "auto" : "none",
+                          }}
+                        >
+                          <LabeledCheckboxMaterialUi
+                            label="" // important : label vide
+                            checked={
+                              isEligible && !!this.state.formValues.credit_impot_50
+                            }
+                            onChange={(checked) =>
+                              isEligible &&
+                              this.handleCheckChange(checked, "credit_impot_50")
+                            }
+                          />
+                          <span style={{ fontWeight: 500, color: "#28c76f" }}>
+                            Crédit d'impôts 50%
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </CardBody>
               </Card>
