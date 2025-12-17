@@ -6,12 +6,9 @@ import {
   Button,
   Card,
   CardBody,
-  UncontrolledDropdown,
-  DropdownToggle,
-  DropdownMenu,
   Table,
 } from "reactstrap";
-import { Trash2, ChevronDown, Download, AlertTriangle } from "react-feather";
+import { Trash2, AlertTriangle } from "react-feather";
 import { history } from "../../../../history";
 import axios from "axios";
 import { ContextLayout } from "../../../../utility/context/Layout";
@@ -330,10 +327,10 @@ class AllContracts extends React.Component {
     let role = localStorage.getItem("role");
     if (role === "admin") {
       return (
-        node.data.user && node.data.user.business_introducer_id == consultant_id
+        node.data.user && node.data.user.business_introducer_id === consultant_id
       );
     } else if (role === "Consultant") {
-      return node.data.user && node.data.user.parent_id == consultant_id;
+      return node.data.user && node.data.user.parent_id === consultant_id;
     }
     return node.data.creator_id === consultant_id;
   };
