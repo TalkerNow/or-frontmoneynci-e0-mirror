@@ -71,7 +71,7 @@ function weekdayIndexMondayFirst(dateInput) {
   return (d.getDay() + 6) % 7; // 0 = lundi ... 6 = dimanche
 }
 // Ensemble des actions à afficher dans le graphique/filtre
-const ACTIONS_ALL = [...CALL_ACTIONS, EMAIL_ACTION, ACTION_OTHER];
+const ACTIONS_ALL = [...new Set([...CALL_ACTIONS, EMAIL_ACTION, ACTION_OTHER])];
 const ACTIONS_KNOWN = [...CALL_ACTIONS, EMAIL_ACTION];
 
 const ACTION_FILLS = {

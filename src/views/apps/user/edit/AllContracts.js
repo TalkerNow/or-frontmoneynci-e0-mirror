@@ -99,12 +99,12 @@ class AllContracts extends React.Component {
                     .trim()
                     .split("/");
                   const tags = [];
-                  lst_subscribe_services.forEach(function (service) {
+                  lst_subscribe_services.forEach(function (service, index) {
                     if (service !== "") {
                       tags.push(
                         <Chip
                           className="m-0 text-center ml-1"
-                          key={service}
+                          key={index}
                           color={chipColors[service.trim()]}
                           text={service}
                         />
