@@ -28,7 +28,7 @@ export default function DocumentsHub({ id, name, parent_id, userFullName, alignO
         const delta = label.getBoundingClientRect().left - nav.getBoundingClientRect().left
         setContentOffset(Math.max(0, Math.round(delta)))
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 
   useEffect(() => {
@@ -63,8 +63,7 @@ export default function DocumentsHub({ id, name, parent_id, userFullName, alignO
 
   return (
     <div>
-      <Nav
-        tabs
+      <div
         className="mb-1"
         style={{
           marginLeft: Math.max(0, Number(navMargin) || 0),
@@ -75,27 +74,29 @@ export default function DocumentsHub({ id, name, parent_id, userFullName, alignO
         }}
         ref={subNavRef}
       >
-        <NavItem>
-          <NavLink className={classnames({ active: subTab === 'perso' })} onClick={() => setSubTab('perso')}>
-            <span>Documents perso</span>
-          </NavLink>
-        </NavItem>
-        <NavItem>
-          <NavLink className={classnames({ active: subTab === 'cerfa' })} onClick={() => setSubTab('cerfa')}>
-            <span>Cerfa</span>
-          </NavLink>
-        </NavItem>
-        {/* <NavItem>
+        <Nav tabs>
+          <NavItem>
+            <NavLink className={classnames({ active: subTab === 'perso' })} onClick={() => setSubTab('perso')}>
+              <span>Documents perso</span>
+            </NavLink>
+          </NavItem>
+          <NavItem>
+            <NavLink className={classnames({ active: subTab === 'cerfa' })} onClick={() => setSubTab('cerfa')}>
+              <span>Cerfa</span>
+            </NavLink>
+          </NavItem>
+          {/* <NavItem>
           <NavLink className={classnames({ active: subTab === 'courriers' })} onClick={() => setSubTab('courriers')}>
             <span>Courriers caisse</span>
           </NavLink>
         </NavItem> */}
-        {/* <NavItem>
+          {/* <NavItem>
           <NavLink className={classnames({ active: subTab === 'contrats' })} onClick={() => setSubTab('contrats')}>
             <span id='docs-label-contrats'>Contrats</span>
           </NavLink>
         </NavItem> */}
-      </Nav>
+        </Nav>
+      </div>
 
       <TabContent activeTab={subTab}>
         <TabPane tabId='contrats'>

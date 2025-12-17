@@ -190,11 +190,13 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
   const clientNames = useMemo(() => extractClientNames(perso), [perso]);
   const hasChanged = notes !== originalNotes;
 
+  const persoNotes = perso?.notes;
+
   useEffect(() => {
-    const incoming = perso?.notes ?? "";
+    const incoming = persoNotes ?? "";
     setNotes(incoming);
     setOriginalNotes(incoming);
-  }, [id, perso?.notes]);
+  }, [id, persoNotes]);
 
   useEffect(() => {
     persistDocs(generatedDocs);
