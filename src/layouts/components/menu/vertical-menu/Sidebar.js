@@ -7,7 +7,9 @@ import Hammer from "react-hammerjs"
 import SideMenuContent from "./sidemenu/SideMenuContent"
 import { Link } from "react-router-dom"
 import { createPortal } from "react-dom"
-import { User, Settings, Users, File, Power, Menu } from "react-feather"
+import { User, Settings, Users, File, Power, Menu, Download } from "react-feather"
+import axios from "axios"
+import * as XLSX from "xlsx"
 
 // ✅ importe l’action (ajuste le chemin si nécessaire)
 import { logoutWithJWT } from "../../../../redux/actions/auth/loginActions"
@@ -27,12 +29,14 @@ class Sidebar extends Component {
     hoveredMenuItem: null,
     activeItem: this.props.activePath,
     menuShadow: false,
-    settingsOpen: false
+    settingsOpen: false,
+    exportHovered: false
   }
 
   mounted = false
   settingsBtnRef = React.createRef()
   settingsMenuRef = null
+  exportMenuTimer = null
 
   // --- Lifecycle -------------------------------------------------------------
 
@@ -50,6 +54,7 @@ class Sidebar extends Component {
     }
     document.removeEventListener("mousedown", this.handleDocClick, false)
     document.removeEventListener("keydown", this.handleDocKeyDown, false)
+    if (this.exportMenuTimer) clearTimeout(this.exportMenuTimer)
   }
 
   componentDidUpdate(prevProps, prevState) {
@@ -126,6 +131,97 @@ class Sidebar extends Component {
     }
   }
 
+  // --- Export Logic ----------------------------------------------------------
+
+  handleExportClients = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      const Config = { headers: { Authorization: "Bearer " + token } }
+
+      // Fetch Clients and Documents (for services mapping)
+      const [usersRes, docsRes] = await Promise.all([
+        axios.get(global.config.server_url + "/users?kind=client", Config),
+        axios.get(global.config.server_url + "/documents", Config),
+      ])
+
+      const clients = usersRes.data
+      const documents = docsRes.data || []
+
+      // Build services map (simplified from ClientsList logic)
+      const servicesByUserId = {}
+      documents.forEach(doc => {
+        if (doc?.user_id) {
+          const s = doc.subscribe_services
+            ? String(doc.subscribe_services).replace(/["\\]/g, "").replace(/[|,]/g, "/").trim()
+            : ""
+          if (s) servicesByUserId[doc.user_id] = s
+        }
+      })
+
+      const data = clients.map(c => ({
+        ID: c.id,
+        "Créé le": c.created_at,
+        "Civilité": c.civility,
+        "Nom": c.last_name,
+        "Prénom": c.first_name,
+        "Email": c.email,
+        "Téléphone": c.mobile_number || c.phone || c.office_number,
+        "Statut": c.status,
+        "Société": c.society_name,
+        "Services souscrits": servicesByUserId[c.id] || "",
+        "Adresse": c.personal_address || c.society_address,
+        "Ville": c.personal_city || c.society_city,
+        "Code postal": c.personal_zip_code || c.society_zip_code,
+        "Notes": c.note || c.notes
+      }))
+
+      const ws = XLSX.utils.json_to_sheet(data)
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, "Clients")
+      const today = new Date().toISOString().slice(0, 10)
+      XLSX.writeFile(wb, `export_clients_${today}.xlsx`)
+
+    } catch (e) {
+      console.error("Export Clients Error", e)
+      // Optional: Show error alert
+    }
+  }
+
+  handleExportContracts = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      const Config = { headers: { Authorization: "Bearer " + token } }
+
+      const response = await axios.get(global.config.server_url + "/documents", Config)
+      const contracts = response.data
+
+      const data = contracts.map(c => ({
+        ID: c.id,
+        Document: c.comment, // Nom du contrat
+        "Type": c.type,
+        "État": c.document_state,
+        "Prestations": c.subscribe_services ? String(c.subscribe_services).replace(/["\\]/g, "") : "",
+        "Client ID": c.user_id,
+        "Montant": c.total_ht, // Assuming similar structure
+        "Acompte": c.pre_payment,
+        "Solde": c.end_payment,
+        "Créé le": c.created_at,
+        "Mis à jour le": c.updated_at,
+        "Date Acompte": c.deposit_date,
+        "Date Solde": c.sold_date
+      }))
+
+      const ws = XLSX.utils.json_to_sheet(data)
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, "Contrats")
+      const today = new Date().toISOString().slice(0, 10)
+      XLSX.writeFile(wb, `export_contrats_${today}.xlsx`)
+
+    } catch (e) {
+      console.error("Export Contracts Error", e)
+    }
+  }
+
   // --- Portal du menu Paramètres --------------------------------------------
 
   renderSettingsPortal = () => {
@@ -153,6 +249,69 @@ class Sidebar extends Component {
         role="menu"
         aria-label="Paramètres"
       >
+
+        {/* ✅ Export Menu - Admin Only */}
+        {(localStorage.getItem("role") === "admin") && (
+          <div
+            className="dropdown-item d-flex align-items-center justify-content-between position-relative"
+            onMouseEnter={() => {
+              if (this.exportMenuTimer) clearTimeout(this.exportMenuTimer)
+              this.setState({ exportHovered: true })
+            }}
+            onMouseLeave={() => {
+              this.exportMenuTimer = setTimeout(() => {
+                this.setState({ exportHovered: false })
+              }, 300)
+            }}
+            style={{ cursor: "pointer" }}
+          >
+            <div className="d-flex align-items-center">
+              <Download size={14} className="mr-50" />
+              <span className="align-middle">Export</span>
+            </div>
+            <span className="ml-1">▸</span>
+
+            {/* Sub-menu */}
+            {this.state.exportHovered && (
+              <div style={{
+                position: "absolute",
+                top: 0,
+                right: "100%", // Display to the left to avoid overflow if sidebar is on right? Sidebar is on left.
+                // Actually settings button is bottom left.
+                // The portal is fixed positioned.
+                // "left: rect.left". So it opens above the button.
+                // A sub-menu to the right (left: 100%) is standard.
+                left: "100%",
+                marginLeft: 4,
+                minWidth: 160,
+                background: "var(--bs-dropdown-bg, #fff)",
+                borderRadius: 12,
+                border: "1px solid rgba(0,0,0,0.06)",
+                boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+                padding: 8,
+                zIndex: 2147483648
+              }}
+                onMouseEnter={() => {
+                  if (this.exportMenuTimer) clearTimeout(this.exportMenuTimer)
+                }}
+              >
+                <div
+                  className="dropdown-item d-flex align-items-center"
+                  onClick={(e) => { e.stopPropagation(); this.handleExportClients(); }}
+                >
+                  <span>Export Clients</span>
+                </div>
+                <div
+                  className="dropdown-item d-flex align-items-center"
+                  onClick={(e) => { e.stopPropagation(); this.handleExportContracts(); }}
+                >
+                  <span>Export Contrats</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <a
           className="dropdown-item d-flex align-items-center"
           href="/app/member/memberslist"
