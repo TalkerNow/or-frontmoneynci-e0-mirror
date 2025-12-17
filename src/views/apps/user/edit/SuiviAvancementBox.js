@@ -808,11 +808,27 @@ const SuiviAvancementBox = ({ clientId }) => {
       }
 
       // 2) Mise à jour du contrat (sold_dates) dans la table documents
+      // 2) Mise à jour du contrat (sold_dates) dans la table documents
       if (suivi.facture_id) {
         const soldDates = JSON.stringify([dateToSend]);
+        const contract = contracts.find((c) => c.id === suivi.facture_id);
+        const payload = {
+          sold_dates: soldDates,
+          status_payment: 2, // Soldé dans tous les cas
+        };
+
+        // Si c'est une CH, on passe en Terminé
+        if (
+          contract &&
+          contract.subscribe_services &&
+          contract.subscribe_services.includes("CH")
+        ) {
+          payload.document_state = "Terminé";
+        }
+
         await axios.put(
           `${global.config.server_url}/documents/${suivi.facture_id}`,
-          { sold_dates: soldDates },
+          payload,
           getConfig()
         );
       }
@@ -997,11 +1013,27 @@ const SuiviAvancementBox = ({ clientId }) => {
       }
 
       // 2) mise à jour du contrat (sold_dates) dans documents
+      // 2) mise à jour du contrat (sold_dates) dans documents
       if (suivi.facture_id) {
         const soldDates = JSON.stringify([dateToSend]);
+        const contract = contracts.find((c) => c.id === suivi.facture_id);
+        const payload = {
+          sold_dates: soldDates,
+          status_payment: 2, // Soldé dans tous les cas
+        };
+
+        // Si c'est une CH, on passe en Terminé
+        if (
+          contract &&
+          contract.subscribe_services &&
+          contract.subscribe_services.includes("CH")
+        ) {
+          payload.document_state = "Terminé";
+        }
+
         await axios.put(
           `${global.config.server_url}/documents/${suivi.facture_id}`,
-          { sold_dates: soldDates },
+          payload,
           getConfig()
         );
       }
@@ -1050,11 +1082,27 @@ const SuiviAvancementBox = ({ clientId }) => {
       }
 
       // 2) mise à jour du contrat (sold_dates) dans documents
+      // 2) mise à jour du contrat (sold_dates) dans documents
       if (suivi.facture_id) {
         const soldDates = JSON.stringify([dateToSend]);
+        const contract = contracts.find((c) => c.id === suivi.facture_id);
+        const payload = {
+          sold_dates: soldDates,
+          status_payment: 2, // Soldé dans tous les cas
+        };
+
+        // Si c'est une CH, on passe en Terminé
+        if (
+          contract &&
+          contract.subscribe_services &&
+          contract.subscribe_services.includes("CH")
+        ) {
+          payload.document_state = "Terminé";
+        }
+
         await axios.put(
           `${global.config.server_url}/documents/${suivi.facture_id}`,
-          { sold_dates: soldDates },
+          payload,
           getConfig()
         );
       }
