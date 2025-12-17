@@ -142,6 +142,27 @@ class Contracts extends React.Component {
       headers: { Authorization: "Bearer " + localStorage.getItem("token") },
     };
     try {
+      // 1. Try to find and delete associated suivi
+      try {
+        const client_id = this.props.id;
+        const res = await axios.get(
+          global.config.server_url + "/suivi-avancement/client/" + client_id,
+          Config
+        );
+        if (res.data && Array.isArray(res.data)) {
+          const suivi = res.data.find((s) => s.facture_id === id);
+          if (suivi) {
+            await axios.delete(
+              global.config.server_url + "/suivi-avancement/" + suivi.id,
+              Config
+            );
+          }
+        }
+      } catch (err) {
+        console.warn("Could not delete associated suivi or none found", err);
+      }
+
+      // 2. Delete the document
       await axios.delete(global.config.server_url + "/documents/" + id, Config);
       // Refresh data locally
       this.setState((prevState) => ({
