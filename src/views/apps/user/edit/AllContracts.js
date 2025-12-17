@@ -335,16 +335,7 @@ class AllContracts extends React.Component {
     return node.data.creator_id === consultant_id;
   };
 
-  deleteDoc(id) {
-    const Config = {
-      headers: {
-        Authorization: "Bearer " + localStorage.getItem("token"),
-      },
-    };
-    axios
-      .delete(global.config.server_url + "/documents/" + id, Config)
-      .then((response) => { });
-  }
+
 
   onBtExport = () => {
     this.gridApi.exportDataAsCsv();
@@ -420,12 +411,37 @@ class AllContracts extends React.Component {
     this.setState({ isVisible: false });
   };
   /* eslint-disable */
-  deleteDoc(id) {
+  async deleteDoc(id) {
     const Config = {
       headers: {
         Authorization: "Bearer " + localStorage.getItem("token"),
       },
     };
+
+    // Try to delete associated suivi first
+    if (this.state.rowData) {
+      const contract = this.state.rowData.find((c) => c.id === id);
+      if (contract && contract.user_id) {
+        try {
+          const res = await axios.get(
+            global.config.server_url + "/suivi-avancement/client/" + contract.user_id,
+            Config
+          );
+          if (res.data && Array.isArray(res.data)) {
+            const suivi = res.data.find((s) => s.facture_id === id);
+            if (suivi) {
+              await axios.delete(
+                global.config.server_url + "/suivi-avancement/" + suivi.id,
+                Config
+              );
+            }
+          }
+        } catch (e) {
+          console.warn("Could not delete associated suivi", e);
+        }
+      }
+    }
+
     axios
       .delete(global.config.server_url + "/documents/" + id, Config)
       .then((response) => { });
