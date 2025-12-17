@@ -9,6 +9,63 @@ import { FormattedMessage } from "react-intl";
 import { history } from "../../../../../history";
 import axios from "axios";
 
+// --- Helpers pour KPI (copié/adapté de KpiPage) ---
+const parseServices = (servicesRaw) => {
+  if (!servicesRaw) return [];
+  return servicesRaw
+    .split("/")
+    .map((s) => s.replace(/["\\]/g, "").trim().toUpperCase())
+    .filter(Boolean);
+};
+
+const getContractTypeCode = (source) => {
+  if (!source) return "none";
+  if (source.unipro === 1 || source.unipro === "1") return "credit_impot";
+  const services = parseServices(source.subscribe_services);
+  const groupCH = ["CH", "SIMU", "ACTU", "RAC"];
+  const hasGroupCH = services.some((s) => groupCH.includes(s));
+  if (hasGroupCH) return "ch_simu_actu_rac";
+  const groupAR = ["AR", "TFD"];
+  const hasGroupAR = services.some((s) => groupAR.includes(s));
+  if (hasGroupAR) return "ar_tfd";
+  return "none";
+};
+
+const STEP_DEFINITION = {
+  credit_impot: {
+    // Indexes of interest:
+    // ...
+    //   "Signature du contrat", // 1
+    //   "Activation compte Urssaf", // 2
+    //   "5 jours ouvrés d'attente", // 3
+    //   "Création devis", // 4
+    dateSteps: [1, 2, 3, 4, 5, 6, 7],
+  },
+  // We only need credit_impot for "urgent" check
+};
+
+function buildStepsForSuivi(suiviRow) {
+  // Simplified version focusing on what's needed for "Urgent" check
+  const profileKey = getContractTypeCode({ unipro: suiviRow.unipro, subscribe_services: suiviRow.subscribe_services });
+  if (profileKey !== "credit_impot") return { profileKey, steps: [] };
+
+  const config = STEP_DEFINITION.credit_impot;
+  const steps = [];
+  const startIndex = 1;
+
+  for (let i = startIndex; i <= 8; i++) {
+    const dateField = `step${i}_completed_at`;
+    const dateVal = suiviRow[dateField] || null;
+    const hasDate = !!dateVal;
+    steps.push({
+      index: i,
+      date: dateVal,
+      completed: hasDate && config.dateSteps.includes(i),
+    });
+  }
+  return { profileKey, steps };
+}
+
 class SideMenuContent extends React.Component {
   constructor(props) {
     super(props);
@@ -21,6 +78,7 @@ class SideMenuContent extends React.Component {
   }
   state = {
     badge: "",
+    crmBadge: 0, // NEW: badge pour KPI/CRM
     flag: true,
     isHovered: false,
     activeGroups: [],
@@ -115,6 +173,55 @@ class SideMenuContent extends React.Component {
         if (response.data.count > 0)
           this.setState({ badge: response.data.count + " news" });
       });
+
+    // --- Fetch KPI Urgent Count ---
+    axios.get(global.config.server_url + "/suivi-avancement/all", Config)
+      .then(res => {
+        const suivis = Array.isArray(res.data) ? res.data : [];
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+        let urgentCount = 0;
+
+        suivis.forEach(s => {
+          // Check contract state
+          const contract = s.contract || s; // fallback if needed
+          // Assuming 'document_state' is on the contract object or s itself if flattened
+          // KpiPage: s.contract.document_state
+          const isTerminated = contract && contract.document_state === "Terminé";
+          if (isTerminated) return;
+
+          const { profileKey, steps } = buildStepsForSuivi(s);
+
+          if (profileKey === "credit_impot") {
+            const step3 = steps.find(st => st.index === 3); // "5 jours ouvrés d'attente"
+            const step4 = steps.find(st => st.index === 4); // "Création devis"
+
+            // Step 3 has date AND Step 4 NOT completed
+            if (step3 && step3.date && (!step4 || !step4.completed)) {
+              // Check date logic
+              const raw = String(step3.date);
+              let datePart = raw;
+              if (raw.includes("T")) datePart = raw.split("T")[0];
+              else if (raw.includes(" ")) datePart = raw.split(" ")[0];
+
+              const [y, m, d] = datePart.split("-");
+              if (y && m && d) {
+                const d3 = new Date(Number(y), Number(m) - 1, Number(d));
+                const d3Only = new Date(d3.getFullYear(), d3.getMonth(), d3.getDate());
+
+                // If date of step 3 <= today => URGENT
+                if (d3Only.getTime() <= today.getTime()) {
+                  urgentCount++;
+                }
+              }
+            }
+          }
+        });
+
+        this.setState({ crmBadge: urgentCount });
+      })
+      .catch(err => console.error("Error fetching urgent count for sidebar", err));
   }
 
   componentDidUpdate(prevProps, prevState) {
@@ -202,15 +309,14 @@ class SideMenuContent extends React.Component {
               item.filterBase
                 ? item.filterBase
                 : item.navLink && item.type === "item"
-                ? item.navLink
-                : ""
+                  ? item.navLink
+                  : ""
             }
             href={item.type === "external-link" ? item.navLink : ""}
-            className={`d-flex ${
-              item.badgeText
-                ? "justify-content-between"
-                : "justify-content-start"
-            }`}
+            className={`d-flex ${item.badgeText
+              ? "justify-content-between"
+              : "justify-content-start"
+              }`}
             onMouseEnter={() => {
               this.props.handleSidebarMouseEnter(item.id);
             }}
@@ -237,9 +343,17 @@ class SideMenuContent extends React.Component {
                   {this.state.badge}
                 </Badge>
               </div>
-            ) : (
-              ""
-            )}
+            ) : null}
+
+            {/* ✅ Badge CRM Urgent */}
+            {item.id === "kpi" && this.state.crmBadge > 0 ? (
+              <div className="menu-badge">
+                <Badge color="danger" className="mr-1" pill>
+                  {this.state.crmBadge}
+                </Badge>
+              </div>
+            ) : null}
+
             {item.type === "collapse" ? (
               <ChevronRight className="menu-toggle-icon" size={13} />
             ) : (
