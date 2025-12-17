@@ -2236,7 +2236,7 @@ class EditContract extends React.Component {
                               textUnderlineOffset: "2px",
                             }}
                           >
-                            Société
+                            Personnel
                           </h5>
                         </Col>
                       </Row>
