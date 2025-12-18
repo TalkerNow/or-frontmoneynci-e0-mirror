@@ -8,13 +8,18 @@ import {
   User,
   Phone,
   Clock,
-  Sparkles,
+  Star,
   Loader,
   CheckCircle,
   Eye,
   X,
   Edit2,
   Trash2,
+  Brain,
+  Target,
+  AlertTriangle,
+  TrendingUp,
+  Lightbulb,
 } from "lucide-react";
 import { Badge } from "./SharedComponents";
 
@@ -61,6 +66,77 @@ async function generateGeminiContent(userPrompt) {
   } catch (error) {
     console.error("Gemini API Error:", error);
     return "Une erreur est survenue lors de la communication avec l'IA.";
+  }
+}
+
+// ========== STRATEGIC ANALYSIS PROMPT ==========
+const STRATEGIC_ANALYSIS_PROMPT = `
+RÔLE : Tu es le Directeur Commercial d'un cabinet d'expertise retraite (EOR). Tu analyses des diagnostics bruts pour mâcher le travail de tes commerciaux. Ton seul but : donner des munitions pour le CLOSING.
+
+ENTRÉE : Les données du diagnostic prospect (JSON ci-dessous).
+
+TA MISSION : Analyse les données et génère un rapport JSON strict avec ces 4 clés. Sois incisif, direct et vendeur.
+
+CONTRAINTE SUPRÊME : Réponses ultra-courtes exigées. Maximum 15 mots par section. Utilise un style télégraphique (pas de phrases complexes).
+
+1. "profil_psy" (Le ton à adopter) :
+   - Déduis la psychologie du prospect selon ses réponses.
+   - Si beaucoup de "Je ne sais pas" = Profil "PERDU" (Besoin de pédagogie/Rassurance).
+   - Si date départ irréaliste = Profil "RÊVEUR" (Besoin de recadrage expert).
+   - Si données précises = Profil "CONTRÔLANT" (Besoin de technique).
+
+2. "douleur_critique" (L'argument choc pour vendre) :
+   - Compare la "Date Départ Souhaitée" avec la législation (Age légal 64 ans ou Taux plein 67 ans).
+   - RÈGLE D'OR : Si le prospect veut partir AVANT l'âge légal (ex: 60-62 ans) sans être visiblement éligible Carrière Longue, c'est le point de douleur ultime. "Projet impossible en l'état".
+   - Si le départ est imminent (< 2 ans) : La douleur est l'URGENCE administrative.
+
+3. "mines_enterrees" (La complexité technique qui justifie nos honoraires) :
+   - Liste sous forme de bullet points courts les risques d'erreurs détectés.
+   - Mots clés à scanner : Service Militaire (risque oubli RIS), Enfants > 2 (complexité majoration), Carrière à l'étranger, Statut Indépendant/Chef d'entreprise.
+   - Format imposé : 'Mot-clé : Explication courte' (Max 6 mots par puce).
+  
+4. "leviers_closing" (L'espoir/La solution) :
+   - Liste les pistes d'optimisation.
+   - Si "Départ souhaité < Age légal" -> Suggérer impérativement : "Vérifier éligibilité Carrière Longue (RACL)".
+   - Si trous de carrière -> Suggérer : "Rachat de trimestres" ou "Récupération chômage non indemnisé".
+   - Format imposé : 'Mot-clé : Explication courte' (Max 6 mots par puce).
+
+FORMAT DE SORTIE ATTENDU (JSON EXCLUSIVEMENT) :
+{
+  "profil_psy": "Texte court",
+  "douleur_critique": "Phrase choc",
+  "mines_enterrees": ["Point 1", "Point 2"],
+  "leviers_closing": ["Piste 1", "Piste 2"]
+}
+`;
+
+async function generateStrategicAnalysis(diagnosticData) {
+  const dataJson = JSON.stringify(diagnosticData, null, 2);
+  const fullPrompt = `${STRATEGIC_ANALYSIS_PROMPT}\n\nDONNÉES DU PROSPECT :\n${dataJson}\n\nGénère le JSON d'analyse stratégique :`;
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] }),
+      }
+    );
+    if (!response.ok) throw new Error(`API Error: ${response.status}`);
+    const data = await response.json();
+    const textResult = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+    // Clean up the response and parse JSON
+    const cleanedJson = textResult
+      .replace(/```json\n?/g, "")
+      .replace(/```\n?/g, "")
+      .trim();
+
+    return JSON.parse(cleanedJson);
+  } catch (error) {
+    console.error("Strategic Analysis Error:", error);
+    return null;
   }
 }
 
@@ -732,6 +808,49 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
   // Modal state for conversation view
   const [showConversationModal, setShowConversationModal] = useState(false);
 
+  // Strategic Analysis state with localStorage persistence
+  const [strategicAnalysisCache, setStrategicAnalysisCache] = useState(() => {
+    try {
+      const stored = localStorage.getItem("inbox_strategic_analyses");
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  // Get current strategic analysis for selected item
+  const strategicAnalysis = selectedItem?.id
+    ? strategicAnalysisCache[selectedItem.id]
+    : null;
+
+  // Persist analyses to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "inbox_strategic_analyses",
+        JSON.stringify(strategicAnalysisCache)
+      );
+    } catch (e) {
+      console.error("Failed to save analyses:", e);
+    }
+  }, [strategicAnalysisCache]);
+
+  // Handler to generate strategic analysis
+  const handleGenerateStrategicAnalysis = async () => {
+    if (!selectedItem?.raw || !selectedItem?.id) return;
+    setIsAnalyzing(true);
+
+    const result = await generateStrategicAnalysis(selectedItem.raw);
+    if (result) {
+      setStrategicAnalysisCache((prev) => ({
+        ...prev,
+        [selectedItem.id]: result,
+      }));
+    }
+    setIsAnalyzing(false);
+  };
+
   // Update selectedItem when inboxItems change
   useEffect(() => {
     if (inboxItems.length > 0) {
@@ -1217,7 +1336,7 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
                   >
                     <div
                       style={{
-                        fontSize: "11px",
+                        fontSize: "15px",
                         color: "#ea580c",
                         fontWeight: 600,
                         marginBottom: "4px",
@@ -1232,9 +1351,18 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
                         color: "#1f2937",
                       }}
                     >
-                      {selectedItem.raw?.birth_date ||
-                        selectedItem.raw?.date_naissance ||
-                        "-"}
+                      {(() => {
+                        const d =
+                          selectedItem.raw?.birth_date ||
+                          selectedItem.raw?.date_naissance ||
+                          selectedItem.raw?.attributes?.DATE_NAISSANCE;
+                        if (!d) return "-";
+                        try {
+                          return new Date(d).toLocaleDateString("fr-FR");
+                        } catch {
+                          return d;
+                        }
+                      })()}
                     </div>
                   </div>
                   <div
@@ -1247,7 +1375,7 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
                   >
                     <div
                       style={{
-                        fontSize: "11px",
+                        fontSize: "15px",
                         color: "#ea580c",
                         fontWeight: 600,
                         marginBottom: "4px",
@@ -1257,119 +1385,774 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
                     </div>
                     <div
                       style={{
-                        fontSize: "16px",
-                        fontWeight: 700,
-                        color: "#1f2937",
+                        display: "flex",
+                        alignItems: "baseline",
+                        gap: "12px",
+                        flexWrap: "wrap",
                       }}
                     >
-                      {selectedItem.raw?.departure_date ||
-                        selectedItem.raw?.date_depart ||
-                        "-"}
-                    </div>
-                    {selectedItem.raw?.age_at_departure && (
                       <span
                         style={{
-                          backgroundColor: "#fed7aa",
-                          borderRadius: "999px",
-                          padding: "2px 8px",
-                          fontSize: "11px",
-                          fontWeight: 600,
-                          color: "#9a3412",
-                          marginLeft: "8px",
+                          fontSize: "18px",
+                          fontWeight: 700,
+                          color: "#1f2937",
                         }}
                       >
-                        ({selectedItem.raw.age_at_departure})
+                        {(() => {
+                          const d =
+                            selectedItem.raw?.departure_date ||
+                            selectedItem.raw?.date_depart ||
+                            selectedItem.raw?.attributes
+                              ?.SIMULATEUR_DIFFICULTE_DATE_DEPART;
+                          if (!d) return "-";
+                          try {
+                            return new Date(d).toLocaleDateString("fr-FR");
+                          } catch {
+                            return d;
+                          }
+                        })()}
                       </span>
-                    )}
+                      {(() => {
+                        const birthDate =
+                          selectedItem.raw?.birth_date ||
+                          selectedItem.raw?.date_naissance ||
+                          selectedItem.raw?.attributes?.DATE_NAISSANCE;
+                        const departDate =
+                          selectedItem.raw?.departure_date ||
+                          selectedItem.raw?.date_depart ||
+                          selectedItem.raw?.attributes
+                            ?.SIMULATEUR_DIFFICULTE_DATE_DEPART;
+                        if (!birthDate || !departDate) return null;
+                        try {
+                          const birth = new Date(birthDate);
+                          const depart = new Date(departDate);
+                          let years =
+                            depart.getFullYear() - birth.getFullYear();
+                          let months = depart.getMonth() - birth.getMonth();
+                          if (months < 0) {
+                            years--;
+                            months += 12;
+                          }
+                          return (
+                            <span
+                              style={{
+                                fontSize: "14px",
+                                fontWeight: 600,
+                                color: "#ea580c",
+                              }}
+                            >
+                              ({years} ans
+                              {months > 0 ? ` et ${months} mois` : ""})
+                            </span>
+                          );
+                        } catch {
+                          return null;
+                        }
+                      })()}
+                    </div>
                   </div>
                 </div>
 
-                {/* Repères Clés */}
-                {(selectedItem.raw?.age_legal ||
-                  selectedItem.raw?.taux_plein_auto) && (
-                  <div
-                    style={{
-                      borderTop: "1px solid #fed7aa",
-                      paddingTop: "12px",
-                    }}
-                  >
+                {/* User Info Section */}
+                {(() => {
+                  const attrs = selectedItem.raw?.attributes || {};
+                  const children = attrs.NBR_ENFANTS;
+                  const military = attrs.SIMULATEUR_DIFFICULTE_Q11;
+                  if (!children && !military) return null;
+                  return (
                     <div
                       style={{
-                        fontSize: "12px",
-                        fontWeight: 600,
-                        color: "#9a3412",
-                        marginBottom: "8px",
                         display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
+                        gap: "12px",
+                        marginBottom: "16px",
+                        flexWrap: "wrap",
                       }}
                     >
-                      <Clock size={14} /> Repères clés (calculés)
+                      {children != null && (
+                        <div
+                          style={{
+                            backgroundColor: "#fff",
+                            borderRadius: "8px",
+                            padding: "10px 14px",
+                            border: "1px solid #fed7aa",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                          }}
+                        >
+                          <User size={16} color="#ea580c" />
+                          <span style={{ fontSize: "15px", color: "#374151" }}>
+                            <strong>{children}</strong> enfant
+                            {parseInt(children) > 1 ? "s" : ""}
+                          </span>
+                        </div>
+                      )}
+                      {military && military.toLowerCase() === "oui" && (
+                        <div
+                          style={{
+                            backgroundColor: "#fff",
+                            borderRadius: "8px",
+                            padding: "10px 14px",
+                            border: "1px solid #dcfce7",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                          }}
+                        >
+                          <CheckCircle size={16} color="#16a34a" />
+                          <span style={{ fontSize: "15px", color: "#374151" }}>
+                            Service militaire effectué
+                          </span>
+                        </div>
+                      )}
                     </div>
+                  );
+                })()}
+
+                {/* Repères Clés - Calculés */}
+                {(() => {
+                  const birthDate =
+                    selectedItem.raw?.birth_date ||
+                    selectedItem.raw?.date_naissance ||
+                    selectedItem.raw?.attributes?.DATE_NAISSANCE;
+                  if (!birthDate) return null;
+                  try {
+                    const birth = new Date(birthDate);
+                    const birthYear = birth.getFullYear();
+                    const legalAge = 64;
+                    const legalDate = new Date(birth);
+                    legalDate.setFullYear(birthYear + legalAge);
+                    const tauxPleinAge = 67;
+                    const tauxPleinDate = new Date(birth);
+                    tauxPleinDate.setFullYear(birthYear + tauxPleinAge);
+                    return (
+                      <div
+                        style={{
+                          backgroundColor: "#f9fafb",
+                          borderRadius: "12px",
+                          padding: "16px",
+                          marginBottom: "16px",
+                          border: "1px solid #e5e7eb",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            color: "#374151",
+                            marginBottom: "12px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                          }}
+                        >
+                          <Clock size={14} /> REPÈRES CLÉS (CALCULÉS)
+                        </div>
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr",
+                            gap: "20px",
+                          }}
+                        >
+                          <div>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                marginBottom: "4px",
+                              }}
+                            >
+                              <Clock size={14} color="#ea580c" />
+                              <span
+                                style={{ fontSize: "12px", color: "#374151" }}
+                              >
+                                Âge Légal
+                              </span>
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "18px",
+                                fontWeight: 700,
+                                color: "#ea580c",
+                              }}
+                            >
+                              {legalDate.toLocaleDateString("fr-FR")}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "15px",
+                                color: "#374151",
+                                fontWeight: 500,
+                              }}
+                            >
+                              {legalAge} ans
+                            </div>
+                          </div>
+                          <div>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                marginBottom: "4px",
+                              }}
+                            >
+                              <Target size={14} color="#16a34a" />
+                              <span
+                                style={{
+                                  fontSize: "12px",
+                                  color: "#374151",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                Taux Plein Auto
+                              </span>
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "18px",
+                                fontWeight: 700,
+                                color: "#16a34a",
+                              }}
+                            >
+                              {tauxPleinDate.toLocaleDateString("fr-FR")}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "15px",
+                                color: "#374151",
+                                fontWeight: 500,
+                              }}
+                            >
+                              Automatique à {tauxPleinAge} ans
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  } catch {
+                    return null;
+                  }
+                })()}
+
+                {/* Old API-based Repères (hidden if we calculated) */}
+                {!(
+                  selectedItem.raw?.birth_date ||
+                  selectedItem.raw?.date_naissance ||
+                  selectedItem.raw?.attributes?.DATE_NAISSANCE
+                ) &&
+                  (selectedItem.raw?.age_legal ||
+                    selectedItem.raw?.taux_plein_auto) && (
                     <div
                       style={{
-                        display: "grid",
-                        gridTemplateColumns: "1fr 1fr",
-                        gap: "16px",
+                        borderTop: "1px solid #fed7aa",
+                        paddingTop: "12px",
                       }}
                     >
-                      {selectedItem.raw?.age_legal && (
-                        <div>
-                          <div
-                            style={{
-                              fontSize: "11px",
-                              color: "#6b7280",
-                              marginBottom: "2px",
-                            }}
-                          >
-                            🚩 Âge Légal
+                      <div
+                        style={{
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          color: "#9a3412",
+                          marginBottom: "8px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                        }}
+                      >
+                        <Clock size={14} /> Repères clés (calculés)
+                      </div>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr 1fr",
+                          gap: "16px",
+                        }}
+                      >
+                        {selectedItem.raw?.age_legal && (
+                          <div>
+                            <div
+                              style={{
+                                fontSize: "15px",
+                                color: "#374151",
+                                marginBottom: "2px",
+                              }}
+                            >
+                              <Clock
+                                size={12}
+                                style={{ marginRight: "4px", color: "#ea580c" }}
+                              />{" "}
+                              Âge Légal
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "15px",
+                                fontWeight: 700,
+                                color: "#ea580c",
+                              }}
+                            >
+                              {selectedItem.raw.age_legal}
+                            </div>
+                            <div style={{ fontSize: "15px", color: "#374151" }}>
+                              {selectedItem.raw.age_legal_details || ""}
+                            </div>
                           </div>
-                          <div
-                            style={{
-                              fontSize: "15px",
-                              fontWeight: 700,
-                              color: "#ea580c",
-                            }}
-                          >
-                            {selectedItem.raw.age_legal}
+                        )}
+                        {selectedItem.raw?.taux_plein_auto && (
+                          <div>
+                            <div
+                              style={{
+                                fontSize: "15px",
+                                color: "#374151",
+                                marginBottom: "2px",
+                              }}
+                            >
+                              <Target
+                                size={12}
+                                style={{ marginRight: "4px", color: "#ea580c" }}
+                              />{" "}
+                              Taux Plein Auto
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "15px",
+                                fontWeight: 700,
+                                color: "#ea580c",
+                              }}
+                            >
+                              {selectedItem.raw.taux_plein_auto}
+                            </div>
+                            <div style={{ fontSize: "15px", color: "#374151" }}>
+                              {selectedItem.raw.taux_plein_details || ""}
+                            </div>
                           </div>
-                          <div style={{ fontSize: "11px", color: "#9ca3af" }}>
-                            {selectedItem.raw.age_legal_details || ""}
-                          </div>
-                        </div>
-                      )}
-                      {selectedItem.raw?.taux_plein_auto && (
-                        <div>
-                          <div
-                            style={{
-                              fontSize: "11px",
-                              color: "#6b7280",
-                              marginBottom: "2px",
-                            }}
-                          >
-                            🎯 Taux Plein Auto
-                          </div>
-                          <div
-                            style={{
-                              fontSize: "15px",
-                              fontWeight: 700,
-                              color: "#ea580c",
-                            }}
-                          >
-                            {selectedItem.raw.taux_plein_auto}
-                          </div>
-                          <div style={{ fontSize: "11px", color: "#9ca3af" }}>
-                            {selectedItem.raw.taux_plein_details || ""}
-                          </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
               </div>
 
-              {/* Analyse Stratégique (IA) */}
-              {selectedItem.raw?.expert_analysis && (
+              {/* Questionnaire Responses */}
+              {selectedItem.raw?.attributes && (
+                <div
+                  style={{
+                    backgroundColor: "#f8fafc",
+                    borderRadius: "12px",
+                    padding: "20px",
+                    marginBottom: "16px",
+                    border: "1px solid #e2e8f0",
+                  }}
+                >
+                  <h3
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "bold",
+                      color: "#334155",
+                      marginBottom: "16px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    <ClipboardList size={14} style={{ marginRight: "4px" }} />{" "}
+                    Réponses au Questionnaire
+                  </h3>
+
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <tbody>
+                      {/* Q1 */}
+                      <tr>
+                        <td
+                          style={{
+                            padding: "10px 12px",
+                            borderBottom: "1px solid #e2e8f0",
+                            width: "60%",
+                            color: "#475569",
+                            fontWeight: 500,
+                            fontSize: "15px",
+                          }}
+                        >
+                          Combien d'entreprises durant votre carrière ?
+                        </td>
+                        <td
+                          style={{
+                            padding: "10px 12px",
+                            borderBottom: "1px solid #e2e8f0",
+                            backgroundColor: ["9+", "4-9", "4–9"].some((v) =>
+                              (
+                                selectedItem.raw.attributes
+                                  .SIMULATEUR_DIFFICULTE_Q1 || ""
+                              )
+                                .toString()
+                                .includes(v)
+                            )
+                              ? "#dcfce7"
+                              : "transparent",
+                            fontWeight: 600,
+                            color: "#1f2937",
+                          }}
+                        >
+                          {selectedItem.raw.attributes
+                            .SIMULATEUR_DIFFICULTE_Q1 || "—"}
+                        </td>
+                      </tr>
+
+                      {/* Q2 */}
+                      <tr>
+                        <td
+                          style={{
+                            padding: "10px 12px",
+                            borderBottom: "1px solid #e2e8f0",
+                            color: "#475569",
+                            fontWeight: 500,
+                            fontSize: "15px",
+                          }}
+                        >
+                          Travaillé dans plusieurs entreprises à la fois ?
+                        </td>
+                        <td
+                          style={{
+                            padding: "10px 12px",
+                            borderBottom: "1px solid #e2e8f0",
+                            backgroundColor:
+                              (
+                                selectedItem.raw.attributes
+                                  .SIMULATEUR_DIFFICULTE_Q2 || ""
+                              ).toLowerCase() === "oui"
+                                ? "#dcfce7"
+                                : "transparent",
+                            fontWeight: 600,
+                            color: "#1f2937",
+                          }}
+                        >
+                          {selectedItem.raw.attributes
+                            .SIMULATEUR_DIFFICULTE_Q2 || "—"}
+                        </td>
+                      </tr>
+
+                      {/* Q3 */}
+                      <tr>
+                        <td
+                          style={{
+                            padding: "10px 12px",
+                            borderBottom: "1px solid #e2e8f0",
+                            color: "#475569",
+                            fontWeight: 500,
+                            fontSize: "15px",
+                          }}
+                        >
+                          Travaillé à l'étranger ?
+                        </td>
+                        <td
+                          style={{
+                            padding: "10px 12px",
+                            borderBottom: "1px solid #e2e8f0",
+                            backgroundColor:
+                              (
+                                selectedItem.raw.attributes
+                                  .SIMULATEUR_DIFFICULTE_Q3 || ""
+                              ).toLowerCase() === "oui"
+                                ? "#dcfce7"
+                                : "transparent",
+                            fontWeight: 600,
+                            color: "#1f2937",
+                          }}
+                        >
+                          {selectedItem.raw.attributes
+                            .SIMULATEUR_DIFFICULTE_Q3 || "—"}
+                        </td>
+                      </tr>
+
+                      {/* Q4 */}
+                      <tr>
+                        <td
+                          style={{
+                            padding: "10px 12px",
+                            borderBottom: "1px solid #e2e8f0",
+                            color: "#475569",
+                            fontWeight: 500,
+                            fontSize: "15px",
+                          }}
+                        >
+                          Arrêt maladie, accident du travail ou chômage ?
+                        </td>
+                        <td
+                          style={{
+                            padding: "10px 12px",
+                            borderBottom: "1px solid #e2e8f0",
+                            backgroundColor:
+                              (
+                                selectedItem.raw.attributes
+                                  .SIMULATEUR_DIFFICULTE_Q4 || ""
+                              ).toLowerCase() === "oui"
+                                ? "#dcfce7"
+                                : "transparent",
+                            fontWeight: 600,
+                            color: "#1f2937",
+                          }}
+                        >
+                          {selectedItem.raw.attributes
+                            .SIMULATEUR_DIFFICULTE_Q4 || "—"}
+                        </td>
+                      </tr>
+
+                      {/* Q5 */}
+                      <tr>
+                        <td
+                          style={{
+                            padding: "10px 12px",
+                            borderBottom: "1px solid #e2e8f0",
+                            color: "#475569",
+                            fontWeight: 500,
+                            fontSize: "15px",
+                          }}
+                        >
+                          Fonctionnaire, assimilé ou régimes spéciaux ?
+                        </td>
+                        <td
+                          style={{
+                            padding: "10px 12px",
+                            borderBottom: "1px solid #e2e8f0",
+                            backgroundColor: [
+                              "oui_contractuel",
+                              "oui_fonctionnaire",
+                            ].includes(
+                              (
+                                selectedItem.raw.attributes
+                                  .SIMULATEUR_DIFFICULTE_Q5 || ""
+                              ).toLowerCase()
+                            )
+                              ? "#dcfce7"
+                              : "transparent",
+                            fontWeight: 600,
+                            color: "#1f2937",
+                          }}
+                        >
+                          {selectedItem.raw.attributes
+                            .SIMULATEUR_DIFFICULTE_Q5 || "—"}
+                        </td>
+                      </tr>
+
+                      {/* Q6 */}
+                      <tr>
+                        <td
+                          style={{
+                            padding: "10px 12px",
+                            borderBottom: "1px solid #e2e8f0",
+                            color: "#475569",
+                            fontWeight: 500,
+                            fontSize: "15px",
+                          }}
+                        >
+                          Profession libérale / gérant / chef d'entreprise ?
+                        </td>
+                        <td
+                          style={{
+                            padding: "10px 12px",
+                            borderBottom: "1px solid #e2e8f0",
+                            backgroundColor:
+                              (
+                                selectedItem.raw.attributes
+                                  .SIMULATEUR_DIFFICULTE_Q6 || ""
+                              ).toLowerCase() === "oui"
+                                ? "#dcfce7"
+                                : "transparent",
+                            fontWeight: 600,
+                            color: "#1f2937",
+                          }}
+                        >
+                          {selectedItem.raw.attributes
+                            .SIMULATEUR_DIFFICULTE_Q6 || "—"}
+                        </td>
+                      </tr>
+
+                      {/* Q7 */}
+                      <tr>
+                        <td
+                          style={{
+                            padding: "10px 12px",
+                            borderBottom: "1px solid #e2e8f0",
+                            color: "#475569",
+                            fontWeight: 500,
+                            fontSize: "15px",
+                          }}
+                        >
+                          Sources de revenus complémentaires ?
+                        </td>
+                        <td
+                          style={{
+                            padding: "10px 12px",
+                            borderBottom: "1px solid #e2e8f0",
+                            fontWeight: 600,
+                            color: "#1f2937",
+                          }}
+                        >
+                          {selectedItem.raw.attributes.SIMULATEUR_DIFFICULTE_Q7
+                            ? selectedItem.raw.attributes.SIMULATEUR_DIFFICULTE_Q7.split(
+                                ","
+                              ).map((v, i) => (
+                                <span
+                                  key={i}
+                                  style={{
+                                    display: "inline-block",
+                                    border: "1px solid #e2e8f0",
+                                    borderRadius: "999px",
+                                    padding: "2px 8px",
+                                    margin: "2px 4px 2px 0",
+                                    fontSize: "15px",
+                                    background: "#f8fafc",
+                                  }}
+                                >
+                                  {v.replace(/_/g, " ")}
+                                </span>
+                              ))
+                            : "—"}
+                        </td>
+                      </tr>
+
+                      {/* Q8 */}
+                      <tr>
+                        <td
+                          style={{
+                            padding: "10px 12px",
+                            borderBottom: "1px solid #e2e8f0",
+                            color: "#475569",
+                            fontWeight: 500,
+                            fontSize: "15px",
+                          }}
+                        >
+                          Consulté relevés de carrière (Assurance Retraite) ?
+                        </td>
+                        <td
+                          style={{
+                            padding: "10px 12px",
+                            borderBottom: "1px solid #e2e8f0",
+                            backgroundColor:
+                              (
+                                selectedItem.raw.attributes
+                                  .SIMULATEUR_DIFFICULTE_Q8 || ""
+                              ).toLowerCase() === "non"
+                                ? "#dcfce7"
+                                : "transparent",
+                            fontWeight: 600,
+                            color: "#1f2937",
+                          }}
+                        >
+                          {selectedItem.raw.attributes
+                            .SIMULATEUR_DIFFICULTE_Q8 || "—"}
+                        </td>
+                      </tr>
+
+                      {/* Q9 */}
+                      <tr>
+                        <td
+                          style={{
+                            padding: "10px 12px",
+                            borderBottom: "1px solid #e2e8f0",
+                            color: "#475569",
+                            fontWeight: 500,
+                            fontSize: "15px",
+                          }}
+                        >
+                          Connaissance du rachat de trimestres ?
+                        </td>
+                        <td
+                          style={{
+                            padding: "10px 12px",
+                            borderBottom: "1px solid #e2e8f0",
+                            fontWeight: 600,
+                            color: "#1f2937",
+                          }}
+                        >
+                          {selectedItem.raw.attributes
+                            .SIMULATEUR_DIFFICULTE_Q9 || "—"}
+                        </td>
+                      </tr>
+
+                      {/* Q10 */}
+                      <tr>
+                        <td
+                          style={{
+                            padding: "10px 12px",
+                            borderBottom: "1px solid #e2e8f0",
+                            color: "#475569",
+                            fontWeight: 500,
+                            fontSize: "15px",
+                          }}
+                        >
+                          Cumul emploi-retraite / cessation progressive ?
+                        </td>
+                        <td
+                          style={{
+                            padding: "10px 12px",
+                            borderBottom: "1px solid #e2e8f0",
+                            fontWeight: 600,
+                            color: "#1f2937",
+                          }}
+                        >
+                          {selectedItem.raw.attributes.SIMULATEUR_DIFFICULTE_Q10
+                            ? selectedItem.raw.attributes.SIMULATEUR_DIFFICULTE_Q10.split(
+                                ","
+                              ).map((v, i) => (
+                                <span
+                                  key={i}
+                                  style={{
+                                    display: "inline-block",
+                                    border: "1px solid #e2e8f0",
+                                    borderRadius: "999px",
+                                    padding: "2px 8px",
+                                    margin: "2px 4px 2px 0",
+                                    fontSize: "15px",
+                                    background: "#f8fafc",
+                                  }}
+                                >
+                                  {v.replace(/_/g, " ")}
+                                </span>
+                              ))
+                            : "—"}
+                        </td>
+                      </tr>
+
+                      {/* Q11 */}
+                      <tr>
+                        <td
+                          style={{
+                            padding: "10px 12px",
+                            borderBottom: "1px solid #e2e8f0",
+                            color: "#475569",
+                            fontWeight: 500,
+                            fontSize: "15px",
+                          }}
+                        >
+                          Service militaire ?
+                        </td>
+                        <td
+                          style={{
+                            padding: "10px 12px",
+                            borderBottom: "1px solid #e2e8f0",
+                            backgroundColor:
+                              (
+                                selectedItem.raw.attributes
+                                  .SIMULATEUR_DIFFICULTE_Q11 || ""
+                              ).toLowerCase() === "oui"
+                                ? "#dcfce7"
+                                : "transparent",
+                            fontWeight: 600,
+                            color: "#1f2937",
+                          }}
+                        >
+                          {selectedItem.raw.attributes
+                            .SIMULATEUR_DIFFICULTE_Q11 || "—"}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Analyse Stratégique (IA) - Dynamic */}
+              {selectedItem.type === "diagnostic" && (
                 <div
                   style={{
                     backgroundColor: "#faf5ff",
@@ -1379,202 +2162,301 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
                     border: "1px solid #e9d5ff",
                   }}
                 >
-                  <h4
+                  <div
                     style={{
-                      fontSize: "13px",
-                      fontWeight: 700,
-                      color: "#7c3aed",
-                      marginBottom: "12px",
                       display: "flex",
+                      justifyContent: "space-between",
                       alignItems: "center",
-                      gap: "8px",
+                      marginBottom: "16px",
                     }}
                   >
-                    <Sparkles size={16} /> Analyse Stratégique (IA)
-                  </h4>
-
-                  {/* Profil Psychologique */}
-                  {selectedItem.raw.expert_analysis.profile && (
-                    <div
+                    <h4
                       style={{
-                        backgroundColor: "#fff",
-                        borderRadius: "8px",
-                        padding: "12px",
-                        marginBottom: "12px",
-                        border: "1px solid #e9d5ff",
+                        fontSize: "15px",
+                        fontWeight: 700,
+                        color: "#7c3aed",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        margin: 0,
                       }}
                     >
-                      <div
+                      <Star size={16} /> Analyse Stratégique (IA)
+                    </h4>
+                    {!strategicAnalysis && !isAnalyzing && (
+                      <button
+                        onClick={handleGenerateStrategicAnalysis}
                         style={{
-                          fontSize: "11px",
-                          color: "#7c3aed",
+                          padding: "8px 16px",
+                          fontSize: "12px",
                           fontWeight: 600,
-                          marginBottom: "4px",
+                          color: "#7c3aed",
+                          backgroundColor: "#fff",
+                          border: "1px solid #c4b5fd",
+                          borderRadius: "8px",
+                          cursor: "pointer",
                           display: "flex",
                           alignItems: "center",
-                          gap: "4px",
+                          gap: "6px",
                         }}
                       >
-                        🧠 Profil Psychologique
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "14px",
-                          fontWeight: 700,
-                          color: "#1f2937",
-                          marginBottom: "4px",
-                        }}
-                      >
-                        Profil :{" "}
-                        {selectedItem.raw.expert_analysis.profile.label}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "12px",
-                          color: "#6b7280",
-                          fontStyle: "italic",
-                        }}
-                      >
-                        {selectedItem.raw.expert_analysis.profile.advice}
-                      </div>
+                        <Star size={14} /> Générer l'analyse
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Loading State */}
+                  {isAnalyzing && (
+                    <div
+                      style={{
+                        textAlign: "center",
+                        padding: "24px",
+                        color: "#7c3aed",
+                      }}
+                    >
+                      <Loader
+                        size={24}
+                        style={{ animation: "spin 1s linear infinite" }}
+                      />
+                      <p style={{ marginTop: "12px", fontSize: "13px" }}>
+                        Analyse en cours...
+                      </p>
                     </div>
                   )}
 
-                  {/* Pain Points, Mines, Leviers */}
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr 1fr",
-                      gap: "12px",
-                    }}
-                  >
-                    {/* Point de Douleur */}
-                    {selectedItem.raw.expert_analysis.pain_point && (
-                      <div
-                        style={{
-                          backgroundColor: "#fef2f2",
-                          borderRadius: "8px",
-                          padding: "10px",
-                          border: "1px solid #fecaca",
-                        }}
-                      >
+                  {/* Results */}
+                  {strategicAnalysis && (
+                    <>
+                      {/* Profil Psychologique - Full Width Card */}
+                      {strategicAnalysis.profil_psy && (
                         <div
                           style={{
-                            fontSize: "10px",
-                            fontWeight: 700,
-                            color: "#dc2626",
-                            marginBottom: "6px",
-                            textTransform: "uppercase",
+                            backgroundColor: "#fff",
+                            borderRadius: "8px",
+                            padding: "16px",
+                            marginBottom: "12px",
+                            border: "1px solid #e9d5ff",
+                            borderLeft: "4px solid #7c3aed",
                           }}
                         >
-                          🎯 Point de Douleur
+                          <div
+                            style={{
+                              fontSize: "10px",
+                              fontWeight: 700,
+                              color: "#7c3aed",
+                              marginBottom: "8px",
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            <Brain size={14} style={{ marginRight: "4px" }} />{" "}
+                            Profil Psychologique
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "15px",
+                              fontWeight: 700,
+                              color: "#1f2937",
+                              marginBottom: "6px",
+                            }}
+                          >
+                            Profil : {strategicAnalysis.profil_psy.label}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "12px",
+                              color: "#374151",
+                              marginBottom: "6px",
+                            }}
+                          >
+                            {strategicAnalysis.profil_psy.description}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "12px",
+                              color: "#7c3aed",
+                              fontStyle: "italic",
+                            }}
+                          >
+                            <Lightbulb
+                              size={12}
+                              style={{ marginRight: "4px" }}
+                            />{" "}
+                            {strategicAnalysis.profil_psy.conseil}
+                          </div>
                         </div>
-                        <div
-                          style={{
-                            fontSize: "13px",
-                            fontWeight: 600,
-                            color: "#1f2937",
-                            marginBottom: "4px",
-                          }}
-                        >
-                          {selectedItem.raw.expert_analysis.pain_point.title ||
-                            "Écart Critique"}
-                        </div>
-                        <div style={{ fontSize: "11px", color: "#6b7280" }}>
-                          {
-                            selectedItem.raw.expert_analysis.pain_point
-                              .description
-                          }
-                        </div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* Mines Enterrées */}
-                    {selectedItem.raw.expert_analysis.hidden_mines && (
+                      {/* 3-Column Grid for Pain/Mines/Levers */}
                       <div
                         style={{
-                          backgroundColor: "#fefce8",
-                          borderRadius: "8px",
-                          padding: "10px",
-                          border: "1px solid #fef08a",
+                          display: "grid",
+                          gridTemplateColumns: "1fr 1fr 1fr",
+                          gap: "12px",
                         }}
                       >
-                        <div
-                          style={{
-                            fontSize: "10px",
-                            fontWeight: 700,
-                            color: "#ca8a04",
-                            marginBottom: "6px",
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          💣 Mines Enterrées
-                        </div>
-                        <ul
-                          style={{
-                            margin: 0,
-                            paddingLeft: "14px",
-                            fontSize: "11px",
-                            color: "#6b7280",
-                          }}
-                        >
-                          {(Array.isArray(
-                            selectedItem.raw.expert_analysis.hidden_mines
-                          )
-                            ? selectedItem.raw.expert_analysis.hidden_mines
-                            : [selectedItem.raw.expert_analysis.hidden_mines]
-                          ).map((mine, i) => (
-                            <li key={i} style={{ marginBottom: "4px" }}>
-                              {mine}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                        {/* Point de Douleur */}
+                        {strategicAnalysis.douleur_critique && (
+                          <div
+                            style={{
+                              backgroundColor: "#fef2f2",
+                              borderRadius: "8px",
+                              padding: "12px",
+                              border: "1px solid #fecaca",
+                              borderTop: "3px solid #dc2626",
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontSize: "10px",
+                                fontWeight: 700,
+                                color: "#dc2626",
+                                marginBottom: "8px",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              <Target
+                                size={12}
+                                style={{ marginRight: "4px" }}
+                              />{" "}
+                              Point de Douleur
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "14px",
+                                fontWeight: 700,
+                                color: "#991b1b",
+                                marginBottom: "6px",
+                              }}
+                            >
+                              {strategicAnalysis.douleur_critique.titre}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "15px",
+                                color: "#374151",
+                                lineHeight: "1.4",
+                              }}
+                            >
+                              {strategicAnalysis.douleur_critique.description}
+                            </div>
+                          </div>
+                        )}
 
-                    {/* Leviers */}
-                    {selectedItem.raw.expert_analysis.levers && (
-                      <div
-                        style={{
-                          backgroundColor: "#f0fdf4",
-                          borderRadius: "8px",
-                          padding: "10px",
-                          border: "1px solid #bbf7d0",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: "10px",
-                            fontWeight: 700,
-                            color: "#16a34a",
-                            marginBottom: "6px",
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          🔧 Leviers
-                        </div>
-                        <ul
-                          style={{
-                            margin: 0,
-                            paddingLeft: "14px",
-                            fontSize: "11px",
-                            color: "#6b7280",
-                          }}
-                        >
-                          {(Array.isArray(
-                            selectedItem.raw.expert_analysis.levers
-                          )
-                            ? selectedItem.raw.expert_analysis.levers
-                            : [selectedItem.raw.expert_analysis.levers]
-                          ).map((lever, i) => (
-                            <li key={i} style={{ marginBottom: "4px" }}>
-                              {lever}
-                            </li>
-                          ))}
-                        </ul>
+                        {/* Mines Enterrées */}
+                        {strategicAnalysis.mines_enterrees && (
+                          <div
+                            style={{
+                              backgroundColor: "#fffbeb",
+                              borderRadius: "8px",
+                              padding: "12px",
+                              border: "1px solid #fde68a",
+                              borderTop: "3px solid #ca8a04",
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontSize: "10px",
+                                fontWeight: 700,
+                                color: "#ca8a04",
+                                marginBottom: "8px",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              <AlertTriangle
+                                size={12}
+                                style={{ marginRight: "4px" }}
+                              />{" "}
+                              Mines Enterrées
+                            </div>
+                            <ul
+                              style={{
+                                margin: 0,
+                                paddingLeft: "14px",
+                                fontSize: "15px",
+                                color: "#374151",
+                              }}
+                            >
+                              {strategicAnalysis.mines_enterrees.map(
+                                (mine, i) => (
+                                  <li
+                                    key={i}
+                                    style={{
+                                      marginBottom: "4px",
+                                      color: mine.danger
+                                        ? "#b45309"
+                                        : "#6b7280",
+                                    }}
+                                  >
+                                    {mine.point || mine}
+                                  </li>
+                                )
+                              )}
+                            </ul>
+                          </div>
+                        )}
+
+                        {/* Leviers Closing */}
+                        {strategicAnalysis.leviers_closing && (
+                          <div
+                            style={{
+                              backgroundColor: "#f0fdf4",
+                              borderRadius: "8px",
+                              padding: "12px",
+                              border: "1px solid #bbf7d0",
+                              borderTop: "3px solid #16a34a",
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontSize: "10px",
+                                fontWeight: 700,
+                                color: "#16a34a",
+                                marginBottom: "8px",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              <TrendingUp
+                                size={12}
+                                style={{ marginRight: "4px" }}
+                              />{" "}
+                              Leviers
+                            </div>
+                            <ul
+                              style={{
+                                margin: 0,
+                                paddingLeft: "14px",
+                                fontSize: "15px",
+                                color: "#374151",
+                              }}
+                            >
+                              {strategicAnalysis.leviers_closing.map(
+                                (lever, i) => (
+                                  <li key={i} style={{ marginBottom: "4px" }}>
+                                    {lever.piste || lever}
+                                  </li>
+                                )
+                              )}
+                            </ul>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    </>
+                  )}
+
+                  {/* Empty State */}
+                  {!strategicAnalysis && !isAnalyzing && (
+                    <div
+                      style={{
+                        textAlign: "center",
+                        padding: "16px",
+                        color: "#374151",
+                        fontSize: "15px",
+                      }}
+                    >
+                      Cliquez sur "Générer l'analyse" pour obtenir un diagnostic
+                      commercial personnalisé.
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1717,7 +2599,7 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
                       border: "none",
                       cursor: "pointer",
                       padding: "4px",
-                      color: "#6b7280",
+                      color: "#374151",
                     }}
                   >
                     <X size={20} />
@@ -1777,8 +2659,8 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
                             </div>
                             <span
                               style={{
-                                fontSize: "11px",
-                                color: "#9ca3af",
+                                fontSize: "15px",
+                                color: "#374151",
                                 marginTop: "4px",
                                 paddingLeft: msg.role === "user" ? "0" : "4px",
                                 paddingRight: msg.role === "user" ? "4px" : "0",
@@ -1793,7 +2675,7 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
                     <div
                       style={{
                         textAlign: "center",
-                        color: "#9ca3af",
+                        color: "#374151",
                         padding: "32px",
                       }}
                     >
@@ -1840,7 +2722,7 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
                     borderRadius: "999px",
                   }}
                 >
-                  🌠 Brouillon IA
+                  <Star size={14} style={{ marginRight: "4px" }} /> Brouillon IA
                 </button>
               )}
             </div>
