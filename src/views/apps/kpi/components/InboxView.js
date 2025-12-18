@@ -7,30 +7,18 @@ import {
   ArrowRight,
   User,
   Phone,
-  Mail,
   Clock,
-  Flag,
-  Award,
   Sparkles,
-  BrainCircuit,
-  AlertOctagon,
-  Bomb,
-  TrendingUp,
-  ThumbsDown,
-  MessageCircleWarning,
-  Send,
   Loader,
-  Copy,
-  Calendar,
   CheckCircle,
+  Eye,
+  X,
+  Edit2,
+  Trash2,
 } from "lucide-react";
 import { Badge } from "./SharedComponents";
-import ChatbotDetailView from "../ChatbotDetailView"; // Reusing the detail view if possible, or adapting the code provided
-// Actually, the new code provides its own Detail View logic.
-// I will adapt the PROVIDED code for InboxView, but integration with the *existing* ChatbotDetailView might be cleaner if they are similar.
-// Looking at the provided code, it's quite specific. I will implement the PROVIDED InboxView logic fully here to be safe and match the "v2" request exactly.
 
-const apiKey = process.env.REACT_APP_GEMINI_API_KEY || "";
+const apiKey = "AIzaSyC6soRFcRFCXV65lJmSZPv5wfpbKsmFDZg";
 
 const EOR_SYSTEM_PROMPT = `
 RÔLE : Tu es un Expert Senior en Retraite chez EOR. Tu assistes des commerciaux.
@@ -76,8 +64,478 @@ async function generateGeminiContent(userPrompt) {
   }
 }
 
+// ========== ACTIONS SECTION COMPONENT ==========
+const ActionsSection = () => {
+  const [activeView, setActiveView] = useState("HOME");
+  const [newCallReport, setNewCallReport] = useState("");
+  const [newTaskText, setNewTaskText] = useState("");
+  const [taskDateTime, setTaskDateTime] = useState("");
+
+  // Load from localStorage on mount
+  const [callReports, setCallReports] = useState(() => {
+    try {
+      const stored = localStorage.getItem("inbox_call_reports");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [tasks, setTasks] = useState(() => {
+    try {
+      const stored = localStorage.getItem("inbox_tasks");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const logs = []; // Logs can be added later if needed
+
+  // Save to localStorage when data changes
+  useEffect(() => {
+    localStorage.setItem("inbox_call_reports", JSON.stringify(callReports));
+  }, [callReports]);
+
+  useEffect(() => {
+    localStorage.setItem("inbox_tasks", JSON.stringify(tasks));
+  }, [tasks]);
+
+  // ===== STYLES =====
+  const iconButtonStyle = (isActive) => ({
+    background: isActive ? "#eef2ff" : "none",
+    border: "none",
+    padding: "10px",
+    borderRadius: "8px",
+    cursor: "pointer",
+    color: isActive ? "#4f46e5" : "#6b7280",
+    transition: "all 0.2s ease",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  });
+
+  const iconBarStyle = {
+    display: "flex",
+    gap: "8px",
+    padding: "8px 0",
+    marginBottom: "16px",
+    borderBottom: "1px solid #e5e7eb",
+  };
+
+  const viewContainerStyle = {
+    padding: "8px 0",
+  };
+
+  const inputStyle = {
+    width: "100%",
+    padding: "10px 12px",
+    fontSize: "14px",
+    border: "1px solid #e5e7eb",
+    borderRadius: "8px",
+    marginBottom: "12px",
+    outline: "none",
+  };
+
+  const textareaStyle = {
+    ...inputStyle,
+    minHeight: "80px",
+    resize: "vertical",
+    fontFamily: "inherit",
+  };
+
+  const buttonStyle = {
+    padding: "10px 20px",
+    fontSize: "14px",
+    fontWeight: 500,
+    color: "#fff",
+    backgroundColor: "#4f46e5",
+    border: "none",
+    borderRadius: "8px",
+    cursor: "pointer",
+    transition: "background-color 0.2s",
+  };
+
+  const secondaryButtonStyle = {
+    ...buttonStyle,
+    backgroundColor: "#f3f4f6",
+    color: "#374151",
+  };
+
+  const emptyStateStyle = {
+    textAlign: "center",
+    padding: "24px 16px",
+    color: "#9ca3af",
+  };
+
+  const listItemStyle = {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: "12px",
+    padding: "12px 0",
+    borderBottom: "1px solid #f3f4f6",
+  };
+
+  // ===== HANDLERS =====
+  const handleAddCallReport = () => {
+    if (!newCallReport.trim()) return;
+    const newReport = {
+      id: Date.now(),
+      report: newCallReport.trim(),
+      date: new Date().toISOString(),
+    };
+    setCallReports((prev) => [newReport, ...prev]);
+    setNewCallReport("");
+    setActiveView("HOME"); // Switch to history after adding
+  };
+
+  const handleAddTask = () => {
+    if (!newTaskText.trim()) return;
+    const newTask = {
+      id: Date.now(),
+      text: newTaskText.trim(),
+      date: taskDateTime || new Date().toISOString(),
+      done: false,
+    };
+    setTasks((prev) => [newTask, ...prev]);
+    setNewTaskText("");
+    setTaskDateTime("");
+    setActiveView("HOME"); // Switch to history after adding
+  };
+
+  // ===== EDIT STATE =====
+  const [editingItem, setEditingItem] = useState(null);
+  const [editText, setEditText] = useState("");
+
+  const handleEditItem = (item) => {
+    setEditingItem(item);
+    setEditText(item.report || item.text || "");
+  };
+
+  const handleSaveEdit = () => {
+    if (!editText.trim() || !editingItem) return;
+
+    if (editingItem.type === "CALLREPORT") {
+      setCallReports((prev) =>
+        prev.map((r) =>
+          r.id === editingItem.id ? { ...r, report: editText.trim() } : r
+        )
+      );
+    } else if (editingItem.type === "TASK") {
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === editingItem.id ? { ...t, text: editText.trim() } : t
+        )
+      );
+    }
+
+    setEditingItem(null);
+    setEditText("");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingItem(null);
+    setEditText("");
+  };
+
+  const handleDeleteItem = (item) => {
+    if (item.type === "CALLREPORT") {
+      setCallReports((prev) => prev.filter((r) => r.id !== item.id));
+    } else if (item.type === "TASK") {
+      setTasks((prev) => prev.filter((t) => t.id !== item.id));
+    }
+  };
+
+  // ===== MIXED LIST VIEW =====
+  const renderMixedList = () => {
+    const allItems = [
+      ...callReports.map((r) => ({ ...r, type: "CALLREPORT" })),
+      ...tasks.map((t) => ({ ...t, type: "TASK" })),
+      ...logs.slice(0, 1).map((l) => ({ ...l, type: "LOG" })),
+    ].slice(0, 5);
+
+    if (allItems.length === 0) {
+      return (
+        <div style={emptyStateStyle}>
+          <MessageSquare
+            size={32}
+            style={{ marginBottom: "8px", opacity: 0.5 }}
+          />
+          <p style={{ margin: 0, fontWeight: 500 }}>Aucune activité</p>
+          <p style={{ margin: "4px 0 0", fontSize: "12px" }}>
+            Les call reports et tâches apparaîtront ici
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div>
+        {allItems.map((item, index) => (
+          <div key={item.id || index} style={listItemStyle}>
+            <div
+              style={{
+                width: "32px",
+                height: "32px",
+                borderRadius: "8px",
+                backgroundColor:
+                  item.type === "CALLREPORT"
+                    ? "#3b82f615"
+                    : item.type === "TASK"
+                    ? "#f9731615"
+                    : "#6b728015",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {item.type === "CALLREPORT" && (
+                <Phone size={16} color="#3b82f6" />
+              )}
+              {item.type === "TASK" && (
+                <CheckCircle size={16} color="#f97316" />
+              )}
+              {item.type === "LOG" && <Clock size={16} color="#6b7280" />}
+            </div>
+
+            {/* Edit Mode */}
+            {editingItem?.id === item.id ? (
+              <div style={{ flex: 1 }}>
+                <input
+                  type="text"
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  style={{ ...inputStyle, marginBottom: "8px" }}
+                  autoFocus
+                />
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    onClick={handleSaveEdit}
+                    style={{
+                      ...buttonStyle,
+                      padding: "6px 12px",
+                      fontSize: "12px",
+                    }}
+                  >
+                    Sauvegarder
+                  </button>
+                  <button
+                    onClick={handleCancelEdit}
+                    style={{
+                      ...secondaryButtonStyle,
+                      padding: "6px 12px",
+                      fontSize: "12px",
+                    }}
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div style={{ flex: 1 }}>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: "14px",
+                      color: "#374151",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {item.report || item.text || item.message || "Élément"}
+                  </p>
+                  <p
+                    style={{
+                      margin: "4px 0 0",
+                      fontSize: "12px",
+                      color: "#9ca3af",
+                    }}
+                  >
+                    {new Date(item.date).toLocaleDateString("fr-FR", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </div>
+                {/* Action Buttons */}
+                {item.type !== "LOG" && (
+                  <div style={{ display: "flex", gap: "4px" }}>
+                    <button
+                      onClick={() => handleEditItem(item)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: "6px",
+                        color: "#6b7280",
+                        borderRadius: "4px",
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                      title="Modifier"
+                    >
+                      <Edit2 size={14} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteItem(item)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: "6px",
+                        color: "#ef4444",
+                        borderRadius: "4px",
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                      title="Supprimer"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      {/* Icon Navigation Bar */}
+      <div style={iconBarStyle}>
+        <button
+          style={iconButtonStyle(activeView === "HOME")}
+          onClick={() => setActiveView("HOME")}
+          title="Historique"
+        >
+          <MessageSquare size={20} />
+        </button>
+        <button
+          style={iconButtonStyle(activeView === "CALLREPORT")}
+          onClick={() => setActiveView("CALLREPORT")}
+          title="Call Report"
+        >
+          <Phone size={20} />
+        </button>
+        <button
+          style={iconButtonStyle(activeView === "TASK")}
+          onClick={() => setActiveView("TASK")}
+          title="Tâche"
+        >
+          <CheckCircle size={20} />
+        </button>
+      </div>
+
+      {/* Views */}
+      <div style={viewContainerStyle}>
+        {/* HOME View - Mixed List */}
+        {activeView === "HOME" && renderMixedList()}
+
+        {/* CALLREPORT View - Form */}
+        {activeView === "CALLREPORT" && (
+          <div>
+            <h4
+              style={{
+                margin: "0 0 12px",
+                fontSize: "14px",
+                fontWeight: 600,
+                color: "#374151",
+              }}
+            >
+              Créer un Call Report
+            </h4>
+            <textarea
+              placeholder="Saisissez votre call report..."
+              value={newCallReport}
+              onChange={(e) => setNewCallReport(e.target.value)}
+              style={textareaStyle}
+            />
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button style={buttonStyle} onClick={handleAddCallReport}>
+                Ajouter
+              </button>
+              <button
+                style={secondaryButtonStyle}
+                onClick={() => setActiveView("HOME")}
+              >
+                Voir historique
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* TASK View - Form */}
+        {activeView === "TASK" && (
+          <div>
+            <h4
+              style={{
+                margin: "0 0 12px",
+                fontSize: "14px",
+                fontWeight: 600,
+                color: "#374151",
+              }}
+            >
+              Créer une tâche
+            </h4>
+            <textarea
+              placeholder="Description de la tâche..."
+              value={newTaskText}
+              onChange={(e) => setNewTaskText(e.target.value)}
+              style={textareaStyle}
+            />
+            <input
+              type="date"
+              value={taskDateTime}
+              onChange={(e) => setTaskDateTime(e.target.value)}
+              onClick={(e) => e.target.showPicker && e.target.showPicker()}
+              style={{ ...inputStyle, width: "180px", cursor: "pointer" }}
+            />
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button style={buttonStyle} onClick={handleAddTask}>
+                Ajouter
+              </button>
+              <button
+                style={secondaryButtonStyle}
+                onClick={() => setActiveView("HOME")}
+              >
+                Voir historique
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // Mock Data (can be replaced by props later)
 // No mock data - using real API data passed via props
+
+// Helper: Format phone number to French format (06 12 34 56 78)
+function formatPhoneNumber(input) {
+  if (!input) return "";
+  // Remove all non-digit characters
+  let digits = String(input).replace(/\D/g, "");
+
+  // Handle international formats (+33, 0033, 33)
+  if (digits.startsWith("33") && digits.length > 9) {
+    digits = "0" + digits.slice(2);
+  } else if (digits.length === 9 && !digits.startsWith("0")) {
+    digits = "0" + digits;
+  }
+
+  // Limit to 10 digits
+  digits = digits.slice(0, 10);
+
+  // Format as XX XX XX XX XX
+  return digits.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
+}
 
 // Helper: Format date to relative time
 function formatRelativeDate(isoDate) {
@@ -107,7 +565,7 @@ function extractSummaryFromMessages(messages) {
   return userMessages
     .slice(0, 3)
     .map(
-      (m) => m.content.substring(0, 100) + (m.content.length > 100 ? "..." : "")
+      (m) => m.content.substring(0, 50) + (m.content.length > 50 ? "..." : "")
     );
 }
 
@@ -141,8 +599,15 @@ function extractContactFromMessages(messages) {
 
 // Helper: Map conversation from backend to inbox item
 function mapConversationToInboxItem(conv) {
+  console.log("=== MAPPING CONVERSATION ===", conv);
   // Try to find user info in various places
-  const user = conv.user || conv.client || conv.user_data || {};
+  const user =
+    conv.user ||
+    conv.client ||
+    conv.user_data ||
+    conv.contact ||
+    conv.visitor ||
+    {};
 
   // Aggressively search for name fields
   const firstname =
@@ -152,7 +617,8 @@ function mapConversationToInboxItem(conv) {
     conv.firstname ||
     conv.first_name ||
     conv.prenom ||
-    conv.nom_prenom || // Added from KPI JSON structure
+    conv.visitor_firstname ||
+    conv.contact_firstname ||
     "";
 
   const lastname =
@@ -162,6 +628,8 @@ function mapConversationToInboxItem(conv) {
     conv.lastname ||
     conv.last_name ||
     conv.nom ||
+    conv.visitor_lastname ||
+    conv.contact_lastname ||
     "";
 
   let fullName = `${firstname} ${lastname}`.trim();
@@ -176,7 +644,8 @@ function mapConversationToInboxItem(conv) {
       conv.full_name ||
       conv.contact_name ||
       conv.client_name ||
-      conv.nom_prenom || // Added from KPI JSON structure
+      conv.visitor_name ||
+      conv.nom_prenom ||
       "";
   }
 
@@ -201,6 +670,7 @@ function mapConversationToInboxItem(conv) {
   return {
     id: conv.id,
     type:
+      conv._source ||
       conv.type ||
       (conv.messages && conv.messages.length > 0 ? "chatbot" : "diagnostic"),
     name: displayName,
@@ -217,17 +687,50 @@ function mapConversationToInboxItem(conv) {
   };
 }
 
-const InboxView = ({ items = [], loading, error }) => {
-  // Use provided items (no mock fallback)
+const InboxView = ({ items = [], loading, error, onSelect }) => {
+  // Use provided items (no mock fallback), sorted by date (most recent first)
   const inboxItems =
-    items && items.length > 0 ? items.map(mapConversationToInboxItem) : [];
+    items && items.length > 0
+      ? items.map(mapConversationToInboxItem).sort((a, b) => {
+          const dateA = new Date(a.raw?.created_at || 0);
+          const dateB = new Date(b.raw?.created_at || 0);
+          return dateB - dateA; // Most recent first
+        })
+      : [];
 
-  // Initialize with first item to avoid empty object issues
   const [selectedItem, setSelectedItem] = useState(inboxItems[0] || {});
+
+  // Track read conversation IDs with localStorage persistence
+  const [readIds, setReadIds] = useState(() => {
+    try {
+      const stored = localStorage.getItem("inbox_read_ids");
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
   const [aiDraft, setAiDraft] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackSent, setFeedbackSent] = useState(false);
+
+  // Persist readIds to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem("inbox_read_ids", JSON.stringify([...readIds]));
+    } catch (e) {
+      console.error("Failed to save read IDs:", e);
+    }
+  }, [readIds]);
+
+  // Calculate unread count
+  const unreadCount = inboxItems.filter(
+    (item) => item.status === "new" && !readIds.has(item.id)
+  ).length;
+
+  // Modal state for conversation view
+  const [showConversationModal, setShowConversationModal] = useState(false);
 
   // Update selectedItem when inboxItems change
   useEffect(() => {
@@ -352,11 +855,8 @@ const InboxView = ({ items = [], loading, error }) => {
           }}
         >
           <h3 style={{ fontWeight: 600, color: "#374151", margin: 0 }}>
-            Conversations ({inboxItems.length})
+            Non lus ({unreadCount})
           </h3>
-          <span style={{ fontSize: "12px", color: "#9ca3af" }}>
-            Trier par date
-          </span>
         </div>
         <div style={{ overflowY: "auto", flex: 1 }}>
           {loading ? (
@@ -416,17 +916,21 @@ const InboxView = ({ items = [], loading, error }) => {
             inboxItems.map((item) => (
               <div
                 key={item.id}
-                onClick={() => setSelectedItem(item)}
+                onClick={() => {
+                  setSelectedItem(item);
+                  // Mark as read
+                  setReadIds((prev) => new Set(prev).add(item.id));
+                  if (onSelect) onSelect(item.id);
+                }}
                 style={{
                   padding: "16px",
                   borderBottom: "1px solid #f3f4f6",
                   cursor: "pointer",
                   backgroundColor:
                     selectedItem.id === item.id ? "#eef2ff" : "transparent",
-                  borderLeft:
-                    selectedItem.id === item.id
-                      ? "4px solid #4f46e5"
-                      : "4px solid transparent",
+                  borderLeft: `4px solid ${
+                    item.type === "diagnostic" ? "#f97316" : "#3b82f6"
+                  }`,
                   transition: "background-color 0.2s",
                 }}
               >
@@ -446,7 +950,7 @@ const InboxView = ({ items = [], loading, error }) => {
                       textOverflow: "ellipsis",
                     }}
                   >
-                    {item.name}
+                    {formatPhoneNumber(item.name) || item.name}
                   </span>
                   <span
                     style={{
@@ -483,7 +987,7 @@ const InboxView = ({ items = [], loading, error }) => {
                 <div
                   style={{ display: "flex", alignItems: "center", gap: "8px" }}
                 >
-                  {item.status === "new" && (
+                  {item.status === "new" && !readIds.has(item.id) && (
                     <span
                       style={{
                         display: "inline-block",
@@ -581,128 +1085,495 @@ const InboxView = ({ items = [], loading, error }) => {
             </div>
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "24px",
-            }}
-          >
-            <div>
-              <label
-                style={{
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  color: "#9ca3af",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "4px",
-                  textTransform: "uppercase",
-                  marginBottom: "4px",
-                }}
-              >
-                <User size={12} /> Nom du prospect
-              </label>
-              <div
-                className="form-control"
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  backgroundColor: "#f9fafb",
-                }}
-              >
-                <span style={{ fontWeight: 600, color: "#1f2937" }}>
-                  {selectedItem.name}
-                </span>
-              </div>
-            </div>
-            <div>
-              <label
-                style={{
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  color: "#9ca3af",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "4px",
-                  textTransform: "uppercase",
-                  marginBottom: "4px",
-                }}
-              >
-                <Phone size={12} /> Téléphone
-              </label>
-              <div
-                className="form-control"
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  backgroundColor: "#f9fafb",
-                }}
-              >
-                <span style={{ fontWeight: 500, color: "#374151" }}>
-                  {selectedItem.phone || "-"}
-                </span>
-              </div>
+          <div>
+            <label
+              style={{
+                fontSize: "12px",
+                fontWeight: 600,
+                color: "#9ca3af",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                textTransform: "uppercase",
+                marginBottom: "4px",
+              }}
+            >
+              {selectedItem.type === "diagnostic" ? (
+                <>
+                  <User size={12} /> Nom du prospect
+                </>
+              ) : (
+                <>
+                  <Phone size={12} /> Téléphone du prospect
+                </>
+              )}
+            </label>
+            <div
+              className="form-control"
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                backgroundColor: "#f9fafb",
+              }}
+            >
+              <span style={{ fontWeight: 600, color: "#1f2937" }}>
+                {selectedItem.type === "diagnostic"
+                  ? selectedItem.name || "-"
+                  : formatPhoneNumber(selectedItem.phone) || "-"}
+              </span>
             </div>
           </div>
         </div>
 
         <div style={{ padding: "24px", flex: 1, overflowY: "auto" }}>
           {selectedItem.type === "diagnostic" ? (
-            <div
-              style={{
-                backgroundColor: "#fff7ed",
-                borderRadius: "12px",
-                padding: "20px",
-                marginBottom: "24px",
-                border: "1px solid #ffedd5",
-              }}
-            >
-              {/* Diagnostic Content - simplified usage or full html */}
-              <div className="flex justify-between items-start mb-4">
-                <h3 className="text-sm font-bold text-orange-800 uppercase tracking-wide flex items-center gap-2">
-                  <ClipboardList size={18} /> Résultats du Diagnostic
-                </h3>
-                <span className="bg-white text-orange-700 px-3 py-1 rounded-full text-sm font-bold shadow-sm border border-orange-200">
-                  Score: {selectedItem.score}/100
-                </span>
-              </div>
-              {/* ... More details ... */}
-              {selectedItem.expert_analysis && (
-                <div className="mt-4 pt-4 border-t border-orange-200/50">
-                  <h4 className="text-sm font-bold text-gray-800 flex items-center gap-2 mb-3">
-                    <Sparkles size={16} className="text-purple-600" />
-                    Analyse Stratégique (IA)
-                  </h4>
+            <div>
+              {/* Header with Score */}
+              <div
+                style={{
+                  backgroundColor: "#fff7ed",
+                  borderRadius: "12px",
+                  padding: "20px",
+                  marginBottom: "16px",
+                  border: "1px solid #ffedd5",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "16px",
+                  }}
+                >
+                  <h3
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "bold",
+                      color: "#9a3412",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      margin: 0,
+                    }}
+                  >
+                    <ClipboardList size={18} /> Résultats du Diagnostic
+                  </h3>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                    }}
+                  >
+                    {selectedItem.raw?.profile_type && (
+                      <span
+                        style={{
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          color: "#6b7280",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        {selectedItem.raw.profile_type}
+                      </span>
+                    )}
+                    <span
+                      style={{
+                        backgroundColor: "#fff",
+                        border: "1px solid #fed7aa",
+                        borderRadius: "999px",
+                        padding: "6px 14px",
+                        fontSize: "14px",
+                        fontWeight: 700,
+                        color: "#ea580c",
+                      }}
+                    >
+                      Score:{" "}
+                      {selectedItem.raw?.score || selectedItem.score || 0}/100
+                    </span>
+                  </div>
+                </div>
+
+                {/* Dates Row */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "16px",
+                    marginBottom: "16px",
+                  }}
+                >
                   <div
                     style={{
                       backgroundColor: "#fff",
-                      border: "1px solid #f3e8ff",
-                      padding: "12px",
                       borderRadius: "8px",
-                      marginBottom: "12px",
+                      padding: "12px",
+                      border: "1px solid #fed7aa",
                     }}
                   >
                     <div
                       style={{
-                        fontSize: "14px",
-                        fontWeight: "bold",
-                        color: "#1f2937",
+                        fontSize: "11px",
+                        color: "#ea580c",
+                        fontWeight: 600,
+                        marginBottom: "4px",
                       }}
                     >
-                      {selectedItem.expert_analysis.profile.label}
+                      Date de naissance
                     </div>
                     <div
                       style={{
-                        fontSize: "12px",
-                        color: "#4b5563",
-                        fontStyle: "italic",
+                        fontSize: "16px",
+                        fontWeight: 700,
+                        color: "#1f2937",
                       }}
                     >
-                      {selectedItem.expert_analysis.profile.advice}
+                      {selectedItem.raw?.birth_date ||
+                        selectedItem.raw?.date_naissance ||
+                        "-"}
                     </div>
+                  </div>
+                  <div
+                    style={{
+                      backgroundColor: "#fff",
+                      borderRadius: "8px",
+                      padding: "12px",
+                      border: "1px solid #fed7aa",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        color: "#ea580c",
+                        fontWeight: 600,
+                        marginBottom: "4px",
+                      }}
+                    >
+                      Départ souhaité
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "16px",
+                        fontWeight: 700,
+                        color: "#1f2937",
+                      }}
+                    >
+                      {selectedItem.raw?.departure_date ||
+                        selectedItem.raw?.date_depart ||
+                        "-"}
+                    </div>
+                    {selectedItem.raw?.age_at_departure && (
+                      <span
+                        style={{
+                          backgroundColor: "#fed7aa",
+                          borderRadius: "999px",
+                          padding: "2px 8px",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          color: "#9a3412",
+                          marginLeft: "8px",
+                        }}
+                      >
+                        ({selectedItem.raw.age_at_departure})
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Repères Clés */}
+                {(selectedItem.raw?.age_legal ||
+                  selectedItem.raw?.taux_plein_auto) && (
+                  <div
+                    style={{
+                      borderTop: "1px solid #fed7aa",
+                      paddingTop: "12px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        color: "#9a3412",
+                        marginBottom: "8px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      <Clock size={14} /> Repères clés (calculés)
+                    </div>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: "16px",
+                      }}
+                    >
+                      {selectedItem.raw?.age_legal && (
+                        <div>
+                          <div
+                            style={{
+                              fontSize: "11px",
+                              color: "#6b7280",
+                              marginBottom: "2px",
+                            }}
+                          >
+                            🚩 Âge Légal
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "15px",
+                              fontWeight: 700,
+                              color: "#ea580c",
+                            }}
+                          >
+                            {selectedItem.raw.age_legal}
+                          </div>
+                          <div style={{ fontSize: "11px", color: "#9ca3af" }}>
+                            {selectedItem.raw.age_legal_details || ""}
+                          </div>
+                        </div>
+                      )}
+                      {selectedItem.raw?.taux_plein_auto && (
+                        <div>
+                          <div
+                            style={{
+                              fontSize: "11px",
+                              color: "#6b7280",
+                              marginBottom: "2px",
+                            }}
+                          >
+                            🎯 Taux Plein Auto
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "15px",
+                              fontWeight: 700,
+                              color: "#ea580c",
+                            }}
+                          >
+                            {selectedItem.raw.taux_plein_auto}
+                          </div>
+                          <div style={{ fontSize: "11px", color: "#9ca3af" }}>
+                            {selectedItem.raw.taux_plein_details || ""}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Analyse Stratégique (IA) */}
+              {selectedItem.raw?.expert_analysis && (
+                <div
+                  style={{
+                    backgroundColor: "#faf5ff",
+                    borderRadius: "12px",
+                    padding: "20px",
+                    marginBottom: "16px",
+                    border: "1px solid #e9d5ff",
+                  }}
+                >
+                  <h4
+                    style={{
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      color: "#7c3aed",
+                      marginBottom: "12px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
+                    <Sparkles size={16} /> Analyse Stratégique (IA)
+                  </h4>
+
+                  {/* Profil Psychologique */}
+                  {selectedItem.raw.expert_analysis.profile && (
+                    <div
+                      style={{
+                        backgroundColor: "#fff",
+                        borderRadius: "8px",
+                        padding: "12px",
+                        marginBottom: "12px",
+                        border: "1px solid #e9d5ff",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          color: "#7c3aed",
+                          fontWeight: 600,
+                          marginBottom: "4px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "4px",
+                        }}
+                      >
+                        🧠 Profil Psychologique
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "14px",
+                          fontWeight: 700,
+                          color: "#1f2937",
+                          marginBottom: "4px",
+                        }}
+                      >
+                        Profil :{" "}
+                        {selectedItem.raw.expert_analysis.profile.label}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "12px",
+                          color: "#6b7280",
+                          fontStyle: "italic",
+                        }}
+                      >
+                        {selectedItem.raw.expert_analysis.profile.advice}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Pain Points, Mines, Leviers */}
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr 1fr",
+                      gap: "12px",
+                    }}
+                  >
+                    {/* Point de Douleur */}
+                    {selectedItem.raw.expert_analysis.pain_point && (
+                      <div
+                        style={{
+                          backgroundColor: "#fef2f2",
+                          borderRadius: "8px",
+                          padding: "10px",
+                          border: "1px solid #fecaca",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: "10px",
+                            fontWeight: 700,
+                            color: "#dc2626",
+                            marginBottom: "6px",
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          🎯 Point de Douleur
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            color: "#1f2937",
+                            marginBottom: "4px",
+                          }}
+                        >
+                          {selectedItem.raw.expert_analysis.pain_point.title ||
+                            "Écart Critique"}
+                        </div>
+                        <div style={{ fontSize: "11px", color: "#6b7280" }}>
+                          {
+                            selectedItem.raw.expert_analysis.pain_point
+                              .description
+                          }
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Mines Enterrées */}
+                    {selectedItem.raw.expert_analysis.hidden_mines && (
+                      <div
+                        style={{
+                          backgroundColor: "#fefce8",
+                          borderRadius: "8px",
+                          padding: "10px",
+                          border: "1px solid #fef08a",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: "10px",
+                            fontWeight: 700,
+                            color: "#ca8a04",
+                            marginBottom: "6px",
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          💣 Mines Enterrées
+                        </div>
+                        <ul
+                          style={{
+                            margin: 0,
+                            paddingLeft: "14px",
+                            fontSize: "11px",
+                            color: "#6b7280",
+                          }}
+                        >
+                          {(Array.isArray(
+                            selectedItem.raw.expert_analysis.hidden_mines
+                          )
+                            ? selectedItem.raw.expert_analysis.hidden_mines
+                            : [selectedItem.raw.expert_analysis.hidden_mines]
+                          ).map((mine, i) => (
+                            <li key={i} style={{ marginBottom: "4px" }}>
+                              {mine}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Leviers */}
+                    {selectedItem.raw.expert_analysis.levers && (
+                      <div
+                        style={{
+                          backgroundColor: "#f0fdf4",
+                          borderRadius: "8px",
+                          padding: "10px",
+                          border: "1px solid #bbf7d0",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: "10px",
+                            fontWeight: 700,
+                            color: "#16a34a",
+                            marginBottom: "6px",
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          🔧 Leviers
+                        </div>
+                        <ul
+                          style={{
+                            margin: 0,
+                            paddingLeft: "14px",
+                            fontSize: "11px",
+                            color: "#6b7280",
+                          }}
+                        >
+                          {(Array.isArray(
+                            selectedItem.raw.expert_analysis.levers
+                          )
+                            ? selectedItem.raw.expert_analysis.levers
+                            : [selectedItem.raw.expert_analysis.levers]
+                          ).map((lever, i) => (
+                            <li key={i} style={{ marginBottom: "4px" }}>
+                              {lever}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -758,11 +1629,188 @@ const InboxView = ({ items = [], loading, error }) => {
                   </li>
                 ))}
               </ul>
+
+              {/* View Full Conversation Button */}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  marginTop: "12px",
+                }}
+              >
+                <button
+                  onClick={() => setShowConversationModal(true)}
+                  style={{
+                    backgroundColor: "#f0f9ff",
+                    border: "1px solid #bae6fd",
+                    color: "#0369a1",
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "8px 14px",
+                    borderRadius: "6px",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  <Eye size={14} /> Voir la conversation
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Conversation Modal */}
+          {showConversationModal && (
+            <div
+              style={{
+                position: "fixed",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: "rgba(0, 0, 0, 0.5)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 9999,
+              }}
+              onClick={() => setShowConversationModal(false)}
+            >
+              <div
+                style={{
+                  backgroundColor: "#fff",
+                  borderRadius: "16px",
+                  width: "90%",
+                  maxWidth: "600px",
+                  maxHeight: "80vh",
+                  overflow: "hidden",
+                  boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Modal Header */}
+                <div
+                  style={{
+                    padding: "20px 24px",
+                    borderBottom: "1px solid #e5e7eb",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <h3
+                    style={{
+                      margin: 0,
+                      fontSize: "18px",
+                      fontWeight: 600,
+                      color: "#1f2937",
+                    }}
+                  >
+                    Conversation complète
+                  </h3>
+                  <button
+                    onClick={() => setShowConversationModal(false)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      padding: "4px",
+                      color: "#6b7280",
+                    }}
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {/* Modal Body - Conversation */}
+                <div
+                  style={{
+                    padding: "24px",
+                    overflowY: "auto",
+                    maxHeight: "calc(80vh - 80px)",
+                  }}
+                >
+                  {selectedItem.raw?.messages?.length > 0 ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "16px",
+                      }}
+                    >
+                      {selectedItem.raw.messages
+                        .filter((msg) => msg.role !== "system")
+                        .map((msg, idx) => (
+                          <div
+                            key={idx}
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems:
+                                msg.role === "user" ? "flex-end" : "flex-start",
+                            }}
+                          >
+                            <div
+                              style={{
+                                maxWidth: "80%",
+                                padding: "12px 16px",
+                                borderRadius:
+                                  msg.role === "user"
+                                    ? "16px 16px 4px 16px"
+                                    : "16px 16px 16px 4px",
+                                backgroundColor:
+                                  msg.role === "user" ? "#4f46e5" : "#f3f4f6",
+                                color: msg.role === "user" ? "#fff" : "#374151",
+                              }}
+                            >
+                              <p
+                                style={{
+                                  margin: 0,
+                                  fontSize: "14px",
+                                  lineHeight: 1.5,
+                                }}
+                              >
+                                {msg.content}
+                              </p>
+                            </div>
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                color: "#9ca3af",
+                                marginTop: "4px",
+                                paddingLeft: msg.role === "user" ? "0" : "4px",
+                                paddingRight: msg.role === "user" ? "4px" : "0",
+                              }}
+                            >
+                              {msg.role === "user" ? "Visiteur" : "Chatbot"}
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        textAlign: "center",
+                        color: "#9ca3af",
+                        padding: "32px",
+                      }}
+                    >
+                      <MessageSquare
+                        size={32}
+                        style={{ marginBottom: "8px", opacity: 0.5 }}
+                      />
+                      <p>Aucun message dans cette conversation</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
           {/* AI REPLY */}
-          <div style={{ marginBottom: "24px" }}>
+          <div style={{ marginTop: "24px", marginBottom: "24px" }}>
             <div
               style={{
                 display: "flex",
@@ -771,7 +1819,14 @@ const InboxView = ({ items = [], loading, error }) => {
                 marginBottom: "12px",
               }}
             >
-              <h3 style={{ fontWeight: 600, color: "#374151" }}>
+              <h3
+                style={{
+                  fontWeight: 600,
+                  color: "#374151",
+                  fontSize: "16px",
+                  margin: 0,
+                }}
+              >
                 Réponse Rapide
               </h3>
               {!aiDraft && !isGenerating && (
@@ -785,7 +1840,7 @@ const InboxView = ({ items = [], loading, error }) => {
                     borderRadius: "999px",
                   }}
                 >
-                  <Sparkles size={14} /> ✨ Brouillon IA
+                  🌠 Brouillon IA
                 </button>
               )}
             </div>
@@ -800,7 +1855,7 @@ const InboxView = ({ items = [], loading, error }) => {
                   borderRadius: "8px",
                 }}
               >
-                Generating...
+                Génération...
               </div>
             )}
 
@@ -845,16 +1900,27 @@ const InboxView = ({ items = [], loading, error }) => {
             )}
           </div>
 
-          <div style={{ marginTop: "auto" }}>
+          {/* Actions Section with Tabs */}
+          <div
+            style={{
+              marginTop: "0",
+              paddingTop: "24px",
+              borderTop: "1px solid #f3f4f6",
+            }}
+          >
             <h3
               style={{
                 fontWeight: 600,
                 color: "#374151",
-                marginBottom: "12px",
+                marginBottom: "16px",
+                fontSize: "16px",
               }}
             >
               Actions standards
             </h3>
+
+            {/* Tabs */}
+            <ActionsSection />
           </div>
         </div>
       </div>

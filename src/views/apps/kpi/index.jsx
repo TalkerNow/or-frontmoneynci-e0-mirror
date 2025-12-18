@@ -637,6 +637,11 @@ export default function KpiPage() {
   const [loadingConversations, setLoadingConversations] = useState(false);
   const [convError, setConvError] = useState("");
 
+  // Diagnostic Results (simulator-difficulty-results)
+  const [diagnostics, setDiagnostics] = useState([]);
+  const [loadingDiagnostics, setLoadingDiagnostics] = useState(false);
+  const [diagError, setDiagError] = useState("");
+
   const handleSort = (field) => {
     setSortField((prevField) => {
       if (prevField === field) {
@@ -653,6 +658,11 @@ export default function KpiPage() {
   // Modal messages conversations
   const [convModalOpen, setConvModalOpen] = useState(false);
   const [selectedConv, setSelectedConv] = useState(null);
+
+  const handleSelectConversation = (id) => {
+    console.log("Selected conversation ID:", id);
+    // TODO: fetch conversation details /api/conversation-archives/{id}
+  };
 
   // Dropdown state for New Button
   const [isNewMenuOpen, setIsNewMenuOpen] = useState(false);
@@ -763,147 +773,42 @@ export default function KpiPage() {
       console.log("PROCESSED CONVERSATIONS DATA:", data);
       console.log("Total conversations from API:", data.length);
 
-      // TEST DATA FALLBACK - Si le backend est vide, on utilise des données de test
-      const TEST_CONVERSATIONS = [
-        {
-          id: 1,
-          client_id: 123,
-          user_id: 123,
-          user: {
-            firstname: "Jean",
-            lastname: "Dupont",
-            email: "jean.dupont@example.com",
-            telephone: "06 12 34 56 78",
-          },
-          created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // Il y a 2h
-          messages: [
-            {
-              role: "user",
-              content: "Bonjour, je souhaite des informations sur ma retraite",
-            },
-            {
-              role: "assistant",
-              content: "Bonjour Jean ! Je serais ravi de vous aider.",
-            },
-            {
-              role: "user",
-              content: "J'ai 58 ans et je voudrais savoir quand je peux partir",
-            },
-          ],
-          status: "new",
-          type: "chatbot",
-        },
-        {
-          id: 2,
-          client_id: 456,
-          user_id: 456,
-          user: {
-            firstname: "Marie",
-            lastname: "Martin",
-            email: "marie.martin@example.com",
-            telephone: "06 98 76 54 32",
-          },
-          created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(), // Il y a 5h
-          messages: [
-            {
-              role: "user",
-              content:
-                "Je suis née en 1965, combien de trimestres me faut-il ?",
-            },
-            {
-              role: "assistant",
-              content: "Pour votre génération, il faut 172 trimestres.",
-            },
-          ],
-          status: "new",
-          type: "chatbot",
-        },
-        {
-          id: 3,
-          client_id: 789,
-          user_id: 789,
-          user: {
-            firstname: "Pierre",
-            lastname: "Durand",
-            email: "pierre.durand@example.com",
-            telephone: "07 11 22 33 44",
-          },
-          created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // Hier
-          messages: [
-            {
-              role: "user",
-              content:
-                "J'ai travaillé 5 ans à l'étranger, est-ce que ça compte ?",
-            },
-            {
-              role: "assistant",
-              content:
-                "Oui, les périodes à l'étranger peuvent être prises en compte selon les accords bilatéraux.",
-            },
-            { role: "user", content: "Comment faire valider ces trimestres ?" },
-          ],
-          status: "pending",
-          type: "chatbot",
-        },
-        {
-          id: 4,
-          client_id: 234,
-          user_id: 234,
-          user: {
-            firstname: "Sophie",
-            lastname: "Bernard",
-            email: "sophie.bernard@example.com",
-            telephone: "06 55 44 33 22",
-          },
-          created_at: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(), // Il y a 2 jours
-          messages: [
-            {
-              role: "user",
-              content: "Je voudrais un bilan retraite complet",
-            },
-            {
-              role: "assistant",
-              content:
-                "Parfait ! Je vais vous poser quelques questions pour établir votre bilan.",
-            },
-          ],
-          status: "new",
-          type: "diagnostic",
-          diagnostic_score: 7.5,
-        },
-      ];
-
-      // Si le backend est vide, utiliser les données de test
-      const finalData = data.length > 0 ? data : TEST_CONVERSATIONS;
-
-      if (data.length === 0) {
-        console.warn(
-          "⚠️ API returned empty data, using TEST DATA (" +
-            TEST_CONVERSATIONS.length +
-            " conversations)"
-        );
-      }
-
-      console.log("Final conversations to display:", finalData.length);
-      console.log("Conversations by client:");
-      finalData.forEach((conv) => {
-        const name =
-          conv.user?.firstname && conv.user?.lastname
-            ? `${conv.user.firstname} ${conv.user.lastname}`
-            : `Client #${conv.client_id || conv.user_id || "?"}`;
-        console.log(`  - ${name} (ID: ${conv.client_id || conv.user_id})`);
-      });
-
-      setConversations(finalData);
+      setConversations(data);
     } catch (e) {
       console.error("fetchConversationArchives error:", e);
-      setConvError(
-        e?.response?.data?.message ||
-          e?.response?.data?.error ||
-          "Erreur lors du chargement des conversations chatbot."
-      );
+      setConvError("Impossible de charger les conversations.");
     } finally {
       setLoadingConversations(false);
+    }
+  }
+
+  async function fetchDiagnosticResults() {
+    try {
+      setLoadingDiagnostics(true);
+      setDiagError("");
+
+      // API v1: GET /api/v1/simulator-difficulty-results
+      const res = await API.get("/v1/simulator-difficulty-results");
+
+      console.log("=== DIAGNOSTICS DEBUG ===");
+      console.log("RAW DIAGNOSTICS RESPONSE:", res);
+
+      const payload = res.data || {};
+      const data = Array.isArray(payload.data)
+        ? payload.data
+        : Array.isArray(payload)
+        ? payload
+        : [];
+
+      console.log("PROCESSED DIAGNOSTICS DATA:", data);
+      console.log("Total diagnostics from API:", data.length);
+
+      setDiagnostics(data);
+    } catch (e) {
+      console.error("fetchDiagnosticResults error:", e);
+      setDiagError("Impossible de charger les diagnostics.");
+    } finally {
+      setLoadingDiagnostics(false);
     }
   }
 
@@ -1086,6 +991,7 @@ export default function KpiPage() {
     fetchMembers();
     fetchClients();
     fetchConversationArchives();
+    fetchDiagnosticResults();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1348,7 +1254,7 @@ export default function KpiPage() {
             color: "#6b7280",
           }}
         >
-          <span style={{ color: "#6b7280", fontSize: "14px" }}>Accueil</span>
+          <span style={{ color: "#6b7280", fontSize: "14px" }}>CRM</span>
           <span style={{ color: "#9ca3af", fontSize: "14px" }}>{">"}</span>
           <span
             className="font-semibold text-gray-800"
@@ -1360,7 +1266,7 @@ export default function KpiPage() {
             }}
           >
             {location.pathname.includes("/kpi/suivi")
-              ? "Suivi Dossiers"
+              ? "Suivi Administratif"
               : location.pathname.includes("/kpi/opportunities")
               ? "Opportunités"
               : location.pathname.includes("/kpi/clients") // Assuming clients route exists or will exist
@@ -2064,9 +1970,13 @@ export default function KpiPage() {
       {(location.pathname === "/kpi" ||
         location.pathname.includes("/inbox")) && (
         <InboxView
-          items={conversations}
-          loading={loadingConversations}
-          error={null}
+          items={[
+            ...conversations.map((c) => ({ ...c, _source: "chatbot" })),
+            ...diagnostics.map((d) => ({ ...d, _source: "diagnostic" })),
+          ]}
+          loading={loadingConversations || loadingDiagnostics}
+          error={convError || diagError}
+          onSelect={handleSelectConversation}
         />
       )}
 

@@ -55,7 +55,7 @@ const items = {
       },
       {
         id: "crm-suivi",
-        title: "Suivi Dossiers",
+        title: "Suivi Administratif",
         type: "item",
         icon: <Icon.FileText size={16} />,
         permissions: ["admin", "Consultant", "Expert"],
