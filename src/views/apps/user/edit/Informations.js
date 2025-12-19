@@ -60,6 +60,7 @@ class UserAccountTab extends React.Component {
 
     parent_id: this.props.data.parent_id,
     business_introducer_id: this.props.data.business_introducer_id,
+    notes: this.props.data.notes || "",
 
     // UI States
     showAddress2: !!this.props.data.personal_address_2,
@@ -236,6 +237,7 @@ class UserAccountTab extends React.Component {
                 : "oui",
               parent_id: information.parent_id,
               business_introducer_id: information.business_introducer_id,
+              notes: information.notes,
             },
             Config
           )
@@ -387,85 +389,193 @@ class UserAccountTab extends React.Component {
                   )}
                 </FormGroup>
               </Col>
-
-              {/* Nom / Prénom */}
+              {/* Identité + Contact à gauche / Notes à droite */}
+              <h5
+                style={{
+                  fontWeight: 600,
+                  fontSize: 16,
+                  marginTop: 16,
+                  marginBottom: 8,
+                  borderBottom: "1px solid #E5E7EB",
+                  paddingBottom: 6,
+                  width: "100%",
+                }}
+              >
+                Informations personnelles
+              </h5>
               <Col md="6" sm="12">
-                <FormGroup>
-                  <Label for="name">Nom</Label>
-                  <Input
-                    type="text"
-                    defaultValue={this.ifExist("last_name")}
-                    onChange={(e) =>
-                      this.updateUsername({
-                        last_name: e.target.value,
-                        first_name: null,
-                      })
-                    }
-                    id="name"
-                    placeholder="Nom"
-                  />
-                </FormGroup>
+                <Row>
+                  <Col md="12" sm="12">
+                    <FormGroup>
+                      <Label for="firstname">Prénom</Label>
+                      <Input
+                        type="text"
+                        defaultValue={this.ifExist("first_name")}
+                        onChange={(e) =>
+                          this.updateUsername({
+                            first_name: e.target.value,
+                            last_name: null,
+                          })
+                        }
+                        id="firstname"
+                        placeholder="Prénom"
+                      />
+                    </FormGroup>
+                  </Col>
+                  <Col md="12" sm="12">
+                    <FormGroup>
+                      <Label for="name">Nom</Label>
+                      <Input
+                        type="text"
+                        defaultValue={this.ifExist("last_name")}
+                        onChange={(e) =>
+                          this.updateUsername({
+                            last_name: e.target.value,
+                            first_name: null,
+                          })
+                        }
+                        id="name"
+                        placeholder="Nom"
+                      />
+                    </FormGroup>
+                  </Col>
+                  <Col md="12" sm="12">
+                    <FormGroup>
+                      <Label for="email">Email</Label>
+                      <Input
+                        type="text"
+                        defaultValue={this.ifDataExist("email")}
+                        onChange={(e) => {
+                          this.setState({ email: e.target.value });
+                          this.markDirty();
+                        }}
+                        id="email"
+                        placeholder="Email"
+                      />
+                    </FormGroup>
+                  </Col>
+                  <Col md="12" sm="12">
+                    <FormGroup>
+                      <Label for="contactnumber">Numéro de Téléphone</Label>
+                      <Input
+                        type="text"
+                        id="contactnumber"
+                        placeholder="Numéro de Téléphone"
+                        value={this.formatPhonePretty(
+                          this.state.contact_number ??
+                            this.ifExist("mobile_number") ??
+                            this.ifExist("office_number")
+                        )}
+                        onChange={(e) =>
+                          this.setState({
+                            contact_number: this.normalizePhone(e.target.value),
+                          })
+                        }
+                        onBlur={(e) =>
+                          this.setState({
+                            contact_number: this.normalizePhone(e.target.value),
+                          })
+                        }
+                      />
+                    </FormGroup>
+                  </Col>
+                </Row>
               </Col>
               <Col md="6" sm="12">
                 <FormGroup>
-                  <Label for="firstname">Prénom</Label>
+                  <Label for="notes">Notes</Label>
                   <Input
-                    type="text"
-                    defaultValue={this.ifExist("first_name")}
-                    onChange={(e) =>
-                      this.updateUsername({
-                        first_name: e.target.value,
-                        last_name: null,
-                      })
-                    }
-                    id="firstname"
-                    placeholder="Prénom"
-                  />
-                </FormGroup>
-              </Col>
-
-              {/* Email / Téléphone */}
-              <Col md="6" sm="12">
-                <FormGroup>
-                  <Label for="email">Email</Label>
-                  <Input
-                    type="text"
-                    defaultValue={this.ifDataExist("email")}
+                    type="textarea"
+                    rows="11"
+                    placeholder="Notes"
+                    value={this.state.notes || ""}
                     onChange={(e) => {
-                      this.setState({ email: e.target.value });
+                      this.setState({ notes: e.target.value });
                       this.markDirty();
                     }}
-                    id="email"
-                    placeholder="Email"
+                    id="notes"
+                  />
+                </FormGroup>
+              </Col>
+              {/* Section Informations administratives */}
+              <Col md="12" sm="12">
+                <h5
+                  style={{
+                    fontWeight: 600,
+                    fontSize: 16,
+                    marginTop: 16,
+                    marginBottom: 8,
+                    borderBottom: "1px solid #E5E7EB",
+                    paddingBottom: 6,
+                  }}
+                >
+                  Informations administratives
+                </h5>
+              </Col>
+              {/* Date de naissance / Lieu de naissance */}
+              <Col md="6" sm="12">
+                <FormGroup>
+                  <Label className="d-block" for="dob">
+                    Date de naissance
+                  </Label>
+                  {this.props.data["birth_date"] != null ? (
+                    <InputMaskDate
+                      defaultValue={this.props.data["birth_date"]}
+                      onChange={(e) => this.handledob(e.target.value)}
+                    />
+                  ) : (
+                    <InputMaskDate
+                      onChange={(e) => this.handledob(e.target.value)}
+                    />
+                  )}
+                </FormGroup>
+              </Col>
+              <Col md="6" sm="12">
+                <FormGroup>
+                  <Label for="placeofbirth">Lieu de naissance</Label>
+                  <Input
+                    type="text"
+                    defaultValue={this.ifExist("birth_place")}
+                    placeholder="Ville"
+                    onChange={(e) => {
+                      this.setState({ birth_place: e.target.value });
+                      this.markDirty();
+                    }}
+                    id="placeofbirth"
+                  />
+                </FormGroup>
+              </Col>
+              {/* Sécurité sociale / Clé */}
+              <Col md="6" sm="12">
+                <FormGroup>
+                  <Label for="SS1">Sécurité Sociale</Label>
+                  <Input
+                    type="number"
+                    id="secu_social"
+                    placeholder="N°"
+                    defaultValue={this.ifExist("secu_social")}
+                    onChange={(e) => {
+                      this.setState({ secu_social: e.target.value });
+                      this.markDirty();
+                    }}
                   />
                 </FormGroup>
               </Col>
               <Col md="6" sm="12">
                 <FormGroup>
-                  <Label for="contactnumber">Numéro de Téléphone</Label>
+                  <Label for="SS2">Clé de Sécurité Sociale</Label>
                   <Input
-                    type="text"
-                    id="contactnumber"
-                    placeholder="Numéro de Téléphone"
-                    value={this.formatPhonePretty(
-                      this.state.contact_number ??
-                        this.ifExist("mobile_number") ??
-                        this.ifExist("office_number")
-                    )}
-                    onChange={(e) =>
-                      this.setState({
-                        contact_number: this.normalizePhone(e.target.value),
-                      })
-                    }
-                    onBlur={(e) =>
-                      this.setState({
-                        contact_number: this.normalizePhone(e.target.value),
-                      })
-                    }
+                    type="number"
+                    id="secu_social_key"
+                    placeholder="XX"
+                    defaultValue={this.ifExist("secu_social_key")}
+                    onChange={(e) => {
+                      this.setState({ secu_social_key: e.target.value });
+                      this.markDirty();
+                    }}
                   />
                 </FormGroup>
               </Col>
-
               {/* Statut marital / Service militaire */}
               <Col md="6" sm="12">
                 <h5 style={{ marginBottom: "5px" }}>
@@ -705,7 +815,6 @@ class UserAccountTab extends React.Component {
                   )}
                 </FormGroup>
               </Col>
-
               {/* Mot de passe / Rôle */}
               <Col md="6" sm="12">
                 <FormGroup>
@@ -760,7 +869,6 @@ class UserAccountTab extends React.Component {
                   )}
                 </FormGroup>
               </Col>
-
               {/* Date de naissance / Lieu de naissance */}
               <Col md="6" sm="12">
                 <FormGroup>
@@ -794,7 +902,6 @@ class UserAccountTab extends React.Component {
                   />
                 </FormGroup>
               </Col>
-
               {/* Nom de jeune fille / Téléphone société */}
               <Col md="6" sm="12">
                 <FormGroup>
@@ -826,7 +933,6 @@ class UserAccountTab extends React.Component {
                   />
                 </FormGroup>
               </Col> */}
-
               {/* Nombre d’enfants / Nom société */}
               <Col md="6" sm="12">
                 <FormGroup>
@@ -843,7 +949,6 @@ class UserAccountTab extends React.Component {
                   />
                 </FormGroup>
               </Col>
-
               {/* Sécurité sociale / Clé */}
               <Col md="6" sm="12">
                 <FormGroup>
@@ -875,7 +980,6 @@ class UserAccountTab extends React.Component {
                   />
                 </FormGroup>
               </Col>
-
               {/* Adresse client */}
               <Col className="mt-1" md="6" sm="12">
                 <h5 className="mb-1">
@@ -985,7 +1089,6 @@ class UserAccountTab extends React.Component {
                   />
                 </FormGroup>
               </Col>
-
               {/* Adresse société */}
               <Col className="mt-1" md="6" sm="12">
                 <div className="d-flex align-items-center justify-content-between mb-1">
@@ -1140,7 +1243,6 @@ class UserAccountTab extends React.Component {
                   </>
                 )}
               </Col>
-
               {/* Consultant / Responsable commercial */}
               <Col md="6" sm="12">
                 <FormGroup>
@@ -1198,7 +1300,6 @@ class UserAccountTab extends React.Component {
                   </CustomInput>
                 </FormGroup>
               </Col>
-
               {/* Bouton (bas de page) */}
               <Col
                 className="d-flex justify-content-center flex-wrap mt-2"

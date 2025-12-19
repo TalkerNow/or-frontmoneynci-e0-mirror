@@ -20,7 +20,15 @@ import SweetAlert from "react-bootstrap-sweetalert";
 import "flatpickr/dist/themes/light.css";
 import "../../../../assets/scss/plugins/forms/flatpickr/flatpickr.scss";
 import InputMaskDate from "../edit/InputMaskDate";
-import { Home, User, ArrowLeft, Plus, Heart, Briefcase } from "react-feather";
+import {
+  Home,
+  User,
+  ArrowLeft,
+  Plus,
+  Minus,
+  Heart,
+  Briefcase,
+} from "react-feather";
 import Radio from "../../../../components/@vuexy/radio/RadioVuexy";
 import moment from "moment";
 import { waiterHide, waiterShow } from "../../../../helpers/waiter";
@@ -70,6 +78,9 @@ class AddUser extends React.Component {
     },
     members: [],
     copyCompanyAddr: false,
+    showAddress2: false,
+    showSociety: false,
+    showSocietyAddress2: false,
   };
   async componentDidMount() {
     const Config = {
@@ -103,13 +114,13 @@ class AddUser extends React.Component {
   zipTimeout = null;
   handleDataChange = (field) => (e) => {
     const value = e && e.target ? e.target.value : e; // safe
-    this.setState(prev => ({ data: { ...prev.data, [field]: value } }));
+    this.setState((prev) => ({ data: { ...prev.data, [field]: value } }));
   };
   fetchCitiesByZip = async (zip, which /* 'personal' | 'society' */) => {
     const key = `${which}_city_options`;
     if (!/^\d{5}$/.test(zip)) {
-      this.setState(prev => ({
-        data: { ...prev.data, [key]: [], [`${which}_city`]: "" }
+      this.setState((prev) => ({
+        data: { ...prev.data, [key]: [], [`${which}_city`]: "" },
       }));
       return;
     }
@@ -117,32 +128,35 @@ class AddUser extends React.Component {
       const { data } = await axios.get(
         `https://geo.api.gouv.fr/communes?codePostal=${zip}&fields=nom&format=json`
       );
-      const options = (data || []).map(c => c.nom);
+      const options = (data || []).map((c) => c.nom);
 
-      this.setState(prev => ({
-        data: { ...prev.data, [key]: options }
+      this.setState((prev) => ({
+        data: { ...prev.data, [key]: options },
       }));
 
       if (options.length === 1) {
-        this.setState(prev => ({
-          data: { ...prev.data, [`${which}_city`]: options[0] }
+        this.setState((prev) => ({
+          data: { ...prev.data, [`${which}_city`]: options[0] },
         }));
       }
     } catch (e) {
       console.error(e);
-      this.setState(prev => ({
-        data: { ...prev.data, [key]: [] }
+      this.setState((prev) => ({
+        data: { ...prev.data, [key]: [] },
       }));
     }
   };
 
   handleZipChange = (zip, which) => {
     const sanitized = (zip || "").replace(/\D/g, "").slice(0, 5);
-    this.setState(prev => ({
-      data: { ...prev.data, [`${which}_zip_code`]: sanitized }
+    this.setState((prev) => ({
+      data: { ...prev.data, [`${which}_zip_code`]: sanitized },
     }));
     if (this.zipTimeout) clearTimeout(this.zipTimeout);
-    this.zipTimeout = setTimeout(() => this.fetchCitiesByZip(sanitized, which), 300);
+    this.zipTimeout = setTimeout(
+      () => this.fetchCitiesByZip(sanitized, which),
+      300
+    );
   };
   handleCopyCompanyToggle = (checked) => {
     this.setState((prev) => {
@@ -285,7 +299,6 @@ class AddUser extends React.Component {
       }
     }
 
-
     // if (this.state.data.email === null || this.state.data.email === "") {
     //   toast.error("You should input email");
     //   return;
@@ -299,8 +312,8 @@ class AddUser extends React.Component {
     axios
       .get(
         global.config.server_url +
-        "/duplicated_email?email=" +
-        this.state.data.email,
+          "/duplicated_email?email=" +
+          this.state.data.email,
         Config
       )
       .then((response) => {
@@ -329,7 +342,11 @@ class AddUser extends React.Component {
             >
               <ArrowLeft size={16} />
             </Button.Ripple>
-            <Button.Ripple color="success" onClick={() => this.handleSubmit(0)} className="mt-1 mt-sm-0 w-100 w-sm-auto">
+            <Button.Ripple
+              color="success"
+              onClick={() => this.handleSubmit(0)}
+              className="mt-1 mt-sm-0 w-100 w-sm-auto"
+            >
               Enregistrer
             </Button.Ripple>
           </div>
@@ -346,7 +363,17 @@ class AddUser extends React.Component {
           </p>
         </SweetAlert>
         <CardBody>
-          <h5 style={{ fontWeight: 600, fontSize: 16, marginBottom: 8, borderBottom: '1px solid #E5E7EB', paddingBottom: 6 }}>Informations personnelles</h5>
+          <h5
+            style={{
+              fontWeight: 600,
+              fontSize: 16,
+              marginBottom: 8,
+              borderBottom: "1px solid #E5E7EB",
+              paddingBottom: 6,
+            }}
+          >
+            Informations personnelles
+          </h5>
           {/* Civilité */}
           <Row>
             <Col md="12" sm="12">
@@ -406,7 +433,12 @@ class AddUser extends React.Component {
                       type="text"
                       placeholder="Prénom"
                       onChange={(e) =>
-                        this.setState({ data: { ...this.state.data, first_name: e.target.value } })
+                        this.setState({
+                          data: {
+                            ...this.state.data,
+                            first_name: e.target.value,
+                          },
+                        })
                       }
                       id="firstname"
                     />
@@ -419,7 +451,12 @@ class AddUser extends React.Component {
                       type="text"
                       placeholder="Nom"
                       onChange={(e) =>
-                        this.setState({ data: { ...this.state.data, last_name: e.target.value } })
+                        this.setState({
+                          data: {
+                            ...this.state.data,
+                            last_name: e.target.value,
+                          },
+                        })
                       }
                       id="lastname"
                     />
@@ -432,7 +469,9 @@ class AddUser extends React.Component {
                       type="email"
                       placeholder="Email"
                       onChange={(e) =>
-                        this.setState({ data: { ...this.state.data, email: e.target.value } })
+                        this.setState({
+                          data: { ...this.state.data, email: e.target.value },
+                        })
                       }
                       id="email"
                     />
@@ -449,9 +488,12 @@ class AddUser extends React.Component {
                       value={this.state.data.mobile_number || ""}
                       onChange={(e) => {
                         let input = e.target.value.replace(/\D/g, "");
-                        if (input.length > 2) input = input.replace(/(.{2})/g, "$1 ");
+                        if (input.length > 2)
+                          input = input.replace(/(.{2})/g, "$1 ");
                         input = input.trim();
-                        this.setState({ data: { ...this.state.data, mobile_number: input } });
+                        this.setState({
+                          data: { ...this.state.data, mobile_number: input },
+                        });
                       }}
                     />
                   </FormGroup>
@@ -465,7 +507,11 @@ class AddUser extends React.Component {
                   type="textarea"
                   rows="11"
                   placeholder="Notes"
-                  onChange={(e) => this.setState({ data: { ...this.state.data, notes: e.target.value } })}
+                  onChange={(e) =>
+                    this.setState({
+                      data: { ...this.state.data, notes: e.target.value },
+                    })
+                  }
                   id="notes"
                 />
               </FormGroup>
@@ -510,7 +556,18 @@ class AddUser extends React.Component {
             </Col>
           </Row> */}
 
-          <h5 style={{ fontWeight: 600, fontSize: 16, marginTop: 8, marginBottom: 8, borderBottom: '1px solid #E5E7EB', paddingBottom: 6 }}>Informations administratives</h5>
+          <h5
+            style={{
+              fontWeight: 600,
+              fontSize: 16,
+              marginTop: 8,
+              marginBottom: 8,
+              borderBottom: "1px solid #E5E7EB",
+              paddingBottom: 6,
+            }}
+          >
+            Informations administratives
+          </h5>
           {/* Date et lieu de naissance */}
           <Row>
             <Col md="6" sm="12">
@@ -755,10 +812,24 @@ class AddUser extends React.Component {
                 <span className="align-middle">Adresse du client</span>
               </h5>
               <FormGroup>
-                <Label for="adress1">Adresse 1</Label>
+                <div className="d-flex justify-content-between align-items-center">
+                  <Label for="adress1">Rue / Numéro</Label>
+                  {!this.state.showAddress2 && (
+                    <div
+                      className="cursor-pointer text-primary d-flex align-items-center"
+                      onClick={() => this.setState({ showAddress2: true })}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <Plus size={14} className="mr-50" />
+                      <span style={{ fontSize: "0.85rem" }}>
+                        Ajouter un complément
+                      </span>
+                    </div>
+                  )}
+                </div>
                 <Input
                   type="text"
-                  placeholder="Adresse"
+                  placeholder="Rue / Numéro"
                   onChange={(e) =>
                     this.setState({
                       data: {
@@ -770,22 +841,40 @@ class AddUser extends React.Component {
                   id="adress1"
                 />
               </FormGroup>
-              <FormGroup>
-                <Label for="adress2">Adresse N°2</Label>
-                <Input
-                  type="text"
-                  placeholder="Adresse N°2"
-                  onChange={(e) =>
-                    this.setState({
-                      data: {
-                        ...this.state.data,
-                        personal_address_2: e.target.value,
-                      },
-                    })
-                  }
-                  id="adress2"
-                />
-              </FormGroup>
+              {this.state.showAddress2 && (
+                <FormGroup>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <Label for="adress2">Adresse n°2</Label>
+                    <div
+                      className="cursor-pointer text-danger d-flex align-items-center"
+                      onClick={() =>
+                        this.setState({
+                          showAddress2: false,
+                          data: { ...this.state.data, personal_address_2: "" },
+                        })
+                      }
+                      style={{ cursor: "pointer" }}
+                    >
+                      <Minus size={14} className="mr-50" />
+                      <span style={{ fontSize: "0.85rem" }}>Retirer</span>
+                    </div>
+                  </div>
+                  <Input
+                    type="text"
+                    placeholder="Adresse n°2"
+                    value={this.state.data.personal_address_2 || ""}
+                    onChange={(e) =>
+                      this.setState({
+                        data: {
+                          ...this.state.data,
+                          personal_address_2: e.target.value,
+                        },
+                      })
+                    }
+                    id="adress2"
+                  />
+                </FormGroup>
+              )}
               <FormGroup>
                 <Label for="postalcode">Code postal</Label>
                 <Input
@@ -795,7 +884,9 @@ class AddUser extends React.Component {
                   id="postalcode"
                   placeholder="Code postal"
                   value={this.state.data.personal_zip_code || ""}
-                  onChange={(e) => this.handleZipChange(e.target.value, "personal")}
+                  onChange={(e) =>
+                    this.handleZipChange(e.target.value, "personal")
+                  }
                 />
               </FormGroup>
 
@@ -836,106 +927,167 @@ class AddUser extends React.Component {
 
             {/* Adresse société */}
             <Col className="mt-1" md="6" sm="12">
-              <h5 className="mb-1">
-                <Briefcase className="mr-50" size={16} />
-                <span className="align-middle">Adresse de sa société</span>
-              </h5>
-              <FormGroup>
-                <Label for="officename">Nom de la Société</Label>
-                <Input
-                  type="text"
-                  placeholder="Nom Société"
+              <div className="d-flex align-items-center justify-content-between mb-1">
+                <h5 className="mb-0">
+                  <Briefcase className="mr-50" size={16} />
+                  <span className="align-middle">Adresse de sa société</span>
+                </h5>
+                <CustomInput
+                  type="switch"
+                  id="societySwitch"
+                  name="societySwitch"
+                  inline
+                  checked={this.state.showSociety}
                   onChange={(e) =>
-                    this.setState({
-                      data: {
-                        ...this.state.data,
-                        society_name: e.target.value,
-                      },
-                    })
+                    this.setState({ showSociety: e.target.checked })
                   }
-                  id="officename"
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label for="officeadress1">Adresse 1</Label>
-                <Input
-                  type="text"
-                  placeholder="Adresse 1"
-                  onChange={(e) =>
-                    this.setState({
-                      data: {
-                        ...this.state.data,
-                        society_address: e.target.value,
-                      },
-                    })
-                  }
-                  id="officeadress1"
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label for="officeadress2">Adresse n°2</Label>
-                <Input
-                  type="text"
-                  placeholder="Adresse n°2"
-                  onChange={(e) =>
-                    this.setState({
-                      data: {
-                        ...this.state.data,
-                        society_address_2: e.target.value,
-                      },
-                    })
-                  }
-                  id="officeadress2"
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label for="officepostcode">Code Postal</Label>
-                <Input
-                  type="number"
-                  placeholder="Code Postal"
-                  onChange={(e) =>
-                    this.setState({
-                      data: {
-                        ...this.state.data,
-                        society_zip_code: e.target.value,
-                      },
-                    })
-                  }
-                  id="officepostcode"
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label for="officecity">Ville</Label>
-                <Input
-                  type="text"
-                  placeholder="Ville"
-                  onChange={(e) =>
-                    this.setState({
-                      data: {
-                        ...this.state.data,
-                        society_city: e.target.value,
-                      },
-                    })
-                  }
-                  id="officecity"
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label for="officecountry">Pays</Label>
-                <Input
-                  type="text"
-                  placeholder="Pays"
-                  onChange={(e) =>
-                    this.setState({
-                      data: {
-                        ...this.state.data,
-                        society_country: e.target.value,
-                      },
-                    })
-                  }
-                  id="officecountry"
-                />
-              </FormGroup>
+                >
+                  <span className="switch-label">Ajouter une société</span>
+                </CustomInput>
+              </div>
+
+              {this.state.showSociety && (
+                <>
+                  <FormGroup>
+                    <Label for="officename">Nom de la Société</Label>
+                    <Input
+                      type="text"
+                      placeholder="Nom Société"
+                      value={this.state.data.society_name || ""}
+                      onChange={(e) =>
+                        this.setState({
+                          data: {
+                            ...this.state.data,
+                            society_name: e.target.value,
+                          },
+                        })
+                      }
+                      id="officename"
+                    />
+                  </FormGroup>
+                  <FormGroup>
+                    <div className="d-flex justify-content-between align-items-center">
+                      <Label for="officeadress1">Rue / Numéro</Label>
+                      {!this.state.showSocietyAddress2 && (
+                        <div
+                          className="cursor-pointer text-primary d-flex align-items-center"
+                          onClick={() =>
+                            this.setState({ showSocietyAddress2: true })
+                          }
+                          style={{ cursor: "pointer" }}
+                        >
+                          <Plus size={14} className="mr-50" />
+                          <span style={{ fontSize: "0.85rem" }}>
+                            Ajouter un complément
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <Input
+                      type="text"
+                      placeholder="Rue / Numéro"
+                      value={this.state.data.society_address || ""}
+                      onChange={(e) =>
+                        this.setState({
+                          data: {
+                            ...this.state.data,
+                            society_address: e.target.value,
+                          },
+                        })
+                      }
+                      id="officeadress1"
+                    />
+                  </FormGroup>
+                  {this.state.showSocietyAddress2 && (
+                    <FormGroup>
+                      <div className="d-flex justify-content-between align-items-center">
+                        <Label for="officeadress2">Adresse n°2</Label>
+                        <div
+                          className="cursor-pointer text-danger d-flex align-items-center"
+                          onClick={() =>
+                            this.setState({
+                              showSocietyAddress2: false,
+                              data: {
+                                ...this.state.data,
+                                society_address_2: "",
+                              },
+                            })
+                          }
+                          style={{ cursor: "pointer" }}
+                        >
+                          <Minus size={14} className="mr-50" />
+                          <span style={{ fontSize: "0.85rem" }}>Retirer</span>
+                        </div>
+                      </div>
+                      <Input
+                        type="text"
+                        placeholder="Adresse n°2"
+                        value={this.state.data.society_address_2 || ""}
+                        onChange={(e) =>
+                          this.setState({
+                            data: {
+                              ...this.state.data,
+                              society_address_2: e.target.value,
+                            },
+                          })
+                        }
+                        id="officeadress2"
+                      />
+                    </FormGroup>
+                  )}
+                  <FormGroup>
+                    <Label for="officepostcode">Code Postal</Label>
+                    <Input
+                      type="number"
+                      placeholder="Code Postal"
+                      value={this.state.data.society_zip_code || ""}
+                      onChange={(e) =>
+                        this.setState({
+                          data: {
+                            ...this.state.data,
+                            society_zip_code: e.target.value,
+                          },
+                        })
+                      }
+                      id="officepostcode"
+                    />
+                  </FormGroup>
+                  <FormGroup>
+                    <Label for="officecity">Ville</Label>
+                    <Input
+                      type="text"
+                      placeholder="Ville"
+                      value={this.state.data.society_city || ""}
+                      onChange={(e) =>
+                        this.setState({
+                          data: {
+                            ...this.state.data,
+                            society_city: e.target.value,
+                          },
+                        })
+                      }
+                      id="officecity"
+                    />
+                  </FormGroup>
+                  <FormGroup>
+                    <Label for="officecountry">Pays</Label>
+                    <Input
+                      type="text"
+                      placeholder="Pays"
+                      value={this.state.data.society_country || ""}
+                      onChange={(e) =>
+                        this.setState({
+                          data: {
+                            ...this.state.data,
+                            society_country: e.target.value,
+                          },
+                        })
+                      }
+                      id="officecountry"
+                    />
+                  </FormGroup>
+                </>
+              )}
             </Col>
           </Row>
 

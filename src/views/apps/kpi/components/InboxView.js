@@ -17,13 +17,14 @@ import {
   Trash2,
   Brain,
   Target,
+  AlertCircle,
   AlertTriangle,
   TrendingUp,
   Lightbulb,
 } from "lucide-react";
 import { Badge } from "./SharedComponents";
 
-const apiKey = "AIzaSyC6soRFcRFCXV65lJmSZPv5wfpbKsmFDZg";
+const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
 
 const EOR_SYSTEM_PROMPT = `
 RÔLE : Tu es un Expert Senior en Retraite chez EOR. Tu assistes des commerciaux.
@@ -44,6 +45,44 @@ TON & STYLE :
 - Direct, Incisif, Orienté Vente.
 - Utilise le vocabulaire technique précis (RACL, LURA, MICO) uniquement si pertinent.
 `;
+
+/**
+ * Calculates a dynamic complexity score (0-100) based on diagnostic attributes.
+ */
+function calculateComplexityScore(attrs = {}) {
+  let score = 30; // Base score
+
+  // Q1: Number of companies
+  const q1 = (attrs.SIMULATEUR_DIFFICULTE_Q1 || "").toString();
+  if (q1.includes("9+")) score += 25;
+  else if (q1.includes("4-9") || q1.includes("4–9")) score += 15;
+
+  // Q2: Simultaneous companies
+  if ((attrs.SIMULATEUR_DIFFICULTE_Q2 || "").toLowerCase() === "oui")
+    score += 10;
+
+  // Q3: Abroad career
+  if ((attrs.SIMULATEUR_DIFFICULTE_Q3 || "").toLowerCase() === "oui")
+    score += 20;
+
+  // Q4: Career gaps (maladie, chomage)
+  if ((attrs.SIMULATEUR_DIFFICULTE_Q4 || "").toLowerCase() === "oui")
+    score += 10;
+
+  // Q5: Specific regimes (Fonctionnaire/Contractuel)
+  const q5 = (attrs.SIMULATEUR_DIFFICULTE_Q5 || "").toLowerCase();
+  if (q5.includes("oui")) score += 15;
+
+  // Q6: Independent / Manager
+  if ((attrs.SIMULATEUR_DIFFICULTE_Q6 || "").toLowerCase() === "oui")
+    score += 15;
+
+  // Q8: RIS not checked
+  if ((attrs.SIMULATEUR_DIFFICULTE_Q8 || "").toLowerCase() === "non")
+    score += 15;
+
+  return Math.min(100, score);
+}
 
 async function generateGeminiContent(userPrompt) {
   const fullPrompt = `${EOR_SYSTEM_PROMPT}\n\nDEMANDE UTILISATEUR : ${userPrompt}`;
@@ -77,8 +116,6 @@ ENTRÉE : Les données du diagnostic prospect (JSON ci-dessous).
 
 TA MISSION : Analyse les données et génère un rapport JSON strict avec ces 4 clés. Sois incisif, direct et vendeur.
 
-CONTRAINTE SUPRÊME : Réponses ultra-courtes exigées. Maximum 15 mots par section. Utilise un style télégraphique (pas de phrases complexes).
-
 1. "profil_psy" (Le ton à adopter) :
    - Déduis la psychologie du prospect selon ses réponses.
    - Si beaucoup de "Je ne sais pas" = Profil "PERDU" (Besoin de pédagogie/Rassurance).
@@ -93,13 +130,11 @@ CONTRAINTE SUPRÊME : Réponses ultra-courtes exigées. Maximum 15 mots par sect
 3. "mines_enterrees" (La complexité technique qui justifie nos honoraires) :
    - Liste sous forme de bullet points courts les risques d'erreurs détectés.
    - Mots clés à scanner : Service Militaire (risque oubli RIS), Enfants > 2 (complexité majoration), Carrière à l'étranger, Statut Indépendant/Chef d'entreprise.
-   - Format imposé : 'Mot-clé : Explication courte' (Max 6 mots par puce).
-  
+
 4. "leviers_closing" (L'espoir/La solution) :
    - Liste les pistes d'optimisation.
    - Si "Départ souhaité < Age légal" -> Suggérer impérativement : "Vérifier éligibilité Carrière Longue (RACL)".
    - Si trous de carrière -> Suggérer : "Rachat de trimestres" ou "Récupération chômage non indemnisé".
-   - Format imposé : 'Mot-clé : Explication courte' (Max 6 mots par puce).
 
 FORMAT DE SORTIE ATTENDU (JSON EXCLUSIVEMENT) :
 {
@@ -123,6 +158,7 @@ async function generateStrategicAnalysis(diagnosticData) {
         body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] }),
       }
     );
+
     if (!response.ok) throw new Error(`API Error: ${response.status}`);
     const data = await response.json();
     const textResult = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
@@ -193,6 +229,7 @@ const ActionsSection = () => {
 
   const iconBarStyle = {
     display: "flex",
+    flexWrap: "wrap",
     gap: "8px",
     padding: "8px 0",
     marginBottom: "16px",
@@ -484,7 +521,7 @@ const ActionsSection = () => {
   return (
     <div>
       {/* Icon Navigation Bar */}
-      <div style={iconBarStyle}>
+      <div className="header-flex-wrap" style={iconBarStyle}>
         <button
           style={iconButtonStyle(activeView === "HOME")}
           onClick={() => setActiveView("HOME")}
@@ -675,7 +712,6 @@ function extractContactFromMessages(messages) {
 
 // Helper: Map conversation from backend to inbox item
 function mapConversationToInboxItem(conv) {
-  console.log("=== MAPPING CONVERSATION ===", conv);
   // Try to find user info in various places
   const user =
     conv.user ||
@@ -763,9 +799,15 @@ function mapConversationToInboxItem(conv) {
   };
 }
 
-const InboxView = ({ items = [], loading, error, onSelect }) => {
+const InboxView = ({
+  items = [],
+  filter = "all",
+  loading,
+  error,
+  onSelect,
+}) => {
   // Use provided items (no mock fallback), sorted by date (most recent first)
-  const inboxItems =
+  const allInboxItems =
     items && items.length > 0
       ? items.map(mapConversationToInboxItem).sort((a, b) => {
           const dateA = new Date(a.raw?.created_at || 0);
@@ -773,6 +815,12 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
           return dateB - dateA; // Most recent first
         })
       : [];
+
+  // Filter by type if filter is specified
+  const inboxItems =
+    filter === "all"
+      ? allInboxItems
+      : allInboxItems.filter((item) => item.type === filter);
 
   const [selectedItem, setSelectedItem] = useState(inboxItems[0] || {});
 
@@ -847,8 +895,19 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
         ...prev,
         [selectedItem.id]: result,
       }));
+    } else {
+      alert("Erreur lors de la génération de l'analyse. Veuillez réessayer.");
     }
     setIsAnalyzing(false);
+  };
+
+  const handleDeleteStrategicAnalysis = () => {
+    if (!selectedItem?.id) return;
+    setStrategicAnalysisCache((prev) => {
+      const newCache = { ...prev };
+      delete newCache[selectedItem.id];
+      return newCache;
+    });
   };
 
   // Update selectedItem when inboxItems change
@@ -881,7 +940,9 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
       - Points clés : ${selectedItem.summary?.join(", ")}
       ${
         selectedItem.type === "diagnostic"
-          ? `- Score complexité : ${selectedItem.score}/100`
+          ? `- Score complexité : ${calculateComplexityScore(
+              selectedItem.raw?.attributes
+            )}/100`
           : ""
       }
      
@@ -943,21 +1004,24 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
   // Inline styles for layout since Tailwind might not be fully available
   const containerStyle = {
     display: "flex",
-    height: "calc(100vh - 180px)", // Adjust based on header/footer
+    flexWrap: "wrap",
+    height: "auto",
+    minHeight: "calc(100vh - 180px)", // Adjust based on header/footer
     backgroundColor: "#fff",
     borderRadius: "8px",
     boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
     border: "1px solid #e5e7eb",
     overflow: "hidden",
     position: "relative",
+    width: "100%",
   };
 
   return (
-    <div style={containerStyle}>
+    <div className="inbox-container" style={containerStyle}>
       {/* Left List */}
       <div
+        className="inbox-left-panel"
         style={{
-          width: "33%",
           borderRight: "1px solid #e5e7eb",
           display: "flex",
           flexDirection: "column",
@@ -1128,7 +1192,7 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
                         fontWeight: 500,
                       }}
                     >
-                      Score: {item.score}
+                      Score: {calculateComplexityScore(item.raw?.attributes)}
                     </span>
                   )}
                 </div>
@@ -1140,16 +1204,20 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
 
       {/* Right Detail */}
       <div
+        className="inbox-right-panel"
         style={{
-          width: "67%",
           display: "flex",
           flexDirection: "column",
           backgroundColor: "#fff",
         }}
       >
         {/* Header */}
-        <div style={{ padding: "24px", borderBottom: "1px solid #f3f4f6" }}>
+        <div
+          className="responsive-padding"
+          style={{ borderBottom: "1px solid #f3f4f6" }}
+        >
           <div
+            className="inbox-detail-header"
             style={{
               display: "flex",
               justifyContent: "space-between",
@@ -1157,7 +1225,14 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
               marginBottom: "24px",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                flexWrap: "wrap",
+              }}
+            >
               <Badge color={getTypeColor(selectedItem.type)}>
                 {getTypeLabel(selectedItem.type)}
               </Badge>
@@ -1165,7 +1240,10 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
                 Reçu le {selectedItem.date} • Source: Site Web
               </span>
             </div>
-            <div style={{ display: "flex", gap: "8px" }}>
+            <div
+              className="header-btn-stack"
+              style={{ display: "flex", gap: "8px" }}
+            >
               <button
                 className=""
                 style={{
@@ -1245,7 +1323,10 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
           </div>
         </div>
 
-        <div style={{ padding: "24px", flex: 1, overflowY: "auto" }}>
+        <div
+          className="responsive-padding"
+          style={{ flex: 1, overflowY: "auto" }}
+        >
           {selectedItem.type === "diagnostic" ? (
             <div>
               {/* Header with Score */}
@@ -1259,6 +1340,7 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
                 }}
               >
                 <div
+                  className="header-btn-stack"
                   style={{
                     display: "flex",
                     justifyContent: "space-between",
@@ -1312,17 +1394,16 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
                       }}
                     >
                       Score:{" "}
-                      {selectedItem.raw?.score || selectedItem.score || 0}/100
+                      {calculateComplexityScore(selectedItem.raw?.attributes)}
+                      /100
                     </span>
                   </div>
                 </div>
 
                 {/* Dates Row */}
                 <div
+                  className="diagnostic-grid"
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "16px",
                     marginBottom: "16px",
                   }}
                 >
@@ -1548,13 +1629,7 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
                         >
                           <Clock size={14} /> REPÈRES CLÉS (CALCULÉS)
                         </div>
-                        <div
-                          style={{
-                            display: "grid",
-                            gridTemplateColumns: "1fr 1fr",
-                            gap: "20px",
-                          }}
-                        >
+                        <div className="reperes-grid" style={{}}>
                           <div>
                             <div
                               style={{
@@ -1759,395 +1834,401 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
                     Réponses au Questionnaire
                   </h3>
 
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <tbody>
-                      {/* Q1 */}
-                      <tr>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            borderBottom: "1px solid #e2e8f0",
-                            width: "60%",
-                            color: "#475569",
-                            fontWeight: 500,
-                            fontSize: "15px",
-                          }}
-                        >
-                          Combien d'entreprises durant votre carrière ?
-                        </td>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            borderBottom: "1px solid #e2e8f0",
-                            backgroundColor: ["9+", "4-9", "4–9"].some((v) =>
-                              (
-                                selectedItem.raw.attributes
-                                  .SIMULATEUR_DIFFICULTE_Q1 || ""
+                  <div className="table-responsive">
+                    <table
+                      style={{ width: "100%", borderCollapse: "collapse" }}
+                    >
+                      <tbody>
+                        {/* Q1 */}
+                        <tr>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              borderBottom: "1px solid #e2e8f0",
+                              width: "60%",
+                              color: "#475569",
+                              fontWeight: 500,
+                              fontSize: "15px",
+                            }}
+                          >
+                            Combien d'entreprises durant votre carrière ?
+                          </td>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              borderBottom: "1px solid #e2e8f0",
+                              backgroundColor: ["9+", "4-9", "4–9"].some((v) =>
+                                (
+                                  selectedItem.raw.attributes
+                                    .SIMULATEUR_DIFFICULTE_Q1 || ""
+                                )
+                                  .toString()
+                                  .includes(v)
                               )
-                                .toString()
-                                .includes(v)
-                            )
-                              ? "#dcfce7"
-                              : "transparent",
-                            fontWeight: 600,
-                            color: "#1f2937",
-                          }}
-                        >
-                          {selectedItem.raw.attributes
-                            .SIMULATEUR_DIFFICULTE_Q1 || "—"}
-                        </td>
-                      </tr>
-
-                      {/* Q2 */}
-                      <tr>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            borderBottom: "1px solid #e2e8f0",
-                            color: "#475569",
-                            fontWeight: 500,
-                            fontSize: "15px",
-                          }}
-                        >
-                          Travaillé dans plusieurs entreprises à la fois ?
-                        </td>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            borderBottom: "1px solid #e2e8f0",
-                            backgroundColor:
-                              (
-                                selectedItem.raw.attributes
-                                  .SIMULATEUR_DIFFICULTE_Q2 || ""
-                              ).toLowerCase() === "oui"
                                 ? "#dcfce7"
                                 : "transparent",
-                            fontWeight: 600,
-                            color: "#1f2937",
-                          }}
-                        >
-                          {selectedItem.raw.attributes
-                            .SIMULATEUR_DIFFICULTE_Q2 || "—"}
-                        </td>
-                      </tr>
+                              fontWeight: 600,
+                              color: "#1f2937",
+                            }}
+                          >
+                            {selectedItem.raw.attributes
+                              .SIMULATEUR_DIFFICULTE_Q1 || "—"}
+                          </td>
+                        </tr>
 
-                      {/* Q3 */}
-                      <tr>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            borderBottom: "1px solid #e2e8f0",
-                            color: "#475569",
-                            fontWeight: 500,
-                            fontSize: "15px",
-                          }}
-                        >
-                          Travaillé à l'étranger ?
-                        </td>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            borderBottom: "1px solid #e2e8f0",
-                            backgroundColor:
-                              (
-                                selectedItem.raw.attributes
-                                  .SIMULATEUR_DIFFICULTE_Q3 || ""
-                              ).toLowerCase() === "oui"
+                        {/* Q2 */}
+                        <tr>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              borderBottom: "1px solid #e2e8f0",
+                              color: "#475569",
+                              fontWeight: 500,
+                              fontSize: "15px",
+                            }}
+                          >
+                            Travaillé dans plusieurs entreprises à la fois ?
+                          </td>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              borderBottom: "1px solid #e2e8f0",
+                              backgroundColor:
+                                (
+                                  selectedItem.raw.attributes
+                                    .SIMULATEUR_DIFFICULTE_Q2 || ""
+                                ).toLowerCase() === "oui"
+                                  ? "#dcfce7"
+                                  : "transparent",
+                              fontWeight: 600,
+                              color: "#1f2937",
+                            }}
+                          >
+                            {selectedItem.raw.attributes
+                              .SIMULATEUR_DIFFICULTE_Q2 || "—"}
+                          </td>
+                        </tr>
+
+                        {/* Q3 */}
+                        <tr>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              borderBottom: "1px solid #e2e8f0",
+                              color: "#475569",
+                              fontWeight: 500,
+                              fontSize: "15px",
+                            }}
+                          >
+                            Travaillé à l'étranger ?
+                          </td>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              borderBottom: "1px solid #e2e8f0",
+                              backgroundColor:
+                                (
+                                  selectedItem.raw.attributes
+                                    .SIMULATEUR_DIFFICULTE_Q3 || ""
+                                ).toLowerCase() === "oui"
+                                  ? "#dcfce7"
+                                  : "transparent",
+                              fontWeight: 600,
+                              color: "#1f2937",
+                            }}
+                          >
+                            {selectedItem.raw.attributes
+                              .SIMULATEUR_DIFFICULTE_Q3 || "—"}
+                          </td>
+                        </tr>
+
+                        {/* Q4 */}
+                        <tr>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              borderBottom: "1px solid #e2e8f0",
+                              color: "#475569",
+                              fontWeight: 500,
+                              fontSize: "15px",
+                            }}
+                          >
+                            Arrêt maladie, accident du travail ou chômage ?
+                          </td>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              borderBottom: "1px solid #e2e8f0",
+                              backgroundColor:
+                                (
+                                  selectedItem.raw.attributes
+                                    .SIMULATEUR_DIFFICULTE_Q4 || ""
+                                ).toLowerCase() === "oui"
+                                  ? "#dcfce7"
+                                  : "transparent",
+                              fontWeight: 600,
+                              color: "#1f2937",
+                            }}
+                          >
+                            {selectedItem.raw.attributes
+                              .SIMULATEUR_DIFFICULTE_Q4 || "—"}
+                          </td>
+                        </tr>
+
+                        {/* Q5 */}
+                        <tr>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              borderBottom: "1px solid #e2e8f0",
+                              color: "#475569",
+                              fontWeight: 500,
+                              fontSize: "15px",
+                            }}
+                          >
+                            Fonctionnaire, assimilé ou régimes spéciaux ?
+                          </td>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              borderBottom: "1px solid #e2e8f0",
+                              backgroundColor: [
+                                "oui_contractuel",
+                                "oui_fonctionnaire",
+                              ].includes(
+                                (
+                                  selectedItem.raw.attributes
+                                    .SIMULATEUR_DIFFICULTE_Q5 || ""
+                                ).toLowerCase()
+                              )
                                 ? "#dcfce7"
                                 : "transparent",
-                            fontWeight: 600,
-                            color: "#1f2937",
-                          }}
-                        >
-                          {selectedItem.raw.attributes
-                            .SIMULATEUR_DIFFICULTE_Q3 || "—"}
-                        </td>
-                      </tr>
+                              fontWeight: 600,
+                              color: "#1f2937",
+                            }}
+                          >
+                            {selectedItem.raw.attributes
+                              .SIMULATEUR_DIFFICULTE_Q5 || "—"}
+                          </td>
+                        </tr>
 
-                      {/* Q4 */}
-                      <tr>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            borderBottom: "1px solid #e2e8f0",
-                            color: "#475569",
-                            fontWeight: 500,
-                            fontSize: "15px",
-                          }}
-                        >
-                          Arrêt maladie, accident du travail ou chômage ?
-                        </td>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            borderBottom: "1px solid #e2e8f0",
-                            backgroundColor:
-                              (
-                                selectedItem.raw.attributes
-                                  .SIMULATEUR_DIFFICULTE_Q4 || ""
-                              ).toLowerCase() === "oui"
-                                ? "#dcfce7"
-                                : "transparent",
-                            fontWeight: 600,
-                            color: "#1f2937",
-                          }}
-                        >
-                          {selectedItem.raw.attributes
-                            .SIMULATEUR_DIFFICULTE_Q4 || "—"}
-                        </td>
-                      </tr>
+                        {/* Q6 */}
+                        <tr>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              borderBottom: "1px solid #e2e8f0",
+                              color: "#475569",
+                              fontWeight: 500,
+                              fontSize: "15px",
+                            }}
+                          >
+                            Profession libérale / gérant / chef d'entreprise ?
+                          </td>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              borderBottom: "1px solid #e2e8f0",
+                              backgroundColor:
+                                (
+                                  selectedItem.raw.attributes
+                                    .SIMULATEUR_DIFFICULTE_Q6 || ""
+                                ).toLowerCase() === "oui"
+                                  ? "#dcfce7"
+                                  : "transparent",
+                              fontWeight: 600,
+                              color: "#1f2937",
+                            }}
+                          >
+                            {selectedItem.raw.attributes
+                              .SIMULATEUR_DIFFICULTE_Q6 || "—"}
+                          </td>
+                        </tr>
 
-                      {/* Q5 */}
-                      <tr>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            borderBottom: "1px solid #e2e8f0",
-                            color: "#475569",
-                            fontWeight: 500,
-                            fontSize: "15px",
-                          }}
-                        >
-                          Fonctionnaire, assimilé ou régimes spéciaux ?
-                        </td>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            borderBottom: "1px solid #e2e8f0",
-                            backgroundColor: [
-                              "oui_contractuel",
-                              "oui_fonctionnaire",
-                            ].includes(
-                              (
-                                selectedItem.raw.attributes
-                                  .SIMULATEUR_DIFFICULTE_Q5 || ""
-                              ).toLowerCase()
-                            )
-                              ? "#dcfce7"
-                              : "transparent",
-                            fontWeight: 600,
-                            color: "#1f2937",
-                          }}
-                        >
-                          {selectedItem.raw.attributes
-                            .SIMULATEUR_DIFFICULTE_Q5 || "—"}
-                        </td>
-                      </tr>
+                        {/* Q7 */}
+                        <tr>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              borderBottom: "1px solid #e2e8f0",
+                              color: "#475569",
+                              fontWeight: 500,
+                              fontSize: "15px",
+                            }}
+                          >
+                            Sources de revenus complémentaires ?
+                          </td>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              borderBottom: "1px solid #e2e8f0",
+                              fontWeight: 600,
+                              color: "#1f2937",
+                            }}
+                          >
+                            {selectedItem.raw.attributes
+                              .SIMULATEUR_DIFFICULTE_Q7
+                              ? selectedItem.raw.attributes.SIMULATEUR_DIFFICULTE_Q7.split(
+                                  ","
+                                ).map((v, i) => (
+                                  <span
+                                    key={i}
+                                    style={{
+                                      display: "inline-block",
+                                      border: "1px solid #e2e8f0",
+                                      borderRadius: "999px",
+                                      padding: "2px 8px",
+                                      margin: "2px 4px 2px 0",
+                                      fontSize: "15px",
+                                      background: "#f8fafc",
+                                    }}
+                                  >
+                                    {v.replace(/_/g, " ")}
+                                  </span>
+                                ))
+                              : "—"}
+                          </td>
+                        </tr>
 
-                      {/* Q6 */}
-                      <tr>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            borderBottom: "1px solid #e2e8f0",
-                            color: "#475569",
-                            fontWeight: 500,
-                            fontSize: "15px",
-                          }}
-                        >
-                          Profession libérale / gérant / chef d'entreprise ?
-                        </td>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            borderBottom: "1px solid #e2e8f0",
-                            backgroundColor:
-                              (
-                                selectedItem.raw.attributes
-                                  .SIMULATEUR_DIFFICULTE_Q6 || ""
-                              ).toLowerCase() === "oui"
-                                ? "#dcfce7"
-                                : "transparent",
-                            fontWeight: 600,
-                            color: "#1f2937",
-                          }}
-                        >
-                          {selectedItem.raw.attributes
-                            .SIMULATEUR_DIFFICULTE_Q6 || "—"}
-                        </td>
-                      </tr>
+                        {/* Q8 */}
+                        <tr>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              borderBottom: "1px solid #e2e8f0",
+                              color: "#475569",
+                              fontWeight: 500,
+                              fontSize: "15px",
+                            }}
+                          >
+                            Consulté relevés de carrière (Assurance Retraite) ?
+                          </td>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              borderBottom: "1px solid #e2e8f0",
+                              backgroundColor:
+                                (
+                                  selectedItem.raw.attributes
+                                    .SIMULATEUR_DIFFICULTE_Q8 || ""
+                                ).toLowerCase() === "non"
+                                  ? "#dcfce7"
+                                  : "transparent",
+                              fontWeight: 600,
+                              color: "#1f2937",
+                            }}
+                          >
+                            {selectedItem.raw.attributes
+                              .SIMULATEUR_DIFFICULTE_Q8 || "—"}
+                          </td>
+                        </tr>
 
-                      {/* Q7 */}
-                      <tr>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            borderBottom: "1px solid #e2e8f0",
-                            color: "#475569",
-                            fontWeight: 500,
-                            fontSize: "15px",
-                          }}
-                        >
-                          Sources de revenus complémentaires ?
-                        </td>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            borderBottom: "1px solid #e2e8f0",
-                            fontWeight: 600,
-                            color: "#1f2937",
-                          }}
-                        >
-                          {selectedItem.raw.attributes.SIMULATEUR_DIFFICULTE_Q7
-                            ? selectedItem.raw.attributes.SIMULATEUR_DIFFICULTE_Q7.split(
-                                ","
-                              ).map((v, i) => (
-                                <span
-                                  key={i}
-                                  style={{
-                                    display: "inline-block",
-                                    border: "1px solid #e2e8f0",
-                                    borderRadius: "999px",
-                                    padding: "2px 8px",
-                                    margin: "2px 4px 2px 0",
-                                    fontSize: "15px",
-                                    background: "#f8fafc",
-                                  }}
-                                >
-                                  {v.replace(/_/g, " ")}
-                                </span>
-                              ))
-                            : "—"}
-                        </td>
-                      </tr>
+                        {/* Q9 */}
+                        <tr>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              borderBottom: "1px solid #e2e8f0",
+                              color: "#475569",
+                              fontWeight: 500,
+                              fontSize: "15px",
+                            }}
+                          >
+                            Connaissance du rachat de trimestres ?
+                          </td>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              borderBottom: "1px solid #e2e8f0",
+                              fontWeight: 600,
+                              color: "#1f2937",
+                            }}
+                          >
+                            {selectedItem.raw.attributes
+                              .SIMULATEUR_DIFFICULTE_Q9 || "—"}
+                          </td>
+                        </tr>
 
-                      {/* Q8 */}
-                      <tr>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            borderBottom: "1px solid #e2e8f0",
-                            color: "#475569",
-                            fontWeight: 500,
-                            fontSize: "15px",
-                          }}
-                        >
-                          Consulté relevés de carrière (Assurance Retraite) ?
-                        </td>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            borderBottom: "1px solid #e2e8f0",
-                            backgroundColor:
-                              (
-                                selectedItem.raw.attributes
-                                  .SIMULATEUR_DIFFICULTE_Q8 || ""
-                              ).toLowerCase() === "non"
-                                ? "#dcfce7"
-                                : "transparent",
-                            fontWeight: 600,
-                            color: "#1f2937",
-                          }}
-                        >
-                          {selectedItem.raw.attributes
-                            .SIMULATEUR_DIFFICULTE_Q8 || "—"}
-                        </td>
-                      </tr>
+                        {/* Q10 */}
+                        <tr>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              borderBottom: "1px solid #e2e8f0",
+                              color: "#475569",
+                              fontWeight: 500,
+                              fontSize: "15px",
+                            }}
+                          >
+                            Cumul emploi-retraite / cessation progressive ?
+                          </td>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              borderBottom: "1px solid #e2e8f0",
+                              fontWeight: 600,
+                              color: "#1f2937",
+                            }}
+                          >
+                            {selectedItem.raw.attributes
+                              .SIMULATEUR_DIFFICULTE_Q10
+                              ? selectedItem.raw.attributes.SIMULATEUR_DIFFICULTE_Q10.split(
+                                  ","
+                                ).map((v, i) => (
+                                  <span
+                                    key={i}
+                                    style={{
+                                      display: "inline-block",
+                                      border: "1px solid #e2e8f0",
+                                      borderRadius: "999px",
+                                      padding: "2px 8px",
+                                      margin: "2px 4px 2px 0",
+                                      fontSize: "15px",
+                                      background: "#f8fafc",
+                                    }}
+                                  >
+                                    {v.replace(/_/g, " ")}
+                                  </span>
+                                ))
+                              : "—"}
+                          </td>
+                        </tr>
 
-                      {/* Q9 */}
-                      <tr>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            borderBottom: "1px solid #e2e8f0",
-                            color: "#475569",
-                            fontWeight: 500,
-                            fontSize: "15px",
-                          }}
-                        >
-                          Connaissance du rachat de trimestres ?
-                        </td>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            borderBottom: "1px solid #e2e8f0",
-                            fontWeight: 600,
-                            color: "#1f2937",
-                          }}
-                        >
-                          {selectedItem.raw.attributes
-                            .SIMULATEUR_DIFFICULTE_Q9 || "—"}
-                        </td>
-                      </tr>
-
-                      {/* Q10 */}
-                      <tr>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            borderBottom: "1px solid #e2e8f0",
-                            color: "#475569",
-                            fontWeight: 500,
-                            fontSize: "15px",
-                          }}
-                        >
-                          Cumul emploi-retraite / cessation progressive ?
-                        </td>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            borderBottom: "1px solid #e2e8f0",
-                            fontWeight: 600,
-                            color: "#1f2937",
-                          }}
-                        >
-                          {selectedItem.raw.attributes.SIMULATEUR_DIFFICULTE_Q10
-                            ? selectedItem.raw.attributes.SIMULATEUR_DIFFICULTE_Q10.split(
-                                ","
-                              ).map((v, i) => (
-                                <span
-                                  key={i}
-                                  style={{
-                                    display: "inline-block",
-                                    border: "1px solid #e2e8f0",
-                                    borderRadius: "999px",
-                                    padding: "2px 8px",
-                                    margin: "2px 4px 2px 0",
-                                    fontSize: "15px",
-                                    background: "#f8fafc",
-                                  }}
-                                >
-                                  {v.replace(/_/g, " ")}
-                                </span>
-                              ))
-                            : "—"}
-                        </td>
-                      </tr>
-
-                      {/* Q11 */}
-                      <tr>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            borderBottom: "1px solid #e2e8f0",
-                            color: "#475569",
-                            fontWeight: 500,
-                            fontSize: "15px",
-                          }}
-                        >
-                          Service militaire ?
-                        </td>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            borderBottom: "1px solid #e2e8f0",
-                            backgroundColor:
-                              (
-                                selectedItem.raw.attributes
-                                  .SIMULATEUR_DIFFICULTE_Q11 || ""
-                              ).toLowerCase() === "oui"
-                                ? "#dcfce7"
-                                : "transparent",
-                            fontWeight: 600,
-                            color: "#1f2937",
-                          }}
-                        >
-                          {selectedItem.raw.attributes
-                            .SIMULATEUR_DIFFICULTE_Q11 || "—"}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                        {/* Q11 */}
+                        <tr>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              borderBottom: "1px solid #e2e8f0",
+                              color: "#475569",
+                              fontWeight: 500,
+                              fontSize: "15px",
+                            }}
+                          >
+                            Service militaire ?
+                          </td>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              borderBottom: "1px solid #e2e8f0",
+                              backgroundColor:
+                                (
+                                  selectedItem.raw.attributes
+                                    .SIMULATEUR_DIFFICULTE_Q11 || ""
+                                ).toLowerCase() === "oui"
+                                  ? "#dcfce7"
+                                  : "transparent",
+                              fontWeight: 600,
+                              color: "#1f2937",
+                            }}
+                          >
+                            {selectedItem.raw.attributes
+                              .SIMULATEUR_DIFFICULTE_Q11 || "—"}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
 
@@ -2163,6 +2244,7 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
                   }}
                 >
                   <div
+                    className="header-btn-stack"
                     style={{
                       display: "flex",
                       justifyContent: "space-between",
@@ -2203,6 +2285,26 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
                         <Star size={14} /> Générer l'analyse
                       </button>
                     )}
+                    {strategicAnalysis && !isAnalyzing && (
+                      <button
+                        onClick={handleDeleteStrategicAnalysis}
+                        style={{
+                          padding: "8px 16px",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          color: "#dc2626",
+                          backgroundColor: "#fff",
+                          border: "1px solid #fecaca",
+                          borderRadius: "8px",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                        }}
+                      >
+                        <Trash2 size={14} /> Supprimer
+                      </button>
+                    )}
                   </div>
 
                   {/* Loading State */}
@@ -2232,112 +2334,120 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
                         <div
                           style={{
                             backgroundColor: "#fff",
-                            borderRadius: "8px",
-                            padding: "16px",
-                            marginBottom: "12px",
-                            border: "1px solid #e9d5ff",
-                            borderLeft: "4px solid #7c3aed",
+                            borderRadius: "12px",
+                            padding: "20px",
+                            marginBottom: "16px",
+                            border: "1px solid #f3f4f6",
+                            boxShadow: "0 2px 4px rgba(0,0,0,0.02)",
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: "16px",
                           }}
                         >
                           <div
                             style={{
-                              fontSize: "10px",
-                              fontWeight: 700,
+                              backgroundColor: "#f5f3ff",
                               color: "#7c3aed",
-                              marginBottom: "8px",
-                              textTransform: "uppercase",
+                              borderRadius: "50%",
+                              width: "44px",
+                              height: "44px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              flexShrink: 0,
                             }}
                           >
-                            <Brain size={14} style={{ marginRight: "4px" }} />{" "}
-                            Profil Psychologique
+                            <Brain size={24} />
                           </div>
-                          <div
-                            style={{
-                              fontSize: "15px",
-                              fontWeight: 700,
-                              color: "#1f2937",
-                              marginBottom: "6px",
-                            }}
-                          >
-                            Profil : {strategicAnalysis.profil_psy.label}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: "12px",
-                              color: "#374151",
-                              marginBottom: "6px",
-                            }}
-                          >
-                            {strategicAnalysis.profil_psy.description}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: "12px",
-                              color: "#7c3aed",
-                              fontStyle: "italic",
-                            }}
-                          >
-                            <Lightbulb
-                              size={12}
-                              style={{ marginRight: "4px" }}
-                            />{" "}
-                            {strategicAnalysis.profil_psy.conseil}
+                          <div>
+                            <div
+                              style={{
+                                fontSize: "11px",
+                                fontWeight: 800,
+                                color: "#7c3aed",
+                                marginBottom: "6px",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.05em",
+                              }}
+                            >
+                              Profil Psychologique
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "16px",
+                                fontWeight: 700,
+                                color: "#1f2937",
+                                marginBottom: "4px",
+                              }}
+                            >
+                              Profil :{" "}
+                              {strategicAnalysis.profil_psy.label ||
+                                strategicAnalysis.profil_psy}
+                            </div>
+                            {strategicAnalysis.profil_psy.description && (
+                              <div
+                                style={{
+                                  fontSize: "14px",
+                                  color: "#6b7280",
+                                  lineHeight: "1.5",
+                                }}
+                              >
+                                {strategicAnalysis.profil_psy.description}
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}
 
                       {/* 3-Column Grid for Pain/Mines/Levers */}
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "1fr 1fr 1fr",
-                          gap: "12px",
-                        }}
-                      >
+                      <div className="analysis-grid" style={{}}>
                         {/* Point de Douleur */}
                         {strategicAnalysis.douleur_critique && (
                           <div
                             style={{
-                              backgroundColor: "#fef2f2",
-                              borderRadius: "8px",
-                              padding: "12px",
-                              border: "1px solid #fecaca",
-                              borderTop: "3px solid #dc2626",
+                              backgroundColor: "#fff",
+                              borderRadius: "12px",
+                              padding: "16px",
+                              border: "1px solid #fee2e2",
+                              borderLeft: "4px solid #dc2626",
+                              boxShadow: "0 2px 4px rgba(0,0,0,0.02)",
                             }}
                           >
                             <div
                               style={{
-                                fontSize: "10px",
-                                fontWeight: 700,
-                                color: "#dc2626",
-                                marginBottom: "8px",
+                                fontSize: "11px",
+                                fontWeight: 800,
+                                color: "#991b1b",
+                                marginBottom: "12px",
                                 textTransform: "uppercase",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                letterSpacing: "0.05em",
                               }}
                             >
-                              <Target
-                                size={12}
-                                style={{ marginRight: "4px" }}
-                              />{" "}
-                              Point de Douleur
+                              <AlertCircle size={16} /> Point de Douleur
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "16px",
+                                fontWeight: 700,
+                                color: "#1f2937",
+                                marginBottom: "8px",
+                              }}
+                            >
+                              {strategicAnalysis.douleur_critique.titre ||
+                                "Argument Choc"}
                             </div>
                             <div
                               style={{
                                 fontSize: "14px",
-                                fontWeight: 700,
-                                color: "#991b1b",
-                                marginBottom: "6px",
+                                color: "#4b5563",
+                                lineHeight: "1.5",
                               }}
                             >
-                              {strategicAnalysis.douleur_critique.titre}
-                            </div>
-                            <div
-                              style={{
-                                fontSize: "15px",
-                                color: "#374151",
-                                lineHeight: "1.4",
-                              }}
-                            >
-                              {strategicAnalysis.douleur_critique.description}
+                              {strategicAnalysis.douleur_critique.description ||
+                                strategicAnalysis.douleur_critique}
                             </div>
                           </div>
                         )}
@@ -2346,47 +2456,41 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
                         {strategicAnalysis.mines_enterrees && (
                           <div
                             style={{
-                              backgroundColor: "#fffbeb",
-                              borderRadius: "8px",
-                              padding: "12px",
-                              border: "1px solid #fde68a",
-                              borderTop: "3px solid #ca8a04",
+                              backgroundColor: "#fff",
+                              borderRadius: "12px",
+                              padding: "16px",
+                              border: "1px solid #fef3c7",
+                              borderLeft: "4px solid #d97706",
+                              boxShadow: "0 2px 4px rgba(0,0,0,0.02)",
                             }}
                           >
                             <div
                               style={{
-                                fontSize: "10px",
-                                fontWeight: 700,
-                                color: "#ca8a04",
-                                marginBottom: "8px",
+                                fontSize: "11px",
+                                fontWeight: 800,
+                                color: "#92400e",
+                                marginBottom: "12px",
                                 textTransform: "uppercase",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                letterSpacing: "0.05em",
                               }}
                             >
-                              <AlertTriangle
-                                size={12}
-                                style={{ marginRight: "4px" }}
-                              />{" "}
-                              Mines Enterrées
+                              <Target size={16} /> Mines Enterrées
                             </div>
                             <ul
                               style={{
                                 margin: 0,
-                                paddingLeft: "14px",
-                                fontSize: "15px",
-                                color: "#374151",
+                                paddingLeft: "18px",
+                                fontSize: "14px",
+                                color: "#4b5563",
+                                lineHeight: "1.6",
                               }}
                             >
                               {strategicAnalysis.mines_enterrees.map(
                                 (mine, i) => (
-                                  <li
-                                    key={i}
-                                    style={{
-                                      marginBottom: "4px",
-                                      color: mine.danger
-                                        ? "#b45309"
-                                        : "#6b7280",
-                                    }}
-                                  >
+                                  <li key={i} style={{ marginBottom: "4px" }}>
                                     {mine.point || mine}
                                   </li>
                                 )
@@ -2399,40 +2503,42 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
                         {strategicAnalysis.leviers_closing && (
                           <div
                             style={{
-                              backgroundColor: "#f0fdf4",
-                              borderRadius: "8px",
-                              padding: "12px",
-                              border: "1px solid #bbf7d0",
-                              borderTop: "3px solid #16a34a",
+                              backgroundColor: "#fff",
+                              borderRadius: "12px",
+                              padding: "16px",
+                              border: "1px solid #d1fae5",
+                              borderLeft: "4px solid #059669",
+                              boxShadow: "0 2px 4px rgba(0,0,0,0.02)",
                             }}
                           >
                             <div
                               style={{
-                                fontSize: "10px",
-                                fontWeight: 700,
-                                color: "#16a34a",
-                                marginBottom: "8px",
+                                fontSize: "11px",
+                                fontWeight: 800,
+                                color: "#065f46",
+                                marginBottom: "12px",
                                 textTransform: "uppercase",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                letterSpacing: "0.05em",
                               }}
                             >
-                              <TrendingUp
-                                size={12}
-                                style={{ marginRight: "4px" }}
-                              />{" "}
-                              Leviers
+                              <TrendingUp size={16} /> Leviers
                             </div>
                             <ul
                               style={{
                                 margin: 0,
-                                paddingLeft: "14px",
-                                fontSize: "15px",
-                                color: "#374151",
+                                paddingLeft: "18px",
+                                fontSize: "14px",
+                                color: "#4b5563",
+                                lineHeight: "1.6",
                               }}
                             >
                               {strategicAnalysis.leviers_closing.map(
-                                (lever, i) => (
+                                (levier, i) => (
                                   <li key={i} style={{ marginBottom: "4px" }}>
-                                    {lever.piste || lever}
+                                    {levier.piste || levier}
                                   </li>
                                 )
                               )}
@@ -2694,6 +2800,7 @@ const InboxView = ({ items = [], loading, error, onSelect }) => {
           {/* AI REPLY */}
           <div style={{ marginTop: "24px", marginBottom: "24px" }}>
             <div
+              className="header-btn-stack"
               style={{
                 display: "flex",
                 justifyContent: "space-between",

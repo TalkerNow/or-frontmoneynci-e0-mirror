@@ -9,8 +9,8 @@ const AdminView = ({ children, searchTerm, onSearchChange, filters }) => {
 
   return (
     <div
+      className="admin-view-container"
       style={{
-        height: "calc(100vh - 180px)",
         backgroundColor: "#fff",
         borderRadius: "8px",
         boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
@@ -21,8 +21,8 @@ const AdminView = ({ children, searchTerm, onSearchChange, filters }) => {
       }}
     >
       <div
+        className="responsive-padding"
         style={{
-          padding: "20px",
           borderBottom: "1px solid #e5e7eb",
           backgroundColor: "#f9fafb",
           borderTopLeftRadius: "8px",
@@ -48,7 +48,10 @@ const AdminView = ({ children, searchTerm, onSearchChange, filters }) => {
           <FileCheck className="text-indigo-600" />
           Suivi Administratif
         </h2>
-        <div style={{ display: "flex", gap: "8px", position: "relative" }}>
+        <div
+          className="admin-search-container"
+          style={{ display: "flex", gap: "8px", position: "relative" }}
+        >
           <input
             type="text"
             placeholder="Rechercher un dossier..."
@@ -60,7 +63,6 @@ const AdminView = ({ children, searchTerm, onSearchChange, filters }) => {
               border: "1px solid #d1d5db",
               borderRadius: "6px",
               outline: "none",
-              minWidth: "250px",
             }}
           />
           <button
@@ -115,7 +117,7 @@ const AdminView = ({ children, searchTerm, onSearchChange, filters }) => {
         </div>
       </div>
 
-      <div style={{ overflow: "auto", flex: 1, padding: "20px" }}>
+      <div className="responsive-padding" style={{ overflow: "auto", flex: 1 }}>
         {/* 
                     LEGACY TABLE INTEGRATION 
                     We render the children here, which will be the old "Suivi des contrats" table passed from index.jsx

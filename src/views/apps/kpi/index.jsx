@@ -660,7 +660,6 @@ export default function KpiPage() {
   const [selectedConv, setSelectedConv] = useState(null);
 
   const handleSelectConversation = (id) => {
-    console.log("Selected conversation ID:", id);
     // TODO: fetch conversation details /api/conversation-archives/{id}
   };
 
@@ -764,14 +763,8 @@ export default function KpiPage() {
       // backend : GET /api/conversation-archives → front : "/conversation-archives"
       const res = await API.get("/conversation-archives");
 
-      console.log("=== CONVERSATIONS DEBUG ===");
-      console.log("RAW API RESPONSE:", res);
-
       const payload = res.data || {};
       const data = Array.isArray(payload.data) ? payload.data : [];
-
-      console.log("PROCESSED CONVERSATIONS DATA:", data);
-      console.log("Total conversations from API:", data.length);
 
       setConversations(data);
     } catch (e) {
@@ -790,18 +783,12 @@ export default function KpiPage() {
       // API v1: GET /api/v1/simulator-difficulty-results
       const res = await API.get("/v1/simulator-difficulty-results");
 
-      console.log("=== DIAGNOSTICS DEBUG ===");
-      console.log("RAW DIAGNOSTICS RESPONSE:", res);
-
       const payload = res.data || {};
       const data = Array.isArray(payload.data)
         ? payload.data
         : Array.isArray(payload)
         ? payload
         : [];
-
-      console.log("PROCESSED DIAGNOSTICS DATA:", data);
-      console.log("Total diagnostics from API:", data.length);
 
       setDiagnostics(data);
     } catch (e) {
@@ -1229,14 +1216,10 @@ export default function KpiPage() {
       }}
     >
       <header
+        className="kpi-header"
         style={{
           backgroundColor: "white",
           borderBottom: "1px solid #e5e7eb",
-          height: "64px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 32px",
           boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
           position: "relative",
           zIndex: 50,
@@ -1330,9 +1313,7 @@ export default function KpiPage() {
                 <span>Appel Entrant</span>
               </DropdownItem>
               <DropdownItem
-                onClick={() =>
-                  alert("Fonctionnalité 'Nouveau Client' à venir !")
-                }
+                onClick={() => history.push("/app/user/createUser")}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -1974,6 +1955,13 @@ export default function KpiPage() {
             ...conversations.map((c) => ({ ...c, _source: "chatbot" })),
             ...diagnostics.map((d) => ({ ...d, _source: "diagnostic" })),
           ]}
+          filter={
+            location.pathname.includes("/inbox/chatbot")
+              ? "chatbot"
+              : location.pathname.includes("/inbox/diagnostic")
+              ? "diagnostic"
+              : "all"
+          }
           loading={loadingConversations || loadingDiagnostics}
           error={convError || diagError}
           onSelect={handleSelectConversation}
