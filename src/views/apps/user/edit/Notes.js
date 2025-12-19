@@ -15,6 +15,8 @@ import { toast } from "react-toastify";
 import UploadCard from "./components/UploadCard";
 import GeneratedDocumentItem from "./components/GeneratedDocumentItem";
 import { AlertTriangle, Download } from "react-feather";
+import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
 import "../../../../assets/scss/pages/notes-hub.scss";
 
 const DOC_STORAGE_KEY = "career_generated_docs_v1";
@@ -72,6 +74,7 @@ const loadStoredDocs = (clientId, docUrls = DEFAULT_DOC_URLS) => {
           createdAt:
             item.createdAt || item.generatedAt || item.uploadedAt || "",
           url: item.url || docUrls[type] || "",
+          htmlContent: item.htmlContent || "",
         };
       });
   } catch {
@@ -104,6 +107,7 @@ const loadUploadedDocs = (clientId) => {
 const persistDocs = (clientId, docs) => {
   if (!clientId || typeof window === "undefined" || typeof localStorage === "undefined")
     return;
+
   try {
     const payload = (Array.isArray(docs) ? docs : []).map((doc) => ({
       id: doc.id,
@@ -111,10 +115,29 @@ const persistDocs = (clientId, docs) => {
       type: doc.type,
       createdAt: doc.createdAt,
       url: doc.url,
+      htmlContent: doc.htmlContent
     }));
     localStorage.setItem(getDocStorageKey(clientId), JSON.stringify(payload));
-  } catch {
-    /* noop */
+  } catch (err) {
+    console.warn("Storage quota possibly exceeded, trying to prune HTML content...", err);
+    // Stratégie de secours : on ne garde le HTML que pour les 5 derniers documents générés
+    // pour économiser l'espace du localStorage (limité à 5Mo)
+    try {
+      const sortedDocs = [...docs].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      const prunedPayload = sortedDocs.map((doc, index) => ({
+        id: doc.id,
+        name: doc.name,
+        type: doc.type,
+        createdAt: doc.createdAt,
+        url: doc.url,
+        htmlContent: index < 5 ? doc.htmlContent : "" // Garde l'HTML seulement pour les 5 plus récents
+      }));
+      localStorage.setItem(getDocStorageKey(clientId), JSON.stringify(prunedPayload));
+    } catch (e) {
+      // Ultime secours : on vire tout l'HTML
+      const megaLite = docs.map(({ htmlContent, ...rest }) => rest);
+      localStorage.setItem(getDocStorageKey(clientId), JSON.stringify(megaLite));
+    }
   }
 };
 const persistUploadedDocs = (clientId, items) => {
@@ -506,6 +529,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
           type: normalizedType,
           createdAt: new Date().toISOString(),
           url: reportUrl,
+          htmlContent: contentString, // Stockage du contenu pour contourner CORS
         };
 
         setGeneratedDocs((prev) => [doc, ...(Array.isArray(prev) ? prev : [])]);
@@ -620,15 +644,108 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
     setDeleteConfirmTarget(null);
   }, [deleteConfirmTarget, handleDeleteDoc, handleDeleteUpload]);
 
-  const handleDownloadPdf = useCallback(() => {
-    const iframe = document.getElementById("preview-iframe");
-    if (iframe && iframe.contentWindow) {
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-    } else {
-      toast.error("Impossible d'accéder au document pour l'impression");
+  const handleDownloadPdf = useCallback(async () => {
+    if (!viewingDoc || (!viewingDoc.url && !viewingDoc.htmlContent)) {
+      toast.error("Aucun document à télécharger");
+      return;
     }
-  }, []);
+
+    try {
+      toast.info("Génération du PDF en cours...");
+
+      let htmlContent = viewingDoc.htmlContent;
+
+      // Si pas de contenu en mémoire, on tente le téléchargement
+      if (!htmlContent && viewingDoc.url) {
+        try {
+          const response = await axios.get(viewingDoc.url, { responseType: 'text' });
+          htmlContent = response.data;
+        } catch (fetchErr) {
+          console.error("Fetch error", fetchErr);
+          toast.error(
+            <div>
+              Impossible de télécharger le document source (Blocage sécurité/CORS).
+              <br />
+              <b>Veuillez régénérer ce rapport pour activer le téléchargement PDF.</b>
+            </div>,
+            { autoClose: 8000 }
+          );
+          return;
+        }
+      }
+
+      if (!htmlContent) {
+        throw new Error("Contenu vide");
+      }
+
+      // 2. Création d'un conteneur temporaire clean
+      const container = document.createElement('div');
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      container.style.top = '0';
+      container.style.width = '210mm';
+      container.style.backgroundColor = 'white';
+      container.style.color = 'black';
+      container.style.boxSizing = 'border-box';
+
+      // Marges réduites pour éviter les espaces vides excessifs
+      container.style.padding = '10mm 15mm';
+
+      const resetStyle = `
+        <style>
+          html, body { margin: 0; padding: 0; background: white; }
+          * { box-sizing: border-box; }
+          div > :first-child { margin-top: 0 !important; }
+          img, table, .card { page-break-inside: avoid; }
+        </style>
+      `;
+
+      const bodyMatch = htmlContent.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+      container.innerHTML = resetStyle + (bodyMatch ? bodyMatch[1] : htmlContent);
+
+      document.body.appendChild(container);
+
+      // 3. Conversion en Canvas
+      const canvas = await html2canvas(container, {
+        scale: 2,
+        useCORS: true,
+        logging: false
+      });
+
+      // 4. Génération du PDF
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      const imgProps = pdf.getImageProperties(imgData);
+      const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      // Première page
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+      heightLeft -= pdfHeight;
+
+      // Pages suivantes via découpage
+      while (heightLeft > 0) {
+        position -= pdfHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+        heightLeft -= pdfHeight;
+      }
+
+      pdf.save(`${viewingDoc.name || 'document'}.pdf`);
+
+      document.body.removeChild(container);
+      toast.success("PDF téléchargé avec succès");
+
+    } catch (error) {
+      console.error("Erreur génération PDF:", error);
+      toast.error("Erreur lors de la transformation en PDF");
+    }
+  }, [viewingDoc]);
 
   const handleManualAddLine = useCallback(() => {
     setManualCareerRows((prev) => [
