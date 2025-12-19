@@ -2120,7 +2120,16 @@ class EditContract extends React.Component {
                         </Col>
                         <Col md="7" sm="12">
                           {" "}
-                          <h6>{this.ifExist("martial_status")}</h6>{" "}
+                          <h6>
+                            {(() => {
+                              const s = this.ifExist("martial_status");
+                              if (s === "Marié") return "Marié(e)";
+                              if (s === "Divorcé") return "Divorcé(e)";
+                              if (s === "Pacsé") return "Pacsé(e)";
+                              if (s === "Veuf") return "Veuf(ve)";
+                              return s;
+                            })()}
+                          </h6>{" "}
                         </Col>
                       </Row>
                       <Row>

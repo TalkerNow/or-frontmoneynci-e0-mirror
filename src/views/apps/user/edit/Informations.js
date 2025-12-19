@@ -492,7 +492,7 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Marié"
+                          label="Marié(e)"
                           color="primary"
                           defaultChecked={
                             this.props.data["martial_status"] == "Marié"
@@ -508,7 +508,7 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Divorcé"
+                          label="Divorcé(e)"
                           color="primary"
                           defaultChecked={
                             this.props.data["martial_status"] == "Divorcé"
@@ -524,7 +524,7 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Pacsé"
+                          label="Pacsé(e)"
                           color="primary"
                           defaultChecked={
                             this.props.data["martial_status"] == "Pacsé"
@@ -540,7 +540,7 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Veuf"
+                          label="Veuf(ve)"
                           color="primary"
                           defaultChecked={
                             this.props.data["martial_status"] == "Veuf"
@@ -571,7 +571,7 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Marié"
+                          label="Marié(e)"
                           color="primary"
                           defaultChecked={false}
                           name="martial_status"
@@ -583,7 +583,7 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Divorcé"
+                          label="Divorcé(e)"
                           color="primary"
                           defaultChecked={false}
                           name="martial_status"
@@ -595,7 +595,7 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Pacsé"
+                          label="Pacsé(e)"
                           color="primary"
                           defaultChecked={false}
                           name="martial_status"
@@ -607,7 +607,7 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Veuf"
+                          label="Veuf(ve)"
                           color="primary"
                           defaultChecked={false}
                           name="martial_status"
