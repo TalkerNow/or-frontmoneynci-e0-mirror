@@ -77,8 +77,8 @@ const ProtectedRoute = ({
                 fullLayout === true
                   ? context.fullLayout
                   : context.state.activeLayout === "horizontal"
-                    ? context.horizontalLayout
-                    : context.VerticalLayout;
+                  ? context.horizontalLayout
+                  : context.VerticalLayout;
               return (
                 <LayoutTag {...props} permission={props.user}>
                   <Suspense fallback={<Spinner />}>
@@ -105,8 +105,8 @@ const RouteConfig = ({ component: Component, fullLayout, ...rest }) => (
               fullLayout === true
                 ? context.fullLayout
                 : context.state.activeLayout === "horizontal"
-                  ? context.horizontalLayout
-                  : context.VerticalLayout;
+                ? context.horizontalLayout
+                : context.VerticalLayout;
             return (
               <LayoutTag {...props} permission={props.user}>
                 <Suspense fallback={<Spinner />}>
@@ -143,6 +143,12 @@ class AppRouter extends React.Component {
             path="/dashboard"
             component={dashboard}
             isAuth={{ user }}
+            authorisation={employee_acess}
+          />
+          <ProtectedRoute
+            path="/kpi"
+            component={kpi}
+            isAuth={mapStateToProps()}
             authorisation={employee_acess}
           />
           <AppRoute path="/misc/error/404" component={error404} fullLayout />

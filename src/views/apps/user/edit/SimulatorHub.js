@@ -1403,7 +1403,6 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
           border-radius:16px; 
           background:#fff; 
           box-shadow:0 12px 30px rgba(15,23,42,0.08); 
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
         }
         .collapsible-header { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; border:0; background:transparent; cursor:pointer; border-radius:16px; font-size:18px; font-weight:700; color:#1f2d3d; }
         .collapsible-header .chevron { transition: transform .25s ease; color:#6b7280; }
