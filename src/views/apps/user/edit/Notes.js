@@ -14,7 +14,7 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import UploadCard from "./components/UploadCard";
 import GeneratedDocumentItem from "./components/GeneratedDocumentItem";
-import { AlertTriangle } from "react-feather";
+import { AlertTriangle, Download } from "react-feather";
 import "../../../../assets/scss/pages/notes-hub.scss";
 
 const DOC_STORAGE_KEY = "career_generated_docs_v1";
@@ -619,6 +619,16 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
     }
     setDeleteConfirmTarget(null);
   }, [deleteConfirmTarget, handleDeleteDoc, handleDeleteUpload]);
+
+  const handleDownloadPdf = useCallback(() => {
+    const iframe = document.getElementById("preview-iframe");
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    } else {
+      toast.error("Impossible d'accéder au document pour l'impression");
+    }
+  }, []);
 
   const handleManualAddLine = useCallback(() => {
     setManualCareerRows((prev) => [
@@ -1253,6 +1263,15 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
                 Le nouveau rapport remplacera celui-ci.
               </p>
 
+              <Button
+                color="primary"
+                outline
+                className="mb-3 d-flex align-items-center justify-content-center"
+                onClick={handleDownloadPdf}
+              >
+                <Download size={16} className="mr-1" /> Télécharger en PDF
+              </Button>
+
               <div style={{ flex: 1 }}></div>
 
               <div className="mt-3">
@@ -1281,6 +1300,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
             <div className="flex-grow-1 bg-white position-relative">
               {viewingDoc?.url ? (
                 <iframe
+                  id="preview-iframe"
                   src={viewingDoc.url}
                   title="Document Preview"
                   style={{ width: '100%', height: '100%', border: 'none' }}
@@ -1322,7 +1342,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         </ModalBody>
       </Modal>
 
-    </div>
+    </div >
   );
 };
 
