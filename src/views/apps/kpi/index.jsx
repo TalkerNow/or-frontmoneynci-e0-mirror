@@ -13,6 +13,7 @@ import {
   Table,
   Badge,
   UncontrolledButtonDropdown,
+  UncontrolledDropdown,
   DropdownMenu,
   DropdownItem,
   DropdownToggle,
@@ -29,19 +30,30 @@ import {
   Tooltip,
   CartesianGrid,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
-import { useHistory } from "react-router-dom";
+import { useHistory, useLocation } from "react-router-dom";
+
 import {
-  Trash2,
   Mail as MailIcon,
   PhoneIncoming,
   PhoneOutgoing,
   PhoneCall,
+  ArrowRight, // Restored
+  Briefcase,
+  CheckSquare,
+  FileText,
+  Clock,
+  Layout,
   MessageSquare,
-  UserPlus,
-  ArrowRight,
 } from "react-feather"; // icônes
+import KPIModal from "./KPIModal";
+import { Plus, Bell } from "lucide-react";
+import ChatbotDetailView from "./ChatbotDetailView";
+// CRM v2 Components
+import InboxView from "./components/InboxView";
+import PipelineView from "./components/PipelineView";
+import AdminView from "./components/AdminView";
+import { SidebarItem } from "./components/SharedComponents"; // If sidebar needs to be adjusted, but we rely on global sidebar for now.
 
 /** =============================
  *  Helpers (token, admin id, date)
@@ -58,9 +70,7 @@ const WEBHOOK_EMAIL_URL =
   "https://n8n.srv796541.hstgr.cloud/webhook/0627350c-a362-45dd-adfe-b947bf1c48f5/chat";
 
 // Objets (ajout de "Email")
-const OBJETS = ["Appel entrant", "Appel sortant", "Email"];
 
-// Actions (RETIRE: "affaire signée")
 const CALL_ACTIONS = ["Rdv pris", "Mail prestation envoyé", "NUL", "Autre"];
 const EMAIL_ACTION = "Email reçu";
 const ACTION_OTHER = "Autre";
@@ -124,33 +134,6 @@ function formatFRPhoneDisplay(input) {
   }
 
   return digits.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
-}
-
-function formatPhone(val) {
-  // On enlève tout sauf chiffres et +
-  val = val.replace(/[^0-9+]/g, "");
-
-  // --- France (commence par 0) ---
-  if (val.startsWith("0")) {
-    // applique des espaces tous les 2 chiffres, même si incomplet
-    return val.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
-  }
-
-  // --- Belgique (+32) ---
-  if (val.startsWith("+32")) {
-    // applique seulement si assez de chiffres après +32
-    if (val.length > 3) {
-      return val
-        .replace(/^\+32/, "+32 ")
-        .replace(/(\d)(\d{3})(\d{0,2})(\d{0,2})$/, (m, p1, p2, p3, p4) =>
-          [p1, p2, p3, p4].filter(Boolean).join(" ")
-        );
-    }
-    return val; // si juste "+32", on laisse tel quel
-  }
-
-  // --- Par défaut ---
-  return val;
 }
 
 // Pour le href "tel:" propre (E.164)
@@ -218,20 +201,6 @@ function formatWeekRangeLabel(isoYear, isoWeek) {
 }
 
 // Construit une petite liste de raccourcis (semaines récentes)
-function buildQuickWeeks(anchorYear, anchorWeek, count = 10) {
-  const out = [];
-  let y = anchorYear;
-  let w = anchorWeek;
-  for (let i = 0; i < count; i++) {
-    out.push({ year: y, week: w, label: formatWeekRangeLabel(y, w) });
-    w -= 1;
-    if (w < 1) {
-      y -= 1;
-      w = isoWeeksInYear(y);
-    }
-  }
-  return out;
-}
 
 // Formatage lisible des dates (gère YYYY-MM-DD et ISO)
 function formatDate(input) {
@@ -267,34 +236,6 @@ function formatDateTime(input) {
   } catch (e) {
     return String(input);
   }
-}
-
-/** ISO week utils */
-function isoWeekInfo(dateInput) {
-  const d = new Date(dateInput);
-  const day = (d.getDay() + 6) % 7; // 0=lundi ... 6=dimanche
-  const thursday = new Date(d);
-  thursday.setDate(d.getDate() - day + 3);
-  const isoYear = thursday.getFullYear();
-
-  const firstThursday = new Date(isoYear, 0, 4);
-  const firstThursdayDay = (firstThursday.getDay() + 6) % 7;
-  firstThursday.setDate(firstThursday.getDate() - firstThursdayDay + 3);
-
-  const week =
-    1 + Math.round((thursday - firstThursday) / (7 * 24 * 3600 * 1000));
-
-  return { isoYear, isoWeek: week };
-}
-
-function isoWeeksInYear(isoYear) {
-  const dec28 = new Date(isoYear, 11, 28);
-  return isoWeekInfo(dec28).isoWeek;
-}
-
-function monthKey(dateInput) {
-  const d = new Date(dateInput);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
 // Email admin depuis le storage (simple et silencieux)
@@ -354,8 +295,8 @@ function renderActionBadge(action) {
   const key = ACTIONS_KNOWN.includes(action)
     ? action
     : action
-      ? ACTION_OTHER
-      : null;
+    ? ACTION_OTHER
+    : null;
   if (!key) {
     return <em style={{ opacity: 0.6 }}>(vide)</em>;
   }
@@ -645,58 +586,45 @@ function renderTodoCell(next) {
 export default function KpiPage() {
   // Création KPI
   const history = useHistory();
-  const [winW, setWinW] = useState(
-    typeof window !== "undefined" ? window.innerWidth : 1200
-  );
-  useEffect(() => {
-    const onResize = () => setWinW(window.innerWidth);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
+  const location = useLocation();
+
   const [objet, setObjet] = useState("Appel entrant");
   const [showProcessing, setShowProcessing] = useState(false); // Dossiers en cours de traitement
   const [showCompleted, setShowCompleted] = useState(false); // Contrats terminés
 
-  const [action, setAction] = useState("");
   const [creating, setCreating] = useState(false);
+  const toggleModal = () => setCreating(!creating);
   const adminId = localStorage.getItem("userid");
   const [error, setError] = useState("");
-  const [kpiDate, setKpiDate] = useState(todayStr());
+
   const [sortField, setSortField] = useState("client"); // client | todo | last | type
   const [sortDir, setSortDir] = useState("asc"); // asc | desc
+  const [adminSearch, setAdminSearch] = useState(""); // Search for AdminView
+
   // >>> Nouveaux champs contact (optionnels)
+  const [action, setAction] = useState("");
+  const [kpiDate, setKpiDate] = useState(todayStr());
   const [nomPrenom, setNomPrenom] = useState("");
   const [email, setEmail] = useState("");
   const [telephone, setTelephone] = useState("");
   const [note, setNote] = useState("");
 
-  // Mini fenetre email (simple)
-  const [emailBody, setEmailBody] = useState("");
-  const [sending, setSending] = useState(false);
-  const [sendMsg, setSendMsg] = useState("");
-  const PHONE_REGEX = /(\+33\s?|0)[1-9](?:[ .-]?\d{2}){4}/;
-
-  // Email admin (local + API)
-  const adminEmailLocal = useMemo(() => getAdminEmailFromLocal(), []);
-  const [adminEmailApi, setAdminEmailApi] = useState(null);
-  const adminEmailFinal = useMemo(
-    () => adminEmailApi || adminEmailLocal || null,
-    [adminEmailApi, adminEmailLocal]
-  );
-
-  // Liste KPI (pagination API)
   const [items, setItems] = useState([]);
+  const [loadingList, setLoadingList] = useState(false);
+  const [allItems, setAllItems] = useState([]);
+  const [loadingChart, setLoadingChart] = useState(false);
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
-  const [loadingList, setLoadingList] = useState(false);
+
+  // Email admin (local + API)
+  const [adminEmailLocal, setAdminEmailLocal] = useState("");
+  const [adminEmailApi, setAdminEmailApi] = useState("");
 
   // Utilisateurs (admin -> nom/prénom)
   const [usersById, setUsersById] = useState({});
-  const [, setLoadingUsers] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
-  // Données complètes pour le GRAPHIQUE
-  const [allItems, setAllItems] = useState([]);
-  const [loadingChart, setLoadingChart] = useState(false);
+  // Clients
   const [clientsById, setClientsById] = useState({});
 
   // Suivis d'avancement (backend Laravel)
@@ -704,29 +632,16 @@ export default function KpiPage() {
   const [loadingSuivis, setLoadingSuivis] = useState(false);
   const [suivisError, setSuivisError] = useState("");
 
+  // Conversations
   const [conversations, setConversations] = useState([]);
   const [loadingConversations, setLoadingConversations] = useState(false);
   const [convError, setConvError] = useState("");
-  // Graph controls
-  const [groupBy, setGroupBy] = useState("day");
-  const currentYear = new Date().getFullYear();
-  const [year, setYear] = useState(currentYear);
-  const [actionFilter, setActionFilter] = useState("all");
-  const [week, setWeek] = useState(() => isoWeekInfo(new Date()).isoWeek);
-  function stepWeek(delta) {
-    let y = year;
-    let w = week + delta;
-    let max = isoWeeksInYear(y);
-    if (w < 1) {
-      y -= 1;
-      w = isoWeeksInYear(y);
-    } else if (w > max) {
-      y += 1;
-      w = 1;
-    }
-    setYear(y);
-    setWeek(w);
-  }
+
+  // Diagnostic Results (simulator-difficulty-results)
+  const [diagnostics, setDiagnostics] = useState([]);
+  const [loadingDiagnostics, setLoadingDiagnostics] = useState(false);
+  const [diagError, setDiagError] = useState("");
+
   const handleSort = (field) => {
     setSortField((prevField) => {
       if (prevField === field) {
@@ -739,61 +654,17 @@ export default function KpiPage() {
       return field;
     });
   };
+
   // Modal messages conversations
   const [convModalOpen, setConvModalOpen] = useState(false);
   const [selectedConv, setSelectedConv] = useState(null);
 
-  function openConvModal(conv) {
-    setSelectedConv(conv);
-    setConvModalOpen(true);
-  }
-  function closeConvModal() {
-    setConvModalOpen(false);
-    setSelectedConv(null);
-  }
-  function renderChatBubble(msg, idx) {
-    const role = msg?.role || "unknown";
-    const isUser = role === "user";
+  const handleSelectConversation = (id) => {
+    // TODO: fetch conversation details /api/conversation-archives/{id}
+  };
 
-    const wrapperStyle = {
-      display: "flex",
-      justifyContent: isUser ? "flex-end" : "flex-start",
-      marginBottom: 8,
-    };
-
-    const bubbleStyle = {
-      maxWidth: "78%",
-      padding: "10px 12px",
-      borderRadius: 12,
-      fontSize: 13,
-      lineHeight: 1.4,
-      background: isUser ? "#e7f1ff" : "#f8f9fa",
-      border: isUser ? "1px solid #cfe2ff" : "1px solid #e9ecef",
-      color: "#212529",
-      whiteSpace: "pre-wrap",
-      wordBreak: "break-word",
-    };
-
-    const metaStyle = {
-      fontSize: 10,
-      opacity: 0.6,
-      marginTop: 4,
-      textAlign: isUser ? "right" : "left",
-    };
-
-    return (
-      <div key={idx} style={wrapperStyle}>
-        <div>
-          <div style={bubbleStyle}>
-            {msg?.content || <em style={{ opacity: 0.6 }}>(vide)</em>}
-          </div>
-          <div style={metaStyle}>
-            {isUser ? "Client" : role === "assistant" ? "Assistant" : role}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Dropdown state for New Button
+  const [isNewMenuOpen, setIsNewMenuOpen] = useState(false);
 
   const renderSortIcon = (field) => {
     if (sortField !== field) {
@@ -811,27 +682,6 @@ export default function KpiPage() {
   };
 
   // ---- styles filtres jolis ----
-  // ---- styles filtres jolis ----
-  const filterWrapperStyle = {
-    display: "flex",
-    flexWrap: "wrap",
-    alignItems: "center",
-    gap: 12,
-    padding: "6px 10px",
-    borderRadius: 10,
-    backgroundColor: "#f8f9fa",
-    border: "1px solid #e9ecef",
-    justifyContent: "flex-end", // Align right on desktop
-  };
-
-  const filterTitleStyle = {
-    fontSize: 14,
-    textTransform: "uppercase",
-    letterSpacing: "0.04em",
-    color: "#6c757d",
-    fontWeight: 600,
-    marginRight: "auto", // Push title to left if wrapped
-  };
 
   const filterPillBase = {
     borderRadius: 999,
@@ -848,58 +698,12 @@ export default function KpiPage() {
   };
 
   const filterPillActive = {
-    backgroundColor: "#e7f1ff",
-    borderColor: "#0d6efd",
-    color: "#0d6efd",
     fontWeight: 600,
   };
 
-  // Libellé clair
-  const weekLabel = useMemo(
-    () => formatWeekRangeLabel(year, week),
-    [year, week]
-  );
-  const quickWeeks = useMemo(
-    () => buildQuickWeeks(year, week, 10),
-    [year, week]
-  );
-
-  // Suppression
-  const [deletingId, setDeletingId] = useState(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [toDelete, setToDelete] = useState(null);
-
-  // Désactiver actions pour "Email"
-  const actionsDisabled = objet === "Email";
-
-  // Forcer l'action par défaut si Email
-  useEffect(() => {
-    if (objet === "Email") setAction(EMAIL_ACTION);
-    else if (!CALL_ACTIONS.includes(action)) setAction("");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [objet]);
-
-  // Charger la TABLE paginée
-  useEffect(() => {
-    fetchKpis(page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
-
-  useEffect(() => {
-    const max = isoWeeksInYear(year);
-    if (week > max) setWeek(max);
-  }, [year, week]);
-
-  // Charger TOUTES les données pour le GRAPHIQUE
-  useEffect(() => {
-    fetchAllKpis();
-    fetchMembers();
-    fetchClients();
-    fetchAdminEmailFromApi();
-    fetchSuivis();
-    fetchConversationArchives();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // =========================================================================================
+  // FONCTIONS DE FETCH (Définies APRÈS les useState pour avoir accès aux setters)
+  // =========================================================================================
 
   async function fetchKpis(p = 1) {
     try {
@@ -914,8 +718,8 @@ export default function KpiPage() {
       const data = Array.isArray(payload?.data)
         ? payload.data
         : Array.isArray(payload)
-          ? payload
-          : [];
+        ? payload
+        : [];
 
       setItems(data);
 
@@ -925,12 +729,13 @@ export default function KpiPage() {
       console.error(e);
       setError(
         e?.response?.data?.message ||
-        "Erreur lors du chargement des KPI. Vérifie l'API."
+          "Erreur lors du chargement des KPI. Vérifie l'API."
       );
     } finally {
       setLoadingList(false);
     }
   }
+
   async function fetchSuivis() {
     try {
       setLoadingSuivis(true);
@@ -943,12 +748,13 @@ export default function KpiPage() {
       console.error(e);
       setSuivisError(
         e?.response?.data?.message ||
-        "Erreur lors du chargement des suivis d'avancement."
+          "Erreur lors du chargement des suivis d'avancement."
       );
     } finally {
       setLoadingSuivis(false);
     }
   }
+
   async function fetchConversationArchives() {
     try {
       setLoadingConversations(true);
@@ -963,16 +769,35 @@ export default function KpiPage() {
       setConversations(data);
     } catch (e) {
       console.error("fetchConversationArchives error:", e);
-      setConvError(
-        e?.response?.data?.message ||
-        e?.response?.data?.error ||
-        "Erreur lors du chargement des conversations chatbot."
-      );
+      setConvError("Impossible de charger les conversations.");
     } finally {
       setLoadingConversations(false);
     }
   }
 
+  async function fetchDiagnosticResults() {
+    try {
+      setLoadingDiagnostics(true);
+      setDiagError("");
+
+      // API v1: GET /api/v1/simulator-difficulty-results
+      const res = await API.get("/v1/simulator-difficulty-results");
+
+      const payload = res.data || {};
+      const data = Array.isArray(payload.data)
+        ? payload.data
+        : Array.isArray(payload)
+        ? payload
+        : [];
+
+      setDiagnostics(data);
+    } catch (e) {
+      console.error("fetchDiagnosticResults error:", e);
+      setDiagError("Impossible de charger les diagnostics.");
+    } finally {
+      setLoadingDiagnostics(false);
+    }
+  }
 
   async function fetchAllKpis() {
     try {
@@ -991,8 +816,8 @@ export default function KpiPage() {
         const data = Array.isArray(payload?.data)
           ? payload.data
           : Array.isArray(payload)
-            ? payload
-            : [];
+          ? payload
+          : [];
 
         aggregated = aggregated.concat(data);
 
@@ -1005,13 +830,14 @@ export default function KpiPage() {
       console.error(e);
       setError(
         e?.response?.data?.message ||
-        e?.response?.data?.error ||
-        "Erreur lors du chargement complet des KPI pour le graphique."
+          e?.response?.data?.error ||
+          "Erreur lors du chargement complet des KPI pour le graphique."
       );
     } finally {
       setLoadingChart(false);
     }
   }
+
   async function fetchClients() {
     try {
       const res = await API.get("/users", {
@@ -1023,8 +849,8 @@ export default function KpiPage() {
       const list = Array.isArray(payload?.data)
         ? payload.data
         : Array.isArray(payload)
-          ? payload
-          : [];
+        ? payload
+        : [];
 
       const map = {};
       list.forEach((u) => {
@@ -1058,8 +884,8 @@ export default function KpiPage() {
       const list = Array.isArray(payload?.data)
         ? payload.data
         : Array.isArray(payload)
-          ? payload
-          : [];
+        ? payload
+        : [];
 
       const map = {};
       list.forEach((u) => {
@@ -1098,25 +924,22 @@ export default function KpiPage() {
     }
   }
 
-  // ✅ createKpi modifié
-  async function createKpi() {
+  async function createKpi(dataBody) {
     try {
       setCreating(true);
       setError("");
 
       const body = {
-        objet: objet || null,
+        objet: dataBody?.objet || objet || null,
         action:
-          objet === "Email"
+          dataBody?.objet === "Email" || objet === "Email"
             ? EMAIL_ACTION
-            : action && action.trim() !== ""
-              ? action
-              : "Autre", // <<--- ICI ajout de "Autre" par défaut
-        kpi_date: kpiDate || todayStr(),
-        nom_prenom: nomPrenom || null,
-        email: email || null,
-        telephone: telephone || null,
-        note: note || null,
+            : dataBody?.action || action || "Autre",
+        kpi_date: dataBody?.kpi_date || kpiDate || todayStr(),
+        nom_prenom: dataBody?.nom_prenom || nomPrenom || null,
+        email: dataBody?.email || email || null,
+        telephone: dataBody?.telephone || telephone || null,
+        note: dataBody?.note || note || null,
       };
 
       if (adminId) body.admin_id = adminId;
@@ -1138,171 +961,40 @@ export default function KpiPage() {
       console.error(e);
       setError(
         e?.response?.data?.message ||
-        e?.response?.data?.error ||
-        "Impossible de créer le KPI."
+          e?.response?.data?.error ||
+          "Impossible de créer le KPI."
       );
     } finally {
       setCreating(false);
     }
   }
 
-  // Envoi TRÈS SIMPLE au webhook (corps + adminEmailFinal + adminId)
-  async function sendEmailWebhook() {
-    setSendMsg("");
-    const content = emailBody.trim();
-    if (!content) {
-      setSendMsg("⚠️ Le message est vide.");
-      return;
-    }
-    try {
-      setSending(true);
-      const res = await fetch(WEBHOOK_EMAIL_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chatInput: content, // cohérent avec ton autre flow
-          adminEmail: adminEmailFinal, // << email priorité API
-          adminEmailFallback: adminEmailLocal || null,
-          adminEmailSource: adminEmailApi
-            ? "api"
-            : adminEmailLocal
-              ? "localStorage"
-              : "unknown",
-          adminId: adminId || null,
-          source: "kpi-mini-email",
-          sentAt: new Date().toISOString(),
-        }),
-      });
-      if (!res.ok) {
-        const t = await res.text().catch(() => "");
-        throw new Error(`HTTP ${res.status} ${res.statusText} ${t}`);
-      }
-      setEmailBody("");
-      setSendMsg("✅ Message envoyé au webhook.");
-    } catch (err) {
-      console.error(err);
-      setSendMsg("❌ Échec d'envoi au webhook.");
-    } finally {
-      setSending(false);
-    }
-  }
+  // Effets de chargement
+  useEffect(() => {
+    fetchKpis(1);
+    fetchAllKpis();
+    fetchAdminEmailFromApi();
+    fetchSuivis();
+    fetchMembers();
+    fetchClients();
+    fetchConversationArchives();
+    fetchDiagnosticResults();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  function openConfirmModal(kpiRow) {
-    setToDelete(kpiRow);
-    setConfirmOpen(true);
-  }
-  function closeConfirmModal() {
-    if (deletingId) return;
-    setConfirmOpen(false);
-    setToDelete(null);
-  }
-  async function deleteKpi(id) {
-    if (!id) return;
-    try {
-      setDeletingId(id);
-      setError("");
-      await API.delete(`/kpis/${id}`);
-
-      setItems((prev) => prev.filter((x) => x.id !== id));
-      setAllItems((prev) => prev.filter((x) => x.id !== id));
-
-      await fetchKpis(page);
-      await fetchAllKpis();
-
-      closeConfirmModal();
-    } catch (e) {
-      console.error(e);
-      setError(
-        e?.response?.data?.message ||
-        e?.response?.data?.error ||
-        "Impossible de supprimer le KPI."
-      );
-    } finally {
-      setDeletingId(null);
-    }
-  }
-
-  const availableYears = useMemo(() => {
-    const years = new Set();
-    (allItems || []).forEach((k) => {
-      const dateStr = k.kpi_date || k.created_at || k.updated_at;
-      if (!dateStr) return;
-      const { isoYear } = isoWeekInfo(dateStr);
-      years.add(isoYear);
-    });
-    if (years.size === 0) years.add(currentYear);
-    return Array.from(years).sort((a, b) => a - b);
-  }, [allItems, currentYear]);
-
-  const chartDataMulti = useMemo(() => {
-    const byPeriod = new Map();
-
-    if (groupBy === "week") {
-      const totalWeeks = isoWeeksInYear(year);
-      for (let w = 1; w <= totalWeeks; w++) {
-        const period = `${year}-W${String(w).padStart(2, "0")}`;
-        const base = {};
-        ACTIONS_ALL.forEach((a) => (base[a] = 0));
-        byPeriod.set(period, base);
-      }
-    } else if (groupBy === "month") {
-      for (let m = 1; m <= 12; m++) {
-        const period = `${year}-${String(m).padStart(2, "0")}`;
-        const base = {};
-        ACTIONS_ALL.forEach((a) => (base[a] = 0));
-        byPeriod.set(period, base);
-      }
-    } else {
-      for (let di = 0; di < 7; di++) {
-        const base = {};
-        ACTIONS_ALL.forEach((a) => (base[a] = 0));
-        byPeriod.set(di, base);
-      }
-    }
-
-    (allItems || []).forEach((k) => {
-      const dateStr = k.kpi_date || k.created_at || k.updated_at;
-      if (!dateStr) return;
-      const d = new Date(dateStr);
-      const cat = ACTIONS_KNOWN.includes(k.action) ? k.action : ACTION_OTHER;
-
-      if (groupBy === "week") {
-        const { isoYear, isoWeek } = isoWeekInfo(dateStr);
-        if (isoYear !== year) return;
-        const periodKey = `${isoYear}-W${String(isoWeek).padStart(2, "0")}`;
-        const row = byPeriod.get(periodKey);
-        if (!row) return;
-        row[cat] = (row[cat] || 0) + 1;
-      } else if (groupBy === "month") {
-        if (d.getFullYear() !== year) return;
-        const periodKey = monthKey(dateStr);
-        const row = byPeriod.get(periodKey);
-        if (!row) return;
-        row[cat] = (row[cat] || 0) + 1;
-      } else {
-        const { isoYear, isoWeek } = isoWeekInfo(dateStr);
-        if (isoYear !== year || isoWeek !== week) return;
-        const di = weekdayIndexMondayFirst(dateStr);
-        const row = byPeriod.get(di);
-        if (!row) return;
-        row[cat] = (row[cat] || 0) + 1;
-      }
-    });
-
-    if (groupBy === "day") {
-      return Array.from(byPeriod.entries())
-        .sort((a, b) => a[0] - b[0])
-        .map(([di, counts]) => ({ period: DAY_LABELS[di], ...counts }));
-    }
-
-    return Array.from(byPeriod.entries())
-      .map(([period, counts]) => ({ period, ...counts }))
-      .sort((a, b) => (a.period > b.period ? 1 : -1));
-  }, [allItems, groupBy, year, week]);
   const sortedSuivis = useMemo(() => {
     if (!Array.isArray(suivis)) return [];
 
-    const data = [...suivis];
+    let data = [...suivis];
+
+    // Filter by adminSearch (client name)
+    if (adminSearch) {
+      const lower = adminSearch.toLowerCase();
+      data = data.filter((s) => {
+        const name = getClientDisplayNameFromSuivi(s, clientsById) || "";
+        return name.toLowerCase().includes(lower);
+      });
+    }
 
     const getSortKey = (s) => {
       switch (sortField) {
@@ -1343,7 +1035,7 @@ export default function KpiPage() {
     });
 
     return data;
-  }, [suivis, clientsById, sortField, sortDir]);
+  }, [suivis, clientsById, sortField, sortDir, adminSearch]);
   const groupedSuivis = useMemo(() => {
     const res = {
       active: [], // par défaut
@@ -1375,8 +1067,6 @@ export default function KpiPage() {
 
       // 🔶 Crédit d'impôt : "5 jours ouvrés d'attente" atteints / dépassés
       let isAfter5Days = false;
-
-
 
       // Cas AR/TFD : Création de devis = NON URGENT mais "SUIVI"
       let isSuiviSpecific = false;
@@ -1420,801 +1110,331 @@ export default function KpiPage() {
       const bucket = isContractFinished
         ? "completed"
         : isAfter5Days
-          ? "after5days"
-          : isSuiviSpecific
-            ? "suivi"
-            : isProcessing
-              ? "processing"
-              : "active";
+        ? "after5days"
+        : isSuiviSpecific
+        ? "suivi"
+        : isProcessing
+        ? "processing"
+        : "active";
 
       res[bucket].push({ s, steps, last, next });
     });
 
     return res;
   }, [sortedSuivis]);
+  const [selectedSuivi, setSelectedSuivi] = useState(null);
+
+  // Initial select first item if available and none selected
+  useEffect(() => {
+    // Only set if we have items and nothing is selected yet
+    if (!selectedSuivi && sortedSuivis.length > 0) {
+      setSelectedSuivi(sortedSuivis[0]);
+    }
+  }, [sortedSuivis, selectedSuivi]);
+
+  // --- RENDER HELPERS ---
+
+  const renderConversationItem = (conv) => {
+    // conv structure usually: { id, user_id, status, created_at, user: { firstname, lastname }, ... }
+    const isSelected = selectedConv && selectedConv.id === conv.id;
+
+    // Name fallback
+    let name = "Anonyme";
+
+    // 1. Try direct user object (if populated properly)
+    if (conv.user && (conv.user.firstname || conv.user.lastname)) {
+      name = `${conv.user.firstname || ""} ${conv.user.lastname || ""}`.trim();
+    }
+    // 2. Try clientsById lookup (using client_id from fallback logic)
+    else if (conv.client_id && clientsById[conv.client_id]) {
+      name = clientsById[conv.client_id];
+    }
+    // 3. Try usersById lookup (using user_id)
+    else if (conv.user_id && usersById[conv.user_id]) {
+      name = usersById[conv.user_id];
+    }
+    // 4. Fallback to ID
+    else if (conv.client_id) {
+      name = `Client #${conv.client_id}`;
+    } else if (conv.user_id) {
+      name = `User #${conv.user_id}`;
+    }
+
+    const dateDisplay = conv.created_at ? formatDate(conv.created_at) : "";
+
+    // Status color
+    const statusColors = {
+      "en attente": "warning",
+      traité: "success",
+      archivé: "secondary",
+    };
+    const sColor = statusColors[conv.status] || "primary";
+
+    return (
+      <div
+        key={conv.id}
+        onClick={() => setSelectedConv(conv)}
+        style={{
+          padding: "12px 14px",
+          borderBottom: "1px solid #f0f0f0",
+          cursor: "pointer",
+          backgroundColor: isSelected ? "#f8f9fa" : "white",
+          borderLeft: isSelected
+            ? "3px solid #7367F0"
+            : "3px solid transparent",
+          transition: "all 0.2s ease",
+        }}
+      >
+        <div className="d-flex justify-content-between align-items-center mb-1">
+          <span
+            className="font-weight-bold text-dark font-small-3"
+            style={{ margin: 0 }}
+          >
+            {name}
+          </span>
+          <span
+            className="text-muted font-small-1"
+            style={{
+              whiteSpace: "nowrap",
+            }}
+          >
+            {dateDisplay}
+          </span>
+        </div>
+        <div
+          style={{
+            fontSize: "0.85rem",
+            color: "#666",
+            marginBottom: "6px",
+            // overflow: "hidden", textOverflow: "ellipsis" // removed for clearer multiline if needed
+          }}
+        >
+          {/* Show a snippet or status */}
+          <Badge color={`light-${sColor}`} pill className="px-2">
+            {conv.status || "Nouveau"}
+          </Badge>
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div className="vx-row">
-      {/* ====== Suivis d'avancement ====== */}
-      <div className="vx-col w-100">
-        <Card>
-          <CardHeader className="d-flex align-items-center justify-content-between">
-            <h4 className="mb-0">Suivi des contrats</h4>
-          </CardHeader>
-          <CardBody>
-            {suivisError && (
-              <div
-                style={{
-                  background: "#ffe9e9",
-                  border: "1px solid #ffb3b3",
-                  color: "#b10000",
-                  padding: 10,
-                  borderRadius: 6,
-                  marginBottom: 14,
-                }}
-              >
-                {suivisError}
-              </div>
-            )}
-
-            {/* Filtres d'affichage (propre, aligné) */}
-            <div className="d-flex justify-content-start justify-content-md-end mb-2">
-              <div style={filterWrapperStyle}>
-                <span style={filterTitleStyle}>Afficher</span>
-
-                {/* Dossiers en cours */}
-                <button
-                  type="button"
-                  onClick={() => setShowProcessing((v) => !v)}
-                  style={{
-                    ...filterPillBase,
-                    ...(showProcessing ? filterPillActive : {}),
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 18,
-                      height: 18,
-                      borderRadius: "50%",
-                      marginRight: 6,
-                      backgroundColor: showProcessing
-                        ? "#198754"
-                        : "transparent",
-                      border: `1px solid ${showProcessing ? "#198754" : "#ced4da"
-                        }`,
-                    }}
-                  />
-                  Dossiers en cours
-                </button>
-
-                {/* Contrats terminés */}
-                <button
-                  type="button"
-                  onClick={() => setShowCompleted((v) => !v)}
-                  style={{
-                    ...filterPillBase,
-                    ...(showCompleted ? filterPillActive : {}),
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 18,
-                      height: 18,
-                      borderRadius: "50%",
-                      marginRight: 6,
-                      backgroundColor: showCompleted
-                        ? "#6c757d"
-                        : "transparent",
-                      border: `1px solid ${showCompleted ? "#6c757d" : "#ced4da"
-                        }`,
-                    }}
-                  />
-                  Contrats terminés
-                </button>
-              </div>
-            </div>
-            <Table responsive hover>
-              <thead>
-                <tr>
-                  <th
-                    style={headerClickableStyle}
-                    onClick={() => handleSort("client")}
-                  >
-                    Client
-                    {renderSortIcon("client")}
-                  </th>
-                  <th
-                    style={headerClickableStyle}
-                    onClick={() => handleSort("todo")}
-                  >
-                    À faire
-                    {renderSortIcon("todo")}
-                  </th>
-                  <th
-                    style={headerClickableStyle}
-                    onClick={() => handleSort("last")}
-                  >
-                    Dernière étape validée
-                    {renderSortIcon("last")}
-                  </th>
-                  <th
-                    style={headerClickableStyle}
-                    onClick={() => handleSort("type")}
-                  >
-                    Type de contrat
-                    {renderSortIcon("type")}
-                  </th>
-                  <th>Voir le contrat</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loadingSuivis ? (
-                  <tr>
-                    <td colSpan="5">Chargement des suivis…</td>
-                  </tr>
-                ) : (
-                  <>
-                    {/* 0) 5 jours ouvrés atteints / dépassés (toujours en haut si présents) */}
-                    {groupedSuivis.after5days.length > 0 && (
-                      <>
-                        <tr className="table-warning">
-                          <td
-                            colSpan="5"
-                            style={{ fontSize: 14, fontWeight: 600 }}
-                          >
-                            Dossiers urgents (à traiter en priorité)
-                          </td>
-                        </tr>
-
-                        {groupedSuivis.after5days.map(
-                          ({ s, steps, last, next }) => {
-                            const clientLabel = getClientDisplayNameFromSuivi(
-                              s,
-                              clientsById
-                            );
-                            const contractId =
-                              s.facture_id || s.document_id || s.contract_id;
-                            const clientId = s.client_id;
-
-                            return (
-                              <tr
-                                key={`after5-${s.suivi_id || s.id || ""}-${s.document_id || s.facture_id || ""
-                                  }`}
-                                onClick={() => {
-                                  if (clientId) {
-                                    history.push(
-                                      `/app/user/edit/${clientId}/2`
-                                    );
-                                  }
-                                }}
-                                style={{ cursor: "pointer" }}
-                              >
-                                {/* Client */}
-                                <td>{clientLabel}</td>
-
-                                {/* À faire */}
-                                <td>{renderTodoCell(next)}</td>
-
-                                {/* Dernière étape validée */}
-                                <td>
-                                  {last ? (
-                                    <div style={{ fontSize: 14 }}>
-                                      <div>
-                                        <strong>{last.label}</strong>
-                                      </div>
-                                      {last.date && (
-                                        <div className="text-muted">
-                                          {formatDate(last.date)}
-                                        </div>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <span
-                                      className="text-muted"
-                                      style={{ fontSize: 14 }}
-                                    >
-                                      Aucune étape validée
-                                    </span>
-                                  )}
-                                </td>
-
-                                {/* Type de contrat */}
-                                <td
-                                  style={{ whiteSpace: "nowrap", width: 160 }}
-                                >
-                                  {renderProductBadgeFromSuivi(s)}
-                                </td>
-
-                                {/* Contrat (flèche) */}
-                                <td style={{ width: 60, textAlign: "center" }}>
-                                  {contractId ? (
-                                    <Button
-                                      color="link"
-                                      className="p-0"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        history.push(
-                                          `/pages/contract/${contractId}`
-                                        );
-                                      }}
-                                      title="Voir le contrat"
-                                    >
-                                      <ArrowRight size={18} />
-                                    </Button>
-                                  ) : (
-                                    <span
-                                      className="text-muted"
-                                      style={{ fontSize: 14 }}
-                                    >
-                                      -
-                                    </span>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          }
-                        )}
-                      </>
-                    )}
-
-
-                    {/* 0-bis) Dossiers "Suivi" (AR/TFD Création devis) */}
-                    {groupedSuivis.suivi.length > 0 && (
-                      <>
-                        <tr className="table-info">
-                          <td
-                            colSpan="5"
-                            style={{ fontSize: 14, fontWeight: 600 }}
-                          >
-                            Dossiers à suivre
-                          </td>
-                        </tr>
-
-                        {groupedSuivis.suivi.map(
-                          ({ s, steps, last, next }) => {
-                            const clientLabel = getClientDisplayNameFromSuivi(
-                              s,
-                              clientsById
-                            );
-                            const contractId =
-                              s.facture_id || s.document_id || s.contract_id;
-                            const clientId = s.client_id;
-
-                            return (
-                              <tr
-                                key={`suivi-${s.suivi_id || s.id || ""}-${s.document_id || s.facture_id || ""
-                                  }`}
-                                onClick={() => {
-                                  if (clientId) {
-                                    history.push(
-                                      `/app/user/edit/${clientId}/2`
-                                    );
-                                  }
-                                }}
-                                style={{ cursor: "pointer" }}
-                              >
-                                <td>{clientLabel}</td>
-                                <td>{renderTodoCell(next)}</td>
-                                <td>
-                                  {last ? (
-                                    <div style={{ fontSize: 14 }}>
-                                      <div>
-                                        <strong>{last.label}</strong>
-                                      </div>
-                                      {last.date && (
-                                        <div className="text-muted">
-                                          {formatDate(last.date)}
-                                        </div>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <span
-                                      className="text-muted"
-                                      style={{ fontSize: 14 }}
-                                    >
-                                      Aucune étape validée
-                                    </span>
-                                  )}
-                                </td>
-                                <td
-                                  style={{ whiteSpace: "nowrap", width: 160 }}
-                                >
-                                  {renderProductBadgeFromSuivi(s)}
-                                </td>
-                                <td style={{ width: 60, textAlign: "center" }}>
-                                  {contractId ? (
-                                    <Button
-                                      color="link"
-                                      className="p-0"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        history.push(
-                                          `/pages/contract/${contractId}`
-                                        );
-                                      }}
-                                      title="Voir le contrat"
-                                    >
-                                      <ArrowRight size={18} />
-                                    </Button>
-                                  ) : (
-                                    <span
-                                      className="text-muted"
-                                      style={{ fontSize: 14 }}
-                                    >
-                                      -
-                                    </span>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          }
-                        )}
-                      </>
-                    )}
-
-                    {groupedSuivis.after5days.length > 0 &&
-                      groupedSuivis.active.length > 0 && (
-                        <tr>
-                          <td
-                            colSpan="5"
-                            style={{
-                              padding: "6px 10px",
-                              borderTop: "2px solid #dee2e6",
-                              borderBottom: "1px solid #dee2e6",
-                              background: "#f8f9fa",
-                              fontSize: 13,
-                              fontWeight: 600,
-                              color: "#6c757d",
-                              textTransform: "uppercase",
-                              letterSpacing: "0.04em",
-                            }}
-                          >
-                            Autres dossiers
-                          </td>
-                        </tr>
-                      )}
-
-                    {/* 1) Dossiers actifs (par défaut) */}
-                    {groupedSuivis.active.map(({ s, steps, last, next }) => {
-                      const clientLabel = getClientDisplayNameFromSuivi(
-                        s,
-                        clientsById
-                      );
-                      const contractId =
-                        s.facture_id || s.document_id || s.contract_id;
-                      const clientId = s.client_id;
-
-                      return (
-                        <tr
-                          key={`${s.suivi_id || s.id || ""}-${s.document_id || s.facture_id || ""
-                            }`}
-                          onClick={() => {
-                            if (clientId) {
-                              history.push(`/app/user/edit/${clientId}/2`);
-                            }
-                          }}
-                          style={{ cursor: "pointer" }}
-                        >
-                          {/* Client */}
-                          <td>{clientLabel}</td>
-
-                          {/* À faire */}
-                          <td>{renderTodoCell(next)}</td>
-                          {/* Dernière étape validée */}
-                          <td>
-                            {last ? (
-                              <div style={{ fontSize: 14 }}>
-                                <div>
-                                  <strong>{last.label}</strong>
-                                </div>
-                                {last.date && (
-                                  <div className="text-muted">
-                                    {formatDate(last.date)}
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <span
-                                className="text-muted"
-                                style={{ fontSize: 14 }}
-                              >
-                                Aucune étape validée
-                              </span>
-                            )}
-                          </td>
-
-                          {/* Type de contrat */}
-                          <td style={{ whiteSpace: "nowrap", width: 160 }}>
-                            {renderProductBadgeFromSuivi(s)}
-                          </td>
-
-                          {/* Contrat (flèche) */}
-                          <td style={{ width: 60, textAlign: "center" }}>
-                            {contractId ? (
-                              <Button
-                                color="link"
-                                className="p-0"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  history.push(`/pages/contract/${contractId}`);
-                                }}
-                                title="Voir le contrat"
-                              >
-                                <ArrowRight size={18} />
-                              </Button>
-                            ) : (
-                              <span
-                                className="text-muted"
-                                style={{ fontSize: 14 }}
-                              >
-                                -
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-
-                    {/* 2) Dossiers en cours de traitement (tiroir) */}
-                    {showProcessing && groupedSuivis.processing.length > 0 && (
-                      <>
-                        <tr className="table-secondary">
-                          <td
-                            colSpan="5"
-                            style={{ fontSize: 14, fontWeight: 600 }}
-                          >
-                            Dossiers en cours de traitement
-                          </td>
-                        </tr>
-
-                        {groupedSuivis.processing.map(
-                          ({ s, steps, last, next }) => {
-                            const clientLabel = getClientDisplayNameFromSuivi(
-                              s,
-                              clientsById
-                            );
-                            const contractId =
-                              s.facture_id || s.document_id || s.contract_id;
-                            const clientId = s.client_id;
-
-                            return (
-                              <tr
-                                key={`processing-${s.suivi_id || s.id || ""}-${s.document_id || s.facture_id || ""
-                                  }`}
-                                onClick={() => {
-                                  if (clientId) {
-                                    history.push(
-                                      `/app/user/edit/${clientId}/2`
-                                    );
-                                  }
-                                }}
-                                style={{ cursor: "pointer" }}
-                              >
-                                <td>{clientLabel}</td>
-                                <td>{renderTodoCell(next)}</td>
-                                <td>
-                                  {last ? (
-                                    <div style={{ fontSize: 14 }}>
-                                      <div>
-                                        <strong>{last.label}</strong>
-                                      </div>
-                                      {last.date && (
-                                        <div className="text-muted">
-                                          {formatDate(last.date)}
-                                        </div>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <span
-                                      className="text-muted"
-                                      style={{ fontSize: 14 }}
-                                    >
-                                      Aucune étape validée
-                                    </span>
-                                  )}
-                                </td>
-
-                                <td
-                                  style={{ whiteSpace: "nowrap", width: 160 }}
-                                >
-                                  {renderProductBadgeFromSuivi(s)}
-                                </td>
-
-                                <td style={{ width: 60, textAlign: "center" }}>
-                                  {contractId ? (
-                                    <Button
-                                      color="link"
-                                      className="p-0"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        history.push(
-                                          `/pages/contract/${contractId}`
-                                        );
-                                      }}
-                                      title="Voir le contrat"
-                                    >
-                                      <ArrowRight size={18} />
-                                    </Button>
-                                  ) : (
-                                    <span
-                                      className="text-muted"
-                                      style={{ fontSize: 14 }}
-                                    >
-                                      -
-                                    </span>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          }
-                        )}
-                      </>
-                    )}
-
-                    {/* 3) Contrats terminés (tiroir) */}
-                    {showCompleted && groupedSuivis.completed.length > 0 && (
-                      <>
-                        <tr className="table-secondary">
-                          <td
-                            colSpan="5"
-                            style={{ fontSize: 14, fontWeight: 600 }}
-                          >
-                            Contrats terminés
-                          </td>
-                        </tr>
-
-                        {groupedSuivis.completed.map(
-                          ({ s, steps, last, next }) => {
-                            const clientLabel = getClientDisplayNameFromSuivi(
-                              s,
-                              clientsById
-                            );
-                            const contractId =
-                              s.facture_id || s.document_id || s.contract_id;
-                            const clientId = s.client_id;
-
-                            return (
-                              <tr
-                                key={`completed-${s.suivi_id || s.id || ""}-${s.document_id || s.facture_id || ""
-                                  }`}
-                                onClick={() => {
-                                  if (clientId) {
-                                    history.push(
-                                      `/app/user/edit/${clientId}/2`
-                                    );
-                                  }
-                                }}
-                                style={{ cursor: "pointer" }}
-                              >
-                                <td>{clientLabel}</td>
-
-                                <td>
-                                  <span
-                                    className="text-success"
-                                    style={{ fontSize: 14, fontWeight: 600 }}
-                                  >
-                                    Dossier terminé
-                                  </span>
-                                </td>
-
-                                <td>
-                                  {last ? (
-                                    <div style={{ fontSize: 14 }}>
-                                      <div>
-                                        <strong>{last.label}</strong>
-                                      </div>
-                                      {last.date && (
-                                        <div className="text-muted">
-                                          {formatDate(last.date)}
-                                        </div>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <span
-                                      className="text-muted"
-                                      style={{ fontSize: 14 }}
-                                    >
-                                      Aucune étape validée
-                                    </span>
-                                  )}
-                                </td>
-
-                                <td
-                                  style={{ whiteSpace: "nowrap", width: 160 }}
-                                >
-                                  {renderProductBadgeFromSuivi(s)}
-                                </td>
-
-                                <td style={{ width: 60, textAlign: "center" }}>
-                                  {contractId ? (
-                                    <Button
-                                      color="link"
-                                      className="p-0"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        history.push(
-                                          `/pages/contract/${contractId}`
-                                        );
-                                      }}
-                                      title="Voir le contrat"
-                                    >
-                                      <ArrowRight size={18} />
-                                    </Button>
-                                  ) : (
-                                    <span
-                                      className="text-muted"
-                                      style={{ fontSize: 14 }}
-                                    >
-                                      -
-                                    </span>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          }
-                        )}
-                      </>
-                    )}
-
-                    {/* Si rien n’est visible du tout */}
-                    {groupedSuivis.active.length === 0 &&
-                      groupedSuivis.after5days.length === 0 &&
-                      (!showProcessing ||
-                        groupedSuivis.processing.length === 0) &&
-                      (!showCompleted ||
-                        groupedSuivis.completed.length === 0) && (
-                        <tr>
-                          <td colSpan="5">Aucun suivi trouvé.</td>
-                        </tr>
-                      )}
-                  </>
-                )}
-              </tbody>
-            </Table>
-          </CardBody>
-        </Card>
-      </div>
-      {/* ====== Suivi conversations chatbot ====== */}
-      <div className="vx-col w-100">
-        <Card>
-          <CardHeader className="d-flex align-items-center justify-content-between">
-            <h4 className="mb-0">Suivi conversations chatbot</h4>
-          </CardHeader>
-          <CardBody>
-            {convError && (
-              <div
-                style={{
-                  background: "#ffe9e9",
-                  border: "1px solid #ffb3b3",
-                  color: "#b10000",
-                  padding: 10,
-                  borderRadius: 6,
-                  marginBottom: 14,
-                }}
-              >
-                {convError}
-              </div>
-            )}
-
-            <Table responsive hover>
-              <thead>
-                <tr>
-                  <th>Date / heure</th>
-                  <th>Résumé</th>
-                  <th>Messages avec téléphone</th>
-                  <th style={{ width: 90 }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {loadingConversations ? (
-                  <tr>
-                    <td colSpan="4">Chargement des conversations…</td>
-                  </tr>
-                ) : conversations.length ? (
-                  conversations.map((conv) => {
-                    const phoneMessages =
-                      (conv.messages || []).filter(
-                        (m) =>
-                          typeof m.content === "string" &&
-                          PHONE_REGEX.test(m.content)
-                      );
-
-                    return (
-                      <tr key={conv.id}>
-                        <td>
-                          {formatDateTime(conv.created_at || conv.updated_at)}
-                        </td>
-                        <td style={{ maxWidth: 420 }}>
-                          <span style={{ display: "block", fontSize: 13 }}>
-                            {conv.summary || <em>(aucun résumé)</em>}
-                          </span>
-                        </td>
-
-                        {/* 🔽 NOUVELLE CELLULE : messages contenant un numéro */}
-                        <td style={{ maxWidth: 420 }}>
-                          {phoneMessages.length ? (
-                            phoneMessages.map((m, index) => {
-                              // on extrait éventuellement les numéros pour les rendre cliquables
-                              const numbers = m.content.match(PHONE_REGEX) || [];
-
-                              return (
-                                <div
-                                  key={index}
-                                  style={{ fontSize: 13, marginBottom: 4 }}
-                                >
-                                  {numbers.length > 0 && (
-                                    <>
-                                      {numbers.map((phone, i) => (
-                                        <a
-                                          key={i}
-                                          href={`tel:${phone.replace(/[ .-]/g, "")}`}
-                                          style={{ textDecoration: "underline" }}
-                                        >
-                                          {phone}
-                                        </a>
-                                      ))}
-                                      <span style={{ margin: "0 4px" }}>–</span>
-                                    </>
-                                  )}
-                                  <span>{m.content}</span>
-                                </div>
-                              );
-                            })
-                          ) : (
-                            <em>(aucun numéro détecté)</em>
-                          )}
-                        </td>
-                        <td className="text-right">
-                          <Button
-                            color="light"
-                            size="sm"
-                            onClick={() => openConvModal(conv)}
-                            title="Voir la conversation"
-                            aria-label="Voir la conversation"
-                            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-                          >
-                            <MessageSquare size={14} />
-                            <span className="d-none d-md-inline">Voir</span>
-                          </Button>
-                        </td>
-
-                      </tr>
-                    );
-                  })
-
-                ) : (
-                  <tr>
-                    <td colSpan="4">Aucune conversation archivée.</td>
-                  </tr>
-                )}
-              </tbody>
-            </Table>
-          </CardBody>
-        </Card>
-      </div>
-
-      <Row className="align-items-stretch">
-        <Col xs="12" className="d-flex">
-          <Card
-            className="flex-fill d-flex flex-column"
-            style={{ padding: "10px 16px" }}
+    <div
+      className="kpi-page-container"
+      style={{
+        paddingBottom: 50,
+        overflow: "visible",
+      }}
+    >
+      <header
+        className="kpi-header"
+        style={{
+          backgroundColor: "white",
+          borderBottom: "1px solid #e5e7eb",
+          boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+          position: "relative",
+          zIndex: 50,
+          borderRadius: "8px",
+          margin: "0 0 20px 0",
+          overflow: "visible",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            fontSize: "14px",
+            color: "#6b7280",
+          }}
+        >
+          <span style={{ color: "#6b7280", fontSize: "14px" }}>CRM</span>
+          <span style={{ color: "#9ca3af", fontSize: "14px" }}>{">"}</span>
+          <span
+            className="font-semibold text-gray-800"
+            style={{
+              fontSize: "14px",
+              fontWeight: 600,
+              color: "#1f2937",
+              textTransform: "capitalize",
+            }}
           >
-            <CardHeader className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between">
-              <h4 className="mb-0">Créer un KPI</h4>
-              <div className="mt-1 mt-md-0">
-                <Button
-                  className="mr-1 mb-1"
-                  color="primary"
-                  onClick={() => history.push("/app/user/createUser")}
-                  title="Créer un utilisateur"
-                  aria-label="Créer un utilisateur"
-                >
-                  <UserPlus size={15} />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardBody className="d-flex flex-column">
-              {error ? (
+            {location.pathname.includes("/kpi/suivi")
+              ? "Suivi Administratif"
+              : location.pathname.includes("/kpi/opportunities")
+              ? "Opportunités"
+              : location.pathname.includes("/kpi/clients") // Assuming clients route exists or will exist
+              ? "Clients"
+              : "Boîte De Réception"}
+          </span>
+        </div>
+        <div style={{ marginLeft: "auto" }}>
+          <UncontrolledDropdown>
+            <DropdownToggle
+              tag="button"
+              className="d-flex align-items-center gap-3 border-0"
+              style={{
+                backgroundColor: "#22C55E",
+                color: "white",
+                padding: "8px 16px",
+                borderRadius: "8px",
+                fontWeight: 500,
+                boxShadow:
+                  "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+                cursor: "pointer",
+                transition: "background-color 0.2s",
+              }}
+              onMouseOver={(e) =>
+                (e.currentTarget.style.backgroundColor = "#16a34a")
+              }
+              onMouseOut={(e) =>
+                (e.currentTarget.style.backgroundColor = "#22C55E")
+              }
+            >
+              <Plus size={16} />
+              <span>NOUVEAU</span>
+            </DropdownToggle>
+            <DropdownMenu
+              end
+              style={{
+                border: "1px solid #f3f4f6",
+                boxShadow: "0 6px 16px rgba(0, 0, 0, 0.1)",
+                padding: "4px",
+                width: "160px",
+                minWidth: "auto",
+              }}
+            >
+              <DropdownItem
+                onClick={() => toggleModal()}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  padding: "8px 12px",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  color: "#374151",
+                }}
+              >
+                <PhoneIncoming
+                  size={16}
+                  className="text-green-600"
+                  style={{ color: "#16a34a" }}
+                />
+                <span>Appel Entrant</span>
+              </DropdownItem>
+              <DropdownItem
+                onClick={() => history.push("/app/user/createUser")}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  padding: "8px 12px",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  color: "#374151",
+                }}
+              >
+                <Briefcase
+                  size={16}
+                  className="text-indigo-600"
+                  style={{ color: "#4f46e5" }}
+                />
+                <span>Nouveau Client</span>
+              </DropdownItem>
+              <DropdownItem
+                onClick={() =>
+                  alert("Fonctionnalité 'Créer une tâche' à venir !")
+                }
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  padding: "8px 12px",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  color: "#374151",
+                }}
+              >
+                <CheckSquare
+                  size={16}
+                  className="text-gray-500"
+                  style={{ color: "#6b7280" }}
+                />
+                <span>Créer une tâche</span>
+              </DropdownItem>
+            </DropdownMenu>
+          </UncontrolledDropdown>
+        </div>
+      </header>
+      {location.pathname.includes("/kpi/suivi") && (
+        <AdminView
+          searchTerm={adminSearch}
+          onSearchChange={setAdminSearch}
+          filters={
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+            >
+              <button
+                type="button"
+                onClick={() => setShowProcessing((v) => !v)}
+                style={{
+                  ...filterPillBase,
+                  ...(showProcessing ? filterPillActive : {}),
+                  // Override defaults for dropdown look
+                  width: "100%",
+                  justifyContent: "flex-start",
+                  border: "none",
+                  background: "transparent",
+                }}
+              >
+                <span
+                  style={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: "50%",
+                    marginRight: 8,
+                    backgroundColor: showProcessing ? "#198754" : "transparent",
+                    border: `1px solid ${
+                      showProcessing ? "#198754" : "#ced4da"
+                    }`,
+                  }}
+                />
+                Dossiers en cours
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCompleted((v) => !v)}
+                style={{
+                  ...filterPillBase,
+                  ...(showCompleted ? filterPillActive : {}),
+                  width: "100%",
+                  justifyContent: "flex-start",
+                  border: "none",
+                  background: "transparent",
+                }}
+              >
+                <span
+                  style={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: "50%",
+                    marginRight: 8,
+                    backgroundColor: showCompleted ? "#6c757d" : "transparent",
+                    border: `1px solid ${
+                      showCompleted ? "#6c757d" : "#ced4da"
+                    }`,
+                  }}
+                />
+                Contrats terminés
+              </button>
+            </div>
+          }
+        >
+          <div style={{ padding: "0 14px" }}>
+            {/* ====== Suivis d'avancement (ANCIENNE TABLE) ====== */}
+            <div className="w-100">
+              {suivisError && (
                 <div
                   style={{
                     background: "#ffe9e9",
@@ -2225,629 +1445,647 @@ export default function KpiPage() {
                     marginBottom: 14,
                   }}
                 >
-                  {error}
-                </div>
-              ) : null}
-
-              {/* OBJET + Date */}
-              <div
-                className="d-flex align-items-center flex-wrap mb-2"
-                style={{ gap: 8 }}
-              >
-                <div
-                  className="d-flex align-items-center flex-wrap flex-fill"
-                  style={{ gap: 8 }}
-                >
-                  {OBJETS.map((o) => {
-                    const Icon = OBJET_ICON[o] || PhoneCall;
-                    const selected = objet === o;
-                    return (
-                      <Button
-                        key={o}
-                        color={selected ? "primary" : "light"}
-                        className="d-inline-flex align-items-center justify-content-center flex-grow-1 flex-md-grow-0"
-                        onClick={() => setObjet(o)}
-                        title={o}
-                        aria-label={o}
-                        style={{ gap: 6, padding: "10px 12px" }}
-                      >
-                        <Icon size={16} style={{ opacity: 0.9 }} />
-                        <span className="d-none d-sm-inline">{o}</span>
-                        <span className="d-inline d-sm-none">
-                          {o === "Email" ? "Email" : o.split(" ")[1]}
-                        </span>
-                      </Button>
-                    );
-                  })}
-                </div>
-                <Input
-                  type="date"
-                  value={kpiDate}
-                  onChange={(e) => setKpiDate(e.target.value)}
-                  max={todayStr()}
-                  aria-label="Date du KPI"
-                  style={{ width: 170, height: "42px", marginLeft: "auto" }}
-                  className="flex-grow-1 flex-md-grow-0"
-                />
-              </div>
-
-              {/* Bloc Récupérer le diagnostic - affiché seulement pour Appel sortant */}
-              {objet === "Appel sortant" && (
-                <div className="mt-1" style={{ marginBottom: 8 }}>
-                  <h6 style={{ fontWeight: 600, marginBottom: 4 }}>
-                    Récupérer le diagnostic
-                  </h6>
-                  <div className="d-flex align-items-center" style={{ gap: 6 }}>
-                    <Input
-                      type="text"
-                      placeholder="Email du client"
-                      value={emailBody}
-                      onChange={(e) => setEmailBody(e.target.value)}
-                      style={{ width: 260, fontSize: 13, height: 36 }}
-                    />
-                    <Button
-                      color="primary"
-                      onClick={sendEmailWebhook}
-                      disabled={sending || !emailBody.trim()}
-                      style={{ height: 36, fontSize: 13, padding: "0 14px" }}
-                    >
-                      {sending ? "Envoi..." : "Recevoir"}
-                    </Button>
-                  </div>
-
-                  {sendMsg && (
-                    <div
-                      className="mt-1"
-                      style={{
-                        fontSize: 14,
-                        color: sendMsg.startsWith("✅")
-                          ? "#0f5132"
-                          : sendMsg.startsWith("⚠️")
-                            ? "#8a6d3b"
-                            : "#b10000",
-                      }}
-                    >
-                      {sendMsg.replace(/^[✅⚠️]/, "")}
-                    </div>
-                  )}
+                  {suivisError}
                 </div>
               )}
 
-              {/* Champs contact */}
-              <div className="mt-2">
-                <Row>
-                  <Col lg="3" md="6" xs="12" className="mb-1">
-                    <Label
-                      className="mb-1"
-                      style={{ fontWeight: 600, fontSize: 13 }}
-                    >
-                      Nom / Prénom
-                    </Label>
-                    <Input
-                      type="text"
-                      placeholder="Nom Prénom"
-                      value={nomPrenom}
-                      onChange={(e) => setNomPrenom(e.target.value)}
-                    />
-                  </Col>
-                  <Col lg="3" md="6" xs="12" className="mb-1">
-                    <Label
-                      className="mb-1"
-                      style={{ fontWeight: 600, fontSize: 13 }}
-                    >
-                      Email
-                    </Label>
-                    <Input
-                      type="text"
-                      placeholder="email@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                    />
-                  </Col>
-                  <Col lg="3" md="6" xs="12" className="mb-1">
-                    <Label
-                      className="mb-1"
-                      style={{ fontWeight: 600, fontSize: 13 }}
-                    >
-                      Téléphone
-                    </Label>
-                    <Input
-                      type="text"
-                      placeholder="Téléphone"
-                      value={telephone}
-                      onChange={(e) =>
-                        setTelephone(formatPhone(e.target.value))
-                      }
-                    />
-                  </Col>
-                  <Col lg="3" md="6" xs="12" className="mb-1">
-                    <Label
-                      className="mb-1"
-                      style={{ fontWeight: 600, fontSize: 13 }}
-                    >
-                      Note
-                    </Label>
-                    <Input
-                      type="textarea"
-                      placeholder="Quelques notes…"
-                      value={note}
-                      onChange={(e) => setNote(e.target.value)}
-                      style={{
-                        height: "38px",
-                        paddingTop: "7px",
-                        lineHeight: "1.5",
-                      }}
-                    />
-                  </Col>
-                </Row>
-              </div>
-
-              {/* Actions */}
-              {!actionsDisabled && (
-                <div className="mb-2 mt-2">
-                  <Label className="d-block" style={{ fontWeight: 600 }}>
-                    Action
-                  </Label>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns:
-                        "repeat(auto-fit, minmax(160px, 1fr))",
-                      gap: 8,
-                    }}
-                  >
-                    {CALL_ACTIONS.map((a) => {
-                      const isSelected = action === a;
-                      const color = ACTION_COLORS[a] || "secondary";
-                      return (
-                        <Button
-                          key={a}
-                          color={color}
-                          outline={!isSelected}
-                          onClick={() => setAction(a)}
-                          className="w-100"
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            textAlign: "center",
-                            whiteSpace: "normal",
-                            lineHeight: 0.8,
-                            padding: "10px 12px",
-                          }}
-                        >
-                          {a}
-                        </Button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              <div className="d-flex align-items-center mt-1">
-                <div className="ml-auto">
-                  <Button
-                    color="success"
-                    onClick={createKpi}
-                    disabled={creating}
-                  >
-                    {creating ? "Création..." : "Créer le KPI"}
-                  </Button>
-                </div>
-              </div>
-            </CardBody>
-          </Card>
-        </Col>
-      </Row>
-      {/* </div> */}
-
-      {/* ====== Graph ====== */}
-      <div className="vx-col w-100">
-        <Card>
-          <CardHeader
-            className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between"
-            style={{ gap: 8 }}
-          >
-            <h4 className="mb-0">Vue d’ensemble</h4>
-
-            <div
-              className="d-flex align-items-center flex-wrap mt-1 mt-md-0"
-              style={{ gap: 8 }}
-            >
-              {/* GroupBy */}
-              <UncontrolledButtonDropdown>
-                <DropdownToggle caret color="primary">
-                  {groupBy === "week"
-                    ? "Par semaine"
-                    : groupBy === "month"
-                      ? "Par mois"
-                      : "Par jour (semaine)"}
-                </DropdownToggle>
-                <DropdownMenu right>
-                  <DropdownItem onClick={() => setGroupBy("week")}>
-                    Par semaine
-                  </DropdownItem>
-                  <DropdownItem onClick={() => setGroupBy("month")}>
-                    Par mois
-                  </DropdownItem>
-                  <DropdownItem onClick={() => setGroupBy("day")}>
-                    Par jour (semaine)
-                  </DropdownItem>
-                </DropdownMenu>
-              </UncontrolledButtonDropdown>
-
-              {/* Year filter */}
-              <UncontrolledButtonDropdown>
-                <DropdownToggle caret color="primary">
-                  Année : {year}
-                </DropdownToggle>
-                <DropdownMenu right>
-                  {availableYears.map((y) => (
-                    <DropdownItem key={y} onClick={() => setYear(y)}>
-                      {y}
-                    </DropdownItem>
-                  ))}
-                </DropdownMenu>
-              </UncontrolledButtonDropdown>
-
-              {groupBy === "day" && (
-                <ButtonGroup>
-                  <Button
-                    color="primary"
-                    onClick={() => stepWeek(-1)}
-                    title="Semaine précédente"
-                  >
-                    ‹
-                  </Button>
-
-                  <UncontrolledButtonDropdown>
-                    <DropdownToggle
-                      color="primary"
-                      caret={false}
-                      className="px-3"
-                      style={{
-                        minWidth: 180,
-                        maxWidth: "200px",
-                        whiteSpace: "nowrap",
-                        textOverflow: "ellipsis",
-                        overflow: "hidden",
-                      }}
-                    >
-                      {weekLabel}
-                    </DropdownToggle>
-                    <DropdownMenu
-                      right
-                      style={{ maxHeight: 320, overflowY: "auto" }}
-                    >
-                      {quickWeeks.map(({ year: y, week: w, label }) => (
-                        <DropdownItem
-                          key={`${y}-${w}`}
-                          onClick={() => {
-                            setYear(y);
-                            setWeek(w);
-                          }}
-                        >
-                          {label}
-                        </DropdownItem>
-                      ))}
-                    </DropdownMenu>
-                  </UncontrolledButtonDropdown>
-
-                  <Button
-                    color="primary"
-                    onClick={() => stepWeek(1)}
-                    title="Semaine suivante"
-                  >
-                    ›
-                  </Button>
-                </ButtonGroup>
-              )}
-
-              {/* Action filter */}
-              <UncontrolledButtonDropdown>
-                <DropdownToggle caret color="primary">
-                  {actionFilter === "all" ? "Toutes actions" : actionFilter}
-                </DropdownToggle>
-                <DropdownMenu right>
-                  <DropdownItem onClick={() => setActionFilter("all")}>
-                    Toutes actions
-                  </DropdownItem>
-                  {ACTIONS_ALL.map((a) => (
-                    <DropdownItem key={a} onClick={() => setActionFilter(a)}>
-                      {a}
-                    </DropdownItem>
-                  ))}
-                </DropdownMenu>
-              </UncontrolledButtonDropdown>
-            </div>
-          </CardHeader>
-          <CardBody
-            style={{ height: winW < 576 ? 280 : winW < 768 ? 320 : 420 }}
-          >
-            {loadingChart ? (
-              <div className="text-center" style={{ opacity: 0.7 }}>
-                Chargement du graphique…
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={chartDataMulti}
-                  margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="period"
-                    tickFormatter={(v) =>
-                      groupBy === "week" ? v.replace(/^\d{4}-/, "") : v
-                    }
-                  />
-                  <YAxis allowDecimals={false} />
-                  <Tooltip
-                    labelFormatter={(label) =>
-                      groupBy === "week"
-                        ? `Semaine ${label.split("-")[1]}`
-                        : groupBy === "day"
-                          ? `${label} – ${formatWeekRangeLabel(year, week)}`
-                          : label
-                    }
-                  />
-                  <Legend />
-
-                  {actionFilter === "all"
-                    ? ACTIONS_ALL.map((a) => (
-                      <Bar
-                        key={a}
-                        dataKey={a}
-                        stackId="total"
-                        fill={ACTION_FILLS[a]}
-                      />
-                    ))
-                    : [
-                      <Bar
-                        key={actionFilter}
-                        dataKey={actionFilter}
-                        fill={ACTION_FILLS[actionFilter]}
-                      />,
-                    ]}
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-            {!loadingChart && chartDataMulti.length === 0 ? (
-              <div className="text-center mt-1" style={{ opacity: 0.7 }}>
-                Aucune donnée pour le filtre courant.
-              </div>
-            ) : null}
-          </CardBody>
-        </Card>
-      </div>
-
-      {/* ====== Liste KPI ====== */}
-      <div className="vx-col w-100">
-        <Card>
-          <CardHeader className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between">
-            <h4 className="mb-0">Tous les KPI</h4>
-            <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center mt-1 mt-md-0">
-              <Button
-                color="light"
-                className="mb-2 mb-md-0 mr-md-1"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                ← Précédent
-              </Button>
-              <Button
-                color="light"
-                className="mb-2 mb-md-0"
-                disabled={page >= lastPage}
-                onClick={() => setPage((p) => Math.min(lastPage, p + 1))}
-              >
-                Suivant →
-              </Button>
-              <Badge
-                color="light-secondary"
-                className="ml-md-1 text-center py-2 py-md-1"
-              >
-                Page {page}/{lastPage}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardBody>
-            <Table responsive hover>
-              <thead>
-                <tr>
-                  <th>Date / heure</th>
-                  <th>Objet</th>
-                  <th>Action</th>
-                  <th>Nom / Prénom</th>
-                  <th>Téléphone</th>
-                  <th>Email</th>
-                  <th>Note</th>
-                  <th>Admin</th>
-                  <th className="text-right" style={{ width: 40 }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {loadingList ? (
+              <Table responsive hover>
+                <thead>
                   <tr>
-                    <td colSpan="9">Chargement…</td>
+                    <th
+                      style={headerClickableStyle}
+                      onClick={() => handleSort("client")}
+                    >
+                      Client
+                      {renderSortIcon("client")}
+                    </th>
+                    <th
+                      style={headerClickableStyle}
+                      onClick={() => handleSort("todo")}
+                    >
+                      À faire
+                      {renderSortIcon("todo")}
+                    </th>
+                    <th
+                      style={headerClickableStyle}
+                      onClick={() => handleSort("last")}
+                    >
+                      Dernière étape validée
+                      {renderSortIcon("last")}
+                    </th>
+                    <th
+                      style={headerClickableStyle}
+                      onClick={() => handleSort("type")}
+                    >
+                      Type de contrat
+                      {renderSortIcon("type")}
+                    </th>
+                    <th>Voir le contrat</th>
                   </tr>
-                ) : items?.length ? (
-                  items.map((k) => {
-                    return (
-                      <tr key={k.id}>
-                        <td>
-                          {k.kpi_date
-                            ? formatDate(k.kpi_date) // date choisie (YYYY-MM-DD)
-                            : formatDateTime(k.created_at || k.updated_at)}
-                        </td>
-                        <td>{renderObjetCell(k.objet)}</td>
-                        <td>{renderActionBadge(k.action)}</td>
-                        <td>{renderNullable(k.nom_prenom)}</td>
-                        <td>{renderPhone(k.telephone)}</td>
-                        <td>{renderEmail(k.email)}</td>
-                        <td>{renderNullable(k.note)}</td>
-                        <td>
-                          {k.admin_id == null ? (
-                            <em style={{ opacity: 0.6 }}>(null)</em>
-                          ) : (
-                            usersById[k.admin_id] ||
-                            k.admin_name ||
-                            k.admin ||
-                            String(k.admin_id)
+                </thead>
+                <tbody>
+                  {loadingSuivis ? (
+                    <tr>
+                      <td colSpan="5">Chargement des suivis…</td>
+                    </tr>
+                  ) : (
+                    <>
+                      {/* 0) 5 jours ouvrés atteints / dépassés (toujours en haut si présents) */}
+                      {groupedSuivis.after5days.length > 0 && (
+                        <>
+                          <tr className="table-warning">
+                            <td
+                              colSpan="5"
+                              style={{ fontSize: 14, fontWeight: 600 }}
+                            >
+                              5 jours ouvrés atteints / dépassés (à traiter en
+                              priorité)
+                            </td>
+                          </tr>
+
+                          {groupedSuivis.after5days.map(
+                            ({ s, steps, last, next }) => {
+                              const clientLabel = getClientDisplayNameFromSuivi(
+                                s,
+                                clientsById
+                              );
+                              const contractId =
+                                s.facture_id || s.document_id || s.contract_id;
+                              const clientId = s.client_id;
+
+                              return (
+                                <tr
+                                  key={`after5-${s.suivi_id || s.id || ""}-${
+                                    s.document_id || s.facture_id || ""
+                                  }`}
+                                  onClick={() => {
+                                    if (clientId) {
+                                      history.push(
+                                        `/app/user/edit/${clientId}/2`
+                                      );
+                                    }
+                                  }}
+                                  style={{ cursor: "pointer" }}
+                                >
+                                  {/* Client */}
+                                  <td>{clientLabel}</td>
+
+                                  {/* À faire */}
+                                  <td>{renderTodoCell(next)}</td>
+
+                                  {/* Dernière étape validée */}
+                                  <td>
+                                    {last ? (
+                                      <div style={{ fontSize: 14 }}>
+                                        <div>
+                                          <strong>{last.label}</strong>
+                                        </div>
+                                        {last.date && (
+                                          <div className="text-muted">
+                                            {formatDate(last.date)}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <span
+                                        className="text-muted"
+                                        style={{ fontSize: 14 }}
+                                      >
+                                        Aucune étape validée
+                                      </span>
+                                    )}
+                                  </td>
+
+                                  {/* Type de contrat */}
+                                  <td
+                                    style={{
+                                      whiteSpace: "nowrap",
+                                      width: 160,
+                                    }}
+                                  >
+                                    {renderProductBadgeFromSuivi(s)}
+                                  </td>
+
+                                  {/* Contrat (flèche) */}
+                                  <td
+                                    style={{
+                                      width: 60,
+                                      textAlign: "center",
+                                    }}
+                                  >
+                                    {contractId ? (
+                                      <Button
+                                        color="link"
+                                        className="p-0"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          history.push(
+                                            `/pages/contract/${contractId}`
+                                          );
+                                        }}
+                                        title="Voir le contrat"
+                                      >
+                                        <ArrowRight size={18} />
+                                      </Button>
+                                    ) : (
+                                      <span
+                                        className="text-muted"
+                                        style={{ fontSize: 14 }}
+                                      >
+                                        -
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            }
                           )}
-                        </td>
-                        <td className="text-right" style={{ width: 40 }}>
-                          <Button
-                            color="link"
-                            className="p-0"
-                            style={{ color: "#dc3545" }}
-                            onClick={() => openConfirmModal(k)}
-                            disabled={deletingId === k.id}
-                            aria-label={`Supprimer KPI ${k.id}`}
-                            title="Supprimer"
+                        </>
+                      )}
+                      {groupedSuivis.after5days.length > 0 &&
+                        groupedSuivis.active.length > 0 && (
+                          <tr>
+                            <td
+                              colSpan="5"
+                              style={{
+                                padding: "6px 10px",
+                                borderTop: "2px solid #dee2e6",
+                                borderBottom: "1px solid #dee2e6",
+                                background: "#f8f9fa",
+                                fontSize: 13,
+                                fontWeight: 600,
+                                color: "#6c757d",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.04em",
+                              }}
+                            >
+                              Autres dossiers
+                            </td>
+                          </tr>
+                        )}
+
+                      {/* 0-bis) Dossiers "Suivi" (AR/TFD Création devis) */}
+                      {groupedSuivis.suivi.length > 0 && (
+                        <>
+                          <tr className="table-info">
+                            <td
+                              colSpan="5"
+                              style={{ fontSize: 14, fontWeight: 600 }}
+                            >
+                              Dossiers à suivre
+                            </td>
+                          </tr>
+
+                          {groupedSuivis.suivi.map(
+                            ({ s, steps, last, next }) => {
+                              const clientLabel = getClientDisplayNameFromSuivi(
+                                s,
+                                clientsById
+                              );
+                              const contractId =
+                                s.facture_id || s.document_id || s.contract_id;
+                              const clientId = s.client_id;
+
+                              return (
+                                <tr
+                                  key={`suivi-${s.suivi_id || s.id || ""}-${
+                                    s.document_id || s.facture_id || ""
+                                  }`}
+                                  onClick={() => {
+                                    if (clientId) {
+                                      history.push(
+                                        `/app/user/edit/${clientId}/2`
+                                      );
+                                    }
+                                  }}
+                                  style={{ cursor: "pointer" }}
+                                >
+                                  <td>{clientLabel}</td>
+                                  <td>{renderTodoCell(next)}</td>
+                                  <td>
+                                    {last ? (
+                                      <div style={{ fontSize: 14 }}>
+                                        <div>
+                                          <strong>{last.label}</strong>
+                                        </div>
+                                        {last.date && (
+                                          <div className="text-muted">
+                                            {formatDate(last.date)}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <span
+                                        className="text-muted"
+                                        style={{ fontSize: 14 }}
+                                      >
+                                        Aucune étape validée
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td
+                                    style={{ whiteSpace: "nowrap", width: 160 }}
+                                  >
+                                    {renderProductBadgeFromSuivi(s)}
+                                  </td>
+                                  <td
+                                    style={{ width: 60, textAlign: "center" }}
+                                  >
+                                    {contractId ? (
+                                      <Button
+                                        color="link"
+                                        className="p-0"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          history.push(
+                                            `/pages/contract/${contractId}`
+                                          );
+                                        }}
+                                        title="Voir le contrat"
+                                      >
+                                        <ArrowRight size={18} />
+                                      </Button>
+                                    ) : (
+                                      <span
+                                        className="text-muted"
+                                        style={{ fontSize: 14 }}
+                                      >
+                                        -
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            }
+                          )}
+                        </>
+                      )}
+
+                      {/* 1) Dossiers actifs (par défaut) */}
+                      {groupedSuivis.active.map(({ s, steps, last, next }) => {
+                        const clientLabel = getClientDisplayNameFromSuivi(
+                          s,
+                          clientsById
+                        );
+                        const contractId =
+                          s.facture_id || s.document_id || s.contract_id;
+                        const clientId = s.client_id;
+
+                        return (
+                          <tr
+                            key={`${s.suivi_id || s.id || ""}-${
+                              s.document_id || s.facture_id || ""
+                            }`}
+                            onClick={() => {
+                              if (clientId) {
+                                history.push(`/app/user/edit/${clientId}/2`);
+                              }
+                            }}
+                            style={{ cursor: "pointer" }}
                           >
-                            <Trash2 size={18} />
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan="9">Aucun KPI.</td>
-                  </tr>
-                )}
-              </tbody>
-            </Table>
-          </CardBody>
-        </Card>
-      </div>
-      <Modal
-        isOpen={convModalOpen}
-        toggle={closeConvModal}
-        size="lg"
-      >
-        <ModalHeader toggle={closeConvModal}>
-          {selectedConv ? `Conversation #${selectedConv.id}` : "Conversation"}
-        </ModalHeader>
+                            {/* Client */}
+                            <td>{clientLabel}</td>
 
-        <ModalBody>
-          {/* Résumé */}
-          <div
-            style={{
-              background: "#f8f9fa",
-              border: "1px solid #e9ecef",
-              padding: "10px 12px",
-              borderRadius: 8,
-              marginBottom: 12,
-            }}
-          >
-            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
-              Résumé
+                            {/* À faire */}
+                            <td>{renderTodoCell(next)}</td>
+                            {/* Dernière étape validée */}
+                            <td>
+                              {last ? (
+                                <div style={{ fontSize: 14 }}>
+                                  <div>
+                                    <strong>{last.label}</strong>
+                                  </div>
+                                  {last.date && (
+                                    <div className="text-muted">
+                                      {formatDate(last.date)}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span
+                                  className="text-muted"
+                                  style={{ fontSize: 14 }}
+                                >
+                                  Aucune étape validée
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Type de contrat */}
+                            <td
+                              style={{
+                                whiteSpace: "nowrap",
+                                width: 160,
+                              }}
+                            >
+                              {renderProductBadgeFromSuivi(s)}
+                            </td>
+
+                            {/* Contrat (flèche) */}
+                            <td style={{ width: 60, textAlign: "center" }}>
+                              {contractId ? (
+                                <Button
+                                  color="link"
+                                  className="p-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    history.push(
+                                      `/pages/contract/${contractId}`
+                                    );
+                                  }}
+                                  title="Voir le contrat"
+                                >
+                                  <ArrowRight size={18} />
+                                </Button>
+                              ) : (
+                                <span
+                                  className="text-muted"
+                                  style={{ fontSize: 14 }}
+                                >
+                                  -
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+
+                      {/* 2) Dossiers en cours de traitement (tiroir) */}
+                      {showProcessing &&
+                        groupedSuivis.processing.length > 0 && (
+                          <>
+                            <tr className="table-secondary">
+                              <td
+                                colSpan="5"
+                                style={{ fontSize: 14, fontWeight: 600 }}
+                              >
+                                Dossiers en cours de traitement
+                              </td>
+                            </tr>
+
+                            {groupedSuivis.processing.map(
+                              ({ s, steps, last, next }) => {
+                                const clientLabel =
+                                  getClientDisplayNameFromSuivi(s, clientsById);
+                                const contractId =
+                                  s.facture_id ||
+                                  s.document_id ||
+                                  s.contract_id;
+                                const clientId = s.client_id;
+
+                                return (
+                                  <tr
+                                    key={`processing-${
+                                      s.suivi_id || s.id || ""
+                                    }-${s.document_id || s.facture_id || ""}`}
+                                    onClick={() => {
+                                      if (clientId) {
+                                        history.push(
+                                          `/app/user/edit/${clientId}/2`
+                                        );
+                                      }
+                                    }}
+                                    style={{ cursor: "pointer" }}
+                                  >
+                                    <td>{clientLabel}</td>
+                                    <td>{renderTodoCell(next)}</td>
+                                    <td>
+                                      {last ? (
+                                        <div style={{ fontSize: 14 }}>
+                                          <div>
+                                            <strong>{last.label}</strong>
+                                          </div>
+                                          {last.date && (
+                                            <div className="text-muted">
+                                              {formatDate(last.date)}
+                                            </div>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <span
+                                          className="text-muted"
+                                          style={{ fontSize: 14 }}
+                                        >
+                                          Aucune étape validée
+                                        </span>
+                                      )}
+                                    </td>
+
+                                    <td
+                                      style={{
+                                        whiteSpace: "nowrap",
+                                        width: 160,
+                                      }}
+                                    >
+                                      {renderProductBadgeFromSuivi(s)}
+                                    </td>
+
+                                    <td
+                                      style={{
+                                        width: 60,
+                                        textAlign: "center",
+                                      }}
+                                    >
+                                      {contractId ? (
+                                        <Button
+                                          color="link"
+                                          className="p-0"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            history.push(
+                                              `/pages/contract/${contractId}`
+                                            );
+                                          }}
+                                          title="Voir le contrat"
+                                        >
+                                          <ArrowRight size={18} />
+                                        </Button>
+                                      ) : (
+                                        <span
+                                          className="text-muted"
+                                          style={{ fontSize: 14 }}
+                                        >
+                                          -
+                                        </span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              }
+                            )}
+                          </>
+                        )}
+
+                      {/* 3) Contrats terminés (tiroir) */}
+                      {showCompleted && groupedSuivis.completed.length > 0 && (
+                        <>
+                          <tr className="table-secondary">
+                            <td
+                              colSpan="5"
+                              style={{ fontSize: 14, fontWeight: 600 }}
+                            >
+                              Contrats terminés
+                            </td>
+                          </tr>
+
+                          {groupedSuivis.completed.map(
+                            ({ s, steps, last, next }) => {
+                              const clientLabel = getClientDisplayNameFromSuivi(
+                                s,
+                                clientsById
+                              );
+                              const contractId =
+                                s.facture_id || s.document_id || s.contract_id;
+                              const clientId = s.client_id;
+
+                              return (
+                                <tr
+                                  key={`completed-${s.suivi_id || s.id || ""}-${
+                                    s.document_id || s.facture_id || ""
+                                  }`}
+                                  onClick={() => {
+                                    if (clientId) {
+                                      history.push(
+                                        `/app/user/edit/${clientId}/2`
+                                      );
+                                    }
+                                  }}
+                                  style={{ cursor: "pointer" }}
+                                >
+                                  <td>{clientLabel}</td>
+
+                                  <td>
+                                    <span
+                                      className="text-success"
+                                      style={{
+                                        fontSize: 14,
+                                        fontWeight: 600,
+                                      }}
+                                    >
+                                      Dossier terminé
+                                    </span>
+                                  </td>
+
+                                  <td>
+                                    {last ? (
+                                      <div style={{ fontSize: 14 }}>
+                                        <div>
+                                          <strong>{last.label}</strong>
+                                        </div>
+                                        {last.date && (
+                                          <div className="text-muted">
+                                            {formatDate(last.date)}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <span
+                                        className="text-muted"
+                                        style={{ fontSize: 14 }}
+                                      >
+                                        Aucune étape validée
+                                      </span>
+                                    )}
+                                  </td>
+
+                                  <td
+                                    style={{
+                                      whiteSpace: "nowrap",
+                                      width: 160,
+                                    }}
+                                  >
+                                    {renderProductBadgeFromSuivi(s)}
+                                  </td>
+
+                                  <td
+                                    style={{
+                                      width: 60,
+                                      textAlign: "center",
+                                    }}
+                                  >
+                                    {contractId ? (
+                                      <Button
+                                        color="link"
+                                        className="p-0"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          history.push(
+                                            `/pages/contract/${contractId}`
+                                          );
+                                        }}
+                                        title="Voir le contrat"
+                                      >
+                                        <ArrowRight size={18} />
+                                      </Button>
+                                    ) : (
+                                      <span
+                                        className="text-muted"
+                                        style={{ fontSize: 14 }}
+                                      >
+                                        -
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            }
+                          )}
+                        </>
+                      )}
+
+                      {/* Si rien n’est visible du tout */}
+                      {groupedSuivis.active.length === 0 &&
+                        groupedSuivis.after5days.length === 0 &&
+                        (!showProcessing ||
+                          groupedSuivis.processing.length === 0) &&
+                        (!showCompleted ||
+                          groupedSuivis.completed.length === 0) && (
+                          <tr>
+                            <td colSpan="5">Aucun suivi trouvé.</td>
+                          </tr>
+                        )}
+                    </>
+                  )}
+                </tbody>
+              </Table>
             </div>
-            <div style={{ fontSize: 13 }}>
-              {selectedConv?.summary || <em style={{ opacity: 0.6 }}>(vide)</em>}
-            </div>
           </div>
+        </AdminView>
+      )}
+      {/* 2. OPPORTUNITIES (Pipeline View) */}
+      {location.pathname.includes("/kpi/opportunities") && <PipelineView />}
 
-          {/* Messages */}
-          <div
-            style={{
-              maxHeight: "60vh",
-              overflowY: "auto",
-              paddingRight: 6,
-            }}
-          >
-            {Array.isArray(selectedConv?.messages) &&
-              selectedConv.messages.length > 0 ? (
-              selectedConv.messages.map(renderChatBubble)
-            ) : (
-              <em style={{ opacity: 0.6 }}>Aucun message.</em>
-            )}
-          </div>
-        </ModalBody>
+      {/* 3. INBOX (Default) */}
+      {(location.pathname === "/kpi" ||
+        location.pathname.includes("/inbox")) && (
+        <InboxView
+          items={[
+            ...conversations.map((c) => ({ ...c, _source: "chatbot" })),
+            ...diagnostics.map((d) => ({ ...d, _source: "diagnostic" })),
+          ]}
+          filter={
+            location.pathname.includes("/inbox/chatbot")
+              ? "chatbot"
+              : location.pathname.includes("/inbox/diagnostic")
+              ? "diagnostic"
+              : "all"
+          }
+          loading={loadingConversations || loadingDiagnostics}
+          error={convError || diagError}
+          onSelect={handleSelectConversation}
+        />
+      )}
 
-        <ModalFooter className="d-flex justify-content-between">
-          <div style={{ fontSize: 12, opacity: 0.7 }}>
-            Créée le: {formatDateTime(selectedConv?.created_at)}{" "}
-            {selectedConv?.updated_at
-              ? `• MAJ: ${formatDateTime(selectedConv.updated_at)}`
-              : ""}
-          </div>
-          <Button color="secondary" onClick={closeConvModal}>
-            Fermer
-          </Button>
-        </ModalFooter>
-      </Modal>
-
-      {/* ====== Modale de confirmation ====== */}
-      <Modal
-        isOpen={confirmOpen}
-        toggle={closeConfirmModal}
-        centered
-        size="md"
-        backdrop="static"
-        keyboard={!deletingId}
-      >
-        <ModalHeader toggle={closeConfirmModal} className="border-0">
-          <div className="d-flex align-items-center">
-            <Trash2 size={18} className="mr-1" />
-            Confirmer la suppression
-          </div>
-        </ModalHeader>
-        <ModalBody className="pt-0">
-          <div
-            style={{
-              background: "#fff5f5",
-              border: "1px solid #ffd6d6",
-              color: "#8a1f1f",
-              padding: 12,
-              borderRadius: 8,
-            }}
-            className="mb-2"
-          >
-            Cette action est irréversible.
-          </div>
-          {toDelete && (
-            <div className="small" style={{ lineHeight: 1.6 }}>
-              <div>
-                <strong>ID :</strong> #{toDelete.id}
-              </div>
-              <div>
-                <strong>Date :</strong>{" "}
-                {formatDate(
-                  toDelete.kpi_date ||
-                  toDelete.created_at ||
-                  toDelete.updated_at
-                )}
-              </div>
-              <div>
-                <strong>Objet :</strong> {toDelete.objet || <em>(vide)</em>}
-              </div>
-              <div>
-                <strong>Action :</strong> {toDelete.action || <em>(vide)</em>}
-              </div>
-              {/* on n'affiche pas les infos contact ici, mais je peux les ajouter si tu veux */}
-            </div>
-          )}
-        </ModalBody>
-        <ModalFooter className="border-0">
-          <Button
-            color="secondary"
-            onClick={closeConfirmModal}
-            disabled={!!deletingId}
-          >
-            Annuler
-          </Button>
-          <Button
-            color="danger"
-            onClick={() => deleteKpi(toDelete?.id)}
-            disabled={!toDelete || deletingId === toDelete?.id}
-          >
-            {deletingId === toDelete?.id ? "Suppression..." : "Supprimer"}
-          </Button>
-        </ModalFooter>
-      </Modal>
-    </div >
+      {/* New KPI Modal (integrated) */}
+      <KPIModal
+        isOpen={creating}
+        toggle={() => setCreating(!creating)}
+        onSave={createKpi}
+        loading={creating && !!error}
+        error={error}
+        history={history}
+        adminId={adminId} // Optional: Pass adminId if needed by modal in future
+      />
+    </div>
   );
 }

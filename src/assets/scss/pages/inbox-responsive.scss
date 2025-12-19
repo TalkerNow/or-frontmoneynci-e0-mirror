@@ -1,0 +1,182 @@
+// Inbox Responsive Styles for Mobile
+.inbox-container {
+  display: flex;
+  flex-wrap: wrap;
+  height: auto;
+  min-height: calc(100vh - 180px);
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.inbox-left-panel {
+  flex: 1 1 33%;
+  min-width: 280px;
+  max-width: 400px;
+  border-right: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  min-height: 300px;
+}
+
+.inbox-right-panel {
+  flex: 2 1 67%;
+  display: flex;
+  flex-direction: column;
+  background-color: #fff;
+  min-width: 0;
+}
+
+// Internal Responsive Grids
+.diagnostic-grid, .reperes-grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 16px !important;
+}
+
+.analysis-grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr 1fr !important;
+  gap: 12px !important;
+}
+
+.responsive-padding {
+  padding: 24px !important;
+}
+
+// Mobile breakpoint - stack panels and grids
+@media (max-width: 768px) {
+  .inbox-container {
+    flex-direction: column;
+    height: auto;
+  }
+  
+  .inbox-left-panel {
+    flex: none;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 100% !important;
+    border-right: none;
+    border-bottom: 1px solid #e5e7eb;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  
+  .inbox-right-panel {
+    flex: none;
+    width: 100% !important;
+    min-width: 100% !important;
+  }
+
+  .diagnostic-grid, .reperes-grid, .analysis-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .responsive-padding {
+    padding: 16px !important;
+  }
+}
+
+// Very small mobile
+@media (max-width: 480px) {
+  .inbox-left-panel {
+    max-height: 250px;
+  }
+  
+  .responsive-padding {
+    padding: 12px !important;
+  }
+
+  .analysis-grid {
+     gap: 8px !important;
+  }
+
+  .header-btn-stack {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+
+    button {
+      width: 100% !important;
+      justify-content: center !important;
+    }
+  }
+
+  .header-flex-wrap {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .inbox-detail-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 16px !important;
+
+    & > div {
+      width: 100% !important;
+      flex-wrap: wrap !important;
+    }
+  }
+
+  .admin-view-container {
+    height: auto !important;
+    min-height: calc(100vh - 180px);
+  }
+
+  .admin-search-container {
+    width: 100% !important;
+    flex-wrap: wrap !important;
+    
+    input {
+      min-width: 0 !important; // Remove fixed min-width
+      width: 100% !important;
+      flex: 1 !important;
+    }
+  }
+}
+
+.kpi-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0 32px !important;
+  background-color: white !important;
+  height: 64px !important;
+  flex-wrap: nowrap !important;
+
+  @media (max-width: 768px) {
+    padding: 12px !important;
+    height: auto !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+    
+    // The "CRM > Boîte" container
+    & > div:first-child {
+       width: 100% !important;
+    }
+
+    // The "+ NOUVEAU" container
+    & > div:last-child {
+       margin-left: 0 !important;
+       width: 100% !important;
+       
+       button {
+         width: 100% !important;
+         justify-content: center !important;
+       }
+    }
+  }
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 1rem;
+}

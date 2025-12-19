@@ -105,7 +105,7 @@
     background: $theme-bg;
     .navigation-header {
       color: lighten($theme-color, 21.5%);
-      margin: calc(#{$content-padding} - 0.2rem) 0 0.8rem $content-padding;
+      margin: 12px 0 6px $content-padding;
       padding: 0;
       line-height: 1.5;
       letter-spacing: 0.01rem;
