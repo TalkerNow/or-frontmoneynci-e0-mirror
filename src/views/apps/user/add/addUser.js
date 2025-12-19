@@ -659,7 +659,7 @@ class AddUser extends React.Component {
                 </div>
                 <div className="d-inline-block mr-1">
                   <Radio
-                    label="Marié"
+                    label="Marié(e)"
                     color="info"
                     name="martial_status"
                     onChange={() =>
@@ -671,7 +671,7 @@ class AddUser extends React.Component {
                 </div>
                 <div className="d-inline-block mr-1">
                   <Radio
-                    label="Divorcé"
+                    label="Divorcé(e)"
                     color="danger"
                     name="martial_status"
                     onChange={() =>
@@ -683,7 +683,7 @@ class AddUser extends React.Component {
                 </div>
                 <div className="d-inline-block mr-1">
                   <Radio
-                    label="Veuf"
+                    label="Veuf(ve)"
                     color="warning"
                     name="martial_status"
                     onChange={() =>
@@ -695,7 +695,7 @@ class AddUser extends React.Component {
                 </div>
                 <div className="d-inline-block mr-1">
                   <Radio
-                    label="Pacsé"
+                    label="Pacsé(e)"
                     color="success"
                     name="martial_status"
                     onChange={() =>

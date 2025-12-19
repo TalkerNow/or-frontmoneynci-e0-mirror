@@ -130,17 +130,16 @@ class UserAccountTab extends React.Component {
   normalizePhone = (v) => {
     if (!v) return "";
     let s = String(v).trim();
+    // On conserve + et chiffres, on vire le reste
     let t = s.replace(/[^\d+]/g, "");
-    if (t.startsWith("+33")) t = "0" + t.slice(3);
-    else if (t.startsWith("0033")) t = "0" + t.slice(4);
-    t = t.replace(/\D/g, "");
     return t;
   };
   formatPhonePretty = (v) => {
     const d = this.normalizePhone(v);
     if (!d) return "";
-    const core = d.length > 10 ? d.slice(0, 10) : d;
-    return core.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
+    // Plus de limitation à 10 caractères
+    // On espace tous les 2 chiffres pour la lisibilité
+    return d.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
   };
   updateUsername = (e) => {
     this.markDirty();
@@ -603,7 +602,7 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Marié"
+                          label="Marié(e)"
                           color="primary"
                           defaultChecked={
                             this.props.data["martial_status"] == "Marié"
@@ -619,7 +618,7 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Divorcé"
+                          label="Divorcé(e)"
                           color="primary"
                           defaultChecked={
                             this.props.data["martial_status"] == "Divorcé"
@@ -635,7 +634,7 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Pacsé"
+                          label="Pacsé(e)"
                           color="primary"
                           defaultChecked={
                             this.props.data["martial_status"] == "Pacsé"
@@ -651,7 +650,7 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Veuf"
+                          label="Veuf(ve)"
                           color="primary"
                           defaultChecked={
                             this.props.data["martial_status"] == "Veuf"
@@ -682,7 +681,7 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Marié"
+                          label="Marié(e)"
                           color="primary"
                           defaultChecked={false}
                           name="martial_status"
@@ -694,7 +693,7 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Divorcé"
+                          label="Divorcé(e)"
                           color="primary"
                           defaultChecked={false}
                           name="martial_status"
@@ -706,7 +705,7 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Pacsé"
+                          label="Pacsé(e)"
                           color="primary"
                           defaultChecked={false}
                           name="martial_status"
@@ -718,7 +717,7 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Veuf"
+                          label="Veuf(ve)"
                           color="primary"
                           defaultChecked={false}
                           name="martial_status"

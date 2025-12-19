@@ -153,6 +153,18 @@ class SideMenuGroup extends React.Component {
                       ) : (
                         ""
                       )}
+                      {child.id === "crm-inbox" && this.props.inboxBadge > 0 ? (
+                        <span
+                          style={{
+                            display: "inline-block",
+                            width: 8,
+                            height: 8,
+                            borderRadius: "50%",
+                            backgroundColor: "#ea5455",
+                            marginRight: 8,
+                          }}
+                        />
+                      ) : null}
                       {child.type === "collapse" ? (
                         <ChevronRight className="menu-toggle-icon" size={13} />
                       ) : (

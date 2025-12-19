@@ -6,12 +6,9 @@ import {
   Button,
   Card,
   CardBody,
-  UncontrolledDropdown,
-  DropdownToggle,
-  DropdownMenu,
-  DropdownItem,
+  Table,
 } from "reactstrap";
-import { Trash2, ChevronDown, Download } from "react-feather";
+import { Trash2, AlertTriangle } from "react-feather";
 import { history } from "../../../../history";
 import axios from "axios";
 import { ContextLayout } from "../../../../utility/context/Layout";
@@ -102,12 +99,12 @@ class AllContracts extends React.Component {
                     .trim()
                     .split("/");
                   const tags = [];
-                  lst_subscribe_services.forEach(function (service) {
+                  lst_subscribe_services.forEach(function (service, index) {
                     if (service !== "") {
                       tags.push(
                         <Chip
                           className="m-0 text-center ml-1"
-                          key={service}
+                          key={index}
                           color={chipColors[service.trim()]}
                           text={service}
                         />
@@ -327,19 +324,18 @@ class AllContracts extends React.Component {
   };
 
   doesExternalFilterPass = (node) => {
+    let role = localStorage.getItem("role");
+    if (role === "admin") {
+      return (
+        node.data.user && node.data.user.business_introducer_id === consultant_id
+      );
+    } else if (role === "Consultant") {
+      return node.data.user && node.data.user.parent_id === consultant_id;
+    }
     return node.data.creator_id === consultant_id;
   };
 
-  deleteDoc(id) {
-    const Config = {
-      headers: {
-        Authorization: "Bearer " + localStorage.getItem("token"),
-      },
-    };
-    axios
-      .delete(global.config.server_url + "/documents/" + id, Config)
-      .then((response) => {});
-  }
+
 
   onBtExport = () => {
     this.gridApi.exportDataAsCsv();
@@ -415,15 +411,40 @@ class AllContracts extends React.Component {
     this.setState({ isVisible: false });
   };
   /* eslint-disable */
-  deleteDoc(id) {
+  async deleteDoc(id) {
     const Config = {
       headers: {
         Authorization: "Bearer " + localStorage.getItem("token"),
       },
     };
+
+    // Try to delete associated suivi first
+    if (this.state.rowData) {
+      const contract = this.state.rowData.find((c) => c.id === id);
+      if (contract && contract.user_id) {
+        try {
+          const res = await axios.get(
+            global.config.server_url + "/suivi-avancement/client/" + contract.user_id,
+            Config
+          );
+          if (res.data && Array.isArray(res.data)) {
+            const suivi = res.data.find((s) => s.facture_id === id);
+            if (suivi) {
+              await axios.delete(
+                global.config.server_url + "/suivi-avancement/" + suivi.id,
+                Config
+              );
+            }
+          }
+        } catch (e) {
+          console.warn("Could not delete associated suivi", e);
+        }
+      }
+    }
+
     axios
       .delete(global.config.server_url + "/documents/" + id, Config)
-      .then((response) => {});
+      .then((response) => { });
   }
 
   handleAlert = (state, value, id) => {
@@ -438,6 +459,32 @@ class AllContracts extends React.Component {
 
   render() {
     const { rowData, columnDefs, defaultColDef, pageSize } = this.state;
+    // Calculation of contracts late for payment
+    let lateContracts = [];
+    if (rowData) {
+      lateContracts = rowData.filter((contract) => {
+        // Filter by user permissions using the same logic as doesExternalFilterPass but adapted for data object
+        let passFilter = true;
+        if (this.isExternalFilterPresent()) {
+          // Manually recreate the check
+          const nodeMock = { data: contract };
+          passFilter = this.doesExternalFilterPass(nodeMock);
+        }
+
+        if (!passFilter) return false;
+
+        const isTerminated = contract.document_state === "Terminé";
+        const isNotFullyPaid = contract.status_payment < 2;
+
+        const updatedAt = new Date(contract.updated_at);
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        const isOldEnough = updatedAt < oneWeekAgo;
+
+        return isTerminated && isNotFullyPaid && isOldEnough;
+      });
+    }
+
     return (
       <div>
         <SweetAlert
@@ -487,6 +534,65 @@ class AllContracts extends React.Component {
         >
           <p className="sweet-alert-text">L'action est annulé</p>
         </SweetAlert>
+
+        {lateContracts.length > 0 && (
+          <Row>
+            <Col sm="12">
+              <Card className="bg-transparent border-danger">
+                <CardBody>
+                  <div className="d-flex align-items-center mb-1 text-danger">
+                    <AlertTriangle className="mr-50" size={20} />
+                    <h4 className="mb-0 text-danger">
+                      Contrats terminés impayés ({lateContracts.length})
+                    </h4>
+                  </div>
+                  <Table responsive hover className="mb-0">
+                    <thead>
+                      <tr>
+                        <th>Contrat</th>
+                        <th>Date de modification</th>
+                        <th>Acompte</th>
+                        <th>Solde</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lateContracts.map((contract) => (
+                        <tr
+                          key={contract.id}
+                          className="cursor-pointer"
+                          onClick={() =>
+                            history.push("/pages/contract/" + contract.id)
+                          }
+                        >
+                          <td>{contract.comment}</td>
+                          <td>
+                            <Moment
+                              format="DD/MM/YYYY"
+                              date={contract.updated_at}
+                            />
+                          </td>
+                          <td
+                            className={
+                              contract.status_payment < 1
+                                ? "text-danger font-weight-bold"
+                                : "text-success"
+                            }
+                          >
+                            {contract.pre_payment} €
+                          </td>
+                          <td className="text-danger font-weight-bold">
+                            {contract.end_payment} €
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </CardBody>
+              </Card>
+            </Col>
+          </Row>
+        )}
+
         <Row className="app-user-list" style={{ height: "100vh" }}>
           <Col sm="12" className="h-100 d-flex flex-column">
             <Card className="h-100 d-flex flex-column">
@@ -495,89 +601,42 @@ class AllContracts extends React.Component {
                 style={{ paddingBottom: "0.5rem" }}
               >
                 <div className="ag-grid-actions d-flex justify-content-between align-items-center flex-wrap mb-1">
-                  <div className="sort-dropdown">
-                    <UncontrolledDropdown className="ag-dropdown p-1">
-                      <DropdownToggle tag="div">
-                        1 - {pageSize} sur 150
-                        <ChevronDown className="ml-50" size={15} />
-                      </DropdownToggle>
-                      <DropdownMenu right>
-                        <DropdownItem
-                          tag="div"
-                          onClick={() => this.filterSize(20)}
-                        >
-                          20
-                        </DropdownItem>
-                        <DropdownItem
-                          tag="div"
-                          onClick={() => this.filterSize(50)}
-                        >
-                          50
-                        </DropdownItem>
-                        <DropdownItem
-                          tag="div"
-                          onClick={() => this.filterSize(100)}
-                        >
-                          100
-                        </DropdownItem>
-                        <DropdownItem
-                          tag="div"
-                          onClick={() => this.filterSize(150)}
-                        >
-                          150
-                        </DropdownItem>
-                      </DropdownMenu>
-                    </UncontrolledDropdown>
-                  </div>
-                  <div className="filter-actions d-flex flex-wrap align-items-center">
+
+                  <div className="filter-actions d-flex flex-nowrap align-items-center w-100">
                     <Input
                       className="mr-1 mb-1"
-                      style={{ flex: "1 1 200px" }}
+                      style={{ maxWidth: "300px" }}
                       type="text"
                       placeholder="Rechercher..."
                       onChange={(e) => this.updateSearchQuery(e.target.value)}
                       value={this.state.searchVal}
                     />
-                    <div className="d-flex flex-wrap align-items-center">
-                      {consultant_id !== -1 && this.state.filter === true && (
-                        <>
-                          <Button
-                            className="mb-1 mr-1"
-                            style={{ height: 40 }}
-                            outline
-                            color="primary"
-                            onClick={() => this.externalFilterChanged(-1)}
-                          >
-                            Tous les contrats
-                          </Button>
-                        </>
-                      )}
-                      {consultant_id === -1 && this.state.filter === false && (
-                        <>
-                          <Button
-                            className="mb-1 mr-1"
-                            style={{ height: 40 }}
-                            outline
-                            color="primary"
-                            onClick={() =>
-                              this.externalFilterChanged(
-                                localStorage.getItem("userid")
-                              )
-                            }
-                          >
-                            Mes contrats
-                          </Button>
-                        </>
-                      )}
+                    {consultant_id !== -1 && this.state.filter === true && (
                       <Button
                         className="mb-1"
+                        style={{ height: 38, whiteSpace: "nowrap" }}
                         outline
                         color="primary"
-                        onClick={() => this.onBtExport()}
+                        onClick={() => this.externalFilterChanged(-1)}
                       >
-                        <Download className="primary" size={12} />
+                        Tous les contrats
                       </Button>
-                    </div>
+                    )}
+                    {consultant_id === -1 && this.state.filter === false && (
+                      <Button
+                        className="mb-1"
+                        style={{ height: 38, whiteSpace: "nowrap" }}
+                        outline
+                        color="primary"
+                        onClick={() =>
+                          this.externalFilterChanged(
+                            localStorage.getItem("userid")
+                          )
+                        }
+                      >
+                        Mes contrats
+                      </Button>
+                    )}
                   </div>
                 </div>
                 {this.state.rowData !== null ? (
@@ -598,12 +657,24 @@ class AllContracts extends React.Component {
                           onGridReady={this.onGridReady}
                           colResizeDefault={"shift"}
                           animateRows={true}
-                          floatingFilter={true}
+                          floatingFilter={false}
                           pagination={true}
                           pivotPanelShow="always"
                           paginationPageSize={pageSize}
                           resizable={true}
                           enableRtl={context.state.direction === "rtl"}
+                          getRowStyle={(params) => {
+                            if (params.data.document_state === "Terminé") {
+                              if (params.data.status_payment === 2) {
+                                return {
+                                  background: "rgba(40, 199, 111, 0.25)",
+                                };
+                              } else {
+                                return { background: "rgba(234, 84, 85, 0.25)" };
+                              }
+                            }
+                            return null;
+                          }}
                         />
                       </div>
                     )}

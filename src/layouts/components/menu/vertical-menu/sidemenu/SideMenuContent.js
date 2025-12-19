@@ -9,6 +9,66 @@ import { FormattedMessage } from "react-intl";
 import { history } from "../../../../../history";
 import axios from "axios";
 
+// --- Helpers pour KPI (copié/adapté de KpiPage) ---
+const parseServices = (servicesRaw) => {
+  if (!servicesRaw) return [];
+  return servicesRaw
+    .split("/")
+    .map((s) => s.replace(/["\\]/g, "").trim().toUpperCase())
+    .filter(Boolean);
+};
+
+const getContractTypeCode = (source) => {
+  if (!source) return "none";
+  if (source.unipro === 1 || source.unipro === "1") return "credit_impot";
+  const services = parseServices(source.subscribe_services);
+  const groupCH = ["CH", "SIMU", "ACTU", "RAC"];
+  const hasGroupCH = services.some((s) => groupCH.includes(s));
+  if (hasGroupCH) return "ch_simu_actu_rac";
+  const groupAR = ["AR", "TFD"];
+  const hasGroupAR = services.some((s) => groupAR.includes(s));
+  if (hasGroupAR) return "ar_tfd";
+  return "none";
+};
+
+const STEP_DEFINITION = {
+  credit_impot: {
+    // Indexes of interest:
+    // ...
+    //   "Signature du contrat", // 1
+    //   "Activation compte Urssaf", // 2
+    //   "5 jours ouvrés d'attente", // 3
+    //   "Création devis", // 4
+    dateSteps: [1, 2, 3, 4, 5, 6, 7],
+  },
+  // We only need credit_impot for "urgent" check
+};
+
+function buildStepsForSuivi(suiviRow) {
+  // Simplified version focusing on what's needed for "Urgent" check
+  const profileKey = getContractTypeCode({
+    unipro: suiviRow.unipro,
+    subscribe_services: suiviRow.subscribe_services,
+  });
+  if (profileKey !== "credit_impot") return { profileKey, steps: [] };
+
+  const config = STEP_DEFINITION.credit_impot;
+  const steps = [];
+  const startIndex = 1;
+
+  for (let i = startIndex; i <= 8; i++) {
+    const dateField = `step${i}_completed_at`;
+    const dateVal = suiviRow[dateField] || null;
+    const hasDate = !!dateVal;
+    steps.push({
+      index: i,
+      date: dateVal,
+      completed: hasDate && config.dateSteps.includes(i),
+    });
+  }
+  return { profileKey, steps };
+}
+
 class SideMenuContent extends React.Component {
   constructor(props) {
     super(props);
@@ -21,6 +81,8 @@ class SideMenuContent extends React.Component {
   }
   state = {
     badge: "",
+    crmBadge: 0, // NEW: badge pour KPI/CRM
+    inboxBadge: 0, // NEW: badge pour Inbox (chat)
     flag: true,
     isHovered: false,
     activeGroups: [],
@@ -115,6 +177,90 @@ class SideMenuContent extends React.Component {
         if (response.data.count > 0)
           this.setState({ badge: response.data.count + " news" });
       });
+
+    // --- Fetch KPI Urgent Count ---
+    axios
+      .get(global.config.server_url + "/suivi-avancement/all", Config)
+      .then((res) => {
+        const suivis = Array.isArray(res.data) ? res.data : [];
+        const now = new Date();
+        const today = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate()
+        );
+
+        let urgentCount = 0;
+
+        suivis.forEach((s) => {
+          // Check contract state
+          const contract = s.contract || s; // fallback if needed
+          // Assuming 'document_state' is on the contract object or s itself if flattened
+          // KpiPage: s.contract.document_state
+          const isTerminated =
+            contract && contract.document_state === "Terminé";
+          if (isTerminated) return;
+
+          const { profileKey, steps } = buildStepsForSuivi(s);
+
+          if (profileKey === "credit_impot") {
+            const step3 = steps.find((st) => st.index === 3); // "5 jours ouvrés d'attente"
+            const step4 = steps.find((st) => st.index === 4); // "Création devis"
+
+            // Step 3 has date AND Step 4 NOT completed
+            if (step3 && step3.date && (!step4 || !step4.completed)) {
+              // Check date logic
+              const raw = String(step3.date);
+              let datePart = raw;
+              if (raw.includes("T")) datePart = raw.split("T")[0];
+              else if (raw.includes(" ")) datePart = raw.split(" ")[0];
+
+              const [y, m, d] = datePart.split("-");
+              if (y && m && d) {
+                const d3 = new Date(Number(y), Number(m) - 1, Number(d));
+                const d3Only = new Date(
+                  d3.getFullYear(),
+                  d3.getMonth(),
+                  d3.getDate()
+                );
+
+                // If date of step 3 <= today => URGENT
+                if (d3Only.getTime() <= today.getTime()) {
+                  urgentCount++;
+                }
+              }
+            }
+          }
+        });
+
+        this.setState({ crmBadge: urgentCount });
+      })
+      .catch((err) =>
+        console.error("Error fetching urgent count for sidebar", err)
+      );
+
+    // --- Fetch Inbox Unread Count ---
+    axios
+      .get(global.config.server_url + "/conversation-archives", Config)
+      .then((res) => {
+        const payload = res.data;
+        const convs = Array.isArray(payload?.data) ? payload.data : [];
+
+        // Load read IDs from localStorage
+        let readIds = new Set();
+        try {
+          const stored = localStorage.getItem("inbox_read_ids");
+          if (stored) readIds = new Set(JSON.parse(stored));
+        } catch (e) {
+          console.error("Error parsing inbox_read_ids", e);
+        }
+
+        const unreadCount = convs.filter(
+          (c) => c.status === "new" && !readIds.has(c.id)
+        ).length;
+        this.setState({ inboxBadge: unreadCount });
+      })
+      .catch((err) => console.error("Error fetching inbox count", err));
   }
 
   componentDidUpdate(prevProps, prevState) {
@@ -157,11 +303,9 @@ class SideMenuContent extends React.Component {
             // ✅ active UNIQUEMENT pour les items (pas les parents)
             active:
               item.type === "item" &&
-              (
-                this.props.activeItemState === item.navLink ||
+              (this.props.activeItemState === item.navLink ||
                 (item.parentOf &&
-                  item.parentOf.includes(this.props.activeItemState))
-              ),
+                  item.parentOf.includes(this.props.activeItemState))),
             disabled: item.disabled,
           })}
           key={item.id}
@@ -185,8 +329,12 @@ class SideMenuContent extends React.Component {
                 return;
               }
               if (item.navLink) {
-                this.props.handleActiveItem(item.navLink);
-                history.push(item.navLink);
+                const targetLink =
+                  item.id === "kpi" && this.state.crmBadge > 0
+                    ? "/kpi/suivi"
+                    : item.navLink;
+                this.props.handleActiveItem(targetLink);
+                history.push(targetLink);
                 if (this.props.deviceWidth <= 1200) {
                   this.props.toggleMenu();
                 }
@@ -237,9 +385,33 @@ class SideMenuContent extends React.Component {
                   {this.state.badge}
                 </Badge>
               </div>
-            ) : (
-              ""
-            )}
+            ) : null}
+
+            {/* ✅ Badge CRM Urgent */}
+            {item.id === "kpi" && this.state.crmBadge > 0 ? (
+              <div className="menu-badge">
+                <Badge color="danger" className="mr-1" pill>
+                  {this.state.crmBadge}
+                </Badge>
+              </div>
+            ) : null}
+
+            {/* ✅ Badge Boîte de réception (Red dot when unread) */}
+            {item.id === "crm-inbox" && this.state.inboxBadge > 0 ? (
+              <div className="menu-badge">
+                <span
+                  style={{
+                    display: "inline-block",
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    backgroundColor: "#ea5455",
+                    marginRight: 4,
+                  }}
+                />
+              </div>
+            ) : null}
+
             {item.type === "collapse" ? (
               <ChevronRight className="menu-toggle-icon" size={13} />
             ) : (
@@ -266,6 +438,8 @@ class SideMenuContent extends React.Component {
               collapsedMenuPaths={this.props.collapsedMenuPaths}
               toggleMenu={this.props.toggleMenu}
               deviceWidth={this.props.deviceWidth}
+              crmBadge={this.state.crmBadge}
+              inboxBadge={this.state.inboxBadge}
             />
           ) : (
             ""

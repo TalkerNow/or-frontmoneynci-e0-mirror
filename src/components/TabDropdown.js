@@ -5,15 +5,14 @@ import { ChevronDown } from "react-feather";
 
 // Old violet pill-like dropdown, styled via .tab-dd CSS in each view
 const TabDropdown = ({ label, valueLabel, children, isOpen, toggle, minWidth = 120, menuMaxHeight = 320 }) => (
-  <Dropdown nav inNavbar isOpen={isOpen} toggle={toggle} className="tab-dd">
+  <Dropdown isOpen={isOpen} toggle={toggle} className="tab-dd" tag="div">
     <DropdownToggle
-      nav
       caret={false}
       tag="button"
       type="button"
       className={classNames("nav-link d-flex align-items-center", { active: isOpen })}
       style={{ color: "#212529", fontWeight: 500, minWidth, height: "1.9rem", lineHeight: 1.2 }}
-      aria-haspopup="listbox"
+      aria-haspopup={true}
       aria-expanded={isOpen}
       title={`${label} — cliquer pour choisir`}
     >
