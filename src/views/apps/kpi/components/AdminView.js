@@ -100,6 +100,7 @@ const AdminView = ({ children, searchTerm, onSearchChange, filters }) => {
                 flexDirection: "column",
                 gap: "8px",
               }}
+              onClick={() => setShowFilters(false)}
             >
               <div
                 style={{
