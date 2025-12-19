@@ -12,7 +12,7 @@ import {
   changeNavbarType,
   changeFooterType,
   changeMenuColor,
-  hideScrollToTop
+  hideScrollToTop,
 } from "../redux/actions/customizer/index";
 
 class VerticalLayout extends PureComponent {
@@ -25,7 +25,7 @@ class VerticalLayout extends PureComponent {
     currentLang: "fr",
     appOverlay: false,
     customizer: false,
-    currRoute: this.props.location.pathname
+    currRoute: this.props.location.pathname,
   };
   collapsedPaths = [];
   mounted = false;
@@ -36,7 +36,7 @@ class VerticalLayout extends PureComponent {
     }
   };
 
-  handleCustomizer = bool => {
+  handleCustomizer = (bool) => {
     this.setState({ customizer: bool });
   };
 
@@ -45,8 +45,8 @@ class VerticalLayout extends PureComponent {
     let {
       location: { pathname },
       app: {
-        customizer: { theme, direction }
-      }
+        customizer: { theme, direction },
+      },
     } = this.props;
 
     if (this.mounted) {
@@ -75,8 +75,8 @@ class VerticalLayout extends PureComponent {
     let {
       location: { pathname },
       app: {
-        customizer: { theme, sidebarCollapsed }
-      }
+        customizer: { theme, sidebarCollapsed },
+      },
     } = this.props;
 
     let layout = theme;
@@ -99,7 +99,7 @@ class VerticalLayout extends PureComponent {
       ) {
         this.setState({
           collapsedContent: sidebarCollapsed,
-          sidebarState: sidebarCollapsed
+          sidebarState: sidebarCollapsed,
         });
       }
       if (
@@ -121,7 +121,7 @@ class VerticalLayout extends PureComponent {
     }
   }
 
-  handleCollapsedMenuPaths = item => {
+  handleCollapsedMenuPaths = (item) => {
     let collapsedPaths = this.collapsedPaths;
     if (!collapsedPaths.includes(item)) {
       collapsedPaths.push(item);
@@ -132,11 +132,11 @@ class VerticalLayout extends PureComponent {
   toggleSidebarMenu = () => {
     this.setState({
       sidebarState: !this.state.sidebarState,
-      collapsedContent: !this.state.collapsedContent
+      collapsedContent: !this.state.collapsedContent,
     });
   };
 
-  sidebarMenuHover = val => {
+  sidebarMenuHover = (val) => {
     this.setState({ sidebarState: val });
   };
 
@@ -157,11 +157,11 @@ class VerticalLayout extends PureComponent {
     this.mounted = false;
   }
 
-  handleCurrentLanguage = lang => {
+  handleCurrentLanguage = (lang) => {
     this.setState({ currentLang: lang });
   };
 
-  handleAppOverlay = value => {
+  handleAppOverlay = (value) => {
     if (value.length > 0) {
       this.setState({ appOverlay: true });
     } else if (value.length < 0 || value === "") {
@@ -175,7 +175,14 @@ class VerticalLayout extends PureComponent {
 
   render() {
     const appProps = this.props.app.customizer;
-    const menuThemeArr = ["primary", "success", "danger", "info", "warning", "dark"];
+    const menuThemeArr = [
+      "primary",
+      "success",
+      "danger",
+      "info",
+      "warning",
+      "dark",
+    ];
 
     // 🔒 Forcer la disparition partout (indépendant du Redux)
     const isNavbarHidden = true;
@@ -187,13 +194,13 @@ class VerticalLayout extends PureComponent {
       sidebarHover: this.sidebarMenuHover,
       sidebarVisibility: this.handleSidebarVisibility,
       visibilityState: this.state.sidebarHidden,
-      activePath: this.props.match.path,
+      activePath: this.props.location.pathname,
       collapsedMenuPaths: this.handleCollapsedMenuPaths,
       currentLang: this.state.currentLang,
       activeTheme: appProps.menuTheme,
       collapsed: this.state.collapsedContent,
       permission: this.props.permission,
-      deviceWidth: this.state.width
+      deviceWidth: this.state.width,
     };
     const navbarProps = {
       toggleSidebarMenu: this.toggleSidebarMenu,
@@ -204,11 +211,11 @@ class VerticalLayout extends PureComponent {
       handleAppOverlay: this.handleAppOverlay,
       appOverlayState: this.state.appOverlay,
       navbarColor: appProps.navbarColor,
-      navbarType: appProps.navbarType
+      navbarType: appProps.navbarType,
     };
     const footerProps = {
       footerType: appProps.footerType,
-      hideScrollToTop: appProps.hideScrollToTop
+      hideScrollToTop: appProps.hideScrollToTop,
     };
     const customizerProps = {
       customizerState: this.state.customizer,
@@ -226,7 +233,7 @@ class VerticalLayout extends PureComponent {
       footerType: appProps.footerType,
       menuTheme: appProps.menuTheme,
       scrollToTop: appProps.hideScrollToTop,
-      sidebarState: appProps.sidebarCollapsed
+      sidebarState: appProps.sidebarCollapsed,
     };
 
     return (
@@ -239,12 +246,15 @@ class VerticalLayout extends PureComponent {
             "fixed-footer": appProps.footerType === "sticky",
 
             // ❌ Pas de classes navbar-* quand on la cache
-            "navbar-static": appProps.navbarType === "static" && !isNavbarHidden,
-            "navbar-sticky": appProps.navbarType === "sticky" && !isNavbarHidden,
-            "navbar-floating": appProps.navbarType === "floating" && !isNavbarHidden,
+            "navbar-static":
+              appProps.navbarType === "static" && !isNavbarHidden,
+            "navbar-sticky":
+              appProps.navbarType === "sticky" && !isNavbarHidden,
+            "navbar-floating":
+              appProps.navbarType === "floating" && !isNavbarHidden,
 
             "navbar-hidden": isNavbarHidden,
-            "theme-primary": !menuThemeArr.includes(appProps.menuTheme)
+            "theme-primary": !menuThemeArr.includes(appProps.menuTheme),
           }
         )}
       >
@@ -256,7 +266,7 @@ class VerticalLayout extends PureComponent {
                 .header-navbar,
                 .header-navbar-shadow,
                 .content-overlay { display: none !important; }
-              `
+              `,
             }}
           />
         )}
@@ -265,7 +275,7 @@ class VerticalLayout extends PureComponent {
 
         <div
           className={classnames("app-content content", {
-            "show-overlay": this.state.appOverlay === true
+            "show-overlay": this.state.appOverlay === true,
           })}
           onClick={this.handleAppOverlayClick}
           style={isNavbarHidden ? { paddingTop: 0, marginTop: 0 } : undefined}
@@ -289,7 +299,7 @@ class VerticalLayout extends PureComponent {
   }
 }
 
-const mapStateToProps = state => {
+const mapStateToProps = (state) => {
   return { app: state.customizer };
 };
 
@@ -300,5 +310,5 @@ export default connect(mapStateToProps, {
   changeNavbarType,
   changeFooterType,
   changeMenuColor,
-  hideScrollToTop
+  hideScrollToTop,
 })(VerticalLayout);

@@ -922,22 +922,6 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
               <h5 className="notes-card-title mb-0">
                 RIS relevé de carrière du client
               </h5>
-              <Button
-                color="warning"
-                outline
-                size="sm"
-                onClick={handleReportRisBug}
-                style={{
-                  fontSize: "0.8rem",
-                  padding: "4px 10px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-              >
-                <AlertTriangle size={14} />
-                Signaler un bug
-              </Button>
             </div>
             <UploadCard
               title={null}

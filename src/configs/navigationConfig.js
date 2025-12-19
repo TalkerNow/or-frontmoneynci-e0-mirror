@@ -1,5 +1,5 @@
-import React from "react"
-import * as Icon from "react-feather"
+import React from "react";
+import * as Icon from "react-feather";
 
 // Define items once; reuse them in role-specific orders
 const items = {
@@ -14,10 +14,89 @@ const items = {
   kpi: {
     id: "kpi",
     title: "CRM",
-    type: "item",
+    type: "collapse",
     icon: <Icon.BarChart2 size={20} />,
     permissions: ["admin", "Consultant", "Expert"],
-    navLink: "/kpi",
+    navLink: "/kpi/inbox",
+    children: [
+      {
+        id: "crm-flux-header",
+        groupTitle: "FLUX ENTRANT",
+        type: "groupHeader",
+        permissions: ["admin", "Consultant", "Expert"],
+      },
+      {
+        id: "crm-inbox",
+        title: "Boîte de réception",
+        type: "collapse",
+        icon: <Icon.Inbox size={16} />,
+        permissions: ["admin", "Consultant", "Expert"],
+        navLink: "/kpi/inbox",
+        open: true,
+        children: [
+          {
+            id: "crm-inbox-all",
+            title: "Tous",
+            type: "item",
+            icon: <Icon.List size={14} />,
+            permissions: ["admin", "Consultant", "Expert"],
+            navLink: "/kpi/inbox/all",
+          },
+          {
+            id: "crm-inbox-chatbot",
+            title: "Chatbot",
+            type: "item",
+            icon: <Icon.MessageCircle size={14} />,
+            permissions: ["admin", "Consultant", "Expert"],
+            navLink: "/kpi/inbox/chatbot",
+          },
+          {
+            id: "crm-inbox-diagnostic",
+            title: "Diagnostic",
+            type: "item",
+            icon: <Icon.Activity size={14} />,
+            permissions: ["admin", "Consultant", "Expert"],
+            navLink: "/kpi/inbox/diagnostic",
+          },
+        ],
+      },
+      {
+        id: "crm-sales-header",
+        groupTitle: "VENTES",
+        type: "groupHeader",
+        permissions: ["admin", "Consultant", "Expert"],
+      },
+      {
+        id: "crm-opportunities",
+        title: "Opportunités",
+        type: "item",
+        icon: <Icon.Briefcase size={16} />,
+        permissions: ["admin", "Consultant", "Expert"],
+        navLink: "/kpi/opportunities",
+      },
+      {
+        id: "crm-prod-header",
+        groupTitle: "PRODUCTION",
+        type: "groupHeader",
+        permissions: ["admin", "Consultant", "Expert"],
+      },
+      {
+        id: "crm-suivi",
+        title: "Suivi Administratif",
+        type: "item",
+        icon: <Icon.FileText size={16} />,
+        permissions: ["admin", "Consultant", "Expert"],
+        navLink: "/kpi/suivi",
+      },
+      // {
+      //   id: "crm-agenda",
+      //   title: "Mon Agenda",
+      //   type: "item",
+      //   icon: <Icon.Calendar size={16} />,
+      //   permissions: ["admin", "Consultant", "Expert"],
+      //   navLink: "/kpi/agenda",
+      // },
+    ],
   },
   profile: {
     id: "profile",
@@ -109,32 +188,22 @@ const items = {
     permissions: ["admin", "Consultant"],
     navLink: "/app/member/memberslist",
   },
-}
+};
 
 // Admin keeps the current order (⚠️ sans "oldUsers")
-const adminOrder = [
-  "dashboard",
-  "kpi",
-  "users",
-  "tasks",
-  "contracts",
-]
+const adminOrder = ["dashboard", "kpi", "users", "tasks", "contracts"];
 
 // Consultant order (⚠️ sans "oldUsers")
-const consultantOrder = [
-  "users",
-  "dashboard",
-  "kpi",
-  "tasks",
-  "contracts",
-]
+const consultantOrder = ["users", "dashboard", "kpi", "tasks", "contracts"];
 
-const buildMenu = (order) => order.map((key) => items[key])
+const buildMenu = (order) => order.map((key) => items[key]);
 
-const role = (typeof window !== "undefined" && localStorage.getItem("role"))
-  ? localStorage.getItem("role").toLowerCase()
-  : "consultant"
+const role =
+  typeof window !== "undefined" && localStorage.getItem("role")
+    ? localStorage.getItem("role").toLowerCase()
+    : "consultant";
 
-const navigationConfig = role === "admin" ? buildMenu(adminOrder) : buildMenu(consultantOrder)
+const navigationConfig =
+  role === "admin" ? buildMenu(adminOrder) : buildMenu(consultantOrder);
 
-export default navigationConfig
+export default navigationConfig;
