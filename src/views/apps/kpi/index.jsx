@@ -1490,560 +1490,611 @@ export default function KpiPage() {
                     </tr>
                   ) : (
                     <>
-                      {/* 0) 5 jours ouvrés atteints / dépassés (toujours en haut si présents) */}
-                      {groupedSuivis.after5days.length > 0 && (
-                        <>
-                          <tr className="table-warning">
-                            <td
-                              colSpan="5"
-                              style={{ fontSize: 14, fontWeight: 600 }}
-                            >
-                              5 jours ouvrés atteints / dépassés (à traiter en
-                              priorité)
-                            </td>
-                          </tr>
-
-                          {groupedSuivis.after5days.map(
-                            ({ s, steps, last, next }) => {
-                              const clientLabel = getClientDisplayNameFromSuivi(
-                                s,
-                                clientsById
-                              );
-                              const contractId =
-                                s.facture_id || s.document_id || s.contract_id;
-                              const clientId = s.client_id;
-
-                              return (
-                                <tr
-                                  key={`after5-${s.suivi_id || s.id || ""}-${
-                                    s.document_id || s.facture_id || ""
-                                  }`}
-                                  onClick={() => {
-                                    if (clientId) {
-                                      history.push(
-                                        `/app/user/edit/${clientId}/2`
-                                      );
-                                    }
-                                  }}
-                                  style={{ cursor: "pointer" }}
-                                >
-                                  {/* Client */}
-                                  <td>{clientLabel}</td>
-
-                                  {/* À faire */}
-                                  <td>{renderTodoCell(next)}</td>
-
-                                  {/* Dernière étape validée */}
-                                  <td>
-                                    {last ? (
-                                      <div style={{ fontSize: 14 }}>
-                                        <div>
-                                          <strong>{last.label}</strong>
-                                        </div>
-                                        {last.date && (
-                                          <div className="text-muted">
-                                            {formatDate(last.date)}
-                                          </div>
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <span
-                                        className="text-muted"
-                                        style={{ fontSize: 14 }}
-                                      >
-                                        Aucune étape validée
-                                      </span>
-                                    )}
-                                  </td>
-
-                                  {/* Type de contrat */}
-                                  <td
-                                    style={{
-                                      whiteSpace: "nowrap",
-                                      width: 160,
-                                    }}
-                                  >
-                                    {renderProductBadgeFromSuivi(s)}
-                                  </td>
-
-                                  {/* Contrat (flèche) */}
-                                  <td
-                                    style={{
-                                      width: 60,
-                                      textAlign: "center",
-                                    }}
-                                  >
-                                    {contractId ? (
-                                      <Button
-                                        color="link"
-                                        className="p-0"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          history.push(
-                                            `/pages/contract/${contractId}`
-                                          );
-                                        }}
-                                        title="Voir le contrat"
-                                      >
-                                        <ArrowRight size={18} />
-                                      </Button>
-                                    ) : (
-                                      <span
-                                        className="text-muted"
-                                        style={{ fontSize: 14 }}
-                                      >
-                                        -
-                                      </span>
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                            }
-                          )}
-                        </>
-                      )}
-                      {groupedSuivis.after5days.length > 0 &&
-                        groupedSuivis.active.length > 0 && (
-                          <tr>
-                            <td
-                              colSpan="5"
-                              style={{
-                                padding: "6px 10px",
-                                borderTop: "2px solid #dee2e6",
-                                borderBottom: "1px solid #dee2e6",
-                                background: "#f8f9fa",
-                                fontSize: 13,
-                                fontWeight: 600,
-                                color: "#6c757d",
-                                textTransform: "uppercase",
-                                letterSpacing: "0.04em",
-                              }}
-                            >
-                              Autres dossiers
-                            </td>
-                          </tr>
-                        )}
-
-                      {/* 0-bis) Dossiers "Suivi" (AR/TFD Création devis) */}
-                      {groupedSuivis.suivi.length > 0 && (
-                        <>
-                          <tr className="table-info">
-                            <td
-                              colSpan="5"
-                              style={{ fontSize: 14, fontWeight: 600 }}
-                            >
-                              Dossiers à suivre
-                            </td>
-                          </tr>
-
-                          {groupedSuivis.suivi.map(
-                            ({ s, steps, last, next }) => {
-                              const clientLabel = getClientDisplayNameFromSuivi(
-                                s,
-                                clientsById
-                              );
-                              const contractId =
-                                s.facture_id || s.document_id || s.contract_id;
-                              const clientId = s.client_id;
-
-                              return (
-                                <tr
-                                  key={`suivi-${s.suivi_id || s.id || ""}-${
-                                    s.document_id || s.facture_id || ""
-                                  }`}
-                                  onClick={() => {
-                                    if (clientId) {
-                                      history.push(
-                                        `/app/user/edit/${clientId}/2`
-                                      );
-                                    }
-                                  }}
-                                  style={{ cursor: "pointer" }}
-                                >
-                                  <td>{clientLabel}</td>
-                                  <td>{renderTodoCell(next)}</td>
-                                  <td>
-                                    {last ? (
-                                      <div style={{ fontSize: 14 }}>
-                                        <div>
-                                          <strong>{last.label}</strong>
-                                        </div>
-                                        {last.date && (
-                                          <div className="text-muted">
-                                            {formatDate(last.date)}
-                                          </div>
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <span
-                                        className="text-muted"
-                                        style={{ fontSize: 14 }}
-                                      >
-                                        Aucune étape validée
-                                      </span>
-                                    )}
-                                  </td>
-                                  <td
-                                    style={{ whiteSpace: "nowrap", width: 160 }}
-                                  >
-                                    {renderProductBadgeFromSuivi(s)}
-                                  </td>
-                                  <td
-                                    style={{ width: 60, textAlign: "center" }}
-                                  >
-                                    {contractId ? (
-                                      <Button
-                                        color="link"
-                                        className="p-0"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          history.push(
-                                            `/pages/contract/${contractId}`
-                                          );
-                                        }}
-                                        title="Voir le contrat"
-                                      >
-                                        <ArrowRight size={18} />
-                                      </Button>
-                                    ) : (
-                                      <span
-                                        className="text-muted"
-                                        style={{ fontSize: 14 }}
-                                      >
-                                        -
-                                      </span>
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                            }
-                          )}
-                        </>
-                      )}
-
-                      {/* 1) Dossiers actifs (par défaut) */}
-                      {groupedSuivis.active.map(({ s, steps, last, next }) => {
-                        const clientLabel = getClientDisplayNameFromSuivi(
-                          s,
-                          clientsById
-                        );
-                        const contractId =
-                          s.facture_id || s.document_id || s.contract_id;
-                        const clientId = s.client_id;
-
+                      {/* Determine if any filter is active */}
+                      {(() => {
+                        const noFilterActive =
+                          !showProcessing && !showCompleted;
                         return (
-                          <tr
-                            key={`${s.suivi_id || s.id || ""}-${
-                              s.document_id || s.facture_id || ""
-                            }`}
-                            onClick={() => {
-                              if (clientId) {
-                                history.push(`/app/user/edit/${clientId}/2`);
-                              }
-                            }}
-                            style={{ cursor: "pointer" }}
-                          >
-                            {/* Client */}
-                            <td>{clientLabel}</td>
-
-                            {/* À faire */}
-                            <td>{renderTodoCell(next)}</td>
-                            {/* Dernière étape validée */}
-                            <td>
-                              {last ? (
-                                <div style={{ fontSize: 14 }}>
-                                  <div>
-                                    <strong>{last.label}</strong>
-                                  </div>
-                                  {last.date && (
-                                    <div className="text-muted">
-                                      {formatDate(last.date)}
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <span
-                                  className="text-muted"
-                                  style={{ fontSize: 14 }}
-                                >
-                                  Aucune étape validée
-                                </span>
-                              )}
-                            </td>
-
-                            {/* Type de contrat */}
-                            <td
-                              style={{
-                                whiteSpace: "nowrap",
-                                width: 160,
-                              }}
-                            >
-                              {renderProductBadgeFromSuivi(s)}
-                            </td>
-
-                            {/* Contrat (flèche) */}
-                            <td style={{ width: 60, textAlign: "center" }}>
-                              {contractId ? (
-                                <Button
-                                  color="link"
-                                  className="p-0"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    history.push(
-                                      `/pages/contract/${contractId}`
-                                    );
-                                  }}
-                                  title="Voir le contrat"
-                                >
-                                  <ArrowRight size={18} />
-                                </Button>
-                              ) : (
-                                <span
-                                  className="text-muted"
-                                  style={{ fontSize: 14 }}
-                                >
-                                  -
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-
-                      {/* 2) Dossiers en cours de traitement (tiroir) */}
-                      {showProcessing &&
-                        groupedSuivis.processing.length > 0 && (
                           <>
-                            <tr className="table-secondary">
-                              <td
-                                colSpan="5"
-                                style={{ fontSize: 14, fontWeight: 600 }}
-                              >
-                                Dossiers en cours de traitement
-                              </td>
-                            </tr>
-
-                            {groupedSuivis.processing.map(
-                              ({ s, steps, last, next }) => {
-                                const clientLabel =
-                                  getClientDisplayNameFromSuivi(s, clientsById);
-                                const contractId =
-                                  s.facture_id ||
-                                  s.document_id ||
-                                  s.contract_id;
-                                const clientId = s.client_id;
-
-                                return (
-                                  <tr
-                                    key={`processing-${
-                                      s.suivi_id || s.id || ""
-                                    }-${s.document_id || s.facture_id || ""}`}
-                                    onClick={() => {
-                                      if (clientId) {
-                                        history.push(
-                                          `/app/user/edit/${clientId}/2`
-                                        );
-                                      }
-                                    }}
-                                    style={{ cursor: "pointer" }}
-                                  >
-                                    <td>{clientLabel}</td>
-                                    <td>{renderTodoCell(next)}</td>
-                                    <td>
-                                      {last ? (
-                                        <div style={{ fontSize: 14 }}>
-                                          <div>
-                                            <strong>{last.label}</strong>
-                                          </div>
-                                          {last.date && (
-                                            <div className="text-muted">
-                                              {formatDate(last.date)}
-                                            </div>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <span
-                                          className="text-muted"
-                                          style={{ fontSize: 14 }}
-                                        >
-                                          Aucune étape validée
-                                        </span>
-                                      )}
-                                    </td>
-
+                            {/* 0) 5 jours ouvrés - only show if no filter active */}
+                            {noFilterActive &&
+                              groupedSuivis.after5days.length > 0 && (
+                                <>
+                                  <tr className="table-warning">
                                     <td
-                                      style={{
-                                        whiteSpace: "nowrap",
-                                        width: 160,
-                                      }}
+                                      colSpan="5"
+                                      style={{ fontSize: 14, fontWeight: 600 }}
                                     >
-                                      {renderProductBadgeFromSuivi(s)}
-                                    </td>
-
-                                    <td
-                                      style={{
-                                        width: 60,
-                                        textAlign: "center",
-                                      }}
-                                    >
-                                      {contractId ? (
-                                        <Button
-                                          color="link"
-                                          className="p-0"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            history.push(
-                                              `/pages/contract/${contractId}`
-                                            );
-                                          }}
-                                          title="Voir le contrat"
-                                        >
-                                          <ArrowRight size={18} />
-                                        </Button>
-                                      ) : (
-                                        <span
-                                          className="text-muted"
-                                          style={{ fontSize: 14 }}
-                                        >
-                                          -
-                                        </span>
-                                      )}
+                                      5 jours ouvrés atteints / dépassés (à
+                                      traiter en priorité)
                                     </td>
                                   </tr>
-                                );
-                              }
-                            )}
-                          </>
-                        )}
 
-                      {/* 3) Contrats terminés (tiroir) */}
-                      {showCompleted && groupedSuivis.completed.length > 0 && (
-                        <>
-                          <tr className="table-secondary">
-                            <td
-                              colSpan="5"
-                              style={{ fontSize: 14, fontWeight: 600 }}
-                            >
-                              Contrats terminés
-                            </td>
-                          </tr>
+                                  {groupedSuivis.after5days.map(
+                                    ({ s, steps, last, next }) => {
+                                      const clientLabel =
+                                        getClientDisplayNameFromSuivi(
+                                          s,
+                                          clientsById
+                                        );
+                                      const contractId =
+                                        s.facture_id ||
+                                        s.document_id ||
+                                        s.contract_id;
+                                      const clientId = s.client_id;
 
-                          {groupedSuivis.completed.map(
-                            ({ s, steps, last, next }) => {
-                              const clientLabel = getClientDisplayNameFromSuivi(
-                                s,
-                                clientsById
-                              );
-                              const contractId =
-                                s.facture_id || s.document_id || s.contract_id;
-                              const clientId = s.client_id;
+                                      return (
+                                        <tr
+                                          key={`after5-${
+                                            s.suivi_id || s.id || ""
+                                          }-${
+                                            s.document_id || s.facture_id || ""
+                                          }`}
+                                          onClick={() => {
+                                            if (clientId) {
+                                              history.push(
+                                                `/app/user/edit/${clientId}/2`
+                                              );
+                                            }
+                                          }}
+                                          style={{ cursor: "pointer" }}
+                                        >
+                                          {/* Client */}
+                                          <td>{clientLabel}</td>
 
-                              return (
-                                <tr
-                                  key={`completed-${s.suivi_id || s.id || ""}-${
-                                    s.document_id || s.facture_id || ""
-                                  }`}
-                                  onClick={() => {
-                                    if (clientId) {
-                                      history.push(
-                                        `/app/user/edit/${clientId}/2`
+                                          {/* À faire */}
+                                          <td>{renderTodoCell(next)}</td>
+
+                                          {/* Dernière étape validée */}
+                                          <td>
+                                            {last ? (
+                                              <div style={{ fontSize: 14 }}>
+                                                <div>
+                                                  <strong>{last.label}</strong>
+                                                </div>
+                                                {last.date && (
+                                                  <div className="text-muted">
+                                                    {formatDate(last.date)}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            ) : (
+                                              <span
+                                                className="text-muted"
+                                                style={{ fontSize: 14 }}
+                                              >
+                                                Aucune étape validée
+                                              </span>
+                                            )}
+                                          </td>
+
+                                          {/* Type de contrat */}
+                                          <td
+                                            style={{
+                                              whiteSpace: "nowrap",
+                                              width: 160,
+                                            }}
+                                          >
+                                            {renderProductBadgeFromSuivi(s)}
+                                          </td>
+
+                                          {/* Contrat (flèche) */}
+                                          <td
+                                            style={{
+                                              width: 60,
+                                              textAlign: "center",
+                                            }}
+                                          >
+                                            {contractId ? (
+                                              <Button
+                                                color="link"
+                                                className="p-0"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  history.push(
+                                                    `/pages/contract/${contractId}`
+                                                  );
+                                                }}
+                                                title="Voir le contrat"
+                                              >
+                                                <ArrowRight size={18} />
+                                              </Button>
+                                            ) : (
+                                              <span
+                                                className="text-muted"
+                                                style={{ fontSize: 14 }}
+                                              >
+                                                -
+                                              </span>
+                                            )}
+                                          </td>
+                                        </tr>
                                       );
                                     }
-                                  }}
-                                  style={{ cursor: "pointer" }}
-                                >
-                                  <td>{clientLabel}</td>
-
-                                  <td>
-                                    <span
-                                      className="text-success"
-                                      style={{
-                                        fontSize: 14,
-                                        fontWeight: 600,
-                                      }}
-                                    >
-                                      Dossier terminé
-                                    </span>
-                                  </td>
-
-                                  <td>
-                                    {last ? (
-                                      <div style={{ fontSize: 14 }}>
-                                        <div>
-                                          <strong>{last.label}</strong>
-                                        </div>
-                                        {last.date && (
-                                          <div className="text-muted">
-                                            {formatDate(last.date)}
-                                          </div>
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <span
-                                        className="text-muted"
-                                        style={{ fontSize: 14 }}
-                                      >
-                                        Aucune étape validée
-                                      </span>
-                                    )}
-                                  </td>
-
+                                  )}
+                                </>
+                              )}
+                            {groupedSuivis.after5days.length > 0 &&
+                              groupedSuivis.active.length > 0 && (
+                                <tr>
                                   <td
+                                    colSpan="5"
                                     style={{
-                                      whiteSpace: "nowrap",
-                                      width: 160,
+                                      padding: "6px 10px",
+                                      borderTop: "2px solid #dee2e6",
+                                      borderBottom: "1px solid #dee2e6",
+                                      background: "#f8f9fa",
+                                      fontSize: 13,
+                                      fontWeight: 600,
+                                      color: "#6c757d",
+                                      textTransform: "uppercase",
+                                      letterSpacing: "0.04em",
                                     }}
                                   >
-                                    {renderProductBadgeFromSuivi(s)}
-                                  </td>
-
-                                  <td
-                                    style={{
-                                      width: 60,
-                                      textAlign: "center",
-                                    }}
-                                  >
-                                    {contractId ? (
-                                      <Button
-                                        color="link"
-                                        className="p-0"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          history.push(
-                                            `/pages/contract/${contractId}`
-                                          );
-                                        }}
-                                        title="Voir le contrat"
-                                      >
-                                        <ArrowRight size={18} />
-                                      </Button>
-                                    ) : (
-                                      <span
-                                        className="text-muted"
-                                        style={{ fontSize: 14 }}
-                                      >
-                                        -
-                                      </span>
-                                    )}
+                                    Autres dossiers
                                   </td>
                                 </tr>
-                              );
-                            }
-                          )}
-                        </>
-                      )}
+                              )}
 
-                      {/* Si rien n’est visible du tout */}
-                      {groupedSuivis.active.length === 0 &&
-                        groupedSuivis.after5days.length === 0 &&
-                        (!showProcessing ||
-                          groupedSuivis.processing.length === 0) &&
-                        (!showCompleted ||
-                          groupedSuivis.completed.length === 0) && (
-                          <tr>
-                            <td colSpan="5">Aucun suivi trouvé.</td>
-                          </tr>
-                        )}
+                            {/* 0-bis) Dossiers "Suivi" (AR/TFD Création devis) - only if no filter */}
+                            {noFilterActive &&
+                              groupedSuivis.suivi.length > 0 && (
+                                <>
+                                  <tr className="table-info">
+                                    <td
+                                      colSpan="5"
+                                      style={{ fontSize: 14, fontWeight: 600 }}
+                                    >
+                                      Dossiers à suivre
+                                    </td>
+                                  </tr>
+
+                                  {groupedSuivis.suivi.map(
+                                    ({ s, steps, last, next }) => {
+                                      const clientLabel =
+                                        getClientDisplayNameFromSuivi(
+                                          s,
+                                          clientsById
+                                        );
+                                      const contractId =
+                                        s.facture_id ||
+                                        s.document_id ||
+                                        s.contract_id;
+                                      const clientId = s.client_id;
+
+                                      return (
+                                        <tr
+                                          key={`suivi-${
+                                            s.suivi_id || s.id || ""
+                                          }-${
+                                            s.document_id || s.facture_id || ""
+                                          }`}
+                                          onClick={() => {
+                                            if (clientId) {
+                                              history.push(
+                                                `/app/user/edit/${clientId}/2`
+                                              );
+                                            }
+                                          }}
+                                          style={{ cursor: "pointer" }}
+                                        >
+                                          <td>{clientLabel}</td>
+                                          <td>{renderTodoCell(next)}</td>
+                                          <td>
+                                            {last ? (
+                                              <div style={{ fontSize: 14 }}>
+                                                <div>
+                                                  <strong>{last.label}</strong>
+                                                </div>
+                                                {last.date && (
+                                                  <div className="text-muted">
+                                                    {formatDate(last.date)}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            ) : (
+                                              <span
+                                                className="text-muted"
+                                                style={{ fontSize: 14 }}
+                                              >
+                                                Aucune étape validée
+                                              </span>
+                                            )}
+                                          </td>
+                                          <td
+                                            style={{
+                                              whiteSpace: "nowrap",
+                                              width: 160,
+                                            }}
+                                          >
+                                            {renderProductBadgeFromSuivi(s)}
+                                          </td>
+                                          <td
+                                            style={{
+                                              width: 60,
+                                              textAlign: "center",
+                                            }}
+                                          >
+                                            {contractId ? (
+                                              <Button
+                                                color="link"
+                                                className="p-0"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  history.push(
+                                                    `/pages/contract/${contractId}`
+                                                  );
+                                                }}
+                                                title="Voir le contrat"
+                                              >
+                                                <ArrowRight size={18} />
+                                              </Button>
+                                            ) : (
+                                              <span
+                                                className="text-muted"
+                                                style={{ fontSize: 14 }}
+                                              >
+                                                -
+                                              </span>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      );
+                                    }
+                                  )}
+                                </>
+                              )}
+
+                            {/* 1) Dossiers actifs (par défaut) - only if no filter */}
+                            {noFilterActive &&
+                              groupedSuivis.active.map(
+                                ({ s, steps, last, next }) => {
+                                  const clientLabel =
+                                    getClientDisplayNameFromSuivi(
+                                      s,
+                                      clientsById
+                                    );
+                                  const contractId =
+                                    s.facture_id ||
+                                    s.document_id ||
+                                    s.contract_id;
+                                  const clientId = s.client_id;
+
+                                  return (
+                                    <tr
+                                      key={`${s.suivi_id || s.id || ""}-${
+                                        s.document_id || s.facture_id || ""
+                                      }`}
+                                      onClick={() => {
+                                        if (clientId) {
+                                          history.push(
+                                            `/app/user/edit/${clientId}/2`
+                                          );
+                                        }
+                                      }}
+                                      style={{ cursor: "pointer" }}
+                                    >
+                                      {/* Client */}
+                                      <td>{clientLabel}</td>
+
+                                      {/* À faire */}
+                                      <td>{renderTodoCell(next)}</td>
+                                      {/* Dernière étape validée */}
+                                      <td>
+                                        {last ? (
+                                          <div style={{ fontSize: 14 }}>
+                                            <div>
+                                              <strong>{last.label}</strong>
+                                            </div>
+                                            {last.date && (
+                                              <div className="text-muted">
+                                                {formatDate(last.date)}
+                                              </div>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <span
+                                            className="text-muted"
+                                            style={{ fontSize: 14 }}
+                                          >
+                                            Aucune étape validée
+                                          </span>
+                                        )}
+                                      </td>
+
+                                      {/* Type de contrat */}
+                                      <td
+                                        style={{
+                                          whiteSpace: "nowrap",
+                                          width: 160,
+                                        }}
+                                      >
+                                        {renderProductBadgeFromSuivi(s)}
+                                      </td>
+
+                                      {/* Contrat (flèche) */}
+                                      <td
+                                        style={{
+                                          width: 60,
+                                          textAlign: "center",
+                                        }}
+                                      >
+                                        {contractId ? (
+                                          <Button
+                                            color="link"
+                                            className="p-0"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              history.push(
+                                                `/pages/contract/${contractId}`
+                                              );
+                                            }}
+                                            title="Voir le contrat"
+                                          >
+                                            <ArrowRight size={18} />
+                                          </Button>
+                                        ) : (
+                                          <span
+                                            className="text-muted"
+                                            style={{ fontSize: 14 }}
+                                          >
+                                            -
+                                          </span>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  );
+                                }
+                              )}
+
+                            {/* 2) Dossiers en cours de traitement (tiroir) */}
+                            {showProcessing &&
+                              groupedSuivis.processing.length > 0 && (
+                                <>
+                                  <tr className="table-secondary">
+                                    <td
+                                      colSpan="5"
+                                      style={{ fontSize: 14, fontWeight: 600 }}
+                                    >
+                                      Dossiers en cours de traitement
+                                    </td>
+                                  </tr>
+
+                                  {groupedSuivis.processing.map(
+                                    ({ s, steps, last, next }) => {
+                                      const clientLabel =
+                                        getClientDisplayNameFromSuivi(
+                                          s,
+                                          clientsById
+                                        );
+                                      const contractId =
+                                        s.facture_id ||
+                                        s.document_id ||
+                                        s.contract_id;
+                                      const clientId = s.client_id;
+
+                                      return (
+                                        <tr
+                                          key={`processing-${
+                                            s.suivi_id || s.id || ""
+                                          }-${
+                                            s.document_id || s.facture_id || ""
+                                          }`}
+                                          onClick={() => {
+                                            if (clientId) {
+                                              history.push(
+                                                `/app/user/edit/${clientId}/2`
+                                              );
+                                            }
+                                          }}
+                                          style={{ cursor: "pointer" }}
+                                        >
+                                          <td>{clientLabel}</td>
+                                          <td>{renderTodoCell(next)}</td>
+                                          <td>
+                                            {last ? (
+                                              <div style={{ fontSize: 14 }}>
+                                                <div>
+                                                  <strong>{last.label}</strong>
+                                                </div>
+                                                {last.date && (
+                                                  <div className="text-muted">
+                                                    {formatDate(last.date)}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            ) : (
+                                              <span
+                                                className="text-muted"
+                                                style={{ fontSize: 14 }}
+                                              >
+                                                Aucune étape validée
+                                              </span>
+                                            )}
+                                          </td>
+
+                                          <td
+                                            style={{
+                                              whiteSpace: "nowrap",
+                                              width: 160,
+                                            }}
+                                          >
+                                            {renderProductBadgeFromSuivi(s)}
+                                          </td>
+
+                                          <td
+                                            style={{
+                                              width: 60,
+                                              textAlign: "center",
+                                            }}
+                                          >
+                                            {contractId ? (
+                                              <Button
+                                                color="link"
+                                                className="p-0"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  history.push(
+                                                    `/pages/contract/${contractId}`
+                                                  );
+                                                }}
+                                                title="Voir le contrat"
+                                              >
+                                                <ArrowRight size={18} />
+                                              </Button>
+                                            ) : (
+                                              <span
+                                                className="text-muted"
+                                                style={{ fontSize: 14 }}
+                                              >
+                                                -
+                                              </span>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      );
+                                    }
+                                  )}
+                                </>
+                              )}
+
+                            {/* 3) Contrats terminés (tiroir) */}
+                            {showCompleted &&
+                              groupedSuivis.completed.length > 0 && (
+                                <>
+                                  <tr className="table-secondary">
+                                    <td
+                                      colSpan="5"
+                                      style={{ fontSize: 14, fontWeight: 600 }}
+                                    >
+                                      Contrats terminés
+                                    </td>
+                                  </tr>
+
+                                  {groupedSuivis.completed.map(
+                                    ({ s, steps, last, next }) => {
+                                      const clientLabel =
+                                        getClientDisplayNameFromSuivi(
+                                          s,
+                                          clientsById
+                                        );
+                                      const contractId =
+                                        s.facture_id ||
+                                        s.document_id ||
+                                        s.contract_id;
+                                      const clientId = s.client_id;
+
+                                      return (
+                                        <tr
+                                          key={`completed-${
+                                            s.suivi_id || s.id || ""
+                                          }-${
+                                            s.document_id || s.facture_id || ""
+                                          }`}
+                                          onClick={() => {
+                                            if (clientId) {
+                                              history.push(
+                                                `/app/user/edit/${clientId}/2`
+                                              );
+                                            }
+                                          }}
+                                          style={{ cursor: "pointer" }}
+                                        >
+                                          <td>{clientLabel}</td>
+
+                                          <td>
+                                            <span
+                                              className="text-success"
+                                              style={{
+                                                fontSize: 14,
+                                                fontWeight: 600,
+                                              }}
+                                            >
+                                              Dossier terminé
+                                            </span>
+                                          </td>
+
+                                          <td>
+                                            {last ? (
+                                              <div style={{ fontSize: 14 }}>
+                                                <div>
+                                                  <strong>{last.label}</strong>
+                                                </div>
+                                                {last.date && (
+                                                  <div className="text-muted">
+                                                    {formatDate(last.date)}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            ) : (
+                                              <span
+                                                className="text-muted"
+                                                style={{ fontSize: 14 }}
+                                              >
+                                                Aucune étape validée
+                                              </span>
+                                            )}
+                                          </td>
+
+                                          <td
+                                            style={{
+                                              whiteSpace: "nowrap",
+                                              width: 160,
+                                            }}
+                                          >
+                                            {renderProductBadgeFromSuivi(s)}
+                                          </td>
+
+                                          <td
+                                            style={{
+                                              width: 60,
+                                              textAlign: "center",
+                                            }}
+                                          >
+                                            {contractId ? (
+                                              <Button
+                                                color="link"
+                                                className="p-0"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  history.push(
+                                                    `/pages/contract/${contractId}`
+                                                  );
+                                                }}
+                                                title="Voir le contrat"
+                                              >
+                                                <ArrowRight size={18} />
+                                              </Button>
+                                            ) : (
+                                              <span
+                                                className="text-muted"
+                                                style={{ fontSize: 14 }}
+                                              >
+                                                -
+                                              </span>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      );
+                                    }
+                                  )}
+                                </>
+                              )}
+
+                            {/* Si rien n’est visible du tout */}
+                            {groupedSuivis.active.length === 0 &&
+                              groupedSuivis.after5days.length === 0 &&
+                              (!showProcessing ||
+                                groupedSuivis.processing.length === 0) &&
+                              (!showCompleted ||
+                                groupedSuivis.completed.length === 0) && (
+                                <tr>
+                                  <td colSpan="5">Aucun suivi trouvé.</td>
+                                </tr>
+                              )}
+                          </>
+                        );
+                      })()}
                     </>
                   )}
                 </tbody>
