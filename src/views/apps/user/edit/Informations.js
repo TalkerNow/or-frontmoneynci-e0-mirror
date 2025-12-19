@@ -129,17 +129,16 @@ class UserAccountTab extends React.Component {
   normalizePhone = (v) => {
     if (!v) return "";
     let s = String(v).trim();
+    // On conserve + et chiffres, on vire le reste
     let t = s.replace(/[^\d+]/g, "");
-    if (t.startsWith("+33")) t = "0" + t.slice(3);
-    else if (t.startsWith("0033")) t = "0" + t.slice(4);
-    t = t.replace(/\D/g, "");
     return t;
   };
   formatPhonePretty = (v) => {
     const d = this.normalizePhone(v);
     if (!d) return "";
-    const core = d.length > 10 ? d.slice(0, 10) : d;
-    return core.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
+    // Plus de limitation à 10 caractères
+    // On espace tous les 2 chiffres pour la lisibilité
+    return d.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
   };
   updateUsername = (e) => {
     this.markDirty();
@@ -174,19 +173,19 @@ class UserAccountTab extends React.Component {
           role: information.role
             ? information.role
             : this.props.data.role
-            ? this.props.data.role
-            : "Client",
+              ? this.props.data.role
+              : "Client",
           p_password: information.p_password,
           status: information.status
             ? information.status
             : this.props.data.status
-            ? this.props.data.status
-            : "En attente",
+              ? this.props.data.status
+              : "En attente",
           status_fa: information.status_fa
             ? information.status_fa
             : this.props.data.status_fa
-            ? this.props.data.status_fa
-            : false,
+              ? this.props.data.status_fa
+              : false,
           parent_id: information.parent_id,
           business_introducer_id: information.business_introducer_id,
         },
@@ -200,8 +199,8 @@ class UserAccountTab extends React.Component {
               civility: information.civility
                 ? information.civility
                 : this.props.data.civility
-                ? this.props.data.civility
-                : "",
+                  ? this.props.data.civility
+                  : "",
               first_name: information.first_name,
               last_name: information.last_name,
               birth_date: information.dob,
@@ -210,8 +209,8 @@ class UserAccountTab extends React.Component {
               martial_status: information.martial_status
                 ? information.martial_status
                 : this.props.data.martial_status
-                ? this.props.data.martial_status
-                : "Célibataire",
+                  ? this.props.data.martial_status
+                  : "Célibataire",
               children_number: information.children_number,
               secu_social: information.secu_social,
               secu_social_key: information.secu_social_key,
@@ -232,8 +231,8 @@ class UserAccountTab extends React.Component {
               military_service: information.military_service
                 ? information.military_service
                 : this.props.data.military_service
-                ? this.props.data.military_service
-                : "oui",
+                  ? this.props.data.military_service
+                  : "oui",
               parent_id: information.parent_id,
               business_introducer_id: information.business_introducer_id,
             },
@@ -449,8 +448,8 @@ class UserAccountTab extends React.Component {
                     placeholder="Numéro de Téléphone"
                     value={this.formatPhonePretty(
                       this.state.contact_number ??
-                        this.ifExist("mobile_number") ??
-                        this.ifExist("office_number")
+                      this.ifExist("mobile_number") ??
+                      this.ifExist("office_number")
                     )}
                     onChange={(e) =>
                       this.setState({
@@ -493,7 +492,7 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Marié"
+                          label="Marié(e)"
                           color="primary"
                           defaultChecked={
                             this.props.data["martial_status"] == "Marié"
@@ -509,7 +508,7 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Divorcé"
+                          label="Divorcé(e)"
                           color="primary"
                           defaultChecked={
                             this.props.data["martial_status"] == "Divorcé"
@@ -525,7 +524,7 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Pacsé"
+                          label="Pacsé(e)"
                           color="primary"
                           defaultChecked={
                             this.props.data["martial_status"] == "Pacsé"
@@ -541,7 +540,7 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Veuf"
+                          label="Veuf(ve)"
                           color="primary"
                           defaultChecked={
                             this.props.data["martial_status"] == "Veuf"
@@ -572,7 +571,7 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Marié"
+                          label="Marié(e)"
                           color="primary"
                           defaultChecked={false}
                           name="martial_status"
@@ -584,7 +583,7 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Divorcé"
+                          label="Divorcé(e)"
                           color="primary"
                           defaultChecked={false}
                           name="martial_status"
@@ -596,7 +595,7 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Pacsé"
+                          label="Pacsé(e)"
                           color="primary"
                           defaultChecked={false}
                           name="martial_status"
@@ -608,7 +607,7 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Veuf"
+                          label="Veuf(ve)"
                           color="primary"
                           defaultChecked={false}
                           name="martial_status"

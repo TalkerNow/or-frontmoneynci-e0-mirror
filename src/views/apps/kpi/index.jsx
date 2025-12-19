@@ -71,7 +71,7 @@ function weekdayIndexMondayFirst(dateInput) {
   return (d.getDay() + 6) % 7; // 0 = lundi ... 6 = dimanche
 }
 // Ensemble des actions à afficher dans le graphique/filtre
-const ACTIONS_ALL = [...CALL_ACTIONS, EMAIL_ACTION, ACTION_OTHER];
+const ACTIONS_ALL = [...new Set([...CALL_ACTIONS, EMAIL_ACTION, ACTION_OTHER])];
 const ACTIONS_KNOWN = [...CALL_ACTIONS, EMAIL_ACTION];
 
 const ACTION_FILLS = {
@@ -1347,6 +1347,7 @@ export default function KpiPage() {
   const groupedSuivis = useMemo(() => {
     const res = {
       active: [], // par défaut
+      suivi: [], // Bucket spécifique demandé (ex: AR/TFD creation devis)
       after5days: [], // 5 jours atteints / dépassés
       processing: [], // Paiement du contrat -> Avancement du dossier
       completed: [], // Contrats terminés
@@ -1374,6 +1375,16 @@ export default function KpiPage() {
 
       // 🔶 Crédit d'impôt : "5 jours ouvrés d'attente" atteints / dépassés
       let isAfter5Days = false;
+
+
+
+      // Cas AR/TFD : Création de devis = NON URGENT mais "SUIVI"
+      let isSuiviSpecific = false;
+      if (!isContractFinished && profileKey === "ar_tfd") {
+        if (next && next.index === 2) {
+          isSuiviSpecific = true;
+        }
+      }
 
       if (!isContractFinished && profileKey === "credit_impot") {
         const step3 = steps.find((st) => st.index === 3); // "5 jours ouvrés d'attente"
@@ -1410,9 +1421,11 @@ export default function KpiPage() {
         ? "completed"
         : isAfter5Days
           ? "after5days"
-          : isProcessing
-            ? "processing"
-            : "active";
+          : isSuiviSpecific
+            ? "suivi"
+            : isProcessing
+              ? "processing"
+              : "active";
 
       res[bucket].push({ s, steps, last, next });
     });
@@ -1549,8 +1562,7 @@ export default function KpiPage() {
                             colSpan="5"
                             style={{ fontSize: 14, fontWeight: 600 }}
                           >
-                            5 jours ouvrés atteints / dépassés (à traiter en
-                            priorité)
+                            Dossiers urgents (à traiter en priorité)
                           </td>
                         </tr>
 
@@ -1644,6 +1656,102 @@ export default function KpiPage() {
                         )}
                       </>
                     )}
+
+
+                    {/* 0-bis) Dossiers "Suivi" (AR/TFD Création devis) */}
+                    {groupedSuivis.suivi.length > 0 && (
+                      <>
+                        <tr className="table-info">
+                          <td
+                            colSpan="5"
+                            style={{ fontSize: 14, fontWeight: 600 }}
+                          >
+                            Dossiers à suivre
+                          </td>
+                        </tr>
+
+                        {groupedSuivis.suivi.map(
+                          ({ s, steps, last, next }) => {
+                            const clientLabel = getClientDisplayNameFromSuivi(
+                              s,
+                              clientsById
+                            );
+                            const contractId =
+                              s.facture_id || s.document_id || s.contract_id;
+                            const clientId = s.client_id;
+
+                            return (
+                              <tr
+                                key={`suivi-${s.suivi_id || s.id || ""}-${s.document_id || s.facture_id || ""
+                                  }`}
+                                onClick={() => {
+                                  if (clientId) {
+                                    history.push(
+                                      `/app/user/edit/${clientId}/2`
+                                    );
+                                  }
+                                }}
+                                style={{ cursor: "pointer" }}
+                              >
+                                <td>{clientLabel}</td>
+                                <td>{renderTodoCell(next)}</td>
+                                <td>
+                                  {last ? (
+                                    <div style={{ fontSize: 14 }}>
+                                      <div>
+                                        <strong>{last.label}</strong>
+                                      </div>
+                                      {last.date && (
+                                        <div className="text-muted">
+                                          {formatDate(last.date)}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span
+                                      className="text-muted"
+                                      style={{ fontSize: 14 }}
+                                    >
+                                      Aucune étape validée
+                                    </span>
+                                  )}
+                                </td>
+                                <td
+                                  style={{ whiteSpace: "nowrap", width: 160 }}
+                                >
+                                  {renderProductBadgeFromSuivi(s)}
+                                </td>
+                                <td style={{ width: 60, textAlign: "center" }}>
+                                  {contractId ? (
+                                    <Button
+                                      color="link"
+                                      className="p-0"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        history.push(
+                                          `/pages/contract/${contractId}`
+                                        );
+                                      }}
+                                      title="Voir le contrat"
+                                    >
+                                      <ArrowRight size={18} />
+                                    </Button>
+                                  ) : (
+                                    <span
+                                      className="text-muted"
+                                      style={{ fontSize: 14 }}
+                                    >
+                                      -
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          }
+                        )}
+                      </>
+                    )}
+
                     {groupedSuivis.after5days.length > 0 &&
                       groupedSuivis.active.length > 0 && (
                         <tr>
@@ -2740,6 +2848,6 @@ export default function KpiPage() {
           </Button>
         </ModalFooter>
       </Modal>
-    </div>
+    </div >
   );
 }

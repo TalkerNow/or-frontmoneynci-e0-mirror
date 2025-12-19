@@ -69,7 +69,7 @@ class UserEdit extends React.Component {
           label.getBoundingClientRect().left - nav.getBoundingClientRect().left;
         this.setState({ simuOffset: Math.max(0, Math.round(delta)) });
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   computeDocsOffset = () => {
@@ -83,7 +83,7 @@ class UserEdit extends React.Component {
           label.getBoundingClientRect().left - nav.getBoundingClientRect().left;
         this.setState({ docsOffset: Math.max(0, Math.round(delta)) });
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   computeCourriersOffset = () => {
@@ -97,7 +97,7 @@ class UserEdit extends React.Component {
           label.getBoundingClientRect().left - nav.getBoundingClientRect().left;
         this.setState({ courriersOffset: Math.max(0, Math.round(delta)) });
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   applyTabFromRoute(tabParam) {
@@ -346,110 +346,115 @@ class UserEdit extends React.Component {
             expanded: this.state.isCollapsed,
           })}
         >
-          <Nav
-            tabs
-            className="border-0 d-flex align-items-center gap-3 mb-1"
+          <div
+            className="border-0 d-flex align-items-center gap-3 mb-1 nav-tabs"
             ref={(el) => (this.navRef = el)}
           >
-            {this.state.isCollapsed && (
+            <Nav
+              tabs
+              className="border-0 d-flex align-items-center gap-3 mb-0"
+              style={{ flexWrap: "nowrap" }}
+            >
+              {this.state.isCollapsed && (
+                <NavItem>
+                  <NavLink
+                    onClick={() => this.setState({ isCollapsed: false })}
+                    className="p-0"
+                    aria-label="Afficher la fiche"
+                  >
+                    <Circle
+                      id={`clientOpenToggle-${id}`}
+                      className="text-primary profile-toggle-pulse"
+                      size={20}
+                    />
+                  </NavLink>
+                  <UncontrolledTooltip
+                    placement="top"
+                    target={`clientOpenToggle-${id}`}
+                  >
+                    Afficher la fiche
+                  </UncontrolledTooltip>
+                </NavItem>
+              )}
               <NavItem>
                 <NavLink
-                  onClick={() => this.setState({ isCollapsed: false })}
-                  className="p-0"
-                  aria-label="Afficher la fiche"
+                  className={classnames({
+                    active: this.state.activeTab === "notes",
+                  })}
+                  onClick={() => this.toggle("notes")}
                 >
-                  <Circle
-                    id={`clientOpenToggle-${id}`}
-                    className="text-primary profile-toggle-pulse"
-                    size={20}
-                  />
+                  <Info className="text-primary mr-50" size={16} /> Infos
                 </NavLink>
-                <UncontrolledTooltip
-                  placement="top"
-                  target={`clientOpenToggle-${id}`}
-                >
-                  Afficher la fiche
-                </UncontrolledTooltip>
               </NavItem>
-            )}
-            <NavItem>
-              <NavLink
-                className={classnames({
-                  active: this.state.activeTab === "notes",
-                })}
-                onClick={() => this.toggle("notes")}
-              >
-                <Info className="text-primary mr-50" size={16} /> Infos
-              </NavLink>
-            </NavItem>
-            <NavItem>
-              <NavLink
-                className={classnames({
-                  active: this.state.activeTab === "contrats",
-                })}
-                onClick={() => this.toggle("contrats")}
-              >
-                <FileText className="text-primary mr-50" size={16} /> Contrats
-              </NavLink>
-            </NavItem>
-            <NavItem>
-              <NavLink
-                id={`documents-link-client-${id}`}
-                className={classnames({
-                  active: this.state.activeTab === "documents",
-                })}
-                onClick={() => this.toggle("documents")}
-              >
-                <Folder className="text-primary mr-50" size={16} />
-                <span id={`documents-label-client-${id}`}> Documents</span>
-              </NavLink>
-            </NavItem>
-            <NavItem>
-              <NavLink
-                className={classnames({
-                  active: this.state.activeTab === "tasks",
-                })}
-                onClick={() => this.toggle("tasks")}
-              >
-                <CheckSquare className="text-primary mr-50" size={16} /> Tâches
-              </NavLink>
-            </NavItem>
-            <NavItem>
-              <NavLink
-                className={classnames({
-                  active: this.state.activeTab === "courriers",
-                })}
-                onClick={() => this.toggle("courriers")}
-              >
-                <Mail className="text-primary mr-50" size={16} />
-                <span id={`courriers-label-client-${id}`}> Courriers</span>
-              </NavLink>
-            </NavItem>
-            <NavItem>
-              <NavLink
-                className={classnames("d-flex align-items-center", {
-                  active: this.state.activeTab === "commentaires",
-                })}
-                onClick={() => this.toggle("commentaires")}
-              >
-                <MessageCircle className="text-primary mr-50" size={16} />
-                Commentaires
-                {hasComments && <span className="comment-dot" />}
-              </NavLink>
-            </NavItem>
-            <NavItem>
-              <NavLink
-                id={`simulateur-link-client-${id}`}
-                className={classnames({
-                  active: this.state.activeTab === "simulateur",
-                })}
-                onClick={() => this.toggle("simulateur")}
-              >
-                <Activity className="text-primary mr-50" size={16} />
-                <span id={`simulateur-label-client-${id}`}> Simulateur</span>
-              </NavLink>
-            </NavItem>
-          </Nav>
+              <NavItem>
+                <NavLink
+                  className={classnames({
+                    active: this.state.activeTab === "contrats",
+                  })}
+                  onClick={() => this.toggle("contrats")}
+                >
+                  <FileText className="text-primary mr-50" size={16} /> Contrats
+                </NavLink>
+              </NavItem>
+              <NavItem>
+                <NavLink
+                  id={`documents-link-client-${id}`}
+                  className={classnames({
+                    active: this.state.activeTab === "documents",
+                  })}
+                  onClick={() => this.toggle("documents")}
+                >
+                  <Folder className="text-primary mr-50" size={16} />
+                  <span id={`documents-label-client-${id}`}> Documents</span>
+                </NavLink>
+              </NavItem>
+              <NavItem>
+                <NavLink
+                  className={classnames({
+                    active: this.state.activeTab === "tasks",
+                  })}
+                  onClick={() => this.toggle("tasks")}
+                >
+                  <CheckSquare className="text-primary mr-50" size={16} /> Tâches
+                </NavLink>
+              </NavItem>
+              <NavItem>
+                <NavLink
+                  className={classnames({
+                    active: this.state.activeTab === "courriers",
+                  })}
+                  onClick={() => this.toggle("courriers")}
+                >
+                  <Mail className="text-primary mr-50" size={16} />
+                  <span id={`courriers-label-client-${id}`}> Courriers</span>
+                </NavLink>
+              </NavItem>
+              <NavItem>
+                <NavLink
+                  className={classnames("d-flex align-items-center", {
+                    active: this.state.activeTab === "commentaires",
+                  })}
+                  onClick={() => this.toggle("commentaires")}
+                >
+                  <MessageCircle className="text-primary mr-50" size={16} />
+                  Commentaires
+                  {hasComments && <span className="comment-dot" />}
+                </NavLink>
+              </NavItem>
+              <NavItem>
+                <NavLink
+                  id={`simulateur-link-client-${id}`}
+                  className={classnames({
+                    active: this.state.activeTab === "simulateur",
+                  })}
+                  onClick={() => this.toggle("simulateur")}
+                >
+                  <Activity className="text-primary mr-50" size={16} />
+                  <span id={`simulateur-label-client-${id}`}> Simulateur</span>
+                </NavLink>
+              </NavItem>
+            </Nav>
+          </div>
           <TabContent activeTab={this.state.activeTab}>
             <TabPane tabId="notes">
               <Card className="mb-1">
