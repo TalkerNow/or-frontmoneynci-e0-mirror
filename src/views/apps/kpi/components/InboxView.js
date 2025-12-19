@@ -655,20 +655,34 @@ function formatRelativeDate(isoDate) {
   if (!isoDate) return "";
   const date = new Date(isoDate);
   const now = new Date();
-  const diffHours = (now - date) / (1000 * 60 * 60);
 
-  if (diffHours < 24) {
-    return `Auj. ${date.toLocaleTimeString("fr-FR", {
+  // Check if same day
+  const isToday = date.toDateString() === now.toDateString();
+
+  // Check if yesterday
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const isYesterday = date.toDateString() === yesterday.toDateString();
+
+  if (isToday) {
+    // Today: show only time (HH:MM)
+    return date.toLocaleTimeString("fr-FR", {
       hour: "2-digit",
       minute: "2-digit",
-    })}`;
-  } else if (diffHours < 48) {
+    });
+  } else if (isYesterday) {
+    // Yesterday: show "Hier" + time
     return `Hier ${date.toLocaleTimeString("fr-FR", {
       hour: "2-digit",
       minute: "2-digit",
     })}`;
   }
-  return date.toLocaleDateString("fr-FR");
+  // Older: show date (DD/MM/YYYY)
+  return date.toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 }
 
 // Helper: Extract summary from messages
@@ -1143,7 +1157,7 @@ const InboxView = ({
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {item.date.split(" ")[1]}
+                    {item.date}
                   </span>
                 </div>
                 <div
