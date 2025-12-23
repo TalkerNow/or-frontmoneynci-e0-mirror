@@ -1,36 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import {
-  Card,
-  CardBody,
-  CardHeader,
   Button,
-  Row,
-  ButtonGroup,
-  Col,
-  Input,
-  Label,
   Table,
   Badge,
-  UncontrolledButtonDropdown,
   UncontrolledDropdown,
   DropdownMenu,
   DropdownItem,
   DropdownToggle,
-  Modal,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
 } from "reactstrap";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-  ResponsiveContainer,
-} from "recharts";
+
 import { useHistory, useLocation } from "react-router-dom";
 
 import {
@@ -41,19 +20,13 @@ import {
   ArrowRight, // Restored
   Briefcase,
   CheckSquare,
-  FileText,
-  Clock,
-  Layout,
-  MessageSquare,
 } from "react-feather"; // icônes
 import KPIModal from "./KPIModal";
-import { Plus, Bell } from "lucide-react";
-import ChatbotDetailView from "./ChatbotDetailView";
+import { Plus } from "lucide-react";
 // CRM v2 Components
 import InboxView from "./components/InboxView";
 import PipelineView from "./components/PipelineView";
 import AdminView from "./components/AdminView";
-import { SidebarItem } from "./components/SharedComponents"; // If sidebar needs to be adjusted, but we rely on global sidebar for now.
 
 /** =============================
  *  Helpers (token, admin id, date)
@@ -65,23 +38,13 @@ const API = axios.create({
   },
 });
 
-// Webhook simple pour envoyer l'email (contenu)
-const WEBHOOK_EMAIL_URL =
-  "https://n8n.srv796541.hstgr.cloud/webhook/0627350c-a362-45dd-adfe-b947bf1c48f5/chat";
 
 // Objets (ajout de "Email")
 
 const CALL_ACTIONS = ["Rdv pris", "Mail prestation envoyé", "NUL", "Autre"];
 const EMAIL_ACTION = "Email reçu";
 const ACTION_OTHER = "Autre";
-const DAY_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
-
-function weekdayIndexMondayFirst(dateInput) {
-  const d = new Date(dateInput);
-  return (d.getDay() + 6) % 7; // 0 = lundi ... 6 = dimanche
-}
 // Ensemble des actions à afficher dans le graphique/filtre
-const ACTIONS_ALL = [...new Set([...CALL_ACTIONS, EMAIL_ACTION, ACTION_OTHER])];
 const ACTIONS_KNOWN = [...CALL_ACTIONS, EMAIL_ACTION];
 
 const ACTION_FILLS = {
@@ -295,8 +258,8 @@ function renderActionBadge(action) {
   const key = ACTIONS_KNOWN.includes(action)
     ? action
     : action
-    ? ACTION_OTHER
-    : null;
+      ? ACTION_OTHER
+      : null;
   if (!key) {
     return <em style={{ opacity: 0.6 }}>(vide)</em>;
   }
@@ -718,8 +681,8 @@ export default function KpiPage() {
       const data = Array.isArray(payload?.data)
         ? payload.data
         : Array.isArray(payload)
-        ? payload
-        : [];
+          ? payload
+          : [];
 
       setItems(data);
 
@@ -729,7 +692,7 @@ export default function KpiPage() {
       console.error(e);
       setError(
         e?.response?.data?.message ||
-          "Erreur lors du chargement des KPI. Vérifie l'API."
+        "Erreur lors du chargement des KPI. Vérifie l'API."
       );
     } finally {
       setLoadingList(false);
@@ -748,7 +711,7 @@ export default function KpiPage() {
       console.error(e);
       setSuivisError(
         e?.response?.data?.message ||
-          "Erreur lors du chargement des suivis d'avancement."
+        "Erreur lors du chargement des suivis d'avancement."
       );
     } finally {
       setLoadingSuivis(false);
@@ -787,8 +750,8 @@ export default function KpiPage() {
       const data = Array.isArray(payload.data)
         ? payload.data
         : Array.isArray(payload)
-        ? payload
-        : [];
+          ? payload
+          : [];
 
       setDiagnostics(data);
     } catch (e) {
@@ -816,8 +779,8 @@ export default function KpiPage() {
         const data = Array.isArray(payload?.data)
           ? payload.data
           : Array.isArray(payload)
-          ? payload
-          : [];
+            ? payload
+            : [];
 
         aggregated = aggregated.concat(data);
 
@@ -830,8 +793,8 @@ export default function KpiPage() {
       console.error(e);
       setError(
         e?.response?.data?.message ||
-          e?.response?.data?.error ||
-          "Erreur lors du chargement complet des KPI pour le graphique."
+        e?.response?.data?.error ||
+        "Erreur lors du chargement complet des KPI pour le graphique."
       );
     } finally {
       setLoadingChart(false);
@@ -849,8 +812,8 @@ export default function KpiPage() {
       const list = Array.isArray(payload?.data)
         ? payload.data
         : Array.isArray(payload)
-        ? payload
-        : [];
+          ? payload
+          : [];
 
       const map = {};
       list.forEach((u) => {
@@ -884,8 +847,8 @@ export default function KpiPage() {
       const list = Array.isArray(payload?.data)
         ? payload.data
         : Array.isArray(payload)
-        ? payload
-        : [];
+          ? payload
+          : [];
 
       const map = {};
       list.forEach((u) => {
@@ -961,8 +924,8 @@ export default function KpiPage() {
       console.error(e);
       setError(
         e?.response?.data?.message ||
-          e?.response?.data?.error ||
-          "Impossible de créer le KPI."
+        e?.response?.data?.error ||
+        "Impossible de créer le KPI."
       );
     } finally {
       setCreating(false);
@@ -1110,12 +1073,12 @@ export default function KpiPage() {
       const bucket = isContractFinished
         ? "completed"
         : isAfter5Days
-        ? "after5days"
-        : isSuiviSpecific
-        ? "suivi"
-        : isProcessing
-        ? "processing"
-        : "active";
+          ? "after5days"
+          : isSuiviSpecific
+            ? "suivi"
+            : isProcessing
+              ? "processing"
+              : "active";
 
       res[bucket].push({ s, steps, last, next });
     });
@@ -1262,10 +1225,10 @@ export default function KpiPage() {
             {location.pathname.includes("/kpi/suivi")
               ? "Suivi Administratif"
               : location.pathname.includes("/kpi/opportunities")
-              ? "Opportunités"
-              : location.pathname.includes("/kpi/clients") // Assuming clients route exists or will exist
-              ? "Clients"
-              : "Boîte De Réception"}
+                ? "Opportunités"
+                : location.pathname.includes("/kpi/clients") // Assuming clients route exists or will exist
+                  ? "Clients"
+                  : "Boîte De Réception"}
           </span>
         </div>
         <div style={{ marginLeft: "auto" }}>
@@ -1395,9 +1358,8 @@ export default function KpiPage() {
                     borderRadius: "50%",
                     marginRight: 8,
                     backgroundColor: showProcessing ? "#198754" : "transparent",
-                    border: `1px solid ${
-                      showProcessing ? "#198754" : "#ced4da"
-                    }`,
+                    border: `1px solid ${showProcessing ? "#198754" : "#ced4da"
+                      }`,
                   }}
                 />
                 Dossiers en cours
@@ -1421,9 +1383,8 @@ export default function KpiPage() {
                     borderRadius: "50%",
                     marginRight: 8,
                     backgroundColor: showCompleted ? "#6c757d" : "transparent",
-                    border: `1px solid ${
-                      showCompleted ? "#6c757d" : "#ced4da"
-                    }`,
+                    border: `1px solid ${showCompleted ? "#6c757d" : "#ced4da"
+                      }`,
                   }}
                 />
                 Contrats terminés
@@ -1525,11 +1486,9 @@ export default function KpiPage() {
 
                                       return (
                                         <tr
-                                          key={`after5-${
-                                            s.suivi_id || s.id || ""
-                                          }-${
-                                            s.document_id || s.facture_id || ""
-                                          }`}
+                                          key={`after5-${s.suivi_id || s.id || ""
+                                            }-${s.document_id || s.facture_id || ""
+                                            }`}
                                           onClick={() => {
                                             if (clientId) {
                                               history.push(
@@ -1664,11 +1623,9 @@ export default function KpiPage() {
 
                                       return (
                                         <tr
-                                          key={`suivi-${
-                                            s.suivi_id || s.id || ""
-                                          }-${
-                                            s.document_id || s.facture_id || ""
-                                          }`}
+                                          key={`suivi-${s.suivi_id || s.id || ""
+                                            }-${s.document_id || s.facture_id || ""
+                                            }`}
                                           onClick={() => {
                                             if (clientId) {
                                               history.push(
@@ -1762,9 +1719,8 @@ export default function KpiPage() {
 
                                   return (
                                     <tr
-                                      key={`${s.suivi_id || s.id || ""}-${
-                                        s.document_id || s.facture_id || ""
-                                      }`}
+                                      key={`${s.suivi_id || s.id || ""}-${s.document_id || s.facture_id || ""
+                                        }`}
                                       onClick={() => {
                                         if (clientId) {
                                           history.push(
@@ -1875,11 +1831,9 @@ export default function KpiPage() {
 
                                       return (
                                         <tr
-                                          key={`processing-${
-                                            s.suivi_id || s.id || ""
-                                          }-${
-                                            s.document_id || s.facture_id || ""
-                                          }`}
+                                          key={`processing-${s.suivi_id || s.id || ""
+                                            }-${s.document_id || s.facture_id || ""
+                                            }`}
                                           onClick={() => {
                                             if (clientId) {
                                               history.push(
@@ -1986,11 +1940,9 @@ export default function KpiPage() {
 
                                       return (
                                         <tr
-                                          key={`completed-${
-                                            s.suivi_id || s.id || ""
-                                          }-${
-                                            s.document_id || s.facture_id || ""
-                                          }`}
+                                          key={`completed-${s.suivi_id || s.id || ""
+                                            }-${s.document_id || s.facture_id || ""
+                                            }`}
                                           onClick={() => {
                                             if (clientId) {
                                               history.push(
@@ -2109,23 +2061,23 @@ export default function KpiPage() {
       {/* 3. INBOX (Default) */}
       {(location.pathname === "/kpi" ||
         location.pathname.includes("/inbox")) && (
-        <InboxView
-          items={[
-            ...conversations.map((c) => ({ ...c, _source: "chatbot" })),
-            ...diagnostics.map((d) => ({ ...d, _source: "diagnostic" })),
-          ]}
-          filter={
-            location.pathname.includes("/inbox/chatbot")
-              ? "chatbot"
-              : location.pathname.includes("/inbox/diagnostic")
-              ? "diagnostic"
-              : "all"
-          }
-          loading={loadingConversations || loadingDiagnostics}
-          error={convError || diagError}
-          onSelect={handleSelectConversation}
-        />
-      )}
+          <InboxView
+            items={[
+              ...conversations.map((c) => ({ ...c, _source: "chatbot" })),
+              ...diagnostics.map((d) => ({ ...d, _source: "diagnostic" })),
+            ]}
+            filter={
+              location.pathname.includes("/inbox/chatbot")
+                ? "chatbot"
+                : location.pathname.includes("/inbox/diagnostic")
+                  ? "diagnostic"
+                  : "all"
+            }
+            loading={loadingConversations || loadingDiagnostics}
+            error={convError || diagError}
+            onSelect={handleSelectConversation}
+          />
+        )}
 
       {/* New KPI Modal (integrated) */}
       <KPIModal

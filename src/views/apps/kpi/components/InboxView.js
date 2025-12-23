@@ -18,9 +18,7 @@ import {
   Brain,
   Target,
   AlertCircle,
-  AlertTriangle,
   TrendingUp,
-  Lightbulb,
 } from "lucide-react";
 import { Badge } from "./SharedComponents";
 
@@ -395,8 +393,8 @@ const ActionsSection = () => {
                   item.type === "CALLREPORT"
                     ? "#3b82f615"
                     : item.type === "TASK"
-                    ? "#f9731615"
-                    : "#6b728015",
+                      ? "#f9731615"
+                      : "#6b728015",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -824,10 +822,10 @@ const InboxView = ({
   const allInboxItems =
     items && items.length > 0
       ? items.map(mapConversationToInboxItem).sort((a, b) => {
-          const dateA = new Date(a.raw?.created_at || 0);
-          const dateB = new Date(b.raw?.created_at || 0);
-          return dateB - dateA; // Most recent first
-        })
+        const dateA = new Date(a.raw?.created_at || 0);
+        const dateB = new Date(b.raw?.created_at || 0);
+        return dateB - dateA; // Most recent first
+      })
       : [];
 
   // Filter by type if filter is specified
@@ -948,16 +946,14 @@ const InboxView = ({
     const prompt = `
       CONTEXTE DU PROSPECT :
       - Nom: ${selectedItem.name}
-      - Type : ${
-        selectedItem.type === "diagnostic" ? "Diagnostic en ligne" : "Chatbot"
+      - Type : ${selectedItem.type === "diagnostic" ? "Diagnostic en ligne" : "Chatbot"
       }
       - Points clés : ${selectedItem.summary?.join(", ")}
-      ${
-        selectedItem.type === "diagnostic"
-          ? `- Score complexité : ${calculateComplexityScore(
-              selectedItem.raw?.attributes
-            )}/100`
-          : ""
+      ${selectedItem.type === "diagnostic"
+        ? `- Score complexité : ${calculateComplexityScore(
+          selectedItem.raw?.attributes
+        )}/100`
+        : ""
       }
      
       TÂCHE : Rédige un email de premier contact.
@@ -1125,9 +1121,8 @@ const InboxView = ({
                   cursor: "pointer",
                   backgroundColor:
                     selectedItem.id === item.id ? "#eef2ff" : "transparent",
-                  borderLeft: `4px solid ${
-                    item.type === "diagnostic" ? "#f97316" : "#3b82f6"
-                  }`,
+                  borderLeft: `4px solid ${item.type === "diagnostic" ? "#f97316" : "#3b82f6"
+                    }`,
                   transition: "background-color 0.2s",
                 }}
               >
@@ -2083,23 +2078,23 @@ const InboxView = ({
                             {selectedItem.raw.attributes
                               .SIMULATEUR_DIFFICULTE_Q7
                               ? selectedItem.raw.attributes.SIMULATEUR_DIFFICULTE_Q7.split(
-                                  ","
-                                ).map((v, i) => (
-                                  <span
-                                    key={i}
-                                    style={{
-                                      display: "inline-block",
-                                      border: "1px solid #e2e8f0",
-                                      borderRadius: "999px",
-                                      padding: "2px 8px",
-                                      margin: "2px 4px 2px 0",
-                                      fontSize: "15px",
-                                      background: "#f8fafc",
-                                    }}
-                                  >
-                                    {v.replace(/_/g, " ")}
-                                  </span>
-                                ))
+                                ","
+                              ).map((v, i) => (
+                                <span
+                                  key={i}
+                                  style={{
+                                    display: "inline-block",
+                                    border: "1px solid #e2e8f0",
+                                    borderRadius: "999px",
+                                    padding: "2px 8px",
+                                    margin: "2px 4px 2px 0",
+                                    fontSize: "15px",
+                                    background: "#f8fafc",
+                                  }}
+                                >
+                                  {v.replace(/_/g, " ")}
+                                </span>
+                              ))
                               : "—"}
                           </td>
                         </tr>
@@ -2187,23 +2182,23 @@ const InboxView = ({
                             {selectedItem.raw.attributes
                               .SIMULATEUR_DIFFICULTE_Q10
                               ? selectedItem.raw.attributes.SIMULATEUR_DIFFICULTE_Q10.split(
-                                  ","
-                                ).map((v, i) => (
-                                  <span
-                                    key={i}
-                                    style={{
-                                      display: "inline-block",
-                                      border: "1px solid #e2e8f0",
-                                      borderRadius: "999px",
-                                      padding: "2px 8px",
-                                      margin: "2px 4px 2px 0",
-                                      fontSize: "15px",
-                                      background: "#f8fafc",
-                                    }}
-                                  >
-                                    {v.replace(/_/g, " ")}
-                                  </span>
-                                ))
+                                ","
+                              ).map((v, i) => (
+                                <span
+                                  key={i}
+                                  style={{
+                                    display: "inline-block",
+                                    border: "1px solid #e2e8f0",
+                                    borderRadius: "999px",
+                                    padding: "2px 8px",
+                                    margin: "2px 4px 2px 0",
+                                    fontSize: "15px",
+                                    background: "#f8fafc",
+                                  }}
+                                >
+                                  {v.replace(/_/g, " ")}
+                                </span>
+                              ))
                               : "—"}
                           </td>
                         </tr>

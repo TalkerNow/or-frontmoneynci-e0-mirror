@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { FileText, Edit2, Check, X } from 'react-feather'
+import { FileText, Edit2 } from 'react-feather'
 import { Input } from 'reactstrap'
 import ActionButtons from './ActionButtons'
 

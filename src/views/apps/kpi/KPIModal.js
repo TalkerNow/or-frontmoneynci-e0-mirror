@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Modal, ModalBody, Input, Label } from "reactstrap";
+import { Modal, ModalBody, Input } from "reactstrap";
 import { UserPlus, Mail, PhoneIncoming, PhoneOutgoing } from "react-feather";
 
 // Configuration constantes
