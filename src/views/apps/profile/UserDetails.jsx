@@ -17,6 +17,8 @@ export default function UserDetails({
   const [members, setMembers] = useState([]);
   const [showDelete, setShowDelete] = useState(false);
   const [confirmDeleted, setConfirmDeleted] = useState(false);
+  const [showSelector, setShowSelector] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // --- FETCH des membres (experts) DANS CETTE FONCTION ---
   useEffect(() => {
@@ -26,7 +28,7 @@ export default function UserDetails({
         const Config = {
           headers: { Authorization: "Bearer " + localStorage.getItem("token") },
         };
-        const base = (global?.config?.server_url || "").replace(/\/+$/,"");
+        const base = (global?.config?.server_url || "").replace(/\/+$/, "");
         const { data } = await axios.get(`${base}/users?kind=member`, Config);
         if (isMounted) setMembers(Array.isArray(data) ? data : []);
       } catch (e) {
@@ -87,6 +89,36 @@ export default function UserDetails({
 
     return "—";
   }, [user, members]);
+
+  const handleSaveConsultant = async (consultantId) => {
+    if (!consultantId || consultantId === "null") return;
+    setIsSaving(true);
+    try {
+      const Config = {
+        headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+      };
+      const base = (global?.config?.server_url || "").replace(/\/+$/, "");
+
+      // On met à jour l'utilisateur
+      await axios.put(`${base}/users/${user.id}`, {
+        parent_id: consultantId
+      }, Config);
+
+      // Et optionnellement dans personal_information si nécessaire (comme dans Informations.js)
+      await axios.put(`${base}/personal_information/${user.id}`, {
+        parent_id: consultantId
+      }, Config);
+
+      // On recharge la page pour voir les changements ou on notifie
+      // (UserDetails reçoit souvent ses datas du parent, idéalement on appellerait un onUpdate)
+      window.location.reload();
+    } catch (e) {
+      console.error("Erreur lors de la sauvegarde du consultant", e);
+    } finally {
+      setIsSaving(false);
+      setShowSelector(false);
+    }
+  };
 
   return (
     <Card className={`h-100 profile-card ${cardClassName}`}>
@@ -188,8 +220,54 @@ export default function UserDetails({
         ) : null}
 
         <div className="mt-1">
-          <div className="mb-50" style={{ marginLeft: 5 }}>
-            <span className="font-weight-bold">Consultant :</span> {expertName}
+          <div className="mb-50 d-flex align-items-center flex-wrap" style={{ marginLeft: 5 }}>
+            <span className="font-weight-bold mr-50">Consultant :</span>
+            {expertName !== "—" ? (
+              <span>{expertName}</span>
+            ) : (
+              <>
+                {!showSelector ? (
+                  <Button.Ripple
+                    color="primary"
+                    outline
+                    size="sm"
+                    className="py-25 px-1"
+                    style={{ fontSize: '0.85rem', fontWeight: '500' }}
+                    onClick={() => setShowSelector(true)}
+                  >
+                    Assigner un consultant
+                  </Button.Ripple>
+                ) : (
+                  <div className="d-flex align-items-center mt-25">
+                    <select
+                      className="form-control form-control-sm mr-50"
+                      style={{ height: '30px', fontSize: '0.8rem', width: 'auto' }}
+                      defaultValue=""
+                      disabled={isSaving}
+                      onChange={(e) => handleSaveConsultant(e.target.value)}
+                    >
+                      <option value="" disabled>Choisir...</option>
+                      {members.map(m => (
+                        <option key={m.id} value={m.id}>
+                          {m.first_name} {m.last_name}
+                        </option>
+                      ))}
+                    </select>
+                    <Button.Ripple
+                      color="danger"
+                      outline
+                      size="sm"
+                      className="p-25"
+                      style={{ fontSize: '0.7rem' }}
+                      onClick={() => setShowSelector(false)}
+                      disabled={isSaving}
+                    >
+                      X
+                    </Button.Ripple>
+                  </div>
+                )}
+              </>
+            )}
           </div>
           <div style={{ borderTop: "1px solid #ebe9f1", margin: "0.25rem 0 0.75rem" }} />
           <div className="users-page-view-table compact-rows">
@@ -212,10 +290,10 @@ export default function UserDetails({
               <div className="text-truncate">
                 {user.birth_date
                   ? new Date(user.birth_date).toLocaleDateString("fr-FR", {
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric"
-                    })
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric"
+                  })
                   : "—"}
               </div>
             </div>
@@ -266,7 +344,7 @@ export default function UserDetails({
             style={{ height: 40, padding: '0 12px', marginBottom: "10px" }}
             onClick={() => setShowDelete(true)}
           >
-            <Trash2 size={15}/>
+            <Trash2 size={15} />
           </Button.Ripple>
         </div>
       </CardBody>
