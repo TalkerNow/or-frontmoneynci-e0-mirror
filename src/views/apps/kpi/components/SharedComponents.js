@@ -1,5 +1,4 @@
 import React from "react";
-import { Badge as ReactstrapBadge } from "reactstrap";
 
 export const Badge = ({ children, color }) => {
   // Mapping colors to Tailwind-like or Reactstrap classes

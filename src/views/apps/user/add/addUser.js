@@ -73,16 +73,21 @@ class AddUser extends React.Component {
       // ✅ Nouveaux champs
       secu_social: null,
       secu_social_key: null,
-
       parent_id: null,
+      business_introducer_id: null,
     },
     members: [],
     copyCompanyAddr: false,
     showAddress2: false,
     showSociety: false,
     showSocietyAddress2: false,
+    isConsultant: false,
   };
   async componentDidMount() {
+    const roleStr = (localStorage.getItem("role") || "").toLowerCase();
+    const isConsultant = roleStr.includes("consultant");
+    this.setState({ isConsultant });
+
     const Config = {
       headers: {
         Authorization: "Bearer " + localStorage.getItem("token"),
@@ -104,9 +109,14 @@ class AddUser extends React.Component {
         rowData.unshift(tmp);
         this.setState({ members: rowData });
 
-        if (rowData.length > 0) {
+        if (rowData.length > 0 && rowData[0]) {
+          const field = isConsultant ? "parent_id" : "business_introducer_id";
           this.setState({
-            data: { ...this.state.data, parent_id: rowData[0].id },
+            data: {
+              ...this.state.data,
+              [field]: rowData[0].id,
+              [isConsultant ? "business_introducer_id" : "parent_id"]: null,
+            },
           });
         }
       });
@@ -192,6 +202,7 @@ class AddUser extends React.Component {
         name: data.first_name + " " + data.last_name,
         role: data.role,
         parent_id: data.parent_id,
+        business_introducer_id: data.business_introducer_id,
       })
       .then(function (result) {
         if (result.data.accessToken) {
@@ -229,6 +240,7 @@ class AddUser extends React.Component {
 
               notes: data.notes,
               parent_id: data.parent_id,
+              business_introducer_id: data.business_introducer_id,
             })
             .then((response) => {
               waiterHide();
@@ -312,8 +324,8 @@ class AddUser extends React.Component {
     axios
       .get(
         global.config.server_url +
-          "/duplicated_email?email=" +
-          this.state.data.email,
+        "/duplicated_email?email=" +
+        this.state.data.email,
         Config
       )
       .then((response) => {
@@ -765,16 +777,35 @@ class AddUser extends React.Component {
             </Col>
             <Col md="6" sm="12">
               <FormGroup>
-                <Label for="member">Consultant</Label>
+                <Label for="member">
+                  {this.state.isConsultant
+                    ? "Consultant"
+                    : "Responsable commercial"}
+                </Label>
                 <CustomInput
                   type="select"
                   name="member"
                   id="member"
-                  onChange={(e) =>
-                    this.setState({
-                      data: { ...this.state.data, parent_id: e.target.value },
-                    })
+                  value={
+                    (this.state.isConsultant
+                      ? this.state.data.parent_id
+                      : this.state.data.business_introducer_id) || ""
                   }
+                  onChange={(e) => {
+                    const field = this.state.isConsultant
+                      ? "parent_id"
+                      : "business_introducer_id";
+                    const otherField = this.state.isConsultant
+                      ? "business_introducer_id"
+                      : "parent_id";
+                    this.setState({
+                      data: {
+                        ...this.state.data,
+                        [field]: e.target.value,
+                        [otherField]: null,
+                      },
+                    });
+                  }}
                 >
                   {this.state.members.map((member, index) => (
                     <option key={index} value={member.id}>

@@ -1112,12 +1112,52 @@ class EditContract extends React.Component {
       for (let i = 0; i < pages.length; i++) {
         if (i > 0) pdf.addPage();
 
-        // Capture de l'élément avec html2canvas
+        // Capture de l'élément avec html2canvas ET le fix des inputs
         const canvas = await html2canvas(pages[i], {
           scale: 2, // Meilleure qualité
           useCORS: true,
           logging: false,
-          windowWidth: 1200 // Force une largeur pour éviter les soucis de responsive
+          windowWidth: 1200, // Force une largeur pour éviter les soucis de responsive
+
+          // --- DÉBUT DU FIX MAGIQUE ---
+          onclone: (clonedDoc) => {
+            // On récupère tous les inputs dans la copie du document (invisible pour l'utilisateur)
+            const inputs = clonedDoc.querySelectorAll(".contract-page input");
+
+            inputs.forEach((input) => {
+              // 1. On crée un élément texte (span) pour remplacer l'input
+              const span = clonedDoc.createElement("span");
+
+              // 2. On lui donne exactement la valeur visible de l'input
+              span.innerText = input.value;
+
+              // 3. On copie/force le style pour que ça ressemble à l'écran
+              span.style.fontSize = "15px";
+              span.style.color = "#575757";
+              span.style.fontWeight = "500";
+              span.style.fontFamily = "inherit";
+
+              // 4. On nettoie tout ce qui peut gêner (bordures, fond, padding)
+              span.style.background = "transparent";
+              span.style.border = "none";
+              span.style.padding = "0";
+              span.style.margin = "0";
+
+              // 5. On gère l'alignement
+              span.style.display = "inline-block";
+              span.style.textAlign = input.style.textAlign || "left";
+              span.style.width = input.style.width || "auto";
+
+              // LE PLUS IMPORTANT : L'alignement vertical pour que ce soit sur la même ligne
+              span.style.verticalAlign = "baseline";
+
+              // 6. On remplace l'input par le span dans le PDF
+              if (input.parentNode) {
+                input.parentNode.replaceChild(span, input);
+              }
+            });
+          },
+          // --- FIN DU FIX MAGIQUE ---
         });
 
         const imgData = canvas.toDataURL("image/jpeg", 0.9); // JPEG compressé
