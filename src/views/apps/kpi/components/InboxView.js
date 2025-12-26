@@ -26,6 +26,16 @@ import {
 } from "lucide-react";
 import { Badge } from "./SharedComponents";
 
+// Disqualification reasons
+const DISQUALIFICATION_REASONS = [
+  { value: "faux_numero", label: "Faux Numéro / Injoignable" },
+  { value: "pas_budget", label: "Pas de budget / Trop cher" },
+  { value: "hors_cible", label: "Hors Cible (Trop jeune / Déjà retraité)" },
+  { value: "pas_interesse", label: "Pas intéressé / Refus" },
+  { value: "doublon", label: "Doublon" },
+  { value: "autre", label: "Autre" },
+];
+
 const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
 
 const EOR_SYSTEM_PROMPT = `
@@ -876,6 +886,39 @@ const InboxView = ({
   });
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
+  // Disqualify Modal state
+  const [showDisqualifyModal, setShowDisqualifyModal] = useState(false);
+  const [disqualifyReason, setDisqualifyReason] = useState("");
+  const [disqualifyComment, setDisqualifyComment] = useState("");
+  const [isDisqualifying, setIsDisqualifying] = useState(false);
+
+  // Track disqualified IDs to filter them out locally
+  const [disqualifiedIds, setDisqualifiedIds] = useState(() => {
+    try {
+      const stored = localStorage.getItem("inbox_disqualified_ids");
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  // Persist disqualified IDs to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "inbox_disqualified_ids",
+        JSON.stringify([...disqualifiedIds])
+      );
+    } catch (e) {
+      console.error("Failed to save disqualified IDs:", e);
+    }
+  }, [disqualifiedIds]);
+
+  // Filter out disqualified items from the visible list
+  const visibleInboxItems = inboxItems.filter(
+    (item) => !disqualifiedIds.has(item.id)
+  );
+
   // Get current strategic analysis for selected item
   const strategicAnalysis = selectedItem?.id
     ? strategicAnalysisCache[selectedItem.id]
@@ -919,15 +962,17 @@ const InboxView = ({
     });
   };
 
-  // Update selectedItem when inboxItems change
+  // Update selectedItem when visibleInboxItems change
   useEffect(() => {
-    if (inboxItems.length > 0) {
-      const currentInList = inboxItems.find((i) => i.id === selectedItem.id);
+    if (visibleInboxItems.length > 0) {
+      const currentInList = visibleInboxItems.find(
+        (i) => i.id === selectedItem.id
+      );
       if (!currentInList) {
-        setSelectedItem(inboxItems[0]);
+        setSelectedItem(visibleInboxItems[0]);
       }
     }
-  }, [items, selectedItem.id]);
+  }, [items, selectedItem.id, disqualifiedIds]);
 
   useEffect(() => {
     setAiDraft(null);
@@ -975,6 +1020,115 @@ const InboxView = ({
       setShowFeedback(false);
       setFeedbackSent(false);
     }, 2000);
+  };
+
+  // Disqualify handlers
+  const handleOpenDisqualifyModal = () => {
+    setDisqualifyReason("");
+    setDisqualifyComment("");
+    setShowDisqualifyModal(true);
+  };
+
+  const handleCloseDisqualifyModal = () => {
+    setShowDisqualifyModal(false);
+    setDisqualifyReason("");
+    setDisqualifyComment("");
+  };
+
+  const handleConfirmDisqualify = async () => {
+    if (!disqualifyReason) {
+      alert("Veuillez sélectionner un motif de disqualification.");
+      return;
+    }
+
+    if (!selectedItem?.id) return;
+
+    setIsDisqualifying(true);
+
+    try {
+      // API call to update status (soft delete)
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${
+          process.env.REACT_APP_API_URL || window.location.origin
+        }/api/prospects/${selectedItem.id}/disqualify`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            status: "DISQUALIFIED",
+            disqualification_reason: disqualifyReason,
+            disqualification_comment: disqualifyComment,
+          }),
+        }
+      );
+
+      // Even if API fails, we update locally for UX (optimistic update)
+      if (!response.ok) {
+        console.warn("API disqualify failed, applying local update only");
+      }
+
+      // Add to disqualified IDs to filter out from list
+      setDisqualifiedIds((prev) => new Set([...prev, selectedItem.id]));
+
+      // Close modal
+      handleCloseDisqualifyModal();
+
+      // Move to next item
+      const currentIndex = visibleInboxItems.findIndex(
+        (item) => item.id === selectedItem.id
+      );
+      const nextItem =
+        visibleInboxItems[currentIndex + 1] || visibleInboxItems[0];
+      if (nextItem && nextItem.id !== selectedItem.id) {
+        setSelectedItem(nextItem);
+      }
+
+      // Show success toast (simple alert for now, can be replaced with toast library)
+      // Using a custom toast-like notification
+      const toast = document.createElement("div");
+      toast.innerHTML = `
+        <div style="
+          position: fixed;
+          bottom: 24px;
+          right: 24px;
+          background: #10b981;
+          color: white;
+          padding: 12px 20px;
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 14px;
+          font-weight: 500;
+          z-index: 10000;
+          animation: slideIn 0.3s ease;
+        ">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+          Prospect disqualifié
+        </div>
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    } catch (error) {
+      console.error("Disqualify error:", error);
+      alert(
+        "Une erreur est survenue. Le prospect a été marqué localement comme disqualifié."
+      );
+
+      // Still apply local update
+      setDisqualifiedIds((prev) => new Set([...prev, selectedItem.id]));
+      handleCloseDisqualifyModal();
+    } finally {
+      setIsDisqualifying(false);
+    }
   };
 
   const getTypeIcon = (type) => {
@@ -1079,7 +1233,7 @@ const InboxView = ({
               <Loader size={32} className="animate-spin" />
               <p>Chargement des conversations...</p>
             </div>
-          ) : inboxItems.length === 0 ? (
+          ) : visibleInboxItems.length === 0 ? (
             <div
               style={{
                 display: "flex",
@@ -1118,7 +1272,7 @@ const InboxView = ({
               </p>
             </div>
           ) : (
-            inboxItems.map((item) => (
+            visibleInboxItems.map((item) => (
               <div
                 key={item.id}
                 onClick={() => {
@@ -1268,7 +1422,7 @@ const InboxView = ({
                 {getTypeLabel(selectedItem.type)}
               </Badge>
               <span style={{ fontSize: "12px", color: "#9ca3af" }}>
-                Reçu le {selectedItem.date} • Source: Site Web
+                Reçu le {selectedItem.date} • Source: EOR Consultant
               </span>
             </div>
             <div
@@ -1276,7 +1430,7 @@ const InboxView = ({
               style={{ display: "flex", gap: "8px" }}
             >
               <button
-                className=""
+                onClick={handleOpenDisqualifyModal}
                 style={{
                   padding: "8px 12px",
                   fontSize: "14px",
@@ -1288,6 +1442,13 @@ const InboxView = ({
                   gap: "8px",
                   border: "none",
                   cursor: "pointer",
+                  transition: "all 0.2s ease",
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = "#fee2e2";
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = "#fef2f2";
                 }}
               >
                 <XCircle size={16} /> Disqualifier
@@ -2976,6 +3137,311 @@ const InboxView = ({
           </div>
         </div>
       </div>
+
+      {/* Disqualify Modal */}
+      {showDisqualifyModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10000,
+            backdropFilter: "blur(2px)",
+          }}
+          onClick={handleCloseDisqualifyModal}
+        >
+          <div
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: "12px",
+              boxShadow: "0 20px 50px rgba(0, 0, 0, 0.25)",
+              width: "100%",
+              maxWidth: "480px",
+              margin: "16px",
+              overflow: "hidden",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                padding: "20px 24px",
+                borderBottom: "1px solid #f3f4f6",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "12px" }}
+              >
+                <div
+                  style={{
+                    width: "40px",
+                    height: "40px",
+                    borderRadius: "10px",
+                    backgroundColor: "#fef2f2",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <XCircle size={20} color="#dc2626" />
+                </div>
+                <h3
+                  style={{
+                    margin: 0,
+                    fontSize: "18px",
+                    fontWeight: 600,
+                    color: "#111827",
+                  }}
+                >
+                  Disqualifier le prospect
+                </h3>
+              </div>
+              <button
+                onClick={handleCloseDisqualifyModal}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "8px",
+                  borderRadius: "6px",
+                  color: "#6b7280",
+                  transition: "all 0.2s",
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = "#f3f4f6";
+                  e.currentTarget.style.color = "#111827";
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#6b7280";
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: "24px" }}>
+              <p
+                style={{
+                  margin: "0 0 20px",
+                  fontSize: "14px",
+                  color: "#374151",
+                  lineHeight: "1.6",
+                }}
+              >
+                Vous êtes sur le point de disqualifier{" "}
+                <strong style={{ color: "#111827" }}>
+                  {selectedItem?.name}
+                </strong>
+                . Cette action ne supprimera pas le prospect mais le retirera de
+                votre flux actif.
+              </p>
+
+              {/* Reason Select */}
+              <div style={{ marginBottom: "16px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    color: "#111827",
+                    marginBottom: "8px",
+                  }}
+                >
+                  Motif de disqualification{" "}
+                  <span style={{ color: "#7367f0" }}>*</span>
+                </label>
+                <select
+                  value={disqualifyReason}
+                  onChange={(e) => setDisqualifyReason(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "12px 14px",
+                    fontSize: "14px",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "8px",
+                    backgroundColor: "#fff",
+                    color: disqualifyReason ? "#111827" : "#6b7280",
+                    cursor: "pointer",
+                    outline: "none",
+                    appearance: "none",
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+                    backgroundRepeat: "no-repeat",
+                    backgroundPosition: "right 12px center",
+                    transition: "border-color 0.2s, box-shadow 0.2s",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "#7367f0";
+                    e.target.style.boxShadow =
+                      "0 0 0 3px rgba(115, 103, 240, 0.15)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "#e5e7eb";
+                    e.target.style.boxShadow = "none";
+                  }}
+                >
+                  <option value="" style={{ color: "#6b7280" }}>
+                    Sélectionnez un motif...
+                  </option>
+                  {DISQUALIFICATION_REASONS.map((reason) => (
+                    <option
+                      key={reason.value}
+                      value={reason.value}
+                      style={{ color: "#111827" }}
+                    >
+                      {reason.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Comment Textarea */}
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    color: "#111827",
+                    marginBottom: "8px",
+                  }}
+                >
+                  Commentaire{" "}
+                  <span style={{ color: "#6b7280", fontWeight: 400 }}>
+                    (optionnel)
+                  </span>
+                </label>
+                <textarea
+                  value={disqualifyComment}
+                  onChange={(e) => setDisqualifyComment(e.target.value)}
+                  placeholder="Ajoutez un commentaire pour préciser le contexte..."
+                  style={{
+                    width: "100%",
+                    padding: "12px 14px",
+                    fontSize: "14px",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "8px",
+                    backgroundColor: "#fff",
+                    minHeight: "100px",
+                    resize: "vertical",
+                    outline: "none",
+                    fontFamily: "inherit",
+                    transition: "border-color 0.2s, box-shadow 0.2s",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "#7367f0";
+                    e.target.style.boxShadow =
+                      "0 0 0 3px rgba(115, 103, 240, 0.15)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "#e5e7eb";
+                    e.target.style.boxShadow = "none";
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              className="modal-footer-responsive"
+              style={{
+                padding: "16px 24px",
+                borderTop: "1px solid #f3f4f6",
+                display: "flex",
+                justifyContent: "flex-end",
+                flexWrap: "wrap",
+                gap: "12px",
+                backgroundColor: "#f9fafb",
+              }}
+            >
+              <button
+                onClick={handleCloseDisqualifyModal}
+                disabled={isDisqualifying}
+                style={{
+                  padding: "10px 20px",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  color: "#fff",
+                  backgroundColor: isDisqualifying ? "#a5b4fc" : "#7367f0",
+                  border: "none",
+                  borderRadius: "8px",
+                  cursor: isDisqualifying ? "not-allowed" : "pointer",
+                  transition: "all 0.2s",
+                  opacity: isDisqualifying ? 0.5 : 1,
+                }}
+                onMouseOver={(e) => {
+                  if (!isDisqualifying) {
+                    e.currentTarget.style.backgroundColor = "#5a4ed1";
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (!isDisqualifying) {
+                    e.currentTarget.style.backgroundColor = "#7367f0";
+                  }
+                }}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleConfirmDisqualify}
+                disabled={isDisqualifying || !disqualifyReason}
+                style={{
+                  padding: "10px 20px",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  color: "#fff",
+                  backgroundColor:
+                    isDisqualifying || !disqualifyReason
+                      ? "#fca5a5"
+                      : "#dc2626",
+                  border: "none",
+                  borderRadius: "8px",
+                  cursor:
+                    isDisqualifying || !disqualifyReason
+                      ? "not-allowed"
+                      : "pointer",
+                  transition: "all 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
+                onMouseOver={(e) => {
+                  if (!isDisqualifying && disqualifyReason) {
+                    e.currentTarget.style.backgroundColor = "#b91c1c";
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (!isDisqualifying && disqualifyReason) {
+                    e.currentTarget.style.backgroundColor = "#dc2626";
+                  }
+                }}
+              >
+                {isDisqualifying ? (
+                  <>
+                    <Loader size={16} className="animate-spin" />
+                    Disqualification...
+                  </>
+                ) : (
+                  <>
+                    <XCircle size={16} />
+                    Confirmer la disqualification
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
