@@ -759,14 +759,29 @@ export default function KpiPage() {
     try {
       setLoadingConversations(true);
       setConvError("");
+      let p = 1;
+      let aggregated = [];
+      let maxPage = 1;
 
-      // backend : GET /api/conversation-archives → front : "/conversation-archives"
-      const res = await API.get("/conversation-archives");
+      do {
+        const res = await API.get("/conversation-archives", {
+          params: { page: p },
+        });
+        const payload = res.data || {};
+        const data = Array.isArray(payload.data)
+          ? payload.data
+          : Array.isArray(payload)
+          ? payload
+          : [];
 
-      const payload = res.data || {};
-      const data = Array.isArray(payload.data) ? payload.data : [];
+        aggregated = aggregated.concat(data);
+        setConversations([...aggregated]);
 
-      setConversations(data);
+        maxPage = payload.last_page || payload.meta?.last_page || 1;
+        if (Array.isArray(payload)) maxPage = 1;
+        p += 1;
+        if (p > 100) break;
+      } while (p <= maxPage);
     } catch (e) {
       console.error("fetchConversationArchives error:", e);
       setConvError("Impossible de charger les conversations.");
@@ -779,18 +794,29 @@ export default function KpiPage() {
     try {
       setLoadingDiagnostics(true);
       setDiagError("");
+      let p = 1;
+      let aggregated = [];
+      let maxPage = 1;
 
-      // API v1: GET /api/v1/simulator-difficulty-results
-      const res = await API.get("/v1/simulator-difficulty-results");
+      do {
+        const res = await API.get("/v1/simulator-difficulty-results", {
+          params: { page: p },
+        });
+        const payload = res.data || {};
+        const data = Array.isArray(payload.data)
+          ? payload.data
+          : Array.isArray(payload)
+          ? payload
+          : [];
 
-      const payload = res.data || {};
-      const data = Array.isArray(payload.data)
-        ? payload.data
-        : Array.isArray(payload)
-        ? payload
-        : [];
+        aggregated = aggregated.concat(data);
+        setDiagnostics([...aggregated]);
 
-      setDiagnostics(data);
+        maxPage = payload.last_page || payload.meta?.last_page || 1;
+        if (Array.isArray(payload)) maxPage = 1;
+        p += 1;
+        if (p > 100) break;
+      } while (p <= maxPage);
     } catch (e) {
       console.error("fetchDiagnosticResults error:", e);
       setDiagError("Impossible de charger les diagnostics.");
@@ -810,7 +836,7 @@ export default function KpiPage() {
 
       do {
         const res = await API.get("/kpis", {
-          params: p > 1 ? { page: p } : {},
+          params: { page: p },
         });
         const payload = res.data;
         const data = Array.isArray(payload?.data)
@@ -821,11 +847,23 @@ export default function KpiPage() {
 
         aggregated = aggregated.concat(data);
 
-        maxPage = payload?.last_page || payload?.meta?.last_page || 1;
-        p += 1;
-      } while (p <= maxPage);
+        // Update allItems incrementally for better UX
+        setAllItems([...aggregated]);
 
-      setAllItems(aggregated);
+        // Update maxPage from payload metadata if available
+        const metaMax =
+          payload?.last_page ||
+          payload?.meta?.last_page ||
+          payload?.meta?.pagination?.total_pages;
+        maxPage = metaMax || 1;
+
+        // If it's a flat array, we already have everything
+        if (Array.isArray(payload)) maxPage = 1;
+
+        p += 1;
+        // Safety break
+        if (p > 500) break;
+      } while (p <= maxPage);
     } catch (e) {
       console.error(e);
       setError(
@@ -2062,15 +2100,52 @@ export default function KpiPage() {
           items={[
             ...conversations.map((c) => ({ ...c, _source: "chatbot" })),
             ...diagnostics.map((d) => ({ ...d, _source: "diagnostic" })),
+            ...allItems
+              .filter((kpi) => {
+                const obj = (kpi.objet || kpi.object || "")
+                  .toString()
+                  .toLowerCase();
+                const act = (kpi.action || "").toString().toLowerCase();
+
+                return (
+                  obj.includes("email") ||
+                  obj.includes("appel") ||
+                  act.includes("email") ||
+                  act.includes("appel") ||
+                  act === "email reçu" ||
+                  act === "email recu"
+                );
+              })
+              .map((kpi) => {
+                const obj = (kpi.objet || kpi.object || "")
+                  .toString()
+                  .toLowerCase();
+                const act = (kpi.action || "").toString().toLowerCase();
+
+                const isEmail =
+                  obj.includes("email") ||
+                  act.includes("email") ||
+                  act.includes("email reçu") ||
+                  act.includes("email recu");
+
+                return {
+                  ...kpi,
+                  _source: isEmail ? "email" : "call",
+                };
+              }),
           ]}
           filter={
             location.pathname.includes("/inbox/chatbot")
               ? "chatbot"
               : location.pathname.includes("/inbox/diagnostic")
               ? "diagnostic"
+              : location.pathname.includes("/inbox/call")
+              ? "call"
+              : location.pathname.includes("/inbox/email")
+              ? "email"
               : "all"
           }
-          loading={loadingConversations || loadingDiagnostics}
+          loading={loadingConversations || loadingDiagnostics || loadingList}
           error={convError || diagError}
           onSelect={handleSelectConversation}
         />

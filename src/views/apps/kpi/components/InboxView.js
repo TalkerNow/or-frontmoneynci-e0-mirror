@@ -21,6 +21,8 @@ import {
   AlertTriangle,
   TrendingUp,
   Lightbulb,
+  Mail,
+  FileText,
 } from "lucide-react";
 import { Badge } from "./SharedComponents";
 
@@ -792,7 +794,14 @@ function mapConversationToInboxItem(conv) {
       conv.created_at || conv.kpi_date || new Date().toISOString()
     ),
     score: conv.diagnostic_score || 0,
-    summary: extractSummaryFromMessages(conv.messages),
+    summary:
+      conv.messages && conv.messages.length > 0
+        ? extractSummaryFromMessages(conv.messages)
+        : conv.note
+        ? [conv.note]
+        : conv.objet
+        ? [conv.objet]
+        : [],
     status: conv.status || conv.action || "new", // Fallback to action for KPIs
     priority: conv.priority || "medium",
     raw: conv,
@@ -810,8 +819,8 @@ const InboxView = ({
   const allInboxItems =
     items && items.length > 0
       ? items.map(mapConversationToInboxItem).sort((a, b) => {
-          const dateA = new Date(a.raw?.created_at || 0);
-          const dateB = new Date(b.raw?.created_at || 0);
+          const dateA = new Date(a.raw?.created_at || a.raw?.kpi_date || 0);
+          const dateB = new Date(b.raw?.created_at || b.raw?.kpi_date || 0);
           return dateB - dateA; // Most recent first
         })
       : [];
@@ -935,7 +944,13 @@ const InboxView = ({
       CONTEXTE DU PROSPECT :
       - Nom: ${selectedItem.name}
       - Type : ${
-        selectedItem.type === "diagnostic" ? "Diagnostic en ligne" : "Chatbot"
+        selectedItem.type === "diagnostic"
+          ? "Diagnostic en ligne"
+          : selectedItem.type === "call"
+          ? "Appel téléphonique"
+          : selectedItem.type === "email"
+          ? "Email de contact"
+          : "Chatbot"
       }
       - Points clés : ${selectedItem.summary?.join(", ")}
       ${
@@ -967,9 +982,11 @@ const InboxView = ({
       case "chatbot":
         return <MessageSquare size={14} className="text-blue-500" />;
       case "call":
-        return <PhoneIncoming size={14} className="text-green-500" />;
+        return <Phone size={14} className="text-green-500" />;
+      case "email":
+        return <Mail size={14} className="text-indigo-500" />;
       case "diagnostic":
-        return <ClipboardList size={14} className="text-orange-500" />;
+        return <FileText size={14} className="text-orange-500" />;
       default:
         return <MessageSquare size={14} />;
     }
@@ -981,6 +998,8 @@ const InboxView = ({
         return "Chatbot";
       case "call":
         return "Appel";
+      case "email":
+        return "Email";
       case "diagnostic":
         return "Diagnostic";
       default:
@@ -994,6 +1013,8 @@ const InboxView = ({
         return "blue";
       case "call":
         return "green";
+      case "email":
+        return "indigo";
       case "diagnostic":
         return "orange";
       default:
@@ -1004,9 +1025,7 @@ const InboxView = ({
   // Inline styles for layout since Tailwind might not be fully available
   const containerStyle = {
     display: "flex",
-    flexWrap: "wrap",
-    height: "auto",
-    minHeight: "calc(100vh - 180px)", // Adjust based on header/footer
+    height: "calc(100vh - 180px)",
     backgroundColor: "#fff",
     borderRadius: "8px",
     boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
@@ -1022,9 +1041,12 @@ const InboxView = ({
       <div
         className="inbox-left-panel"
         style={{
+          width: "380px",
+          flexShrink: 0,
           borderRight: "1px solid #e5e7eb",
           display: "flex",
           flexDirection: "column",
+          height: "100%",
         }}
       >
         <div
@@ -1112,7 +1134,13 @@ const InboxView = ({
                   backgroundColor:
                     selectedItem.id === item.id ? "#eef2ff" : "transparent",
                   borderLeft: `4px solid ${
-                    item.type === "diagnostic" ? "#f97316" : "#3b82f6"
+                    item.type === "diagnostic"
+                      ? "#f97316"
+                      : item.type === "call"
+                      ? "#22c55e"
+                      : item.type === "email"
+                      ? "#6366f1"
+                      : "#3b82f6"
                   }`,
                   transition: "background-color 0.2s",
                 }}
@@ -1206,9 +1234,12 @@ const InboxView = ({
       <div
         className="inbox-right-panel"
         style={{
+          flex: 1,
           display: "flex",
           flexDirection: "column",
           backgroundColor: "#fff",
+          height: "100%",
+          overflowY: "auto",
         }}
       >
         {/* Header */}
@@ -1295,7 +1326,9 @@ const InboxView = ({
                 marginBottom: "4px",
               }}
             >
-              {selectedItem.type === "diagnostic" ? (
+              {selectedItem.type === "diagnostic" ||
+              selectedItem.type === "call" ||
+              selectedItem.type === "email" ? (
                 <>
                   <User size={12} /> Nom du prospect
                 </>
@@ -1315,7 +1348,9 @@ const InboxView = ({
               }}
             >
               <span style={{ fontWeight: 600, color: "#1f2937" }}>
-                {selectedItem.type === "diagnostic"
+                {selectedItem.type === "diagnostic" ||
+                selectedItem.type === "call" ||
+                selectedItem.type === "email"
                   ? selectedItem.name || "-"
                   : formatPhoneNumber(selectedItem.phone) || "-"}
               </span>
@@ -2569,18 +2604,28 @@ const InboxView = ({
           ) : (
             <div
               style={{
-                backgroundColor: "#eff6ff",
+                backgroundColor:
+                  selectedItem.type === "call" || selectedItem.type === "email"
+                    ? "#f9fafb"
+                    : "#eff6ff",
                 borderRadius: "12px",
                 padding: "20px",
                 marginBottom: "24px",
-                border: "1px solid #dbeafe",
+                border:
+                  selectedItem.type === "call" || selectedItem.type === "email"
+                    ? "1px solid #e5e7eb"
+                    : "1px solid #dbeafe",
               }}
             >
               <h3
                 style={{
                   fontSize: "14px",
                   fontWeight: "bold",
-                  color: "#1e40af",
+                  color:
+                    selectedItem.type === "call" ||
+                    selectedItem.type === "email"
+                      ? "#374151"
+                      : "#1e40af",
                   marginBottom: "12px",
                   textTransform: "uppercase",
                   letterSpacing: "0.05em",
@@ -2589,7 +2634,16 @@ const InboxView = ({
                   gap: "8px",
                 }}
               >
-                <MessageSquare size={16} /> Résumé IA (Synthèse)
+                {selectedItem.type === "call" ||
+                selectedItem.type === "email" ? (
+                  <>
+                    <ClipboardList size={16} /> Détails de l'échange
+                  </>
+                ) : (
+                  <>
+                    <MessageSquare size={16} /> Résumé IA (Synthèse)
+                  </>
+                )}
               </h3>
               <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                 {selectedItem.summary?.map((point, idx) => (
@@ -2608,7 +2662,11 @@ const InboxView = ({
                         marginTop: "6px",
                         width: "6px",
                         height: "6px",
-                        backgroundColor: "#60a5fa",
+                        backgroundColor:
+                          selectedItem.type === "call" ||
+                          selectedItem.type === "email"
+                            ? "#9ca3af"
+                            : "#60a5fa",
                         borderRadius: "50%",
                         flexShrink: 0,
                       }}
@@ -2618,34 +2676,36 @@ const InboxView = ({
                 ))}
               </ul>
 
-              {/* View Full Conversation Button */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  marginTop: "12px",
-                }}
-              >
-                <button
-                  onClick={() => setShowConversationModal(true)}
+              {/* View Full Conversation Button - Only for chatbot sessions */}
+              {selectedItem.type === "chatbot" && (
+                <div
                   style={{
-                    backgroundColor: "#f0f9ff",
-                    border: "1px solid #bae6fd",
-                    color: "#0369a1",
-                    fontSize: "12px",
-                    fontWeight: 500,
-                    cursor: "pointer",
                     display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    padding: "8px 14px",
-                    borderRadius: "6px",
-                    transition: "all 0.2s ease",
+                    justifyContent: "flex-end",
+                    marginTop: "12px",
                   }}
                 >
-                  <Eye size={14} /> Voir la conversation
-                </button>
-              </div>
+                  <button
+                    onClick={() => setShowConversationModal(true)}
+                    style={{
+                      backgroundColor: "#f0f9ff",
+                      border: "1px solid #bae6fd",
+                      color: "#0369a1",
+                      fontSize: "12px",
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "8px 14px",
+                      borderRadius: "6px",
+                      transition: "all 0.2s ease",
+                    }}
+                  >
+                    <Eye size={14} /> Voir la conversation
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -2797,97 +2857,100 @@ const InboxView = ({
             </div>
           )}
 
-          {/* AI REPLY */}
-          <div style={{ marginTop: "24px", marginBottom: "24px" }}>
-            <div
-              className="header-btn-stack"
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "12px",
-              }}
-            >
-              <h3
+          {/* AI REPLY - Hidden for call/email manually listed */}
+          {selectedItem.type !== "call" && selectedItem.type !== "email" && (
+            <div style={{ marginTop: "24px", marginBottom: "24px" }}>
+              <div
+                className="header-btn-stack"
                 style={{
-                  fontWeight: 600,
-                  color: "#374151",
-                  fontSize: "16px",
-                  margin: 0,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "12px",
                 }}
               >
-                Réponse Rapide
-              </h3>
-              {!aiDraft && !isGenerating && (
-                <button
-                  onClick={handleGenerateReply}
-                  className="btn-sm btn-light-primary"
+                <h3
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    borderRadius: "999px",
+                    fontWeight: 600,
+                    color: "#374151",
+                    fontSize: "16px",
+                    margin: 0,
                   }}
                 >
-                  <Star size={14} style={{ marginRight: "4px" }} /> Brouillon IA
-                </button>
-              )}
-            </div>
-
-            {isGenerating && (
-              <div
-                style={{
-                  padding: "24px",
-                  textAlign: "center",
-                  color: "#6b7280",
-                  backgroundColor: "#f9fafb",
-                  borderRadius: "8px",
-                }}
-              >
-                Génération...
-              </div>
-            )}
-
-            {aiDraft && (
-              <div
-                style={{
-                  border: "1px solid #e9d5ff",
-                  borderRadius: "8px",
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    backgroundColor: "#f3e8ff",
-                    padding: "8px 16px",
-                    borderBottom: "1px solid #e9d5ff",
-                    display: "flex",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <span
+                  Réponse Rapide
+                </h3>
+                {!aiDraft && !isGenerating && (
+                  <button
+                    onClick={handleGenerateReply}
+                    className="btn-sm btn-light-primary"
                     style={{
-                      fontSize: "12px",
-                      fontWeight: "bold",
-                      color: "#6b21a8",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      borderRadius: "999px",
                     }}
                   >
-                    Suggestion IA
-                  </span>
-                  <XCircle
-                    size={14}
-                    style={{ cursor: "pointer", color: "#9333ea" }}
-                    onClick={() => setAiDraft(null)}
+                    <Star size={14} style={{ marginRight: "4px" }} /> Brouillon
+                    IA
+                  </button>
+                )}
+              </div>
+
+              {isGenerating && (
+                <div
+                  style={{
+                    padding: "24px",
+                    textAlign: "center",
+                    color: "#6b7280",
+                    backgroundColor: "#f9fafb",
+                    borderRadius: "8px",
+                  }}
+                >
+                  Génération...
+                </div>
+              )}
+
+              {aiDraft && (
+                <div
+                  style={{
+                    border: "1px solid #e9d5ff",
+                    borderRadius: "8px",
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      backgroundColor: "#f3e8ff",
+                      padding: "8px 16px",
+                      borderBottom: "1px solid #e9d5ff",
+                      display: "flex",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: "12px",
+                        fontWeight: "bold",
+                        color: "#6b21a8",
+                      }}
+                    >
+                      Suggestion IA
+                    </span>
+                    <XCircle
+                      size={14}
+                      style={{ cursor: "pointer", color: "#9333ea" }}
+                      onClick={() => setAiDraft(null)}
+                    />
+                  </div>
+                  <textarea
+                    className="form-control"
+                    style={{ border: "none", minHeight: "150px" }}
+                    defaultValue={aiDraft}
                   />
                 </div>
-                <textarea
-                  className="form-control"
-                  style={{ border: "none", minHeight: "150px" }}
-                  defaultValue={aiDraft}
-                />
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           {/* Actions Section with Tabs */}
           <div
