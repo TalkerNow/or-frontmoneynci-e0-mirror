@@ -58,6 +58,22 @@ const items = {
             permissions: ["admin", "Consultant", "Expert"],
             navLink: "/kpi/inbox/diagnostic",
           },
+          {
+            id: "crm-inbox-call",
+            title: "Appels",
+            type: "item",
+            icon: <Icon.Phone size={14} />,
+            permissions: ["admin", "Consultant", "Expert"],
+            navLink: "/kpi/inbox/call",
+          },
+          {
+            id: "crm-inbox-email",
+            title: "Emails",
+            type: "item",
+            icon: <Icon.Mail size={14} />,
+            permissions: ["admin", "Consultant", "Expert"],
+            navLink: "/kpi/inbox/email",
+          },
         ],
       },
       {
