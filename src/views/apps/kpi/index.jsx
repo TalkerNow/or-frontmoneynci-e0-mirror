@@ -38,7 +38,6 @@ const API = axios.create({
   },
 });
 
-
 // Objets (ajout de "Email")
 
 const CALL_ACTIONS = ["Rdv pris", "Mail prestation envoyé", "NUL", "Autre"];
@@ -258,8 +257,8 @@ function renderActionBadge(action) {
   const key = ACTIONS_KNOWN.includes(action)
     ? action
     : action
-      ? ACTION_OTHER
-      : null;
+    ? ACTION_OTHER
+    : null;
   if (!key) {
     return <em style={{ opacity: 0.6 }}>(vide)</em>;
   }
@@ -681,8 +680,8 @@ export default function KpiPage() {
       const data = Array.isArray(payload?.data)
         ? payload.data
         : Array.isArray(payload)
-          ? payload
-          : [];
+        ? payload
+        : [];
 
       setItems(data);
 
@@ -692,7 +691,7 @@ export default function KpiPage() {
       console.error(e);
       setError(
         e?.response?.data?.message ||
-        "Erreur lors du chargement des KPI. Vérifie l'API."
+          "Erreur lors du chargement des KPI. Vérifie l'API."
       );
     } finally {
       setLoadingList(false);
@@ -711,7 +710,7 @@ export default function KpiPage() {
       console.error(e);
       setSuivisError(
         e?.response?.data?.message ||
-        "Erreur lors du chargement des suivis d'avancement."
+          "Erreur lors du chargement des suivis d'avancement."
       );
     } finally {
       setLoadingSuivis(false);
@@ -722,14 +721,29 @@ export default function KpiPage() {
     try {
       setLoadingConversations(true);
       setConvError("");
+      let p = 1;
+      let aggregated = [];
+      let maxPage = 1;
 
-      // backend : GET /api/conversation-archives → front : "/conversation-archives"
-      const res = await API.get("/conversation-archives");
+      do {
+        const res = await API.get("/conversation-archives", {
+          params: { page: p },
+        });
+        const payload = res.data || {};
+        const data = Array.isArray(payload.data)
+          ? payload.data
+          : Array.isArray(payload)
+          ? payload
+          : [];
 
-      const payload = res.data || {};
-      const data = Array.isArray(payload.data) ? payload.data : [];
+        aggregated = aggregated.concat(data);
+        setConversations([...aggregated]);
 
-      setConversations(data);
+        maxPage = payload.last_page || payload.meta?.last_page || 1;
+        if (Array.isArray(payload)) maxPage = 1;
+        p += 1;
+        if (p > 100) break;
+      } while (p <= maxPage);
     } catch (e) {
       console.error("fetchConversationArchives error:", e);
       setConvError("Impossible de charger les conversations.");
@@ -742,18 +756,29 @@ export default function KpiPage() {
     try {
       setLoadingDiagnostics(true);
       setDiagError("");
+      let p = 1;
+      let aggregated = [];
+      let maxPage = 1;
 
-      // API v1: GET /api/v1/simulator-difficulty-results
-      const res = await API.get("/v1/simulator-difficulty-results");
-
-      const payload = res.data || {};
-      const data = Array.isArray(payload.data)
-        ? payload.data
-        : Array.isArray(payload)
+      do {
+        const res = await API.get("/v1/simulator-difficulty-results", {
+          params: { page: p },
+        });
+        const payload = res.data || {};
+        const data = Array.isArray(payload.data)
+          ? payload.data
+          : Array.isArray(payload)
           ? payload
           : [];
 
-      setDiagnostics(data);
+        aggregated = aggregated.concat(data);
+        setDiagnostics([...aggregated]);
+
+        maxPage = payload.last_page || payload.meta?.last_page || 1;
+        if (Array.isArray(payload)) maxPage = 1;
+        p += 1;
+        if (p > 100) break;
+      } while (p <= maxPage);
     } catch (e) {
       console.error("fetchDiagnosticResults error:", e);
       setDiagError("Impossible de charger les diagnostics.");
@@ -773,28 +798,40 @@ export default function KpiPage() {
 
       do {
         const res = await API.get("/kpis", {
-          params: p > 1 ? { page: p } : {},
+          params: { page: p },
         });
         const payload = res.data;
         const data = Array.isArray(payload?.data)
           ? payload.data
           : Array.isArray(payload)
-            ? payload
-            : [];
+          ? payload
+          : [];
 
         aggregated = aggregated.concat(data);
 
-        maxPage = payload?.last_page || payload?.meta?.last_page || 1;
-        p += 1;
-      } while (p <= maxPage);
+        // Update allItems incrementally for better UX
+        setAllItems([...aggregated]);
 
-      setAllItems(aggregated);
+        // Update maxPage from payload metadata if available
+        const metaMax =
+          payload?.last_page ||
+          payload?.meta?.last_page ||
+          payload?.meta?.pagination?.total_pages;
+        maxPage = metaMax || 1;
+
+        // If it's a flat array, we already have everything
+        if (Array.isArray(payload)) maxPage = 1;
+
+        p += 1;
+        // Safety break
+        if (p > 500) break;
+      } while (p <= maxPage);
     } catch (e) {
       console.error(e);
       setError(
         e?.response?.data?.message ||
-        e?.response?.data?.error ||
-        "Erreur lors du chargement complet des KPI pour le graphique."
+          e?.response?.data?.error ||
+          "Erreur lors du chargement complet des KPI pour le graphique."
       );
     } finally {
       setLoadingChart(false);
@@ -812,8 +849,8 @@ export default function KpiPage() {
       const list = Array.isArray(payload?.data)
         ? payload.data
         : Array.isArray(payload)
-          ? payload
-          : [];
+        ? payload
+        : [];
 
       const map = {};
       list.forEach((u) => {
@@ -847,8 +884,8 @@ export default function KpiPage() {
       const list = Array.isArray(payload?.data)
         ? payload.data
         : Array.isArray(payload)
-          ? payload
-          : [];
+        ? payload
+        : [];
 
       const map = {};
       list.forEach((u) => {
@@ -924,8 +961,8 @@ export default function KpiPage() {
       console.error(e);
       setError(
         e?.response?.data?.message ||
-        e?.response?.data?.error ||
-        "Impossible de créer le KPI."
+          e?.response?.data?.error ||
+          "Impossible de créer le KPI."
       );
     } finally {
       setCreating(false);
@@ -1073,12 +1110,12 @@ export default function KpiPage() {
       const bucket = isContractFinished
         ? "completed"
         : isAfter5Days
-          ? "after5days"
-          : isSuiviSpecific
-            ? "suivi"
-            : isProcessing
-              ? "processing"
-              : "active";
+        ? "after5days"
+        : isSuiviSpecific
+        ? "suivi"
+        : isProcessing
+        ? "processing"
+        : "active";
 
       res[bucket].push({ s, steps, last, next });
     });
@@ -1225,10 +1262,10 @@ export default function KpiPage() {
             {location.pathname.includes("/kpi/suivi")
               ? "Suivi Administratif"
               : location.pathname.includes("/kpi/opportunities")
-                ? "Opportunités"
-                : location.pathname.includes("/kpi/clients") // Assuming clients route exists or will exist
-                  ? "Clients"
-                  : "Boîte De Réception"}
+              ? "Opportunités"
+              : location.pathname.includes("/kpi/clients") // Assuming clients route exists or will exist
+              ? "Clients"
+              : "Boîte De Réception"}
           </span>
         </div>
         <div style={{ marginLeft: "auto" }}>
@@ -1358,8 +1395,9 @@ export default function KpiPage() {
                     borderRadius: "50%",
                     marginRight: 8,
                     backgroundColor: showProcessing ? "#198754" : "transparent",
-                    border: `1px solid ${showProcessing ? "#198754" : "#ced4da"
-                      }`,
+                    border: `1px solid ${
+                      showProcessing ? "#198754" : "#ced4da"
+                    }`,
                   }}
                 />
                 Dossiers en cours
@@ -1383,8 +1421,9 @@ export default function KpiPage() {
                     borderRadius: "50%",
                     marginRight: 8,
                     backgroundColor: showCompleted ? "#6c757d" : "transparent",
-                    border: `1px solid ${showCompleted ? "#6c757d" : "#ced4da"
-                      }`,
+                    border: `1px solid ${
+                      showCompleted ? "#6c757d" : "#ced4da"
+                    }`,
                   }}
                 />
                 Contrats terminés
@@ -1486,9 +1525,11 @@ export default function KpiPage() {
 
                                       return (
                                         <tr
-                                          key={`after5-${s.suivi_id || s.id || ""
-                                            }-${s.document_id || s.facture_id || ""
-                                            }`}
+                                          key={`after5-${
+                                            s.suivi_id || s.id || ""
+                                          }-${
+                                            s.document_id || s.facture_id || ""
+                                          }`}
                                           onClick={() => {
                                             if (clientId) {
                                               history.push(
@@ -1623,9 +1664,11 @@ export default function KpiPage() {
 
                                       return (
                                         <tr
-                                          key={`suivi-${s.suivi_id || s.id || ""
-                                            }-${s.document_id || s.facture_id || ""
-                                            }`}
+                                          key={`suivi-${
+                                            s.suivi_id || s.id || ""
+                                          }-${
+                                            s.document_id || s.facture_id || ""
+                                          }`}
                                           onClick={() => {
                                             if (clientId) {
                                               history.push(
@@ -1719,8 +1762,9 @@ export default function KpiPage() {
 
                                   return (
                                     <tr
-                                      key={`${s.suivi_id || s.id || ""}-${s.document_id || s.facture_id || ""
-                                        }`}
+                                      key={`${s.suivi_id || s.id || ""}-${
+                                        s.document_id || s.facture_id || ""
+                                      }`}
                                       onClick={() => {
                                         if (clientId) {
                                           history.push(
@@ -1831,9 +1875,11 @@ export default function KpiPage() {
 
                                       return (
                                         <tr
-                                          key={`processing-${s.suivi_id || s.id || ""
-                                            }-${s.document_id || s.facture_id || ""
-                                            }`}
+                                          key={`processing-${
+                                            s.suivi_id || s.id || ""
+                                          }-${
+                                            s.document_id || s.facture_id || ""
+                                          }`}
                                           onClick={() => {
                                             if (clientId) {
                                               history.push(
@@ -1940,9 +1986,11 @@ export default function KpiPage() {
 
                                       return (
                                         <tr
-                                          key={`completed-${s.suivi_id || s.id || ""
-                                            }-${s.document_id || s.facture_id || ""
-                                            }`}
+                                          key={`completed-${
+                                            s.suivi_id || s.id || ""
+                                          }-${
+                                            s.document_id || s.facture_id || ""
+                                          }`}
                                           onClick={() => {
                                             if (clientId) {
                                               history.push(
@@ -2061,23 +2109,60 @@ export default function KpiPage() {
       {/* 3. INBOX (Default) */}
       {(location.pathname === "/kpi" ||
         location.pathname.includes("/inbox")) && (
-          <InboxView
-            items={[
-              ...conversations.map((c) => ({ ...c, _source: "chatbot" })),
-              ...diagnostics.map((d) => ({ ...d, _source: "diagnostic" })),
-            ]}
-            filter={
-              location.pathname.includes("/inbox/chatbot")
-                ? "chatbot"
-                : location.pathname.includes("/inbox/diagnostic")
-                  ? "diagnostic"
-                  : "all"
-            }
-            loading={loadingConversations || loadingDiagnostics}
-            error={convError || diagError}
-            onSelect={handleSelectConversation}
-          />
-        )}
+        <InboxView
+          items={[
+            ...conversations.map((c) => ({ ...c, _source: "chatbot" })),
+            ...diagnostics.map((d) => ({ ...d, _source: "diagnostic" })),
+            ...allItems
+              .filter((kpi) => {
+                const obj = (kpi.objet || kpi.object || "")
+                  .toString()
+                  .toLowerCase();
+                const act = (kpi.action || "").toString().toLowerCase();
+
+                return (
+                  obj.includes("email") ||
+                  obj.includes("appel") ||
+                  act.includes("email") ||
+                  act.includes("appel") ||
+                  act === "email reçu" ||
+                  act === "email recu"
+                );
+              })
+              .map((kpi) => {
+                const obj = (kpi.objet || kpi.object || "")
+                  .toString()
+                  .toLowerCase();
+                const act = (kpi.action || "").toString().toLowerCase();
+
+                const isEmail =
+                  obj.includes("email") ||
+                  act.includes("email") ||
+                  act.includes("email reçu") ||
+                  act.includes("email recu");
+
+                return {
+                  ...kpi,
+                  _source: isEmail ? "email" : "call",
+                };
+              }),
+          ]}
+          filter={
+            location.pathname.includes("/inbox/chatbot")
+              ? "chatbot"
+              : location.pathname.includes("/inbox/diagnostic")
+              ? "diagnostic"
+              : location.pathname.includes("/inbox/call")
+              ? "call"
+              : location.pathname.includes("/inbox/email")
+              ? "email"
+              : "all"
+          }
+          loading={loadingConversations || loadingDiagnostics || loadingList}
+          error={convError || diagError}
+          onSelect={handleSelectConversation}
+        />
+      )}
 
       {/* New KPI Modal (integrated) */}
       <KPIModal
