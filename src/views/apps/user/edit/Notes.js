@@ -235,6 +235,9 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
   // n8nCustomMessage is now local to the modal or passed directly
   const [viewingDoc, setViewingDoc] = useState(null);
   const [chatMessage, setChatMessage] = useState("");
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportDescription, setReportDescription] = useState("");
+  const [reportDoc, setReportDoc] = useState(null);
   const [manualCareerRows, setManualCareerRows] = useState([
     {
       id: Date.now(),
@@ -356,8 +359,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         return safeRows;
       });
       toast.success(
-        `Points ${
-          eventType === "ARRCO_POINTS_SAVE" ? "ARRCO" : "IRCANTEC"
+        `Points ${eventType === "ARRCO_POINTS_SAVE" ? "ARRCO" : "IRCANTEC"
         } mis à jour`
       );
     };
@@ -453,9 +455,8 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
     [id]
   );
   const handleGenerateDoc = useCallback(
-    async (type, customMessage = "") => {
-      const normalizedType =
-        type === "consult" || type === "custom" ? type : "pre";
+    async (type, customMessage = "", previousHtml = "") => {
+      const normalizedType = type === "consult" || type === "custom" ? type : "pre";
       setReportType(normalizedType);
 
       // 1) Cas "consult" : on garde ton comportement actuel (HTML statique)
@@ -522,13 +523,17 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         const tagsPrefix =
           selectedTags.length > 0
             ? `Thématiques d'analyse : ${selectedTags
-                .map((t) => t.label)
-                .join(", ")}\n\n`
+              .map((t) => t.label)
+              .join(", ")}\n\n`
             : "";
-        const finalMessage = `${tagsPrefix}${
-          currentMessage || ""
-        }\n\nNombre d'enfants : ${childrenCount}`.trim();
+        const finalMessage = `${tagsPrefix}${currentMessage || ""
+          }\n\nNombre d'enfants : ${childrenCount}`.trim();
         n8nFormData.append("message", finalMessage);
+
+        // Ajout du contenu HTML précédent si disponible (pour les rapports spécifiques)
+        if (previousHtml) {
+          n8nFormData.append("previous_html", previousHtml);
+        }
 
         // Ajout de l'ID client pour identification côté webhook
         if (id) {
@@ -536,8 +541,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         }
 
         toast.info(
-          `Analyse en cours (${
-            normalizedType === "custom" ? "Spécifique" : "Standard"
+          `Analyse en cours (${normalizedType === "custom" ? "Spécifique" : "Standard"
           })…`
         );
 
@@ -582,9 +586,8 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         // Si c'est du HTML, il sera affiché tel quel. Si c'est du texte, il sera affiché brut.
 
         // On crée un fichier HTML pour display
-        const fileName = `Rapport_${
-          normalizedType === "custom" ? "Specifique" : "Standard"
-        }_${new Date().getTime()}.html`;
+        const fileName = `Rapport_${normalizedType === "custom" ? "Specifique" : "Standard"
+          }_${new Date().getTime()}.html`;
         const fileBlob = new Blob([contentString], {
           type: "text/html;charset=utf-8",
         });
@@ -655,7 +658,30 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
 
   const handleModalGenerate = async () => {
     if (!chatMessage.trim()) return;
-    const newDoc = await handleGenerateDoc("custom", chatMessage);
+
+    let htmlToSend = viewingDoc?.htmlContent || "";
+
+    // Si pas de contenu local mais une URL, on tente de récupérer le HTML via le proxy
+    if (!htmlToSend && viewingDoc?.url) {
+      try {
+        const Config = {
+          headers: { Authorization: "Bearer " + localStorage.getItem("token") }
+        };
+        const response = await axios.post(
+          `${global.config.server_url}/fetch-html`,
+          { url: viewingDoc.url },
+          Config
+        );
+        if (response.data && response.data.html) {
+          htmlToSend = response.data.html;
+        }
+      } catch (err) {
+        console.warn("Impossible de récupérer le HTML contextuel:", err);
+        // On continue sans le HTML, ou on pourrait bloquer/avertir l'utilisateur
+      }
+    }
+
+    const newDoc = await handleGenerateDoc("custom", chatMessage, htmlToSend);
     if (newDoc) {
       setViewingDoc(newDoc);
       setChatMessage(""); // Clear input on success
@@ -671,18 +697,91 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
   const handleReportDoc = useCallback(
     (doc) => {
       if (!doc) return;
-      const inferred =
-        doc.type && doc.type !== "unknown"
-          ? doc.type
-          : detectDocTypeFromName(doc.name);
-      if (typeof onReportError === "function") {
-        onReportError(inferred, doc);
-      } else {
-        toast.info("Signalement enregistré (intégration à venir)");
-      }
+      setReportDoc(doc);
+      setReportDescription("");
+      setReportModalOpen(true);
     },
-    [onReportError]
+    []
   );
+
+  const handleConfirmReport = useCallback(async () => {
+    if (!reportDoc) return;
+
+    // 1. Récupération de l'ID de l'admin (utilisateur connecté)
+    let adminId = "unknown";
+    try {
+      // Dans KpiPage, on voit que l'ID user est dans "userid"
+      const storedId = localStorage.getItem("userid");
+      if (storedId) {
+        adminId = storedId;
+      } else {
+        // Fallback: userData (parfois utilisé dans ce projet)
+        const userData = localStorage.getItem("userData");
+        if (userData) {
+          const parsed = JSON.parse(userData);
+          if (parsed.id) adminId = parsed.id;
+        }
+      }
+    } catch (e) {
+      console.error("Erreur lecture admin ID", e);
+    }
+
+    // 2. Récupération du HTML (en mémoire ou via fetch)
+    let htmlContent = reportDoc.htmlContent || "";
+
+    // Si pas de HTML en mémoire mais une URL, on tente de le récupérer
+    if (!htmlContent && reportDoc.url) {
+      try {
+        const Config = {
+          headers: { Authorization: "Bearer " + localStorage.getItem("token") }
+        };
+        // On réutilise le endpoint fetch-html existant
+        const response = await axios.post(
+          `${global.config.server_url}/fetch-html`,
+          { url: reportDoc.url },
+          Config
+        );
+        if (response.data && response.data.html) {
+          htmlContent = response.data.html;
+        }
+      } catch (err) {
+        console.warn("Impossible de récupérer le HTML pour le signalement:", err);
+        // On continue sans bloquer
+      }
+    }
+
+    // 3. Envoi au Webhook N8N
+    const webhookUrl = "https://n8n.srv796541.hstgr.cloud/webhook/c55dcaca-466c-471c-bc3e-4df26c4b66ce";
+
+    const toastId = toast.info("Envoi du signalement...", { autoClose: false });
+
+    try {
+      // Utilisation de FormData pour éviter le preflight CORS (application/json)
+      const formData = new FormData();
+      formData.append("admin_id", adminId);
+      formData.append("html_content", htmlContent);
+      formData.append("error_message", reportDescription);
+      formData.append("doc_name", reportDoc.name || "");
+      formData.append("doc_type", reportDoc.type || "");
+      formData.append("client_id", id);
+
+      await axios.post(webhookUrl, formData);
+
+      if (toast.dismiss) toast.dismiss(toastId);
+      toast.success("Signalement envoyé avec succès");
+
+    } catch (error) {
+      console.error("Erreur envoi webhook signalement", error);
+      if (toast.dismiss) toast.dismiss(toastId);
+      toast.error("Erreur technique lors de l'envoi (vérifiez la console pour CORS)");
+    }
+
+    // Cleanup
+    setReportModalOpen(false);
+    setReportDoc(null);
+    setReportDescription("");
+  }, [reportDoc, reportDescription, id]);
+
   const handleDeleteUpload = useCallback(
     (docId) => {
       setUploadedDocs((prev) => {
@@ -970,12 +1069,9 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
       type: "ris",
       url: "",
     };
-    if (typeof onReportError === "function") {
-      onReportError("ris", dummyDoc);
-    } else {
-      toast.info("Signalement enregistré");
-    }
-  }, [onReportError]);
+    handleReportDoc(dummyDoc);
+  }, [handleReportDoc]);
+
 
   return (
     <div className="notes-layout">
@@ -1176,8 +1272,8 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
                     backgroundColor: state.isSelected
                       ? "#7367f0"
                       : state.isFocused
-                      ? "#f5f5ff"
-                      : "transparent",
+                        ? "#f5f5ff"
+                        : "transparent",
                     color: state.isSelected ? "#fff" : "#374151",
                     cursor: "pointer",
                     transition: "all 0.15s ease",
@@ -1227,9 +1323,8 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
 
             <div className="notes-upload-actions notes-action-row">
               <Button
-                className={`notes-report-btn notes-action-btn ${
-                  reportType === "pre" ? "is-active" : ""
-                }`}
+                className={`notes-report-btn notes-action-btn ${reportType === "pre" ? "is-active" : ""
+                  }`}
                 color="link"
                 onClick={() => handleGenerateDoc("pre")}
                 disabled={isGenerating && reportType === "pre"}
@@ -1237,9 +1332,8 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
                 Rapport pré-entretien
               </Button>
               <Button
-                className={`notes-report-btn notes-action-btn ${
-                  reportType === "consult" ? "is-active" : ""
-                }`}
+                className={`notes-report-btn notes-action-btn ${reportType === "consult" ? "is-active" : ""
+                  }`}
                 color="link"
                 onClick={() => handleGenerateDoc("consult")}
                 disabled={isGenerating}
@@ -1406,9 +1500,9 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
                             const ok = !isNaN(num) && num >= 0;
                             const formatted = ok
                               ? new Intl.NumberFormat("fr-FR", {
-                                  minimumFractionDigits: 2,
-                                  maximumFractionDigits: 2,
-                                }).format(num)
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              }).format(num)
                               : row.revenu;
                             setManualCareerRows((prev) =>
                               prev.map((r) =>
@@ -1824,6 +1918,43 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
           </div>
         </ModalBody>
       </Modal>
+      {/* --- MODAL REPORT ERROR --- */}
+      <Modal
+        isOpen={reportModalOpen}
+        toggle={() => setReportModalOpen(!reportModalOpen)}
+        centered
+      >
+        <ModalHeader toggle={() => setReportModalOpen(!reportModalOpen)}>
+          Signaler une erreur
+        </ModalHeader>
+        <ModalBody>
+          <div className="text-muted mb-2">
+            Veuillez décrire le problème rencontré avec le document{" "}
+            <strong>{reportDoc?.name}</strong> :
+          </div>
+          <Input
+            type="textarea"
+            rows="5"
+            placeholder="Décrivez l'erreur ici..."
+            value={reportDescription}
+            onChange={(e) => setReportDescription(e.target.value)}
+            style={{ resize: "none" }}
+          />
+        </ModalBody>
+        <ModalFooter>
+          <Button color="secondary" onClick={() => setReportModalOpen(false)}>
+            Annuler
+          </Button>
+          <Button
+            color="danger"
+            onClick={handleConfirmReport}
+            disabled={!reportDescription.trim()}
+          >
+            Envoyer le signalement
+          </Button>
+        </ModalFooter>
+      </Modal>
+
     </div>
   );
 };
