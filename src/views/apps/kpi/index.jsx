@@ -2110,6 +2110,7 @@ export default function KpiPage() {
       {(location.pathname === "/kpi" ||
         location.pathname.includes("/inbox")) && (
         <InboxView
+          key={`inbox-${location.pathname}`}
           items={[
             ...conversations.map((c) => ({ ...c, _source: "chatbot" })),
             ...diagnostics.map((d) => ({ ...d, _source: "diagnostic" })),

@@ -407,8 +407,8 @@ const ActionsSection = () => {
                   item.type === "CALLREPORT"
                     ? "#3b82f615"
                     : item.type === "TASK"
-                      ? "#f9731615"
-                      : "#6b728015",
+                    ? "#f9731615"
+                    : "#6b728015",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -822,10 +822,10 @@ function mapConversationToInboxItem(conv) {
       conv.messages && conv.messages.length > 0
         ? extractSummaryFromMessages(conv.messages)
         : conv.note
-          ? [conv.note]
-          : conv.objet
-            ? [conv.objet]
-            : [],
+        ? [conv.note]
+        : conv.objet
+        ? [conv.objet]
+        : [],
     status: conv.status || conv.action || "new", // Fallback to action for KPIs
     priority: conv.priority || "medium",
     raw: conv,
@@ -840,20 +840,22 @@ const InboxView = ({
   onSelect,
 }) => {
   // Use provided items (no mock fallback), sorted by date (most recent first)
-  const allInboxItems =
-    items && items.length > 0
-      ? items.map(mapConversationToInboxItem).sort((a, b) => {
-        const dateA = new Date(a.raw?.created_at || a.raw?.kpi_date || 0);
-        const dateB = new Date(b.raw?.created_at || b.raw?.kpi_date || 0);
-        return dateB - dateA; // Most recent first
-      })
-      : [];
+  // Memoize to ensure recalculation when items change
+  const allInboxItems = React.useMemo(() => {
+    if (!items || items.length === 0) return [];
+    return items.map(mapConversationToInboxItem).sort((a, b) => {
+      const dateA = new Date(a.raw?.created_at || a.raw?.kpi_date || 0);
+      const dateB = new Date(b.raw?.created_at || b.raw?.kpi_date || 0);
+      return dateB - dateA; // Most recent first
+    });
+  }, [items]);
 
   // Filter by type if filter is specified
-  const inboxItems =
-    filter === "all"
-      ? allInboxItems
-      : allInboxItems.filter((item) => item.type === filter);
+  // Memoize to ensure recalculation when filter or allInboxItems change
+  const inboxItems = React.useMemo(() => {
+    if (filter === "all") return allInboxItems;
+    return allInboxItems.filter((item) => item.type === filter);
+  }, [allInboxItems, filter]);
 
   const [selectedItem, setSelectedItem] = useState(inboxItems[0] || {});
 
@@ -894,7 +896,10 @@ const InboxView = ({
   // Persist manualUnreadIds to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem("inbox_manual_unread_ids", JSON.stringify([...manualUnreadIds]));
+      localStorage.setItem(
+        "inbox_manual_unread_ids",
+        JSON.stringify([...manualUnreadIds])
+      );
     } catch (e) {
       console.error("Failed to save manual unread IDs:", e);
     }
@@ -902,7 +907,9 @@ const InboxView = ({
 
   // Calculate unread count
   const unreadCount = inboxItems.filter(
-    (item) => ((item.status === "new" || manualUnreadIds.has(item.id)) && !readIds.has(item.id))
+    (item) =>
+      (item.status === "new" || manualUnreadIds.has(item.id)) &&
+      !readIds.has(item.id)
   ).length;
 
   // Modal state for conversation view
@@ -995,7 +1002,7 @@ const InboxView = ({
     });
   };
 
-  // Update selectedItem when visibleInboxItems change
+  // Update selectedItem when visibleInboxItems change or filter changes
   useEffect(() => {
     if (visibleInboxItems.length > 0) {
       const currentInList = visibleInboxItems.find(
@@ -1005,7 +1012,7 @@ const InboxView = ({
         setSelectedItem(visibleInboxItems[0]);
       }
     }
-  }, [items, selectedItem.id, disqualifiedIds]);
+  }, [items, selectedItem.id, disqualifiedIds, filter]);
 
   useEffect(() => {
     setAiDraft(null);
@@ -1021,20 +1028,22 @@ const InboxView = ({
     const prompt = `
       CONTEXTE DU PROSPECT :
       - Nom: ${selectedItem.name}
-      - Type : ${selectedItem.type === "diagnostic"
-        ? "Diagnostic en ligne"
-        : selectedItem.type === "call"
+      - Type : ${
+        selectedItem.type === "diagnostic"
+          ? "Diagnostic en ligne"
+          : selectedItem.type === "call"
           ? "Appel téléphonique"
           : selectedItem.type === "email"
-            ? "Email de contact"
-            : "Chatbot"
+          ? "Email de contact"
+          : "Chatbot"
       }
       - Points clés : ${selectedItem.summary?.join(", ")}
-      ${selectedItem.type === "diagnostic"
-        ? `- Score complexité : ${calculateComplexityScore(
-          selectedItem.raw?.attributes
-        )}/100`
-        : ""
+      ${
+        selectedItem.type === "diagnostic"
+          ? `- Score complexité : ${calculateComplexityScore(
+              selectedItem.raw?.attributes
+            )}/100`
+          : ""
       }
      
       TÂCHE : Rédige un email de premier contact.
@@ -1080,7 +1089,8 @@ const InboxView = ({
       // API call to update status (soft delete)
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `${process.env.REACT_APP_API_URL || window.location.origin
+        `${
+          process.env.REACT_APP_API_URL || window.location.origin
         }/api/prospects/${selectedItem.id}/disqualify`,
         {
           method: "PATCH",
@@ -1363,14 +1373,15 @@ const InboxView = ({
                   cursor: "pointer",
                   backgroundColor:
                     selectedItem.id === item.id ? "#eef2ff" : "transparent",
-                  borderLeft: `4px solid ${item.type === "diagnostic"
-                    ? "#f97316"
-                    : item.type === "call"
+                  borderLeft: `4px solid ${
+                    item.type === "diagnostic"
+                      ? "#f97316"
+                      : item.type === "call"
                       ? "#22c55e"
                       : item.type === "email"
-                        ? "#6366f1"
-                        : "#3b82f6"
-                    }`,
+                      ? "#6366f1"
+                      : "#3b82f6"
+                  }`,
                   transition: "background-color 0.2s",
                 }}
               >
@@ -1427,17 +1438,18 @@ const InboxView = ({
                 <div
                   style={{ display: "flex", alignItems: "center", gap: "8px" }}
                 >
-                  {((item.status === "new" || manualUnreadIds.has(item.id)) && !readIds.has(item.id)) && (
-                    <span
-                      style={{
-                        display: "inline-block",
-                        width: "8px",
-                        height: "8px",
-                        backgroundColor: "#3b82f6",
-                        borderRadius: "50%",
-                      }}
-                    ></span>
-                  )}
+                  {(item.status === "new" || manualUnreadIds.has(item.id)) &&
+                    !readIds.has(item.id) && (
+                      <span
+                        style={{
+                          display: "inline-block",
+                          width: "8px",
+                          height: "8px",
+                          backgroundColor: "#3b82f6",
+                          borderRadius: "50%",
+                        }}
+                      ></span>
+                    )}
                   {item.type === "diagnostic" && (
                     <span
                       style={{
@@ -1588,8 +1600,8 @@ const InboxView = ({
               }}
             >
               {selectedItem.type === "diagnostic" ||
-                selectedItem.type === "call" ||
-                selectedItem.type === "email" ? (
+              selectedItem.type === "call" ||
+              selectedItem.type === "email" ? (
                 <>
                   <User size={12} /> Nom du prospect
                 </>
@@ -1610,8 +1622,8 @@ const InboxView = ({
             >
               <span style={{ fontWeight: 600, color: "#1f2937" }}>
                 {selectedItem.type === "diagnostic" ||
-                  selectedItem.type === "call" ||
-                  selectedItem.type === "email"
+                selectedItem.type === "call" ||
+                selectedItem.type === "email"
                   ? selectedItem.name || "-"
                   : formatPhoneNumber(selectedItem.phone) || "-"}
               </span>
@@ -2365,23 +2377,23 @@ const InboxView = ({
                             {selectedItem.raw.attributes
                               .SIMULATEUR_DIFFICULTE_Q7
                               ? selectedItem.raw.attributes.SIMULATEUR_DIFFICULTE_Q7.split(
-                                ","
-                              ).map((v, i) => (
-                                <span
-                                  key={i}
-                                  style={{
-                                    display: "inline-block",
-                                    border: "1px solid #e2e8f0",
-                                    borderRadius: "999px",
-                                    padding: "2px 8px",
-                                    margin: "2px 4px 2px 0",
-                                    fontSize: "15px",
-                                    background: "#f8fafc",
-                                  }}
-                                >
-                                  {v.replace(/_/g, " ")}
-                                </span>
-                              ))
+                                  ","
+                                ).map((v, i) => (
+                                  <span
+                                    key={i}
+                                    style={{
+                                      display: "inline-block",
+                                      border: "1px solid #e2e8f0",
+                                      borderRadius: "999px",
+                                      padding: "2px 8px",
+                                      margin: "2px 4px 2px 0",
+                                      fontSize: "15px",
+                                      background: "#f8fafc",
+                                    }}
+                                  >
+                                    {v.replace(/_/g, " ")}
+                                  </span>
+                                ))
                               : "—"}
                           </td>
                         </tr>
@@ -2469,23 +2481,23 @@ const InboxView = ({
                             {selectedItem.raw.attributes
                               .SIMULATEUR_DIFFICULTE_Q10
                               ? selectedItem.raw.attributes.SIMULATEUR_DIFFICULTE_Q10.split(
-                                ","
-                              ).map((v, i) => (
-                                <span
-                                  key={i}
-                                  style={{
-                                    display: "inline-block",
-                                    border: "1px solid #e2e8f0",
-                                    borderRadius: "999px",
-                                    padding: "2px 8px",
-                                    margin: "2px 4px 2px 0",
-                                    fontSize: "15px",
-                                    background: "#f8fafc",
-                                  }}
-                                >
-                                  {v.replace(/_/g, " ")}
-                                </span>
-                              ))
+                                  ","
+                                ).map((v, i) => (
+                                  <span
+                                    key={i}
+                                    style={{
+                                      display: "inline-block",
+                                      border: "1px solid #e2e8f0",
+                                      borderRadius: "999px",
+                                      padding: "2px 8px",
+                                      margin: "2px 4px 2px 0",
+                                      fontSize: "15px",
+                                      background: "#f8fafc",
+                                    }}
+                                  >
+                                    {v.replace(/_/g, " ")}
+                                  </span>
+                                ))
                               : "—"}
                           </td>
                         </tr>
@@ -2884,7 +2896,7 @@ const InboxView = ({
                   fontWeight: "bold",
                   color:
                     selectedItem.type === "call" ||
-                      selectedItem.type === "email"
+                    selectedItem.type === "email"
                       ? "#374151"
                       : "#1e40af",
                   marginBottom: "12px",
@@ -2896,7 +2908,7 @@ const InboxView = ({
                 }}
               >
                 {selectedItem.type === "call" ||
-                  selectedItem.type === "email" ? (
+                selectedItem.type === "email" ? (
                   <>
                     <ClipboardList size={16} /> Détails de l'échange
                   </>
@@ -2925,7 +2937,7 @@ const InboxView = ({
                         height: "6px",
                         backgroundColor:
                           selectedItem.type === "call" ||
-                            selectedItem.type === "email"
+                          selectedItem.type === "email"
                             ? "#9ca3af"
                             : "#60a5fa",
                         borderRadius: "50%",
