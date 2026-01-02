@@ -25,6 +25,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { Badge } from "./SharedComponents";
+import "./InboxView.css";
 
 // Disqualification reasons
 const DISQUALIFICATION_REASONS = [
@@ -828,6 +829,7 @@ function mapConversationToInboxItem(conv) {
         : [],
     status: conv.status || conv.action || "new", // Fallback to action for KPIs
     priority: conv.priority || "medium",
+    hasMultipleChannels: conv._hasMultipleChannels || false,
     raw: conv,
   };
 }
@@ -1402,6 +1404,11 @@ const InboxView = ({
                     }}
                   >
                     {formatPhoneNumber(item.name) || item.name}
+                    {item.hasMultipleChannels && (
+                      <span title="Multi-Canal" style={{ marginLeft: "6px" }}>
+                        🔥
+                      </span>
+                    )}
                   </span>
                   <span
                     style={{
@@ -1508,6 +1515,26 @@ const InboxView = ({
               <Badge color={getTypeColor(selectedItem.type)}>
                 {getTypeLabel(selectedItem.type)}
               </Badge>
+              {selectedItem.hasMultipleChannels && (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    padding: "4px 10px",
+                    borderRadius: "999px",
+                    background:
+                      "linear-gradient(135deg, #f97316 0%, #ea580c 100%)",
+                    color: "#fff",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                  }}
+                >
+                  🔥 Multi-Canal
+                </span>
+              )}
               <span style={{ fontSize: "12px", color: "#9ca3af" }}>
                 Reçu le {selectedItem.date} • Source: EOR Consultant
               </span>
@@ -1586,47 +1613,109 @@ const InboxView = ({
             </div>
           </div>
 
-          <div>
-            <label
-              style={{
-                fontSize: "12px",
-                fontWeight: 600,
-                color: "#9ca3af",
-                display: "flex",
-                alignItems: "center",
-                gap: "4px",
-                textTransform: "uppercase",
-                marginBottom: "4px",
-              }}
-            >
-              {selectedItem.type === "diagnostic" ||
-              selectedItem.type === "call" ||
-              selectedItem.type === "email" ? (
-                <>
-                  <User size={12} /> Nom du prospect
-                </>
-              ) : (
-                <>
-                  <Phone size={12} /> Téléphone du prospect
-                </>
-              )}
-            </label>
-            <div
-              className="form-control"
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                backgroundColor: "#f9fafb",
-              }}
-            >
-              <span style={{ fontWeight: 600, color: "#1f2937" }}>
-                {selectedItem.type === "diagnostic" ||
-                selectedItem.type === "call" ||
-                selectedItem.type === "email"
-                  ? selectedItem.name || "-"
-                  : formatPhoneNumber(selectedItem.phone) || "-"}
-              </span>
+          {/* Header Prospect - 3 champs horizontaux */}
+          <div
+            className="inbox-header-fields"
+            style={{
+              display: "flex",
+              gap: "24px",
+              flexWrap: "wrap",
+            }}
+          >
+            {/* Nom du prospect */}
+            <div style={{ flex: 1, minWidth: "150px" }}>
+              <label
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  color: "#9ca3af",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  textTransform: "uppercase",
+                  marginBottom: "4px",
+                }}
+              >
+                <User size={12} /> Nom du prospect
+              </label>
+              <div
+                className="form-control"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  backgroundColor: "#f9fafb",
+                }}
+              >
+                <span
+                  style={{
+                    fontWeight: 700,
+                    fontSize: "16px",
+                    color: "#1f2937",
+                  }}
+                >
+                  {selectedItem.name || "--"}
+                </span>
+              </div>
+            </div>
+
+            {/* Téléphone */}
+            <div style={{ flex: 1, minWidth: "140px" }}>
+              <label
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  color: "#9ca3af",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  textTransform: "uppercase",
+                  marginBottom: "4px",
+                }}
+              >
+                <Phone size={12} /> Téléphone
+              </label>
+              <div
+                className="form-control"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  backgroundColor: "#f9fafb",
+                }}
+              >
+                <span style={{ fontWeight: 600, color: "#1f2937" }}>
+                  {formatPhoneNumber(selectedItem.phone) || "--"}
+                </span>
+              </div>
+            </div>
+
+            {/* Email */}
+            <div style={{ flex: 1, minWidth: "180px" }}>
+              <label
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  color: "#9ca3af",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  textTransform: "uppercase",
+                  marginBottom: "4px",
+                }}
+              >
+                <Mail size={12} /> Email
+              </label>
+              <div
+                className="form-control"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  backgroundColor: "#f9fafb",
+                }}
+              >
+                <span style={{ fontWeight: 600, color: "#1f2937" }}>
+                  {selectedItem.email || "--"}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -2914,7 +3003,7 @@ const InboxView = ({
                   </>
                 ) : (
                   <>
-                    <MessageSquare size={16} /> Résumé IA (Synthèse)
+                    <MessageSquare size={16} /> Résumé (Synthèse)
                   </>
                 )}
               </h3>
@@ -3070,7 +3159,7 @@ const InboxView = ({
                               display: "flex",
                               flexDirection: "column",
                               alignItems:
-                                msg.role === "user" ? "flex-end" : "flex-start",
+                                msg.role === "user" ? "flex-start" : "flex-end",
                             }}
                           >
                             <div
@@ -3079,11 +3168,11 @@ const InboxView = ({
                                 padding: "12px 16px",
                                 borderRadius:
                                   msg.role === "user"
-                                    ? "16px 16px 4px 16px"
-                                    : "16px 16px 16px 4px",
+                                    ? "16px 16px 16px 4px"
+                                    : "16px 16px 4px 16px",
                                 backgroundColor:
-                                  msg.role === "user" ? "#4f46e5" : "#f3f4f6",
-                                color: msg.role === "user" ? "#fff" : "#374151",
+                                  msg.role === "user" ? "#f3f4f6" : "#4f46e5",
+                                color: msg.role === "user" ? "#374151" : "#fff",
                               }}
                             >
                               <p
@@ -3098,14 +3187,14 @@ const InboxView = ({
                             </div>
                             <span
                               style={{
-                                fontSize: "15px",
-                                color: "#374151",
+                                fontSize: "12px",
+                                color: "#9ca3af",
                                 marginTop: "4px",
-                                paddingLeft: msg.role === "user" ? "0" : "4px",
-                                paddingRight: msg.role === "user" ? "4px" : "0",
+                                paddingLeft: msg.role === "user" ? "4px" : "0",
+                                paddingRight: msg.role === "user" ? "0" : "4px",
                               }}
                             >
-                              {msg.role === "user" ? "Visiteur" : "Chatbot"}
+                              {msg.role === "user" ? "Client" : "Chatbot"}
                             </span>
                           </div>
                         ))}

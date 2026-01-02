@@ -31,17 +31,9 @@ const items = {
         type: "collapse",
         icon: <Icon.Inbox size={16} />,
         permissions: ["admin", "Consultant", "Expert"],
-        navLink: "/kpi/inbox",
+        navLink: "/kpi/inbox/all",
         open: true,
         children: [
-          {
-            id: "crm-inbox-all",
-            title: "Tous",
-            type: "item",
-            icon: <Icon.List size={14} />,
-            permissions: ["admin", "Consultant", "Expert"],
-            navLink: "/kpi/inbox/all",
-          },
           {
             id: "crm-inbox-chatbot",
             title: "Chatbot",

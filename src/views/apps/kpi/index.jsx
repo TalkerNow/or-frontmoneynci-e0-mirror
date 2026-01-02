@@ -2107,13 +2107,71 @@ export default function KpiPage() {
       {location.pathname.includes("/kpi/opportunities") && <PipelineView />}
 
       {/* 3. INBOX (Default) */}
-      {(location.pathname === "/kpi" ||
-        location.pathname.includes("/inbox")) && (
-        <InboxView
-          key={`inbox-${location.pathname}`}
-          items={[
-            ...conversations.map((c) => ({ ...c, _source: "chatbot" })),
-            ...diagnostics.map((d) => ({ ...d, _source: "diagnostic" })),
+      {(location.pathname === "/kpi" || location.pathname.includes("/inbox")) &&
+        (() => {
+          // Normaliser les numéros de téléphone pour comparaison
+          const normalizePhone = (p) => {
+            if (!p) return null;
+            const digits = String(p).replace(/\D/g, "");
+            if (digits.length < 9) return null;
+            // Normaliser vers le format 0XXXXXXXXX
+            if (digits.startsWith("33") && digits.length >= 11) {
+              return "0" + digits.slice(2, 11);
+            }
+            if (digits.length === 9) return "0" + digits;
+            return digits.slice(0, 10);
+          };
+
+          // Helper pour trouver le téléphone dans l'objet brut
+          const extractPhone = (item) => {
+            const user = item.user || item.client || item.visitor || {};
+            const raw =
+              item.telephone ||
+              item.phone ||
+              item.client_phone ||
+              item.contact_phone ||
+              user.telephone ||
+              user.phone ||
+              item.attributes?.TELEPHONE_MOBILE ||
+              item.name;
+            return raw;
+          };
+
+          // Extraire les téléphones de chaque source
+          const chatbotPhones = new Set(
+            conversations
+              .map((c) => normalizePhone(extractPhone(c)))
+              .filter(Boolean)
+          );
+          const diagnosticPhones = new Set(
+            diagnostics
+              .map((d) => normalizePhone(extractPhone(d)))
+              .filter(Boolean)
+          );
+
+          // Marquer les items avec _hasMultipleChannels
+          const markMultiChannel = (item, source) => {
+            const phone = normalizePhone(extractPhone(item));
+            let hasMultiple = false;
+
+            if (source === "chatbot" && phone) {
+              const has = diagnosticPhones.has(phone);
+              hasMultiple = has;
+            } else if (source === "diagnostic" && phone) {
+              const has = chatbotPhones.has(phone);
+              hasMultiple = has;
+            }
+            return {
+              ...item,
+              _source: source,
+              _hasMultipleChannels: hasMultiple,
+            };
+          };
+
+          // Créer la liste brute avec tous les items
+          const allRawItems = [
+            ...conversations.map((c) => markMultiChannel(c, "chatbot")),
+            ...diagnostics.map((d) => markMultiChannel(d, "diagnostic")),
             ...allItems
               .filter((kpi) => {
                 const obj = (kpi.objet || kpi.object || "")
@@ -2147,23 +2205,80 @@ export default function KpiPage() {
                   _source: isEmail ? "email" : "call",
                 };
               }),
-          ]}
-          filter={
-            location.pathname.includes("/inbox/chatbot")
-              ? "chatbot"
-              : location.pathname.includes("/inbox/diagnostic")
-              ? "diagnostic"
-              : location.pathname.includes("/inbox/call")
-              ? "call"
-              : location.pathname.includes("/inbox/email")
-              ? "email"
-              : "all"
-          }
-          loading={loadingConversations || loadingDiagnostics || loadingList}
-          error={convError || diagError}
-          onSelect={handleSelectConversation}
-        />
-      )}
+          ];
+
+          // Dédupliquer par téléphone pour éviter le ±2
+          // Garder l'entrée la plus récente, marquer hasMultipleChannels
+          const deduplicatedItems = (() => {
+            const phoneMap = new Map(); // phone -> best item
+            const uniqueItems = [];
+
+            allRawItems.forEach((item) => {
+              const phone = normalizePhone(extractPhone(item));
+
+              if (!phone) {
+                // Pas de téléphone => garder tel quel
+                uniqueItems.push(item);
+                return;
+              }
+
+              const existing = phoneMap.get(phone);
+              if (!existing) {
+                phoneMap.set(phone, item);
+              } else {
+                // Comparer les dates, garder le plus récent
+                const existingDate = new Date(existing.created_at || 0);
+                const newDate = new Date(item.created_at || 0);
+
+                // Fusionner hasMultipleChannels si l'un des deux est multi-canal
+                const isMergedMulti =
+                  existing._hasMultipleChannels ||
+                  item._hasMultipleChannels ||
+                  existing._source !== item._source; // Sources différentes = multi-canal
+
+                if (newDate > existingDate) {
+                  phoneMap.set(phone, {
+                    ...item,
+                    _hasMultipleChannels: isMergedMulti,
+                  });
+                } else {
+                  phoneMap.set(phone, {
+                    ...existing,
+                    _hasMultipleChannels: isMergedMulti,
+                  });
+                }
+              }
+            });
+
+            // Ajouter les items avec téléphone (dédupliqués)
+            phoneMap.forEach((item) => uniqueItems.push(item));
+
+            return uniqueItems;
+          })();
+
+          return (
+            <InboxView
+              key={`inbox-${location.pathname}`}
+              items={deduplicatedItems}
+              filter={
+                location.pathname.includes("/inbox/chatbot")
+                  ? "chatbot"
+                  : location.pathname.includes("/inbox/diagnostic")
+                  ? "diagnostic"
+                  : location.pathname.includes("/inbox/call")
+                  ? "call"
+                  : location.pathname.includes("/inbox/email")
+                  ? "email"
+                  : "all"
+              }
+              loading={
+                loadingConversations || loadingDiagnostics || loadingList
+              }
+              error={convError || diagError}
+              onSelect={handleSelectConversation}
+            />
+          );
+        })()}
 
       {/* New KPI Modal (integrated) */}
       <KPIModal

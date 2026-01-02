@@ -117,7 +117,8 @@ class SideMenuGroup extends React.Component {
                           child.type === "collapse",
                       })}
                       to={
-                        child.navLink && child.type === "item"
+                        child.navLink &&
+                        (child.type === "item" || child.type === "collapse")
                           ? child.navLink
                           : ""
                       }
@@ -130,9 +131,10 @@ class SideMenuGroup extends React.Component {
                       }}
                       key={child.id}
                       onClick={(e) => {
-                        return child.type === "collapse"
-                          ? e.preventDefault()
-                          : "";
+                        // Pour les collapse avec navLink, permettre la navigation
+                        if (child.type === "collapse" && !child.navLink) {
+                          e.preventDefault();
+                        }
                       }}
                       target={child.newTab ? "_blank" : undefined}
                     >
