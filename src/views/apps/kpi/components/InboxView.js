@@ -25,6 +25,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { Badge } from "./SharedComponents";
+import "./InboxView.css";
 
 // Disqualification reasons
 const DISQUALIFICATION_REASONS = [
@@ -407,8 +408,8 @@ const ActionsSection = () => {
                   item.type === "CALLREPORT"
                     ? "#3b82f615"
                     : item.type === "TASK"
-                      ? "#f9731615"
-                      : "#6b728015",
+                    ? "#f9731615"
+                    : "#6b728015",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -822,12 +823,13 @@ function mapConversationToInboxItem(conv) {
       conv.messages && conv.messages.length > 0
         ? extractSummaryFromMessages(conv.messages)
         : conv.note
-          ? [conv.note]
-          : conv.objet
-            ? [conv.objet]
-            : [],
+        ? [conv.note]
+        : conv.objet
+        ? [conv.objet]
+        : [],
     status: conv.status || conv.action || "new", // Fallback to action for KPIs
     priority: conv.priority || "medium",
+    hasMultipleChannels: conv._hasMultipleChannels || false,
     raw: conv,
   };
 }
@@ -840,20 +842,22 @@ const InboxView = ({
   onSelect,
 }) => {
   // Use provided items (no mock fallback), sorted by date (most recent first)
-  const allInboxItems =
-    items && items.length > 0
-      ? items.map(mapConversationToInboxItem).sort((a, b) => {
-        const dateA = new Date(a.raw?.created_at || a.raw?.kpi_date || 0);
-        const dateB = new Date(b.raw?.created_at || b.raw?.kpi_date || 0);
-        return dateB - dateA; // Most recent first
-      })
-      : [];
+  // Memoize to ensure recalculation when items change
+  const allInboxItems = React.useMemo(() => {
+    if (!items || items.length === 0) return [];
+    return items.map(mapConversationToInboxItem).sort((a, b) => {
+      const dateA = new Date(a.raw?.created_at || a.raw?.kpi_date || 0);
+      const dateB = new Date(b.raw?.created_at || b.raw?.kpi_date || 0);
+      return dateB - dateA; // Most recent first
+    });
+  }, [items]);
 
   // Filter by type if filter is specified
-  const inboxItems =
-    filter === "all"
-      ? allInboxItems
-      : allInboxItems.filter((item) => item.type === filter);
+  // Memoize to ensure recalculation when filter or allInboxItems change
+  const inboxItems = React.useMemo(() => {
+    if (filter === "all") return allInboxItems;
+    return allInboxItems.filter((item) => item.type === filter);
+  }, [allInboxItems, filter]);
 
   const [selectedItem, setSelectedItem] = useState(inboxItems[0] || {});
 
@@ -894,7 +898,10 @@ const InboxView = ({
   // Persist manualUnreadIds to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem("inbox_manual_unread_ids", JSON.stringify([...manualUnreadIds]));
+      localStorage.setItem(
+        "inbox_manual_unread_ids",
+        JSON.stringify([...manualUnreadIds])
+      );
     } catch (e) {
       console.error("Failed to save manual unread IDs:", e);
     }
@@ -902,7 +909,9 @@ const InboxView = ({
 
   // Calculate unread count
   const unreadCount = inboxItems.filter(
-    (item) => ((item.status === "new" || manualUnreadIds.has(item.id)) && !readIds.has(item.id))
+    (item) =>
+      (item.status === "new" || manualUnreadIds.has(item.id)) &&
+      !readIds.has(item.id)
   ).length;
 
   // Modal state for conversation view
@@ -995,7 +1004,7 @@ const InboxView = ({
     });
   };
 
-  // Update selectedItem when visibleInboxItems change
+  // Update selectedItem when visibleInboxItems change or filter changes
   useEffect(() => {
     if (visibleInboxItems.length > 0) {
       const currentInList = visibleInboxItems.find(
@@ -1005,7 +1014,7 @@ const InboxView = ({
         setSelectedItem(visibleInboxItems[0]);
       }
     }
-  }, [items, selectedItem.id, disqualifiedIds]);
+  }, [items, selectedItem.id, disqualifiedIds, filter]);
 
   useEffect(() => {
     setAiDraft(null);
@@ -1021,20 +1030,22 @@ const InboxView = ({
     const prompt = `
       CONTEXTE DU PROSPECT :
       - Nom: ${selectedItem.name}
-      - Type : ${selectedItem.type === "diagnostic"
-        ? "Diagnostic en ligne"
-        : selectedItem.type === "call"
+      - Type : ${
+        selectedItem.type === "diagnostic"
+          ? "Diagnostic en ligne"
+          : selectedItem.type === "call"
           ? "Appel téléphonique"
           : selectedItem.type === "email"
-            ? "Email de contact"
-            : "Chatbot"
+          ? "Email de contact"
+          : "Chatbot"
       }
       - Points clés : ${selectedItem.summary?.join(", ")}
-      ${selectedItem.type === "diagnostic"
-        ? `- Score complexité : ${calculateComplexityScore(
-          selectedItem.raw?.attributes
-        )}/100`
-        : ""
+      ${
+        selectedItem.type === "diagnostic"
+          ? `- Score complexité : ${calculateComplexityScore(
+              selectedItem.raw?.attributes
+            )}/100`
+          : ""
       }
      
       TÂCHE : Rédige un email de premier contact.
@@ -1080,7 +1091,8 @@ const InboxView = ({
       // API call to update status (soft delete)
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `${process.env.REACT_APP_API_URL || window.location.origin
+        `${
+          process.env.REACT_APP_API_URL || window.location.origin
         }/api/prospects/${selectedItem.id}/disqualify`,
         {
           method: "PATCH",
@@ -1363,14 +1375,15 @@ const InboxView = ({
                   cursor: "pointer",
                   backgroundColor:
                     selectedItem.id === item.id ? "#eef2ff" : "transparent",
-                  borderLeft: `4px solid ${item.type === "diagnostic"
-                    ? "#f97316"
-                    : item.type === "call"
+                  borderLeft: `4px solid ${
+                    item.type === "diagnostic"
+                      ? "#f97316"
+                      : item.type === "call"
                       ? "#22c55e"
                       : item.type === "email"
-                        ? "#6366f1"
-                        : "#3b82f6"
-                    }`,
+                      ? "#6366f1"
+                      : "#3b82f6"
+                  }`,
                   transition: "background-color 0.2s",
                 }}
               >
@@ -1391,6 +1404,11 @@ const InboxView = ({
                     }}
                   >
                     {formatPhoneNumber(item.name) || item.name}
+                    {item.hasMultipleChannels && (
+                      <span title="Multi-Canal" style={{ marginLeft: "6px" }}>
+                        🔥
+                      </span>
+                    )}
                   </span>
                   <span
                     style={{
@@ -1427,17 +1445,18 @@ const InboxView = ({
                 <div
                   style={{ display: "flex", alignItems: "center", gap: "8px" }}
                 >
-                  {((item.status === "new" || manualUnreadIds.has(item.id)) && !readIds.has(item.id)) && (
-                    <span
-                      style={{
-                        display: "inline-block",
-                        width: "8px",
-                        height: "8px",
-                        backgroundColor: "#3b82f6",
-                        borderRadius: "50%",
-                      }}
-                    ></span>
-                  )}
+                  {(item.status === "new" || manualUnreadIds.has(item.id)) &&
+                    !readIds.has(item.id) && (
+                      <span
+                        style={{
+                          display: "inline-block",
+                          width: "8px",
+                          height: "8px",
+                          backgroundColor: "#3b82f6",
+                          borderRadius: "50%",
+                        }}
+                      ></span>
+                    )}
                   {item.type === "diagnostic" && (
                     <span
                       style={{
@@ -1496,6 +1515,26 @@ const InboxView = ({
               <Badge color={getTypeColor(selectedItem.type)}>
                 {getTypeLabel(selectedItem.type)}
               </Badge>
+              {selectedItem.hasMultipleChannels && (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    padding: "4px 10px",
+                    borderRadius: "999px",
+                    background:
+                      "linear-gradient(135deg, #f97316 0%, #ea580c 100%)",
+                    color: "#fff",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                  }}
+                >
+                  🔥 Multi-Canal
+                </span>
+              )}
               <span style={{ fontSize: "12px", color: "#9ca3af" }}>
                 Reçu le {selectedItem.date} • Source: EOR Consultant
               </span>
@@ -1574,47 +1613,109 @@ const InboxView = ({
             </div>
           </div>
 
-          <div>
-            <label
-              style={{
-                fontSize: "12px",
-                fontWeight: 600,
-                color: "#9ca3af",
-                display: "flex",
-                alignItems: "center",
-                gap: "4px",
-                textTransform: "uppercase",
-                marginBottom: "4px",
-              }}
-            >
-              {selectedItem.type === "diagnostic" ||
-                selectedItem.type === "call" ||
-                selectedItem.type === "email" ? (
-                <>
-                  <User size={12} /> Nom du prospect
-                </>
-              ) : (
-                <>
-                  <Phone size={12} /> Téléphone du prospect
-                </>
-              )}
-            </label>
-            <div
-              className="form-control"
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                backgroundColor: "#f9fafb",
-              }}
-            >
-              <span style={{ fontWeight: 600, color: "#1f2937" }}>
-                {selectedItem.type === "diagnostic" ||
-                  selectedItem.type === "call" ||
-                  selectedItem.type === "email"
-                  ? selectedItem.name || "-"
-                  : formatPhoneNumber(selectedItem.phone) || "-"}
-              </span>
+          {/* Header Prospect - 3 champs horizontaux */}
+          <div
+            className="inbox-header-fields"
+            style={{
+              display: "flex",
+              gap: "24px",
+              flexWrap: "wrap",
+            }}
+          >
+            {/* Nom du prospect */}
+            <div style={{ flex: 1, minWidth: "150px" }}>
+              <label
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  color: "#9ca3af",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  textTransform: "uppercase",
+                  marginBottom: "4px",
+                }}
+              >
+                <User size={12} /> Nom du prospect
+              </label>
+              <div
+                className="form-control"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  backgroundColor: "#f9fafb",
+                }}
+              >
+                <span
+                  style={{
+                    fontWeight: 700,
+                    fontSize: "16px",
+                    color: "#1f2937",
+                  }}
+                >
+                  {selectedItem.name || "--"}
+                </span>
+              </div>
+            </div>
+
+            {/* Téléphone */}
+            <div style={{ flex: 1, minWidth: "140px" }}>
+              <label
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  color: "#9ca3af",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  textTransform: "uppercase",
+                  marginBottom: "4px",
+                }}
+              >
+                <Phone size={12} /> Téléphone
+              </label>
+              <div
+                className="form-control"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  backgroundColor: "#f9fafb",
+                }}
+              >
+                <span style={{ fontWeight: 600, color: "#1f2937" }}>
+                  {formatPhoneNumber(selectedItem.phone) || "--"}
+                </span>
+              </div>
+            </div>
+
+            {/* Email */}
+            <div style={{ flex: 1, minWidth: "180px" }}>
+              <label
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  color: "#9ca3af",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  textTransform: "uppercase",
+                  marginBottom: "4px",
+                }}
+              >
+                <Mail size={12} /> Email
+              </label>
+              <div
+                className="form-control"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  backgroundColor: "#f9fafb",
+                }}
+              >
+                <span style={{ fontWeight: 600, color: "#1f2937" }}>
+                  {selectedItem.email || "--"}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -2365,23 +2466,23 @@ const InboxView = ({
                             {selectedItem.raw.attributes
                               .SIMULATEUR_DIFFICULTE_Q7
                               ? selectedItem.raw.attributes.SIMULATEUR_DIFFICULTE_Q7.split(
-                                ","
-                              ).map((v, i) => (
-                                <span
-                                  key={i}
-                                  style={{
-                                    display: "inline-block",
-                                    border: "1px solid #e2e8f0",
-                                    borderRadius: "999px",
-                                    padding: "2px 8px",
-                                    margin: "2px 4px 2px 0",
-                                    fontSize: "15px",
-                                    background: "#f8fafc",
-                                  }}
-                                >
-                                  {v.replace(/_/g, " ")}
-                                </span>
-                              ))
+                                  ","
+                                ).map((v, i) => (
+                                  <span
+                                    key={i}
+                                    style={{
+                                      display: "inline-block",
+                                      border: "1px solid #e2e8f0",
+                                      borderRadius: "999px",
+                                      padding: "2px 8px",
+                                      margin: "2px 4px 2px 0",
+                                      fontSize: "15px",
+                                      background: "#f8fafc",
+                                    }}
+                                  >
+                                    {v.replace(/_/g, " ")}
+                                  </span>
+                                ))
                               : "—"}
                           </td>
                         </tr>
@@ -2469,23 +2570,23 @@ const InboxView = ({
                             {selectedItem.raw.attributes
                               .SIMULATEUR_DIFFICULTE_Q10
                               ? selectedItem.raw.attributes.SIMULATEUR_DIFFICULTE_Q10.split(
-                                ","
-                              ).map((v, i) => (
-                                <span
-                                  key={i}
-                                  style={{
-                                    display: "inline-block",
-                                    border: "1px solid #e2e8f0",
-                                    borderRadius: "999px",
-                                    padding: "2px 8px",
-                                    margin: "2px 4px 2px 0",
-                                    fontSize: "15px",
-                                    background: "#f8fafc",
-                                  }}
-                                >
-                                  {v.replace(/_/g, " ")}
-                                </span>
-                              ))
+                                  ","
+                                ).map((v, i) => (
+                                  <span
+                                    key={i}
+                                    style={{
+                                      display: "inline-block",
+                                      border: "1px solid #e2e8f0",
+                                      borderRadius: "999px",
+                                      padding: "2px 8px",
+                                      margin: "2px 4px 2px 0",
+                                      fontSize: "15px",
+                                      background: "#f8fafc",
+                                    }}
+                                  >
+                                    {v.replace(/_/g, " ")}
+                                  </span>
+                                ))
                               : "—"}
                           </td>
                         </tr>
@@ -2884,7 +2985,7 @@ const InboxView = ({
                   fontWeight: "bold",
                   color:
                     selectedItem.type === "call" ||
-                      selectedItem.type === "email"
+                    selectedItem.type === "email"
                       ? "#374151"
                       : "#1e40af",
                   marginBottom: "12px",
@@ -2896,13 +2997,13 @@ const InboxView = ({
                 }}
               >
                 {selectedItem.type === "call" ||
-                  selectedItem.type === "email" ? (
+                selectedItem.type === "email" ? (
                   <>
                     <ClipboardList size={16} /> Détails de l'échange
                   </>
                 ) : (
                   <>
-                    <MessageSquare size={16} /> Résumé IA (Synthèse)
+                    <MessageSquare size={16} /> Résumé (Synthèse)
                   </>
                 )}
               </h3>
@@ -2925,7 +3026,7 @@ const InboxView = ({
                         height: "6px",
                         backgroundColor:
                           selectedItem.type === "call" ||
-                            selectedItem.type === "email"
+                          selectedItem.type === "email"
                             ? "#9ca3af"
                             : "#60a5fa",
                         borderRadius: "50%",
@@ -3058,7 +3159,7 @@ const InboxView = ({
                               display: "flex",
                               flexDirection: "column",
                               alignItems:
-                                msg.role === "user" ? "flex-end" : "flex-start",
+                                msg.role === "user" ? "flex-start" : "flex-end",
                             }}
                           >
                             <div
@@ -3067,11 +3168,11 @@ const InboxView = ({
                                 padding: "12px 16px",
                                 borderRadius:
                                   msg.role === "user"
-                                    ? "16px 16px 4px 16px"
-                                    : "16px 16px 16px 4px",
+                                    ? "16px 16px 16px 4px"
+                                    : "16px 16px 4px 16px",
                                 backgroundColor:
-                                  msg.role === "user" ? "#4f46e5" : "#f3f4f6",
-                                color: msg.role === "user" ? "#fff" : "#374151",
+                                  msg.role === "user" ? "#f3f4f6" : "#4f46e5",
+                                color: msg.role === "user" ? "#374151" : "#fff",
                               }}
                             >
                               <p
@@ -3086,14 +3187,14 @@ const InboxView = ({
                             </div>
                             <span
                               style={{
-                                fontSize: "15px",
-                                color: "#374151",
+                                fontSize: "12px",
+                                color: "#9ca3af",
                                 marginTop: "4px",
-                                paddingLeft: msg.role === "user" ? "0" : "4px",
-                                paddingRight: msg.role === "user" ? "4px" : "0",
+                                paddingLeft: msg.role === "user" ? "4px" : "0",
+                                paddingRight: msg.role === "user" ? "0" : "4px",
                               }}
                             >
-                              {msg.role === "user" ? "Visiteur" : "Chatbot"}
+                              {msg.role === "user" ? "Client" : "Chatbot"}
                             </span>
                           </div>
                         ))}
