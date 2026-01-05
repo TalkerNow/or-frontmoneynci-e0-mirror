@@ -762,6 +762,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
       formData.append("html_content", htmlContent);
       formData.append("error_message", reportDescription);
       formData.append("doc_name", reportDoc.name || "");
+      formData.append("doc_id", reportDoc.id || "");
       formData.append("doc_type", reportDoc.type || "");
       formData.append("client_id", id);
 

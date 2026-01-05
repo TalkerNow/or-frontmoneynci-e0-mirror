@@ -1038,7 +1038,7 @@ class CreateContract extends React.Component {
         ? parseFloat(this.state.formValues["FINAL25"])
         : 0,
       user_id: userid,
-      parent_id: parentid.toString(),
+      parent_id: parentid ? parentid.toString() : "",
       creator_id: this.state.creator_id,
       values: JSON.stringify(input_values),
       unipro:
@@ -1079,7 +1079,9 @@ class CreateContract extends React.Component {
       },
     };
     var userid = this.props.match.params.id;
-    var parentid = this.props.match.params.parent_id;
+    var parentid =
+      this.props.match.params.parent_id ||
+      (this.state.rowData && this.state.rowData.parent_id);
     let subscribe_services = "";
 
     if (input_values.c1) subscribe_services += "CH";
