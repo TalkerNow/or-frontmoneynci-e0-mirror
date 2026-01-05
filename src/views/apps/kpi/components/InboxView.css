@@ -1,0 +1,81 @@
+/* InboxView Responsive Styles */
+
+/* Mobile: Stack layout & buttons */
+@media (max-width: 768px) {
+  .inbox-container {
+    flex-direction: column !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .inbox-left-panel {
+    width: 100% !important;
+    height: 350px !important;
+    border-right: none !important;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .inbox-detail-header {
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+
+  .header-btn-stack {
+    flex-direction: column !important;
+    width: 100% !important;
+  }
+
+  .header-btn-stack button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .responsive-padding {
+    padding: 16px !important;
+  }
+
+  /* Stack the 3 header fields vertically on mobile */
+  .inbox-header-fields {
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  .inbox-header-fields > div {
+    min-width: unset !important;
+  }
+}
+
+/* Tablet: adjust spacing */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .responsive-padding {
+    padding: 20px !important;
+  }
+
+  .header-btn-stack {
+    flex-wrap: wrap !important;
+  }
+
+  .header-btn-stack button {
+    flex: 1 1 auto !important;
+    min-width: 120px !important;
+  }
+}
+
+/* Desktop: default padding */
+@media (min-width: 1025px) {
+  .responsive-padding {
+    padding: 24px;
+  }
+}
+
+/* Hide button text on very small screens, show only icon */
+@media (max-width: 480px) {
+  .btn-hide-text-mobile span:not(.icon) {
+    display: none;
+  }
+  
+  .header-btn-stack button {
+    padding: 10px !important;
+    min-width: unset !important;
+  }
+}
