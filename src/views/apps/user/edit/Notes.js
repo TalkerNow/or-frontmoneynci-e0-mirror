@@ -494,6 +494,19 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         return;
       }
 
+      // Validation : date de naissance
+      const birthDateVal = perso?.birth_date;
+      if (
+        birthDateVal === undefined ||
+        birthDateVal === null ||
+        String(birthDateVal).trim() === ""
+      ) {
+        toast.error(
+          "La date de naissance est manquante. Veuillez la renseigner dans les informations du client."
+        );
+        return;
+      }
+
       setIsGenerating(true);
       try {
         // ---------- CALL 1 : FRONT → n8n (avec ou sans fichier) ----------
@@ -517,8 +530,10 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
           docLabel = "Rapport spécifique";
         }
 
-        // Ajout du nombre d'enfants au message n8n
+        // Ajout du nombre d'enfants et date de naissance au message n8n
         const childrenCount = perso?.children_number ?? "Non renseigné";
+        const birthDate = perso?.birth_date ?? "Non renseignée";
+
         // Build the message with Quick Tags if selected
         const tagsPrefix =
           selectedTags.length > 0
@@ -527,7 +542,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
               .join(", ")}\n\n`
             : "";
         const finalMessage = `${tagsPrefix}${currentMessage || ""
-          }\n\nNombre d'enfants : ${childrenCount}`.trim();
+          }\n\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDate}`.trim();
         n8nFormData.append("message", finalMessage);
 
         // Ajout du contenu HTML précédent si disponible (pour les rapports spécifiques)
@@ -1390,7 +1405,6 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
                 doc={doc}
                 onOpen={() => handleOpenDoc(doc)}
                 onDelete={() => requestDeleteGenerated(doc)}
-                onReport={() => handleReportDoc(doc)}
                 onRename={handleRenameDoc}
               />
             ))}
@@ -1827,7 +1841,6 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
                 nouveau rapport basé sur ce dossier. Le nouveau rapport
                 remplacera celui-ci.
               </p>
-
               <Button
                 color="primary"
                 outline
@@ -1835,6 +1848,15 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
                 onClick={handleDownloadPdf}
               >
                 <Download size={16} className="mr-1" /> Télécharger en PDF
+              </Button>
+
+              <Button
+                color="danger"
+                outline
+                className="mb-3 d-flex align-items-center justify-content-center"
+                onClick={() => handleReportDoc(viewingDoc)}
+              >
+                <AlertTriangle size={16} className="mr-1" /> Signaler une erreur
               </Button>
 
               <div style={{ flex: 1 }}></div>
