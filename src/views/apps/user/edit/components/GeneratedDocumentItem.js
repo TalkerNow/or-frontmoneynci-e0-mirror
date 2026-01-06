@@ -94,7 +94,6 @@ const GeneratedDocumentItem = ({ doc, onOpen, onDelete, onReport, onRename }) =>
         </div>
       </div>
       <ActionButtons
-        onOpen={onOpen}
         onDelete={onDelete}
         onReport={onReport}
         disableOpen={!doc.url}
