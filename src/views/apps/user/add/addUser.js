@@ -120,6 +120,16 @@ class AddUser extends React.Component {
           });
         }
       });
+
+    // Handle pre-filled data from location state (e.g. from conversion)
+    if (this.props.location && this.props.location.state) {
+      this.setState(prev => ({
+        data: {
+          ...prev.data,
+          ...this.props.location.state
+        }
+      }));
+    }
   }
   zipTimeout = null;
   handleDataChange = (field) => (e) => {
@@ -444,6 +454,7 @@ class AddUser extends React.Component {
                     <Input
                       type="text"
                       placeholder="Prénom"
+                      value={this.state.data.first_name || ""}
                       onChange={(e) =>
                         this.setState({
                           data: {
@@ -462,6 +473,7 @@ class AddUser extends React.Component {
                     <Input
                       type="text"
                       placeholder="Nom"
+                      value={this.state.data.last_name || ""}
                       onChange={(e) =>
                         this.setState({
                           data: {
@@ -480,6 +492,7 @@ class AddUser extends React.Component {
                     <Input
                       type="email"
                       placeholder="Email"
+                      value={this.state.data.email || ""}
                       onChange={(e) =>
                         this.setState({
                           data: { ...this.state.data, email: e.target.value },

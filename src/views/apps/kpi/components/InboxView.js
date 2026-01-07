@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useHistory } from "react-router-dom";
 import {
   MessageSquare,
   PhoneIncoming,
@@ -408,8 +409,8 @@ const ActionsSection = () => {
                   item.type === "CALLREPORT"
                     ? "#3b82f615"
                     : item.type === "TASK"
-                    ? "#f9731615"
-                    : "#6b728015",
+                      ? "#f9731615"
+                      : "#6b728015",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -739,80 +740,133 @@ function extractContactFromMessages(messages) {
 
 // Helper: Map conversation from backend to inbox item
 function mapConversationToInboxItem(conv) {
-  // Try to find user info in various places
-  const user =
-    conv.user ||
-    conv.client ||
-    conv.user_data ||
-    conv.contact ||
-    conv.visitor ||
-    {};
+  const type =
+    conv._source ||
+    conv.type ||
+    (conv.messages && conv.messages.length > 0 ? "chatbot" : "diagnostic");
 
-  // Aggressively search for name fields
-  const firstname =
-    user.firstname ||
-    user.first_name ||
-    user.prenom ||
-    conv.firstname ||
-    conv.first_name ||
-    conv.prenom ||
-    conv.visitor_firstname ||
-    conv.contact_firstname ||
-    "";
+  let firstName = "";
+  let lastName = "";
+  let email = "";
+  let phone = "";
+  let attributes = conv.attributes || {};
 
-  const lastname =
-    user.lastname ||
-    user.last_name ||
-    user.nom ||
-    conv.lastname ||
-    conv.last_name ||
-    conv.nom ||
-    conv.visitor_lastname ||
-    conv.contact_lastname ||
-    "";
-
-  let fullName = `${firstname} ${lastname}`.trim();
-
-  // If we couldn't build a name, try combined name fields
-  if (!fullName) {
-    fullName =
-      user.name ||
-      user.full_name ||
-      user.contact_name ||
-      conv.name ||
-      conv.full_name ||
-      conv.contact_name ||
-      conv.client_name ||
-      conv.visitor_name ||
-      conv.nom_prenom ||
+  if (type === "diagnostic") {
+    // DIAGNOSTIC MAPPING
+    // We look for specific attributes keys known in the simulator
+    firstName = attributes.PRENOM || attributes.prenom || "";
+    lastName = attributes.NOM || attributes.nom || "";
+    email = attributes.EMAIL || attributes.email || "";
+    phone =
+      attributes.TELEPHONE ||
+      attributes.telephone ||
+      attributes.TELEPHONE_MOBILE ||
       "";
+
+    // Additional attributes specific fields if needed
+    // Additional attributes specific fields if needed
+    if (!phone) phone = conv.phone || conv.telephone || "";
+    if (!email) email = conv.email || "";
+
+    // Fallback: try to guess name from email if name is missing
+    if ((!firstName || !lastName) && email) {
+      const localPart = email.split('@')[0];
+      // If it has a separator like dot or hyphen, might be First.Last
+      const splitName = localPart.split(/[.-]/);
+      if (splitName.length > 1) {
+        firstName = firstName || splitName[0];
+        lastName = lastName || splitName.slice(1).join(" ");
+      } else if (!firstName && !lastName) {
+        firstName = localPart;
+      }
+    }
+
+  } else if (type === "chatbot") {
+    // CHATBOT MAPPING
+    const user = conv.user || conv.visitor || conv.contact || {};
+
+    firstName = user.first_name || user.firstname || user.prenom || conv.firstname || "";
+    lastName = user.last_name || user.lastname || user.nom || conv.lastname || "";
+    email = user.email || conv.email || "";
+    phone = user.phone || user.telephone || conv.phone || conv.telephone || "";
+
+    // If structured data is missing, we must extract from messages (as seen in user logs)
+    if (!email || !phone) {
+      const messages = conv.messages || [];
+      // Scan user messages one by one
+      messages.forEach(msg => {
+        if (msg.role === 'user' && msg.content) {
+          const text = msg.content.trim();
+
+          // EMAIL EXTRACTION
+          if (!email) {
+            const emailMatch = text.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
+            if (emailMatch) {
+              email = emailMatch[0];
+            }
+          }
+
+          // PHONE EXTRACTION (0603263227 type pattern)
+          if (!phone) {
+            // Clean non-digits to check length
+            const digits = text.replace(/\D/g, '');
+            // Check if it looks like a standalone phone number (10 digits starting with 0, or international)
+            // We check if the whole message is roughly just a phone number or contains one clearly
+            const phoneMatch = text.match(/(?:(?:\+|00)33|0)[1-9](?:[\s.-]*\d{2}){4}/);
+            if (phoneMatch) {
+              phone = phoneMatch[0];
+            } else if (digits.length === 10 && digits.startsWith('0')) {
+              // Fallback for raw digits "0603263227"
+              phone = digits;
+            }
+          }
+        }
+      });
+    }
+
+    // If name is not split, try user.name
+    if (!firstName && !lastName) {
+      const full = user.name || conv.name || "";
+      if (full) {
+        const parts = full.trim().split(" ");
+        if (parts.length > 1) {
+          lastName = parts.pop();
+          firstName = parts.join(" ");
+        } else {
+          firstName = full;
+        }
+      } else if (email) {
+        // Last resort: try to guess name from email (d-h@wanadoo.fr -> d-h)
+        const localPart = email.split('@')[0];
+        // If it has a separator like dot or hyphen, might be First.Last
+        const splitName = localPart.split(/[.-]/);
+        if (splitName.length > 1) {
+          firstName = splitName[0];
+          lastName = splitName.slice(1).join(" ");
+        } else {
+          firstName = localPart;
+        }
+      }
+    }
+  } else {
+    // OTHER (Call, Email, etc.)
+    const user = conv.user || conv.client || {};
+    firstName = user.first_name || conv.client_first_name || "";
+    lastName = user.last_name || conv.client_last_name || "";
+    email = user.email || conv.email || conv.client_email || "";
+    phone = user.phone || conv.phone || conv.client_phone || "";
   }
 
-  // Extract from messages if metadata is missing
-  const extracted = extractContactFromMessages(conv.messages);
-
-  const phone =
-    user.telephone ||
-    user.phone ||
-    conv.telephone ||
-    conv.phone ||
-    conv.client_phone ||
-    extracted.phone ||
-    "";
-
-  const email =
-    user.email || conv.email || conv.client_email || extracted.email || "";
-
-  // Final fallback for display name
+  // Construct Display Name
+  const fullName = `${firstName} ${lastName}`.trim();
   const displayName = fullName || phone || email || "Prospect inconnu";
 
   return {
     id: conv.id,
-    type:
-      conv._source ||
-      conv.type ||
-      (conv.messages && conv.messages.length > 0 ? "chatbot" : "diagnostic"),
+    type: type,
     name: displayName,
+    firstName: firstName,
+    lastName: lastName,
     email: email,
     phone: phone,
     date: formatRelativeDate(
@@ -823,11 +877,11 @@ function mapConversationToInboxItem(conv) {
       conv.messages && conv.messages.length > 0
         ? extractSummaryFromMessages(conv.messages)
         : conv.note
-        ? [conv.note]
-        : conv.objet
-        ? [conv.objet]
-        : [],
-    status: conv.status || conv.action || "new", // Fallback to action for KPIs
+          ? [conv.note]
+          : conv.objet
+            ? [conv.objet]
+            : [],
+    status: conv.status || conv.action || "new",
     priority: conv.priority || "medium",
     hasMultipleChannels: conv._hasMultipleChannels || false,
     raw: conv,
@@ -841,6 +895,7 @@ const InboxView = ({
   error,
   onSelect,
 }) => {
+  const history = useHistory();
   // Use provided items (no mock fallback), sorted by date (most recent first)
   // Memoize to ensure recalculation when items change
   const allInboxItems = React.useMemo(() => {
@@ -1030,22 +1085,20 @@ const InboxView = ({
     const prompt = `
       CONTEXTE DU PROSPECT :
       - Nom: ${selectedItem.name}
-      - Type : ${
-        selectedItem.type === "diagnostic"
-          ? "Diagnostic en ligne"
-          : selectedItem.type === "call"
+      - Type : ${selectedItem.type === "diagnostic"
+        ? "Diagnostic en ligne"
+        : selectedItem.type === "call"
           ? "Appel téléphonique"
           : selectedItem.type === "email"
-          ? "Email de contact"
-          : "Chatbot"
+            ? "Email de contact"
+            : "Chatbot"
       }
       - Points clés : ${selectedItem.summary?.join(", ")}
-      ${
-        selectedItem.type === "diagnostic"
-          ? `- Score complexité : ${calculateComplexityScore(
-              selectedItem.raw?.attributes
-            )}/100`
-          : ""
+      ${selectedItem.type === "diagnostic"
+        ? `- Score complexité : ${calculateComplexityScore(
+          selectedItem.raw?.attributes
+        )}/100`
+        : ""
       }
      
       TÂCHE : Rédige un email de premier contact.
@@ -1091,8 +1144,7 @@ const InboxView = ({
       // API call to update status (soft delete)
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `${
-          process.env.REACT_APP_API_URL || window.location.origin
+        `${process.env.REACT_APP_API_URL || window.location.origin
         }/api/prospects/${selectedItem.id}/disqualify`,
         {
           method: "PATCH",
@@ -1259,6 +1311,50 @@ const InboxView = ({
     }
   };
 
+  const handleConvert = () => {
+    if (!selectedItem) return;
+
+    // Helper to split name roughly
+    const fullName = selectedItem.name || "";
+    const nameParts = fullName.trim().split(" ");
+    let firstName = "";
+    let lastName = "";
+    if (nameParts.length > 0) {
+      firstName = nameParts[0];
+      lastName = nameParts.slice(1).join(" ");
+    }
+
+    // Extract attributes
+    const attrs = selectedItem.raw?.attributes || {};
+
+    // Civility
+    let civility = "";
+    if (attrs.CIVILITE === "M") civility = "Monsieur";
+    else if (attrs.CIVILITE === "Mme") civility = "Madame";
+
+    // Date formatting
+    const birthDateRaw = selectedItem.raw?.birth_date || selectedItem.raw?.date_naissance || attrs.DATE_NAISSANCE;
+    let birth_date = null;
+    if (birthDateRaw) {
+      try {
+        birth_date = new Date(birthDateRaw).toISOString().split('T')[0];
+      } catch (e) { }
+    }
+
+    const prefillData = {
+      first_name: firstName,
+      last_name: lastName,
+      email: selectedItem.email || attrs.EMAIL,
+      mobile_number: selectedItem.phone || attrs.TELEPHONE,
+      children_number: attrs.NBR_ENFANTS,
+      birth_date: birth_date,
+      military_service: attrs.SIMULATEUR_DIFFICULTE_Q11?.toLowerCase() === "oui" ? "oui" : "non",
+      civility: civility
+    };
+
+    history.push("/app/user/createUser", prefillData);
+  };
+
   // Inline styles for layout since Tailwind might not be fully available
   const containerStyle = {
     display: "flex",
@@ -1375,15 +1471,14 @@ const InboxView = ({
                   cursor: "pointer",
                   backgroundColor:
                     selectedItem.id === item.id ? "#eef2ff" : "transparent",
-                  borderLeft: `4px solid ${
-                    item.type === "diagnostic"
-                      ? "#f97316"
-                      : item.type === "call"
+                  borderLeft: `4px solid ${item.type === "diagnostic"
+                    ? "#f97316"
+                    : item.type === "call"
                       ? "#22c55e"
                       : item.type === "email"
-                      ? "#6366f1"
-                      : "#3b82f6"
-                  }`,
+                        ? "#6366f1"
+                        : "#3b82f6"
+                    }`,
                   transition: "background-color 0.2s",
                 }}
               >
@@ -1604,9 +1699,9 @@ const InboxView = ({
                   display: "flex",
                   alignItems: "center",
                   gap: "8px",
-                  border: "none",
                   cursor: "pointer",
                 }}
+                onClick={handleConvert}
               >
                 <ArrowRight size={16} /> Convertir
               </button>
@@ -2466,23 +2561,23 @@ const InboxView = ({
                             {selectedItem.raw.attributes
                               .SIMULATEUR_DIFFICULTE_Q7
                               ? selectedItem.raw.attributes.SIMULATEUR_DIFFICULTE_Q7.split(
-                                  ","
-                                ).map((v, i) => (
-                                  <span
-                                    key={i}
-                                    style={{
-                                      display: "inline-block",
-                                      border: "1px solid #e2e8f0",
-                                      borderRadius: "999px",
-                                      padding: "2px 8px",
-                                      margin: "2px 4px 2px 0",
-                                      fontSize: "15px",
-                                      background: "#f8fafc",
-                                    }}
-                                  >
-                                    {v.replace(/_/g, " ")}
-                                  </span>
-                                ))
+                                ","
+                              ).map((v, i) => (
+                                <span
+                                  key={i}
+                                  style={{
+                                    display: "inline-block",
+                                    border: "1px solid #e2e8f0",
+                                    borderRadius: "999px",
+                                    padding: "2px 8px",
+                                    margin: "2px 4px 2px 0",
+                                    fontSize: "15px",
+                                    background: "#f8fafc",
+                                  }}
+                                >
+                                  {v.replace(/_/g, " ")}
+                                </span>
+                              ))
                               : "—"}
                           </td>
                         </tr>
@@ -2570,23 +2665,23 @@ const InboxView = ({
                             {selectedItem.raw.attributes
                               .SIMULATEUR_DIFFICULTE_Q10
                               ? selectedItem.raw.attributes.SIMULATEUR_DIFFICULTE_Q10.split(
-                                  ","
-                                ).map((v, i) => (
-                                  <span
-                                    key={i}
-                                    style={{
-                                      display: "inline-block",
-                                      border: "1px solid #e2e8f0",
-                                      borderRadius: "999px",
-                                      padding: "2px 8px",
-                                      margin: "2px 4px 2px 0",
-                                      fontSize: "15px",
-                                      background: "#f8fafc",
-                                    }}
-                                  >
-                                    {v.replace(/_/g, " ")}
-                                  </span>
-                                ))
+                                ","
+                              ).map((v, i) => (
+                                <span
+                                  key={i}
+                                  style={{
+                                    display: "inline-block",
+                                    border: "1px solid #e2e8f0",
+                                    borderRadius: "999px",
+                                    padding: "2px 8px",
+                                    margin: "2px 4px 2px 0",
+                                    fontSize: "15px",
+                                    background: "#f8fafc",
+                                  }}
+                                >
+                                  {v.replace(/_/g, " ")}
+                                </span>
+                              ))
                               : "—"}
                           </td>
                         </tr>
@@ -2985,7 +3080,7 @@ const InboxView = ({
                   fontWeight: "bold",
                   color:
                     selectedItem.type === "call" ||
-                    selectedItem.type === "email"
+                      selectedItem.type === "email"
                       ? "#374151"
                       : "#1e40af",
                   marginBottom: "12px",
@@ -2997,7 +3092,7 @@ const InboxView = ({
                 }}
               >
                 {selectedItem.type === "call" ||
-                selectedItem.type === "email" ? (
+                  selectedItem.type === "email" ? (
                   <>
                     <ClipboardList size={16} /> Détails de l'échange
                   </>
@@ -3026,7 +3121,7 @@ const InboxView = ({
                         height: "6px",
                         backgroundColor:
                           selectedItem.type === "call" ||
-                          selectedItem.type === "email"
+                            selectedItem.type === "email"
                             ? "#9ca3af"
                             : "#60a5fa",
                         borderRadius: "50%",
@@ -3337,313 +3432,315 @@ const InboxView = ({
             <ActionsSection />
           </div>
         </div>
-      </div>
+      </div >
 
       {/* Disqualify Modal */}
-      {showDisqualifyModal && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 10000,
-            backdropFilter: "blur(2px)",
-          }}
-          onClick={handleCloseDisqualifyModal}
-        >
+      {
+        showDisqualifyModal && (
           <div
             style={{
-              backgroundColor: "#fff",
-              borderRadius: "12px",
-              boxShadow: "0 20px 50px rgba(0, 0, 0, 0.25)",
-              width: "100%",
-              maxWidth: "480px",
-              margin: "16px",
-              overflow: "hidden",
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 10000,
+              backdropFilter: "blur(2px)",
             }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={handleCloseDisqualifyModal}
           >
-            {/* Modal Header */}
             <div
               style={{
-                padding: "20px 24px",
-                borderBottom: "1px solid #f3f4f6",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
+                backgroundColor: "#fff",
+                borderRadius: "12px",
+                boxShadow: "0 20px 50px rgba(0, 0, 0, 0.25)",
+                width: "100%",
+                maxWidth: "480px",
+                margin: "16px",
+                overflow: "hidden",
               }}
+              onClick={(e) => e.stopPropagation()}
             >
+              {/* Modal Header */}
               <div
-                style={{ display: "flex", alignItems: "center", gap: "12px" }}
-              >
-                <div
-                  style={{
-                    width: "40px",
-                    height: "40px",
-                    borderRadius: "10px",
-                    backgroundColor: "#fef2f2",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <XCircle size={20} color="#dc2626" />
-                </div>
-                <h3
-                  style={{
-                    margin: 0,
-                    fontSize: "18px",
-                    fontWeight: 600,
-                    color: "#111827",
-                  }}
-                >
-                  Disqualifier le prospect
-                </h3>
-              </div>
-              <button
-                onClick={handleCloseDisqualifyModal}
                 style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: "8px",
-                  borderRadius: "6px",
-                  color: "#6b7280",
-                  transition: "all 0.2s",
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = "#f3f4f6";
-                  e.currentTarget.style.color = "#111827";
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = "transparent";
-                  e.currentTarget.style.color = "#6b7280";
-                }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div style={{ padding: "24px" }}>
-              <p
-                style={{
-                  margin: "0 0 20px",
-                  fontSize: "14px",
-                  color: "#374151",
-                  lineHeight: "1.6",
-                }}
-              >
-                Vous êtes sur le point de disqualifier{" "}
-                <strong style={{ color: "#111827" }}>
-                  {selectedItem?.name}
-                </strong>
-                . Cette action ne supprimera pas le prospect mais le retirera de
-                votre flux actif.
-              </p>
-
-              {/* Reason Select */}
-              <div style={{ marginBottom: "16px" }}>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: "14px",
-                    fontWeight: 600,
-                    color: "#111827",
-                    marginBottom: "8px",
-                  }}
-                >
-                  Motif de disqualification{" "}
-                  <span style={{ color: "#7367f0" }}>*</span>
-                </label>
-                <select
-                  value={disqualifyReason}
-                  onChange={(e) => setDisqualifyReason(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    fontSize: "14px",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: "8px",
-                    backgroundColor: "#fff",
-                    color: disqualifyReason ? "#111827" : "#6b7280",
-                    cursor: "pointer",
-                    outline: "none",
-                    appearance: "none",
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
-                    backgroundRepeat: "no-repeat",
-                    backgroundPosition: "right 12px center",
-                    transition: "border-color 0.2s, box-shadow 0.2s",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "#7367f0";
-                    e.target.style.boxShadow =
-                      "0 0 0 3px rgba(115, 103, 240, 0.15)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = "#e5e7eb";
-                    e.target.style.boxShadow = "none";
-                  }}
-                >
-                  <option value="" style={{ color: "#6b7280" }}>
-                    Sélectionnez un motif...
-                  </option>
-                  {DISQUALIFICATION_REASONS.map((reason) => (
-                    <option
-                      key={reason.value}
-                      value={reason.value}
-                      style={{ color: "#111827" }}
-                    >
-                      {reason.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Comment Textarea */}
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: "14px",
-                    fontWeight: 600,
-                    color: "#111827",
-                    marginBottom: "8px",
-                  }}
-                >
-                  Commentaire{" "}
-                  <span style={{ color: "#6b7280", fontWeight: 400 }}>
-                    (optionnel)
-                  </span>
-                </label>
-                <textarea
-                  value={disqualifyComment}
-                  onChange={(e) => setDisqualifyComment(e.target.value)}
-                  placeholder="Ajoutez un commentaire pour préciser le contexte..."
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    fontSize: "14px",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: "8px",
-                    backgroundColor: "#fff",
-                    minHeight: "100px",
-                    resize: "vertical",
-                    outline: "none",
-                    fontFamily: "inherit",
-                    transition: "border-color 0.2s, box-shadow 0.2s",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "#7367f0";
-                    e.target.style.boxShadow =
-                      "0 0 0 3px rgba(115, 103, 240, 0.15)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = "#e5e7eb";
-                    e.target.style.boxShadow = "none";
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div
-              className="modal-footer-responsive"
-              style={{
-                padding: "16px 24px",
-                borderTop: "1px solid #f3f4f6",
-                display: "flex",
-                justifyContent: "flex-end",
-                flexWrap: "wrap",
-                gap: "12px",
-                backgroundColor: "#f9fafb",
-              }}
-            >
-              <button
-                onClick={handleCloseDisqualifyModal}
-                disabled={isDisqualifying}
-                style={{
-                  padding: "10px 20px",
-                  fontSize: "14px",
-                  fontWeight: 500,
-                  color: "#fff",
-                  backgroundColor: isDisqualifying ? "#a5b4fc" : "#7367f0",
-                  border: "none",
-                  borderRadius: "8px",
-                  cursor: isDisqualifying ? "not-allowed" : "pointer",
-                  transition: "all 0.2s",
-                  opacity: isDisqualifying ? 0.5 : 1,
-                }}
-                onMouseOver={(e) => {
-                  if (!isDisqualifying) {
-                    e.currentTarget.style.backgroundColor = "#5a4ed1";
-                  }
-                }}
-                onMouseOut={(e) => {
-                  if (!isDisqualifying) {
-                    e.currentTarget.style.backgroundColor = "#7367f0";
-                  }
-                }}
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleConfirmDisqualify}
-                disabled={isDisqualifying || !disqualifyReason}
-                style={{
-                  padding: "10px 20px",
-                  fontSize: "14px",
-                  fontWeight: 500,
-                  color: "#fff",
-                  backgroundColor:
-                    isDisqualifying || !disqualifyReason
-                      ? "#fca5a5"
-                      : "#dc2626",
-                  border: "none",
-                  borderRadius: "8px",
-                  cursor:
-                    isDisqualifying || !disqualifyReason
-                      ? "not-allowed"
-                      : "pointer",
-                  transition: "all 0.2s",
+                  padding: "20px 24px",
+                  borderBottom: "1px solid #f3f4f6",
                   display: "flex",
                   alignItems: "center",
-                  gap: "8px",
-                }}
-                onMouseOver={(e) => {
-                  if (!isDisqualifying && disqualifyReason) {
-                    e.currentTarget.style.backgroundColor = "#b91c1c";
-                  }
-                }}
-                onMouseOut={(e) => {
-                  if (!isDisqualifying && disqualifyReason) {
-                    e.currentTarget.style.backgroundColor = "#dc2626";
-                  }
+                  justifyContent: "space-between",
                 }}
               >
-                {isDisqualifying ? (
-                  <>
-                    <Loader size={16} className="animate-spin" />
-                    Disqualification...
-                  </>
-                ) : (
-                  <>
-                    <XCircle size={16} />
-                    Confirmer la disqualification
-                  </>
-                )}
-              </button>
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: "12px" }}
+                >
+                  <div
+                    style={{
+                      width: "40px",
+                      height: "40px",
+                      borderRadius: "10px",
+                      backgroundColor: "#fef2f2",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <XCircle size={20} color="#dc2626" />
+                  </div>
+                  <h3
+                    style={{
+                      margin: 0,
+                      fontSize: "18px",
+                      fontWeight: 600,
+                      color: "#111827",
+                    }}
+                  >
+                    Disqualifier le prospect
+                  </h3>
+                </div>
+                <button
+                  onClick={handleCloseDisqualifyModal}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: "8px",
+                    borderRadius: "6px",
+                    color: "#6b7280",
+                    transition: "all 0.2s",
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.backgroundColor = "#f3f4f6";
+                    e.currentTarget.style.color = "#111827";
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                    e.currentTarget.style.color = "#6b7280";
+                  }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div style={{ padding: "24px" }}>
+                <p
+                  style={{
+                    margin: "0 0 20px",
+                    fontSize: "14px",
+                    color: "#374151",
+                    lineHeight: "1.6",
+                  }}
+                >
+                  Vous êtes sur le point de disqualifier{" "}
+                  <strong style={{ color: "#111827" }}>
+                    {selectedItem?.name}
+                  </strong>
+                  . Cette action ne supprimera pas le prospect mais le retirera de
+                  votre flux actif.
+                </p>
+
+                {/* Reason Select */}
+                <div style={{ marginBottom: "16px" }}>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      color: "#111827",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    Motif de disqualification{" "}
+                    <span style={{ color: "#7367f0" }}>*</span>
+                  </label>
+                  <select
+                    value={disqualifyReason}
+                    onChange={(e) => setDisqualifyReason(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "12px 14px",
+                      fontSize: "14px",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "8px",
+                      backgroundColor: "#fff",
+                      color: disqualifyReason ? "#111827" : "#6b7280",
+                      cursor: "pointer",
+                      outline: "none",
+                      appearance: "none",
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+                      backgroundRepeat: "no-repeat",
+                      backgroundPosition: "right 12px center",
+                      transition: "border-color 0.2s, box-shadow 0.2s",
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = "#7367f0";
+                      e.target.style.boxShadow =
+                        "0 0 0 3px rgba(115, 103, 240, 0.15)";
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = "#e5e7eb";
+                      e.target.style.boxShadow = "none";
+                    }}
+                  >
+                    <option value="" style={{ color: "#6b7280" }}>
+                      Sélectionnez un motif...
+                    </option>
+                    {DISQUALIFICATION_REASONS.map((reason) => (
+                      <option
+                        key={reason.value}
+                        value={reason.value}
+                        style={{ color: "#111827" }}
+                      >
+                        {reason.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Comment Textarea */}
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      color: "#111827",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    Commentaire{" "}
+                    <span style={{ color: "#6b7280", fontWeight: 400 }}>
+                      (optionnel)
+                    </span>
+                  </label>
+                  <textarea
+                    value={disqualifyComment}
+                    onChange={(e) => setDisqualifyComment(e.target.value)}
+                    placeholder="Ajoutez un commentaire pour préciser le contexte..."
+                    style={{
+                      width: "100%",
+                      padding: "12px 14px",
+                      fontSize: "14px",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "8px",
+                      backgroundColor: "#fff",
+                      minHeight: "100px",
+                      resize: "vertical",
+                      outline: "none",
+                      fontFamily: "inherit",
+                      transition: "border-color 0.2s, box-shadow 0.2s",
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = "#7367f0";
+                      e.target.style.boxShadow =
+                        "0 0 0 3px rgba(115, 103, 240, 0.15)";
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = "#e5e7eb";
+                      e.target.style.boxShadow = "none";
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div
+                className="modal-footer-responsive"
+                style={{
+                  padding: "16px 24px",
+                  borderTop: "1px solid #f3f4f6",
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  flexWrap: "wrap",
+                  gap: "12px",
+                  backgroundColor: "#f9fafb",
+                }}
+              >
+                <button
+                  onClick={handleCloseDisqualifyModal}
+                  disabled={isDisqualifying}
+                  style={{
+                    padding: "10px 20px",
+                    fontSize: "14px",
+                    fontWeight: 500,
+                    color: "#fff",
+                    backgroundColor: isDisqualifying ? "#a5b4fc" : "#7367f0",
+                    border: "none",
+                    borderRadius: "8px",
+                    cursor: isDisqualifying ? "not-allowed" : "pointer",
+                    transition: "all 0.2s",
+                    opacity: isDisqualifying ? 0.5 : 1,
+                  }}
+                  onMouseOver={(e) => {
+                    if (!isDisqualifying) {
+                      e.currentTarget.style.backgroundColor = "#5a4ed1";
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (!isDisqualifying) {
+                      e.currentTarget.style.backgroundColor = "#7367f0";
+                    }
+                  }}
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleConfirmDisqualify}
+                  disabled={isDisqualifying || !disqualifyReason}
+                  style={{
+                    padding: "10px 20px",
+                    fontSize: "14px",
+                    fontWeight: 500,
+                    color: "#fff",
+                    backgroundColor:
+                      isDisqualifying || !disqualifyReason
+                        ? "#fca5a5"
+                        : "#dc2626",
+                    border: "none",
+                    borderRadius: "8px",
+                    cursor:
+                      isDisqualifying || !disqualifyReason
+                        ? "not-allowed"
+                        : "pointer",
+                    transition: "all 0.2s",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                  onMouseOver={(e) => {
+                    if (!isDisqualifying && disqualifyReason) {
+                      e.currentTarget.style.backgroundColor = "#b91c1c";
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (!isDisqualifying && disqualifyReason) {
+                      e.currentTarget.style.backgroundColor = "#dc2626";
+                    }
+                  }}
+                >
+                  {isDisqualifying ? (
+                    <>
+                      <Loader size={16} className="animate-spin" />
+                      Disqualification...
+                    </>
+                  ) : (
+                    <>
+                      <XCircle size={16} />
+                      Confirmer la disqualification
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };
 
