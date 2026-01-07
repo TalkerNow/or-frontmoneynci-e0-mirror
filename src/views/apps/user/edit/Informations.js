@@ -10,7 +10,11 @@ import {
   Label,
   FormGroup,
   CustomInput,
+  InputGroup,
+  InputGroupAddon,
+  InputGroupText,
 } from "reactstrap";
+import ReactCountryFlag from "react-country-flag";
 import { User, Home, Briefcase, Heart, Plus, Minus } from "react-feather";
 import "flatpickr/dist/themes/light.css";
 import "../../../../assets/scss/plugins/forms/flatpickr/flatpickr.scss";
@@ -19,6 +23,7 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import { history } from "../../../../history";
 import Radio from "../../../../components/@vuexy/radio/RadioVuexy";
+import { countryCodes } from "../../../../configs/countryCodes";
 
 class UserAccountTab extends React.Component {
   state = {
@@ -137,9 +142,40 @@ class UserAccountTab extends React.Component {
   formatPhonePretty = (v) => {
     const d = this.normalizePhone(v);
     if (!d) return "";
-    // Plus de limitation à 10 caractères
-    // On espace tous les 2 chiffres pour la lisibilité
+
+    // On cherche l'indicatif le plus long qui matche
+    const sortedCodes = [...countryCodes].sort((a, b) => b.dial_code.length - a.dial_code.length);
+
+    for (const c of sortedCodes) {
+      if (d.startsWith(c.dial_code)) {
+        const rest = d.substring(c.dial_code.length);
+        return c.dial_code + " " + rest.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
+      }
+    }
+
+    // Comportement par défaut
     return d.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
+  };
+
+  getCountryFromPhone = (phone) => {
+    if (!phone) return null;
+    let p = String(phone).replace(/[^\d+]/g, "");
+
+    // Cas typique français sans +
+    if (p.startsWith("06") || p.startsWith("07") || (p.startsWith("0") && p.length === 10)) return "fr";
+    if (p.startsWith("0") && p.length > 2) return "fr"; // Supposition raisonnable
+
+    if (p.startsWith("+")) {
+      const sortedCodes = [...countryCodes].sort((a, b) => b.dial_code.length - a.dial_code.length);
+      for (const c of sortedCodes) {
+        if (p.startsWith(c.dial_code)) {
+          return c.code;
+        }
+      }
+      return "globe";
+    }
+
+    return "fr"; // Défaut
   };
   updateUsername = (e) => {
     this.markDirty();
@@ -174,19 +210,19 @@ class UserAccountTab extends React.Component {
           role: information.role
             ? information.role
             : this.props.data.role
-            ? this.props.data.role
-            : "Client",
+              ? this.props.data.role
+              : "Client",
           p_password: information.p_password,
           status: information.status
             ? information.status
             : this.props.data.status
-            ? this.props.data.status
-            : "En attente",
+              ? this.props.data.status
+              : "En attente",
           status_fa: information.status_fa
             ? information.status_fa
             : this.props.data.status_fa
-            ? this.props.data.status_fa
-            : false,
+              ? this.props.data.status_fa
+              : false,
           parent_id: information.parent_id,
           business_introducer_id: information.business_introducer_id,
         },
@@ -200,8 +236,8 @@ class UserAccountTab extends React.Component {
               civility: information.civility
                 ? information.civility
                 : this.props.data.civility
-                ? this.props.data.civility
-                : "",
+                  ? this.props.data.civility
+                  : "",
               first_name: information.first_name,
               last_name: information.last_name,
               birth_date: information.dob,
@@ -210,8 +246,8 @@ class UserAccountTab extends React.Component {
               martial_status: information.martial_status
                 ? information.martial_status
                 : this.props.data.martial_status
-                ? this.props.data.martial_status
-                : "Célibataire",
+                  ? this.props.data.martial_status
+                  : "Célibataire",
               children_number: information.children_number,
               secu_social: information.secu_social,
               secu_social_key: information.secu_social_key,
@@ -232,8 +268,8 @@ class UserAccountTab extends React.Component {
               military_service: information.military_service
                 ? information.military_service
                 : this.props.data.military_service
-                ? this.props.data.military_service
-                : "oui",
+                  ? this.props.data.military_service
+                  : "oui",
               parent_id: information.parent_id,
               business_introducer_id: information.business_introducer_id,
               notes: information.notes,
@@ -456,26 +492,52 @@ class UserAccountTab extends React.Component {
                   <Col md="12" sm="12">
                     <FormGroup>
                       <Label for="contactnumber">Numéro de Téléphone</Label>
-                      <Input
-                        type="text"
-                        id="contactnumber"
-                        placeholder="Numéro de Téléphone"
-                        value={this.formatPhonePretty(
-                          this.state.contact_number ??
+                      <InputGroup>
+                        {(() => {
+                          const val = this.state.contact_number ??
+                            this.ifExist("mobile_number") ??
+                            this.ifExist("office_number");
+                          const country = this.getCountryFromPhone(val);
+
+                          if (country && country !== "globe") {
+                            return (
+                              <InputGroupAddon addonType="prepend">
+                                <InputGroupText className="p-0" style={{ minWidth: "40px", justifyContent: "center" }}>
+                                  <ReactCountryFlag
+                                    countryCode={country}
+                                    svg
+                                    style={{
+                                      width: "1.5em",
+                                      height: "1.5em",
+                                    }}
+                                  />
+                                </InputGroupText>
+                              </InputGroupAddon>
+                            );
+                          }
+                          return null;
+                        })()}
+                        <Input
+                          type="text"
+                          id="contactnumber"
+                          placeholder="Numéro de Téléphone"
+                          value={this.formatPhonePretty(
+                            this.state.contact_number ??
                             this.ifExist("mobile_number") ??
                             this.ifExist("office_number")
-                        )}
-                        onChange={(e) =>
-                          this.setState({
-                            contact_number: this.normalizePhone(e.target.value),
-                          })
-                        }
-                        onBlur={(e) =>
-                          this.setState({
-                            contact_number: this.normalizePhone(e.target.value),
-                          })
-                        }
-                      />
+                          )}
+                          onChange={(e) =>
+                            this.setState({
+                              contact_number: this.normalizePhone(e.target.value),
+                            })
+                          }
+                          onBlur={(e) =>
+                            this.setState({
+                              contact_number: this.normalizePhone(e.target.value),
+                            })
+                          }
+                        />
+                      </InputGroup>
                     </FormGroup>
                   </Col>
                 </Row>

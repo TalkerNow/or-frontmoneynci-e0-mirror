@@ -3,6 +3,9 @@ import {
   FormGroup,
   Input,
   CustomInput,
+  InputGroup,
+  InputGroupAddon,
+  InputGroupText,
   Row,
   Col,
   Card,
@@ -12,6 +15,7 @@ import {
   Button,
   Label,
 } from "reactstrap";
+import ReactCountryFlag from "react-country-flag";
 import { history } from "../../../../history";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -30,6 +34,7 @@ import {
   Briefcase,
 } from "react-feather";
 import Radio from "../../../../components/@vuexy/radio/RadioVuexy";
+import { countryCodes } from "../../../../configs/countryCodes";
 import moment from "moment";
 import { waiterHide, waiterShow } from "../../../../helpers/waiter";
 
@@ -132,6 +137,54 @@ class AddUser extends React.Component {
     }
   }
   zipTimeout = null;
+  // ===== Helpers téléphone (FR + International) =====
+  normalizePhone = (v) => {
+    if (!v) return "";
+    let s = String(v).trim();
+    // On conserve + et chiffres, on vire le reste
+    let t = s.replace(/[^\d+]/g, "");
+    return t;
+  };
+
+  formatPhonePretty = (v) => {
+    const d = this.normalizePhone(v);
+    if (!d) return "";
+
+    // On cherche l'indicatif le plus long qui matche
+    const sortedCodes = [...countryCodes].sort((a, b) => b.dial_code.length - a.dial_code.length);
+
+    for (const c of sortedCodes) {
+      if (d.startsWith(c.dial_code)) {
+        const rest = d.substring(c.dial_code.length);
+        return c.dial_code + " " + rest.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
+      }
+    }
+
+    // Comportement par défaut
+    return d.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
+  };
+
+  getCountryFromPhone = (phone) => {
+    if (!phone) return null;
+    let p = String(phone).replace(/[^\d+]/g, "");
+
+    // Cas typique français sans +
+    if (p.startsWith("06") || p.startsWith("07") || (p.startsWith("0") && p.length === 10)) return "fr";
+    if (p.startsWith("0") && p.length > 2) return "fr"; // Supposition raisonnable
+
+    if (p.startsWith("+")) {
+      const sortedCodes = [...countryCodes].sort((a, b) => b.dial_code.length - a.dial_code.length);
+      for (const c of sortedCodes) {
+        if (p.startsWith(c.dial_code)) {
+          return c.code;
+        }
+      }
+      return "globe";
+    }
+
+    return "fr"; // Défaut
+  };
+
   handleDataChange = (field) => (e) => {
     const value = e && e.target ? e.target.value : e; // safe
     this.setState((prev) => ({ data: { ...prev.data, [field]: value } }));
@@ -505,22 +558,42 @@ class AddUser extends React.Component {
                 <Col md="12" sm="12">
                   <FormGroup>
                     <Label for="phone">Numéro de téléphone</Label>
-                    <Input
-                      type="text"
-                      placeholder="Téléphone"
-                      id="phone"
-                      maxLength="14"
-                      value={this.state.data.mobile_number || ""}
-                      onChange={(e) => {
-                        let input = e.target.value.replace(/\D/g, "");
-                        if (input.length > 2)
-                          input = input.replace(/(.{2})/g, "$1 ");
-                        input = input.trim();
-                        this.setState({
-                          data: { ...this.state.data, mobile_number: input },
-                        });
-                      }}
-                    />
+                    <InputGroup>
+                      {(() => {
+                        const val = this.state.data.mobile_number;
+                        const country = this.getCountryFromPhone(val);
+
+                        if (country && country !== "globe") {
+                          return (
+                            <InputGroupAddon addonType="prepend">
+                              <InputGroupText className="p-0" style={{ minWidth: "40px", justifyContent: "center" }}>
+                                <ReactCountryFlag
+                                  countryCode={country}
+                                  svg
+                                  style={{
+                                    width: "1.5em",
+                                    height: "1.5em",
+                                  }}
+                                />
+                              </InputGroupText>
+                            </InputGroupAddon>
+                          );
+                        }
+                        return null;
+                      })()}
+                      <Input
+                        type="text"
+                        placeholder="Téléphone"
+                        id="phone"
+                        value={this.formatPhonePretty(this.state.data.mobile_number || "")}
+                        onChange={(e) => {
+                          const val = this.normalizePhone(e.target.value);
+                          this.setState({
+                            data: { ...this.state.data, mobile_number: val },
+                          });
+                        }}
+                      />
+                    </InputGroup>
                   </FormGroup>
                 </Col>
               </Row>
