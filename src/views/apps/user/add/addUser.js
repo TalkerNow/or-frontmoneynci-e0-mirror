@@ -128,11 +128,11 @@ class AddUser extends React.Component {
 
     // Handle pre-filled data from location state (e.g. from conversion)
     if (this.props.location && this.props.location.state) {
-      this.setState(prev => ({
+      this.setState((prev) => ({
         data: {
           ...prev.data,
-          ...this.props.location.state
-        }
+          ...this.props.location.state,
+        },
       }));
     }
   }
@@ -143,6 +143,9 @@ class AddUser extends React.Component {
     let s = String(v).trim();
     // On conserve + et chiffres, on vire le reste
     let t = s.replace(/[^\d+]/g, "");
+    if (t.length > 10) {
+      t = t.slice(0, 10);
+    }
     return t;
   };
 
@@ -151,7 +154,9 @@ class AddUser extends React.Component {
     if (!d) return "";
 
     // On cherche l'indicatif le plus long qui matche
-    const sortedCodes = [...countryCodes].sort((a, b) => b.dial_code.length - a.dial_code.length);
+    const sortedCodes = [...countryCodes].sort(
+      (a, b) => b.dial_code.length - a.dial_code.length
+    );
 
     for (const c of sortedCodes) {
       if (d.startsWith(c.dial_code)) {
@@ -169,11 +174,18 @@ class AddUser extends React.Component {
     let p = String(phone).replace(/[^\d+]/g, "");
 
     // Cas typique français sans +
-    if (p.startsWith("06") || p.startsWith("07") || (p.startsWith("0") && p.length === 10)) return "fr";
+    if (
+      p.startsWith("06") ||
+      p.startsWith("07") ||
+      (p.startsWith("0") && p.length === 10)
+    )
+      return "fr";
     if (p.startsWith("0") && p.length > 2) return "fr"; // Supposition raisonnable
 
     if (p.startsWith("+")) {
-      const sortedCodes = [...countryCodes].sort((a, b) => b.dial_code.length - a.dial_code.length);
+      const sortedCodes = [...countryCodes].sort(
+        (a, b) => b.dial_code.length - a.dial_code.length
+      );
       for (const c of sortedCodes) {
         if (p.startsWith(c.dial_code)) {
           return c.code;
@@ -387,8 +399,8 @@ class AddUser extends React.Component {
     axios
       .get(
         global.config.server_url +
-        "/duplicated_email?email=" +
-        this.state.data.email,
+          "/duplicated_email?email=" +
+          this.state.data.email,
         Config
       )
       .then((response) => {
@@ -566,7 +578,13 @@ class AddUser extends React.Component {
                         if (country && country !== "globe") {
                           return (
                             <InputGroupAddon addonType="prepend">
-                              <InputGroupText className="p-0" style={{ minWidth: "40px", justifyContent: "center" }}>
+                              <InputGroupText
+                                className="p-0"
+                                style={{
+                                  minWidth: "40px",
+                                  justifyContent: "center",
+                                }}
+                              >
                                 <ReactCountryFlag
                                   countryCode={country}
                                   svg
@@ -585,7 +603,9 @@ class AddUser extends React.Component {
                         type="text"
                         placeholder="Téléphone"
                         id="phone"
-                        value={this.formatPhonePretty(this.state.data.mobile_number || "")}
+                        value={this.formatPhonePretty(
+                          this.state.data.mobile_number || ""
+                        )}
                         onChange={(e) => {
                           const val = this.normalizePhone(e.target.value);
                           this.setState({

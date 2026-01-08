@@ -184,7 +184,6 @@ export const loginWithJWT = (user) => {
           dispatch({ type: "CHANGE_ROLE", userRole: response.data.user.role });
 
           history.push("/dashboard");
-          console.log("trying to push to dashboard")
 
         }
       })
