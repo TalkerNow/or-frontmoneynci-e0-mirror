@@ -34,7 +34,6 @@ class AllContracts extends React.Component {
     reload: false,
     collapse: false,
     status: "Opened",
-    role: "All",
     selectStatus: "All",
     verified: "All",
     department: "All",
@@ -333,8 +332,6 @@ class AllContracts extends React.Component {
   };
 
   doesExternalFilterPass = (node) => {
-    let role = (localStorage.getItem("role") || "").toLowerCase();
-
     // Si pas de filter ID set, on laisse tout passer (sauf si logique 'consultant_id !== -1' gère ça)
     if (consultant_id === -1) return true;
 
@@ -419,7 +416,6 @@ class AllContracts extends React.Component {
     setTimeout(() => {
       this.setState({
         reload: false,
-        role: "All",
         selectStatus: "All",
         verified: "All",
         department: "All",

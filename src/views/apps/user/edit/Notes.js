@@ -20,7 +20,9 @@ import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import "../../../../assets/scss/pages/notes-hub.scss";
 
+// eslint-disable-next-line no-unused-vars
 const DOC_STORAGE_KEY = "career_generated_docs_v1";
+// eslint-disable-next-line no-unused-vars
 const DOC_UPLOAD_META_KEY = "career_doc_meta";
 const PUBLIC_URL =
   typeof process !== "undefined" && process.env && process.env.PUBLIC_URL
@@ -201,6 +203,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  // eslint-disable-next-line no-unused-vars
   const [uploadedDocs, setUploadedDocs] = useState(() => loadUploadedDocs(id));
   const [generatedDocs, setGeneratedDocs] = useState(() => loadStoredDocs(id));
   const [reportType, setReportType] = useState("pre");
@@ -360,7 +363,8 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         return safeRows;
       });
       toast.success(
-        `Points ${eventType === "ARRCO_POINTS_SAVE" ? "ARRCO" : "IRCANTEC"
+        `Points ${
+          eventType === "ARRCO_POINTS_SAVE" ? "ARRCO" : "IRCANTEC"
         } mis à jour`
       );
     };
@@ -457,7 +461,8 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
   );
   const handleGenerateDoc = useCallback(
     async (type, customMessage = "", previousHtml = "") => {
-      const normalizedType = type === "consult" || type === "custom" ? type : "pre";
+      const normalizedType =
+        type === "consult" || type === "custom" ? type : "pre";
       setReportType(normalizedType);
 
       // 1) Cas "consult" : on garde ton comportement actuel (HTML statique)
@@ -539,11 +544,12 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         const tagsPrefix =
           selectedTags.length > 0
             ? `Thématiques d'analyse : ${selectedTags
-              .map((t) => t.label)
-              .join(", ")}\n\n`
+                .map((t) => t.label)
+                .join(", ")}\n\n`
             : "";
-        const finalMessage = `${tagsPrefix}${currentMessage || ""
-          }\n\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDate}`.trim();
+        const finalMessage = `${tagsPrefix}${
+          currentMessage || ""
+        }\n\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDate}`.trim();
         n8nFormData.append("message", finalMessage);
 
         // Ajout du contenu HTML précédent si disponible (pour les rapports spécifiques)
@@ -557,7 +563,8 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         }
 
         toast.info(
-          `Analyse en cours (${normalizedType === "custom" ? "Spécifique" : "Standard"
+          `Analyse en cours (${
+            normalizedType === "custom" ? "Spécifique" : "Standard"
           })…`
         );
 
@@ -602,8 +609,9 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         // Si c'est du HTML, il sera affiché tel quel. Si c'est du texte, il sera affiché brut.
 
         // On crée un fichier HTML pour display
-        const fileName = `Rapport_${normalizedType === "custom" ? "Specifique" : "Standard"
-          }_${new Date().getTime()}.html`;
+        const fileName = `Rapport_${
+          normalizedType === "custom" ? "Specifique" : "Standard"
+        }_${new Date().getTime()}.html`;
         const fileBlob = new Blob([contentString], {
           type: "text/html;charset=utf-8",
         });
@@ -681,7 +689,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
     if (!htmlToSend && viewingDoc?.url) {
       try {
         const Config = {
-          headers: { Authorization: "Bearer " + localStorage.getItem("token") }
+          headers: { Authorization: "Bearer " + localStorage.getItem("token") },
         };
         const response = await axios.post(
           `${global.config.server_url}/fetch-html`,
@@ -710,15 +718,12 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
     );
   }, []);
 
-  const handleReportDoc = useCallback(
-    (doc) => {
-      if (!doc) return;
-      setReportDoc(doc);
-      setReportDescription("");
-      setReportModalOpen(true);
-    },
-    []
-  );
+  const handleReportDoc = useCallback((doc) => {
+    if (!doc) return;
+    setReportDoc(doc);
+    setReportDescription("");
+    setReportModalOpen(true);
+  }, []);
 
   const handleConfirmReport = useCallback(async () => {
     if (!reportDoc) return;
@@ -749,7 +754,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
     if (!htmlContent && reportDoc.url) {
       try {
         const Config = {
-          headers: { Authorization: "Bearer " + localStorage.getItem("token") }
+          headers: { Authorization: "Bearer " + localStorage.getItem("token") },
         };
         // On réutilise le endpoint fetch-html existant
         const response = await axios.post(
@@ -761,13 +766,17 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
           htmlContent = response.data.html;
         }
       } catch (err) {
-        console.warn("Impossible de récupérer le HTML pour le signalement:", err);
+        console.warn(
+          "Impossible de récupérer le HTML pour le signalement:",
+          err
+        );
         // On continue sans bloquer
       }
     }
 
     // 3. Envoi au Webhook N8N
-    const webhookUrl = "https://n8n.srv796541.hstgr.cloud/webhook/c55dcaca-466c-471c-bc3e-4df26c4b66ce";
+    const webhookUrl =
+      "https://n8n.srv796541.hstgr.cloud/webhook/c55dcaca-466c-471c-bc3e-4df26c4b66ce";
 
     const toastId = toast.info("Envoi du signalement...", { autoClose: false });
 
@@ -786,11 +795,12 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
 
       if (toast.dismiss) toast.dismiss(toastId);
       toast.success("Signalement envoyé avec succès");
-
     } catch (error) {
       console.error("Erreur envoi webhook signalement", error);
       if (toast.dismiss) toast.dismiss(toastId);
-      toast.error("Erreur technique lors de l'envoi (vérifiez la console pour CORS)");
+      toast.error(
+        "Erreur technique lors de l'envoi (vérifiez la console pour CORS)"
+      );
     }
 
     // Cleanup
@@ -845,6 +855,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
     setDeleteConfirmTarget({ type: "generated", doc });
   }, []);
 
+  // eslint-disable-next-line no-unused-vars
   const requestDeleteUploaded = useCallback((doc) => {
     if (!doc) return;
     setDeleteConfirmTarget({ type: "uploaded", doc });
@@ -1088,6 +1099,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
     toast.info("Import manuel à venir");
   }, []);
 
+  // eslint-disable-next-line no-unused-vars
   const handleReportRisBug = useCallback(() => {
     const dummyDoc = {
       id: "ris-report",
@@ -1097,7 +1109,6 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
     };
     handleReportDoc(dummyDoc);
   }, [handleReportDoc]);
-
 
   return (
     <div className="notes-layout">
@@ -1298,8 +1309,8 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
                     backgroundColor: state.isSelected
                       ? "#7367f0"
                       : state.isFocused
-                        ? "#f5f5ff"
-                        : "transparent",
+                      ? "#f5f5ff"
+                      : "transparent",
                     color: state.isSelected ? "#fff" : "#374151",
                     cursor: "pointer",
                     transition: "all 0.15s ease",
@@ -1349,8 +1360,9 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
 
             <div className="notes-upload-actions notes-action-row">
               <Button
-                className={`notes-report-btn notes-action-btn ${reportType === "pre" ? "is-active" : ""
-                  }`}
+                className={`notes-report-btn notes-action-btn ${
+                  reportType === "pre" ? "is-active" : ""
+                }`}
                 color="link"
                 onClick={() => handleGenerateDoc("pre")}
                 disabled={isGenerating && reportType === "pre"}
@@ -1358,8 +1370,9 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
                 Rapport pré-entretien
               </Button>
               <Button
-                className={`notes-report-btn notes-action-btn ${reportType === "consult" ? "is-active" : ""
-                  }`}
+                className={`notes-report-btn notes-action-btn ${
+                  reportType === "consult" ? "is-active" : ""
+                }`}
                 color="link"
                 onClick={() => handleGenerateDoc("consult")}
                 disabled={isGenerating}
@@ -1525,9 +1538,9 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
                             const ok = !isNaN(num) && num >= 0;
                             const formatted = ok
                               ? new Intl.NumberFormat("fr-FR", {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              }).format(num)
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                }).format(num)
                               : row.revenu;
                             setManualCareerRows((prev) =>
                               prev.map((r) =>
@@ -1987,7 +2000,6 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
           </Button>
         </ModalFooter>
       </Modal>
-
     </div>
   );
 };
