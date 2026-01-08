@@ -143,6 +143,7 @@ function weekStartEnd(isoYear, isoWeek) {
 }
 
 // Libellé lisible : "Sem. 39 • 23 sept → 29 sept 2025"
+// eslint-disable-next-line no-unused-vars
 function formatWeekRangeLabel(isoYear, isoWeek) {
   const { start, end } = weekStartEnd(isoYear, isoWeek);
   const day2 = new Intl.DateTimeFormat("fr-FR", { day: "2-digit" });
@@ -182,6 +183,7 @@ function formatDate(input) {
 }
 
 // Date + heure (fr-FR)
+// eslint-disable-next-line no-unused-vars
 function formatDateTime(input) {
   if (!input) return "";
   try {
@@ -201,6 +203,7 @@ function formatDateTime(input) {
 }
 
 // Email admin depuis le storage (simple et silencieux)
+// eslint-disable-next-line no-unused-vars
 function getAdminEmailFromLocal() {
   const direct =
     localStorage.getItem("email") ||
@@ -223,6 +226,7 @@ const OBJET_ICON = {
   "Appel entrant": PhoneIncoming,
   "Appel sortant": PhoneOutgoing,
 };
+// eslint-disable-next-line no-unused-vars
 function renderObjetCell(value) {
   const v = value || "";
   const Icon = OBJET_ICON[v] || PhoneCall;
@@ -235,9 +239,11 @@ function renderObjetCell(value) {
 }
 
 /** Renders v or (vide) */
+// eslint-disable-next-line no-unused-vars
 function renderNullable(v) {
   return v ? v : <em style={{ opacity: 0.6 }}>(vide)</em>;
 }
+// eslint-disable-next-line no-unused-vars
 function renderEmail(v) {
   return v ? (
     <a href={`mailto:${v}`}>{v}</a>
@@ -245,6 +251,7 @@ function renderEmail(v) {
     <em style={{ opacity: 0.6 }}>(vide)</em>
   );
 }
+// eslint-disable-next-line no-unused-vars
 function renderPhone(v) {
   if (!v) return <em style={{ opacity: 0.6 }}>(vide)</em>;
   const display = formatFRPhoneDisplay(v);
@@ -253,6 +260,7 @@ function renderPhone(v) {
 }
 
 /** Badge d'action (light) + puce couleur */
+// eslint-disable-next-line no-unused-vars
 function renderActionBadge(action) {
   const key = ACTIONS_KNOWN.includes(action)
     ? action
@@ -571,19 +579,26 @@ export default function KpiPage() {
   const [telephone, setTelephone] = useState("");
   const [note, setNote] = useState("");
 
+  // eslint-disable-next-line no-unused-vars
   const [items, setItems] = useState([]);
   const [loadingList, setLoadingList] = useState(false);
   const [allItems, setAllItems] = useState([]);
+  // eslint-disable-next-line no-unused-vars
   const [loadingChart, setLoadingChart] = useState(false);
+  // eslint-disable-next-line no-unused-vars
   const [page, setPage] = useState(1);
+  // eslint-disable-next-line no-unused-vars
   const [lastPage, setLastPage] = useState(1);
 
   // Email admin (local + API)
+  // eslint-disable-next-line no-unused-vars
   const [adminEmailLocal, setAdminEmailLocal] = useState("");
+  // eslint-disable-next-line no-unused-vars
   const [adminEmailApi, setAdminEmailApi] = useState("");
 
   // Utilisateurs (admin -> nom/prénom)
   const [usersById, setUsersById] = useState({});
+  // eslint-disable-next-line no-unused-vars
   const [loadingUsers, setLoadingUsers] = useState(false);
 
   // Clients
@@ -618,6 +633,7 @@ export default function KpiPage() {
   };
 
   // Modal messages conversations
+  // eslint-disable-next-line no-unused-vars
   const [convModalOpen, setConvModalOpen] = useState(false);
   const [selectedConv, setSelectedConv] = useState(null);
 
@@ -626,6 +642,7 @@ export default function KpiPage() {
   };
 
   // Dropdown state for New Button
+  // eslint-disable-next-line no-unused-vars
   const [isNewMenuOpen, setIsNewMenuOpen] = useState(false);
 
   const renderSortIcon = (field) => {
@@ -1134,6 +1151,7 @@ export default function KpiPage() {
 
   // --- RENDER HELPERS ---
 
+  // eslint-disable-next-line no-unused-vars
   const renderConversationItem = (conv) => {
     // conv structure usually: { id, user_id, status, created_at, user: { firstname, lastname }, ... }
     const isSelected = selectedConv && selectedConv.id === conv.id;
@@ -1295,7 +1313,7 @@ export default function KpiPage() {
               <span>NOUVEAU</span>
             </DropdownToggle>
             <DropdownMenu
-              end
+              className="dropdown-menu-end"
               style={{
                 border: "1px solid #f3f4f6",
                 boxShadow: "0 6px 16px rgba(0, 0, 0, 0.1)",
