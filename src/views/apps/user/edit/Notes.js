@@ -41,6 +41,7 @@ const QUICK_TAGS_OPTIONS = [
   { value: "racl", label: "RACL (Retraite Anticipée Carrière Longue)" },
   { value: "retraite_progressive", label: "Retraite progressive" },
   { value: "cumul_emploi", label: "Cumul emploi retraite" },
+  { value: "periode_etranger", label: "Période à l'étranger" },
 ];
 
 const pickNamePart = (value) =>
@@ -895,10 +896,14 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
           </style>
         `;
 
-        // Extraction du body si présent, sinon utilisation du contenu brut
+        // Extraction du head et du body pour conserver les styles (ex: bordures)
+        const headMatch = htmlContent.match(/<head[^>]*>([\s\S]*)<\/head>/i);
         const bodyMatch = htmlContent.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-        container.innerHTML =
-          resetStyle + (bodyMatch ? bodyMatch[1] : htmlContent);
+
+        const headContent = headMatch ? headMatch[1] : "";
+        const bodyContent = bodyMatch ? bodyMatch[1] : htmlContent;
+
+        container.innerHTML = resetStyle + headContent + bodyContent;
 
         document.body.appendChild(container);
 
@@ -993,9 +998,14 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
           </style>
         `;
 
+        // Extraction du head et du body pour conserver les styles
+        const headMatch = htmlContent.match(/<head[^>]*>([\s\S]*)<\/head>/i);
         const bodyMatch = htmlContent.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-        container.innerHTML =
-          resetStyle + (bodyMatch ? bodyMatch[1] : htmlContent);
+
+        const headContent = headMatch ? headMatch[1] : "";
+        const bodyContent = bodyMatch ? bodyMatch[1] : htmlContent;
+
+        container.innerHTML = resetStyle + headContent + bodyContent;
 
         document.body.appendChild(container);
 
