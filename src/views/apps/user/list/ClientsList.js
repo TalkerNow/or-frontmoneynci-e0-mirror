@@ -605,9 +605,27 @@ class ClientsList extends React.Component {
   doesExternalFilterPass = (node) => {
     // 1) Filtre "Mes clients"
     if (this.state.myFilterId !== null) {
-      const ownerId = this.getOwnerIdFromRow(node?.data);
-      if (ownerId === null) return false;
-      if (String(ownerId) !== String(this.state.myFilterId)) return false;
+      const row = node?.data;
+      const target = String(this.state.myFilterId);
+
+      const candidates = [
+        row?.created_by_id,
+        row?.created_by,
+        row?.creator_id,
+        row?.owner_id,
+        row?.ownerId,
+        row?.parent_id,
+        row?.parent?.id,
+        row?.parent?.user_id,
+        row?.technician_id,
+        row?.user_owner_id,
+      ];
+
+      const match = candidates.some(
+        (v) => v !== undefined && v !== null && String(v) === target
+      );
+
+      if (!match) return false;
     }
 
     // 2) Filtre "recherche téléphone" (normalisé)

@@ -16,7 +16,7 @@ const items = {
     title: "CRM",
     type: "collapse",
     icon: <Icon.BarChart2 size={20} />,
-    permissions: ["admin", "Consultant", "Expert"],
+    permissions: ["admin"],
     navLink: "/kpi/inbox",
     children: [
       {
@@ -137,7 +137,7 @@ const items = {
         title: "Anciens Clients",
         type: "item",
         icon: <Icon.Clock size={18} />,
-        permissions: ["admin", "Expert", "Consultant"],
+        permissions: ["admin"],
         navLink: "/app/user/oldclientslist",
       },
     ],
@@ -149,7 +149,7 @@ const items = {
     title: "Anciens Clients",
     type: "item",
     icon: <Icon.Monitor size={20} />,
-    permissions: ["admin", "Expert", "Consultant"],
+    permissions: ["admin"],
     navLink: "/app/user/oldclientslist",
   },
 
@@ -202,7 +202,7 @@ const items = {
 const adminOrder = ["dashboard", "kpi", "users", "tasks", "contracts"];
 
 // Consultant order (⚠️ sans "oldUsers")
-const consultantOrder = ["users", "dashboard", "kpi", "tasks", "contracts"];
+const consultantOrder = ["users", "dashboard", "tasks", "contracts"];
 
 const buildMenu = (order) => order.map((key) => items[key]);
 
