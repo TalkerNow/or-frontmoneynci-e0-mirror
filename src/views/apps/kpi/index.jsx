@@ -1362,7 +1362,7 @@ export default function KpiPage() {
               </DropdownItem>
               <DropdownItem
                 onClick={() =>
-                  alert("Fonctionnalité 'Créer une tâche' à venir !")
+                  window.alert("Fonctionnalité 'Créer une tâche' à venir !")
                 }
                 style={{
                   display: "flex",

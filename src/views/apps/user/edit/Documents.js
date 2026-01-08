@@ -187,7 +187,7 @@ class DropzoneBasic extends React.Component {
       })
       .catch((err) => {
         console.error("Erreur lors du renommage", err);
-        alert("Impossible de renommer le fichier.");
+        window.alert("Impossible de renommer le fichier.");
       });
   };
 
