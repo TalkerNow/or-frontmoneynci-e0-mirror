@@ -1,13 +1,5 @@
 import React from "react";
-import {
-  Input,
-  Row,
-  Col,
-  Button,
-  Card,
-  CardBody,
-  Table,
-} from "reactstrap";
+import { Input, Row, Col, Button, Card, CardBody, Table } from "reactstrap";
 import { Trash2, AlertTriangle } from "react-feather";
 import { history } from "../../../../history";
 import axios from "axios";
@@ -302,15 +294,32 @@ class AllContracts extends React.Component {
         Authorization: "Bearer " + localStorage.getItem("token"),
       },
     };
+
+    // ✅ FORCE FILTER FOR CONSULTANTS
+    const rawRole = localStorage.getItem("role") || "";
+    const isConsultant = rawRole.toLowerCase().includes("consultant");
+    const userId = localStorage.getItem("userid");
+
+    if (isConsultant && userId) {
+      consultant_id = userId; // Set global var used by filter
+      this.setState({ filter: true });
+    }
+
     await axios
       .get(global.config.server_url + "/documents", Config)
       .then((response) => {
         let rowData = response.data;
-        this.setState({ rowData });
+        this.setState({ rowData }, () => {
+          // Apply filter immediately after data load if consultant
+          if (this.gridApi && isConsultant) {
+            this.gridApi.onFilterChanged();
+          }
+        });
       });
   }
 
   isExternalFilterPresent = () => {
+    // Always true if consultant (enforced in didMount) or if toggled
     if (consultant_id !== -1) {
       return true;
     }
@@ -324,18 +333,48 @@ class AllContracts extends React.Component {
   };
 
   doesExternalFilterPass = (node) => {
-    let role = localStorage.getItem("role");
-    if (role === "admin") {
-      return (
-        node.data.user && node.data.user.business_introducer_id === consultant_id
-      );
-    } else if (role === "Consultant") {
-      return node.data.user && node.data.user.parent_id === consultant_id;
+    let role = (localStorage.getItem("role") || "").toLowerCase();
+
+    // Si pas de filter ID set, on laisse tout passer (sauf si logique 'consultant_id !== -1' gère ça)
+    if (consultant_id === -1) return true;
+
+    // ✅ Logique Robuste (identique à ClientsList)
+    // On vérifie si LE CONSULTANT (consultant_id) est lié au client du contrat
+    // via parent_id, technician_id, owner_id...
+
+    const user = node?.data?.user;
+    if (!user) {
+      // Fallback: check contract creator if user is missing?
+      // Or hidden if no user linked?
+      // Existing logic `node.data.creator_id === consultant_id` suggesting contract owner check.
+      // Let's keep it safe:
+      return String(node.data.creator_id) === String(consultant_id);
     }
-    return node.data.creator_id === consultant_id;
+
+    const target = String(consultant_id);
+    const candidates = [
+      user.parent_id,
+      user.parent?.id,
+      user.technician_id,
+      user.owner_id,
+      user.created_by_id,
+      user.business_introducer_id, // Maybe include for Admin/All roles?
+      // Note: original code had specific check for business_introducer_id for admin.
+      // But here we are filtering by "consultant_id" which is the current user.
+    ];
+
+    return candidates.some(
+      (v) => v !== undefined && v !== null && String(v) === target
+    );
   };
 
+  // ... (Methods between) ...
 
+  // In render(), hiding the buttons:
+  // ... inside <div className="filter-actions ...">
+  // We need to verify if we are consultant to HIDE buttons.
+
+  // ...
 
   onBtExport = () => {
     this.gridApi.exportDataAsCsv();
@@ -424,7 +463,9 @@ class AllContracts extends React.Component {
       if (contract && contract.user_id) {
         try {
           const res = await axios.get(
-            global.config.server_url + "/suivi-avancement/client/" + contract.user_id,
+            global.config.server_url +
+              "/suivi-avancement/client/" +
+              contract.user_id,
             Config
           );
           if (res.data && Array.isArray(res.data)) {
@@ -444,7 +485,7 @@ class AllContracts extends React.Component {
 
     axios
       .delete(global.config.server_url + "/documents/" + id, Config)
-      .then((response) => { });
+      .then((response) => {});
   }
 
   handleAlert = (state, value, id) => {
@@ -601,7 +642,6 @@ class AllContracts extends React.Component {
                 style={{ paddingBottom: "0.5rem" }}
               >
                 <div className="ag-grid-actions d-flex justify-content-between align-items-center flex-wrap mb-1">
-
                   <div className="filter-actions d-flex flex-nowrap align-items-center w-100">
                     <Input
                       className="mr-1 mb-1"
@@ -611,31 +651,39 @@ class AllContracts extends React.Component {
                       onChange={(e) => this.updateSearchQuery(e.target.value)}
                       value={this.state.searchVal}
                     />
-                    {consultant_id !== -1 && this.state.filter === true && (
-                      <Button
-                        className="mb-1"
-                        style={{ height: 38, whiteSpace: "nowrap" }}
-                        outline
-                        color="primary"
-                        onClick={() => this.externalFilterChanged(-1)}
-                      >
-                        Tous les contrats
-                      </Button>
-                    )}
-                    {consultant_id === -1 && this.state.filter === false && (
-                      <Button
-                        className="mb-1"
-                        style={{ height: 38, whiteSpace: "nowrap" }}
-                        outline
-                        color="primary"
-                        onClick={() =>
-                          this.externalFilterChanged(
-                            localStorage.getItem("userid")
-                          )
-                        }
-                      >
-                        Mes contrats
-                      </Button>
+                    {/* BOUTONS FILTRE : Cachés pour les consultants (filtre forcé) */}
+                    {!(localStorage.getItem("role") || "")
+                      .toLowerCase()
+                      .includes("consultant") && (
+                      <>
+                        {consultant_id !== -1 && this.state.filter === true && (
+                          <Button
+                            className="mb-1"
+                            style={{ height: 38, whiteSpace: "nowrap" }}
+                            outline
+                            color="primary"
+                            onClick={() => this.externalFilterChanged(-1)}
+                          >
+                            Tous les contrats
+                          </Button>
+                        )}
+                        {consultant_id === -1 &&
+                          this.state.filter === false && (
+                            <Button
+                              className="mb-1"
+                              style={{ height: 38, whiteSpace: "nowrap" }}
+                              outline
+                              color="primary"
+                              onClick={() =>
+                                this.externalFilterChanged(
+                                  localStorage.getItem("userid")
+                                )
+                              }
+                            >
+                              Mes contrats
+                            </Button>
+                          )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -670,7 +718,9 @@ class AllContracts extends React.Component {
                                   background: "rgba(40, 199, 111, 0.25)",
                                 };
                               } else {
-                                return { background: "rgba(234, 84, 85, 0.25)" };
+                                return {
+                                  background: "rgba(234, 84, 85, 0.25)",
+                                };
                               }
                             }
                             return null;
