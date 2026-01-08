@@ -953,39 +953,6 @@ class UserAccountTab extends React.Component {
                   )}
                 </FormGroup>
               </Col>
-              {/* Date de naissance / Lieu de naissance */}
-              <Col md="6" sm="12">
-                <FormGroup>
-                  <Label className="d-block" for="dob">
-                    Date de naissance
-                  </Label>
-                  {this.props.data["birth_date"] != null ? (
-                    <InputMaskDate
-                      defaultValue={this.props.data["birth_date"]}
-                      onChange={(e) => this.handledob(e.target.value)}
-                    />
-                  ) : (
-                    <InputMaskDate
-                      onChange={(e) => this.handledob(e.target.value)}
-                    />
-                  )}
-                </FormGroup>
-              </Col>
-              <Col md="6" sm="12">
-                <FormGroup>
-                  <Label for="placeofbirth">Lieu de naissance</Label>
-                  <Input
-                    type="text"
-                    defaultValue={this.ifExist("birth_place")}
-                    placeholder="Ville"
-                    onChange={(e) => {
-                      this.setState({ birth_place: e.target.value });
-                      this.markDirty();
-                    }}
-                    id="placeofbirth"
-                  />
-                </FormGroup>
-              </Col>
               {/* Nom de jeune fille / Téléphone société */}
               <Col md="6" sm="12">
                 <FormGroup>
@@ -1028,37 +995,6 @@ class UserAccountTab extends React.Component {
                     defaultValue={this.ifExist("children_number")}
                     onChange={(e) => {
                       this.setState({ children_number: e.target.value });
-                      this.markDirty();
-                    }}
-                  />
-                </FormGroup>
-              </Col>
-              {/* Sécurité sociale / Clé */}
-              <Col md="6" sm="12">
-                <FormGroup>
-                  <Label for="SS1">Sécurité Sociale</Label>
-                  <Input
-                    type="number"
-                    id="secu_social"
-                    placeholder="N°"
-                    defaultValue={this.ifExist("secu_social")}
-                    onChange={(e) => {
-                      this.setState({ secu_social: e.target.value });
-                      this.markDirty();
-                    }}
-                  />
-                </FormGroup>
-              </Col>
-              <Col md="6" sm="12">
-                <FormGroup>
-                  <Label for="SS2">Clé de Sécurité Sociale</Label>
-                  <Input
-                    type="number"
-                    id="secu_social_key"
-                    placeholder="XX"
-                    defaultValue={this.ifExist("secu_social_key")}
-                    onChange={(e) => {
-                      this.setState({ secu_social_key: e.target.value });
                       this.markDirty();
                     }}
                   />

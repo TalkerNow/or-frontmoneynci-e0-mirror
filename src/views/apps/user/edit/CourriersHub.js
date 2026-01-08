@@ -32,6 +32,10 @@ export default function CourriersHub({ id, alignOffset = 0, labelId }) {
       );
       setCourriers(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
+      if (error?.response?.status === 404) {
+        setCourriers([]);
+        return;
+      }
       console.warn("Impossible de charger les courriers", error);
       setCourriers([]);
     } finally {
