@@ -473,12 +473,11 @@ class SideMenuContent extends React.Component {
       }
 
       if (
-        item.type === "collapse" ||
-        item.type === "external-link" ||
-        (item.type === "item" &&
-          item.permissions &&
-          item.permissions.includes(this.props.currentUser)) ||
-        item.permissions === undefined
+        (item.type === "collapse" ||
+          item.type === "external-link" ||
+          item.type === "item") &&
+        (item.permissions === undefined ||
+          item.permissions.includes(this.props.currentUser))
       ) {
         return renderItem;
       } else if (
