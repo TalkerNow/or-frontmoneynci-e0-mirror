@@ -11,6 +11,8 @@ import axios from "axios";
 const mql = window.matchMedia(`(min-width: 992px)`);
 
 class TODO extends React.Component {
+  _isMounted = false;
+
   state = {
     addTask: false,
     sidebarDocked: mql.matches,
@@ -25,6 +27,7 @@ class TODO extends React.Component {
   }
 
   componentWillUnmount() {
+    this._isMounted = false;
     mql.removeListener(this.mediaQueryChanged);
   }
 
@@ -55,6 +58,7 @@ class TODO extends React.Component {
     });
   };
   async componentDidMount() {
+    this._isMounted = true;
     const Config = {
       headers: {
         Authorization: "Bearer " + localStorage.getItem("token"),
@@ -63,15 +67,17 @@ class TODO extends React.Component {
     await axios
       .get(global.config.server_url + "/users", Config)
       .then((response) => {
-        var tmp_receivers = [];
-        response.data.forEach((item) => {
-          tmp_receivers.push({
-            value: item["id"],
-            label: item["first_name"] + " " + item["last_name"],
-            subscribe_services: item.subscribe_services,
+        if (this._isMounted) {
+          var tmp_receivers = [];
+          response.data.forEach((item) => {
+            tmp_receivers.push({
+              value: item["id"],
+              label: item["first_name"] + " " + item["last_name"],
+              subscribe_services: item.subscribe_services,
+            });
           });
-        });
-        this.setState({ receivers: tmp_receivers });
+          this.setState({ receivers: tmp_receivers });
+        }
       });
   }
   render() {

@@ -33,12 +33,21 @@ class TaskList extends React.Component {
     currentLocation: this.props.routerProps.location.pathname,
     value: "",
   };
+  _isMounted = false;
+
   async componentDidMount() {
+    this._isMounted = true;
     await this.props.getTodos(this.props.routerProps.match.params);
-    this.setState({
-      todos: this.props.app.todo.todos,
-      handleUpdateTask: this.props.handleUpdateTask,
-    });
+    if (this._isMounted) {
+      this.setState({
+        todos: this.props.app.todo.todos,
+        handleUpdateTask: this.props.handleUpdateTask,
+      });
+    }
+  }
+
+  componentWillUnmount() {
+    this._isMounted = false;
   }
 
   handleOnChange = (e) => {
