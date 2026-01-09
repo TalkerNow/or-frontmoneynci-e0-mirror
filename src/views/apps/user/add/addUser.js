@@ -143,9 +143,7 @@ class AddUser extends React.Component {
     let s = String(v).trim();
     // On conserve + et chiffres, on vire le reste
     let t = s.replace(/[^\d+]/g, "");
-    if (t.length > 10) {
-      t = t.slice(0, 10);
-    }
+
     return t;
   };
 
@@ -399,8 +397,8 @@ class AddUser extends React.Component {
     axios
       .get(
         global.config.server_url +
-          "/duplicated_email?email=" +
-          this.state.data.email,
+        "/duplicated_email?email=" +
+        this.state.data.email,
         Config
       )
       .then((response) => {

@@ -51,8 +51,7 @@ export default function UserDetails({
       if (/^(?:0033)/.test(String(val))) digits = "0" + digits.replace(/\D/g, "").slice(4);
       else if (/^(?:\+33)/.test(String(val))) digits = "0" + digits.slice(2);
       else if (/^(?:33)/.test(digits)) digits = "0" + digits.slice(2);
-      const core = digits.length >= 10 ? digits.slice(0, 10) : digits;
-      return core.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
+      return digits.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
     } catch (e) {
       return String(val);
     }
