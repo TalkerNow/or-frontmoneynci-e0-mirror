@@ -1,7 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import "./PipelineView.css";
+import { useHistory, useLocation } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
-import { Sparkles, MoreVertical, Calendar, Loader } from "lucide-react";
+import {
+  Sparkles,
+  MoreVertical,
+  Calendar,
+  Loader,
+  ArrowLeft,
+} from "lucide-react";
 import { Badge } from "./SharedComponents";
+import axios from "axios";
 
 // --- API Gemini Configuration --- (Reused or imported if moved to utility)
 const apiKey = process.env.REACT_APP_GEMINI_API_KEY || "";
@@ -55,14 +64,6 @@ const pipelineColumns = [
 
 const pipelineDealsMock = [
   {
-    id: 101,
-    name: "Mme. Durand",
-    amount: "1 500 €",
-    stage: "contact",
-    owner: "JM",
-    tag: "Retraite",
-  },
-  {
     id: 102,
     name: "M. Martin",
     amount: "2 800 €",
@@ -109,11 +110,18 @@ function mapOpportunityToDeal(opp) {
     lost: "lost",
   };
 
+  const firstName = opp.first_name || "";
+  const lastName = opp.last_name || "";
+  const fullName =
+    firstName || lastName
+      ? `${firstName} ${lastName}`.trim()
+      : "Client inconnu";
+
   return {
     id: opp.id,
-    name: opp.client_name || opp.contact_name || "Client",
+    name: fullName,
     amount: opp.amount ? `${opp.amount} €` : "0 €",
-    stage: stageMap[opp.pipeline_stage] || "contact",
+    stage: stageMap[opp.pipeline_stage] || "contact", // Default to 'contact'
     owner: opp.assigned_user_initials || "??",
     tag: opp.product_type || "Autre",
     date: opp.next_action_date || null,
@@ -137,8 +145,8 @@ function formatCurrency(num) {
   return new Intl.NumberFormat("fr-FR", {
     style: "currency",
     currency: "EUR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: 0, // No cents for cleaner look
+    maximumFractionDigits: 0,
   }).format(num);
 }
 
@@ -154,21 +162,58 @@ function getColorValue(colorClass) {
   return colorMap[colorClass] || "#e5e7eb";
 }
 
-const PipelineView = ({ deals = [], loading, error }) => {
-  // Use provided deals or fallback to mock data, store in state for drag-and-drop
-  const initialDeals =
-    deals.length > 0 ? deals.map(mapOpportunityToDeal) : pipelineDealsMock;
-
-  const [pipelineDeals, setPipelineDeals] = useState(initialDeals);
+const PipelineView = () => {
+  const history = useHistory();
+  const location = useLocation();
+  const [pipelineDeals, setPipelineDeals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [analyzingDealId, setAnalyzingDealId] = useState(null);
   const [analysisResult, setAnalysisResult] = useState(null);
 
-  // Update pipelineDeals when deals prop changes
-  React.useEffect(() => {
-    if (deals.length > 0) {
-      setPipelineDeals(deals.map(mapOpportunityToDeal));
-    }
-  }, [deals]);
+  // Fetch deals from API
+  useEffect(() => {
+    const fetchDeals = async () => {
+      setLoading(true);
+      try {
+        const token = localStorage.getItem("token");
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const response = await axios.get(
+          `${global.config.server_url}/users?kind=client`,
+          { headers }
+        );
+
+        let data = [];
+        if (Array.isArray(response.data)) {
+          data = response.data;
+        } else if (response.data && Array.isArray(response.data.data)) {
+          data = response.data.data;
+        }
+
+        // Sort by creation date (newest first) and limit to 30
+        data.sort((a, b) => {
+          const dateA = new Date(a.created_at || a.createdAt || 0);
+          const dateB = new Date(b.created_at || b.createdAt || 0);
+          return dateB - dateA;
+        });
+        const recentDeals = data.slice(0, 30);
+
+        const mappedDeals = recentDeals.map(mapOpportunityToDeal);
+
+        // Combine fetched deals with mock deals
+        // Mock deals serve as examples for other stages
+        setPipelineDeals([...mappedDeals, ...pipelineDealsMock]);
+        setError("");
+      } catch (err) {
+        console.error("Error fetching deals:", err);
+        setError("Impossible de charger les opportunités.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDeals();
+  }, []);
 
   // Calculate total for a column
   const calculateColumnTotal = (columnId) => {
@@ -225,383 +270,453 @@ const PipelineView = ({ deals = [], loading, error }) => {
     setAnalysisResult(result);
   };
 
-  return (
-    <DragDropContext onDragEnd={handleDragEnd}>
+  if (loading) {
+    return (
       <div
         style={{
-          height: "calc(100vh - 180px)",
-          overflowX: "auto",
-          position: "relative",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "400px",
+          color: "#7367f0",
         }}
       >
+        <Loader className="animate-spin mr-2" /> Chargement du pipeline...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="alert alert-danger m-3" role="alert">
+        {error}
+      </div>
+    );
+  }
+
+  return (
+    <DragDropContext onDragEnd={handleDragEnd}>
+      <div style={{ position: "relative", height: "100%" }}>
+        {location.state?.fromInbox && (
+          <button
+            onClick={() => {
+              history.push({
+                pathname: "/kpi/inbox",
+                state: {
+                  fromInbox: true,
+                  conversationId: location.state?.conversationId,
+                },
+              });
+            }}
+            style={{
+              position: "absolute",
+              top: "12px",
+              left: "0px",
+              zIndex: 50,
+              backgroundColor: "#7367f0",
+              borderRadius: "50%",
+              width: "32px",
+              height: "32px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              border: "none",
+              boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
+            }}
+            title="Retour à la conversation"
+          >
+            <ArrowLeft size={18} color="white" />
+          </button>
+        )}
         <div
           style={{
-            display: "inline-flex",
-            gap: "16px",
-            paddingBottom: "16px",
-            height: "100%",
+            height: "calc(100vh - 180px)",
+            width: "100%",
+            overflowX: "auto", // Responsive: scroll horizontal allowed
+            position: "relative",
+            paddingTop: location.state?.fromInbox ? "50px" : "0", // Add spacing if button is present
           }}
         >
-          {pipelineColumns.map((col) => {
-            const columnDeals = pipelineDeals.filter((d) => d.stage === col.id);
-            const columnTotal = calculateColumnTotal(col.id);
-            const colorValue = getColorValue(col.color);
+          <div
+            style={{
+              width: "100%",
+              display: "inline-flex",
+              gap: "16px",
+              paddingBottom: "16px",
+              height: "100%",
+              paddingRight: "16px", // Space at the end
+            }}
+          >
+            {pipelineColumns.map((col) => {
+              const columnDeals = pipelineDeals.filter(
+                (d) => d.stage === col.id
+              );
+              const columnTotal = calculateColumnTotal(col.id);
+              const colorValue = getColorValue(col.color);
 
-            return (
-              <div
-                key={col.id}
-                style={{
-                  width: "288px",
-                  display: "flex",
-                  flexDirection: "column",
-                  height: "100%",
-                }}
-              >
-                {/* Column Header */}
+              return (
                 <div
+                  key={col.id}
                   style={{
-                    padding: "12px",
-                    borderTopLeftRadius: "8px",
-                    borderTopRightRadius: "8px",
-                    backgroundColor: "#f9fafb",
-                    borderTop: `4px solid ${colorValue}`,
-                    borderLeft: "1px solid #e5e7eb",
-                    borderRight: "1px solid #e5e7eb",
-                    borderBottom: "1px solid #e5e7eb",
+                    flex: 1,
+                    minWidth: "260px", // Responsive: wider columns for readability
+                    display: "flex",
+                    flexDirection: "column",
+                    height: "100%",
                   }}
                 >
+                  {/* Column Header */}
                   <div
                     style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      marginBottom: "8px",
+                      padding: "12px",
+                      borderTopLeftRadius: "8px",
+                      borderTopRightRadius: "8px",
+                      backgroundColor: "#f9fafb",
+                      borderTop: `4px solid ${colorValue}`,
+                      borderLeft: "1px solid #e5e7eb",
+                      borderRight: "1px solid #e5e7eb",
+                      borderBottom: "1px solid #e5e7eb",
                     }}
                   >
-                    <h3
-                      style={{
-                        fontWeight: 600,
-                        color: "#374151",
-                        fontSize: "14px",
-                        textTransform: "uppercase",
-                        margin: 0,
-                      }}
-                    >
-                      {col.title}
-                    </h3>
-                    <span
-                      style={{
-                        backgroundColor: "#fff",
-                        padding: "2px 6px",
-                        borderRadius: "4px",
-                        fontSize: "12px",
-                        color: "#6b7280",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      {columnDeals.length}
-                    </span>
-                  </div>
-                  {/* Total Amount */}
-                  <div
-                    style={{
-                      backgroundColor: "#fff",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "6px",
-                      padding: "8px 12px",
-                      textAlign: "center",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: "13px",
-                        color: "#6b7280",
-                        fontWeight: 600,
-                      }}
-                    >
-                      Total: {formatCurrency(columnTotal)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Droppable Column Content */}
-                <Droppable droppableId={col.id}>
-                  {(provided, snapshot) => (
                     <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
                       style={{
-                        backgroundColor: snapshot.isDraggingOver
-                          ? "#eef2ff"
-                          : "#f3f4f6",
-                        flex: 1,
-                        padding: "8px",
-                        borderLeft: "1px solid #e5e7eb",
-                        borderRight: "1px solid #e5e7eb",
-                        borderBottom: "1px solid #e5e7eb",
-                        borderBottomLeftRadius: "8px",
-                        borderBottomRightRadius: "8px",
-                        overflowY: "auto",
                         display: "flex",
-                        flexDirection: "column",
-                        gap: "12px",
-                        minHeight: "100px",
-                        transition: "background-color 0.2s ease",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: "8px",
                       }}
                     >
-                      {/* Add button at top */}
-                      <button
+                      <h3
                         style={{
-                          width: "100%",
-                          padding: "8px",
-                          fontSize: "12px",
-                          color: "#9ca3af",
-                          border: "1px dashed #d1d5db",
-                          borderRadius: "4px",
-                          backgroundColor: "transparent",
-                          cursor: "pointer",
-                          textAlign: "center",
+                          fontWeight: 600,
+                          color: "#374151",
+                          fontSize: "14px",
+                          textTransform: "uppercase",
+                          margin: 0,
                         }}
                       >
-                        + Nouvelle carte
-                      </button>
+                        {col.title}
+                      </h3>
+                      <span
+                        style={{
+                          backgroundColor: "#fff",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          fontSize: "12px",
+                          color: "#6b7280",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        {columnDeals.length}
+                      </span>
+                    </div>
+                    {/* Total Amount */}
+                    <div
+                      style={{
+                        backgroundColor: "#fff",
+                        border: "1px solid #e5e7eb",
+                        borderRadius: "6px",
+                        padding: "8px 12px",
+                        textAlign: "center",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "13px",
+                          color: "#6b7280",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Total: {formatCurrency(columnTotal)}
+                      </span>
+                    </div>
+                  </div>
 
-                      {columnDeals.map((deal, index) => (
-                        <Draggable
-                          key={deal.id}
-                          draggableId={`deal-${deal.id}`}
-                          index={index}
+                  {/* Droppable Column Content */}
+                  <Droppable droppableId={col.id}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        style={{
+                          backgroundColor: snapshot.isDraggingOver
+                            ? "#eef2ff"
+                            : "#f3f4f6",
+                          flex: 1,
+                          padding: "8px",
+                          borderLeft: "1px solid #e5e7eb",
+                          borderRight: "1px solid #e5e7eb",
+                          borderBottom: "1px solid #e5e7eb",
+                          borderBottomLeftRadius: "8px",
+                          borderBottomRightRadius: "8px",
+                          // overflowY: "auto", // Moved to CSS class
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "12px",
+                          minHeight: "100px",
+                          transition: "background-color 0.2s ease",
+                        }}
+                        className="pipeline-column-scroll"
+                      >
+                        {/* Add button at top */}
+                        <button
+                          style={{
+                            width: "100%",
+                            padding: "8px",
+                            fontSize: "12px",
+                            color: "#9ca3af",
+                            border: "1px dashed #d1d5db",
+                            borderRadius: "4px",
+                            backgroundColor: "transparent",
+                            cursor: "pointer",
+                            textAlign: "center",
+                          }}
                         >
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              style={{
-                                position: "relative",
-                                backgroundColor: "#fff",
-                                padding: "12px",
-                                borderRadius: "8px",
-                                boxShadow: snapshot.isDragging
-                                  ? "0 8px 16px rgba(0, 0, 0, 0.15)"
-                                  : "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-                                border: "1px solid #e5e7eb",
-                                cursor: "grab",
-                                transform: snapshot.isDragging
-                                  ? "rotate(3deg)"
-                                  : "none",
-                                transition: "box-shadow 0.2s ease",
-                                ...provided.draggableProps.style,
-                              }}
-                            >
-                              <div
-                                style={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  alignItems: "flex-start",
-                                  marginBottom: "8px",
-                                }}
-                              >
-                                <Badge
-                                  color={
-                                    deal.tag === "Retraite" ? "purple" : "blue"
-                                  }
-                                >
-                                  {deal.tag}
-                                </Badge>
-                                <div style={{ display: "flex", gap: "4px" }}>
-                                  <button
-                                    onClick={(e) => handleAnalyzeDeal(e, deal)}
-                                    style={{
-                                      padding: "4px",
-                                      borderRadius: "4px",
-                                      backgroundColor:
-                                        analyzingDealId === deal.id
-                                          ? "#f3e8ff"
-                                          : "transparent",
-                                      color:
-                                        analyzingDealId === deal.id
-                                          ? "#7e22ce"
-                                          : "#d1d5db",
-                                      border: "none",
-                                      cursor: "pointer",
-                                    }}
-                                    title="Coach IA"
-                                  >
-                                    <Sparkles size={14} />
-                                  </button>
-                                  <MoreVertical size={16} color="#d1d5db" />
-                                </div>
-                              </div>
-                              <h4
-                                style={{
-                                  fontWeight: 600,
-                                  color: "#1f2937",
-                                  marginBottom: "4px",
-                                }}
-                              >
-                                {deal.name}
-                              </h4>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  alignItems: "center",
-                                  fontSize: "14px",
-                                }}
-                              >
-                                <span
-                                  style={{
-                                    fontWeight: "bold",
-                                    color: "#4b5563",
-                                  }}
-                                >
-                                  {deal.amount}
-                                </span>
-                                <div
-                                  style={{
-                                    width: "24px",
-                                    height: "24px",
-                                    borderRadius: "50%",
-                                    backgroundColor: "#e0e7ff",
-                                    color: "#4338ca",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    fontSize: "12px",
-                                    fontWeight: "bold",
-                                    border: "1px solid #c7d2fe",
-                                  }}
-                                >
-                                  {deal.owner}
-                                </div>
-                              </div>
+                          + Nouvelle carte
+                        </button>
 
-                              {analyzingDealId === deal.id && (
+                        {columnDeals.map((deal, index) => (
+                          <Draggable
+                            key={deal.id}
+                            draggableId={`deal-${deal.id}`}
+                            index={index}
+                          >
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                style={{
+                                  position: "relative",
+                                  backgroundColor: "#fff",
+                                  padding: "12px",
+                                  borderRadius: "8px",
+                                  boxShadow: snapshot.isDragging
+                                    ? "0 8px 16px rgba(0, 0, 0, 0.15)"
+                                    : "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+                                  border: "1px solid #e5e7eb",
+                                  cursor: "grab",
+                                  transform: snapshot.isDragging
+                                    ? "rotate(3deg)"
+                                    : "none",
+                                  transition: "box-shadow 0.2s ease",
+                                  ...provided.draggableProps.style,
+                                }}
+                              >
                                 <div
                                   style={{
-                                    position: "absolute",
-                                    top: "100%",
-                                    left: 0,
-                                    right: 0,
-                                    zIndex: 10,
-                                    marginTop: "8px",
-                                    backgroundColor: "#fff",
-                                    borderRadius: "8px",
-                                    boxShadow:
-                                      "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
-                                    border: "1px solid #e9d5ff",
-                                    padding: "16px",
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "flex-start",
+                                    marginBottom: "8px",
                                   }}
                                 >
+                                  <Badge
+                                    color={
+                                      deal.tag === "Retraite"
+                                        ? "purple"
+                                        : "blue"
+                                    }
+                                  >
+                                    {deal.tag}
+                                  </Badge>
+                                  <div style={{ display: "flex", gap: "4px" }}>
+                                    <button
+                                      onClick={(e) =>
+                                        handleAnalyzeDeal(e, deal)
+                                      }
+                                      style={{
+                                        padding: "4px",
+                                        borderRadius: "4px",
+                                        backgroundColor:
+                                          analyzingDealId === deal.id
+                                            ? "#f3e8ff"
+                                            : "transparent",
+                                        color:
+                                          analyzingDealId === deal.id
+                                            ? "#7e22ce"
+                                            : "#d1d5db",
+                                        border: "none",
+                                        cursor: "pointer",
+                                      }}
+                                      title="Coach IA"
+                                    >
+                                      <Sparkles size={14} />
+                                    </button>
+                                    <MoreVertical size={16} color="#d1d5db" />
+                                  </div>
+                                </div>
+                                <h4
+                                  style={{
+                                    fontWeight: 600,
+                                    color: "#1f2937",
+                                    marginBottom: "4px",
+                                  }}
+                                >
+                                  {deal.name}
+                                </h4>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    fontSize: "14px",
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      fontWeight: "bold",
+                                      color: "#4b5563",
+                                    }}
+                                  >
+                                    {deal.amount}
+                                  </span>
                                   <div
                                     style={{
+                                      width: "24px",
+                                      height: "24px",
+                                      borderRadius: "50%",
+                                      backgroundColor: "#e0e7ff",
+                                      color: "#4338ca",
                                       display: "flex",
                                       alignItems: "center",
-                                      gap: "8px",
-                                      marginBottom: "8px",
+                                      justifyContent: "center",
                                       fontSize: "12px",
                                       fontWeight: "bold",
-                                      color: "#7e22ce",
-                                      textTransform: "uppercase",
+                                      border: "1px solid #c7d2fe",
                                     }}
                                   >
-                                    <Sparkles size={12} /> Coach de Vente
+                                    {deal.owner}
                                   </div>
-                                  {analysisResult ? (
+                                </div>
+
+                                {analyzingDealId === deal.id && (
+                                  <div
+                                    style={{
+                                      position: "absolute",
+                                      top: "100%",
+                                      left: 0,
+                                      right: 0,
+                                      zIndex: 10,
+                                      marginTop: "8px",
+                                      backgroundColor: "#fff",
+                                      borderRadius: "8px",
+                                      boxShadow:
+                                        "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+                                      border: "1px solid #e9d5ff",
+                                      padding: "16px",
+                                    }}
+                                  >
                                     <div
                                       style={{
-                                        fontSize: "12px",
-                                        color: "#374151",
                                         display: "flex",
-                                        flexDirection: "column",
+                                        alignItems: "center",
                                         gap: "8px",
+                                        marginBottom: "8px",
+                                        fontSize: "12px",
+                                        fontWeight: "bold",
+                                        color: "#7e22ce",
+                                        textTransform: "uppercase",
                                       }}
                                     >
-                                      {analysisResult
-                                        .split("\n")
-                                        .filter((line) => line.trim())
-                                        .map((line, i) => (
-                                          <p
-                                            key={i}
-                                            style={{
-                                              display: "flex",
-                                              gap: "4px",
-                                              margin: 0,
-                                            }}
-                                          >
-                                            <span>•</span>
-                                            <span>
-                                              {line.replace(/^[-*•]\s*/, "")}
-                                            </span>
-                                          </p>
-                                        ))}
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setAnalyzingDealId(null);
-                                        }}
+                                      <Sparkles size={12} /> Coach de Vente
+                                    </div>
+                                    {analysisResult ? (
+                                      <div
                                         style={{
-                                          width: "100%",
-                                          marginTop: "8px",
-                                          textAlign: "center",
                                           fontSize: "12px",
-                                          color: "#9ca3af",
-                                          backgroundColor: "#f9fafb",
-                                          padding: "4px",
-                                          borderRadius: "4px",
-                                          border: "none",
-                                          cursor: "pointer",
+                                          color: "#374151",
+                                          display: "flex",
+                                          flexDirection: "column",
+                                          gap: "8px",
                                         }}
                                       >
-                                        Fermer
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <div
-                                      style={{
-                                        display: "flex",
-                                        justifyContent: "center",
-                                        padding: "8px",
-                                      }}
-                                    >
-                                      <Loader
-                                        size={16}
-                                        className="text-purple-500 animate-spin"
-                                      />
-                                    </div>
-                                  )}
-                                </div>
-                              )}
+                                        {analysisResult
+                                          .split("\n")
+                                          .filter((line) => line.trim())
+                                          .map((line, i) => (
+                                            <p
+                                              key={i}
+                                              style={{
+                                                display: "flex",
+                                                gap: "4px",
+                                                margin: 0,
+                                              }}
+                                            >
+                                              <span>•</span>
+                                              <span>
+                                                {line.replace(/^[-*•]\s*/, "")}
+                                              </span>
+                                            </p>
+                                          ))}
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setAnalyzingDealId(null);
+                                          }}
+                                          style={{
+                                            width: "100%",
+                                            marginTop: "8px",
+                                            textAlign: "center",
+                                            fontSize: "12px",
+                                            color: "#9ca3af",
+                                            backgroundColor: "#f9fafb",
+                                            padding: "4px",
+                                            borderRadius: "4px",
+                                            border: "none",
+                                            cursor: "pointer",
+                                          }}
+                                        >
+                                          Fermer
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <div
+                                        style={{
+                                          display: "flex",
+                                          justifyContent: "center",
+                                          padding: "8px",
+                                        }}
+                                      >
+                                        <Loader
+                                          size={16}
+                                          className="text-purple-500 animate-spin"
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
 
-                              {deal.date && (
-                                <div
-                                  style={{
-                                    marginTop: "8px",
-                                    paddingTop: "8px",
-                                    borderTop: "1px solid #f3f4f6",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "6px",
-                                    fontSize: "12px",
-                                    color: "#ea580c",
-                                    fontWeight: 500,
-                                  }}
-                                >
-                                  <Calendar size={12} /> {deal.date}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
-              </div>
-            );
-          })}
+                                {deal.date && (
+                                  <div
+                                    style={{
+                                      marginTop: "8px",
+                                      paddingTop: "8px",
+                                      borderTop: "1px solid #f3f4f6",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: "6px",
+                                      fontSize: "12px",
+                                      color: "#ea580c",
+                                      fontWeight: 500,
+                                    }}
+                                  >
+                                    <Calendar size={12} /> {deal.date}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </DragDropContext>

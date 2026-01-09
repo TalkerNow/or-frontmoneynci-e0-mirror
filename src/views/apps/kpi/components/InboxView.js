@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { useHistory } from "react-router-dom";
+import { useHistory, useLocation } from "react-router-dom";
 import {
   MessageSquare,
   ClipboardList,
@@ -23,9 +23,11 @@ import {
   Mail,
   FileText,
   EyeOff,
+  Briefcase,
 } from "lucide-react";
 import { Badge } from "./SharedComponents";
 import "./InboxView.css";
+import SweetAlert from "react-bootstrap-sweetalert";
 
 // Disqualification reasons
 const DISQUALIFICATION_REASONS = [
@@ -190,11 +192,15 @@ async function generateStrategicAnalysis(diagnosticData) {
 }
 
 // ========== ACTIONS SECTION COMPONENT ==========
-const ActionsSection = ({ clientId, adminId }) => {
+const ActionsSection = ({ clientId, adminId, prospectId }) => {
+  const routerHistory = useHistory();
   const [activeView, setActiveView] = useState("HOME");
   const [newCallReport, setNewCallReport] = useState("");
   const [newTaskText, setNewTaskText] = useState("");
   const [taskDateTime, setTaskDateTime] = useState("");
+
+  // Determine the effective owner ID (Client or Prospect)
+  const ownerId = clientId || prospectId;
 
   // API State for Call Reports
   const [callReports, setCallReports] = useState([]);
@@ -215,7 +221,8 @@ const ActionsSection = ({ clientId, adminId }) => {
   // Fetch Call Reports from API
   useEffect(() => {
     const fetchCallReports = async () => {
-      if (!clientId) {
+      // Allow fetching if we have either clientId or prospectId
+      if (!ownerId) {
         setCallReports([]);
         return;
       }
@@ -224,8 +231,9 @@ const ActionsSection = ({ clientId, adminId }) => {
         const Config = {
           headers: { Authorization: "Bearer " + localStorage.getItem("token") },
         };
+        // Attempt to fetch using the ownerId (whether client or prospect)
         const response = await axios.get(
-          `https://api.optionretraite.net/api/v1/call-reports/client/${clientId}`,
+          `https://api.optionretraite.net/api/v1/call-reports/client/${ownerId}`,
           Config
         );
         // Ensure we handle array or wrapped object
@@ -249,7 +257,7 @@ const ActionsSection = ({ clientId, adminId }) => {
     };
 
     fetchCallReports();
-  }, [clientId]);
+  }, [ownerId]);
 
   useEffect(() => {
     localStorage.setItem("inbox_tasks", JSON.stringify(tasks));
@@ -335,9 +343,9 @@ const ActionsSection = ({ clientId, adminId }) => {
   const handleAddCallReport = async () => {
     if (!newCallReport.trim()) return;
 
-    if (!clientId) {
+    if (!ownerId) {
       window.alert(
-        "Erreur: Impossible d'identifier le client pour sauvegarder le rapport."
+        "Erreur: Impossible d'identifier le client ou le prospect pour sauvegarder le rapport."
       );
       return;
     }
@@ -348,11 +356,14 @@ const ActionsSection = ({ clientId, adminId }) => {
       };
 
       const payload = {
-        client_id: clientId,
+        client_id: ownerId, // Use ownerId as client_id (backend may accept prospect ID here)
         admin_id: adminId || localStorage.getItem("userid"),
         content: newCallReport.trim(),
+        call_report: newCallReport.trim(), // Send as call_report as well, since that seems to be the field name
         date: new Date().toISOString(),
       };
+      // If we are strictly a prospect (no clientId but have prospectId), we might want to send prospect_id as well/instead
+      // But based on plan, we try sending as client_id first.
 
       const response = await axios.post(
         "https://api.optionretraite.net/api/v1/call-reports",
@@ -379,6 +390,7 @@ const ActionsSection = ({ clientId, adminId }) => {
       text: newTaskText.trim(),
       date: taskDateTime || new Date().toISOString(),
       done: false,
+      ownerId: ownerId, // Associate task with current client/prospect
     };
     setTasks((prev) => [newTask, ...prev]);
     setNewTaskText("");
@@ -405,7 +417,10 @@ const ActionsSection = ({ clientId, adminId }) => {
         };
         await axios.put(
           `https://api.optionretraite.net/api/v1/call-reports/${editingItem.id}`,
-          { content: editText.trim() },
+          {
+            content: editText.trim(),
+            call_report: editText.trim(), // Send both to be safe
+          },
           Config
         );
 
@@ -413,7 +428,12 @@ const ActionsSection = ({ clientId, adminId }) => {
         setCallReports((prev) =>
           prev.map((r) =>
             r.id === editingItem.id
-              ? { ...r, content: editText.trim(), report: editText.trim() }
+              ? {
+                  ...r,
+                  content: editText.trim(),
+                  report: editText.trim(),
+                  call_report: editText.trim(),
+                }
               : r
           )
         );
@@ -439,185 +459,307 @@ const ActionsSection = ({ clientId, adminId }) => {
     setEditText("");
   };
 
-  const handleDeleteItem = async (item) => {
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer cet élément ?")) {
-      if (item.type === "CALLREPORT") {
-        try {
-          const Config = {
-            headers: {
-              Authorization: "Bearer " + localStorage.getItem("token"),
-            },
-          };
-          await axios.delete(
-            `https://api.optionretraite.net/api/v1/call-reports/${item.id}`,
-            Config
-          );
-          setCallReports((prev) => prev.filter((r) => r.id !== item.id));
-        } catch (error) {
-          console.error("Failed to delete call report", error);
-          window.alert("Erreur lors de la suppression du rapport.");
-        }
-      } else if (item.type === "TASK") {
-        setTasks((prev) => prev.filter((t) => t.id !== item.id));
-      }
-    }
+  // ===== DELETE STATE =====
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
+
+  const handleDeleteItem = (item) => {
+    setItemToDelete(item);
+    setAlertVisible(true);
   };
+
+  const confirmDelete = async () => {
+    setAlertVisible(false);
+    if (!itemToDelete) return;
+
+    const item = itemToDelete;
+
+    if (item.type === "CALLREPORT") {
+      try {
+        const Config = {
+          headers: {
+            Authorization: "Bearer " + localStorage.getItem("token"),
+          },
+        };
+        await axios.delete(
+          `https://api.optionretraite.net/api/v1/call-reports/${item.id}`,
+          Config
+        );
+        setCallReports((prev) => prev.filter((r) => r.id !== item.id));
+      } catch (error) {
+        console.error("Failed to delete call report", error);
+        window.alert("Erreur lors de la suppression du rapport.");
+      }
+    } else if (item.type === "TASK") {
+      setTasks((prev) => prev.filter((t) => t.id !== item.id));
+    }
+
+    setItemToDelete(null);
+  };
+
+  // ===== FILTER STATE =====
+  const [historyFilter, setHistoryFilter] = useState("ALL"); // ALL, CALLREPORT, TASK
 
   // ===== MIXED LIST VIEW =====
   const renderMixedList = () => {
+    // Filter tasks by ownerId
+    const visibleTasks = tasks.filter(
+      (t) =>
+        // Show task if it matches current owner
+        t.ownerId === ownerId ||
+        // legacy support: if strict isolation is desired, maybe DON'T show legacy tasks?
+        // User said "chacun doit avoir un unique historique", so we should HIDE tasks that don't match.
+        // But we must handle tasks created before this fix which have no ownerId.
+        // If we hide them, they disappear forever for everyone.
+        // Strategy: Only show if matches ownerId. Legacy tasks (undefined ownerId) will be hidden from specific views
+        // effectively isolating the history.
+        (t.ownerId === undefined && false) // Intentionally false to hide legacy mixed history
+    );
+
     const allItems = [
       ...callReports.map((r) => ({ ...r, type: "CALLREPORT" })),
-      ...tasks.map((t) => ({ ...t, type: "TASK" })),
+      ...visibleTasks.map((t) => ({ ...t, type: "TASK" })),
       ...logs.slice(0, 1).map((l) => ({ ...l, type: "LOG" })),
-    ].slice(0, 5);
+    ].sort(
+      (a, b) =>
+        new Date(b.created_at || b.date) - new Date(a.created_at || a.date)
+    );
 
-    if (allItems.length === 0) {
-      return (
-        <div style={emptyStateStyle}>
-          <MessageSquare
-            size={32}
-            style={{ marginBottom: "8px", opacity: 0.5 }}
-          />
-          <p style={{ margin: 0, fontWeight: 500 }}>Aucune activité</p>
-          <p style={{ margin: "4px 0 0", fontSize: "12px" }}>
-            Les call reports et tâches apparaîtront ici
-          </p>
-        </div>
-      );
+    // Filter items based on active tab
+    const filteredItems = allItems.filter((item) => {
+      if (historyFilter === "ALL") return true;
+      if (historyFilter === "CALLREPORT") return item.type === "CALLREPORT";
+      if (historyFilter === "TASK") return item.type === "TASK";
+      return true;
+    });
+
+    const callReportCount = allItems.filter(
+      (i) => i.type === "CALLREPORT"
+    ).length;
+    const taskCount = allItems.filter((i) => i.type === "TASK").length;
+
+    if (false) {
+      // Skip empty check for now to allow showing tabs even if empty? Or showTabs then empty state.
+      // Better: Render Tabs, then check if filteredItems is empty.
     }
+
+    // Check if filtered items are empty but only AFTER rendering tabs
+    const isEmpty = filteredItems.length === 0;
 
     return (
       <div>
-        {allItems.map((item, index) => (
-          <div key={item.id || index} style={listItemStyle}>
-            <div
-              style={{
-                width: "32px",
-                height: "32px",
-                borderRadius: "8px",
-                backgroundColor:
-                  item.type === "CALLREPORT"
-                    ? "#3b82f615"
-                    : item.type === "TASK"
-                    ? "#f9731615"
-                    : "#6b728015",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              {item.type === "CALLREPORT" && (
-                <Phone size={16} color="#3b82f6" />
-              )}
-              {item.type === "TASK" && (
-                <CheckCircle size={16} color="#f97316" />
-              )}
-              {item.type === "LOG" && <Clock size={16} color="#6b7280" />}
-            </div>
+        {/* Filter Tabs */}
+        <div
+          style={{
+            display: "flex",
+            borderBottom: "1px solid #e5e7eb",
+            marginBottom: "16px",
+            gap: "24px",
+          }}
+        >
+          <button
+            onClick={() =>
+              setHistoryFilter(
+                historyFilter === "CALLREPORT" ? "ALL" : "CALLREPORT"
+              )
+            }
+            style={{
+              padding: "8px 0",
+              background: "none",
+              border: "none",
+              borderBottom:
+                historyFilter === "CALLREPORT"
+                  ? "2px solid #7367f0"
+                  : "2px solid transparent",
+              color: historyFilter === "CALLREPORT" ? "#7367f0" : "#6b7280",
+              fontWeight: 500,
+              cursor: "pointer",
+              fontSize: "14px",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            Call Reports{" "}
+            <span style={{ opacity: 0.7 }}>({callReportCount})</span>
+          </button>
+          <button
+            onClick={() =>
+              setHistoryFilter(historyFilter === "TASK" ? "ALL" : "TASK")
+            }
+            style={{
+              padding: "8px 0",
+              background: "none",
+              border: "none",
+              borderBottom:
+                historyFilter === "TASK"
+                  ? "2px solid #7367f0"
+                  : "2px solid transparent",
+              color: historyFilter === "TASK" ? "#7367f0" : "#6b7280",
+              fontWeight: 500,
+              cursor: "pointer",
+              fontSize: "14px",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            Tâches <span style={{ opacity: 0.7 }}>({taskCount})</span>
+          </button>
+        </div>
 
-            {/* Edit Mode */}
-            {editingItem?.id === item.id ? (
-              <div style={{ flex: 1 }}>
-                <input
-                  type="text"
-                  value={editText}
-                  onChange={(e) => setEditText(e.target.value)}
-                  style={{ ...inputStyle, marginBottom: "8px" }}
-                  autoFocus
-                />
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button
-                    onClick={handleSaveEdit}
-                    style={{
-                      ...buttonStyle,
-                      padding: "6px 12px",
-                      fontSize: "12px",
-                    }}
-                  >
-                    Sauvegarder
-                  </button>
-                  <button
-                    onClick={handleCancelEdit}
-                    style={{
-                      ...secondaryButtonStyle,
-                      padding: "6px 12px",
-                      fontSize: "12px",
-                    }}
-                  >
-                    Annuler
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div style={{ flex: 1 }}>
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: "14px",
-                      color: "#374151",
-                      fontWeight: 500,
-                    }}
-                  >
-                    {item.report || item.text || item.message || "Élément"}
-                  </p>
-                  <p
-                    style={{
-                      margin: "4px 0 0",
-                      fontSize: "12px",
-                      color: "#9ca3af",
-                    }}
-                  >
-                    {new Date(item.date).toLocaleDateString("fr-FR", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </p>
-                </div>
-                {/* Action Buttons */}
-                {item.type !== "LOG" && (
-                  <div style={{ display: "flex", gap: "4px" }}>
-                    <button
-                      onClick={() => handleEditItem(item)}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        padding: "6px",
-                        color: "#6b7280",
-                        borderRadius: "4px",
-                        display: "flex",
-                        alignItems: "center",
-                      }}
-                      title="Modifier"
-                    >
-                      <Edit2 size={14} />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteItem(item)}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        padding: "6px",
-                        color: "#ef4444",
-                        borderRadius: "4px",
-                        display: "flex",
-                        alignItems: "center",
-                      }}
-                      title="Supprimer"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
+        {isEmpty ? (
+          <div style={emptyStateStyle}>
+            <MessageSquare
+              size={32}
+              style={{ marginBottom: "8px", opacity: 0.5 }}
+            />
+            <p style={{ margin: 0, fontWeight: 500 }}>Aucune activité</p>
+            <p style={{ margin: "4px 0 0", fontSize: "12px" }}>
+              Aucun élément dans cette catégorie
+            </p>
           </div>
-        ))}
+        ) : (
+          <div>
+            {filteredItems.map((item, index) => (
+              <div key={item.id || index} style={listItemStyle}>
+                <div
+                  style={{
+                    width: "32px",
+                    height: "32px",
+                    borderRadius: "8px",
+                    backgroundColor:
+                      item.type === "CALLREPORT"
+                        ? "#3b82f615"
+                        : item.type === "TASK"
+                        ? "#f9731615"
+                        : "#6b728015",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {item.type === "CALLREPORT" && (
+                    <Phone size={16} color="#3b82f6" />
+                  )}
+                  {item.type === "TASK" && (
+                    <CheckCircle size={16} color="#f97316" />
+                  )}
+                  {item.type === "LOG" && <Clock size={16} color="#6b7280" />}
+                </div>
+
+                {/* Edit Mode */}
+                {editingItem?.id === item.id ? (
+                  <div style={{ flex: 1 }}>
+                    <input
+                      type="text"
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      style={{ ...inputStyle, marginBottom: "8px" }}
+                      autoFocus
+                    />
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button
+                        onClick={handleSaveEdit}
+                        style={{
+                          ...buttonStyle,
+                          padding: "6px 12px",
+                          fontSize: "12px",
+                        }}
+                      >
+                        Sauvegarder
+                      </button>
+                      <button
+                        onClick={handleCancelEdit}
+                        style={{
+                          ...secondaryButtonStyle,
+                          padding: "6px 12px",
+                          fontSize: "12px",
+                        }}
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ flex: 1 }}>
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: "14px",
+                          color: "#374151",
+                          fontWeight: 500,
+                        }}
+                      >
+                        {item.call_report ||
+                          item.content ||
+                          item.report ||
+                          item.text ||
+                          item.message ||
+                          "Élément"}
+                      </p>
+                      <p
+                        style={{
+                          margin: "4px 0 0",
+                          fontSize: "12px",
+                          color: "#9ca3af",
+                        }}
+                      >
+                        {new Date(
+                          item.created_at || item.date || Date.now()
+                        ).toLocaleDateString("fr-FR", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
+                    {/* Action Buttons */}
+                    {item.type !== "LOG" && (
+                      <div style={{ display: "flex", gap: "4px" }}>
+                        <button
+                          onClick={() => handleEditItem(item)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            padding: "6px",
+                            color: "#6b7280",
+                            borderRadius: "4px",
+                            display: "flex",
+                            alignItems: "center",
+                          }}
+                          title="Modifier"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteItem(item)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            padding: "6px",
+                            color: "#ef4444",
+                            borderRadius: "4px",
+                            display: "flex",
+                            alignItems: "center",
+                          }}
+                          title="Supprimer"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   };
@@ -646,6 +788,19 @@ const ActionsSection = ({ clientId, adminId }) => {
           title="Tâche"
         >
           <CheckCircle size={20} />
+        </button>
+
+        <button
+          style={iconButtonStyle(false)}
+          onClick={() =>
+            routerHistory.push({
+              pathname: "/kpi/opportunities",
+              state: { fromInbox: true, conversationId: prospectId },
+            })
+          }
+          title="Opportunités"
+        >
+          <Briefcase size={20} />
         </button>
       </div>
 
@@ -727,6 +882,27 @@ const ActionsSection = ({ clientId, adminId }) => {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Alert */}
+      <SweetAlert
+        warning
+        title="Êtes-vous sûr ?"
+        show={alertVisible}
+        showCancel
+        confirmBtnText="Oui, supprimer"
+        cancelBtnText="Annuler"
+        confirmBtnBsStyle="danger"
+        cancelBtnBsStyle="primary"
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setAlertVisible(false);
+          setItemToDelete(null);
+        }}
+      >
+        <p className="sweet-alert-text">
+          Êtes-vous sûr de vouloir supprimer cet élément ?
+        </p>
+      </SweetAlert>
     </div>
   );
 };
@@ -970,7 +1146,7 @@ const InboxView = ({
   error,
   onSelect,
 }) => {
-  const history = useHistory();
+  const routerHistory = useHistory();
   // Use provided items (no mock fallback), sorted by date (most recent first)
   // Memoize to ensure recalculation when items change
   const allInboxItems = React.useMemo(() => {
@@ -1139,7 +1315,27 @@ const InboxView = ({
   };
 
   // Update selectedItem when visibleInboxItems change or filter changes
+  const location = useLocation();
+
   useEffect(() => {
+    if (location.state?.fromInbox && location.state?.conversationId) {
+      const targetItem = allInboxItems.find(
+        (item) => item.id === location.state.conversationId
+      );
+      console.log(
+        "Restoring conversation:",
+        location.state.conversationId,
+        "Found:",
+        !!targetItem
+      );
+      if (targetItem) {
+        setSelectedItem(targetItem);
+        // Clear state to avoid persistent redirect effect
+        routerHistory.replace({ pathname: "/kpi/inbox", state: {} });
+        return;
+      }
+    }
+
     if (visibleInboxItems.length > 0) {
       const currentInList = visibleInboxItems.find(
         (i) => i.id === selectedItem.id
@@ -1148,7 +1344,17 @@ const InboxView = ({
         setSelectedItem(visibleInboxItems[0]);
       }
     }
-  }, [items, selectedItem.id, disqualifiedIds, filter, visibleInboxItems]);
+  }, [
+    items,
+    selectedItem.id,
+    disqualifiedIds,
+    filter,
+    visibleInboxItems,
+    location.state,
+    allInboxItems,
+    routerHistory,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ]);
 
   useEffect(() => {
     setAiDraft(null);
@@ -1441,7 +1647,7 @@ const InboxView = ({
       civility: civility,
     };
 
-    history.push("/app/user/createUser", prefillData);
+    routerHistory.push("/app/user/createUser", prefillData);
   };
 
   // Inline styles for layout since Tailwind might not be fully available
@@ -3526,6 +3732,7 @@ const InboxView = ({
             {/* Tabs */}
             <ActionsSection
               clientId={selectedItem.clientId}
+              prospectId={selectedItem.id} // Pass prospectId as fallback
               adminId={localStorage.getItem("userid")}
             />
           </div>

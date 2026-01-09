@@ -1,0 +1,7 @@
+.pipeline-column-scroll {
+  /* Scroll vertical actif et standard (visible) */
+  overflow-y: auto;
+  
+  /* Scroll horizontal caché/désactivé */
+  overflow-x: hidden;
+}
