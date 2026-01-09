@@ -937,6 +937,10 @@ export default function KpiPage() {
 
       if (email) setAdminEmailApi(email);
     } catch (e) {
+      if (e?.response?.status === 404) {
+        console.debug("Admin user not found, skipping email fetch");
+        return;
+      }
       console.error("fetchAdminEmailFromApi error:", e);
     }
   }
