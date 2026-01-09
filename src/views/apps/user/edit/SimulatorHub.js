@@ -79,9 +79,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
     18: { from: "", to: "" },
     16: { from: "", to: "" },
   });
-  const [innerOffset, setInnerOffset] = useState(0);
-  const [visible, setVisible] = useState(false);
-  const [innerVisible, setInnerVisible] = useState(false);
+  // Both navs use alignOffset to align under Simulateur
   const arrcoIframeRef = useRef(null);
   const ircantecIframeRef = useRef(null);
   // (refs to Nav/innerNav removed to avoid function-component ref warnings)
@@ -212,51 +210,13 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
   const isCumulLocked = retraiteProgressive;
   const isCarriereLongueLocked = retraiteProgressive;
 
-  const computeInnerOffset = useCallback(() => {
-    try {
-      if (subTab !== "regimes") {
-        setInnerOffset(0);
-        return;
-      }
-      const baseSpan = document.getElementById("regimes-label");
-      const firstText = document.getElementById("regime-base-text");
-      if (baseSpan && firstText) {
-        const baseLeft = baseSpan.getBoundingClientRect().left;
-        const firstLeft = firstText.getBoundingClientRect().left;
-        const delta = baseLeft - firstLeft;
-        setInnerOffset(Math.round(delta));
-      }
-    } catch (e) {
-      setInnerOffset(0);
-    }
-  }, [subTab]);
-
-  useEffect(() => {
-    computeInnerOffset();
-  }, [computeInnerOffset]);
-  // Keep submenu margin fixed from parent-provided offset (no recompute on clicks)
+  // Both navs use alignOffset to align under Simulateur - no dynamic calculation needed
   useEffect(() => {
     const nav = document.getElementById("simu-subnav");
     if (nav)
       nav.style.marginLeft =
         String(Math.max(0, Number(alignOffset) || 0)) + "px";
   }, [alignOffset]);
-  // Animate outer sub-nav on alignment or section change
-  useEffect(() => {
-    setVisible(false);
-    const raf = requestAnimationFrame(() => setVisible(true));
-    return () => cancelAnimationFrame(raf);
-  }, [alignOffset]);
-  // Animate inner regimes sub-nav each time offset or tab changes
-  useEffect(() => {
-    if (subTab === "regimes") {
-      setInnerVisible(false);
-      const raf = requestAnimationFrame(() => setInnerVisible(true));
-      return () => cancelAnimationFrame(raf);
-    } else {
-      setInnerVisible(false);
-    }
-  }, [subTab, innerOffset, regimeTab]);
 
   const hideSimulatorSaveButtons = useCallback(() => {
     [arrcoIframeRef.current, ircantecIframeRef.current].forEach((iframe) => {
@@ -1478,11 +1438,8 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
         className="mb-1"
         style={{
           marginLeft: Math.max(0, Number(alignOffset) || 0),
-          opacity: visible ? 1 : 0,
-          transform: visible ? "translateY(0)" : "translateY(-6px)",
-          transition:
-            "margin-left 220ms cubic-bezier(0.16, 1, 0.3, 1), opacity 140ms ease, transform 220ms cubic-bezier(0.16, 1, 0.3, 1)",
-          willChange: "margin-left, transform, opacity",
+          opacity: 1,
+          transform: "none",
         }}
       >
         <NavItem>
@@ -1513,17 +1470,14 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
       </Nav>
 
       <TabContent activeTab={subTab}>
-        <TabPane tabId="regimes">
+        <TabPane tabId="regimes" style={{ padding: 0, marginLeft: 20 }}>
           <Nav
             tabs
             className="mb-1"
             style={{
-              marginLeft: innerOffset,
-              opacity: innerVisible ? 1 : 0,
-              transform: innerVisible ? "translateY(0)" : "translateY(-6px)",
-              transition:
-                "margin-left 220ms cubic-bezier(0.16, 1, 0.3, 1), opacity 140ms ease, transform 220ms cubic-bezier(0.16, 1, 0.3, 1)",
-              willChange: "margin-left, transform, opacity",
+              marginLeft: Math.max(0, Number(alignOffset) || 0) + 20,
+              opacity: 1,
+              transform: "none",
             }}
           >
             <NavItem>

@@ -22,11 +22,22 @@ import {
 } from "reactstrap";
 import classNames from "classnames";
 import TabDropdown from "../../../components/TabDropdown";
+import ProspectsDetailsModal from "./ProspectsDetailsModal";
 
 /* ===================== Constantes ===================== */
 const FRENCH_MONTHS = [
-  "Janvier","Février","Mars","Avril","Mai","Juin",
-  "Juillet","Août","Septembre","Octobre","Novembre","Décembre",
+  "Janvier",
+  "Février",
+  "Mars",
+  "Avril",
+  "Mai",
+  "Juin",
+  "Juillet",
+  "Août",
+  "Septembre",
+  "Octobre",
+  "Novembre",
+  "Décembre",
 ];
 
 const AUTH_CONFIG = {
@@ -43,7 +54,8 @@ function isoWeekInfo(dateInput) {
   const firstThursday = new Date(isoYear, 0, 4);
   const firstThursdayDay = (firstThursday.getDay() + 6) % 7;
   firstThursday.setDate(firstThursday.getDate() - firstThursdayDay + 3);
-  const isoWeek = 1 + Math.round((thursday - firstThursday) / (7 * 24 * 3600 * 1000));
+  const isoWeek =
+    1 + Math.round((thursday - firstThursday) / (7 * 24 * 3600 * 1000));
   return { isoYear, isoWeek };
 }
 function isoWeeksInYear(isoYear) {
@@ -167,22 +179,45 @@ const DROPDOWN_CSS = `
 `;
 
 /* ===================== Utils ===================== */
-const fmt   = (n) => (Number(n || 0)).toLocaleString("fr-FR");
-const range = (start, end) => Array.from({ length: end - start + 1 }, (_, i) => start + i);
-const sum   = (arr) => arr.reduce((acc, v) => acc + Number(v || 0), 0);
-const getMonthsOfTrim = (i) => { const s = i * 3; return [s, s + 1, s + 2]; };
+const fmt = (n) => Number(n || 0).toLocaleString("fr-FR");
+const range = (start, end) =>
+  Array.from({ length: end - start + 1 }, (_, i) => start + i);
+const sum = (arr) => arr.reduce((acc, v) => acc + Number(v || 0), 0);
+const getMonthsOfTrim = (i) => {
+  const s = i * 3;
+  return [s, s + 1, s + 2];
+};
 
 /* ===================== UI: Items ===================== */
-const StatItem = ({ icon: Icon, value, label, color }) => (
+const StatItem = ({ icon: Icon, value, label, color, onClick }) => (
   <div
     className="d-flex align-items-center justify-content-start"
-    style={{ minWidth: 240 }}
+    style={{
+      minWidth: 240,
+      cursor: onClick ? "pointer" : "default",
+      transition: "all 0.2s ease",
+      borderRadius: onClick ? "8px" : undefined,
+      padding: onClick ? "8px" : undefined,
+    }}
+    onClick={onClick}
+    onMouseEnter={(e) => {
+      if (onClick) {
+        e.currentTarget.style.background = "rgba(115,103,240,0.08)";
+        e.currentTarget.style.transform = "translateY(-2px)";
+      }
+    }}
+    onMouseLeave={(e) => {
+      if (onClick) {
+        e.currentTarget.style.background = "transparent";
+        e.currentTarget.style.transform = "translateY(0)";
+      }
+    }}
   >
     <div>
       <div
         className="avatar avatar-stats p-75"
         style={{
-          backgroundColor: color + "20", // couleur + transparence (20 = ~12%)
+          backgroundColor: color + "20",
           borderRadius: "50%",
         }}
       >
@@ -215,7 +250,7 @@ const StatItem = ({ icon: Icon, value, label, color }) => (
   </div>
 );
 
-const StatGrid = ({ stats }) => (
+const StatGrid = ({ stats, onProspectsClick }) => (
   <div
     className="icon-section form-inline text-bold-600 w-100"
     style={{
@@ -233,7 +268,11 @@ const StatGrid = ({ stats }) => (
     }}
   >
     {stats.map((s) => (
-      <StatItem key={s.label} {...s} />
+      <StatItem
+        key={s.label}
+        {...s}
+        onClick={s.label === "Prospects" ? onProspectsClick : undefined}
+      />
     ))}
   </div>
 );
@@ -455,6 +494,17 @@ export default function OverallCard() {
   const [openYear, setOpenYear] = useState(false);
   const [openMonth, setOpenMonth] = useState(false);
   const [openTrim, setOpenTrim] = useState(false);
+  const [prospectsModalOpen, setProspectsModalOpen] = useState(false);
+
+  // Handler pour ouvrir la modale Prospects
+  const handleProspectsClick = useCallback(() => {
+    setProspectsModalOpen(true);
+  }, []);
+
+  // Extrait le numéro de semaine depuis currentWeek ("W12" -> 12)
+  const weekNumber = useMemo(() => {
+    return Number(String(currentWeek).replace(/\D/g, "")) || 1;
+  }, [currentWeek]);
 
   const FiltersLeft = () => (
     <Nav className="d-flex align-items-center flex-wrap">
@@ -717,6 +767,7 @@ export default function OverallCard() {
                       })
                     );
                   })()}
+                  onProspectsClick={handleProspectsClick}
                 />
               )}
             </TabPane>
@@ -724,26 +775,46 @@ export default function OverallCard() {
               {loading ? (
                 <div className="w-100 text-center py-3">Chargement…</div>
               ) : (
-                <StatGrid stats={tabStats.month} />
+                <StatGrid
+                  stats={tabStats.month}
+                  onProspectsClick={handleProspectsClick}
+                />
               )}
             </TabPane>
             <TabPane tabId="2">
               {loading ? (
                 <div className="w-100 text-center py-3">Chargement…</div>
               ) : (
-                <StatGrid stats={tabStats.trim} />
+                <StatGrid
+                  stats={tabStats.trim}
+                  onProspectsClick={handleProspectsClick}
+                />
               )}
             </TabPane>
             <TabPane tabId="3">
               {loading ? (
                 <div className="w-100 text-center py-3">Chargement…</div>
               ) : (
-                <StatGrid stats={tabStats.year} />
+                <StatGrid
+                  stats={tabStats.year}
+                  onProspectsClick={handleProspectsClick}
+                />
               )}
             </TabPane>
           </TabContent>
         </CardBody>
       </Card>
+
+      {/* Modal Drill-Down Prospects */}
+      <ProspectsDetailsModal
+        isOpen={prospectsModalOpen}
+        toggle={() => setProspectsModalOpen(false)}
+        year={year}
+        monthIndex={monthIndex}
+        trimIndex={trimIndex}
+        activeTab={activeTab}
+        weekNumber={weekNumber}
+      />
     </>
   );
 }

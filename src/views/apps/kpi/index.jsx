@@ -937,6 +937,10 @@ export default function KpiPage() {
 
       if (email) setAdminEmailApi(email);
     } catch (e) {
+      if (e?.response?.status === 404) {
+        console.debug("Admin user not found, skipping email fetch");
+        return;
+      }
       console.error("fetchAdminEmailFromApi error:", e);
     }
   }
@@ -1362,7 +1366,7 @@ export default function KpiPage() {
               </DropdownItem>
               <DropdownItem
                 onClick={() =>
-                  alert("Fonctionnalité 'Créer une tâche' à venir !")
+                  window.alert("Fonctionnalité 'Créer une tâche' à venir !")
                 }
                 style={{
                   display: "flex",

@@ -9,6 +9,8 @@ import axios from "axios";
 const mql = window.matchMedia(`(min-width: 992px)`);
 
 class TODO extends React.Component {
+  _isMounted = false;
+
   state = {
     addTask: false,
     sidebarDocked: mql.matches,
@@ -23,6 +25,7 @@ class TODO extends React.Component {
   }
 
   componentWillUnmount() {
+    this._isMounted = false;
     mql.removeListener(this.mediaQueryChanged);
   }
 
@@ -53,6 +56,7 @@ class TODO extends React.Component {
     });
   };
   async componentDidMount() {
+    this._isMounted = true;
     const Config = {
       headers: {
         Authorization: "Bearer " + localStorage.getItem("token"),
@@ -64,7 +68,9 @@ class TODO extends React.Component {
         Config
       )
       .then((response) => {
-        this.setState({ customer: response.data });
+        if (this._isMounted) {
+          this.setState({ customer: response.data });
+        }
       });
   }
   render() {

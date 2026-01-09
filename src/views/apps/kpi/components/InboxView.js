@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import axios from "axios";
 import { useHistory } from "react-router-dom";
 import {
   MessageSquare,
@@ -189,22 +190,17 @@ async function generateStrategicAnalysis(diagnosticData) {
 }
 
 // ========== ACTIONS SECTION COMPONENT ==========
-const ActionsSection = () => {
+const ActionsSection = ({ clientId, adminId }) => {
   const [activeView, setActiveView] = useState("HOME");
   const [newCallReport, setNewCallReport] = useState("");
   const [newTaskText, setNewTaskText] = useState("");
   const [taskDateTime, setTaskDateTime] = useState("");
 
-  // Load from localStorage on mount
-  const [callReports, setCallReports] = useState(() => {
-    try {
-      const stored = localStorage.getItem("inbox_call_reports");
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
+  // API State for Call Reports
+  const [callReports, setCallReports] = useState([]);
+  const [, setIsLoadingReports] = useState(false);
 
+  // Load from localStorage on mount (TASKS ONLY - Call Reports are now API)
   const [tasks, setTasks] = useState(() => {
     try {
       const stored = localStorage.getItem("inbox_tasks");
@@ -216,10 +212,44 @@ const ActionsSection = () => {
 
   const logs = []; // Logs can be added later if needed
 
-  // Save to localStorage when data changes
+  // Fetch Call Reports from API
   useEffect(() => {
-    localStorage.setItem("inbox_call_reports", JSON.stringify(callReports));
-  }, [callReports]);
+    const fetchCallReports = async () => {
+      if (!clientId) {
+        setCallReports([]);
+        return;
+      }
+      setIsLoadingReports(true);
+      try {
+        const Config = {
+          headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+        };
+        const response = await axios.get(
+          `https://api.optionretraite.net/api/v1/call-reports/client/${clientId}`,
+          Config
+        );
+        // Ensure we handle array or wrapped object
+        const reports = Array.isArray(response.data)
+          ? response.data
+          : response.data.data || [];
+        // Sort descending by date
+        setCallReports(
+          reports.sort(
+            (a, b) =>
+              new Date(b.created_at || b.date) -
+              new Date(a.created_at || a.date)
+          )
+        );
+      } catch (error) {
+        console.error("Failed to fetch call reports", error);
+        // Fallback to empty or toast error
+      } finally {
+        setIsLoadingReports(false);
+      }
+    };
+
+    fetchCallReports();
+  }, [clientId]);
 
   useEffect(() => {
     localStorage.setItem("inbox_tasks", JSON.stringify(tasks));
@@ -302,16 +332,44 @@ const ActionsSection = () => {
   };
 
   // ===== HANDLERS =====
-  const handleAddCallReport = () => {
+  const handleAddCallReport = async () => {
     if (!newCallReport.trim()) return;
-    const newReport = {
-      id: Date.now(),
-      report: newCallReport.trim(),
-      date: new Date().toISOString(),
-    };
-    setCallReports((prev) => [newReport, ...prev]);
-    setNewCallReport("");
-    setActiveView("HOME"); // Switch to history after adding
+
+    if (!clientId) {
+      window.alert(
+        "Erreur: Impossible d'identifier le client pour sauvegarder le rapport."
+      );
+      return;
+    }
+
+    try {
+      const Config = {
+        headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+      };
+
+      const payload = {
+        client_id: clientId,
+        admin_id: adminId || localStorage.getItem("userid"),
+        content: newCallReport.trim(),
+        date: new Date().toISOString(),
+      };
+
+      const response = await axios.post(
+        "https://api.optionretraite.net/api/v1/call-reports",
+        payload,
+        Config
+      );
+
+      // Add new report to state (use server response)
+      const savedReport = response.data.data || response.data;
+      setCallReports((prev) => [savedReport, ...prev]);
+
+      setNewCallReport("");
+      setActiveView("HOME"); // Switch to history after adding
+    } catch (error) {
+      console.error("Failed to add call report", error);
+      window.alert("Erreur lors de la sauvegarde du rapport.");
+    }
   };
 
   const handleAddTask = () => {
@@ -334,18 +392,36 @@ const ActionsSection = () => {
 
   const handleEditItem = (item) => {
     setEditingItem(item);
-    setEditText(item.report || item.text || "");
+    setEditText(item.report || item.content || item.text || "");
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editText.trim() || !editingItem) return;
 
     if (editingItem.type === "CALLREPORT") {
-      setCallReports((prev) =>
-        prev.map((r) =>
-          r.id === editingItem.id ? { ...r, report: editText.trim() } : r
-        )
-      );
+      try {
+        const Config = {
+          headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+        };
+        await axios.put(
+          `https://api.optionretraite.net/api/v1/call-reports/${editingItem.id}`,
+          { content: editText.trim() },
+          Config
+        );
+
+        // Update local state
+        setCallReports((prev) =>
+          prev.map((r) =>
+            r.id === editingItem.id
+              ? { ...r, content: editText.trim(), report: editText.trim() }
+              : r
+          )
+        );
+      } catch (error) {
+        console.error("Failed to update call report", error);
+        window.alert("Erreur lors de la mise à jour du rapport.");
+        return;
+      }
     } else if (editingItem.type === "TASK") {
       setTasks((prev) =>
         prev.map((t) =>
@@ -363,11 +439,27 @@ const ActionsSection = () => {
     setEditText("");
   };
 
-  const handleDeleteItem = (item) => {
-    if (item.type === "CALLREPORT") {
-      setCallReports((prev) => prev.filter((r) => r.id !== item.id));
-    } else if (item.type === "TASK") {
-      setTasks((prev) => prev.filter((t) => t.id !== item.id));
+  const handleDeleteItem = async (item) => {
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer cet élément ?")) {
+      if (item.type === "CALLREPORT") {
+        try {
+          const Config = {
+            headers: {
+              Authorization: "Bearer " + localStorage.getItem("token"),
+            },
+          };
+          await axios.delete(
+            `https://api.optionretraite.net/api/v1/call-reports/${item.id}`,
+            Config
+          );
+          setCallReports((prev) => prev.filter((r) => r.id !== item.id));
+        } catch (error) {
+          console.error("Failed to delete call report", error);
+          window.alert("Erreur lors de la suppression du rapport.");
+        }
+      } else if (item.type === "TASK") {
+        setTasks((prev) => prev.filter((t) => t.id !== item.id));
+      }
     }
   };
 
@@ -836,8 +928,16 @@ function mapConversationToInboxItem(conv) {
   const fullName = `${firstName} ${lastName}`.trim();
   const displayName = fullName || phone || email || "Prospect inconnu";
 
+  const clientId =
+    conv.user_id ||
+    conv.user?.id ||
+    conv.contact?.id ||
+    conv.attributes?.user_id ||
+    null;
+
   return {
     id: conv.id,
+    clientId: clientId,
     type: type,
     name: displayName,
     firstName: firstName,
@@ -1022,7 +1122,9 @@ const InboxView = ({
         [selectedItem.id]: result,
       }));
     } else {
-      alert("Erreur lors de la génération de l'analyse. Veuillez réessayer.");
+      window.alert(
+        "Erreur lors de la génération de l'analyse. Veuillez réessayer."
+      );
     }
     setIsAnalyzing(false);
   };
@@ -1112,7 +1214,7 @@ const InboxView = ({
 
   const handleConfirmDisqualify = async () => {
     if (!disqualifyReason) {
-      alert("Veuillez sélectionner un motif de disqualification.");
+      window.alert("Veuillez sélectionner un motif de disqualification.");
       return;
     }
 
@@ -1194,7 +1296,7 @@ const InboxView = ({
       setTimeout(() => toast.remove(), 3000);
     } catch (error) {
       console.error("Disqualify error:", error);
-      alert(
+      window.alert(
         "Une erreur est survenue. Le prospect a été marqué localement comme disqualifié."
       );
 
@@ -3422,7 +3524,10 @@ const InboxView = ({
             </h3>
 
             {/* Tabs */}
-            <ActionsSection />
+            <ActionsSection
+              clientId={selectedItem.clientId}
+              adminId={localStorage.getItem("userid")}
+            />
           </div>
         </div>
       </div>
