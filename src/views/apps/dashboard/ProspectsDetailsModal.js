@@ -203,10 +203,18 @@ const MODAL_CSS = `
     display: flex;
     align-items: center;
     gap: 4px;
+    max-width: 100%;
+  }
+  .meta-item span {
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    display: block;
   }
   .meta-item svg {
     color: #b2bec3;
+    flex-shrink: 0;
   }
 
   .prospect-date {
@@ -214,8 +222,10 @@ const MODAL_CSS = `
     flex-direction: column;
     align-items: flex-end;
     font-size: 0.75rem;
-    color: #b2bec3;
+    color: #5e6c84; /* Darker color as requested */
+    font-weight: 500;
     padding-left: 0.5rem;
+    min-width: 80px; /* Ensure date stays stable */
   }
   .chevron-indic {
     color: #dfe6e9;
@@ -243,6 +253,69 @@ const MODAL_CSS = `
     justify-content: center;
     margin-bottom: 1rem;
     color: #dfe6e9;
+  }
+
+  /* Responsive Adjustments */
+  @media (max-width: 576px) {
+    .prospects-modal .modal-header {
+      padding: 1rem;
+    }
+    .prospects-modal .modal-title {
+      font-size: 1.1rem;
+      padding-right: 3.5rem; /* Increased to avoid overlap with close btn */
+    }
+    .prospects-modal .close-btn {
+      right: 0.5rem; /* Pushed slightly more to edge */
+      padding: 4px;
+    }
+    .prospects-modal .modal-body { /* Assuming default ModalBody renders with this class or we target style override */
+        padding: 1rem !important;
+    }
+    
+    .search-wrapper {
+      margin-bottom: 1rem;
+    }
+    
+    .prospect-card {
+      padding: 0.75rem;
+    }
+    
+    .premium-avatar {
+      width: 40px;
+      height: 40px;
+      min-width: 40px;
+      font-size: 0.9rem;
+      border-radius: 10px;
+      margin-right: 0.75rem;
+    }
+    
+    .prospect-name {
+      font-size: 0.95rem;
+    }
+    
+    .prospect-meta {
+      font-size: 0.75rem;
+      gap: 0.5rem;
+    }
+
+    .prospect-date {
+        display: none; /* Optional: hide date on very small screens if cluttering, or stack it */
+    }
+    /* If we want to keep date but style differently: */
+    /*
+    .prospect-date {
+        position: static;
+        flex-direction: row;
+        margin-top: 4px;
+        padding-left: 0;
+    }
+    */
+  }
+  /* Custom Width for intermediate size */
+  @media (min-width: 992px) {
+    .prospects-modal .modal-dialog {
+      max-width: 650px;
+    }
   }
 `;
 
@@ -455,13 +528,15 @@ export default function ProspectsDetailsModal({
                     {p.email && (
                       <div className="meta-item">
                         <Mail size={13} />
-                        {p.email}
+                        <span title={p.email}>{p.email}</span>
                       </div>
                     )}
                     {(p.mobile_number || p.office_number) && (
                       <div className="meta-item">
                         <Phone size={13} />
-                        {formatPhone(p.mobile_number || p.office_number)}
+                        <span>
+                          {formatPhone(p.mobile_number || p.office_number)}
+                        </span>
                       </div>
                     )}
                   </div>

@@ -115,19 +115,26 @@
     }
     li {
       .menu-text {
-        width: 170px;
+        width: 200px; // ✅ Largeur augmentée pour "Boîte de réception"
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
         &:last-child {
-          width: 180px;
+          width: 210px;
         }
       }
       &.has-sub {
         ul.menu-content {
-          padding: 7px;
-          margin: -7px -7px 0 -7px;
+          padding: 7px 7px 7px 12px; // ✅ Indentation à gauche pour les sous-menus
+          margin: 0;
           transition: height 0.25s ease;
+          // ✅ Distinction visuelle des sous-menus
+          background-color: #F8F9FA; // Gris très léger
+          border-radius: 6px;
+          margin-top: 8px;
+          margin-bottom: 8px;
+          margin-left: 8px; // Décalage à droite
+          border-left: 2px solid rgba($primary, 0.3); // Ligne verticale subtile
         }
       }
       a {
@@ -163,9 +170,8 @@
           top: 1px;
         }
       }
+      // ✅ Style SUBTIL pour les menus ouverts (dépliés) mais PAS actifs
       &.open,
-      &.sidebar-group-active,
-      ul.menu-content .sidebar-group-active,
       ul.menu-content .open {
         > a {
           color: $main-menu-top-open-color;
@@ -180,6 +186,19 @@
               transform: rotate(90deg);
             }
           }
+        }
+      }
+      // ✅ Style GRADIENT PRIMARY pour tous les items actifs
+      &.active,
+      &.has-sub.active,
+      ul.menu-content li.active {
+        > a {
+          color: $white !important;
+          background: linear-gradient(118deg, rgba($primary, 1), rgba($primary, 0.7)) !important;
+          box-shadow: 0 0 10px 1px rgba($primary, 0.7) !important;
+          border-radius: 6px;
+          margin-bottom: 7px;
+          font-weight: 500;
         }
       }
 

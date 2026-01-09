@@ -88,13 +88,22 @@ class SideMenuGroup extends React.Component {
                       "sidebar-group-active":
                         this.props.currentActiveGroup.includes(child.id),
                       active:
+                        // ✅ Items normaux
                         ((this.props.activeItemState === child.navLink ||
                           (child.navLink &&
                             this.props.activeItemState.startsWith(
                               child.navLink
                             ))) &&
                           child.type === "item") ||
-                        (item.parentOf &&
+                        // ✅ Collapse items avec navLink (ex: Boîte de réception) - exact match seulement
+                        // ✅ Collapse items avec navLink (ex: Boîte de réception) - exact match ONLY
+                        (child.type === "collapse" &&
+                          child.navLink &&
+                          this.props.activeItemState === child.navLink) ||
+                        // ✅ Standard Groups - Active if children are active, BUT EXCLUDE collapse items with navLink (like Inbox)
+                        // This prevents Inbox from turning violet when Chatbot is active.
+                        (!child.navLink &&
+                          item.parentOf &&
                           item.parentOf.includes(this.props.activeItemState)),
                     })}
                     onClick={(e) => {
