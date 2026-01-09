@@ -69,7 +69,7 @@ class UserEdit extends React.Component {
           label.getBoundingClientRect().left - nav.getBoundingClientRect().left;
         this.setState({ simuOffset: Math.max(0, Math.round(delta)) });
       }
-    } catch (e) { }
+    } catch (e) {}
   };
 
   computeDocsOffset = () => {
@@ -83,7 +83,7 @@ class UserEdit extends React.Component {
           label.getBoundingClientRect().left - nav.getBoundingClientRect().left;
         this.setState({ docsOffset: Math.max(0, Math.round(delta)) });
       }
-    } catch (e) { }
+    } catch (e) {}
   };
 
   computeCourriersOffset = () => {
@@ -97,7 +97,7 @@ class UserEdit extends React.Component {
           label.getBoundingClientRect().left - nav.getBoundingClientRect().left;
         this.setState({ courriersOffset: Math.max(0, Math.round(delta)) });
       }
-    } catch (e) { }
+    } catch (e) {}
   };
 
   applyTabFromRoute(tabParam) {
@@ -157,6 +157,13 @@ class UserEdit extends React.Component {
     // Utilise les méthodes centralisées
     await this.fetchUser();
     await this.fetchMembers();
+
+    // Calculate offsets immediately after mount for alignment
+    setTimeout(() => {
+      if (this.state.activeTab === "simulateur") this.computeSimuOffset();
+      if (this.state.activeTab === "documents") this.computeDocsOffset();
+      if (this.state.activeTab === "courriers") this.computeCourriersOffset();
+    }, 0);
   }
 
   componentDidUpdate(prevProps) {
@@ -415,7 +422,8 @@ class UserEdit extends React.Component {
                   })}
                   onClick={() => this.toggle("tasks")}
                 >
-                  <CheckSquare className="text-primary mr-50" size={16} /> Tâches
+                  <CheckSquare className="text-primary mr-50" size={16} />{" "}
+                  Tâches
                 </NavLink>
               </NavItem>
               <NavItem>
