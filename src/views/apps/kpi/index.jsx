@@ -1083,6 +1083,7 @@ export default function KpiPage() {
     const res = {
       active: [], // par défaut
       suivi: [], // Bucket spécifique demandé (ex: AR/TFD creation devis)
+      facturation: [], // Facturation (Urgent)
       after5days: [], // 5 jours atteints / dépassés
       processing: [], // Paiement du contrat -> Avancement du dossier
       completed: [], // Contrats terminés
@@ -1152,6 +1153,8 @@ export default function KpiPage() {
 
       const bucket = isContractFinished
         ? "completed"
+        : next && next.label === "Facturation"
+        ? "facturation"
         : isAfter5Days
         ? "after5days"
         : isSuiviSpecific
@@ -1543,6 +1546,117 @@ export default function KpiPage() {
                           !showProcessing && !showCompleted;
                         return (
                           <>
+                            {/* 0.1) Facturation (Urgent) - only show if no filter active */}
+                            {noFilterActive &&
+                              groupedSuivis.facturation.length > 0 && (
+                                <>
+                                  <tr className="table-danger">
+                                    <td
+                                      colSpan="5"
+                                      style={{ fontSize: 14, fontWeight: 600 }}
+                                    >
+                                      Facturation - Urgent
+                                    </td>
+                                  </tr>
+
+                                  {groupedSuivis.facturation.map(
+                                    ({ s, steps, last, next }) => {
+                                      const clientLabel =
+                                        getClientDisplayNameFromSuivi(
+                                          s,
+                                          clientsById
+                                        );
+                                      const contractId =
+                                        s.facture_id ||
+                                        s.document_id ||
+                                        s.contract_id;
+                                      const clientId = s.client_id;
+
+                                      return (
+                                        <tr
+                                          key={`factu-${
+                                            s.suivi_id || s.id || ""
+                                          }-${
+                                            s.document_id || s.facture_id || ""
+                                          }`}
+                                          onClick={() => {
+                                            if (clientId) {
+                                              history.push(
+                                                `/app/user/edit/${clientId}/2`
+                                              );
+                                            }
+                                          }}
+                                          style={{ cursor: "pointer" }}
+                                        >
+                                          {/* Client */}
+                                          <td>{clientLabel}</td>
+
+                                          {/* À faire */}
+                                          <td>{renderTodoCell(next)}</td>
+
+                                          {/* Dernière étape validée */}
+                                          <td>
+                                            {last ? (
+                                              <div style={{ fontSize: 14 }}>
+                                                <div>
+                                                  <strong>{last.label}</strong>
+                                                </div>
+                                                {last.date && (
+                                                  <div className="text-muted">
+                                                    {formatDate(last.date)}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            ) : (
+                                              <span
+                                                className="text-muted"
+                                                style={{ fontSize: 14 }}
+                                              >
+                                                Aucune étape validée
+                                              </span>
+                                            )}
+                                          </td>
+
+                                          {/* Type de contrat */}
+                                          <td
+                                            style={{
+                                              whiteSpace: "nowrap",
+                                              width: 160,
+                                            }}
+                                          >
+                                            {renderProductBadgeFromSuivi(s)}
+                                          </td>
+
+                                          {/* Contrat (flèche) */}
+                                          <td
+                                            style={{
+                                              width: 60,
+                                              textAlign: "center",
+                                            }}
+                                          >
+                                            {contractId ? (
+                                              <Button
+                                                color="link"
+                                                className="p-0"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  history.push(
+                                                    `/pages/contract/${contractId}`
+                                                  );
+                                                }}
+                                                title="Voir le contrat"
+                                              >
+                                                <ArrowRight size={18} />
+                                              </Button>
+                                            ) : null}
+                                          </td>
+                                        </tr>
+                                      );
+                                    }
+                                  )}
+                                </>
+                              )}
+
                             {/* 0) 5 jours ouvrés - only show if no filter active */}
                             {noFilterActive &&
                               groupedSuivis.after5days.length > 0 && (
