@@ -192,6 +192,23 @@ async function generateStrategicAnalysis(diagnosticData) {
   }
 }
 
+// Helper: Extract task text from the 'data' JSON field
+function getTaskText(item) {
+  // If it has a data field (from API), try to parse it
+  if (item.data) {
+    try {
+      const parsed =
+        typeof item.data === "string" ? JSON.parse(item.data) : item.data;
+      return parsed.text || parsed.task_text || "";
+    } catch {
+      // If parsing fails, return data as-is if it's a string
+      return typeof item.data === "string" ? item.data : "";
+    }
+  }
+  // Fallback to other possible fields
+  return item.task_text || item.text || "";
+}
+
 // ========== ACTIONS SECTION COMPONENT ==========
 const ActionsSection = ({
   clientId,
@@ -245,15 +262,9 @@ const ActionsSection = ({
   const [callReports, setCallReports] = useState([]);
   const [, setIsLoadingReports] = useState(false);
 
-  // Load from localStorage on mount (TASKS ONLY - Call Reports are now API)
-  const [tasks, setTasks] = useState(() => {
-    try {
-      const stored = localStorage.getItem("inbox_tasks");
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
+  // API State for Tasks (no more localStorage)
+  const [tasks, setTasks] = useState([]);
+  const [, setIsLoadingTasks] = useState(false);
 
   const logs = []; // Logs can be added later if needed
 
@@ -298,9 +309,45 @@ const ActionsSection = ({
     fetchCallReports();
   }, [ownerId]);
 
+  // Fetch Tasks from API
   useEffect(() => {
-    localStorage.setItem("inbox_tasks", JSON.stringify(tasks));
-  }, [tasks]);
+    const fetchTasks = async () => {
+      if (!ownerId) {
+        setTasks([]);
+        return;
+      }
+      setIsLoadingTasks(true);
+      try {
+        const Config = {
+          headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+        };
+        // TEMPORARY TEST: Remove filter to see if base route works
+        const response = await axios.get(
+          global.config.server_url + `/v1/inbox-tasks`,
+          Config
+        );
+
+        // Handle paginated response (Laravel standards)
+        const tasksData = Array.isArray(response.data)
+          ? response.data
+          : response.data.data || [];
+
+        setTasks(
+          tasksData.sort(
+            (a, b) =>
+              new Date(b.created_at || b.date) -
+              new Date(a.created_at || a.date)
+          )
+        );
+      } catch (error) {
+        console.error("Failed to fetch tasks", error);
+      } finally {
+        setIsLoadingTasks(false);
+      }
+    };
+
+    fetchTasks();
+  }, [ownerId]);
 
   // ===== STYLES =====
   const iconButtonStyle = (isActive) => ({
@@ -420,19 +467,47 @@ const ActionsSection = ({
     }
   };
 
-  const handleAddTask = () => {
+  const handleAddTask = async () => {
     if (!newTaskText.trim()) return;
-    const newTask = {
-      id: Date.now(),
-      text: newTaskText.trim(),
-      date: taskDateTime || new Date().toISOString(),
-      done: false,
-      ownerId: ownerId, // Associate task with current client/prospect
-    };
-    setTasks((prev) => [newTask, ...prev]);
-    setNewTaskText("");
-    setTaskDateTime("");
-    setActiveView("HOME"); // Switch to history after adding
+
+    if (!ownerId) {
+      window.alert(
+        "Erreur: Impossible d'identifier le client ou le prospect pour sauvegarder la tâche."
+      );
+      return;
+    }
+
+    try {
+      const Config = {
+        headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+      };
+
+      const payload = {
+        user_id: ownerId,
+        admin_id: adminId || localStorage.getItem("userid"),
+        data: JSON.stringify({ text: newTaskText.trim() }),
+        date: taskDateTime
+          ? taskDateTime.split("T")[0]
+          : new Date().toISOString().split("T")[0],
+      };
+
+      const response = await axios.post(
+        global.config.server_url + "/v1/inbox-tasks",
+        payload,
+        Config
+      );
+
+      // Add new task to state (use server response)
+      const savedTask = response.data.data || response.data;
+      setTasks((prev) => [savedTask, ...prev]);
+
+      setNewTaskText("");
+      setTaskDateTime("");
+      setActiveView("HOME"); // Switch to history after adding
+    } catch (error) {
+      console.error("Failed to add task", error);
+      window.alert("Erreur lors de la sauvegarde de la tâche.");
+    }
   };
 
   const handleCreateProspect = async () => {
@@ -511,30 +586,35 @@ const ActionsSection = ({
           ) {
             await axios.put(
               global.config.server_url +
-              `/v1/simulator-difficulty-results/${prospectId}`,
+                `/v1/simulator-difficulty-results/${prospectId}`,
               { user_id: newUserId },
               { headers: { Authorization: "Bearer " + token } }
             );
           }
         } catch (linkError) {
           console.error("Failed to link user to source item:", linkError);
-          // Non-blocking error, user is created anyway
-          alert(
+          // Non-blocking error, user is created anyway - show warning instead of success
+          setWarningAlertMessage(
             "Prospect créé, mais la liaison avec la conversation a échoué. " +
-            (linkError.response?.data?.message || linkError.message)
+              (linkError.response?.data?.message || linkError.message)
           );
+          setWarningAlertVisible(true);
+          return; // Don't show success if there was a link error
         }
 
-        alert(
+        // Show success popup
+        setSuccessAlertMessage(
           "Prospect créé avec succès ! Vous pouvez maintenant ajouter des actions."
         );
+        setSuccessAlertVisible(true);
       }
     } catch (error) {
       console.error("Create Prospect Error:", error);
-      alert(
+      setErrorAlertMessage(
         "Erreur lors de la création du prospect. " +
-        (error.response?.data?.message || error.message)
+          (error.response?.data?.message || error.message)
       );
+      setErrorAlertVisible(true);
     } finally {
       setIsCreatingProspect(false);
     }
@@ -546,7 +626,11 @@ const ActionsSection = ({
 
   const handleEditItem = (item) => {
     setEditingItem(item);
-    setEditText(item.report || item.content || item.text || "");
+    if (item.type === "TASK") {
+      setEditText(getTaskText(item));
+    } else {
+      setEditText(item.report || item.content || item.call_report || "");
+    }
   };
 
   const handleSaveEdit = async () => {
@@ -574,11 +658,11 @@ const ActionsSection = ({
           prev.map((r) =>
             r.id === editingItem.id
               ? {
-                ...r,
-                content: editText.trim(),
-                report: editText.trim(),
-                call_report: editText.trim(),
-              }
+                  ...r,
+                  content: editText.trim(),
+                  report: editText.trim(),
+                  call_report: editText.trim(),
+                }
               : r
           )
         );
@@ -588,11 +672,36 @@ const ActionsSection = ({
         return;
       }
     } else if (editingItem.type === "TASK") {
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.id === editingItem.id ? { ...t, text: editText.trim() } : t
-        )
-      );
+      try {
+        const Config = {
+          headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+        };
+        const updatePayload = {
+          data: JSON.stringify({ text: editText.trim() }),
+        };
+
+        await axios.put(
+          global.config.server_url + `/v1/inbox-tasks/${editingItem.id}`,
+          updatePayload,
+          Config
+        );
+
+        // Update local state
+        setTasks((prev) =>
+          prev.map((t) =>
+            t.id === editingItem.id
+              ? {
+                  ...t,
+                  data: JSON.stringify({ text: editText.trim() }),
+                }
+              : t
+          )
+        );
+      } catch (error) {
+        console.error("Failed to update task", error);
+        window.alert("Erreur lors de la mise à jour de la tâche.");
+        return;
+      }
     }
 
     setEditingItem(null);
@@ -607,6 +716,18 @@ const ActionsSection = ({
   // ===== DELETE STATE =====
   const [alertVisible, setAlertVisible] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
+
+  // Success alert state for prospect creation
+  const [successAlertVisible, setSuccessAlertVisible] = useState(false);
+  const [successAlertMessage, setSuccessAlertMessage] = useState("");
+
+  // Warning alert state for prospect creation with link error
+  const [warningAlertVisible, setWarningAlertVisible] = useState(false);
+  const [warningAlertMessage, setWarningAlertMessage] = useState("");
+
+  // Error alert state for prospect creation failure
+  const [errorAlertVisible, setErrorAlertVisible] = useState(false);
+  const [errorAlertMessage, setErrorAlertMessage] = useState("");
 
   const handleDeleteItem = (item) => {
     setItemToDelete(item);
@@ -636,7 +757,21 @@ const ActionsSection = ({
         window.alert("Erreur lors de la suppression du rapport.");
       }
     } else if (item.type === "TASK") {
-      setTasks((prev) => prev.filter((t) => t.id !== item.id));
+      try {
+        const Config = {
+          headers: {
+            Authorization: "Bearer " + localStorage.getItem("token"),
+          },
+        };
+        await axios.delete(
+          global.config.server_url + `/v1/inbox-tasks/${item.id}`,
+          Config
+        );
+        setTasks((prev) => prev.filter((t) => t.id !== item.id));
+      } catch (error) {
+        console.error("Failed to delete task", error);
+        window.alert("Erreur lors de la suppression de la tâche.");
+      }
     }
 
     setItemToDelete(null);
@@ -777,8 +912,8 @@ const ActionsSection = ({
                       item.type === "CALLREPORT"
                         ? "#3b82f615"
                         : item.type === "TASK"
-                          ? "#f9731615"
-                          : "#6b728015",
+                        ? "#f9731615"
+                        : "#6b728015",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -837,12 +972,13 @@ const ActionsSection = ({
                           fontWeight: 500,
                         }}
                       >
-                        {item.call_report ||
-                          item.content ||
-                          item.report ||
-                          item.text ||
-                          item.message ||
-                          "Élément"}
+                        {item.type === "TASK"
+                          ? getTaskText(item)
+                          : item.call_report ||
+                            item.content ||
+                            item.report ||
+                            item.message ||
+                            "Élément"}
                       </p>
                       <p
                         style={{
@@ -909,7 +1045,6 @@ const ActionsSection = ({
     );
   };
 
-
   if (isBlocked) {
     return (
       <div
@@ -924,13 +1059,13 @@ const ActionsSection = ({
       >
         <User size={32} style={{ marginBottom: "12px", opacity: 0.8 }} />
         <p style={{ margin: "0 0 16px", fontWeight: 500, fontSize: "15px" }}>
-          Créer prospect pour pouvoir ajouter Call report ou tache
+          Créer un prospect pour pouvoir ajouter une action
         </p>
 
         <button
           onClick={() => setShowCreateModal(true)}
           style={{
-            backgroundColor: "#2563eb", // Blue button
+            backgroundColor: "#7367f0", // Primary violet
             color: "white",
             border: "none",
             borderRadius: "6px",
@@ -941,11 +1076,15 @@ const ActionsSection = ({
             display: "inline-flex",
             alignItems: "center",
             gap: "8px",
-            boxShadow: "0 2px 4px rgba(37, 99, 235, 0.2)",
+            boxShadow: "0 2px 4px rgba(115, 103, 240, 0.3)",
             transition: "background-color 0.2s",
           }}
-          onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#1d4ed8")}
-          onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#2563eb")}
+          onMouseOver={(e) =>
+            (e.currentTarget.style.backgroundColor = "#5e50ee")
+          }
+          onMouseOut={(e) =>
+            (e.currentTarget.style.backgroundColor = "#7367f0")
+          }
         >
           <Plus size={16} />
           Créer le prospect
@@ -991,24 +1130,60 @@ const ActionsSection = ({
                 Créer un compte Prospect
               </h3>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "16px",
+                }}
+              >
                 <div style={{ display: "flex", gap: "16px" }}>
                   <div style={{ flex: 1 }}>
-                    <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#374151", marginBottom: "4px" }}>Prénom *</label>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "12px",
+                        fontWeight: 500,
+                        color: "#374151",
+                        marginBottom: "4px",
+                      }}
+                    >
+                      Prénom *
+                    </label>
                     <input
                       type="text"
                       value={prospectForm.firstName}
-                      onChange={(e) => setProspectForm({ ...prospectForm, firstName: e.target.value })}
+                      onChange={(e) =>
+                        setProspectForm({
+                          ...prospectForm,
+                          firstName: e.target.value,
+                        })
+                      }
                       style={inputStyle}
                       placeholder="Prénom"
                     />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#374151", marginBottom: "4px" }}>Nom *</label>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "12px",
+                        fontWeight: 500,
+                        color: "#374151",
+                        marginBottom: "4px",
+                      }}
+                    >
+                      Nom *
+                    </label>
                     <input
                       type="text"
                       value={prospectForm.lastName}
-                      onChange={(e) => setProspectForm({ ...prospectForm, lastName: e.target.value })}
+                      onChange={(e) =>
+                        setProspectForm({
+                          ...prospectForm,
+                          lastName: e.target.value,
+                        })
+                      }
                       style={inputStyle}
                       placeholder="Nom"
                     />
@@ -1016,38 +1191,76 @@ const ActionsSection = ({
                 </div>
 
                 <div>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#374151", marginBottom: "4px" }}>Email</label>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "12px",
+                      fontWeight: 500,
+                      color: "#374151",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    Email
+                  </label>
                   <input
                     type="email"
                     value={prospectForm.email}
-                    onChange={(e) => setProspectForm({ ...prospectForm, email: e.target.value })}
+                    onChange={(e) =>
+                      setProspectForm({
+                        ...prospectForm,
+                        email: e.target.value,
+                      })
+                    }
                     style={inputStyle}
                     placeholder="email@exemple.com"
                   />
                 </div>
 
                 <div>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#374151", marginBottom: "4px" }}>Téléphone</label>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "12px",
+                      fontWeight: 500,
+                      color: "#374151",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    Téléphone
+                  </label>
                   <input
                     type="tel"
                     value={prospectForm.phone}
-                    onChange={(e) => setProspectForm({ ...prospectForm, phone: e.target.value })}
+                    onChange={(e) =>
+                      setProspectForm({
+                        ...prospectForm,
+                        phone: e.target.value,
+                      })
+                    }
                     style={inputStyle}
                     placeholder="06 12 34 56 78"
                   />
                 </div>
               </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "24px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: "12px",
+                  marginTop: "24px",
+                }}
+              >
                 <button
                   onClick={() => setShowCreateModal(false)}
                   style={{
                     padding: "8px 16px",
                     borderRadius: "6px",
-                    backgroundColor: "white",
-                    border: "1px solid #d1d5db",
-                    color: "#374151",
-                    cursor: "pointer"
+                    backgroundColor: "#dc3545",
+                    border: "none",
+                    color: "white",
+                    cursor: "pointer",
+                    fontWeight: 500,
                   }}
                 >
                   Annuler
@@ -1058,12 +1271,12 @@ const ActionsSection = ({
                   style={{
                     padding: "8px 16px",
                     borderRadius: "6px",
-                    backgroundColor: "#4f46e5",
+                    backgroundColor: "#7367f0",
                     border: "none",
                     color: "white",
                     fontWeight: 500,
                     cursor: "pointer",
-                    opacity: isCreatingProspect ? 0.7 : 1
+                    opacity: isCreatingProspect ? 0.7 : 1,
                   }}
                 >
                   {isCreatingProspect ? "Création..." : "Créer le prospect"}
@@ -1122,9 +1335,7 @@ const ActionsSection = ({
               color: "#059669",
               backgroundColor: "#d1fae5",
             }}
-            onClick={() =>
-              routerHistory.push(`/app/user/edit/${ownerId}/2`)
-            }
+            onClick={() => routerHistory.push(`/app/user/edit/${ownerId}/2`)}
             title="Voir le profil complet"
           >
             <User size={20} />
@@ -1230,6 +1441,42 @@ const ActionsSection = ({
         <p className="sweet-alert-text">
           Êtes-vous sûr de vouloir supprimer cet élément ?
         </p>
+      </SweetAlert>
+
+      {/* Success Alert for Prospect Creation */}
+      <SweetAlert
+        success
+        title="Succès !"
+        show={successAlertVisible}
+        confirmBtnText="OK"
+        confirmBtnBsStyle="success"
+        onConfirm={() => setSuccessAlertVisible(false)}
+      >
+        <p className="sweet-alert-text">{successAlertMessage}</p>
+      </SweetAlert>
+
+      {/* Warning Alert for Prospect Creation with Link Error */}
+      <SweetAlert
+        warning
+        title="Attention"
+        show={warningAlertVisible}
+        confirmBtnText="OK"
+        confirmBtnBsStyle="warning"
+        onConfirm={() => setWarningAlertVisible(false)}
+      >
+        <p className="sweet-alert-text">{warningAlertMessage}</p>
+      </SweetAlert>
+
+      {/* Error Alert for Prospect Creation Failure */}
+      <SweetAlert
+        error
+        title="Erreur"
+        show={errorAlertVisible}
+        confirmBtnText="OK"
+        confirmBtnBsStyle="danger"
+        onConfirm={() => setErrorAlertVisible(false)}
+      >
+        <p className="sweet-alert-text">{errorAlertMessage}</p>
       </SweetAlert>
     </div>
   );
@@ -1456,10 +1703,10 @@ function mapConversationToInboxItem(conv) {
       conv.messages && conv.messages.length > 0
         ? extractSummaryFromMessages(conv.messages)
         : conv.note
-          ? [conv.note]
-          : conv.objet
-            ? [conv.objet]
-            : [],
+        ? [conv.note]
+        : conv.objet
+        ? [conv.objet]
+        : [],
     status: conv.status || conv.action || "new",
     priority: conv.priority || "medium",
     hasMultipleChannels: conv._hasMultipleChannels || false,
@@ -1684,20 +1931,22 @@ const InboxView = ({
     const prompt = `
       CONTEXTE DU PROSPECT :
       - Nom: ${selectedItem.name}
-      - Type : ${selectedItem.type === "diagnostic"
-        ? "Diagnostic en ligne"
-        : selectedItem.type === "call"
+      - Type : ${
+        selectedItem.type === "diagnostic"
+          ? "Diagnostic en ligne"
+          : selectedItem.type === "call"
           ? "Appel téléphonique"
           : selectedItem.type === "email"
-            ? "Email de contact"
-            : "Chatbot"
+          ? "Email de contact"
+          : "Chatbot"
       }
       - Points clés : ${selectedItem.summary?.join(", ")}
-      ${selectedItem.type === "diagnostic"
-        ? `- Score complexité : ${calculateComplexityScore(
-          selectedItem.raw?.attributes
-        )}/100`
-        : ""
+      ${
+        selectedItem.type === "diagnostic"
+          ? `- Score complexité : ${calculateComplexityScore(
+              selectedItem.raw?.attributes
+            )}/100`
+          : ""
       }
      
       TÂCHE : Rédige un email de premier contact.
@@ -1756,7 +2005,7 @@ const InboxView = ({
       ) {
         await axios.put(
           global.config.server_url +
-          `/conversation-archives/${selectedItem.id}`,
+            `/conversation-archives/${selectedItem.id}`,
           { invisible: true },
           config
         );
@@ -1766,14 +2015,15 @@ const InboxView = ({
       ) {
         await axios.put(
           global.config.server_url +
-          `/v1/simulator-difficulty-results/${selectedItem.id}`,
+            `/v1/simulator-difficulty-results/${selectedItem.id}`,
           { invisible: true },
           config
         );
       } else {
         // Fallback for other types
         await fetch(
-          `${process.env.REACT_APP_API_URL || window.location.origin
+          `${
+            process.env.REACT_APP_API_URL || window.location.origin
           }/api/prospects/${selectedItem.id}/disqualify`,
           {
             method: "PATCH",
@@ -1786,8 +2036,6 @@ const InboxView = ({
           }
         );
       }
-
-
 
       // Add to disqualified IDs to filter out from list
       setDisqualifiedIds((prev) => new Set([...prev, selectedItem.id]));
@@ -1965,7 +2213,7 @@ const InboxView = ({
     if (birthDateRaw) {
       try {
         birth_date = new Date(birthDateRaw).toISOString().split("T")[0];
-      } catch (e) { }
+      } catch (e) {}
     }
 
     const prefillData = {
@@ -2101,14 +2349,15 @@ const InboxView = ({
                   cursor: "pointer",
                   backgroundColor:
                     selectedItem.id === item.id ? "#eef2ff" : "transparent",
-                  borderLeft: `4px solid ${item.type === "diagnostic"
-                    ? "#f97316"
-                    : item.type === "call"
+                  borderLeft: `4px solid ${
+                    item.type === "diagnostic"
+                      ? "#f97316"
+                      : item.type === "call"
                       ? "#22c55e"
                       : item.type === "email"
-                        ? "#6366f1"
-                        : "#3b82f6"
-                    }`,
+                      ? "#6366f1"
+                      : "#3b82f6"
+                  }`,
                   transition: "background-color 0.2s",
                 }}
               >
@@ -3196,23 +3445,23 @@ const InboxView = ({
                             {selectedItem.raw.attributes
                               .SIMULATEUR_DIFFICULTE_Q7
                               ? selectedItem.raw.attributes.SIMULATEUR_DIFFICULTE_Q7.split(
-                                ","
-                              ).map((v, i) => (
-                                <span
-                                  key={i}
-                                  style={{
-                                    display: "inline-block",
-                                    border: "1px solid #e2e8f0",
-                                    borderRadius: "999px",
-                                    padding: "2px 8px",
-                                    margin: "2px 4px 2px 0",
-                                    fontSize: "15px",
-                                    background: "#f8fafc",
-                                  }}
-                                >
-                                  {v.replace(/_/g, " ")}
-                                </span>
-                              ))
+                                  ","
+                                ).map((v, i) => (
+                                  <span
+                                    key={i}
+                                    style={{
+                                      display: "inline-block",
+                                      border: "1px solid #e2e8f0",
+                                      borderRadius: "999px",
+                                      padding: "2px 8px",
+                                      margin: "2px 4px 2px 0",
+                                      fontSize: "15px",
+                                      background: "#f8fafc",
+                                    }}
+                                  >
+                                    {v.replace(/_/g, " ")}
+                                  </span>
+                                ))
                               : "—"}
                           </td>
                         </tr>
@@ -3300,23 +3549,23 @@ const InboxView = ({
                             {selectedItem.raw.attributes
                               .SIMULATEUR_DIFFICULTE_Q10
                               ? selectedItem.raw.attributes.SIMULATEUR_DIFFICULTE_Q10.split(
-                                ","
-                              ).map((v, i) => (
-                                <span
-                                  key={i}
-                                  style={{
-                                    display: "inline-block",
-                                    border: "1px solid #e2e8f0",
-                                    borderRadius: "999px",
-                                    padding: "2px 8px",
-                                    margin: "2px 4px 2px 0",
-                                    fontSize: "15px",
-                                    background: "#f8fafc",
-                                  }}
-                                >
-                                  {v.replace(/_/g, " ")}
-                                </span>
-                              ))
+                                  ","
+                                ).map((v, i) => (
+                                  <span
+                                    key={i}
+                                    style={{
+                                      display: "inline-block",
+                                      border: "1px solid #e2e8f0",
+                                      borderRadius: "999px",
+                                      padding: "2px 8px",
+                                      margin: "2px 4px 2px 0",
+                                      fontSize: "15px",
+                                      background: "#f8fafc",
+                                    }}
+                                  >
+                                    {v.replace(/_/g, " ")}
+                                  </span>
+                                ))
                               : "—"}
                           </td>
                         </tr>
@@ -3715,7 +3964,7 @@ const InboxView = ({
                   fontWeight: "bold",
                   color:
                     selectedItem.type === "call" ||
-                      selectedItem.type === "email"
+                    selectedItem.type === "email"
                       ? "#374151"
                       : "#1e40af",
                   marginBottom: "12px",
@@ -3727,7 +3976,7 @@ const InboxView = ({
                 }}
               >
                 {selectedItem.type === "call" ||
-                  selectedItem.type === "email" ? (
+                selectedItem.type === "email" ? (
                   <>
                     <ClipboardList size={16} /> Détails de l'échange
                   </>
@@ -3756,7 +4005,7 @@ const InboxView = ({
                         height: "6px",
                         backgroundColor:
                           selectedItem.type === "call" ||
-                            selectedItem.type === "email"
+                          selectedItem.type === "email"
                             ? "#9ca3af"
                             : "#60a5fa",
                         borderRadius: "50%",
