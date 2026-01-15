@@ -525,7 +525,7 @@ const todoSubText = {
   lineHeight: 1.2,
 };
 
-function renderTodoCell(next) {
+function renderTodoCell(next, badge = null) {
   if (!next) {
     return (
       <span className="text-success" style={{ fontSize: 14, fontWeight: 600 }}>
@@ -541,8 +541,38 @@ function renderTodoCell(next) {
   return (
     <div style={todoBadgeWrapper}>
       <span style={todoDot} />
-      <div>
-        <div style={todoMainText}>{next.label}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexWrap: "wrap",
+          }}
+        >
+          <span style={todoMainText}>{next.label}</span>
+          {badge && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "2px 8px",
+                borderRadius: 4,
+                backgroundColor: "#fef3c7",
+                color: "#92400e",
+                fontSize: 11,
+                fontWeight: 500,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <span role="img" aria-label="Alerte">
+                ⚠️
+              </span>{" "}
+              {badge}
+            </span>
+          )}
+        </div>
         {sub && <div style={todoSubText}>{sub}</div>}
       </div>
     </div>
@@ -1151,9 +1181,48 @@ export default function KpiPage() {
         }
       }
 
+      // 🔴 Cas Facturation : Urgent seulement si le jour du RDV est arrivé
+      let isFacturationUrgent = false;
+      let isRdvToday = false;
+      if (
+        !isContractFinished &&
+        next &&
+        next.label === "Facturation" &&
+        last &&
+        last.label === "Prise de RDV"
+      ) {
+        if (last.date) {
+          const rawLastRdv = String(last.date);
+          let datePartLastRdv = rawLastRdv;
+          if (rawLastRdv.includes("T"))
+            datePartLastRdv = rawLastRdv.split("T")[0];
+          else if (rawLastRdv.includes(" "))
+            datePartLastRdv = rawLastRdv.split(" ")[0];
+
+          const [y, m, d] = datePartLastRdv.split("-");
+          if (y && m && d) {
+            const rdvDate = new Date(Number(y), Number(m) - 1, Number(d));
+            const rdvOnly = new Date(
+              rdvDate.getFullYear(),
+              rdvDate.getMonth(),
+              rdvDate.getDate()
+            );
+
+            if (rdvOnly.getTime() <= today.getTime()) {
+              isFacturationUrgent = true;
+              if (rdvOnly.getTime() === today.getTime()) {
+                isRdvToday = true;
+              }
+            }
+          }
+        } else {
+          isFacturationUrgent = true;
+        }
+      }
+
       const bucket = isContractFinished
         ? "completed"
-        : next && next.label === "Facturation"
+        : isFacturationUrgent
         ? "facturation"
         : isAfter5Days
         ? "after5days"
@@ -1163,7 +1232,7 @@ export default function KpiPage() {
         ? "processing"
         : "active";
 
-      res[bucket].push({ s, steps, last, next });
+      res[bucket].push({ s, steps, last, next, isRdvToday });
     });
 
     return res;
@@ -1560,7 +1629,7 @@ export default function KpiPage() {
                                   </tr>
 
                                   {groupedSuivis.facturation.map(
-                                    ({ s, steps, last, next }) => {
+                                    ({ s, steps, last, next, isRdvToday }) => {
                                       const clientLabel =
                                         getClientDisplayNameFromSuivi(
                                           s,
@@ -1592,7 +1661,14 @@ export default function KpiPage() {
                                           <td>{clientLabel}</td>
 
                                           {/* À faire */}
-                                          <td>{renderTodoCell(next)}</td>
+                                          <td>
+                                            {renderTodoCell(
+                                              next,
+                                              isRdvToday
+                                                ? "Alerte : Jour du RDV"
+                                                : null
+                                            )}
+                                          </td>
 
                                           {/* Dernière étape validée */}
                                           <td>
