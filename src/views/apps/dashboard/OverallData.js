@@ -3,6 +3,7 @@ import {
   CheckCircle,
   DollarSign,
   Inbox,
+  Lock,
   Package,
   TrendingUp,
   Users,
@@ -296,6 +297,12 @@ function normalizeApiYear(dataByMonthIndex1to12) {
 
 /* ===================== Composant principal ===================== */
 export default function OverallCard() {
+  // Vérification du rôle utilisateur - seuls les admins peuvent voir les données
+  const isAdmin = useMemo(() => {
+    const role = localStorage.getItem("role");
+    return role && role.toLowerCase() === "admin";
+  }, []);
+
   const now = useMemo(() => new Date(), []);
   const [activeTab, setActiveTab] = useState("1");
   const [year, setYear] = useState(now.getFullYear());
@@ -310,22 +317,28 @@ export default function OverallCard() {
   const [error, setError] = useState("");
   const [data, setData] = useState(() => normalizeApiYear({}));
 
-  const fetchYear = useCallback(async (y) => {
-    try {
-      setLoading(true);
-      setError("");
-      const res = await axios.get(
-        `${global.config.server_url}/get_statistics_total_income?year=${y}`,
-        AUTH_CONFIG
-      );
-      setData(normalizeApiYear(res.data || {}));
-    } catch (e) {
-      console.error(e);
-      setError("Impossible de charger les statistiques. Réessayez.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const fetchYear = useCallback(
+    async (y) => {
+      // Ne pas charger les données si l'utilisateur n'est pas admin
+      if (!isAdmin) return;
+
+      try {
+        setLoading(true);
+        setError("");
+        const res = await axios.get(
+          `${global.config.server_url}/get_statistics_total_income?year=${y}`,
+          AUTH_CONFIG
+        );
+        setData(normalizeApiYear(res.data || {}));
+      } catch (e) {
+        console.error(e);
+        setError("Impossible de charger les statistiques. Réessayez.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [isAdmin]
+  );
   useEffect(() => {
     fetchYear(year);
   }, [fetchYear, year]);
@@ -677,131 +690,166 @@ export default function OverallCard() {
         </CardHeader>
 
         <CardBody>
-          {error && (
-            <div className="w-100 alert alert-danger" role="alert">
-              {error}
+          {!isAdmin ? (
+            <div
+              className="d-flex flex-column align-items-center justify-content-center py-5"
+              style={{ minHeight: "200px" }}
+            >
+              <div
+                className="avatar avatar-stats p-75 mb-3"
+                style={{
+                  backgroundColor: "#7367f020",
+                  borderRadius: "50%",
+                  width: "80px",
+                  height: "80px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Lock size={40} color="#7367f0" />
+              </div>
+              <h4 className="text-center mb-2" style={{ color: "#5e5873" }}>
+                Accès restreint
+              </h4>
+              <p
+                className="text-center text-muted mb-0"
+                style={{ maxWidth: "400px" }}
+              >
+                Les informations clés sont réservées aux administrateurs.
+                <br />
+                Contactez votre administrateur pour plus d'informations.
+              </p>
             </div>
-          )}
+          ) : (
+            <>
+              {error && (
+                <div className="w-100 alert alert-danger" role="alert">
+                  {error}
+                </div>
+              )}
 
-          <TabContent activeTab={activeTab} className="w-100">
-            <TabPane tabId="4">
-              {loading ? (
-                <div className="w-100 text-center py-3">Chargement…</div>
-              ) : (
-                <StatGrid
-                  stats={(() => {
-                    const UL = (v) => v;
-                    const common = [
-                      {
-                        icon: TrendingUp,
-                        bubbleClass: "bg-rgba-warning",
-                        valueKey: "ca",
-                        label: "Chiffre d'affaires",
-                        color: "#7367f0",
-                      },
-                      {
-                        icon: Inbox,
-                        bubbleClass: "bg-rgba-info",
-                        valueKey: "acompte",
-                        label: "Acomptes",
-                        color: "#00cfe8",
-                      },
-                      {
-                        icon: Package,
-                        bubbleClass: "bg-rgba-info",
-                        valueKey: "solde",
-                        label: "Soldes",
-                        color: "#00cfe8",
-                      },
-                      {
-                        icon: DollarSign,
-                        bubbleClass: "bg-rgba-success",
-                        valueKey: "oppoAmount",
-                        label: "Opportunités",
-                        color: "#28c76f",
-                      },
-                      {
-                        icon: Users,
-                        bubbleClass: "bg-rgba-primary",
-                        valueKey: "clientsSignes",
-                        label: "Clients signés",
-                        color: "#28c76f",
-                      },
-                      {
-                        icon: Users,
-                        bubbleClass: "bg-rgba-primary",
-                        valueKey: "prospects",
-                        label: "Prospects",
-                        color: "#ff9f43",
-                      },
-                      {
-                        icon: Users,
-                        bubbleClass: "bg-rgba-primary",
-                        valueKey: "totalClients",
-                        label: "Total clients",
-                        color: "#7367f0",
-                      },
-                      {
-                        icon: CheckCircle,
-                        bubbleClass: "bg-rgba-danger",
-                        valueKey: "contratsClotures",
-                        label: "Contrats cloturés",
-                        color: "#ea5455",
-                      },
-                    ];
-                    const obj = weeklyStats;
-                    return common.map(
-                      ({ icon, bubbleClass, valueKey, label, color }) => ({
-                        icon,
-                        bubbleClass,
-                        color,
-                        value:
-                          UL(obj[valueKey]) +
-                          (label !== "Clients signés" &&
-                          label !== "Prospects" &&
-                          label !== "Total clients" &&
-                          label !== "Contrats cloturés"
-                            ? " €"
-                            : ""),
-                        label,
-                      })
-                    );
-                  })()}
-                  onProspectsClick={handleProspectsClick}
-                />
-              )}
-            </TabPane>
-            <TabPane tabId="1">
-              {loading ? (
-                <div className="w-100 text-center py-3">Chargement…</div>
-              ) : (
-                <StatGrid
-                  stats={tabStats.month}
-                  onProspectsClick={handleProspectsClick}
-                />
-              )}
-            </TabPane>
-            <TabPane tabId="2">
-              {loading ? (
-                <div className="w-100 text-center py-3">Chargement…</div>
-              ) : (
-                <StatGrid
-                  stats={tabStats.trim}
-                  onProspectsClick={handleProspectsClick}
-                />
-              )}
-            </TabPane>
-            <TabPane tabId="3">
-              {loading ? (
-                <div className="w-100 text-center py-3">Chargement…</div>
-              ) : (
-                <StatGrid
-                  stats={tabStats.year}
-                  onProspectsClick={handleProspectsClick}
-                />
-              )}
-            </TabPane>
-          </TabContent>
+              <TabContent activeTab={activeTab} className="w-100">
+                <TabPane tabId="4">
+                  {loading ? (
+                    <div className="w-100 text-center py-3">Chargement…</div>
+                  ) : (
+                    <StatGrid
+                      stats={(() => {
+                        const UL = (v) => v;
+                        const common = [
+                          {
+                            icon: TrendingUp,
+                            bubbleClass: "bg-rgba-warning",
+                            valueKey: "ca",
+                            label: "Chiffre d'affaires",
+                            color: "#7367f0",
+                          },
+                          {
+                            icon: Inbox,
+                            bubbleClass: "bg-rgba-info",
+                            valueKey: "acompte",
+                            label: "Acomptes",
+                            color: "#00cfe8",
+                          },
+                          {
+                            icon: Package,
+                            bubbleClass: "bg-rgba-info",
+                            valueKey: "solde",
+                            label: "Soldes",
+                            color: "#00cfe8",
+                          },
+                          {
+                            icon: DollarSign,
+                            bubbleClass: "bg-rgba-success",
+                            valueKey: "oppoAmount",
+                            label: "Opportunités",
+                            color: "#28c76f",
+                          },
+                          {
+                            icon: Users,
+                            bubbleClass: "bg-rgba-primary",
+                            valueKey: "clientsSignes",
+                            label: "Clients signés",
+                            color: "#28c76f",
+                          },
+                          {
+                            icon: Users,
+                            bubbleClass: "bg-rgba-primary",
+                            valueKey: "prospects",
+                            label: "Prospects",
+                            color: "#ff9f43",
+                          },
+                          {
+                            icon: Users,
+                            bubbleClass: "bg-rgba-primary",
+                            valueKey: "totalClients",
+                            label: "Total clients",
+                            color: "#7367f0",
+                          },
+                          {
+                            icon: CheckCircle,
+                            bubbleClass: "bg-rgba-danger",
+                            valueKey: "contratsClotures",
+                            label: "Contrats cloturés",
+                            color: "#ea5455",
+                          },
+                        ];
+                        const obj = weeklyStats;
+                        return common.map(
+                          ({ icon, bubbleClass, valueKey, label, color }) => ({
+                            icon,
+                            bubbleClass,
+                            color,
+                            value:
+                              UL(obj[valueKey]) +
+                              (label !== "Clients signés" &&
+                              label !== "Prospects" &&
+                              label !== "Total clients" &&
+                              label !== "Contrats cloturés"
+                                ? " €"
+                                : ""),
+                            label,
+                          })
+                        );
+                      })()}
+                      onProspectsClick={handleProspectsClick}
+                    />
+                  )}
+                </TabPane>
+                <TabPane tabId="1">
+                  {loading ? (
+                    <div className="w-100 text-center py-3">Chargement…</div>
+                  ) : (
+                    <StatGrid
+                      stats={tabStats.month}
+                      onProspectsClick={handleProspectsClick}
+                    />
+                  )}
+                </TabPane>
+                <TabPane tabId="2">
+                  {loading ? (
+                    <div className="w-100 text-center py-3">Chargement…</div>
+                  ) : (
+                    <StatGrid
+                      stats={tabStats.trim}
+                      onProspectsClick={handleProspectsClick}
+                    />
+                  )}
+                </TabPane>
+                <TabPane tabId="3">
+                  {loading ? (
+                    <div className="w-100 text-center py-3">Chargement…</div>
+                  ) : (
+                    <StatGrid
+                      stats={tabStats.year}
+                      onProspectsClick={handleProspectsClick}
+                    />
+                  )}
+                </TabPane>
+              </TabContent>
+            </>
+          )}
         </CardBody>
       </Card>
 
