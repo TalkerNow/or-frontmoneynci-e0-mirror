@@ -15,6 +15,7 @@ import { toast } from "react-toastify";
 import { Globe, File, CheckSquare, MessageCircle, Lock, Activity, Circle } from "react-feather";
 import SimulatorHub from "../user/edit/SimulatorHub";
 import DocumentsHub from "../user/edit/DocumentsHub";
+import { canAccessSimulator } from "../../../constants/permissions";
 
 /*const handleNavigation = (e, path) => {
   e.preventDefault()
@@ -217,12 +218,14 @@ class UserView extends React.Component {
                   <MessageCircle className='text-primary mr-50' size={16}/> Commentaires
                 </NavLink>
               </NavItem>
-              <NavItem>
+              {canAccessSimulator() && (
+                <NavItem>
                 <NavLink id='simulateur-link-profile' className={classnames({ active: this.state.activeTab === 'simulateur' })} onClick={() => this.toggleTab('simulateur')}>
                   <Activity className='text-primary mr-50' size={16}/>
                   <span id='simulateur-label-profile'> Simulateur</span>
-                </NavLink>
-              </NavItem>
+                  </NavLink>
+                </NavItem>
+              )}
             </Nav>
 
             <TabContent activeTab={this.state.activeTab}>
@@ -329,18 +332,40 @@ class UserView extends React.Component {
                   </CardHeader>
                   <CardBody>
                     {this.state.tasks && this.state.tasks.length > 0 ? (
-                      <ul className='mb-0' style={{ listStyle:'none', paddingLeft:0 }}>
-                        {this.state.tasks.slice(0,5).map((t)=>(
-                          <li key={`task-${t.id || t.task_id || Math.random()}`} className='d-flex justify-content-between align-items-center py-25' style={{ borderBottom:'1px solid #f1f1f3' }}>
+                      <ul
+                        className="mb-0"
+                        style={{ listStyle: "none", paddingLeft: 0 }}
+                      >
+                        {this.state.tasks.slice(0, 5).map((t) => (
+                          <li
+                            key={`task-${t.id || t.task_id || Math.random()}`}
+                            className="d-flex justify-content-between align-items-center py-25"
+                            style={{ borderBottom: "1px solid #f1f1f3" }}
+                          >
                             <div>
-                              <div className='font-weight-bold text-truncate' style={{ maxWidth:360 }}>{t.title || t.name || 'Tâche'}</div>
-                              <small className='text-muted'>{t.status || t.label || '—'}</small>
+                              <div
+                                className="font-weight-bold text-truncate"
+                                style={{ maxWidth: 360 }}
+                              >
+                                {t.title || t.name || "Tâche"}
+                              </div>
+                              <small className="text-muted">
+                                {t.status || t.label || "—"}
+                              </small>
                             </div>
-                            <small className='text-muted'>{t.created_at ? new Date(t.created_at).toLocaleDateString('fr-FR') : '—'}</small>
+                            <small className="text-muted">
+                              {t.created_at
+                                ? new Date(t.created_at).toLocaleDateString(
+                                    "fr-FR"
+                                  )
+                                : "—"}
+                            </small>
                           </li>
                         ))}
                       </ul>
-                    ) : (<p className='mb-0 text-muted'>Aucune tâche.</p>)}
+                    ) : (
+                      <p className="mb-0 text-muted">Aucune tâche.</p>
+                    )}
                   </CardBody>
                 </Card>
               </TabPane>

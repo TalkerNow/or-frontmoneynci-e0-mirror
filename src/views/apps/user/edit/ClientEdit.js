@@ -41,6 +41,7 @@ import SimulatorHub from "./SimulatorHub";
 import { history } from "../../../../history";
 import Contracts from "./Contracts";
 import SuiviAvancementBox from "./SuiviAvancementBox";
+import { canAccessSimulator } from "../../../../constants/permissions";
 
 class UserEdit extends React.Component {
   state = {
@@ -449,18 +450,23 @@ class UserEdit extends React.Component {
                   {hasComments && <span className="comment-dot" />}
                 </NavLink>
               </NavItem>
-              <NavItem>
-                <NavLink
-                  id={`simulateur-link-client-${id}`}
-                  className={classnames({
-                    active: this.state.activeTab === "simulateur",
-                  })}
-                  onClick={() => this.toggle("simulateur")}
-                >
-                  <Activity className="text-primary mr-50" size={16} />
-                  <span id={`simulateur-label-client-${id}`}> Simulateur</span>
-                </NavLink>
-              </NavItem>
+              {canAccessSimulator() && (
+                <NavItem>
+                  <NavLink
+                    id={`simulateur-link-client-${id}`}
+                    className={classnames({
+                      active: this.state.activeTab === "simulateur",
+                    })}
+                    onClick={() => this.toggle("simulateur")}
+                  >
+                    <Activity className="text-primary mr-50" size={16} />
+                    <span id={`simulateur-label-client-${id}`}>
+                      {" "}
+                      Simulateur
+                    </span>
+                  </NavLink>
+                </NavItem>
+              )}
             </Nav>
           </div>
           <TabContent activeTab={this.state.activeTab}>
