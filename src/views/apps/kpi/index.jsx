@@ -570,6 +570,7 @@ export default function KpiPage() {
   const [sortField, setSortField] = useState("client"); // client | todo | last | type
   const [sortDir, setSortDir] = useState("asc"); // asc | desc
   const [adminSearch, setAdminSearch] = useState(""); // Search for AdminView
+  const [selectedStep, setSelectedStep] = useState(""); // Filter by step ("À faire")
 
   // >>> Nouveaux champs contact (optionnels)
   const [action, setAction] = useState("");
@@ -1003,6 +1004,18 @@ export default function KpiPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Generate unique step filter options from STEP_DEFINITION
+  const stepFilterOptions = useMemo(() => {
+    const allLabels = [];
+    Object.keys(STEP_DEFINITION).forEach((key) => {
+      if (key === "none") return;
+      const labels = STEP_DEFINITION[key]?.labels || [];
+      allLabels.push(...labels);
+    });
+    // Remove duplicates using Set, then sort alphabetically
+    return [...new Set(allLabels)].sort((a, b) => a.localeCompare(b, "fr"));
+  }, []);
+
   const sortedSuivis = useMemo(() => {
     if (!Array.isArray(suivis)) return [];
 
@@ -1014,6 +1027,15 @@ export default function KpiPage() {
       data = data.filter((s) => {
         const name = getClientDisplayNameFromSuivi(s, clientsById) || "";
         return name.toLowerCase().includes(lower);
+      });
+    }
+
+    // Filter by selectedStep ("À faire" column)
+    if (selectedStep) {
+      data = data.filter((s) => {
+        const { steps } = buildStepsForSuivi(s);
+        const { next } = getLastAndNextSteps(steps);
+        return next && next.label === selectedStep;
       });
     }
 
@@ -1056,7 +1078,7 @@ export default function KpiPage() {
     });
 
     return data;
-  }, [suivis, clientsById, sortField, sortDir, adminSearch]);
+  }, [suivis, clientsById, sortField, sortDir, adminSearch, selectedStep]);
   const groupedSuivis = useMemo(() => {
     const res = {
       active: [], // par défaut
@@ -1393,6 +1415,9 @@ export default function KpiPage() {
         <AdminView
           searchTerm={adminSearch}
           onSearchChange={setAdminSearch}
+          stepFilterOptions={stepFilterOptions}
+          selectedStep={selectedStep}
+          onStepChange={setSelectedStep}
           filters={
             <div
               style={{ display: "flex", flexDirection: "column", gap: "8px" }}
