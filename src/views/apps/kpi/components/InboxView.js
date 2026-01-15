@@ -23,6 +23,7 @@ import {
   Mail,
   FileText,
   EyeOff,
+  Plus,
   Briefcase,
 } from "lucide-react";
 import { Badge } from "./SharedComponents";
@@ -192,15 +193,53 @@ async function generateStrategicAnalysis(diagnosticData) {
 }
 
 // ========== ACTIONS SECTION COMPONENT ==========
-const ActionsSection = ({ clientId, adminId, prospectId }) => {
+const ActionsSection = ({
+  clientId,
+  adminId,
+  prospectId,
+  type,
+  prospectData = {},
+}) => {
   const routerHistory = useHistory();
   const [activeView, setActiveView] = useState("HOME");
   const [newCallReport, setNewCallReport] = useState("");
   const [newTaskText, setNewTaskText] = useState("");
   const [taskDateTime, setTaskDateTime] = useState("");
 
+  // Create Prospect Modal State
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isCreatingProspect, setIsCreatingProspect] = useState(false);
+  const [prospectForm, setProspectForm] = useState({
+    firstName: prospectData.firstName || "",
+    lastName: prospectData.lastName || "",
+    email: prospectData.email || "",
+    phone: prospectData.phone || "",
+  });
+
+  // Update form if props change
+  useEffect(() => {
+    setProspectForm((prev) => ({
+      ...prev,
+      firstName: prospectData.firstName || "",
+      lastName: prospectData.lastName || "",
+      email: prospectData.email || "",
+      phone: prospectData.phone || "",
+    }));
+  }, [prospectData]);
+  const [localClientId, setLocalClientId] = useState(null);
+
+  // Effective Client ID (prop or locally created)
+  const effectiveClientId = clientId || localClientId;
+
+  const isBlocked =
+    !effectiveClientId &&
+    (type === "chatbot" ||
+      type === "diagnostic" ||
+      type === "conversations-archives" ||
+      type === "simulator-difficulty-result");
+
   // Determine the effective owner ID (Client or Prospect)
-  const ownerId = clientId || prospectId;
+  const ownerId = effectiveClientId || prospectId;
 
   // API State for Call Reports
   const [callReports, setCallReports] = useState([]);
@@ -233,7 +272,7 @@ const ActionsSection = ({ clientId, adminId, prospectId }) => {
         };
         // Attempt to fetch using the ownerId (whether client or prospect)
         const response = await axios.get(
-          `https://api.optionretraite.net/api/v1/call-reports/client/${ownerId}`,
+          global.config.server_url + `/v1/call-reports/client/${ownerId}`,
           Config
         );
         // Ensure we handle array or wrapped object
@@ -356,17 +395,15 @@ const ActionsSection = ({ clientId, adminId, prospectId }) => {
       };
 
       const payload = {
-        client_id: ownerId, // Use ownerId as client_id (backend may accept prospect ID here)
+        client_id: ownerId,
         admin_id: adminId || localStorage.getItem("userid"),
-        content: newCallReport.trim(),
-        call_report: newCallReport.trim(), // Send as call_report as well, since that seems to be the field name
-        date: new Date().toISOString(),
+        call_report: newCallReport.trim(),
       };
       // If we are strictly a prospect (no clientId but have prospectId), we might want to send prospect_id as well/instead
       // But based on plan, we try sending as client_id first.
 
       const response = await axios.post(
-        "https://api.optionretraite.net/api/v1/call-reports",
+        global.config.server_url + "/v1/call-reports",
         payload,
         Config
       );
@@ -398,6 +435,111 @@ const ActionsSection = ({ clientId, adminId, prospectId }) => {
     setActiveView("HOME"); // Switch to history after adding
   };
 
+  const handleCreateProspect = async () => {
+    const { firstName, lastName, email, phone } = prospectForm;
+
+    if (!firstName || !lastName) {
+      alert("Nom et prénom sont obligatoires");
+      return;
+    }
+
+    setIsCreatingProspect(true);
+    try {
+      const token = localStorage.getItem("token");
+      const currentUserId = localStorage.getItem("userid");
+      const roleStr = (localStorage.getItem("role") || "").toLowerCase();
+      const isConsultant = roleStr.includes("consultant");
+
+      const parentId = isConsultant ? currentUserId : null;
+      const businessIntroducerId = isConsultant ? null : currentUserId;
+
+      // 1. Register User
+      const registerPayload = {
+        name: `${firstName} ${lastName}`,
+        email: email || `prospect_${Date.now()}@placeholder.com`, // Fallback if email missing
+        password: Math.random().toString(36).slice(-10) + "1!", // Random password
+        role: "Prospect", // Keeping Prospect as requested initially.
+        parent_id: parentId,
+        business_introducer_id: businessIntroducerId,
+      };
+
+      const registerResponse = await axios.post(
+        global.config.server_url + "/register",
+        registerPayload,
+        { headers: { Authorization: "Bearer " + token } }
+      );
+
+      if (registerResponse.data && registerResponse.data.user) {
+        const newUserId = registerResponse.data.user.id;
+
+        // 2. Add Personal Info
+        const infoPayload = {
+          id: newUserId,
+          user_id: 10, // Legacy/Default
+          first_name: firstName,
+          last_name: lastName,
+          email: email,
+          mobile_number: phone,
+          parent_id: parentId,
+          business_introducer_id: businessIntroducerId,
+          civility: "Monsieur", // Default
+          martial_status: "Célibataire", // Default
+        };
+
+        await axios.post(
+          global.config.server_url + "/personal_information",
+          infoPayload,
+          { headers: { Authorization: "Bearer " + token } }
+        );
+
+        // Success
+        setLocalClientId(newUserId);
+        setShowCreateModal(false);
+        setActiveView("CALLREPORT"); // Switch to actions immediately
+
+        // 3. Link User ID to Source Item (Chatbot or Simulator)
+        try {
+          if (type === "chatbot" || type === "conversations-archives") {
+            await axios.put(
+              global.config.server_url + `/conversation-archives/${prospectId}`,
+              { user_id: newUserId },
+              { headers: { Authorization: "Bearer " + token } }
+            );
+          } else if (
+            type === "diagnostic" ||
+            type === "simulator-difficulty-result"
+          ) {
+            await axios.put(
+              global.config.server_url +
+              `/v1/simulator-difficulty-results/${prospectId}`,
+              { user_id: newUserId },
+              { headers: { Authorization: "Bearer " + token } }
+            );
+          }
+        } catch (linkError) {
+          console.error("Failed to link user to source item:", linkError);
+          // Non-blocking error, user is created anyway
+          alert(
+            "Prospect créé, mais la liaison avec la conversation a échoué. " +
+            (linkError.response?.data?.message || linkError.message)
+          );
+        }
+
+        alert(
+          "Prospect créé avec succès ! Vous pouvez maintenant ajouter des actions."
+        );
+      }
+    } catch (error) {
+      console.error("Create Prospect Error:", error);
+      alert(
+        "Erreur lors de la création du prospect. " +
+        (error.response?.data?.message || error.message)
+      );
+    } finally {
+      setIsCreatingProspect(false);
+    }
+  };
+
   // ===== EDIT STATE =====
   const [editingItem, setEditingItem] = useState(null);
   const [editText, setEditText] = useState("");
@@ -415,12 +557,15 @@ const ActionsSection = ({ clientId, adminId, prospectId }) => {
         const Config = {
           headers: { Authorization: "Bearer " + localStorage.getItem("token") },
         };
+        // Ensure we send only allowed fields for update
+        const updatePayload = {
+          call_report: editText.trim(),
+          // client_id & admin_id could be sent if they changed, strictly speaking only need to send what changed
+        };
+
         await axios.put(
-          `https://api.optionretraite.net/api/v1/call-reports/${editingItem.id}`,
-          {
-            content: editText.trim(),
-            call_report: editText.trim(), // Send both to be safe
-          },
+          global.config.server_url + `/v1/call-reports/${editingItem.id}`,
+          updatePayload,
           Config
         );
 
@@ -429,11 +574,11 @@ const ActionsSection = ({ clientId, adminId, prospectId }) => {
           prev.map((r) =>
             r.id === editingItem.id
               ? {
-                  ...r,
-                  content: editText.trim(),
-                  report: editText.trim(),
-                  call_report: editText.trim(),
-                }
+                ...r,
+                content: editText.trim(),
+                report: editText.trim(),
+                call_report: editText.trim(),
+              }
               : r
           )
         );
@@ -482,7 +627,7 @@ const ActionsSection = ({ clientId, adminId, prospectId }) => {
           },
         };
         await axios.delete(
-          `https://api.optionretraite.net/api/v1/call-reports/${item.id}`,
+          global.config.server_url + `/v1/call-reports/${item.id}`,
           Config
         );
         setCallReports((prev) => prev.filter((r) => r.id !== item.id));
@@ -632,8 +777,8 @@ const ActionsSection = ({ clientId, adminId, prospectId }) => {
                       item.type === "CALLREPORT"
                         ? "#3b82f615"
                         : item.type === "TASK"
-                        ? "#f9731615"
-                        : "#6b728015",
+                          ? "#f9731615"
+                          : "#6b728015",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -764,6 +909,173 @@ const ActionsSection = ({ clientId, adminId, prospectId }) => {
     );
   };
 
+
+  if (isBlocked) {
+    return (
+      <div
+        style={{
+          padding: "24px",
+          textAlign: "center",
+          backgroundColor: "#f0f9ff", // Light blue
+          borderRadius: "12px",
+          border: "1px dashed #bae6fd", // Dashed blue border
+          color: "#0369a1",
+        }}
+      >
+        <User size={32} style={{ marginBottom: "12px", opacity: 0.8 }} />
+        <p style={{ margin: "0 0 16px", fontWeight: 500, fontSize: "15px" }}>
+          Créer prospect pour pouvoir ajouter Call report ou tache
+        </p>
+
+        <button
+          onClick={() => setShowCreateModal(true)}
+          style={{
+            backgroundColor: "#2563eb", // Blue button
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+            padding: "10px 20px",
+            fontSize: "14px",
+            fontWeight: 500,
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            boxShadow: "0 2px 4px rgba(37, 99, 235, 0.2)",
+            transition: "background-color 0.2s",
+          }}
+          onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#1d4ed8")}
+          onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#2563eb")}
+        >
+          <Plus size={16} />
+          Créer le prospect
+        </button>
+
+        {/* Modal Création Prospect */}
+        {showCreateModal && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0,0,0,0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 10000,
+            }}
+            onClick={() => setShowCreateModal(false)}
+          >
+            <div
+              style={{
+                backgroundColor: "white",
+                borderRadius: "12px",
+                width: "90%",
+                maxWidth: "500px",
+                padding: "24px",
+                textAlign: "left",
+                boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3
+                style={{
+                  fontSize: "18px",
+                  fontWeight: 600,
+                  marginBottom: "20px",
+                  color: "#1f2937",
+                }}
+              >
+                Créer un compte Prospect
+              </h3>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div style={{ display: "flex", gap: "16px" }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#374151", marginBottom: "4px" }}>Prénom *</label>
+                    <input
+                      type="text"
+                      value={prospectForm.firstName}
+                      onChange={(e) => setProspectForm({ ...prospectForm, firstName: e.target.value })}
+                      style={inputStyle}
+                      placeholder="Prénom"
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#374151", marginBottom: "4px" }}>Nom *</label>
+                    <input
+                      type="text"
+                      value={prospectForm.lastName}
+                      onChange={(e) => setProspectForm({ ...prospectForm, lastName: e.target.value })}
+                      style={inputStyle}
+                      placeholder="Nom"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#374151", marginBottom: "4px" }}>Email</label>
+                  <input
+                    type="email"
+                    value={prospectForm.email}
+                    onChange={(e) => setProspectForm({ ...prospectForm, email: e.target.value })}
+                    style={inputStyle}
+                    placeholder="email@exemple.com"
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#374151", marginBottom: "4px" }}>Téléphone</label>
+                  <input
+                    type="tel"
+                    value={prospectForm.phone}
+                    onChange={(e) => setProspectForm({ ...prospectForm, phone: e.target.value })}
+                    style={inputStyle}
+                    placeholder="06 12 34 56 78"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "24px" }}>
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: "6px",
+                    backgroundColor: "white",
+                    border: "1px solid #d1d5db",
+                    color: "#374151",
+                    cursor: "pointer"
+                  }}
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleCreateProspect}
+                  disabled={isCreatingProspect}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: "6px",
+                    backgroundColor: "#4f46e5",
+                    border: "none",
+                    color: "white",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    opacity: isCreatingProspect ? 0.7 : 1
+                  }}
+                >
+                  {isCreatingProspect ? "Création..." : "Créer le prospect"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div>
       {/* Icon Navigation Bar */}
@@ -802,6 +1114,22 @@ const ActionsSection = ({ clientId, adminId, prospectId }) => {
         >
           <Briefcase size={20} />
         </button>
+
+        {ownerId && (
+          <button
+            style={{
+              ...iconButtonStyle(false),
+              color: "#059669",
+              backgroundColor: "#d1fae5",
+            }}
+            onClick={() =>
+              routerHistory.push(`/app/user/edit/${ownerId}/2`)
+            }
+            title="Voir le profil complet"
+          >
+            <User size={20} />
+          </button>
+        )}
       </div>
 
       {/* Views */}
@@ -1128,10 +1456,10 @@ function mapConversationToInboxItem(conv) {
       conv.messages && conv.messages.length > 0
         ? extractSummaryFromMessages(conv.messages)
         : conv.note
-        ? [conv.note]
-        : conv.objet
-        ? [conv.objet]
-        : [],
+          ? [conv.note]
+          : conv.objet
+            ? [conv.objet]
+            : [],
     status: conv.status || conv.action || "new",
     priority: conv.priority || "medium",
     hasMultipleChannels: conv._hasMultipleChannels || false,
@@ -1242,31 +1570,17 @@ const InboxView = ({
   const [disqualifyComment, setDisqualifyComment] = useState("");
   const [isDisqualifying, setIsDisqualifying] = useState(false);
 
-  // Track disqualified IDs to filter them out locally
-  const [disqualifiedIds, setDisqualifiedIds] = useState(() => {
-    try {
-      const stored = localStorage.getItem("inbox_disqualified_ids");
-      return stored ? new Set(JSON.parse(stored)) : new Set();
-    } catch {
-      return new Set();
-    }
-  });
-
-  // Persist disqualified IDs to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        "inbox_disqualified_ids",
-        JSON.stringify([...disqualifiedIds])
-      );
-    } catch (e) {
-      console.error("Failed to save disqualified IDs:", e);
-    }
-  }, [disqualifiedIds]);
+  // Track disqualified IDs to filter them out locally (Optimistic UI only, not persisted)
+  const [disqualifiedIds, setDisqualifiedIds] = useState(new Set());
 
   // Filter out disqualified items from the visible list
+  // We check both the local "disqualifiedIds" (optimistic) and the backend "invisible" flag (source of truth)
   const visibleInboxItems = inboxItems.filter(
-    (item) => !disqualifiedIds.has(item.id)
+    (item) =>
+      !disqualifiedIds.has(item.id) &&
+      !item.raw?.invisible && // Standard boolean
+      item.raw?.invisible !== 1 && // Laravel/SQL integer boolean
+      item.raw?.status !== "DISQUALIFIED" // Additional status check if needed
   );
 
   // Get current strategic analysis for selected item
@@ -1370,22 +1684,20 @@ const InboxView = ({
     const prompt = `
       CONTEXTE DU PROSPECT :
       - Nom: ${selectedItem.name}
-      - Type : ${
-        selectedItem.type === "diagnostic"
-          ? "Diagnostic en ligne"
-          : selectedItem.type === "call"
+      - Type : ${selectedItem.type === "diagnostic"
+        ? "Diagnostic en ligne"
+        : selectedItem.type === "call"
           ? "Appel téléphonique"
           : selectedItem.type === "email"
-          ? "Email de contact"
-          : "Chatbot"
+            ? "Email de contact"
+            : "Chatbot"
       }
       - Points clés : ${selectedItem.summary?.join(", ")}
-      ${
-        selectedItem.type === "diagnostic"
-          ? `- Score complexité : ${calculateComplexityScore(
-              selectedItem.raw?.attributes
-            )}/100`
-          : ""
+      ${selectedItem.type === "diagnostic"
+        ? `- Score complexité : ${calculateComplexityScore(
+          selectedItem.raw?.attributes
+        )}/100`
+        : ""
       }
      
       TÂCHE : Rédige un email de premier contact.
@@ -1429,30 +1741,53 @@ const InboxView = ({
     setIsDisqualifying(true);
 
     try {
-      // API call to update status (soft delete)
+      // API call to update status (soft delete / invisible)
       const token = localStorage.getItem("token");
-      const response = await fetch(
-        `${
-          process.env.REACT_APP_API_URL || window.location.origin
-        }/api/prospects/${selectedItem.id}/disqualify`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            status: "DISQUALIFIED",
-            disqualification_reason: disqualifyReason,
-            disqualification_comment: disqualifyComment,
-          }),
-        }
-      );
+      const config = {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      };
 
-      // Even if API fails, we update locally for UX (optimistic update)
-      if (!response.ok) {
-        console.warn("API disqualify failed, applying local update only");
+      if (
+        selectedItem.type === "chatbot" ||
+        selectedItem.type === "conversations-archives"
+      ) {
+        await axios.put(
+          global.config.server_url +
+          `/conversation-archives/${selectedItem.id}`,
+          { invisible: true },
+          config
+        );
+      } else if (
+        selectedItem.type === "diagnostic" ||
+        selectedItem.type === "simulator-difficulty-result"
+      ) {
+        await axios.put(
+          global.config.server_url +
+          `/v1/simulator-difficulty-results/${selectedItem.id}`,
+          { invisible: true },
+          config
+        );
+      } else {
+        // Fallback for other types
+        await fetch(
+          `${process.env.REACT_APP_API_URL || window.location.origin
+          }/api/prospects/${selectedItem.id}/disqualify`,
+          {
+            method: "PATCH",
+            headers: config.headers,
+            body: JSON.stringify({
+              status: "DISQUALIFIED",
+              disqualification_reason: disqualifyReason,
+              disqualification_comment: disqualifyComment,
+            }),
+          }
+        );
       }
+
+
 
       // Add to disqualified IDs to filter out from list
       setDisqualifiedIds((prev) => new Set([...prev, selectedItem.id]));
@@ -1630,7 +1965,7 @@ const InboxView = ({
     if (birthDateRaw) {
       try {
         birth_date = new Date(birthDateRaw).toISOString().split("T")[0];
-      } catch (e) {}
+      } catch (e) { }
     }
 
     const prefillData = {
@@ -1766,15 +2101,14 @@ const InboxView = ({
                   cursor: "pointer",
                   backgroundColor:
                     selectedItem.id === item.id ? "#eef2ff" : "transparent",
-                  borderLeft: `4px solid ${
-                    item.type === "diagnostic"
-                      ? "#f97316"
-                      : item.type === "call"
+                  borderLeft: `4px solid ${item.type === "diagnostic"
+                    ? "#f97316"
+                    : item.type === "call"
                       ? "#22c55e"
                       : item.type === "email"
-                      ? "#6366f1"
-                      : "#3b82f6"
-                  }`,
+                        ? "#6366f1"
+                        : "#3b82f6"
+                    }`,
                   transition: "background-color 0.2s",
                 }}
               >
@@ -2862,23 +3196,23 @@ const InboxView = ({
                             {selectedItem.raw.attributes
                               .SIMULATEUR_DIFFICULTE_Q7
                               ? selectedItem.raw.attributes.SIMULATEUR_DIFFICULTE_Q7.split(
-                                  ","
-                                ).map((v, i) => (
-                                  <span
-                                    key={i}
-                                    style={{
-                                      display: "inline-block",
-                                      border: "1px solid #e2e8f0",
-                                      borderRadius: "999px",
-                                      padding: "2px 8px",
-                                      margin: "2px 4px 2px 0",
-                                      fontSize: "15px",
-                                      background: "#f8fafc",
-                                    }}
-                                  >
-                                    {v.replace(/_/g, " ")}
-                                  </span>
-                                ))
+                                ","
+                              ).map((v, i) => (
+                                <span
+                                  key={i}
+                                  style={{
+                                    display: "inline-block",
+                                    border: "1px solid #e2e8f0",
+                                    borderRadius: "999px",
+                                    padding: "2px 8px",
+                                    margin: "2px 4px 2px 0",
+                                    fontSize: "15px",
+                                    background: "#f8fafc",
+                                  }}
+                                >
+                                  {v.replace(/_/g, " ")}
+                                </span>
+                              ))
                               : "—"}
                           </td>
                         </tr>
@@ -2966,23 +3300,23 @@ const InboxView = ({
                             {selectedItem.raw.attributes
                               .SIMULATEUR_DIFFICULTE_Q10
                               ? selectedItem.raw.attributes.SIMULATEUR_DIFFICULTE_Q10.split(
-                                  ","
-                                ).map((v, i) => (
-                                  <span
-                                    key={i}
-                                    style={{
-                                      display: "inline-block",
-                                      border: "1px solid #e2e8f0",
-                                      borderRadius: "999px",
-                                      padding: "2px 8px",
-                                      margin: "2px 4px 2px 0",
-                                      fontSize: "15px",
-                                      background: "#f8fafc",
-                                    }}
-                                  >
-                                    {v.replace(/_/g, " ")}
-                                  </span>
-                                ))
+                                ","
+                              ).map((v, i) => (
+                                <span
+                                  key={i}
+                                  style={{
+                                    display: "inline-block",
+                                    border: "1px solid #e2e8f0",
+                                    borderRadius: "999px",
+                                    padding: "2px 8px",
+                                    margin: "2px 4px 2px 0",
+                                    fontSize: "15px",
+                                    background: "#f8fafc",
+                                  }}
+                                >
+                                  {v.replace(/_/g, " ")}
+                                </span>
+                              ))
                               : "—"}
                           </td>
                         </tr>
@@ -3381,7 +3715,7 @@ const InboxView = ({
                   fontWeight: "bold",
                   color:
                     selectedItem.type === "call" ||
-                    selectedItem.type === "email"
+                      selectedItem.type === "email"
                       ? "#374151"
                       : "#1e40af",
                   marginBottom: "12px",
@@ -3393,7 +3727,7 @@ const InboxView = ({
                 }}
               >
                 {selectedItem.type === "call" ||
-                selectedItem.type === "email" ? (
+                  selectedItem.type === "email" ? (
                   <>
                     <ClipboardList size={16} /> Détails de l'échange
                   </>
@@ -3422,7 +3756,7 @@ const InboxView = ({
                         height: "6px",
                         backgroundColor:
                           selectedItem.type === "call" ||
-                          selectedItem.type === "email"
+                            selectedItem.type === "email"
                             ? "#9ca3af"
                             : "#60a5fa",
                         borderRadius: "50%",
@@ -3734,6 +4068,13 @@ const InboxView = ({
               clientId={selectedItem.clientId}
               prospectId={selectedItem.id} // Pass prospectId as fallback
               adminId={localStorage.getItem("userid")}
+              type={selectedItem.type}
+              prospectData={{
+                firstName: selectedItem.firstName,
+                lastName: selectedItem.lastName,
+                email: selectedItem.email,
+                phone: selectedItem.phone,
+              }}
             />
           </div>
         </div>
