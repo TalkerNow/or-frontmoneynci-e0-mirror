@@ -12,6 +12,7 @@ import DocumentsHub from "./DocumentsHub";
 import SimulatorHub from "./SimulatorHub";
 import { history } from "../../../../history";
 import CommentsTab from "./Comments";
+import { canAccessSimulator } from "../../../../constants/permissions";
 class UserEdit extends React.Component {
   state = {
     rowData: [],
@@ -183,41 +184,43 @@ class UserEdit extends React.Component {
                 <MessageCircle className='text-primary mr-50' size={16}/> Commentaires
               </NavLink>
             </NavItem>
-            <NavItem>
+            {canAccessSimulator() && (
+              <NavItem>
               <NavLink id={`simulateur-link-member-${id}`} className={classnames({ active: this.state.activeTab === 'simulateur' })} onClick={() => this.toggle('simulateur')}>
                 <Activity className='text-primary mr-50' size={16}/>
-                <span id={`simulateur-label-member-${id}`}> Simulateur</span>
-              </NavLink>
-            </NavItem>
+                  <span id={`simulateur-label-member-${id}`}> Simulateur</span>
+                </NavLink>
+              </NavItem>
+            )}
           </Nav>
           <TabContent activeTab={this.state.activeTab}>
             <TabPane tabId='notes'>
             <Card className='mb-0 h-100'>
               <CardBody className='d-flex flex-column'>
                 <NotesTab data={this.state.rowData} perso={this.state.rowData} id={id} />
-              </CardBody>
-            </Card>
-          </TabPane>
+                </CardBody>
+              </Card>
+            </TabPane>
           <TabPane tabId='documents'>
             <DocumentsHub id={id} name={this.state.rowData.name} alignOffset={this.state.docsOffset} labelId={`documents-label-member-${id}`} />
-          </TabPane>
+            </TabPane>
           <TabPane tabId='tasks'>
             <Card className='mb-0'>
-              <CardBody>
+                <CardBody>
                 <div className='text-muted'>Utilise le module tasks dédié: <a href={`/app/member/memberTask/${id}/all`}>Ouvrir</a></div>
-              </CardBody>
-            </Card>
-          </TabPane>
+                </CardBody>
+              </Card>
+            </TabPane>
           <TabPane tabId='commentaires'>
             <Card className='mb-0'>
-              <CardBody>
+                <CardBody>
                 <CommentsTab data={this.state.rowData} perso={this.state.rowData} id={id} />
-              </CardBody>
-            </Card>
-          </TabPane>
+                </CardBody>
+              </Card>
+            </TabPane>
           <TabPane tabId='simulateur'>
             <SimulatorHub id={id} alignOffset={this.state.simuOffset} labelId={`simulateur-label-member-${id}`} user={this.state.rowData} />
-          </TabPane>
+            </TabPane>
           </TabContent>
         </Col>
       </Row>
