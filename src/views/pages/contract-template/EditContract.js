@@ -621,7 +621,7 @@ class EditContract extends React.Component {
     if (input_values["c1"])
       nbHT1 = Math.trunc(
         (this.state.formValues["nb1-price"] / 60) *
-        parseInt(this.state.formValues["nb1"], 10)
+          parseInt(this.state.formValues["nb1"], 10)
       );
     this.state.formValues["nbHT1"] = nbHT1;
     this.state.formValues["TTC1"] = nbHT1 * VTA;
@@ -730,8 +730,8 @@ class EditContract extends React.Component {
     axios
       .get(
         global.config.server_url +
-        "/get_contract/" +
-        this.props.match.params.id,
+          "/get_contract/" +
+          this.props.match.params.id,
         Config
       )
       .then((response) => {
@@ -739,14 +739,14 @@ class EditContract extends React.Component {
         const acompteDates = Array.isArray(rowData.acompte_dates)
           ? rowData.acompte_dates
           : rowData.acompte_dates
-            ? JSON.parse(rowData.acompte_dates)
-            : [];
+          ? JSON.parse(rowData.acompte_dates)
+          : [];
 
         const soldDates = Array.isArray(rowData.sold_dates)
           ? rowData.sold_dates
           : rowData.sold_dates
-            ? JSON.parse(rowData.sold_dates)
-            : [];
+          ? JSON.parse(rowData.sold_dates)
+          : [];
         const KNOWN_PAYMENT_METHODS = [
           "Virement bancaire",
           "Chèque de banque",
@@ -1193,7 +1193,6 @@ class EditContract extends React.Component {
       const fileName = `${serviceString} - ${firstName} ${lastName}`;
       pdf.save(`${fileName}.pdf`);
       toast.success("Téléchargement du contrat PDF réussi !");
-
     } catch (err) {
       console.error(err);
       toast.error("Erreur lors de la génération du PDF");
@@ -2101,8 +2100,8 @@ class EditContract extends React.Component {
                           <h6>
                             {moment(this.ifExist("birth_date")).isValid()
                               ? moment(this.ifExist("birth_date")).format(
-                                "DD/MM/YYYY"
-                              )
+                                  "DD/MM/YYYY"
+                                )
                               : ""}
                           </h6>
                         </Col>
@@ -2132,8 +2131,8 @@ class EditContract extends React.Component {
                           <h6>
                             {moment(this.ifExist("updated_at")).isValid()
                               ? moment(this.ifExist("updated_at")).format(
-                                "DD/MM/YYYY"
-                              )
+                                  "DD/MM/YYYY"
+                                )
                               : ""}
                           </h6>{" "}
                         </Col>
@@ -2542,323 +2541,459 @@ class EditContract extends React.Component {
                       marginTop: "30px",
                     }}
                   >
-                    {/*------- section1 -------*/}
-                    <tr>
-                      <td width="75%" style={{ paddingTop: "20px" }}>
-                        <Row>
-                          <Col md="9" sm="12" style={{ paddingRight: 0 }}>
+                    <tbody>
+                      {/*------- section1 -------*/}
+                      <tr>
+                        <td width="75%" style={{ paddingTop: "20px" }}>
+                          <Row>
+                            <Col md="9" sm="12" style={{ paddingRight: 0 }}>
+                              <div
+                                style={{
+                                  display: "inline-block",
+                                  marginLeft: "20px",
+                                }}
+                              >
+                                <LabeledCheckboxMaterialUi
+                                  label=""
+                                  checked={this.state.formValues["c1"]}
+                                  onChange={(event) =>
+                                    this.handleCheckChange(event, "c1")
+                                  }
+                                />
+                              </div>
+                              <div
+                                className="bold-black width-85"
+                                style={{ display: "inline-block" }}
+                              >
+                                <div style={{ display: "inline-block" }}>
+                                  {this.state.formValues["title1"]}
+                                </div>
+                                <div
+                                  style={{
+                                    display: "inline-block",
+                                    paddingLeft: "5px",
+                                  }}
+                                >
+                                  (
+                                </div>
+                                <div style={{ display: "inline-block" }}>
+                                  {this.state.formValues["nb1-price"]}
+                                </div>
+                                <div style={{ display: "inline-block" }}>
+                                  € HT)
+                                </div>
+                              </div>
+                            </Col>
+                            <Col
+                              md="3"
+                              sm="12"
+                              style={{ paddingLeft: 0, marginTop: "-5px" }}
+                            >
+                              <div
+                                className="bold-black"
+                                style={{ display: "inline-block" }}
+                              >
+                                Nb min:
+                              </div>
+                              <div style={{ display: "inline-block" }}>
+                                <Input
+                                  type="text"
+                                  className="contract-text"
+                                  value={this.state.formValues["nb1"]}
+                                  onChange={(e) =>
+                                    this.handleFieldChange(
+                                      "nb1",
+                                      e.target.value
+                                    )
+                                  }
+                                  required
+                                />
+                              </div>
+                            </Col>
+                          </Row>
+                          <div style={{ marginLeft: "30px" }}>
+                            {this.state.formValues["subcontent1-1"]}
+                          </div>
+                          <div
+                            style={{ marginLeft: "30px" }}
+                            className="contract-subcontent"
+                          >
+                            {this.state.formValues["subcontent1-2"]}
+                          </div>
+                        </td>
+                        <td width="25%" style={{ paddingTop: "15px" }}>
+                          <Row>
                             <div
                               style={{
                                 display: "inline-block",
-                                marginLeft: "20px",
+                                marginLeft: "40px",
+                                width: "45px",
+                                textAlign: "center",
                               }}
                             >
-                              <LabeledCheckboxMaterialUi
-                                label=""
-                                checked={this.state.formValues["c1"]}
-                                onChange={(event) =>
-                                  this.handleCheckChange(event, "c1")
-                                }
-                              />
+                              {" "}
+                              Total
                             </div>
                             <div
-                              className="bold-black width-85"
+                              style={{
+                                display: "inline-block",
+                                width: "40px",
+                                textAlign: "center",
+                              }}
+                            >
+                              {" "}
+                              HT
+                            </div>
+                            <div
                               style={{ display: "inline-block" }}
+                              className="contract-div"
+                            >
+                              {this.state.formValues["nbHT1"]} €
+                            </div>
+                          </Row>
+                          <Row style={{ marginTop: "5px" }}>
+                            <div
+                              style={{
+                                display: "inline-block",
+                                marginLeft: "40px",
+                                width: "45px",
+                              }}
+                            ></div>
+                            <div
+                              style={{
+                                display: "inline-block",
+                                width: "40px",
+                                textAlign: "center",
+                              }}
+                            >
+                              {" "}
+                              TTC
+                            </div>
+                            <div
+                              style={{ display: "inline-block" }}
+                              className="contract-div"
+                            >
+                              {this.state.formValues["TTC1"]} €
+                            </div>
+                          </Row>
+                        </td>
+                      </tr>
+                      {/*------- section2 -------*/}
+                      <tr>
+                        <td width="75%" style={{ paddingBottom: 0 }}>
+                          <Row>
+                            <Col md="9" sm="12" style={{ paddingRight: 0 }}>
+                              <div
+                                style={{
+                                  display: "inline-block",
+                                  marginLeft: "20px",
+                                }}
+                              >
+                                <LabeledCheckboxMaterialUi
+                                  label=""
+                                  checked={this.state.formValues["c2"]}
+                                  onChange={(event) =>
+                                    this.handleCheckChange(event, "c2")
+                                  }
+                                />
+                              </div>
+                              <div
+                                className="bold-black width-85"
+                                style={{ display: "inline-block" }}
+                              >
+                                {this.state.formValues["title2"]}
+                              </div>
+                            </Col>
+                            <Col
+                              md="3"
+                              sm="12"
+                              style={{ paddingLeft: 0, marginTop: "-5px" }}
                             >
                               <div style={{ display: "inline-block" }}>
-                                {this.state.formValues["title1"]}
+                                <Input
+                                  type="text"
+                                  className="contract-text2"
+                                  style={{ fontWeight: "bold" }}
+                                  value={this.state.formValues["p2"]}
+                                  onChange={(e) =>
+                                    this.handleFieldChange("p2", e.target.value)
+                                  }
+                                  required
+                                />
+                              </div>
+                              <div
+                                className="bold-black"
+                                style={{
+                                  display: "inline-block",
+                                  marginLeft: "5px",
+                                  paddingTop: "10px",
+                                }}
+                              >
+                                € HT
+                              </div>
+                            </Col>
+                          </Row>
+                          <div style={{ marginLeft: "30px" }}>
+                            {this.state.formValues["subcontent2-1"]}
+                          </div>
+                        </td>
+                        <td width="25%" style={{ paddingBottom: 0 }}>
+                          <Row
+                            style={{ verticalAlign: "top", marginTop: "15px" }}
+                          >
+                            <div
+                              style={{
+                                display: "inline-block",
+                                marginLeft: "40px",
+                                width: "45px",
+                                textAlign: "center",
+                              }}
+                            >
+                              {" "}
+                              Total
+                            </div>
+                            <div
+                              style={{
+                                display: "inline-block",
+                                width: "40px",
+                                textAlign: "center",
+                              }}
+                            >
+                              {" "}
+                              HT
+                            </div>
+                            <div
+                              style={{ display: "inline-block" }}
+                              className="contract-div"
+                            >
+                              {this.state.formValues["HT2"]} €
+                            </div>
+                          </Row>
+                          <br />
+                          <br />
+                        </td>
+                      </tr>
+                      <tr>
+                        <td colSpan="2" style={{ paddingTop: "0" }}>
+                          <Row
+                            style={{
+                              borderBottom: "2px dashed #827b7b",
+                              width: "90%",
+                              float: "right",
+                            }}
+                          >
+                            <div
+                              style={{ display: "inline-block", width: "70%" }}
+                            >
+                              <div
+                                style={{
+                                  display: "inline-block",
+                                  marginLeft: "20px",
+                                }}
+                              >
+                                <LabeledCheckboxMaterialUi
+                                  label=""
+                                  checked={this.state.formValues["cnb2"]}
+                                  onChange={(event) =>
+                                    this.handleCheckChange(event, "cnb2")
+                                  }
+                                />
                               </div>
                               <div
                                 style={{
                                   display: "inline-block",
-                                  paddingLeft: "5px",
+                                  width: "65%",
                                 }}
                               >
-                                (
-                              </div>
-                              <div style={{ display: "inline-block" }}>
-                                {this.state.formValues["nb1-price"]}
-                              </div>
-                              <div style={{ display: "inline-block" }}>
-                                € HT)
-                              </div>
-                            </div>
-                          </Col>
-                          <Col
-                            md="3"
-                            sm="12"
-                            style={{ paddingLeft: 0, marginTop: "-5px" }}
-                          >
-                            <div
-                              className="bold-black"
-                              style={{ display: "inline-block" }}
-                            >
-                              Nb min:
-                            </div>
-                            <div style={{ display: "inline-block" }}>
-                              <Input
-                                type="text"
-                                className="contract-text"
-                                value={this.state.formValues["nb1"]}
-                                onChange={(e) =>
-                                  this.handleFieldChange("nb1", e.target.value)
-                                }
-                                required
-                              />
-                            </div>
-                          </Col>
-                        </Row>
-                        <div style={{ marginLeft: "30px" }}>
-                          {this.state.formValues["subcontent1-1"]}
-                        </div>
-                        <div
-                          style={{ marginLeft: "30px" }}
-                          className="contract-subcontent"
-                        >
-                          {this.state.formValues["subcontent1-2"]}
-                        </div>
-                      </td>
-                      <td width="25%" style={{ paddingTop: "15px" }}>
-                        <Row>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              marginLeft: "40px",
-                              width: "45px",
-                              textAlign: "center",
-                            }}
-                          >
-                            {" "}
-                            Total
-                          </div>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              width: "40px",
-                              textAlign: "center",
-                            }}
-                          >
-                            {" "}
-                            HT
-                          </div>
-                          <div
-                            style={{ display: "inline-block" }}
-                            className="contract-div"
-                          >
-                            {this.state.formValues["nbHT1"]} €
-                          </div>
-                        </Row>
-                        <Row style={{ marginTop: "5px" }}>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              marginLeft: "40px",
-                              width: "45px",
-                            }}
-                          ></div>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              width: "40px",
-                              textAlign: "center",
-                            }}
-                          >
-                            {" "}
-                            TTC
-                          </div>
-                          <div
-                            style={{ display: "inline-block" }}
-                            className="contract-div"
-                          >
-                            {this.state.formValues["TTC1"]} €
-                          </div>
-                        </Row>
-                      </td>
-                    </tr>
-                    {/*------- section2 -------*/}
-                    <tr>
-                      <td width="75%" style={{ paddingBottom: 0 }}>
-                        <Row>
-                          <Col md="9" sm="12" style={{ paddingRight: 0 }}>
-                            <div
-                              style={{
-                                display: "inline-block",
-                                marginLeft: "20px",
-                              }}
-                            >
-                              <LabeledCheckboxMaterialUi
-                                label=""
-                                checked={this.state.formValues["c2"]}
-                                onChange={(event) =>
-                                  this.handleCheckChange(event, "c2")
-                                }
-                              />
-                            </div>
-                            <div
-                              className="bold-black width-85"
-                              style={{ display: "inline-block" }}
-                            >
-                              {this.state.formValues["title2"]}
-                            </div>
-                          </Col>
-                          <Col
-                            md="3"
-                            sm="12"
-                            style={{ paddingLeft: 0, marginTop: "-5px" }}
-                          >
-                            <div style={{ display: "inline-block" }}>
-                              <Input
-                                type="text"
-                                className="contract-text2"
-                                style={{ fontWeight: "bold" }}
-                                value={this.state.formValues["p2"]}
-                                onChange={(e) =>
-                                  this.handleFieldChange("p2", e.target.value)
-                                }
-                                required
-                              />
-                            </div>
-                            <div
-                              className="bold-black"
-                              style={{
-                                display: "inline-block",
-                                marginLeft: "5px",
-                                paddingTop: "10px",
-                              }}
-                            >
-                              € HT
-                            </div>
-                          </Col>
-                        </Row>
-                        <div style={{ marginLeft: "30px" }}>
-                          {this.state.formValues["subcontent2-1"]}
-                        </div>
-                      </td>
-                      <td width="25%" style={{ paddingBottom: 0 }}>
-                        <Row
-                          style={{ verticalAlign: "top", marginTop: "15px" }}
-                        >
-                          <div
-                            style={{
-                              display: "inline-block",
-                              marginLeft: "40px",
-                              width: "45px",
-                              textAlign: "center",
-                            }}
-                          >
-                            {" "}
-                            Total
-                          </div>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              width: "40px",
-                              textAlign: "center",
-                            }}
-                          >
-                            {" "}
-                            HT
-                          </div>
-                          <div
-                            style={{ display: "inline-block" }}
-                            className="contract-div"
-                          >
-                            {this.state.formValues["HT2"]} €
-                          </div>
-                        </Row>
-                        <br />
-                        <br />
-                      </td>
-                    </tr>
-                    <tr>
-                      <td colSpan="2" style={{ paddingTop: "0" }}>
-                        <Row
-                          style={{
-                            borderBottom: "2px dashed #827b7b",
-                            width: "90%",
-                            float: "right",
-                          }}
-                        >
-                          <div
-                            style={{ display: "inline-block", width: "70%" }}
-                          >
-                            <div
-                              style={{
-                                display: "inline-block",
-                                marginLeft: "20px",
-                              }}
-                            >
-                              <LabeledCheckboxMaterialUi
-                                label=""
-                                checked={this.state.formValues["cnb2"]}
-                                onChange={(event) =>
-                                  this.handleCheckChange(event, "cnb2")
-                                }
-                              />
-                            </div>
-                            <div
-                              style={{ display: "inline-block", width: "65%" }}
-                            >
-                              <div style={{ display: "inline-block" }}>
-                                {this.state.formValues["subcontent2-2"]}
-                              </div>
-                              <div style={{ display: "inline-block" }}>
-                                <div
-                                  style={{
-                                    display: "inline-block",
-                                    paddingLeft: "5px",
-                                  }}
-                                >
-                                  (
+                                <div style={{ display: "inline-block" }}>
+                                  {this.state.formValues["subcontent2-2"]}
                                 </div>
                                 <div style={{ display: "inline-block" }}>
-                                  {this.state.formValues["nb2-price"]}
+                                  <div
+                                    style={{
+                                      display: "inline-block",
+                                      paddingLeft: "5px",
+                                    }}
+                                  >
+                                    (
+                                  </div>
+                                  <div style={{ display: "inline-block" }}>
+                                    {this.state.formValues["nb2-price"]}
+                                  </div>
+                                  <div style={{ display: "inline-block" }}>
+                                    € HT)
+                                  </div>
                                 </div>
-                                <div style={{ display: "inline-block" }}>
-                                  € HT)
-                                </div>
+                              </div>
+                              <div
+                                className="bold-black"
+                                style={{
+                                  display: "inline-block",
+                                  marginLeft: "30px",
+                                  verticalAlign: "top",
+                                  marginTop: "5px",
+                                }}
+                              >
+                                Nb:
+                              </div>
+                              <div
+                                style={{
+                                  display: "inline-block",
+                                  paddingTop: "3px",
+                                  verticalAlign: "top",
+                                }}
+                              >
+                                <Input
+                                  type="text"
+                                  className="contract-text"
+                                  style={{ fontWeight: "bold", height: "20px" }}
+                                  value={this.state.formValues["nb2"]}
+                                  onChange={(e) =>
+                                    this.handleFieldChange(
+                                      "nb2",
+                                      e.target.value
+                                    )
+                                  }
+                                  required
+                                />
                               </div>
                             </div>
                             <div
-                              className="bold-black"
-                              style={{
-                                display: "inline-block",
-                                marginLeft: "30px",
-                                verticalAlign: "top",
-                                marginTop: "5px",
-                              }}
+                              style={{ display: "inline-block", width: "30%" }}
                             >
-                              Nb:
+                              <div
+                                style={{
+                                  display: "inline-block",
+                                  marginLeft: "40px",
+                                  width: "55px",
+                                }}
+                              ></div>
+                              <div
+                                style={{
+                                  display: "inline-block",
+                                  width: "40px",
+                                  textAlign: "center",
+                                }}
+                              >
+                                {" "}
+                                HT
+                              </div>
+                              <div
+                                style={{ display: "inline-block" }}
+                                className="contract-div"
+                              >
+                                {this.state.formValues["nbHT2"]} €
+                              </div>
                             </div>
-                            <div
-                              style={{
-                                display: "inline-block",
-                                paddingTop: "3px",
-                                verticalAlign: "top",
-                              }}
-                            >
-                              <Input
-                                type="text"
-                                className="contract-text"
-                                style={{ fontWeight: "bold", height: "20px" }}
-                                value={this.state.formValues["nb2"]}
-                                onChange={(e) =>
-                                  this.handleFieldChange("nb2", e.target.value)
-                                }
-                                required
-                              />
-                            </div>
-                          </div>
-                          <div
-                            style={{ display: "inline-block", width: "30%" }}
-                          >
+                          </Row>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td
+                          width="75%"
+                          style={{ paddingBottom: 0, paddingTop: 0 }}
+                        ></td>
+                        <td
+                          width="25%"
+                          style={{ paddingBottom: 0, paddingTop: 0 }}
+                        >
+                          <Row style={{ verticalAlign: "top" }}>
                             <div
                               style={{
                                 display: "inline-block",
                                 marginLeft: "40px",
-                                width: "55px",
+                                width: "47px",
+                                textAlign: "center",
                               }}
                             ></div>
+                            <div
+                              style={{
+                                display: "inline-block",
+                                width: "40px",
+                                textAlign: "center",
+                              }}
+                            >
+                              {" "}
+                              TTC
+                            </div>
+                            <div
+                              style={{ display: "inline-block" }}
+                              className="contract-div"
+                            >
+                              {this.state.formValues["TTC2"]} €
+                            </div>
+                          </Row>
+                        </td>
+                      </tr>
+                      {/*------- section3 -------*/}
+                      <tr>
+                        <td width="75%" style={{ paddingBottom: 0 }}>
+                          <Row>
+                            <Col md="9" sm="12" style={{ paddingRight: 0 }}>
+                              <div
+                                style={{
+                                  display: "inline-block",
+                                  marginLeft: "20px",
+                                }}
+                              >
+                                <LabeledCheckboxMaterialUi
+                                  label=""
+                                  checked={this.state.formValues["c3"]}
+                                  onChange={(event) =>
+                                    this.handleCheckChange(event, "c3")
+                                  }
+                                />
+                              </div>
+                              <div
+                                className="bold-black width-85"
+                                style={{ display: "inline-block" }}
+                              >
+                                {this.state.formValues["title3"]}
+                              </div>
+                            </Col>
+                            <Col
+                              md="3"
+                              sm="12"
+                              style={{ paddingLeft: 0, marginTop: "-5px" }}
+                            >
+                              <div style={{ display: "inline-block" }}>
+                                <Input
+                                  type="text"
+                                  className="contract-text2"
+                                  style={{ fontWeight: "bold" }}
+                                  value={this.state.formValues["p3"]}
+                                  onChange={(e) =>
+                                    this.handleFieldChange("p3", e.target.value)
+                                  }
+                                  required
+                                />
+                              </div>
+                              <div
+                                className="bold-black"
+                                style={{
+                                  display: "inline-block",
+                                  marginLeft: "5px",
+                                  paddingTop: "10px",
+                                }}
+                              >
+                                € HT
+                              </div>
+                            </Col>
+                          </Row>
+                        </td>
+                        <td width="25%" style={{ paddingBottom: 0 }}>
+                          <Row style={{ verticalAlign: "top" }}>
+                            <div
+                              style={{
+                                display: "inline-block",
+                                marginLeft: "40px",
+                                width: "47px",
+                                textAlign: "center",
+                              }}
+                            >
+                              {" "}
+                              Total
+                            </div>
                             <div
                               style={{
                                 display: "inline-block",
@@ -2873,363 +3008,100 @@ class EditContract extends React.Component {
                               style={{ display: "inline-block" }}
                               className="contract-div"
                             >
-                              {this.state.formValues["nbHT2"]} €
+                              {this.state.formValues["HT3"]} €
                             </div>
-                          </div>
-                        </Row>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td
-                        width="75%"
-                        style={{ paddingBottom: 0, paddingTop: 0 }}
-                      ></td>
-                      <td
-                        width="25%"
-                        style={{ paddingBottom: 0, paddingTop: 0 }}
-                      >
-                        <Row style={{ verticalAlign: "top" }}>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              marginLeft: "40px",
-                              width: "47px",
-                              textAlign: "center",
-                            }}
-                          ></div>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              width: "40px",
-                              textAlign: "center",
-                            }}
-                          >
-                            {" "}
-                            TTC
-                          </div>
-                          <div
-                            style={{ display: "inline-block" }}
-                            className="contract-div"
-                          >
-                            {this.state.formValues["TTC2"]} €
-                          </div>
-                        </Row>
-                      </td>
-                    </tr>
-                    {/*------- section3 -------*/}
-                    <tr>
-                      <td width="75%" style={{ paddingBottom: 0 }}>
-                        <Row>
-                          <Col md="9" sm="12" style={{ paddingRight: 0 }}>
-                            <div
-                              style={{
-                                display: "inline-block",
-                                marginLeft: "20px",
-                              }}
-                            >
-                              <LabeledCheckboxMaterialUi
-                                label=""
-                                checked={this.state.formValues["c3"]}
-                                onChange={(event) =>
-                                  this.handleCheckChange(event, "c3")
-                                }
-                              />
-                            </div>
-                            <div
-                              className="bold-black width-85"
-                              style={{ display: "inline-block" }}
-                            >
-                              {this.state.formValues["title3"]}
-                            </div>
-                          </Col>
-                          <Col
-                            md="3"
-                            sm="12"
-                            style={{ paddingLeft: 0, marginTop: "-5px" }}
-                          >
-                            <div style={{ display: "inline-block" }}>
-                              <Input
-                                type="text"
-                                className="contract-text2"
-                                style={{ fontWeight: "bold" }}
-                                value={this.state.formValues["p3"]}
-                                onChange={(e) =>
-                                  this.handleFieldChange("p3", e.target.value)
-                                }
-                                required
-                              />
-                            </div>
-                            <div
-                              className="bold-black"
-                              style={{
-                                display: "inline-block",
-                                marginLeft: "5px",
-                                paddingTop: "10px",
-                              }}
-                            >
-                              € HT
-                            </div>
-                          </Col>
-                        </Row>
-                      </td>
-                      <td width="25%" style={{ paddingBottom: 0 }}>
-                        <Row style={{ verticalAlign: "top" }}>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              marginLeft: "40px",
-                              width: "47px",
-                              textAlign: "center",
-                            }}
-                          >
-                            {" "}
-                            Total
-                          </div>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              width: "40px",
-                              textAlign: "center",
-                            }}
-                          >
-                            {" "}
-                            HT
-                          </div>
-                          <div
-                            style={{ display: "inline-block" }}
-                            className="contract-div"
-                          >
-                            {this.state.formValues["HT3"]} €
-                          </div>
-                        </Row>
-                      </td>
-                    </tr>
-                    {/*------- section4 -------*/}
-                    <tr>
-                      <td width="75%" style={{ paddingBottom: 0 }}>
-                        <Row>
-                          <Col md="9" sm="12" style={{ paddingRight: 0 }}>
-                            <div
-                              style={{
-                                display: "inline-block",
-                                marginLeft: "20px",
-                              }}
-                            >
-                              <LabeledCheckboxMaterialUi
-                                label=""
-                                checked={this.state.formValues["c4"]}
-                                onChange={(event) =>
-                                  this.handleCheckChange(event, "c4")
-                                }
-                              />
-                            </div>
-                            <div
-                              className="bold-black width-85"
-                              style={{ display: "inline-block" }}
-                            >
-                              {this.state.formValues["title4"]}
-                            </div>
-                          </Col>
-                          <Col
-                            md="3"
-                            sm="12"
-                            style={{ paddingLeft: 0, marginTop: "-5px" }}
-                          >
-                            <div style={{ display: "inline-block" }}>
-                              <Input
-                                type="text"
-                                className="contract-text2"
-                                style={{ fontWeight: "bold" }}
-                                value={this.state.formValues["p4"]}
-                                onChange={(e) =>
-                                  this.handleFieldChange("p4", e.target.value)
-                                }
-                                required
-                              />
-                            </div>
-                            <div
-                              className="bold-black"
-                              style={{
-                                display: "inline-block",
-                                marginLeft: "5px",
-                                paddingTop: "10px",
-                              }}
-                            >
-                              € HT
-                            </div>
-                          </Col>
-                        </Row>
-                        <div style={{ marginLeft: "30px" }}>
-                          {this.state.formValues["subcontent4-1"]}
-                        </div>
-                        <div style={{ marginLeft: "30px" }}>
-                          {this.state.formValues["subcontent4-2"]}
-                        </div>
-                        <div style={{ marginLeft: "30px" }}>
-                          {this.state.formValues["subcontent4-3"]}
-                        </div>
-                        <div style={{ marginLeft: "30px" }}>
-                          {this.state.formValues["subcontent4-4"]}
-                        </div>
-                        <div style={{ marginLeft: "30px" }}>
-                          {this.state.formValues["subcontent4-5"]}
-                        </div>
-                        <div style={{ marginLeft: "30px" }}>
-                          {this.state.formValues["subcontent4-6"]}
-                        </div>
-                      </td>
-                      <td width="25%" style={{ paddingBottom: 0 }}>
-                        <Row style={{ verticalAlign: "top", marginTop: "8px" }}>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              marginLeft: "40px",
-                              width: "47px",
-                              textAlign: "center",
-                            }}
-                          >
-                            {" "}
-                            Total
-                          </div>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              width: "40px",
-                              textAlign: "center",
-                            }}
-                          >
-                            {" "}
-                            HT
-                          </div>
-                          <div
-                            style={{ display: "inline-block" }}
-                            className="contract-div"
-                          >
-                            {this.state.formValues["HT4"]} €
-                          </div>
-                        </Row>
-                        <Row style={{ verticalAlign: "top", marginTop: "3px" }}>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              marginLeft: "40px",
-                              width: "47px",
-                              textAlign: "center",
-                            }}
-                          ></div>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              width: "40px",
-                              textAlign: "center",
-                            }}
-                          >
-                            {" "}
-                            TTC
-                          </div>
-                          <div
-                            style={{ display: "inline-block" }}
-                            className="contract-div"
-                          >
-                            {this.state.formValues["TTC4"]} €
-                          </div>
-                        </Row>
-                        <br />
-                        <br />
-                        <br />
-                        <br />
-                        <br />
-                      </td>
-                    </tr>
-                    <tr>
-                      <td colSpan="2" style={{ paddingTop: "0" }}>
-                        <Row
-                          style={{
-                            borderBottom: "2px dashed #827b7b",
-                            width: "90%",
-                            float: "right",
-                          }}
-                        >
-                          <div
-                            style={{ display: "inline-block", width: "70%" }}
-                          >
-                            <div
-                              style={{
-                                display: "inline-block",
-                                marginLeft: "20px",
-                              }}
-                            >
-                              <LabeledCheckboxMaterialUi
-                                label=""
-                                checked={this.state.formValues["cnb4"]}
-                                onChange={(event) =>
-                                  this.handleCheckChange(event, "cnb4")
-                                }
-                              />
-                            </div>
-                            <div
-                              style={{ display: "inline-block", width: "65%" }}
+                          </Row>
+                        </td>
+                      </tr>
+                      {/*------- section4 -------*/}
+                      <tr>
+                        <td width="75%" style={{ paddingBottom: 0 }}>
+                          <Row>
+                            <Col md="9" sm="12" style={{ paddingRight: 0 }}>
+                              <div
+                                style={{
+                                  display: "inline-block",
+                                  marginLeft: "20px",
+                                }}
+                              >
+                                <LabeledCheckboxMaterialUi
+                                  label=""
+                                  checked={this.state.formValues["c4"]}
+                                  onChange={(event) =>
+                                    this.handleCheckChange(event, "c4")
+                                  }
+                                />
+                              </div>
+                              <div
+                                className="bold-black width-85"
+                                style={{ display: "inline-block" }}
+                              >
+                                {this.state.formValues["title4"]}
+                              </div>
+                            </Col>
+                            <Col
+                              md="3"
+                              sm="12"
+                              style={{ paddingLeft: 0, marginTop: "-5px" }}
                             >
                               <div style={{ display: "inline-block" }}>
-                                {this.state.formValues["subcontent4-7"]}
+                                <Input
+                                  type="text"
+                                  className="contract-text2"
+                                  style={{ fontWeight: "bold" }}
+                                  value={this.state.formValues["p4"]}
+                                  onChange={(e) =>
+                                    this.handleFieldChange("p4", e.target.value)
+                                  }
+                                  required
+                                />
                               </div>
-                              <div style={{ display: "inline-block" }}>
-                                <div
-                                  style={{
-                                    display: "inline-block",
-                                    paddingLeft: "5px",
-                                  }}
-                                >
-                                  (
-                                </div>
-                                <div style={{ display: "inline-block" }}>
-                                  {this.state.formValues["nb4-price"]}
-                                </div>
-                                <div style={{ display: "inline-block" }}>
-                                  € HT)
-                                </div>
+                              <div
+                                className="bold-black"
+                                style={{
+                                  display: "inline-block",
+                                  marginLeft: "5px",
+                                  paddingTop: "10px",
+                                }}
+                              >
+                                € HT
                               </div>
-                            </div>
-                            <div
-                              className="bold-black"
-                              style={{
-                                display: "inline-block",
-                                marginLeft: "30px",
-                                verticalAlign: "top",
-                                marginTop: "5px",
-                              }}
-                            >
-                              Nb:
-                            </div>
-                            <div
-                              style={{
-                                display: "inline-block",
-                                paddingTop: "3px",
-                                verticalAlign: "top",
-                              }}
-                            >
-                              <Input
-                                type="text"
-                                className="contract-text"
-                                style={{ fontWeight: "bold", height: "20px" }}
-                                value={this.state.formValues["nb4"]}
-                                onChange={(e) =>
-                                  this.handleFieldChange("nb4", e.target.value)
-                                }
-                                required
-                              />
-                            </div>
+                            </Col>
+                          </Row>
+                          <div style={{ marginLeft: "30px" }}>
+                            {this.state.formValues["subcontent4-1"]}
                           </div>
-                          <div
-                            style={{ display: "inline-block", width: "30%" }}
+                          <div style={{ marginLeft: "30px" }}>
+                            {this.state.formValues["subcontent4-2"]}
+                          </div>
+                          <div style={{ marginLeft: "30px" }}>
+                            {this.state.formValues["subcontent4-3"]}
+                          </div>
+                          <div style={{ marginLeft: "30px" }}>
+                            {this.state.formValues["subcontent4-4"]}
+                          </div>
+                          <div style={{ marginLeft: "30px" }}>
+                            {this.state.formValues["subcontent4-5"]}
+                          </div>
+                          <div style={{ marginLeft: "30px" }}>
+                            {this.state.formValues["subcontent4-6"]}
+                          </div>
+                        </td>
+                        <td width="25%" style={{ paddingBottom: 0 }}>
+                          <Row
+                            style={{ verticalAlign: "top", marginTop: "8px" }}
                           >
                             <div
                               style={{
                                 display: "inline-block",
                                 marginLeft: "40px",
-                                width: "55px",
+                                width: "47px",
+                                textAlign: "center",
                               }}
-                            ></div>
+                            >
+                              {" "}
+                              Total
+                            </div>
                             <div
                               style={{
                                 display: "inline-block",
@@ -3244,230 +3116,268 @@ class EditContract extends React.Component {
                               style={{ display: "inline-block" }}
                               className="contract-div"
                             >
-                              {this.state.formValues["nbHT4"]} €
+                              {this.state.formValues["HT4"]} €
                             </div>
-                          </div>
-                        </Row>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td
-                        width="75%"
-                        style={{ paddingBottom: 0, paddingTop: 0 }}
-                      ></td>
-                      <td
-                        width="25%"
-                        style={{ paddingBottom: 0, paddingTop: 0 }}
-                      >
-                        <Row style={{ verticalAlign: "top" }}>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              marginLeft: "40px",
-                              width: "50px",
-                              textAlign: "center",
-                            }}
-                          ></div>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              width: "40px",
-                              textAlign: "center",
-                            }}
-                          >
-                            {" "}
-                            TTC
-                          </div>
-                          <div
-                            style={{ display: "inline-block" }}
-                            className="contract-div"
-                          >
-                            {this.state.formValues["TTC34"]} €
-                          </div>
-                        </Row>
-                      </td>
-                    </tr>
-                    {/*------- section5 -------*/}
-                    <tr>
-                      <td width="75%" style={{ paddingBottom: 0 }}>
-                        <Row>
-                          <Col md="9" sm="12" style={{ paddingRight: 0 }}>
-                            <div
-                              style={{
-                                display: "inline-block",
-                                marginLeft: "20px",
-                              }}
-                            >
-                              <LabeledCheckboxMaterialUi
-                                label=""
-                                checked={this.state.formValues["c5"]}
-                                onChange={(event) =>
-                                  this.handleCheckChange(event, "c5")
-                                }
-                              />
-                            </div>
-                            <div
-                              className="bold-black width-85"
-                              style={{ display: "inline-block" }}
-                            >
-                              {this.state.formValues["title5"]}
-                            </div>
-                          </Col>
-                          <Col
-                            md="3"
-                            sm="12"
-                            style={{ paddingLeft: 0, marginTop: "-5px" }}
-                          >
-                            <div style={{ display: "inline-block" }}>
-                              <Input
-                                type="text"
-                                className="contract-text2"
-                                style={{ fontWeight: "bold" }}
-                                value={this.state.formValues["p5"]}
-                                onChange={(e) =>
-                                  this.handleFieldChange("p5", e.target.value)
-                                }
-                                required
-                              />
-                            </div>
-                            <div
-                              className="bold-black"
-                              style={{
-                                display: "inline-block",
-                                marginLeft: "5px",
-                                paddingTop: "10px",
-                              }}
-                            >
-                              € HT
-                            </div>
-                          </Col>
-                        </Row>
-                        <div style={{ marginLeft: "30px" }}>
-                          {this.state.formValues["subcontent5-1"]}
-                        </div>
-                      </td>
-                      <td width="25%" style={{ paddingBottom: 0 }}>
-                        <Row style={{ verticalAlign: "top" }}>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              marginLeft: "40px",
-                              width: "50px",
-                              textAlign: "center",
-                            }}
-                          >
-                            {" "}
-                            Total
-                          </div>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              width: "40px",
-                              textAlign: "center",
-                            }}
-                          >
-                            {" "}
-                            HT
-                          </div>
-                          <div
-                            style={{ display: "inline-block" }}
-                            className="contract-div"
-                          >
-                            {this.state.formValues["HT5"]} €
-                          </div>
-                        </Row>
-                        <br />
-                      </td>
-                    </tr>
-                    <tr>
-                      <td colSpan="2" style={{ paddingTop: "0" }}>
-                        <Row
-                          style={{
-                            borderBottom: "2px dashed #827b7b",
-                            width: "90%",
-                            float: "right",
-                          }}
-                        >
-                          <div
-                            style={{ display: "inline-block", width: "70%" }}
-                          >
-                            <div
-                              style={{
-                                display: "inline-block",
-                                marginLeft: "20px",
-                              }}
-                            >
-                              <LabeledCheckboxMaterialUi
-                                label=""
-                                checked={this.state.formValues["cnb5"]}
-                                onChange={(event) =>
-                                  this.handleCheckChange(event, "cnb5")
-                                }
-                              />
-                            </div>
-                            <div
-                              style={{ display: "inline-block", width: "65%" }}
-                            >
-                              <div style={{ display: "inline-block" }}>
-                                {this.state.formValues["subcontent5-2"]}
-                              </div>
-                              <div style={{ display: "inline-block" }}>
-                                <div
-                                  style={{
-                                    display: "inline-block",
-                                    paddingLeft: "5px",
-                                  }}
-                                >
-                                  (
-                                </div>
-                                <div style={{ display: "inline-block" }}>
-                                  {this.state.formValues["nb5-price"]}
-                                </div>
-                                <div style={{ display: "inline-block" }}>
-                                  € HT)
-                                </div>
-                              </div>
-                            </div>
-                            <div
-                              className="bold-black"
-                              style={{
-                                display: "inline-block",
-                                marginLeft: "30px",
-                                verticalAlign: "top",
-                                marginTop: "5px",
-                              }}
-                            >
-                              Nb:
-                            </div>
-                            <div
-                              style={{
-                                display: "inline-block",
-                                paddingTop: "3px",
-                                verticalAlign: "top",
-                              }}
-                            >
-                              <Input
-                                type="text"
-                                className="contract-text"
-                                style={{ fontWeight: "bold", height: "20px" }}
-                                value={this.state.formValues["nb5"]}
-                                onChange={(e) =>
-                                  this.handleFieldChange("nb5", e.target.value)
-                                }
-                                required
-                              />
-                            </div>
-                          </div>
-                          <div
-                            style={{ display: "inline-block", width: "30%" }}
+                          </Row>
+                          <Row
+                            style={{ verticalAlign: "top", marginTop: "3px" }}
                           >
                             <div
                               style={{
                                 display: "inline-block",
                                 marginLeft: "40px",
-                                width: "57px",
+                                width: "47px",
+                                textAlign: "center",
                               }}
                             ></div>
+                            <div
+                              style={{
+                                display: "inline-block",
+                                width: "40px",
+                                textAlign: "center",
+                              }}
+                            >
+                              {" "}
+                              TTC
+                            </div>
+                            <div
+                              style={{ display: "inline-block" }}
+                              className="contract-div"
+                            >
+                              {this.state.formValues["TTC4"]} €
+                            </div>
+                          </Row>
+                          <br />
+                          <br />
+                          <br />
+                          <br />
+                          <br />
+                        </td>
+                      </tr>
+                      <tr>
+                        <td colSpan="2" style={{ paddingTop: "0" }}>
+                          <Row
+                            style={{
+                              borderBottom: "2px dashed #827b7b",
+                              width: "90%",
+                              float: "right",
+                            }}
+                          >
+                            <div
+                              style={{ display: "inline-block", width: "70%" }}
+                            >
+                              <div
+                                style={{
+                                  display: "inline-block",
+                                  marginLeft: "20px",
+                                }}
+                              >
+                                <LabeledCheckboxMaterialUi
+                                  label=""
+                                  checked={this.state.formValues["cnb4"]}
+                                  onChange={(event) =>
+                                    this.handleCheckChange(event, "cnb4")
+                                  }
+                                />
+                              </div>
+                              <div
+                                style={{
+                                  display: "inline-block",
+                                  width: "65%",
+                                }}
+                              >
+                                <div style={{ display: "inline-block" }}>
+                                  {this.state.formValues["subcontent4-7"]}
+                                </div>
+                                <div style={{ display: "inline-block" }}>
+                                  <div
+                                    style={{
+                                      display: "inline-block",
+                                      paddingLeft: "5px",
+                                    }}
+                                  >
+                                    (
+                                  </div>
+                                  <div style={{ display: "inline-block" }}>
+                                    {this.state.formValues["nb4-price"]}
+                                  </div>
+                                  <div style={{ display: "inline-block" }}>
+                                    € HT)
+                                  </div>
+                                </div>
+                              </div>
+                              <div
+                                className="bold-black"
+                                style={{
+                                  display: "inline-block",
+                                  marginLeft: "30px",
+                                  verticalAlign: "top",
+                                  marginTop: "5px",
+                                }}
+                              >
+                                Nb:
+                              </div>
+                              <div
+                                style={{
+                                  display: "inline-block",
+                                  paddingTop: "3px",
+                                  verticalAlign: "top",
+                                }}
+                              >
+                                <Input
+                                  type="text"
+                                  className="contract-text"
+                                  style={{ fontWeight: "bold", height: "20px" }}
+                                  value={this.state.formValues["nb4"]}
+                                  onChange={(e) =>
+                                    this.handleFieldChange(
+                                      "nb4",
+                                      e.target.value
+                                    )
+                                  }
+                                  required
+                                />
+                              </div>
+                            </div>
+                            <div
+                              style={{ display: "inline-block", width: "30%" }}
+                            >
+                              <div
+                                style={{
+                                  display: "inline-block",
+                                  marginLeft: "40px",
+                                  width: "55px",
+                                }}
+                              ></div>
+                              <div
+                                style={{
+                                  display: "inline-block",
+                                  width: "40px",
+                                  textAlign: "center",
+                                }}
+                              >
+                                {" "}
+                                HT
+                              </div>
+                              <div
+                                style={{ display: "inline-block" }}
+                                className="contract-div"
+                              >
+                                {this.state.formValues["nbHT4"]} €
+                              </div>
+                            </div>
+                          </Row>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td
+                          width="75%"
+                          style={{ paddingBottom: 0, paddingTop: 0 }}
+                        ></td>
+                        <td
+                          width="25%"
+                          style={{ paddingBottom: 0, paddingTop: 0 }}
+                        >
+                          <Row style={{ verticalAlign: "top" }}>
+                            <div
+                              style={{
+                                display: "inline-block",
+                                marginLeft: "40px",
+                                width: "50px",
+                                textAlign: "center",
+                              }}
+                            ></div>
+                            <div
+                              style={{
+                                display: "inline-block",
+                                width: "40px",
+                                textAlign: "center",
+                              }}
+                            >
+                              {" "}
+                              TTC
+                            </div>
+                            <div
+                              style={{ display: "inline-block" }}
+                              className="contract-div"
+                            >
+                              {this.state.formValues["TTC34"]} €
+                            </div>
+                          </Row>
+                        </td>
+                      </tr>
+                      {/*------- section5 -------*/}
+                      <tr>
+                        <td width="75%" style={{ paddingBottom: 0 }}>
+                          <Row>
+                            <Col md="9" sm="12" style={{ paddingRight: 0 }}>
+                              <div
+                                style={{
+                                  display: "inline-block",
+                                  marginLeft: "20px",
+                                }}
+                              >
+                                <LabeledCheckboxMaterialUi
+                                  label=""
+                                  checked={this.state.formValues["c5"]}
+                                  onChange={(event) =>
+                                    this.handleCheckChange(event, "c5")
+                                  }
+                                />
+                              </div>
+                              <div
+                                className="bold-black width-85"
+                                style={{ display: "inline-block" }}
+                              >
+                                {this.state.formValues["title5"]}
+                              </div>
+                            </Col>
+                            <Col
+                              md="3"
+                              sm="12"
+                              style={{ paddingLeft: 0, marginTop: "-5px" }}
+                            >
+                              <div style={{ display: "inline-block" }}>
+                                <Input
+                                  type="text"
+                                  className="contract-text2"
+                                  style={{ fontWeight: "bold" }}
+                                  value={this.state.formValues["p5"]}
+                                  onChange={(e) =>
+                                    this.handleFieldChange("p5", e.target.value)
+                                  }
+                                  required
+                                />
+                              </div>
+                              <div
+                                className="bold-black"
+                                style={{
+                                  display: "inline-block",
+                                  marginLeft: "5px",
+                                  paddingTop: "10px",
+                                }}
+                              >
+                                € HT
+                              </div>
+                            </Col>
+                          </Row>
+                          <div style={{ marginLeft: "30px" }}>
+                            {this.state.formValues["subcontent5-1"]}
+                          </div>
+                        </td>
+                        <td width="25%" style={{ paddingBottom: 0 }}>
+                          <Row style={{ verticalAlign: "top" }}>
+                            <div
+                              style={{
+                                display: "inline-block",
+                                marginLeft: "40px",
+                                width: "50px",
+                                textAlign: "center",
+                              }}
+                            >
+                              {" "}
+                              Total
+                            </div>
                             <div
                               style={{
                                 display: "inline-block",
@@ -3482,302 +3392,420 @@ class EditContract extends React.Component {
                               style={{ display: "inline-block" }}
                               className="contract-div"
                             >
-                              {this.state.formValues["nbHT5"]} €
+                              {this.state.formValues["HT5"]} €
                             </div>
-                          </div>
-                        </Row>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td
-                        width="75%"
-                        style={{ paddingBottom: 0, paddingTop: 0 }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "flex-start",
-                            marginLeft: "20px",
-                          }}
+                          </Row>
+                          <br />
+                        </td>
+                      </tr>
+                      <tr>
+                        <td colSpan="2" style={{ paddingTop: "0" }}>
+                          <Row
+                            style={{
+                              borderBottom: "2px dashed #827b7b",
+                              width: "90%",
+                              float: "right",
+                            }}
+                          >
+                            <div
+                              style={{ display: "inline-block", width: "70%" }}
+                            >
+                              <div
+                                style={{
+                                  display: "inline-block",
+                                  marginLeft: "20px",
+                                }}
+                              >
+                                <LabeledCheckboxMaterialUi
+                                  label=""
+                                  checked={this.state.formValues["cnb5"]}
+                                  onChange={(event) =>
+                                    this.handleCheckChange(event, "cnb5")
+                                  }
+                                />
+                              </div>
+                              <div
+                                style={{
+                                  display: "inline-block",
+                                  width: "65%",
+                                }}
+                              >
+                                <div style={{ display: "inline-block" }}>
+                                  {this.state.formValues["subcontent5-2"]}
+                                </div>
+                                <div style={{ display: "inline-block" }}>
+                                  <div
+                                    style={{
+                                      display: "inline-block",
+                                      paddingLeft: "5px",
+                                    }}
+                                  >
+                                    (
+                                  </div>
+                                  <div style={{ display: "inline-block" }}>
+                                    {this.state.formValues["nb5-price"]}
+                                  </div>
+                                  <div style={{ display: "inline-block" }}>
+                                    € HT)
+                                  </div>
+                                </div>
+                              </div>
+                              <div
+                                className="bold-black"
+                                style={{
+                                  display: "inline-block",
+                                  marginLeft: "30px",
+                                  verticalAlign: "top",
+                                  marginTop: "5px",
+                                }}
+                              >
+                                Nb:
+                              </div>
+                              <div
+                                style={{
+                                  display: "inline-block",
+                                  paddingTop: "3px",
+                                  verticalAlign: "top",
+                                }}
+                              >
+                                <Input
+                                  type="text"
+                                  className="contract-text"
+                                  style={{ fontWeight: "bold", height: "20px" }}
+                                  value={this.state.formValues["nb5"]}
+                                  onChange={(e) =>
+                                    this.handleFieldChange(
+                                      "nb5",
+                                      e.target.value
+                                    )
+                                  }
+                                  required
+                                />
+                              </div>
+                            </div>
+                            <div
+                              style={{ display: "inline-block", width: "30%" }}
+                            >
+                              <div
+                                style={{
+                                  display: "inline-block",
+                                  marginLeft: "40px",
+                                  width: "57px",
+                                }}
+                              ></div>
+                              <div
+                                style={{
+                                  display: "inline-block",
+                                  width: "40px",
+                                  textAlign: "center",
+                                }}
+                              >
+                                {" "}
+                                HT
+                              </div>
+                              <div
+                                style={{ display: "inline-block" }}
+                                className="contract-div"
+                              >
+                                {this.state.formValues["nbHT5"]} €
+                              </div>
+                            </div>
+                          </Row>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td
+                          width="75%"
+                          style={{ paddingBottom: 0, paddingTop: 0 }}
                         >
-                          <div style={{ marginRight: 10 }}>
-                            <LabeledCheckboxMaterialUi
-                              label="" // pas de label → pas de styles MUI sur le texte
-                              checked={this.state.formValues.cc5}
-                              onChange={(e) => this.handleCheckChange(e, "cc5")}
-                            />
-                          </div>
-                          <div style={{ lineHeight: 1.4 }}>
-                            {this.state.formValues["subcontent5-3"]}
-                          </div>
-                        </div>
-                      </td>
-                      <td
-                        width="25%"
-                        style={{ paddingBottom: 0, paddingTop: 0 }}
-                      >
-                        <Row style={{ verticalAlign: "top" }}>
                           <div
                             style={{
-                              display: "inline-block",
-                              marginLeft: "40px",
-                              width: "50px",
-                              textAlign: "center",
-                            }}
-                          ></div>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              width: "40px",
-                              textAlign: "center",
+                              display: "flex",
+                              alignItems: "flex-start",
+                              marginLeft: "20px",
                             }}
                           >
-                            {" "}
-                            TTC
-                          </div>
-                          <div
-                            style={{ display: "inline-block" }}
-                            className="contract-div"
-                          >
-                            {this.state.formValues["TTC5"]} €
-                          </div>
-                        </Row>
-                      </td>
-                    </tr>
-                    {/*------- section6 -------*/}
-                    <tr>
-                      <td width="75%" style={{ paddingBottom: 0 }}>
-                        <Row>
-                          <Col md="9" sm="12" style={{ paddingRight: 0 }}>
-                            <div
-                              style={{
-                                display: "inline-block",
-                                marginLeft: "20px",
-                              }}
-                            >
+                            <div style={{ marginRight: 10 }}>
                               <LabeledCheckboxMaterialUi
-                                label=""
-                                checked={this.state.formValues["c6"]}
-                                onChange={(event) =>
-                                  this.handleCheckChange(event, "c6")
-                                }
-                              />
-                            </div>
-                            <div
-                              className="bold-black width-85"
-                              style={{ display: "inline-block" }}
-                            >
-                              {this.state.formValues["title6"]}
-                            </div>
-                          </Col>
-                          <Col
-                            md="3"
-                            sm="12"
-                            style={{ paddingLeft: 0, marginTop: "-5px" }}
-                          >
-                            <div style={{ display: "inline-block" }}>
-                              <Input
-                                type="text"
-                                className="contract-text2"
-                                style={{ fontWeight: "bold" }}
-                                value={this.state.formValues["p6"]}
+                                label="" // pas de label → pas de styles MUI sur le texte
+                                checked={this.state.formValues.cc5}
                                 onChange={(e) =>
-                                  this.handleFieldChange("p6", e.target.value)
-                                }
-                                required
-                              />
-                            </div>
-                            <div
-                              className="bold-black"
-                              style={{
-                                display: "inline-block",
-                                marginLeft: "5px",
-                                paddingTop: "10px",
-                              }}
-                            >
-                              € HT
-                            </div>
-                          </Col>
-                        </Row>
-                        <div style={{ marginLeft: "30px" }}>
-                          {this.state.formValues["subcontent6-1"]}
-                        </div>
-                      </td>
-                      <td width="25%" style={{ paddingBottom: 0 }}>
-                        <Row style={{ verticalAlign: "top" }}>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              marginLeft: "40px",
-                              width: "50px",
-                              textAlign: "center",
-                            }}
-                          >
-                            {" "}
-                            Total
-                          </div>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              width: "40px",
-                              textAlign: "center",
-                            }}
-                          >
-                            {" "}
-                            HT
-                          </div>
-                          <div
-                            style={{ display: "inline-block" }}
-                            className="contract-div"
-                          >
-                            {this.state.formValues["HT6"]} €
-                          </div>
-                        </Row>
-                        <Row style={{ verticalAlign: "top" }}>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              marginLeft: "40px",
-                              width: "52px",
-                              textAlign: "center",
-                            }}
-                          ></div>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              width: "40px",
-                              textAlign: "center",
-                            }}
-                          >
-                            {" "}
-                            TTC
-                          </div>
-                          <div
-                            style={{ display: "inline-block" }}
-                            className="contract-div"
-                          >
-                            {this.state.formValues["TTC6"]} €
-                          </div>
-                        </Row>
-                      </td>
-                    </tr>
-                    {/*------- section7 -------*/}
-                    <tr>
-                      <td width="75%" style={{ paddingBottom: "30px" }}>
-                        <Row>
-                          <Col md="9" sm="12" style={{ paddingRight: 0 }}>
-                            <div
-                              style={{
-                                display: "inline-block",
-                                marginLeft: "20px",
-                              }}
-                            >
-                              <LabeledCheckboxMaterialUi
-                                label=""
-                                checked={this.state.formValues["c7"]}
-                                onChange={(event) =>
-                                  this.handleCheckChange(event, "c7")
+                                  this.handleCheckChange(e, "cc5")
                                 }
                               />
                             </div>
+                            <div style={{ lineHeight: 1.4 }}>
+                              {this.state.formValues["subcontent5-3"]}
+                            </div>
+                          </div>
+                        </td>
+                        <td
+                          width="25%"
+                          style={{ paddingBottom: 0, paddingTop: 0 }}
+                        >
+                          <Row style={{ verticalAlign: "top" }}>
                             <div
-                              className="bold-black width-85"
+                              style={{
+                                display: "inline-block",
+                                marginLeft: "40px",
+                                width: "50px",
+                                textAlign: "center",
+                              }}
+                            ></div>
+                            <div
+                              style={{
+                                display: "inline-block",
+                                width: "40px",
+                                textAlign: "center",
+                              }}
+                            >
+                              {" "}
+                              TTC
+                            </div>
+                            <div
                               style={{ display: "inline-block" }}
+                              className="contract-div"
                             >
-                              {this.state.formValues["title7"]}
+                              {this.state.formValues["TTC5"]} €
                             </div>
-                          </Col>
-                          <Col
-                            md="3"
-                            sm="12"
-                            style={{ paddingLeft: 0, marginTop: "-5px" }}
-                          >
-                            <div style={{ display: "inline-block" }}>
-                              <Input
-                                type="text"
-                                className="contract-text2"
-                                style={{ fontWeight: "bold" }}
-                                value={this.state.formValues["p7"]}
-                                onChange={(e) =>
-                                  this.handleFieldChange("p7", e.target.value)
-                                }
-                                required
-                              />
-                            </div>
+                          </Row>
+                        </td>
+                      </tr>
+                      {/*------- section6 -------*/}
+                      <tr>
+                        <td width="75%" style={{ paddingBottom: 0 }}>
+                          <Row>
+                            <Col md="9" sm="12" style={{ paddingRight: 0 }}>
+                              <div
+                                style={{
+                                  display: "inline-block",
+                                  marginLeft: "20px",
+                                }}
+                              >
+                                <LabeledCheckboxMaterialUi
+                                  label=""
+                                  checked={this.state.formValues["c6"]}
+                                  onChange={(event) =>
+                                    this.handleCheckChange(event, "c6")
+                                  }
+                                />
+                              </div>
+                              <div
+                                className="bold-black width-85"
+                                style={{ display: "inline-block" }}
+                              >
+                                {this.state.formValues["title6"]}
+                              </div>
+                            </Col>
+                            <Col
+                              md="3"
+                              sm="12"
+                              style={{ paddingLeft: 0, marginTop: "-5px" }}
+                            >
+                              <div style={{ display: "inline-block" }}>
+                                <Input
+                                  type="text"
+                                  className="contract-text2"
+                                  style={{ fontWeight: "bold" }}
+                                  value={this.state.formValues["p6"]}
+                                  onChange={(e) =>
+                                    this.handleFieldChange("p6", e.target.value)
+                                  }
+                                  required
+                                />
+                              </div>
+                              <div
+                                className="bold-black"
+                                style={{
+                                  display: "inline-block",
+                                  marginLeft: "5px",
+                                  paddingTop: "10px",
+                                }}
+                              >
+                                € HT
+                              </div>
+                            </Col>
+                          </Row>
+                          <div style={{ marginLeft: "30px" }}>
+                            {this.state.formValues["subcontent6-1"]}
+                          </div>
+                        </td>
+                        <td width="25%" style={{ paddingBottom: 0 }}>
+                          <Row style={{ verticalAlign: "top" }}>
                             <div
-                              className="bold-black"
                               style={{
                                 display: "inline-block",
-                                marginLeft: "5px",
-                                paddingTop: "10px",
+                                marginLeft: "40px",
+                                width: "50px",
+                                textAlign: "center",
                               }}
                             >
-                              € HT
+                              {" "}
+                              Total
                             </div>
-                          </Col>
-                        </Row>
-                        <div style={{ marginLeft: "30px" }}>
-                          {this.state.formValues["subcontent7-1"]}
-                        </div>
-                      </td>
-                      <td width="25%" style={{ paddingBottom: "30px" }}>
-                        <Row style={{ verticalAlign: "top" }}>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              marginLeft: "40px",
-                              width: "52px",
-                              textAlign: "center",
-                            }}
-                          >
-                            {" "}
-                            Total
+                            <div
+                              style={{
+                                display: "inline-block",
+                                width: "40px",
+                                textAlign: "center",
+                              }}
+                            >
+                              {" "}
+                              HT
+                            </div>
+                            <div
+                              style={{ display: "inline-block" }}
+                              className="contract-div"
+                            >
+                              {this.state.formValues["HT6"]} €
+                            </div>
+                          </Row>
+                          <Row style={{ verticalAlign: "top" }}>
+                            <div
+                              style={{
+                                display: "inline-block",
+                                marginLeft: "40px",
+                                width: "52px",
+                                textAlign: "center",
+                              }}
+                            ></div>
+                            <div
+                              style={{
+                                display: "inline-block",
+                                width: "40px",
+                                textAlign: "center",
+                              }}
+                            >
+                              {" "}
+                              TTC
+                            </div>
+                            <div
+                              style={{ display: "inline-block" }}
+                              className="contract-div"
+                            >
+                              {this.state.formValues["TTC6"]} €
+                            </div>
+                          </Row>
+                        </td>
+                      </tr>
+                      {/*------- section7 -------*/}
+                      <tr>
+                        <td width="75%" style={{ paddingBottom: "30px" }}>
+                          <Row>
+                            <Col md="9" sm="12" style={{ paddingRight: 0 }}>
+                              <div
+                                style={{
+                                  display: "inline-block",
+                                  marginLeft: "20px",
+                                }}
+                              >
+                                <LabeledCheckboxMaterialUi
+                                  label=""
+                                  checked={this.state.formValues["c7"]}
+                                  onChange={(event) =>
+                                    this.handleCheckChange(event, "c7")
+                                  }
+                                />
+                              </div>
+                              <div
+                                className="bold-black width-85"
+                                style={{ display: "inline-block" }}
+                              >
+                                {this.state.formValues["title7"]}
+                              </div>
+                            </Col>
+                            <Col
+                              md="3"
+                              sm="12"
+                              style={{ paddingLeft: 0, marginTop: "-5px" }}
+                            >
+                              <div style={{ display: "inline-block" }}>
+                                <Input
+                                  type="text"
+                                  className="contract-text2"
+                                  style={{ fontWeight: "bold" }}
+                                  value={this.state.formValues["p7"]}
+                                  onChange={(e) =>
+                                    this.handleFieldChange("p7", e.target.value)
+                                  }
+                                  required
+                                />
+                              </div>
+                              <div
+                                className="bold-black"
+                                style={{
+                                  display: "inline-block",
+                                  marginLeft: "5px",
+                                  paddingTop: "10px",
+                                }}
+                              >
+                                € HT
+                              </div>
+                            </Col>
+                          </Row>
+                          <div style={{ marginLeft: "30px" }}>
+                            {this.state.formValues["subcontent7-1"]}
                           </div>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              width: "40px",
-                              textAlign: "center",
-                            }}
-                          >
-                            {" "}
-                            HT
-                          </div>
-                          <div
-                            style={{ display: "inline-block" }}
-                            className="contract-div"
-                          >
-                            {this.state.formValues["HT7"]} €
-                          </div>
-                        </Row>
-                        <Row style={{ verticalAlign: "top" }}>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              marginLeft: "40px",
-                              width: "53px",
-                              textAlign: "center",
-                            }}
-                          ></div>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              width: "40px",
-                              textAlign: "center",
-                            }}
-                          >
-                            {" "}
-                            TTC
-                          </div>
-                          <div
-                            style={{ display: "inline-block" }}
-                            className="contract-div"
-                          >
-                            {this.state.formValues["TTC7"]} €
-                          </div>
-                        </Row>
-                      </td>
-                    </tr>
+                        </td>
+                        <td width="25%" style={{ paddingBottom: "30px" }}>
+                          <Row style={{ verticalAlign: "top" }}>
+                            <div
+                              style={{
+                                display: "inline-block",
+                                marginLeft: "40px",
+                                width: "52px",
+                                textAlign: "center",
+                              }}
+                            >
+                              {" "}
+                              Total
+                            </div>
+                            <div
+                              style={{
+                                display: "inline-block",
+                                width: "40px",
+                                textAlign: "center",
+                              }}
+                            >
+                              {" "}
+                              HT
+                            </div>
+                            <div
+                              style={{ display: "inline-block" }}
+                              className="contract-div"
+                            >
+                              {this.state.formValues["HT7"]} €
+                            </div>
+                          </Row>
+                          <Row style={{ verticalAlign: "top" }}>
+                            <div
+                              style={{
+                                display: "inline-block",
+                                marginLeft: "40px",
+                                width: "53px",
+                                textAlign: "center",
+                              }}
+                            ></div>
+                            <div
+                              style={{
+                                display: "inline-block",
+                                width: "40px",
+                                textAlign: "center",
+                              }}
+                            >
+                              {" "}
+                              TTC
+                            </div>
+                            <div
+                              style={{ display: "inline-block" }}
+                              className="contract-div"
+                            >
+                              {this.state.formValues["TTC7"]} €
+                            </div>
+                          </Row>
+                        </td>
+                      </tr>
+                    </tbody>
                   </table>
                   <div
                     className="vertical-line"
@@ -3794,126 +3822,131 @@ class EditContract extends React.Component {
                       marginTop: "30px",
                     }}
                   >
-                    <tr>
-                      <td
-                        width="75%"
-                        style={{
-                          paddingTop: "20px",
-                          borderRight: "2px solid #8d8d8d",
-                        }}
-                      >
-                        <div
-                          style={{ marginLeft: "30px", fontStyle: "italic" }}
-                          className="bold-black"
+                    <tbody>
+                      <tr>
+                        <td
+                          width="75%"
+                          style={{
+                            paddingTop: "20px",
+                            borderRight: "2px solid #8d8d8d",
+                          }}
                         >
-                          <u>{this.state.formValues["table2-title"]}</u>
-                        </div>
-                        <div style={{ marginLeft: "30px" }}>
-                          {this.state.formValues["table2-subcontent1"]}
-                          {this.state.formValues["table2-subcontent2"]}
-                        </div>
-                        <br />
-                        <br />
-                      </td>
-                      <td
-                        width="25%"
-                        style={{
-                          paddingTop: "15px",
-                          borderLeft: "2px solid #8d8d8d",
-                        }}
-                      >
-                        <Row>
                           <div
-                            style={{
-                              display: "inline-block",
-                              marginLeft: "40px",
-                              width: "52px",
-                            }}
+                            style={{ marginLeft: "30px", fontStyle: "italic" }}
+                            className="bold-black"
                           >
-                            TOTAL
+                            <u>{this.state.formValues["table2-title"]}</u>
                           </div>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              width: "40px",
-                              textAlign: "center",
-                            }}
-                          >
-                            HT
+                          <div style={{ marginLeft: "30px" }}>
+                            {this.state.formValues["table2-subcontent1"]}
+                            {this.state.formValues["table2-subcontent2"]}
                           </div>
-                          <div
-                            style={{ display: "inline-block" }}
-                            className="contract-div"
-                          >
-                            {this.state.formValues["TOTALHT"]} €
-                          </div>
-                        </Row>
-                        <Row style={{ marginTop: "5px" }}>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              marginLeft: "40px",
-                              width: "52px",
-                            }}
-                          >
-                            TVA
-                          </div>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              width: "40px",
-                              textAlign: "center",
-                            }}
-                          >
-                            <div style={{ display: "inline-block" }}>
-                              <Input
-                                type="text"
-                                className="contract-text2"
-                                style={{ width: "20px" }}
-                                value={this.state.formValues["TVAP"]}
-                                onChange={(e) =>
-                                  this.handleFieldChange("TVAP", e.target.value)
-                                }
-                                required
-                              />
+                          <br />
+                          <br />
+                        </td>
+                        <td
+                          width="25%"
+                          style={{
+                            paddingTop: "15px",
+                            borderLeft: "2px solid #8d8d8d",
+                          }}
+                        >
+                          <Row>
+                            <div
+                              style={{
+                                display: "inline-block",
+                                marginLeft: "40px",
+                                width: "52px",
+                              }}
+                            >
+                              TOTAL
                             </div>
-                            <div style={{ display: "inline-block" }}>%</div>
-                          </div>
-                          <div
-                            style={{ display: "inline-block" }}
-                            className="contract-div"
-                          >
-                            {this.state.formValues["TVA"]} €
-                          </div>
-                        </Row>
-                        <Row style={{ marginTop: "5px" }}>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              marginLeft: "40px",
-                              width: "52px",
-                            }}
-                          >
-                            TOTAL
-                          </div>
-                          <div
-                            style={{
-                              display: "inline-block",
-                              width: "40px",
-                              textAlign: "center",
-                            }}
-                          >
-                            TTC
-                          </div>
-                          <div
-                            style={{ display: "inline-block" }}
-                            className="contract-div"
-                          >
-                            {this.state.formValues["TOTALTTC"]} €
-                          </div>
-                        </Row>
-                      </td>
-                    </tr>
+                            <div
+                              style={{
+                                display: "inline-block",
+                                width: "40px",
+                                textAlign: "center",
+                              }}
+                            >
+                              HT
+                            </div>
+                            <div
+                              style={{ display: "inline-block" }}
+                              className="contract-div"
+                            >
+                              {this.state.formValues["TOTALHT"]} €
+                            </div>
+                          </Row>
+                          <Row style={{ marginTop: "5px" }}>
+                            <div
+                              style={{
+                                display: "inline-block",
+                                marginLeft: "40px",
+                                width: "52px",
+                              }}
+                            >
+                              TVA
+                            </div>
+                            <div
+                              style={{
+                                display: "inline-block",
+                                width: "40px",
+                                textAlign: "center",
+                              }}
+                            >
+                              <div style={{ display: "inline-block" }}>
+                                <Input
+                                  type="text"
+                                  className="contract-text2"
+                                  style={{ width: "20px" }}
+                                  value={this.state.formValues["TVAP"]}
+                                  onChange={(e) =>
+                                    this.handleFieldChange(
+                                      "TVAP",
+                                      e.target.value
+                                    )
+                                  }
+                                  required
+                                />
+                              </div>
+                              <div style={{ display: "inline-block" }}>%</div>
+                            </div>
+                            <div
+                              style={{ display: "inline-block" }}
+                              className="contract-div"
+                            >
+                              {this.state.formValues["TVA"]} €
+                            </div>
+                          </Row>
+                          <Row style={{ marginTop: "5px" }}>
+                            <div
+                              style={{
+                                display: "inline-block",
+                                marginLeft: "40px",
+                                width: "52px",
+                              }}
+                            >
+                              TOTAL
+                            </div>
+                            <div
+                              style={{
+                                display: "inline-block",
+                                width: "40px",
+                                textAlign: "center",
+                              }}
+                            >
+                              TTC
+                            </div>
+                            <div
+                              style={{ display: "inline-block" }}
+                              className="contract-div"
+                            >
+                              {this.state.formValues["TOTALTTC"]} €
+                            </div>
+                          </Row>
+                        </td>
+                      </tr>
+                    </tbody>
                   </table>
                 </div>
                 {/******* table3 ********/}
@@ -3926,159 +3959,173 @@ class EditContract extends React.Component {
                       marginTop: "30px",
                     }}
                   >
-                    <tr>
-                      <td
-                        width="75%"
-                        style={{
-                          paddingTop: "20px",
-                          borderRight: "2px solid #8d8d8d",
-                        }}
-                      >
-                        <div
-                          style={{ marginLeft: "30px", fontStyle: "italic" }}
-                          className="bold-black"
+                    <tbody>
+                      <tr>
+                        <td
+                          width="75%"
+                          style={{
+                            paddingTop: "20px",
+                            borderRight: "2px solid #8d8d8d",
+                          }}
                         >
-                          <u>{this.state.formValues["table3-title"]}</u>
-                        </div>
-                        <Row>
-                          <Col md="9" sm="12" style={{ paddingRight: 0 }}>
-                            <div
-                              className="bold-black"
-                              style={{
-                                display: "inline-block",
-                                marginLeft: "30px",
-                                width: "50%",
-                              }}
-                            >
-                              <Input
-                                type="text"
-                                className="contract-subcontent"
-                                value={
-                                  this.state.formValues["table3-subcontent1"]
-                                }
-                                onChange={(e) =>
-                                  this.handleFieldChange(
-                                    "table3-subcontent1",
-                                    e.target.value
-                                  )
-                                }
-                                required
-                              />
-                            </div>
-                            <div
-                              className="bold-black"
-                              style={{ display: "inline-block" }}
-                            >
-                              <Input
-                                type="text"
-                                className="contract-subcontent"
-                                value={this.state.formValues["fp1"]}
-                                onChange={(e) =>
-                                  this.handleFieldChange("fp1", e.target.value)
-                                }
-                                required
-                                style={{ width: "45px" }}
-                              />
-                            </div>
-                            <div
-                              className="bold-black"
-                              style={{ display: "inline-block" }}
-                            >
-                              %
-                            </div>
-                          </Col>
-                          <Col
-                            md="3"
-                            sm="12"
-                            style={{ paddingLeft: 0, marginTop: "5px" }}
+                          <div
+                            style={{ marginLeft: "30px", fontStyle: "italic" }}
+                            className="bold-black"
                           >
-                            <div
-                              style={{ display: "inline-block", width: "80px" }}
-                              className="contract-div"
+                            <u>{this.state.formValues["table3-title"]}</u>
+                          </div>
+                          <Row>
+                            <Col md="9" sm="12" style={{ paddingRight: 0 }}>
+                              <div
+                                className="bold-black"
+                                style={{
+                                  display: "inline-block",
+                                  marginLeft: "30px",
+                                  width: "50%",
+                                }}
+                              >
+                                <Input
+                                  type="text"
+                                  className="contract-subcontent"
+                                  value={
+                                    this.state.formValues["table3-subcontent1"]
+                                  }
+                                  onChange={(e) =>
+                                    this.handleFieldChange(
+                                      "table3-subcontent1",
+                                      e.target.value
+                                    )
+                                  }
+                                  required
+                                />
+                              </div>
+                              <div
+                                className="bold-black"
+                                style={{ display: "inline-block" }}
+                              >
+                                <Input
+                                  type="text"
+                                  className="contract-subcontent"
+                                  value={this.state.formValues["fp1"]}
+                                  onChange={(e) =>
+                                    this.handleFieldChange(
+                                      "fp1",
+                                      e.target.value
+                                    )
+                                  }
+                                  required
+                                  style={{ width: "45px" }}
+                                />
+                              </div>
+                              <div
+                                className="bold-black"
+                                style={{ display: "inline-block" }}
+                              >
+                                %
+                              </div>
+                            </Col>
+                            <Col
+                              md="3"
+                              sm="12"
+                              style={{ paddingLeft: 0, marginTop: "5px" }}
                             >
-                              {this.state.formValues["FINAL75"]} €
-                            </div>
-                          </Col>
-                        </Row>
-                        <Row>
-                          <Col md="9" sm="12" style={{ paddingRight: 0 }}>
-                            <div
-                              className="bold-black"
-                              style={{
-                                display: "inline-block",
-                                marginLeft: "30px",
-                                width: "50%",
-                              }}
+                              <div
+                                style={{
+                                  display: "inline-block",
+                                  width: "80px",
+                                }}
+                                className="contract-div"
+                              >
+                                {this.state.formValues["FINAL75"]} €
+                              </div>
+                            </Col>
+                          </Row>
+                          <Row>
+                            <Col md="9" sm="12" style={{ paddingRight: 0 }}>
+                              <div
+                                className="bold-black"
+                                style={{
+                                  display: "inline-block",
+                                  marginLeft: "30px",
+                                  width: "50%",
+                                }}
+                              >
+                                <Input
+                                  type="text"
+                                  className="contract-subcontent"
+                                  value={
+                                    this.state.formValues["table3-subcontent2"]
+                                  }
+                                  onChange={(e) =>
+                                    this.handleFieldChange(
+                                      "table3-subcontent2",
+                                      e.target.value
+                                    )
+                                  }
+                                  required
+                                />
+                              </div>
+                              <div
+                                className="bold-black"
+                                style={{ display: "inline-block" }}
+                              >
+                                <Input
+                                  type="text"
+                                  style={{ width: "45px" }}
+                                  className="contract-subcontent"
+                                  value={this.state.formValues["fp2"]}
+                                  onChange={(e) =>
+                                    this.handleFieldChange(
+                                      "fp2",
+                                      e.target.value
+                                    )
+                                  }
+                                  required
+                                />
+                              </div>
+                              <div
+                                className="bold-black"
+                                style={{ display: "inline-block" }}
+                              >
+                                %
+                              </div>
+                            </Col>
+                            <Col
+                              md="3"
+                              sm="12"
+                              style={{ paddingLeft: 0, marginTop: "5px" }}
                             >
-                              <Input
-                                type="text"
-                                className="contract-subcontent"
-                                value={
-                                  this.state.formValues["table3-subcontent2"]
-                                }
-                                onChange={(e) =>
-                                  this.handleFieldChange(
-                                    "table3-subcontent2",
-                                    e.target.value
-                                  )
-                                }
-                                required
-                              />
-                            </div>
-                            <div
-                              className="bold-black"
-                              style={{ display: "inline-block" }}
-                            >
-                              <Input
-                                type="text"
-                                style={{ width: "45px" }}
-                                className="contract-subcontent"
-                                value={this.state.formValues["fp2"]}
-                                onChange={(e) =>
-                                  this.handleFieldChange("fp2", e.target.value)
-                                }
-                                required
-                              />
-                            </div>
-                            <div
-                              className="bold-black"
-                              style={{ display: "inline-block" }}
-                            >
-                              %
-                            </div>
-                          </Col>
-                          <Col
-                            md="3"
-                            sm="12"
-                            style={{ paddingLeft: 0, marginTop: "5px" }}
-                          >
-                            <div
-                              style={{ display: "inline-block", width: "80px" }}
-                              className="contract-div"
-                            >
-                              {this.state.formValues["FINAL25"]} €
-                            </div>
-                          </Col>
-                        </Row>
-                      </td>
-                      <td
-                        width="25%"
-                        style={{
-                          paddingTop: "15px",
-                          borderLeft: "2px solid #8d8d8d",
-                        }}
-                      >
-                        <div
-                          style={{ fontStyle: "italic" }}
-                          className="bold-black"
+                              <div
+                                style={{
+                                  display: "inline-block",
+                                  width: "80px",
+                                }}
+                                className="contract-div"
+                              >
+                                {this.state.formValues["FINAL25"]} €
+                              </div>
+                            </Col>
+                          </Row>
+                        </td>
+                        <td
+                          width="25%"
+                          style={{
+                            paddingTop: "15px",
+                            borderLeft: "2px solid #8d8d8d",
+                          }}
                         >
-                          <u>Date & signature du client :</u>
-                        </div>
-                        <br />
-                        <br />
-                        <br />
-                      </td>
-                    </tr>
+                          <div
+                            style={{ fontStyle: "italic" }}
+                            className="bold-black"
+                          >
+                            <u>Date & signature du client :</u>
+                          </div>
+                          <br />
+                          <br />
+                          <br />
+                        </td>
+                      </tr>
+                    </tbody>
                   </table>
                 </div>
                 <div

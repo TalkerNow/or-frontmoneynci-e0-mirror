@@ -296,6 +296,12 @@ function normalizeApiYear(dataByMonthIndex1to12) {
 
 /* ===================== Composant principal ===================== */
 export default function OverallCard() {
+  // Vérification du rôle utilisateur - seuls les admins peuvent voir les données
+  const isAdmin = useMemo(() => {
+    const role = localStorage.getItem("role");
+    return role && role.toLowerCase() === "admin";
+  }, []);
+
   const now = useMemo(() => new Date(), []);
   const [activeTab, setActiveTab] = useState("1");
   const [year, setYear] = useState(now.getFullYear());
@@ -310,22 +316,28 @@ export default function OverallCard() {
   const [error, setError] = useState("");
   const [data, setData] = useState(() => normalizeApiYear({}));
 
-  const fetchYear = useCallback(async (y) => {
-    try {
-      setLoading(true);
-      setError("");
-      const res = await axios.get(
-        `${global.config.server_url}/get_statistics_total_income?year=${y}`,
-        AUTH_CONFIG
-      );
-      setData(normalizeApiYear(res.data || {}));
-    } catch (e) {
-      console.error(e);
-      setError("Impossible de charger les statistiques. Réessayez.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const fetchYear = useCallback(
+    async (y) => {
+      // Ne pas charger les données si l'utilisateur n'est pas admin
+      if (!isAdmin) return;
+
+      try {
+        setLoading(true);
+        setError("");
+        const res = await axios.get(
+          `${global.config.server_url}/get_statistics_total_income?year=${y}`,
+          AUTH_CONFIG
+        );
+        setData(normalizeApiYear(res.data || {}));
+      } catch (e) {
+        console.error(e);
+        setError("Impossible de charger les statistiques. Réessayez.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [isAdmin]
+  );
   useEffect(() => {
     fetchYear(year);
   }, [fetchYear, year]);
@@ -654,6 +666,9 @@ export default function OverallCard() {
       </Nav>
     </div>
   );
+
+  // Si l'utilisateur n'est pas admin, on n'affiche rien du tout
+  if (!isAdmin) return null;
 
   return (
     <>

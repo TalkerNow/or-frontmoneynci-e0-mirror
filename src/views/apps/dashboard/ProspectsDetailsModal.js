@@ -461,7 +461,15 @@ export default function ProspectsDetailsModal({
             pill
             color="primary"
             className="ml-1"
-            style={{ fontSize: "0.8rem", padding: "0.4em 0.8em" }}
+            style={{
+              fontSize: "0.8rem",
+              width: "24px",
+              height: "24px",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 0,
+            }}
           >
             {filteredProspects.length}
           </Badge>
