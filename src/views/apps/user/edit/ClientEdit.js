@@ -361,8 +361,17 @@ class UserEdit extends React.Component {
             <Nav
               tabs
               className="border-0 d-flex align-items-center gap-3 mb-0"
-              style={{ flexWrap: "nowrap" }}
+              style={{
+                flexWrap: "nowrap",
+                overflowX: "auto",
+                overflowY: "hidden",
+                scrollbarWidth: "none",
+                msOverflowStyle: "none",
+                WebkitOverflowScrolling: "touch",
+                borderBottom: "none",
+              }}
             >
+              <style>{`.nav-tabs .nav-link { white-space: nowrap; } .nav-tabs::-webkit-scrollbar { display: none; }`}</style>
               {this.state.isCollapsed && (
                 <NavItem>
                   <NavLink

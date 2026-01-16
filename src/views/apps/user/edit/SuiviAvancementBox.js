@@ -1,7 +1,15 @@
 // SuiviAvancementBox.js
 import React, { useEffect, useState } from "react";
 import { Card, CardBody, Spinner, Button, Input } from "reactstrap";
-import { Edit, PlusCircle, X, ChevronDown, ChevronUp, RefreshCcw, Trash2 } from "react-feather";
+import {
+  Edit,
+  PlusCircle,
+  X,
+  ChevronDown,
+  ChevronUp,
+  RefreshCcw,
+  Trash2,
+} from "react-feather";
 import axios from "axios";
 
 // ----------- Helpers de format de date ------------
@@ -145,7 +153,6 @@ const getFirstDateFromValue = (value) => {
 
     // Sinon on considère que c'est une simple date "YYYY-MM-DD ..."
     return toDateInputValue(value);
-
   }
 
   return null;
@@ -264,7 +271,6 @@ const getContractTypeLabel = (contract) => {
   return "Pas de prestation";
 };
 
-
 const BADGE_CLASS_BY_TYPE = {
   credit_impot: "badge badge-light-success", // vert
   ar_tfd: "badge badge-light-warning", // jaune
@@ -369,15 +375,17 @@ const TIMELINE_STYLES = {
   headerRow: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
+    flexWrap: "wrap",
+    gap: "4px",
   },
-  label: {
-    fontWeight: "bold",
-  },
+  label: { fontWeight: "bold" },
   chipsWrapper: {
     display: "inline-flex",
     alignItems: "center",
-    marginLeft: 8,
+    marginLeft: 0,
+    marginTop: 2,
+    marginBottom: 2,
   },
   chipBase: {
     fontSize: 11,
@@ -385,18 +393,14 @@ const TIMELINE_STYLES = {
     borderRadius: 999,
     fontWeight: 500,
   },
-  chipCurrent: {
-    backgroundColor: "rgba(0,123,255,.08)",
-    color: "#0056b3",
-  },
-  chipDone: {
-    backgroundColor: "rgba(40,167,69,.08)",
-    color: "#155724",
-  },
+  chipCurrent: { backgroundColor: "rgba(0,123,255,.08)", color: "#0056b3" },
+  chipDone: { backgroundColor: "rgba(40,167,69,.08)", color: "#155724" },
   dateText: {
     fontSize: 12,
     color: "#6c757d",
     marginTop: 2,
+    display: "flex",
+    flexDirection: "column",
   },
 };
 
@@ -419,9 +423,7 @@ const getCurrentStepNumber = (typeCode, suivi) => {
     }
 
     if (!stepDef.dateSteps.length) return false;
-    return stepDef.dateSteps.every(
-      (num) => !!suivi[`step${num}_completed_at`]
-    );
+    return stepDef.dateSteps.every((num) => !!suivi[`step${num}_completed_at`]);
   };
 
   let current = null;
@@ -445,7 +447,6 @@ const getCurrentStepNumber = (typeCode, suivi) => {
 
   return current;
 };
-
 
 const SuiviAvancementBox = ({ clientId }) => {
   const [loading, setLoading] = useState(false);
@@ -520,9 +521,7 @@ const SuiviAvancementBox = ({ clientId }) => {
 
     if (!latestFile) return currentSuivis;
 
-    const fileDate = latestFile.created_at
-      .replace("T", " ")
-      .replace("Z", "");
+    const fileDate = latestFile.created_at.replace("T", " ").replace("Z", "");
 
     await Promise.all(
       currentSuivis.map(async (s) => {
@@ -849,7 +848,6 @@ const SuiviAvancementBox = ({ clientId }) => {
     }
   };
 
-
   const validateStep3DateChSimu = async (suivi, dateInput) => {
     const svId = suivi.id;
     if (!dateInput) return;
@@ -964,11 +962,7 @@ const SuiviAvancementBox = ({ clientId }) => {
   };
 
   const deleteContract = async (suiviId, contractId) => {
-    if (
-      !window.confirm(
-        "Êtes-vous sûr de vouloir supprimer ce suivi ?"
-      )
-    ) {
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer ce suivi ?")) {
       return;
     }
 
@@ -1111,13 +1105,8 @@ const SuiviAvancementBox = ({ clientId }) => {
       setSuivis(refreshedSuivis);
       cancelEditing(svId, 4);
     } catch (e) {
-      console.error(
-        "Erreur validation step4 (paiement contrat AR/TFD)",
-        e
-      );
-      setError(
-        "Erreur lors de la validation de la date de paiement (AR/TFD)."
-      );
+      console.error("Erreur validation step4 (paiement contrat AR/TFD)", e);
+      setError("Erreur lors de la validation de la date de paiement (AR/TFD).");
     } finally {
       setSaving((prev) => ({
         ...prev,
@@ -1136,9 +1125,9 @@ const SuiviAvancementBox = ({ clientId }) => {
   return (
     <Card className="mt-1">
       <CardBody>
-        <div className="d-flex justify-content-between align-items-center mb-1">
-          <div className="d-flex align-items-center">
-            <h5 className="mb-0 mr-50">Suivi d'avancement</h5>
+        <div className="d-flex justify-content-between align-items-start mb-1 flex-wrap">
+          <div className="mb-50 mb-sm-0">
+            <h5 className="mb-0">Suivi d'avancement</h5>
             {suivis.length > 0 && (
               <span className="text-muted small">
                 {suivis.length} contrat(s) suivi(s)
@@ -1150,6 +1139,7 @@ const SuiviAvancementBox = ({ clientId }) => {
             color="primary"
             outline
             onClick={syncSuivisForClient}
+            className="ml-auto ml-sm-0"
           >
             <RefreshCcw size={16} className="mr-25" />
           </Button>
@@ -1175,8 +1165,7 @@ const SuiviAvancementBox = ({ clientId }) => {
               const contract = contracts.find((c) => c.id === s.facture_id);
               const typeCode = getContractTypeCode(contract);
               const typeLabel = getContractTypeLabel(contract);
-              const stepDef =
-                STEP_DEFINITION[typeCode] || STEP_DEFINITION.none;
+              const stepDef = STEP_DEFINITION[typeCode] || STEP_DEFINITION.none;
               const badgeClass =
                 BADGE_CLASS_BY_TYPE[typeCode] || BADGE_CLASS_BY_TYPE.none;
 
@@ -1193,24 +1182,36 @@ const SuiviAvancementBox = ({ clientId }) => {
                   className="border rounded p-50 mb-50"
                   style={{ fontSize: 13 }}
                 >
-                  <div className="d-flex justify-content-between align-items-center mb-50">
-                    <div>
+                  <div className="d-flex flex-wrap justify-content-between align-items-start mb-50">
+                    <div className="mb-50 mb-sm-0">
                       <div className="font-weight-bold">
                         Contrat #{s.facture_id}
                       </div>
                       {contract && contract.title && (
-                        <div className="text-muted small">
+                        <div className="text-muted small pr-1">
                           {contract.title}
                         </div>
                       )}
                     </div>
-                    <div className="d-flex align-items-center">
-                      <span className={`${badgeClass} mr-1`}>{typeLabel}</span>
+                    <div
+                      className="d-flex align-items-center justify-content-end flex-wrap"
+                      style={{ flex: 1, minWidth: "120px" }}
+                    >
+                      <span
+                        className={`${badgeClass} my-25 mr-50`}
+                        style={{
+                          whiteSpace: "normal",
+                          textAlign: "right",
+                          maxWidth: "100%",
+                        }}
+                      >
+                        {typeLabel}
+                      </span>
                       <Button
                         color="flat-danger"
                         size="sm"
                         className="btn-icon rounded-circle p-0"
-                        style={{ width: 24, height: 24 }}
+                        style={{ width: 24, height: 24, flexShrink: 0 }}
                         onClick={() =>
                           deleteContract(s.id, contract ? contract.id : null)
                         }
@@ -1228,20 +1229,19 @@ const SuiviAvancementBox = ({ clientId }) => {
                   ) : (
                     <>
                       {isContractFinished && (
-                        <div className="d-flex justify-content-between align-items-center mb-50">
-                          <span className="text-success font-weight-bold">
+                        <div className="d-flex flex-wrap justify-content-between align-items-center mb-50">
+                          <span className="text-success font-weight-bold mr-1 mb-25">
                             Dossier terminé
                           </span>
 
                           <Button
                             color="link"
                             size="sm"
-                            className="p-0 d-flex align-items-center"
+                            className="p-0 d-flex align-items-center mb-25"
                             onClick={() => toggleHistory(s.id)}
                           >
                             {isHistoryOpen ? (
                               <>
-                                {/* carré + triangle vers le haut */}
                                 <span
                                   className="mr-25"
                                   style={{
@@ -1256,11 +1256,12 @@ const SuiviAvancementBox = ({ clientId }) => {
                                 >
                                   <ChevronUp size={12} />
                                 </span>
-                                <span>Masquer l'historique</span>
+                                <span className="small">
+                                  Masquer l'historique
+                                </span>
                               </>
                             ) : (
                               <>
-                                {/* carré + triangle vers le bas */}
                                 <span
                                   className="mr-25"
                                   style={{
@@ -1275,7 +1276,9 @@ const SuiviAvancementBox = ({ clientId }) => {
                                 >
                                   <ChevronDown size={12} />
                                 </span>
-                                <span>Afficher l'historique</span>
+                                <span className="small">
+                                  Afficher l'historique
+                                </span>
                               </>
                             )}
                           </Button>
@@ -1289,19 +1292,23 @@ const SuiviAvancementBox = ({ clientId }) => {
                             length: stepDef.totalSteps,
                           }).map((_, index) => {
                             const stepNumber = index + 1;
-                            const hasDate = stepDef.dateSteps.includes(stepNumber);
+                            const hasDate =
+                              stepDef.dateSteps.includes(stepNumber);
 
                             const column = hasDate
                               ? `step${stepNumber}_completed_at`
                               : null;
-                            const dbRaw = column && s[column] ? s[column] : null;
+                            const dbRaw =
+                              column && s[column] ? s[column] : null;
                             const hasExistingDate = !!dbRaw; // ✅ maintenant c’est bon
 
-                            const dbInput = dbRaw ? toDateInputValue(dbRaw) : null;
+                            const dbInput = dbRaw
+                              ? toDateInputValue(dbRaw)
+                              : null;
                             const label =
-                              stepDef.labels[stepNumber - 1] || `Étape ${stepNumber}`;
-                            const isCreditImpot =
-                              typeCode === "credit_impot";
+                              stepDef.labels[stepNumber - 1] ||
+                              `Étape ${stepNumber}`;
+                            const isCreditImpot = typeCode === "credit_impot";
                             const isStep1Signature =
                               (isCreditImpot || typeCode === "ar_tfd") &&
                               stepNumber === 1;
@@ -1330,11 +1337,14 @@ const SuiviAvancementBox = ({ clientId }) => {
                             }
 
                             const isChSimuStep2 =
-                              typeCode === "ch_simu_actu_rac" && stepNumber === 2;
+                              typeCode === "ch_simu_actu_rac" &&
+                              stepNumber === 2;
                             const isChSimuStep3 =
-                              typeCode === "ch_simu_actu_rac" && stepNumber === 3;
+                              typeCode === "ch_simu_actu_rac" &&
+                              stepNumber === 3;
                             const isChSimuStep5 =
-                              typeCode === "ch_simu_actu_rac" && stepNumber === 5;
+                              typeCode === "ch_simu_actu_rac" &&
+                              stepNumber === 5;
                             const isArTfdStep5 =
                               typeCode === "ar_tfd" && stepNumber === 5;
                             const isChSimuStep4 =
@@ -1418,9 +1428,7 @@ const SuiviAvancementBox = ({ clientId }) => {
                             if (isCreditImpotStep6) {
                               if (isEditing) {
                                 step6CandidateInput =
-                                  editingValueInput ||
-                                  dbInput ||
-                                  autoFromStep5;
+                                  editingValueInput || dbInput || autoFromStep5;
                               } else {
                                 step6CandidateInput =
                                   dbInput || autoFromStep5 || null;
@@ -1442,12 +1450,15 @@ const SuiviAvancementBox = ({ clientId }) => {
                             if (isChSimuStep4) {
                               if (isEditing) {
                                 step4ChSimuCandidateInput =
-                                  editingValueInput || dbInput || soldFirstInput;
+                                  editingValueInput ||
+                                  dbInput ||
+                                  soldFirstInput;
                               } else {
                                 step4ChSimuCandidateInput =
                                   dbInput || soldFirstInput || null;
                               }
-                              displayDateInput = step4ChSimuCandidateInput || null;
+                              displayDateInput =
+                                step4ChSimuCandidateInput || null;
                             }
 
                             // Step 4 AR/TFD : Paiement du contrat (via sold_dates)
@@ -1457,12 +1468,15 @@ const SuiviAvancementBox = ({ clientId }) => {
                             if (isArTfdStep4) {
                               if (isEditing) {
                                 step4ArTfdCandidateInput =
-                                  editingValueInput || dbInput || soldFirstInput;
+                                  editingValueInput ||
+                                  dbInput ||
+                                  soldFirstInput;
                               } else {
                                 step4ArTfdCandidateInput =
                                   dbInput || soldFirstInput || null;
                               }
-                              displayDateInput = step4ArTfdCandidateInput || null;
+                              displayDateInput =
+                                step4ArTfdCandidateInput || null;
                             }
 
                             // Step 7 : Paiement du contrat (crédit d'impôt) via sold_dates
@@ -1472,7 +1486,9 @@ const SuiviAvancementBox = ({ clientId }) => {
                             if (isCreditImpotStep7) {
                               if (isEditing) {
                                 step7CandidateInput =
-                                  editingValueInput || dbInput || soldFirstInput;
+                                  editingValueInput ||
+                                  dbInput ||
+                                  soldFirstInput;
                               } else {
                                 step7CandidateInput =
                                   dbInput || soldFirstInput || null;
@@ -1537,7 +1553,9 @@ const SuiviAvancementBox = ({ clientId }) => {
                               // Steps classiques avec date
                               if (isChSimuStep2) {
                                 // Pour "Prise de RDV", on affiche date + heure
-                                displayValue = dbRaw ? formatDisplayDateTime(dbRaw) : "-";
+                                displayValue = dbRaw
+                                  ? formatDisplayDateTime(dbRaw)
+                                  : "-";
                               } else {
                                 displayValue = displayDateInput
                                   ? formatDisplayDate(displayDateInput)
@@ -1564,7 +1582,9 @@ const SuiviAvancementBox = ({ clientId }) => {
                                 isChSimuStep2 ||
                                 isArTfdGenericEditable);
                             const isAvancementStep =
-                              isCreditImpotStep8 || isArTfdStep5 || isChSimuStep5;
+                              isCreditImpotStep8 ||
+                              isArTfdStep5 ||
+                              isChSimuStep5;
                             let isCurrent = currentStepNumber === stepNumber;
 
                             if (isContractFinished && isAvancementStep) {
@@ -1583,8 +1603,7 @@ const SuiviAvancementBox = ({ clientId }) => {
                               ...TIMELINE_STYLES.label,
                               ...(isFiveDaysWaitStep
                                 ? { fontWeight: "normal", fontStyle: "italic" }
-                                : {}
-                              ),
+                                : {}),
                             };
 
                             return (
@@ -1593,113 +1612,157 @@ const SuiviAvancementBox = ({ clientId }) => {
                                 style={TIMELINE_STYLES.step}
                               >
                                 <div style={TIMELINE_STYLES.bulletWrapper}>
-                                  {!isFiveDaysWaitStep && <div style={bulletStyle} />}
+                                  {!isFiveDaysWaitStep && (
+                                    <div style={bulletStyle} />
+                                  )}
                                 </div>
                                 <div style={TIMELINE_STYLES.content}>
                                   <div style={TIMELINE_STYLES.headerRow}>
                                     <div>
-                                      <span style={labelStyle}>
-                                        {label}
-                                      </span>
-                                      {(isCurrent || isCompleted) && !isFiveDaysWaitStep && (
-                                        <span
-                                          style={{
-                                            ...TIMELINE_STYLES.chipsWrapper,
-                                          }}
-                                        >
+                                      <span style={labelStyle}>{label}</span>
+                                      {(isCurrent || isCompleted) &&
+                                        !isFiveDaysWaitStep && (
                                           <span
                                             style={{
-                                              ...TIMELINE_STYLES.chipBase,
-                                              ...(isCurrent
-                                                ? TIMELINE_STYLES.chipCurrent
-                                                : TIMELINE_STYLES.chipDone),
+                                              ...TIMELINE_STYLES.chipsWrapper,
                                             }}
                                           >
-                                            {isCurrent
-                                              ? "Étape actuelle"
-                                              : "Terminée"}
+                                            <span
+                                              style={{
+                                                ...TIMELINE_STYLES.chipBase,
+                                                ...(isCurrent
+                                                  ? TIMELINE_STYLES.chipCurrent
+                                                  : TIMELINE_STYLES.chipDone),
+                                              }}
+                                            >
+                                              {isCurrent
+                                                ? "Étape actuelle"
+                                                : "Terminée"}
+                                            </span>
                                           </span>
-                                        </span>
-                                      )}
+                                        )}
                                     </div>
                                     <div className="d-flex align-items-center ml-1">
-                                      {hasDate && canEditDate && !isChSimuStep2 && (
-                                        <>
-                                          {isEditingGeneric ? (
-                                            <>
-                                              <Input
-                                                type="date"
-                                                // bsSize="sm"  ❌ on enlève => input plus grand
-                                                value={
-                                                  (editingValues[s.id] &&
-                                                    editingValues[s.id][stepNumber]) ??
-                                                  dbInput ??
-                                                  ""
-                                                }
-                                                onChange={(e) => {
-                                                  const newValue = e.target.value;
-                                                  setEditingValues((prev) => ({
-                                                    ...prev,
-                                                    [s.id]: {
-                                                      ...(prev[s.id] || {}),
-                                                      [stepNumber]: newValue,
-                                                    },
-                                                  }));
-                                                }}
-                                                className="mr-50"
-                                                style={{ maxWidth: 190 }} // un peu plus large
-                                              />
-                                              <Button
-                                                color="primary"
-                                                // size="sm" ❌ on enlève => bouton plus gros
-                                                disabled={saving[s.id]?.[stepNumber] === true}
-                                                className="mr-25"
-                                                onClick={() => saveManualStepDate(s, stepNumber, typeCode)}
-                                              >
-                                                {saving[s.id]?.[stepNumber] ? "..." : "Valider"}
-                                              </Button>
-                                              <Button
-                                                color="link"
-                                                size="sm"
-                                                className="p-0 d-flex align-items-center"
-                                                onClick={() => cancelEditing(s.id, stepNumber)}
-                                                title="Annuler"
-                                              >
-                                                <X size={16} />
-                                              </Button>
-                                            </>
-                                          ) : (
-                                            <>
-                                              {/* PAS DE DATE → bouton "Ajouter une date" UNIQUEMENT pour l'étape actuelle */}
-                                              {!hasExistingDate && isCurrent && (
+                                      {hasDate &&
+                                        canEditDate &&
+                                        !isChSimuStep2 && (
+                                          <>
+                                            {isEditingGeneric ? (
+                                              <>
+                                                <Input
+                                                  type="date"
+                                                  // bsSize="sm"  ❌ on enlève => input plus grand
+                                                  value={
+                                                    (editingValues[s.id] &&
+                                                      editingValues[s.id][
+                                                        stepNumber
+                                                      ]) ??
+                                                    dbInput ??
+                                                    ""
+                                                  }
+                                                  onChange={(e) => {
+                                                    const newValue =
+                                                      e.target.value;
+                                                    setEditingValues(
+                                                      (prev) => ({
+                                                        ...prev,
+                                                        [s.id]: {
+                                                          ...(prev[s.id] || {}),
+                                                          [stepNumber]:
+                                                            newValue,
+                                                        },
+                                                      })
+                                                    );
+                                                  }}
+                                                  className="mr-50"
+                                                  style={{ maxWidth: 190 }} // un peu plus large
+                                                />
+                                                <Button
+                                                  color="primary"
+                                                  // size="sm" ❌ on enlève => bouton plus gros
+                                                  disabled={
+                                                    saving[s.id]?.[
+                                                      stepNumber
+                                                    ] === true
+                                                  }
+                                                  className="mr-25"
+                                                  onClick={() =>
+                                                    saveManualStepDate(
+                                                      s,
+                                                      stepNumber,
+                                                      typeCode
+                                                    )
+                                                  }
+                                                >
+                                                  {saving[s.id]?.[stepNumber]
+                                                    ? "..."
+                                                    : "Valider"}
+                                                </Button>
                                                 <Button
                                                   color="link"
                                                   size="sm"
                                                   className="p-0 d-flex align-items-center"
-                                                  onClick={() => startEditing(s.id, stepNumber, dbRaw)}
-                                                  title="Ajouter une date"
+                                                  onClick={() =>
+                                                    cancelEditing(
+                                                      s.id,
+                                                      stepNumber
+                                                    )
+                                                  }
+                                                  title="Annuler"
                                                 >
-                                                  <PlusCircle size={14} className="mr-25" />
-                                                  <span>Ajouter une date</span>
+                                                  <X size={16} />
                                                 </Button>
-                                              )}
+                                              </>
+                                            ) : (
+                                              <>
+                                                {/* PAS DE DATE → bouton "Ajouter une date" UNIQUEMENT pour l'étape actuelle */}
+                                                {!hasExistingDate &&
+                                                  isCurrent && (
+                                                    <Button
+                                                      color="link"
+                                                      size="sm"
+                                                      className="p-0 d-flex align-items-center"
+                                                      onClick={() =>
+                                                        startEditing(
+                                                          s.id,
+                                                          stepNumber,
+                                                          dbRaw
+                                                        )
+                                                      }
+                                                      title="Ajouter une date"
+                                                    >
+                                                      <PlusCircle
+                                                        size={14}
+                                                        className="mr-25"
+                                                      />
+                                                      <span>
+                                                        Ajouter une date
+                                                      </span>
+                                                    </Button>
+                                                  )}
 
-                                              {/* DATE DÉJÀ REMPLIE → bouton Edit */}
-                                              {hasExistingDate && (
-                                                <Button
-                                                  color="link"
-                                                  size="sm"
-                                                  className="p-0"
-                                                  onClick={() => startEditing(s.id, stepNumber, dbRaw)}
-                                                  title="Modifier la date"
-                                                >
-                                                  <Edit size={14} />
-                                                </Button>
-                                              )}
-                                            </>
-                                          )}
-                                        </>
-                                      )}
+                                                {/* DATE DÉJÀ REMPLIE → bouton Edit */}
+                                                {hasExistingDate && (
+                                                  <Button
+                                                    color="link"
+                                                    size="sm"
+                                                    className="p-0"
+                                                    onClick={() =>
+                                                      startEditing(
+                                                        s.id,
+                                                        stepNumber,
+                                                        dbRaw
+                                                      )
+                                                    }
+                                                    title="Modifier la date"
+                                                  >
+                                                    <Edit size={14} />
+                                                  </Button>
+                                                )}
+                                              </>
+                                            )}
+                                          </>
+                                        )}
                                       {isChSimuStep2 && (
                                         <>
                                           {isEditing ? (
@@ -1707,11 +1770,17 @@ const SuiviAvancementBox = ({ clientId }) => {
                                               <Input
                                                 type="datetime-local"
                                                 value={
-                                                  (editingValues[s.id] && editingValues[s.id][2]) ||
-                                                  (dbRaw ? toDateTimeLocalValue(dbRaw) : "")
+                                                  (editingValues[s.id] &&
+                                                    editingValues[s.id][2]) ||
+                                                  (dbRaw
+                                                    ? toDateTimeLocalValue(
+                                                        dbRaw
+                                                      )
+                                                    : "")
                                                 }
                                                 onChange={(e) => {
-                                                  const newValue = e.target.value;
+                                                  const newValue =
+                                                    e.target.value;
                                                   setEditingValues((prev) => ({
                                                     ...prev,
                                                     [s.id]: {
@@ -1725,17 +1794,25 @@ const SuiviAvancementBox = ({ clientId }) => {
                                               />
                                               <Button
                                                 color="primary"
-                                                disabled={saving[s.id]?.[2] === true}
+                                                disabled={
+                                                  saving[s.id]?.[2] === true
+                                                }
                                                 className="mr-25"
-                                                onClick={() => saveStep2DateTimeChSimu(s)}
+                                                onClick={() =>
+                                                  saveStep2DateTimeChSimu(s)
+                                                }
                                               >
-                                                {saving[s.id]?.[2] ? "Validation..." : "Valider"}
+                                                {saving[s.id]?.[2]
+                                                  ? "Validation..."
+                                                  : "Valider"}
                                               </Button>
                                               <Button
                                                 color="link"
                                                 size="sm"
                                                 className="p-0 d-flex align-items-center"
-                                                onClick={() => cancelEditing(s.id, 2)}
+                                                onClick={() =>
+                                                  cancelEditing(s.id, 2)
+                                                }
                                                 title="Annuler"
                                               >
                                                 <X size={16} />
@@ -1743,25 +1820,43 @@ const SuiviAvancementBox = ({ clientId }) => {
                                             </>
                                           ) : (
                                             <>
-                                              {!hasExistingDate && isCurrent && (
-                                                <Button
-                                                  color="link"
-                                                  size="sm"
-                                                  className="p-0 d-flex align-items-center"
-                                                  onClick={() => startEditingDateTime(s.id, 2, dbRaw)}
-                                                  title="Ajouter date & heure"
-                                                >
-                                                  <PlusCircle size={14} className="mr-25" />
-                                                  <span>Ajouter date & heure</span>
-                                                </Button>
-                                              )}
+                                              {!hasExistingDate &&
+                                                isCurrent && (
+                                                  <Button
+                                                    color="link"
+                                                    size="sm"
+                                                    className="p-0 d-flex align-items-center"
+                                                    onClick={() =>
+                                                      startEditingDateTime(
+                                                        s.id,
+                                                        2,
+                                                        dbRaw
+                                                      )
+                                                    }
+                                                    title="Ajouter date & heure"
+                                                  >
+                                                    <PlusCircle
+                                                      size={14}
+                                                      className="mr-25"
+                                                    />
+                                                    <span>
+                                                      Ajouter date & heure
+                                                    </span>
+                                                  </Button>
+                                                )}
 
                                               {hasExistingDate && (
                                                 <Button
                                                   color="link"
                                                   size="sm"
                                                   className="p-0"
-                                                  onClick={() => startEditingDateTime(s.id, 2, dbRaw)}
+                                                  onClick={() =>
+                                                    startEditingDateTime(
+                                                      s.id,
+                                                      2,
+                                                      dbRaw
+                                                    )
+                                                  }
                                                   title="Modifier la date & heure"
                                                 >
                                                   <Edit size={14} />
@@ -1772,7 +1867,6 @@ const SuiviAvancementBox = ({ clientId }) => {
                                         </>
                                       )}
 
-
                                       {/* Étape 3 (CH/SIMU/ACTU/RAC) - Facturation */}
                                       {isChSimuStep3 && (
                                         <>
@@ -1780,9 +1874,12 @@ const SuiviAvancementBox = ({ clientId }) => {
                                             <>
                                               <Input
                                                 type="date"
-                                                value={step3CandidateInput || ""}
+                                                value={
+                                                  step3CandidateInput || ""
+                                                }
                                                 onChange={(e) => {
-                                                  const newValue = e.target.value;
+                                                  const newValue =
+                                                    e.target.value;
                                                   setEditingValues((prev) => ({
                                                     ...prev,
                                                     [s.id]: {
@@ -1796,23 +1893,30 @@ const SuiviAvancementBox = ({ clientId }) => {
                                               />
                                               <Button
                                                 color="primary"
-                                                disabled={saving[s.id]?.[3] === true}
+                                                disabled={
+                                                  saving[s.id]?.[3] === true
+                                                }
                                                 className="mr-25"
                                                 onClick={() =>
                                                   validateStep3DateChSimu(
                                                     s,
-                                                    (editingValues[s.id] && editingValues[s.id][3]) ||
-                                                    step3CandidateInput
+                                                    (editingValues[s.id] &&
+                                                      editingValues[s.id][3]) ||
+                                                      step3CandidateInput
                                                   )
                                                 }
                                               >
-                                                {saving[s.id]?.[3] ? "Validation..." : "Valider"}
+                                                {saving[s.id]?.[3]
+                                                  ? "Validation..."
+                                                  : "Valider"}
                                               </Button>
                                               <Button
                                                 color="link"
                                                 size="sm"
                                                 className="p-0 d-flex align-items-center"
-                                                onClick={() => cancelEditing(s.id, 3)}
+                                                onClick={() =>
+                                                  cancelEditing(s.id, 3)
+                                                }
                                                 title="Annuler"
                                               >
                                                 <X size={16} />
@@ -1820,16 +1924,26 @@ const SuiviAvancementBox = ({ clientId }) => {
                                             </>
                                           ) : (
                                             <>
-                                              {!step3Validated && step3CandidateInput && (
-                                                <Button
-                                                  color="primary"
-                                                  className="mr-25"
-                                                  disabled={saving[s.id]?.[3] === true}
-                                                  onClick={() => validateStep3DateChSimu(s, step3CandidateInput)}
-                                                >
-                                                  {saving[s.id]?.[3] ? "Validation..." : "Valider"}
-                                                </Button>
-                                              )}
+                                              {!step3Validated &&
+                                                step3CandidateInput && (
+                                                  <Button
+                                                    color="primary"
+                                                    className="mr-25"
+                                                    disabled={
+                                                      saving[s.id]?.[3] === true
+                                                    }
+                                                    onClick={() =>
+                                                      validateStep3DateChSimu(
+                                                        s,
+                                                        step3CandidateInput
+                                                      )
+                                                    }
+                                                  >
+                                                    {saving[s.id]?.[3]
+                                                      ? "Validation..."
+                                                      : "Valider"}
+                                                  </Button>
+                                                )}
 
                                               {step3Validated && (
                                                 <>
@@ -1842,8 +1956,8 @@ const SuiviAvancementBox = ({ clientId }) => {
                                                         s.id,
                                                         3,
                                                         step3CandidateInput ||
-                                                        s.step3_completed_at ||
-                                                        s.step2_completed_at
+                                                          s.step3_completed_at ||
+                                                          s.step2_completed_at
                                                       )
                                                     }
                                                     title="Modifier la date"
@@ -1864,9 +1978,13 @@ const SuiviAvancementBox = ({ clientId }) => {
                                             <>
                                               <Input
                                                 type="date"
-                                                value={step4ChSimuCandidateInput || ""}
+                                                value={
+                                                  step4ChSimuCandidateInput ||
+                                                  ""
+                                                }
                                                 onChange={(e) => {
-                                                  const newValue = e.target.value;
+                                                  const newValue =
+                                                    e.target.value;
                                                   setEditingValues((prev) => ({
                                                     ...prev,
                                                     [s.id]: {
@@ -1880,23 +1998,30 @@ const SuiviAvancementBox = ({ clientId }) => {
                                               />
                                               <Button
                                                 color="primary"
-                                                disabled={saving[s.id]?.[4] === true}
+                                                disabled={
+                                                  saving[s.id]?.[4] === true
+                                                }
                                                 className="mr-25"
                                                 onClick={() =>
                                                   validateStep4PaymentChSimu(
                                                     s,
-                                                    (editingValues[s.id] && editingValues[s.id][4]) ||
-                                                    step4ChSimuCandidateInput
+                                                    (editingValues[s.id] &&
+                                                      editingValues[s.id][4]) ||
+                                                      step4ChSimuCandidateInput
                                                   )
                                                 }
                                               >
-                                                {saving[s.id]?.[4] ? "Validation..." : "Valider"}
+                                                {saving[s.id]?.[4]
+                                                  ? "Validation..."
+                                                  : "Valider"}
                                               </Button>
                                               <Button
                                                 color="link"
                                                 size="sm"
                                                 className="p-0 d-flex align-items-center"
-                                                onClick={() => cancelEditing(s.id, 4)}
+                                                onClick={() =>
+                                                  cancelEditing(s.id, 4)
+                                                }
                                                 title="Annuler"
                                               >
                                                 <X size={16} />
@@ -1911,12 +2036,19 @@ const SuiviAvancementBox = ({ clientId }) => {
                                                   <Button
                                                     color="primary"
                                                     className="mr-25"
-                                                    disabled={saving[s.id]?.[4] === true}
+                                                    disabled={
+                                                      saving[s.id]?.[4] === true
+                                                    }
                                                     onClick={() =>
-                                                      validateStep4PaymentChSimu(s, step4ChSimuCandidateInput)
+                                                      validateStep4PaymentChSimu(
+                                                        s,
+                                                        step4ChSimuCandidateInput
+                                                      )
                                                     }
                                                   >
-                                                    {saving[s.id]?.[4] ? "Validation..." : "Valider"}
+                                                    {saving[s.id]?.[4]
+                                                      ? "Validation..."
+                                                      : "Valider"}
                                                   </Button>
                                                 )}
 
@@ -1928,11 +2060,18 @@ const SuiviAvancementBox = ({ clientId }) => {
                                                     color="link"
                                                     size="sm"
                                                     className="p-0 d-flex align-items-center"
-                                                    onClick={() => startEditing(s.id, 4, "")}
+                                                    onClick={() =>
+                                                      startEditing(s.id, 4, "")
+                                                    }
                                                     title="Ajouter une date"
                                                   >
-                                                    <PlusCircle size={14} className="mr-25" />
-                                                    <span>Ajouter une date</span>
+                                                    <PlusCircle
+                                                      size={14}
+                                                      className="mr-25"
+                                                    />
+                                                    <span>
+                                                      Ajouter une date
+                                                    </span>
                                                   </Button>
                                                 )}
 
@@ -1948,8 +2087,8 @@ const SuiviAvancementBox = ({ clientId }) => {
                                                         s.id,
                                                         4,
                                                         step4ChSimuCandidateInput ||
-                                                        s.step4_completed_at ||
-                                                        soldFirstInput
+                                                          s.step4_completed_at ||
+                                                          soldFirstInput
                                                       )
                                                     }
                                                     title="Modifier la date"
@@ -1970,9 +2109,12 @@ const SuiviAvancementBox = ({ clientId }) => {
                                             <>
                                               <Input
                                                 type="date"
-                                                value={step4CandidateInput || ""}
+                                                value={
+                                                  step4CandidateInput || ""
+                                                }
                                                 onChange={(e) => {
-                                                  const newValue = e.target.value;
+                                                  const newValue =
+                                                    e.target.value;
                                                   setEditingValues((prev) => ({
                                                     ...prev,
                                                     [s.id]: {
@@ -1986,23 +2128,30 @@ const SuiviAvancementBox = ({ clientId }) => {
                                               />
                                               <Button
                                                 color="primary"
-                                                disabled={saving[s.id]?.[4] === true}
+                                                disabled={
+                                                  saving[s.id]?.[4] === true
+                                                }
                                                 className="mr-25"
                                                 onClick={() =>
                                                   validateStep4Date(
                                                     s,
-                                                    (editingValues[s.id] && editingValues[s.id][4]) ||
-                                                    step4CandidateInput
+                                                    (editingValues[s.id] &&
+                                                      editingValues[s.id][4]) ||
+                                                      step4CandidateInput
                                                   )
                                                 }
                                               >
-                                                {saving[s.id]?.[4] ? "Validation..." : "Valider"}
+                                                {saving[s.id]?.[4]
+                                                  ? "Validation..."
+                                                  : "Valider"}
                                               </Button>
                                               <Button
                                                 color="link"
                                                 size="sm"
                                                 className="p-0 d-flex align-items-center"
-                                                onClick={() => cancelEditing(s.id, 4)}
+                                                onClick={() =>
+                                                  cancelEditing(s.id, 4)
+                                                }
                                                 title="Annuler"
                                               >
                                                 <X size={16} />
@@ -2010,16 +2159,26 @@ const SuiviAvancementBox = ({ clientId }) => {
                                             </>
                                           ) : (
                                             <>
-                                              {!step4Validated && step4CandidateInput && (
-                                                <Button
-                                                  color="primary"
-                                                  className="mr-25"
-                                                  disabled={saving[s.id]?.[4] === true}
-                                                  onClick={() => validateStep4Date(s, step4CandidateInput)}
-                                                >
-                                                  {saving[s.id]?.[4] ? "Validation..." : "Valider"}
-                                                </Button>
-                                              )}
+                                              {!step4Validated &&
+                                                step4CandidateInput && (
+                                                  <Button
+                                                    color="primary"
+                                                    className="mr-25"
+                                                    disabled={
+                                                      saving[s.id]?.[4] === true
+                                                    }
+                                                    onClick={() =>
+                                                      validateStep4Date(
+                                                        s,
+                                                        step4CandidateInput
+                                                      )
+                                                    }
+                                                  >
+                                                    {saving[s.id]?.[4]
+                                                      ? "Validation..."
+                                                      : "Valider"}
+                                                  </Button>
+                                                )}
 
                                               {step4Validated && (
                                                 <>
@@ -2032,8 +2191,8 @@ const SuiviAvancementBox = ({ clientId }) => {
                                                         s.id,
                                                         4,
                                                         step4CandidateInput ||
-                                                        s.step4_completed_at ||
-                                                        s.step3_completed_at
+                                                          s.step4_completed_at ||
+                                                          s.step3_completed_at
                                                       )
                                                     }
                                                     title="Modifier la date"
@@ -2052,9 +2211,12 @@ const SuiviAvancementBox = ({ clientId }) => {
                                             <>
                                               <Input
                                                 type="date"
-                                                value={step4ArTfdCandidateInput || ""}
+                                                value={
+                                                  step4ArTfdCandidateInput || ""
+                                                }
                                                 onChange={(e) => {
-                                                  const newValue = e.target.value;
+                                                  const newValue =
+                                                    e.target.value;
                                                   setEditingValues((prev) => ({
                                                     ...prev,
                                                     [s.id]: {
@@ -2068,23 +2230,30 @@ const SuiviAvancementBox = ({ clientId }) => {
                                               />
                                               <Button
                                                 color="primary"
-                                                disabled={saving[s.id]?.[4] === true}
+                                                disabled={
+                                                  saving[s.id]?.[4] === true
+                                                }
                                                 className="mr-25"
                                                 onClick={() =>
                                                   validateStep4PaymentArTfd(
                                                     s,
-                                                    (editingValues[s.id] && editingValues[s.id][4]) ||
-                                                    step4ArTfdCandidateInput
+                                                    (editingValues[s.id] &&
+                                                      editingValues[s.id][4]) ||
+                                                      step4ArTfdCandidateInput
                                                   )
                                                 }
                                               >
-                                                {saving[s.id]?.[4] ? "Validation..." : "Valider"}
+                                                {saving[s.id]?.[4]
+                                                  ? "Validation..."
+                                                  : "Valider"}
                                               </Button>
                                               <Button
                                                 color="link"
                                                 size="sm"
                                                 className="p-0 d-flex align-items-center"
-                                                onClick={() => cancelEditing(s.id, 4)}
+                                                onClick={() =>
+                                                  cancelEditing(s.id, 4)
+                                                }
                                                 title="Annuler"
                                               >
                                                 <X size={16} />
@@ -2099,12 +2268,19 @@ const SuiviAvancementBox = ({ clientId }) => {
                                                   <Button
                                                     color="primary"
                                                     className="mr-25"
-                                                    disabled={saving[s.id]?.[4] === true}
+                                                    disabled={
+                                                      saving[s.id]?.[4] === true
+                                                    }
                                                     onClick={() =>
-                                                      validateStep4PaymentArTfd(s, step4ArTfdCandidateInput)
+                                                      validateStep4PaymentArTfd(
+                                                        s,
+                                                        step4ArTfdCandidateInput
+                                                      )
                                                     }
                                                   >
-                                                    {saving[s.id]?.[4] ? "Validation..." : "Valider"}
+                                                    {saving[s.id]?.[4]
+                                                      ? "Validation..."
+                                                      : "Valider"}
                                                   </Button>
                                                 )}
 
@@ -2116,11 +2292,18 @@ const SuiviAvancementBox = ({ clientId }) => {
                                                     color="link"
                                                     size="sm"
                                                     className="p-0 d-flex align-items-center"
-                                                    onClick={() => startEditing(s.id, 4, "")}
+                                                    onClick={() =>
+                                                      startEditing(s.id, 4, "")
+                                                    }
                                                     title="Ajouter une date"
                                                   >
-                                                    <PlusCircle size={14} className="mr-25" />
-                                                    <span>Ajouter une date</span>
+                                                    <PlusCircle
+                                                      size={14}
+                                                      className="mr-25"
+                                                    />
+                                                    <span>
+                                                      Ajouter une date
+                                                    </span>
                                                   </Button>
                                                 )}
 
@@ -2136,8 +2319,8 @@ const SuiviAvancementBox = ({ clientId }) => {
                                                         s.id,
                                                         4,
                                                         step4ArTfdCandidateInput ||
-                                                        s.step4_completed_at ||
-                                                        soldFirstInput
+                                                          s.step4_completed_at ||
+                                                          soldFirstInput
                                                       )
                                                     }
                                                     title="Modifier la date"
@@ -2156,9 +2339,12 @@ const SuiviAvancementBox = ({ clientId }) => {
                                             <>
                                               <Input
                                                 type="date"
-                                                value={step5CandidateInput || ""}
+                                                value={
+                                                  step5CandidateInput || ""
+                                                }
                                                 onChange={(e) => {
-                                                  const newValue = e.target.value;
+                                                  const newValue =
+                                                    e.target.value;
                                                   setEditingValues((prev) => ({
                                                     ...prev,
                                                     [s.id]: {
@@ -2172,17 +2358,29 @@ const SuiviAvancementBox = ({ clientId }) => {
                                               />
                                               <Button
                                                 color="primary"
-                                                disabled={saving[s.id]?.[5] === true}
+                                                disabled={
+                                                  saving[s.id]?.[5] === true
+                                                }
                                                 className="mr-25"
-                                                onClick={() => saveManualStepDate(s, 5, typeCode)}
+                                                onClick={() =>
+                                                  saveManualStepDate(
+                                                    s,
+                                                    5,
+                                                    typeCode
+                                                  )
+                                                }
                                               >
-                                                {saving[s.id]?.[5] ? "Validation..." : "Valider"}
+                                                {saving[s.id]?.[5]
+                                                  ? "Validation..."
+                                                  : "Valider"}
                                               </Button>
                                               <Button
                                                 color="link"
                                                 size="sm"
                                                 className="p-0 d-flex align-items-center"
-                                                onClick={() => cancelEditing(s.id, 5)}
+                                                onClick={() =>
+                                                  cancelEditing(s.id, 5)
+                                                }
                                                 title="Annuler"
                                               >
                                                 <X size={16} />
@@ -2199,12 +2397,17 @@ const SuiviAvancementBox = ({ clientId }) => {
                                                     startEditing(
                                                       s.id,
                                                       5,
-                                                      step5CandidateInput || s.step5_completed_at || ""
+                                                      step5CandidateInput ||
+                                                        s.step5_completed_at ||
+                                                        ""
                                                     )
                                                   }
                                                   title="Ajouter une date"
                                                 >
-                                                  <PlusCircle size={14} className="mr-25" />
+                                                  <PlusCircle
+                                                    size={14}
+                                                    className="mr-25"
+                                                  />
                                                   <span>Ajouter une date</span>
                                                 </Button>
                                               )}
@@ -2216,7 +2419,12 @@ const SuiviAvancementBox = ({ clientId }) => {
                                                     size="sm"
                                                     className="p-0"
                                                     onClick={() =>
-                                                      startEditing(s.id, 5, step5CandidateInput || s.step5_completed_at)
+                                                      startEditing(
+                                                        s.id,
+                                                        5,
+                                                        step5CandidateInput ||
+                                                          s.step5_completed_at
+                                                      )
                                                     }
                                                     title="Modifier la date"
                                                   >
@@ -2235,9 +2443,12 @@ const SuiviAvancementBox = ({ clientId }) => {
                                             <>
                                               <Input
                                                 type="date"
-                                                value={step6CandidateInput || ""}
+                                                value={
+                                                  step6CandidateInput || ""
+                                                }
                                                 onChange={(e) => {
-                                                  const newValue = e.target.value;
+                                                  const newValue =
+                                                    e.target.value;
                                                   setEditingValues((prev) => ({
                                                     ...prev,
                                                     [s.id]: {
@@ -2251,23 +2462,30 @@ const SuiviAvancementBox = ({ clientId }) => {
                                               />
                                               <Button
                                                 color="primary"
-                                                disabled={saving[s.id]?.[6] === true}
+                                                disabled={
+                                                  saving[s.id]?.[6] === true
+                                                }
                                                 className="mr-25"
                                                 onClick={() =>
                                                   validateStep6Date(
                                                     s,
-                                                    (editingValues[s.id] && editingValues[s.id][6]) ||
-                                                    step6CandidateInput
+                                                    (editingValues[s.id] &&
+                                                      editingValues[s.id][6]) ||
+                                                      step6CandidateInput
                                                   )
                                                 }
                                               >
-                                                {saving[s.id]?.[6] ? "Validation..." : "Valider"}
+                                                {saving[s.id]?.[6]
+                                                  ? "Validation..."
+                                                  : "Valider"}
                                               </Button>
                                               <Button
                                                 color="link"
                                                 size="sm"
                                                 className="p-0 d-flex align-items-center"
-                                                onClick={() => cancelEditing(s.id, 6)}
+                                                onClick={() =>
+                                                  cancelEditing(s.id, 6)
+                                                }
                                                 title="Annuler"
                                               >
                                                 <X size={16} />
@@ -2275,16 +2493,26 @@ const SuiviAvancementBox = ({ clientId }) => {
                                             </>
                                           ) : (
                                             <>
-                                              {!step6Validated && step6CandidateInput && (
-                                                <Button
-                                                  color="primary"
-                                                  className="mr-25"
-                                                  disabled={saving[s.id]?.[6] === true}
-                                                  onClick={() => validateStep6Date(s, step6CandidateInput)}
-                                                >
-                                                  {saving[s.id]?.[6] ? "Validation..." : "Valider"}
-                                                </Button>
-                                              )}
+                                              {!step6Validated &&
+                                                step6CandidateInput && (
+                                                  <Button
+                                                    color="primary"
+                                                    className="mr-25"
+                                                    disabled={
+                                                      saving[s.id]?.[6] === true
+                                                    }
+                                                    onClick={() =>
+                                                      validateStep6Date(
+                                                        s,
+                                                        step6CandidateInput
+                                                      )
+                                                    }
+                                                  >
+                                                    {saving[s.id]?.[6]
+                                                      ? "Validation..."
+                                                      : "Valider"}
+                                                  </Button>
+                                                )}
 
                                               {step6Validated && (
                                                 <>
@@ -2297,9 +2525,9 @@ const SuiviAvancementBox = ({ clientId }) => {
                                                         s.id,
                                                         6,
                                                         step6CandidateInput ||
-                                                        s.step6_completed_at ||
-                                                        autoFromStep5 ||
-                                                        null
+                                                          s.step6_completed_at ||
+                                                          autoFromStep5 ||
+                                                          null
                                                       )
                                                     }
                                                     title="Modifier la date"
@@ -2319,9 +2547,12 @@ const SuiviAvancementBox = ({ clientId }) => {
                                             <>
                                               <Input
                                                 type="date"
-                                                value={step7CandidateInput || ""}
+                                                value={
+                                                  step7CandidateInput || ""
+                                                }
                                                 onChange={(e) => {
-                                                  const newValue = e.target.value;
+                                                  const newValue =
+                                                    e.target.value;
                                                   setEditingValues((prev) => ({
                                                     ...prev,
                                                     [s.id]: {
@@ -2335,23 +2566,30 @@ const SuiviAvancementBox = ({ clientId }) => {
                                               />
                                               <Button
                                                 color="primary"
-                                                disabled={saving[s.id]?.[7] === true}
+                                                disabled={
+                                                  saving[s.id]?.[7] === true
+                                                }
                                                 className="mr-25"
                                                 onClick={() =>
                                                   validateStep7Date(
                                                     s,
-                                                    (editingValues[s.id] && editingValues[s.id][7]) ||
-                                                    step7CandidateInput
+                                                    (editingValues[s.id] &&
+                                                      editingValues[s.id][7]) ||
+                                                      step7CandidateInput
                                                   )
                                                 }
                                               >
-                                                {saving[s.id]?.[7] ? "Validation..." : "Valider"}
+                                                {saving[s.id]?.[7]
+                                                  ? "Validation..."
+                                                  : "Valider"}
                                               </Button>
                                               <Button
                                                 color="link"
                                                 size="sm"
                                                 className="p-0 d-flex align-items-center"
-                                                onClick={() => cancelEditing(s.id, 7)}
+                                                onClick={() =>
+                                                  cancelEditing(s.id, 7)
+                                                }
                                                 title="Annuler"
                                               >
                                                 <X size={16} />
@@ -2360,30 +2598,50 @@ const SuiviAvancementBox = ({ clientId }) => {
                                           ) : (
                                             <>
                                               {/* Valider seulement si étape actuelle */}
-                                              {!step7Validated && step7CandidateInput && isCurrent && (
-                                                <Button
-                                                  color="primary"
-                                                  className="mr-25"
-                                                  disabled={saving[s.id]?.[7] === true}
-                                                  onClick={() => validateStep7Date(s, step7CandidateInput)}
-                                                >
-                                                  {saving[s.id]?.[7] ? "Validation..." : "Valider"}
-                                                </Button>
-                                              )}
+                                              {!step7Validated &&
+                                                step7CandidateInput &&
+                                                isCurrent && (
+                                                  <Button
+                                                    color="primary"
+                                                    className="mr-25"
+                                                    disabled={
+                                                      saving[s.id]?.[7] === true
+                                                    }
+                                                    onClick={() =>
+                                                      validateStep7Date(
+                                                        s,
+                                                        step7CandidateInput
+                                                      )
+                                                    }
+                                                  >
+                                                    {saving[s.id]?.[7]
+                                                      ? "Validation..."
+                                                      : "Valider"}
+                                                  </Button>
+                                                )}
 
                                               {/* Ajouter seulement si étape actuelle */}
-                                              {!step7Validated && !step7CandidateInput && isCurrent && (
-                                                <Button
-                                                  color="link"
-                                                  size="sm"
-                                                  className="p-0 d-flex align-items-center"
-                                                  onClick={() => startEditing(s.id, 7, "")}
-                                                  title="Ajouter une date"
-                                                >
-                                                  <PlusCircle size={14} className="mr-25" />
-                                                  <span>Ajouter une date</span>
-                                                </Button>
-                                              )}
+                                              {!step7Validated &&
+                                                !step7CandidateInput &&
+                                                isCurrent && (
+                                                  <Button
+                                                    color="link"
+                                                    size="sm"
+                                                    className="p-0 d-flex align-items-center"
+                                                    onClick={() =>
+                                                      startEditing(s.id, 7, "")
+                                                    }
+                                                    title="Ajouter une date"
+                                                  >
+                                                    <PlusCircle
+                                                      size={14}
+                                                      className="mr-25"
+                                                    />
+                                                    <span>
+                                                      Ajouter une date
+                                                    </span>
+                                                  </Button>
+                                                )}
 
                                               {/* Modifier toujours possible */}
                                               {step7Validated && (
@@ -2397,8 +2655,8 @@ const SuiviAvancementBox = ({ clientId }) => {
                                                         s.id,
                                                         7,
                                                         step7CandidateInput ||
-                                                        s.step7_completed_at ||
-                                                        soldFirstInput
+                                                          s.step7_completed_at ||
+                                                          soldFirstInput
                                                       )
                                                     }
                                                     title="Modifier la date"
@@ -2422,9 +2680,13 @@ const SuiviAvancementBox = ({ clientId }) => {
                                     {isStep1Signature &&
                                       !hasSignedFile &&
                                       !dbRaw && (
-                                        <span className="text-muted ml-25">
-                                          (Mettre le contrat signé dans le dossier{" "}
-                                          <strong>"1. Contrat / Procuration"</strong> pour passer à l'étape suivante.)
+                                        <span className="text-muted mt-25">
+                                          (Mettre le contrat signé dans le
+                                          dossier{" "}
+                                          <strong>
+                                            "1. Contrat / Procuration"
+                                          </strong>{" "}
+                                          pour passer à l'étape suivante.)
                                         </span>
                                       )}
                                   </div>
