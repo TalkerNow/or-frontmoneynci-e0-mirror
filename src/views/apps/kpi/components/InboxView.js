@@ -603,6 +603,21 @@ const ActionsSection = ({
         setShowCreateModal(false);
         setActiveView("CALLREPORT"); // Switch to actions immediately
 
+        // Save to MOCK_PROSPECTS so handleConvert knows prospect exists
+        const mockProspects = JSON.parse(
+          localStorage.getItem("MOCK_PROSPECTS") || "[]"
+        );
+        mockProspects.push({
+          id: newUserId,
+          firstName,
+          lastName,
+          email,
+          phone,
+          conversationId: prospectId,
+          createdAt: new Date().toISOString(),
+        });
+        localStorage.setItem("MOCK_PROSPECTS", JSON.stringify(mockProspects));
+
         // 3. Link User ID to Source Item (Chatbot or Simulator)
         try {
           if (type === "chatbot" || type === "conversations-archives") {
@@ -1856,11 +1871,30 @@ const InboxView = ({
   // Track disqualified IDs to filter them out locally (Optimistic UI only, not persisted)
   const [disqualifiedIds, setDisqualifiedIds] = useState(new Set());
 
+  // Convert Modal state - for prospects not yet created in Actions standards
+  const [showConvertModal, setShowConvertModal] = useState(false);
+  const [convertProspectForm, setConvertProspectForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+  });
+
   // Filter out disqualified items from the visible list
   // We check both the local "disqualifiedIds" (optimistic) and the backend "invisible" flag (source of truth)
+  // Also check localStorage for mock hidden IDs (for conversion workflow)
+  const getLocalHiddenIds = () => {
+    try {
+      return JSON.parse(localStorage.getItem("MOCK_HIDDEN_CONV_IDS") || "[]");
+    } catch {
+      return [];
+    }
+  };
+
   const visibleInboxItems = inboxItems.filter(
     (item) =>
       !disqualifiedIds.has(item.id) &&
+      !getLocalHiddenIds().includes(item.id) && // Mock local hide for conversion
       !item.raw?.invisible && // Standard boolean
       item.raw?.invisible !== 1 && // Laravel/SQL integer boolean
       item.raw?.status !== "DISQUALIFIED" // Additional status check if needed
@@ -2225,9 +2259,9 @@ const InboxView = ({
     // Helper to split name roughly
     const fullName = selectedItem.name || "";
     const nameParts = fullName.trim().split(" ");
-    let firstName = "";
-    let lastName = "";
-    if (nameParts.length > 0) {
+    let firstName = selectedItem.firstName || "";
+    let lastName = selectedItem.lastName || "";
+    if (!firstName && !lastName && nameParts.length > 0) {
       firstName = nameParts[0];
       lastName = nameParts.slice(1).join(" ");
     }
@@ -2235,6 +2269,32 @@ const InboxView = ({
     // Extract attributes
     const attrs = selectedItem.raw?.attributes || {};
 
+    // Check if prospect was already created:
+    // 1. clientId exists from mapping
+    // 2. raw.user_id was set by ActionsSection API call
+    // 3. Conversation exists in MOCK_PROSPECTS localStorage
+    const mockProspects = JSON.parse(
+      localStorage.getItem("MOCK_PROSPECTS") || "[]"
+    );
+    const existsInMock = mockProspects.some(
+      (p) => p.conversationId === selectedItem.id
+    );
+    const hasProspect =
+      !!selectedItem.clientId || !!selectedItem.raw?.user_id || existsInMock;
+
+    if (!hasProspect) {
+      // Prospect not yet created - show modal first
+      setConvertProspectForm({
+        firstName: firstName || attrs.PRENOM || "",
+        lastName: lastName || attrs.NOM || "",
+        email: selectedItem.email || attrs.EMAIL || "",
+        phone: selectedItem.phone || attrs.TELEPHONE || "",
+      });
+      setShowConvertModal(true);
+      return;
+    }
+
+    // Prospect exists - proceed directly to user creation
     // Civility
     let civility = "";
     if (attrs.CIVILITE === "M") civility = "Monsieur";
@@ -2264,9 +2324,53 @@ const InboxView = ({
           ? "oui"
           : "non",
       civility: civility,
+      originConversationId: selectedItem.id, // For hiding after client creation
     };
 
     routerHistory.push("/app/user/createUser", prefillData);
+  };
+
+  // Handle convert modal confirm - save prospect to mock and redirect
+  const handleConfirmConvert = () => {
+    const { firstName, lastName, email, phone } = convertProspectForm;
+
+    if (!firstName || !lastName) {
+      window.alert("Nom et prénom sont obligatoires");
+      return;
+    }
+
+    // Save prospect to localStorage mock
+    const mockProspects = JSON.parse(
+      localStorage.getItem("MOCK_PROSPECTS") || "[]"
+    );
+    mockProspects.push({
+      id: Date.now(),
+      firstName,
+      lastName,
+      email,
+      phone,
+      conversationId: selectedItem.id,
+      createdAt: new Date().toISOString(),
+    });
+    localStorage.setItem("MOCK_PROSPECTS", JSON.stringify(mockProspects));
+
+    // Close modal
+    setShowConvertModal(false);
+
+    // Navigate to user creation with prefill data + originConversationId
+    const attrs = selectedItem.raw?.attributes || {};
+    let civility = "";
+    if (attrs.CIVILITE === "M") civility = "Monsieur";
+    else if (attrs.CIVILITE === "Mme") civility = "Madame";
+
+    routerHistory.push("/app/user/createUser", {
+      first_name: firstName,
+      last_name: lastName,
+      email: email,
+      mobile_number: phone,
+      civility: civility,
+      originConversationId: selectedItem.id,
+    });
   };
 
   // Inline styles for layout since Tailwind might not be fully available
@@ -4665,6 +4769,252 @@ const InboxView = ({
                   </>
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Convert Modal - Create Prospect before conversion */}
+      {showConvertModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10000,
+            backdropFilter: "blur(2px)",
+          }}
+          onClick={() => setShowConvertModal(false)}
+        >
+          <div
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: "12px",
+              boxShadow: "0 20px 50px rgba(0, 0, 0, 0.25)",
+              width: "100%",
+              maxWidth: "500px",
+              margin: "16px",
+              overflow: "hidden",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                padding: "20px 24px",
+                borderBottom: "1px solid #f3f4f6",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <h3
+                style={{
+                  margin: 0,
+                  fontSize: "18px",
+                  fontWeight: 600,
+                  color: "#111827",
+                }}
+              >
+                Créer un compte prospect
+              </h3>
+              <button
+                onClick={() => setShowConvertModal(false)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "8px",
+                  borderRadius: "6px",
+                  color: "#6b7280",
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: "24px" }}>
+              <div
+                style={{ display: "flex", gap: "16px", marginBottom: "16px" }}
+              >
+                <div style={{ flex: 1 }}>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "12px",
+                      fontWeight: 500,
+                      color: "#374151",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    Prénom *
+                  </label>
+                  <input
+                    type="text"
+                    value={convertProspectForm.firstName}
+                    onChange={(e) =>
+                      setConvertProspectForm({
+                        ...convertProspectForm,
+                        firstName: e.target.value,
+                      })
+                    }
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      fontSize: "14px",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "8px",
+                      outline: "none",
+                    }}
+                    placeholder="Prénom"
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "12px",
+                      fontWeight: 500,
+                      color: "#374151",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    Nom *
+                  </label>
+                  <input
+                    type="text"
+                    value={convertProspectForm.lastName}
+                    onChange={(e) =>
+                      setConvertProspectForm({
+                        ...convertProspectForm,
+                        lastName: e.target.value,
+                      })
+                    }
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      fontSize: "14px",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "8px",
+                      outline: "none",
+                    }}
+                    placeholder="Nom"
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: "16px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    color: "#374151",
+                    marginBottom: "4px",
+                  }}
+                >
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={convertProspectForm.email}
+                  onChange={(e) =>
+                    setConvertProspectForm({
+                      ...convertProspectForm,
+                      email: e.target.value,
+                    })
+                  }
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    fontSize: "14px",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "8px",
+                    outline: "none",
+                  }}
+                  placeholder="email@exemple.com"
+                />
+              </div>
+
+              <div style={{ marginBottom: "24px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    color: "#374151",
+                    marginBottom: "4px",
+                  }}
+                >
+                  Téléphone
+                </label>
+                <input
+                  type="tel"
+                  value={convertProspectForm.phone}
+                  onChange={(e) =>
+                    setConvertProspectForm({
+                      ...convertProspectForm,
+                      phone: e.target.value,
+                    })
+                  }
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    fontSize: "14px",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "8px",
+                    outline: "none",
+                  }}
+                  placeholder="06 12 34 56 78"
+                />
+              </div>
+
+              {/* Modal Actions */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: "12px",
+                  justifyContent: "flex-end",
+                }}
+              >
+                <button
+                  onClick={() => setShowConvertModal(false)}
+                  style={{
+                    padding: "10px 20px",
+                    fontSize: "14px",
+                    fontWeight: 500,
+                    color: "#fff",
+                    backgroundColor: "#ef4444",
+                    border: "none",
+                    borderRadius: "8px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleConfirmConvert}
+                  style={{
+                    padding: "10px 20px",
+                    fontSize: "14px",
+                    fontWeight: 500,
+                    color: "#fff",
+                    backgroundColor: "#7367f0",
+                    border: "none",
+                    borderRadius: "8px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Créer le prospect
+                </button>
+              </div>
             </div>
           </div>
         </div>
