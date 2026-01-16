@@ -181,8 +181,7 @@ export const useNotesLogic = (id, perso) => {
         return safeRows;
       });
       toast.success(
-        `Points ${
-          eventType === "ARRCO_POINTS_SAVE" ? "ARRCO" : "IRCANTEC"
+        `Points ${eventType === "ARRCO_POINTS_SAVE" ? "ARRCO" : "IRCANTEC"
         } mis à jour`
       );
     };
@@ -363,12 +362,11 @@ export const useNotesLogic = (id, perso) => {
         const tagsPrefix =
           selectedTags.length > 0
             ? `Thématiques d'analyse : ${selectedTags
-                .map((t) => t.label)
-                .join(", ")}\n\n`
+              .map((t) => t.label)
+              .join(", ")}\n\n`
             : "";
-        const finalMessage = `${tagsPrefix}${
-          currentMessage || ""
-        }\n\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDate}`.trim();
+        const finalMessage = `${tagsPrefix}${currentMessage || ""
+          }\n\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDate}`.trim();
         n8nFormData.append("message", finalMessage);
 
         // Ajout du contenu HTML précédent si disponible (pour les rapports spécifiques)
@@ -382,8 +380,7 @@ export const useNotesLogic = (id, perso) => {
         }
 
         toast.info(
-          `Analyse en cours (${
-            normalizedType === "custom" ? "Spécifique" : "Standard"
+          `Analyse en cours (${normalizedType === "custom" ? "Spécifique" : "Standard"
           })…`
         );
 
@@ -428,9 +425,8 @@ export const useNotesLogic = (id, perso) => {
         // Si c'est du HTML, il sera affiché tel quel. Si c'est du texte, il sera affiché brut.
 
         // On crée un fichier HTML pour display
-        const fileName = `Rapport_${
-          normalizedType === "custom" ? "Specifique" : "Standard"
-        }_${new Date().getTime()}.html`;
+        const fileName = `Rapport_${normalizedType === "custom" ? "Specifique" : "Standard"
+          }_${new Date().getTime()}.html`;
         const fileBlob = new Blob([contentString], {
           type: "text/html;charset=utf-8",
         });
@@ -787,6 +783,49 @@ export const useNotesLogic = (id, perso) => {
     );
   }, [viewingDoc]);
 
+  const handleDownloadHtml = useCallback(async () => {
+    if (!viewingDoc) return;
+
+    let content = viewingDoc.htmlContent;
+
+    if (!content && viewingDoc.url) {
+      try {
+        toast.info("Récupération du contenu HTML...");
+        const Config = {
+          headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+        };
+        const response = await axios.post(
+          `${global.config.server_url}/fetch-html`,
+          { url: viewingDoc.url },
+          Config
+        );
+        if (response.data && response.data.html) {
+          content = response.data.html;
+        }
+      } catch (e) {
+        console.error(e);
+        toast.error("Impossible de récupérer le contenu HTML");
+        return;
+      }
+    }
+
+    if (!content) {
+      toast.error("Contenu vide ou introuvable");
+      return;
+    }
+
+    const element = document.createElement("a");
+    const file = new Blob([content], {
+      type: "text/html",
+    });
+    element.href = URL.createObjectURL(file);
+    element.download = (viewingDoc.name || "document") + ".html";
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+
+  }, [viewingDoc]);
+
   const handleReportDoc = useCallback((doc) => {
     if (!doc) return;
     setReportDoc(doc);
@@ -927,6 +966,7 @@ export const useNotesLogic = (id, perso) => {
     chatMessage,
     setChatMessage,
     handleDownloadPdf,
+    handleDownloadHtml,
     handleReportDoc,
     handleModalGenerate,
     reportModalOpen,
