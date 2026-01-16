@@ -397,8 +397,8 @@ class AddUser extends React.Component {
     axios
       .get(
         global.config.server_url +
-        "/duplicated_email?email=" +
-        this.state.data.email,
+          "/duplicated_email?email=" +
+          this.state.data.email,
         Config
       )
       .then((response) => {
@@ -416,7 +416,7 @@ class AddUser extends React.Component {
     return (
       <Card>
         <CardHeader className="pb-0">
-          <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between w-100 mb-50">
+          <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between w-100 mb-2">
             <Button.Ripple
               color="primary"
               aria-label="Retour"
@@ -634,44 +634,6 @@ class AddUser extends React.Component {
             </Col>
           </Row>
 
-          {/* Mot de passe / Rôle */}
-          {/* <Row>
-            <Col md="6" sm="12">
-              <FormGroup>
-                <Label for="password">Mot de passe</Label>
-                <div className="d-flex align-items-center">
-                  <Input
-                    type="text"
-                    id="password"
-                    readOnly
-                    value={this.state.data.password}
-                  />
-                  <Button color="primary" className="ml-1" onClick={() => navigator.clipboard && navigator.clipboard.writeText(this.state.data.password)}>📋 Copier</Button>
-                </div>
-              </FormGroup>
-            </Col>
-            <Col md="6" sm="12">
-              <FormGroup>
-                <Label for="role">Rôle</Label>
-                <CustomInput
-                  type="select"
-                  name="role"
-                  id="role"
-                  onChange={(e) =>
-                    this.setState({
-                      data: { ...this.state.data, role: e.target.value },
-                    })
-                  }
-                >
-                  <option>Client</option>
-                  <option>Consultant</option>
-                  <option>Expert</option>
-                  <option>admin</option>
-                </CustomInput>
-              </FormGroup>
-            </Col>
-          </Row> */}
-
           <h5
             style={{
               fontWeight: 600,
@@ -859,6 +821,59 @@ class AddUser extends React.Component {
             </Col>
           </Row>
 
+          <Row>
+            {/* Nom de jeune fille */}
+            <Col md="6" sm="12">
+              <FormGroup>
+                <Label for="maiden_name">Nom de jeune fille</Label>
+                <Input
+                  type="text"
+                  placeholder="Nom de jeune fille"
+                  value={this.state.data.maiden_name || ""}
+                  onChange={(e) =>
+                    this.setState({
+                      data: {
+                        ...this.state.data,
+                        maiden_name: e.target.value,
+                      },
+                    })
+                  }
+                  id="maiden_name"
+                />
+              </FormGroup>
+            </Col>
+
+            {/* Responsable commercial */}
+            <Col md="6" sm="12">
+              <FormGroup>
+                <Label for="business_introducer_id">
+                  Responsable commercial
+                </Label>
+                <CustomInput
+                  type="select"
+                  name="business_introducer_id"
+                  id="business_introducer_id"
+                  value={this.state.data.business_introducer_id || ""}
+                  onChange={(e) =>
+                    this.setState({
+                      data: {
+                        ...this.state.data,
+                        business_introducer_id: e.target.value,
+                      },
+                    })
+                  }
+                >
+                  <option value="">Aucun</option>
+                  {this.state.members.map((member, index) => (
+                    <option key={index} value={member.id}>
+                      {member.first_name + " " + member.last_name}
+                    </option>
+                  ))}
+                </CustomInput>
+              </FormGroup>
+            </Col>
+          </Row>
+
           {/* Enfants / Société */}
           <Row>
             <Col md="6" sm="12">
@@ -877,46 +892,6 @@ class AddUser extends React.Component {
                   }
                   id="nb_child"
                 />
-              </FormGroup>
-            </Col>
-            <Col md="6" sm="12">
-              <FormGroup>
-                <Label for="member">
-                  {this.state.isConsultant
-                    ? "Consultant"
-                    : "Responsable commercial"}
-                </Label>
-                <CustomInput
-                  type="select"
-                  name="member"
-                  id="member"
-                  value={
-                    (this.state.isConsultant
-                      ? this.state.data.parent_id
-                      : this.state.data.business_introducer_id) || ""
-                  }
-                  onChange={(e) => {
-                    const field = this.state.isConsultant
-                      ? "parent_id"
-                      : "business_introducer_id";
-                    const otherField = this.state.isConsultant
-                      ? "business_introducer_id"
-                      : "parent_id";
-                    this.setState({
-                      data: {
-                        ...this.state.data,
-                        [field]: e.target.value,
-                        [otherField]: null,
-                      },
-                    });
-                  }}
-                >
-                  {this.state.members.map((member, index) => (
-                    <option key={index} value={member.id}>
-                      {member.first_name + " " + member.last_name}
-                    </option>
-                  ))}
-                </CustomInput>
               </FormGroup>
             </Col>
             {/* <Col md="6" sm="12">
@@ -939,13 +914,15 @@ class AddUser extends React.Component {
             </Col> */}
           </Row>
 
-          {/* Adresse du client */}
+          {/* Adresse du client & Société */}
           <Row>
-            <Col className="mt-1" md="6" sm="12">
-              <h5 className="mb-1">
-                <Home className="mr-50" size={16} />
-                <span className="align-middle">Adresse du client</span>
-              </h5>
+            <Col md="6" sm="12">
+              <div className="d-flex align-items-center mb-1">
+                <h5 className="mb-0">
+                  <Home className="mr-50" size={16} />
+                  <span className="align-middle">Adresse du client</span>
+                </h5>
+              </div>
               <FormGroup>
                 <div className="d-flex justify-content-between align-items-center">
                   <Label for="adress1">Rue / Numéro</Label>
@@ -1061,7 +1038,7 @@ class AddUser extends React.Component {
             </Col>
 
             {/* Adresse société */}
-            <Col className="mt-1" md="6" sm="12">
+            <Col md="6" sm="12">
               <div className="d-flex align-items-center justify-content-between mb-1">
                 <h5 className="mb-0">
                   <Briefcase className="mr-50" size={16} />
@@ -1136,7 +1113,7 @@ class AddUser extends React.Component {
                   {this.state.showSocietyAddress2 && (
                     <FormGroup>
                       <div className="d-flex justify-content-between align-items-center">
-                        <Label for="officeadress2">Adresse n°2</Label>
+                        <Label for="officeadress2">Adresse 2</Label>
                         <div
                           className="cursor-pointer text-danger d-flex align-items-center"
                           onClick={() =>
@@ -1156,7 +1133,7 @@ class AddUser extends React.Component {
                       </div>
                       <Input
                         type="text"
-                        placeholder="Adresse n°2"
+                        placeholder="Adresse société 2"
                         value={this.state.data.society_address_2 || ""}
                         onChange={(e) =>
                           this.setState({
@@ -1171,10 +1148,10 @@ class AddUser extends React.Component {
                     </FormGroup>
                   )}
                   <FormGroup>
-                    <Label for="officepostcode">Code Postal</Label>
+                    <Label for="officepostcode">Code postal société</Label>
                     <Input
                       type="number"
-                      placeholder="Code Postal"
+                      placeholder="Code postal société"
                       value={this.state.data.society_zip_code || ""}
                       onChange={(e) =>
                         this.setState({
@@ -1188,10 +1165,10 @@ class AddUser extends React.Component {
                     />
                   </FormGroup>
                   <FormGroup>
-                    <Label for="officecity">Ville</Label>
+                    <Label for="officecity">Ville société</Label>
                     <Input
                       type="text"
-                      placeholder="Ville"
+                      placeholder="Ville société"
                       value={this.state.data.society_city || ""}
                       onChange={(e) =>
                         this.setState({
@@ -1205,10 +1182,10 @@ class AddUser extends React.Component {
                     />
                   </FormGroup>
                   <FormGroup>
-                    <Label for="officecountry">Pays</Label>
+                    <Label for="officecountry">Pays société</Label>
                     <Input
                       type="text"
-                      placeholder="Pays"
+                      placeholder="Pays de la société"
                       value={this.state.data.society_country || ""}
                       onChange={(e) =>
                         this.setState({
@@ -1226,50 +1203,61 @@ class AddUser extends React.Component {
             </Col>
           </Row>
 
-          {/* Expert + Mot de passe + Rôle */}
+          {/* Mot de passe + Expert + Rôle */}
           <Row>
-            <Col md="6" sm="12">
+            {/* Mot de passe */}
+            <Col md="4" sm="12">
               <FormGroup>
                 <Label for="password">Mot de passe</Label>
-                <div className="d-flex align-items-center">
-                  <Input
-                    type="text"
-                    id="password"
-                    readOnly
-                    value={this.state.data.password}
-                  />
-                </div>
+                <Input
+                  type="text"
+                  name="password"
+                  id="password"
+                  value={this.state.data.password || ""}
+                  placeholder="Mot de passe"
+                  onChange={(e) =>
+                    this.setState({
+                      data: { ...this.state.data, password: e.target.value },
+                    })
+                  }
+                />
               </FormGroup>
             </Col>
-            {/* <Col md="4" sm="12">
+            {/* Consultant (Optionnel) */}
+            <Col md="4" sm="12">
               <FormGroup>
-                <Label for="member">Expert</Label>
+                <Label for="parent_id">Consultant</Label>
                 <CustomInput
                   type="select"
-                  name="member"
-                  id="member"
+                  name="parent_id"
+                  id="parent_id"
+                  value={this.state.data.parent_id || ""}
                   onChange={(e) =>
                     this.setState({
                       data: { ...this.state.data, parent_id: e.target.value },
                     })
                   }
                 >
+                  <option value="">Aucun</option>
                   {this.state.members.map((member, index) => (
-                    <option key={index}>
+                    <option key={index} value={member.id}>
                       {member.first_name + " " + member.last_name}
                     </option>
                   ))}
                 </CustomInput>
               </FormGroup>
-            </Col> */}
+            </Col>
 
-            <Col md="6" sm="12">
+
+            {/* Rôle de l'utilisateur */}
+            <Col md="4" sm="12">
               <FormGroup>
-                <Label for="role">Rôle</Label>
+                <Label for="role">Rôle de l'utilisateur</Label>
                 <CustomInput
                   type="select"
                   name="role"
                   id="role"
+                  value={this.state.data.role}
                   onChange={(e) =>
                     this.setState({
                       data: { ...this.state.data, role: e.target.value },

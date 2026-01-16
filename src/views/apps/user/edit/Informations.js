@@ -220,19 +220,19 @@ class UserAccountTab extends React.Component {
           role: information.role
             ? information.role
             : this.props.data.role
-              ? this.props.data.role
-              : "Client",
+            ? this.props.data.role
+            : "Client",
           p_password: information.p_password,
           status: information.status
             ? information.status
             : this.props.data.status
-              ? this.props.data.status
-              : "En attente",
+            ? this.props.data.status
+            : "En attente",
           status_fa: information.status_fa
             ? information.status_fa
             : this.props.data.status_fa
-              ? this.props.data.status_fa
-              : false,
+            ? this.props.data.status_fa
+            : false,
           parent_id: information.parent_id,
           business_introducer_id: information.business_introducer_id,
         },
@@ -246,8 +246,8 @@ class UserAccountTab extends React.Component {
               civility: information.civility
                 ? information.civility
                 : this.props.data.civility
-                  ? this.props.data.civility
-                  : "",
+                ? this.props.data.civility
+                : "",
               first_name: information.first_name,
               last_name: information.last_name,
               birth_date: information.dob,
@@ -256,8 +256,8 @@ class UserAccountTab extends React.Component {
               martial_status: information.martial_status
                 ? information.martial_status
                 : this.props.data.martial_status
-                  ? this.props.data.martial_status
-                  : "Célibataire",
+                ? this.props.data.martial_status
+                : "Célibataire",
               children_number: information.children_number,
               secu_social: information.secu_social,
               secu_social_key: information.secu_social_key,
@@ -278,8 +278,8 @@ class UserAccountTab extends React.Component {
               military_service: information.military_service
                 ? information.military_service
                 : this.props.data.military_service
-                  ? this.props.data.military_service
-                  : "oui",
+                ? this.props.data.military_service
+                : "oui",
               parent_id: information.parent_id,
               business_introducer_id: information.business_introducer_id,
               notes: information.notes,
@@ -345,9 +345,29 @@ class UserAccountTab extends React.Component {
       <Row>
         <Col sm="12">
           <Form onSubmit={this.updateData} id="user-edit-form">
+            <Row className="mb-2">
+              <Col sm="12">
+                <h4 className="mb-0">Modification client</h4>
+              </Col>
+            </Row>
             <Row>
-              {/* Civilité */}
-              <Col md="12" sm="12" style={{ marginTop: "20px" }}>
+              <Col sm="12">
+                <h5
+                  style={{
+                    fontWeight: 600,
+                    fontSize: 16,
+                    marginTop: 0,
+                    marginBottom: 8,
+                    borderBottom: "1px solid #E5E7EB",
+                    paddingBottom: 6,
+                    width: "100%",
+                  }}
+                >
+                  Informations personnelles
+                </h5>
+              </Col>
+              {/* Civilité moved here */}
+              <Col md="12" sm="12">
                 <h5 style={{ marginBottom: "5px" }}>
                   <User className="mr-50" size={16} />
                   <span className="align-middle">Civilité</span>
@@ -434,20 +454,6 @@ class UserAccountTab extends React.Component {
                   )}
                 </FormGroup>
               </Col>
-              {/* Identité + Contact à gauche / Notes à droite */}
-              <h5
-                style={{
-                  fontWeight: 600,
-                  fontSize: 16,
-                  marginTop: 16,
-                  marginBottom: 8,
-                  borderBottom: "1px solid #E5E7EB",
-                  paddingBottom: 6,
-                  width: "100%",
-                }}
-              >
-                Informations personnelles
-              </h5>
               <Col md="6" sm="12">
                 <Row>
                   <Col md="12" sm="12">
@@ -540,8 +546,8 @@ class UserAccountTab extends React.Component {
                           placeholder="Numéro de Téléphone"
                           value={this.formatPhonePretty(
                             this.state.contact_number ??
-                            this.ifExist("mobile_number") ??
-                            this.ifExist("office_number")
+                              this.ifExist("mobile_number") ??
+                              this.ifExist("office_number")
                           )}
                           onChange={(e) =>
                             this.setState({
@@ -788,24 +794,24 @@ class UserAccountTab extends React.Component {
                       </div>
                       <div className="d-inline-block mr-1">
                         <Radio
-                          label="Pacsé(e)"
-                          color="primary"
-                          defaultChecked={false}
-                          name="martial_status"
-                          onChange={() => {
-                            this.setState({ martial_status: "Pacsé" });
-                            this.markDirty();
-                          }}
-                        />
-                      </div>
-                      <div className="d-inline-block mr-1">
-                        <Radio
                           label="Veuf(ve)"
                           color="primary"
                           defaultChecked={false}
                           name="martial_status"
                           onChange={() => {
                             this.setState({ martial_status: "Veuf" });
+                            this.markDirty();
+                          }}
+                        />
+                      </div>
+                      <div className="d-inline-block mr-1">
+                        <Radio
+                          label="Pacsé(e)"
+                          color="primary"
+                          defaultChecked={false}
+                          name="martial_status"
+                          onChange={() => {
+                            this.setState({ martial_status: "Pacsé" });
                             this.markDirty();
                           }}
                         />
@@ -822,12 +828,6 @@ class UserAccountTab extends React.Component {
                 <FormGroup style={{ marginBottom: "15px", marginTop: "5px" }}>
                   {this.props.data["military_service"] != null ? (
                     <>
-                      <div
-                        className="d-inline-block mr-1"
-                        style={{ verticalAlign: "top", paddingTop: "3px" }}
-                      >
-                        Service militaire:
-                      </div>
                       <div className="d-inline-block mr-1">
                         <Radio
                           label="Oui"
@@ -897,61 +897,7 @@ class UserAccountTab extends React.Component {
                   )}
                 </FormGroup>
               </Col>
-              {/* Mot de passe / Rôle */}
-              <Col md="6" sm="12">
-                <FormGroup>
-                  <Label for="p_password">Mot de passe</Label>
-                  <Input
-                    type="text"
-                    defaultValue={this.ifDataExist("p_password")}
-                    onChange={(e) => {
-                      this.setState({ p_password: e.target.value });
-                      this.markDirty();
-                    }}
-                    id="p_password"
-                    placeholder="Mot de passe"
-                  />
-                </FormGroup>
-              </Col>
-              <Col md="6" sm="12">
-                <FormGroup>
-                  <Label for="role">Rôle</Label>
-                  {this.ifDataExist("role") != null ? (
-                    <Input
-                      type="select"
-                      name="select"
-                      id="role"
-                      defaultValue={this.ifDataExist("role")}
-                      onChange={(e) => {
-                        this.setState({ role: e.target.value });
-                        this.markDirty();
-                      }}
-                    >
-                      <option>Client</option>
-                      <option>Consultant</option>
-                      <option>Expert</option>
-                      <option>admin</option>
-                    </Input>
-                  ) : (
-                    <Input
-                      type="select"
-                      name="select"
-                      id="role"
-                      defaultValue="Client"
-                      onChange={(e) => {
-                        this.setState({ role: e.target.value });
-                        this.markDirty();
-                      }}
-                    >
-                      <option>Client</option>
-                      <option>Consultant</option>
-                      <option>Expert</option>
-                      <option>admin</option>
-                    </Input>
-                  )}
-                </FormGroup>
-              </Col>
-              {/* Nom de jeune fille / Téléphone société */}
+              {/* Nom de jeune fille / Rôle de l'utilisateur */}
               <Col md="6" sm="12">
                 <FormGroup>
                   <Label for="ndjf">Nom de jeune fille</Label>
@@ -965,6 +911,40 @@ class UserAccountTab extends React.Component {
                     }}
                     id="ndjf"
                   />
+                </FormGroup>
+              </Col>
+              <Col md="6" sm="12">
+                <FormGroup>
+                  <Label for="business_introducer">
+                    Responsable commercial
+                  </Label>
+                  <CustomInput
+                    type="select"
+                    name="business_introducer"
+                    value={
+                      this.state.business_introducer_id != null
+                        ? this.state.business_introducer_id
+                        : this.ifDataExist("business_introducer_id")
+                    }
+                    id="business_introducer"
+                    onChange={(e) => {
+                      this.setState({ business_introducer_id: e.target.value });
+                      this.markDirty();
+                    }}
+                  >
+                    {this.props.members &&
+                      [
+                        <option key="none" value={null}>
+                          Aucun
+                        </option>,
+                      ].concat(
+                        this.props.members.map((member, index) => (
+                          <option key={member.id} value={member.id}>
+                            {member.first_name + " " + member.last_name}
+                          </option>
+                        ))
+                      )}
+                  </CustomInput>
                 </FormGroup>
               </Col>
               {/* <Col md="6" sm="12">
@@ -998,8 +978,11 @@ class UserAccountTab extends React.Component {
                   />
                 </FormGroup>
               </Col>
-              {/* Adresse client */}
-              <Col className="mt-1" md="6" sm="12">
+            </Row>
+
+            <Row className="mt-2">
+              {/* Adresse du client */}
+              <Col md="6" sm="12">
                 <h5 className="mb-1">
                   <Home className="mr-50" size={16} />
                   <span className="align-middle">Adresse du client</span>
@@ -1067,7 +1050,7 @@ class UserAccountTab extends React.Component {
                     inputMode="numeric"
                     pattern="\d{5}"
                     id="pincode"
-                    placeholder="Code postal personnel"
+                    placeholder="Code postal"
                     defaultValue={this.ifExist("personal_zip_code")}
                     onChange={(e) =>
                       this.handleZipChange(e.target.value, "personal")
@@ -1080,7 +1063,7 @@ class UserAccountTab extends React.Component {
                     type="text"
                     id="city"
                     list="personalCityList"
-                    placeholder="Ville personnelle"
+                    placeholder="Ville"
                     value={this.state.personal_city || ""}
                     onChange={(e) => {
                       this.setState({ personal_city: e.target.value });
@@ -1103,13 +1086,14 @@ class UserAccountTab extends React.Component {
                       this.markDirty();
                     }}
                     id="Country"
-                    placeholder="Pays personnel"
+                    placeholder="Pays"
                   />
                 </FormGroup>
               </Col>
+
               {/* Adresse société */}
-              <Col className="mt-1" md="6" sm="12">
-                <div className="d-flex align-items-center justify-content-between mb-1">
+              <Col md="6" sm="12">
+                <div className="d-flex align-items-center justify-content-between mb-0">
                   <h5 className="mb-0">
                     <Briefcase className="mr-50" size={16} />
                     <span className="align-middle">Adresse de sa société</span>
@@ -1132,7 +1116,7 @@ class UserAccountTab extends React.Component {
                 {this.state.showSociety && (
                   <>
                     <FormGroup>
-                      <Label for="society_name">Nom Société</Label>
+                      <Label for="society_name">Nom de la Société</Label>
                       <Input
                         type="text"
                         id="society_name"
@@ -1205,7 +1189,7 @@ class UserAccountTab extends React.Component {
                       </FormGroup>
                     )}
                     <FormGroup>
-                      <Label for="society_pincode">Code postal</Label>
+                      <Label for="society_pincode">Code postal société</Label>
                       <Input
                         type="number"
                         id="society_pincode"
@@ -1243,25 +1227,13 @@ class UserAccountTab extends React.Component {
                         placeholder="Pays de la société"
                       />
                     </FormGroup>
-                    <FormGroup>
-                      <Label for="officenumber">
-                        Numéro de Téléphone de la société
-                      </Label>
-                      <Input
-                        type="text"
-                        id="officenumber"
-                        defaultValue={this.ifExist("office_number")}
-                        placeholder="Numéro de Téléphone de la société"
-                        onChange={(e) => {
-                          this.setState({ office_number: e.target.value });
-                          this.markDirty();
-                        }}
-                      />
-                    </FormGroup>
                   </>
                 )}
               </Col>
-              {/* Consultant / Responsable commercial */}
+            </Row>
+
+            <Row>
+              {/* Consultant */}
               <Col md="6" sm="12">
                 <FormGroup>
                   <Label for="member">Consultant</Label>
@@ -1280,37 +1252,13 @@ class UserAccountTab extends React.Component {
                     }}
                   >
                     {this.props.members &&
-                      this.props.members.map((member, index) => (
-                        <option value={member.id}>
-                          {member.first_name + " " + member.last_name}
-                        </option>
-                      ))}
-                  </CustomInput>
-                </FormGroup>
-              </Col>
-              <Col md="6" sm="12">
-                <FormGroup>
-                  <Label for="business_introducer">
-                    Responsable commercial
-                  </Label>
-                  <CustomInput
-                    type="select"
-                    name="business_introducer"
-                    value={
-                      this.state.business_introducer_id != null
-                        ? this.state.business_introducer_id
-                        : this.ifDataExist("business_introducer_id")
-                    }
-                    id="business_introducer"
-                    onChange={(e) => {
-                      this.setState({ business_introducer_id: e.target.value });
-                      this.markDirty();
-                    }}
-                  >
-                    {this.props.members &&
-                      [<option value={null}>Aucun</option>].concat(
+                      [
+                        <option key="none" value={null}>
+                          Aucun
+                        </option>,
+                      ].concat(
                         this.props.members.map((member, index) => (
-                          <option value={member.id}>
+                          <option key={member.id} value={member.id}>
                             {member.first_name + " " + member.last_name}
                           </option>
                         ))
@@ -1318,11 +1266,50 @@ class UserAccountTab extends React.Component {
                   </CustomInput>
                 </FormGroup>
               </Col>
-              {/* Bouton (bas de page) */}
-              <Col
-                className="d-flex justify-content-center flex-wrap mt-2"
-                sm="12"
-              >
+              {/* Rôle de l'utilisateur */}
+              <Col md="6" sm="12">
+                <FormGroup>
+                  <Label for="role">Rôle de l'utilisateur</Label>
+                  {this.ifDataExist("role") != null ? (
+                    <CustomInput
+                      type="select"
+                      name="select"
+                      id="role"
+                      defaultValue={this.ifDataExist("role")}
+                      onChange={(e) => {
+                        this.setState({ role: e.target.value });
+                        this.markDirty();
+                      }}
+                    >
+                      <option>Client</option>
+                      <option>Consultant</option>
+                      <option>Expert</option>
+                      <option>admin</option>
+                    </CustomInput>
+                  ) : (
+                    <CustomInput
+                      type="select"
+                      name="select"
+                      id="role"
+                      defaultValue="Client"
+                      onChange={(e) => {
+                        this.setState({ role: e.target.value });
+                        this.markDirty();
+                      }}
+                    >
+                      <option>Client</option>
+                      <option>Consultant</option>
+                      <option>Expert</option>
+                      <option>admin</option>
+                    </CustomInput>
+                  )}
+                </FormGroup>
+              </Col>
+            </Row>
+
+            {/* Bouton (bas de page) */}
+            <Row className="mt-2">
+              <Col className="d-flex justify-content-center flex-wrap" sm="12">
                 <Button.Ripple className="mr-1" color="success" type="submit">
                   Enregistrer une modification
                 </Button.Ripple>

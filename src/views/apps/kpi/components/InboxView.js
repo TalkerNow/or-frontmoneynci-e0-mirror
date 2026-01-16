@@ -194,19 +194,26 @@ async function generateStrategicAnalysis(diagnosticData) {
 
 // Helper: Extract task text from the 'data' JSON field
 function getTaskText(item) {
-  // If it has a data field (from API), try to parse it
+  if (!item) return "";
+
+  if (item.text) return item.text;
+  if (item.task_text) return item.task_text;
+
   if (item.data) {
     try {
       const parsed =
         typeof item.data === "string" ? JSON.parse(item.data) : item.data;
-      return parsed.text || parsed.task_text || "";
+      return (
+        parsed.text ||
+        parsed.task_text ||
+        (typeof item.data === "string" ? item.data : "")
+      );
     } catch {
-      // If parsing fails, return data as-is if it's a string
       return typeof item.data === "string" ? item.data : "";
     }
   }
-  // Fallback to other possible fields
-  return item.task_text || item.text || "";
+
+  return item.content || item.message || "Tâche sans titre";
 }
 
 // ========== ACTIONS SECTION COMPONENT ==========
@@ -456,7 +463,12 @@ const ActionsSection = ({
       );
 
       // Add new report to state (use server response)
-      const savedReport = response.data.data || response.data;
+      const serverData = response.data.data || response.data;
+      const savedReport = {
+        ...serverData,
+        id: serverData.id, // Ensure ID is at root
+        type: "CALLREPORT",
+      };
       setCallReports((prev) => [savedReport, ...prev]);
 
       setNewCallReport("");
@@ -498,7 +510,26 @@ const ActionsSection = ({
       );
 
       // Add new task to state (use server response)
-      const savedTask = response.data.data || response.data;
+      let serverData = response.data.data || response.data;
+
+      // Sécurité : si la réponse est une chaîne (JSON), on la parse
+      if (typeof serverData === "string") {
+        try {
+          serverData = JSON.parse(serverData);
+        } catch (e) {
+          console.error("Failed to parse task response", e);
+        }
+      }
+
+      const savedTask = {
+        ...(typeof serverData === "object" ? serverData : {}),
+        id: serverData?.id,
+        text: newTaskText.trim(),
+        user_id: ownerId,
+        type: "TASK",
+        created_at: new Date().toISOString(),
+      };
+
       setTasks((prev) => [savedTask, ...prev]);
 
       setNewTaskText("");
@@ -730,6 +761,13 @@ const ActionsSection = ({
   const [errorAlertMessage, setErrorAlertMessage] = useState("");
 
   const handleDeleteItem = (item) => {
+    if (!item || !item.id) {
+      console.warn("Attempted to delete item without ID:", item);
+      window.alert(
+        "Impossible de supprimer cet élément (ID manquant). Veuillez rafraîchir la page."
+      );
+      return;
+    }
     setItemToDelete(item);
     setAlertVisible(true);
   };
@@ -751,10 +789,15 @@ const ActionsSection = ({
           global.config.server_url + `/v1/call-reports/${item.id}`,
           Config
         );
+        // Mise à jour locale et rafraîchissement
         setCallReports((prev) => prev.filter((r) => r.id !== item.id));
       } catch (error) {
         console.error("Failed to delete call report", error);
-        window.alert("Erreur lors de la suppression du rapport.");
+        window.alert(
+          "Erreur lors de la suppression du rapport. (Code " +
+            (error.response?.status || "Inconnu") +
+            ")"
+        );
       }
     } else if (item.type === "TASK") {
       try {
@@ -767,6 +810,7 @@ const ActionsSection = ({
           global.config.server_url + `/v1/inbox-tasks/${item.id}`,
           Config
         );
+        // Mise à jour locale
         setTasks((prev) => prev.filter((t) => t.id !== item.id));
       } catch (error) {
         console.error("Failed to delete task", error);
@@ -782,18 +826,10 @@ const ActionsSection = ({
 
   // ===== MIXED LIST VIEW =====
   const renderMixedList = () => {
-    // Filter tasks by ownerId
     const visibleTasks = tasks.filter(
       (t) =>
-        // Show task if it matches current owner
-        t.ownerId === ownerId ||
-        // legacy support: if strict isolation is desired, maybe DON'T show legacy tasks?
-        // User said "chacun doit avoir un unique historique", so we should HIDE tasks that don't match.
-        // But we must handle tasks created before this fix which have no ownerId.
-        // If we hide them, they disappear forever for everyone.
-        // Strategy: Only show if matches ownerId. Legacy tasks (undefined ownerId) will be hidden from specific views
-        // effectively isolating the history.
-        (t.ownerId === undefined && false) // Intentionally false to hide legacy mixed history
+        String(t.user_id) === String(ownerId) ||
+        String(t.ownerId) === String(ownerId)
     );
 
     const allItems = [
@@ -929,7 +965,7 @@ const ActionsSection = ({
                 </div>
 
                 {/* Edit Mode */}
-                {editingItem?.id === item.id ? (
+                {editingItem && editingItem.id === item.id ? (
                   <div style={{ flex: 1 }}>
                     <input
                       type="text"
