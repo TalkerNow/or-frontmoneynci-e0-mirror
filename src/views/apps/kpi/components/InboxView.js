@@ -463,8 +463,10 @@ const ActionsSection = ({
       );
 
       // Add new report to state (use server response)
+      const serverData = response.data.data || response.data;
       const savedReport = {
-        ...(response.data.data || response.data),
+        ...serverData,
+        id: serverData.id, // Ensure ID is at root
         type: "CALLREPORT",
       };
       setCallReports((prev) => [savedReport, ...prev]);
@@ -508,9 +510,21 @@ const ActionsSection = ({
       );
 
       // Add new task to state (use server response)
+      let serverData = response.data.data || response.data;
+
+      // Sécurité : si la réponse est une chaîne (JSON), on la parse
+      if (typeof serverData === "string") {
+        try {
+          serverData = JSON.parse(serverData);
+        } catch (e) {
+          console.error("Failed to parse task response", e);
+        }
+      }
+
       const savedTask = {
-        ...(response.data.data || response.data),
-        text: newTaskText.trim(), // On garde le texte en clair pour l'affichage immédiat
+        ...(typeof serverData === "object" ? serverData : {}),
+        id: serverData?.id,
+        text: newTaskText.trim(),
         user_id: ownerId,
         type: "TASK",
         created_at: new Date().toISOString(),
@@ -747,6 +761,13 @@ const ActionsSection = ({
   const [errorAlertMessage, setErrorAlertMessage] = useState("");
 
   const handleDeleteItem = (item) => {
+    if (!item || !item.id) {
+      console.warn("Attempted to delete item without ID:", item);
+      window.alert(
+        "Impossible de supprimer cet élément (ID manquant). Veuillez rafraîchir la page."
+      );
+      return;
+    }
     setItemToDelete(item);
     setAlertVisible(true);
   };
