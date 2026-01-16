@@ -1163,7 +1163,7 @@ const ActionsSection = ({
                   color: "#1f2937",
                 }}
               >
-                Créer un compte Prospect
+                Créer un compte prospect
               </h3>
 
               <div
