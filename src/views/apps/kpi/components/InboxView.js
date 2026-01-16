@@ -194,19 +194,26 @@ async function generateStrategicAnalysis(diagnosticData) {
 
 // Helper: Extract task text from the 'data' JSON field
 function getTaskText(item) {
-  // If it has a data field (from API), try to parse it
+  if (!item) return "";
+
+  if (item.text) return item.text;
+  if (item.task_text) return item.task_text;
+
   if (item.data) {
     try {
       const parsed =
         typeof item.data === "string" ? JSON.parse(item.data) : item.data;
-      return parsed.text || parsed.task_text || "";
+      return (
+        parsed.text ||
+        parsed.task_text ||
+        (typeof item.data === "string" ? item.data : "")
+      );
     } catch {
-      // If parsing fails, return data as-is if it's a string
       return typeof item.data === "string" ? item.data : "";
     }
   }
-  // Fallback to other possible fields
-  return item.task_text || item.text || "";
+
+  return item.content || item.message || "Tâche sans titre";
 }
 
 // ========== ACTIONS SECTION COMPONENT ==========
@@ -456,7 +463,10 @@ const ActionsSection = ({
       );
 
       // Add new report to state (use server response)
-      const savedReport = response.data.data || response.data;
+      const savedReport = {
+        ...(response.data.data || response.data),
+        type: "CALLREPORT",
+      };
       setCallReports((prev) => [savedReport, ...prev]);
 
       setNewCallReport("");
@@ -498,7 +508,14 @@ const ActionsSection = ({
       );
 
       // Add new task to state (use server response)
-      const savedTask = response.data.data || response.data;
+      const savedTask = {
+        ...(response.data.data || response.data),
+        text: newTaskText.trim(), // On garde le texte en clair pour l'affichage immédiat
+        user_id: ownerId,
+        type: "TASK",
+        created_at: new Date().toISOString(),
+      };
+
       setTasks((prev) => [savedTask, ...prev]);
 
       setNewTaskText("");
@@ -751,10 +768,15 @@ const ActionsSection = ({
           global.config.server_url + `/v1/call-reports/${item.id}`,
           Config
         );
+        // Mise à jour locale et rafraîchissement
         setCallReports((prev) => prev.filter((r) => r.id !== item.id));
       } catch (error) {
         console.error("Failed to delete call report", error);
-        window.alert("Erreur lors de la suppression du rapport.");
+        window.alert(
+          "Erreur lors de la suppression du rapport. (Code " +
+            (error.response?.status || "Inconnu") +
+            ")"
+        );
       }
     } else if (item.type === "TASK") {
       try {
@@ -767,6 +789,7 @@ const ActionsSection = ({
           global.config.server_url + `/v1/inbox-tasks/${item.id}`,
           Config
         );
+        // Mise à jour locale
         setTasks((prev) => prev.filter((t) => t.id !== item.id));
       } catch (error) {
         console.error("Failed to delete task", error);
@@ -921,7 +944,7 @@ const ActionsSection = ({
                 </div>
 
                 {/* Edit Mode */}
-                {editingItem?.id === item.id ? (
+                {editingItem && editingItem.id === item.id ? (
                   <div style={{ flex: 1 }}>
                     <input
                       type="text"
