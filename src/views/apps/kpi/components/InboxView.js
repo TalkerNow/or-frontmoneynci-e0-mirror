@@ -782,18 +782,10 @@ const ActionsSection = ({
 
   // ===== MIXED LIST VIEW =====
   const renderMixedList = () => {
-    // Filter tasks by ownerId
     const visibleTasks = tasks.filter(
       (t) =>
-        // Show task if it matches current owner
-        t.ownerId === ownerId ||
-        // legacy support: if strict isolation is desired, maybe DON'T show legacy tasks?
-        // User said "chacun doit avoir un unique historique", so we should HIDE tasks that don't match.
-        // But we must handle tasks created before this fix which have no ownerId.
-        // If we hide them, they disappear forever for everyone.
-        // Strategy: Only show if matches ownerId. Legacy tasks (undefined ownerId) will be hidden from specific views
-        // effectively isolating the history.
-        (t.ownerId === undefined && false) // Intentionally false to hide legacy mixed history
+        String(t.user_id) === String(ownerId) ||
+        String(t.ownerId) === String(ownerId)
     );
 
     const allItems = [
