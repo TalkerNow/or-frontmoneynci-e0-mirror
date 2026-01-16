@@ -933,7 +933,11 @@ class UserAccountTab extends React.Component {
                     }}
                   >
                     {this.props.members &&
-                      [<option value={null}>Aucun</option>].concat(
+                      [
+                        <option key="none" value={null}>
+                          Aucun
+                        </option>,
+                      ].concat(
                         this.props.members.map((member, index) => (
                           <option key={member.id} value={member.id}>
                             {member.first_name + " " + member.last_name}
@@ -1046,7 +1050,7 @@ class UserAccountTab extends React.Component {
                     inputMode="numeric"
                     pattern="\d{5}"
                     id="pincode"
-                    placeholder="Code postal personnel"
+                    placeholder="Code postal"
                     defaultValue={this.ifExist("personal_zip_code")}
                     onChange={(e) =>
                       this.handleZipChange(e.target.value, "personal")
@@ -1059,7 +1063,7 @@ class UserAccountTab extends React.Component {
                     type="text"
                     id="city"
                     list="personalCityList"
-                    placeholder="Ville personnelle"
+                    placeholder="Ville"
                     value={this.state.personal_city || ""}
                     onChange={(e) => {
                       this.setState({ personal_city: e.target.value });
@@ -1082,14 +1086,14 @@ class UserAccountTab extends React.Component {
                       this.markDirty();
                     }}
                     id="Country"
-                    placeholder="Pays personnel"
+                    placeholder="Pays"
                   />
                 </FormGroup>
               </Col>
 
               {/* Adresse société */}
               <Col md="6" sm="12">
-                <div className="d-flex align-items-center justify-content-between mb-1">
+                <div className="d-flex align-items-center justify-content-between mb-0">
                   <h5 className="mb-0">
                     <Briefcase className="mr-50" size={16} />
                     <span className="align-middle">Adresse de sa société</span>
@@ -1112,7 +1116,7 @@ class UserAccountTab extends React.Component {
                 {this.state.showSociety && (
                   <>
                     <FormGroup>
-                      <Label for="society_name">Nom Société</Label>
+                      <Label for="society_name">Nom de la Société</Label>
                       <Input
                         type="text"
                         id="society_name"
@@ -1185,7 +1189,7 @@ class UserAccountTab extends React.Component {
                       </FormGroup>
                     )}
                     <FormGroup>
-                      <Label for="society_pincode">Code postal</Label>
+                      <Label for="society_pincode">Code postal société</Label>
                       <Input
                         type="number"
                         id="society_pincode"
@@ -1223,27 +1227,12 @@ class UserAccountTab extends React.Component {
                         placeholder="Pays de la société"
                       />
                     </FormGroup>
-                    {/* <FormGroup>
-                      <Label for="officenumber">
-                        Numéro de Téléphone de la société
-                      </Label>
-                      <Input
-                        type="text"
-                        id="officenumber"
-                        defaultValue={this.ifExist("office_number")}
-                        placeholder="Numéro de Téléphone de la société"
-                        onChange={(e) => {
-                          this.setState({ office_number: e.target.value });
-                          this.markDirty();
-                        }}
-                      />
-                    </FormGroup> */}
                   </>
                 )}
               </Col>
             </Row>
 
-            <Row className="mt-2">
+            <Row>
               {/* Consultant */}
               <Col md="6" sm="12">
                 <FormGroup>
@@ -1263,7 +1252,11 @@ class UserAccountTab extends React.Component {
                     }}
                   >
                     {this.props.members &&
-                      [<option value={null}>Aucun</option>].concat(
+                      [
+                        <option key="none" value={null}>
+                          Aucun
+                        </option>,
+                      ].concat(
                         this.props.members.map((member, index) => (
                           <option key={member.id} value={member.id}>
                             {member.first_name + " " + member.last_name}
@@ -1273,13 +1266,12 @@ class UserAccountTab extends React.Component {
                   </CustomInput>
                 </FormGroup>
               </Col>
-
               {/* Rôle de l'utilisateur */}
               <Col md="6" sm="12">
                 <FormGroup>
                   <Label for="role">Rôle de l'utilisateur</Label>
                   {this.ifDataExist("role") != null ? (
-                    <Input
+                    <CustomInput
                       type="select"
                       name="select"
                       id="role"
@@ -1293,9 +1285,9 @@ class UserAccountTab extends React.Component {
                       <option>Consultant</option>
                       <option>Expert</option>
                       <option>admin</option>
-                    </Input>
+                    </CustomInput>
                   ) : (
-                    <Input
+                    <CustomInput
                       type="select"
                       name="select"
                       id="role"
@@ -1309,7 +1301,7 @@ class UserAccountTab extends React.Component {
                       <option>Consultant</option>
                       <option>Expert</option>
                       <option>admin</option>
-                    </Input>
+                    </CustomInput>
                   )}
                 </FormGroup>
               </Col>

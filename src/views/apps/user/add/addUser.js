@@ -1113,7 +1113,7 @@ class AddUser extends React.Component {
                   {this.state.showSocietyAddress2 && (
                     <FormGroup>
                       <div className="d-flex justify-content-between align-items-center">
-                        <Label for="officeadress2">Adresse n°2</Label>
+                        <Label for="officeadress2">Adresse 2</Label>
                         <div
                           className="cursor-pointer text-danger d-flex align-items-center"
                           onClick={() =>
@@ -1133,7 +1133,7 @@ class AddUser extends React.Component {
                       </div>
                       <Input
                         type="text"
-                        placeholder="Adresse n°2"
+                        placeholder="Adresse société 2"
                         value={this.state.data.society_address_2 || ""}
                         onChange={(e) =>
                           this.setState({
@@ -1148,10 +1148,10 @@ class AddUser extends React.Component {
                     </FormGroup>
                   )}
                   <FormGroup>
-                    <Label for="officepostcode">Code Postal</Label>
+                    <Label for="officepostcode">Code postal société</Label>
                     <Input
                       type="number"
-                      placeholder="Code Postal"
+                      placeholder="Code postal société"
                       value={this.state.data.society_zip_code || ""}
                       onChange={(e) =>
                         this.setState({
@@ -1165,10 +1165,10 @@ class AddUser extends React.Component {
                     />
                   </FormGroup>
                   <FormGroup>
-                    <Label for="officecity">Ville</Label>
+                    <Label for="officecity">Ville société</Label>
                     <Input
                       type="text"
-                      placeholder="Ville"
+                      placeholder="Ville société"
                       value={this.state.data.society_city || ""}
                       onChange={(e) =>
                         this.setState({
@@ -1182,10 +1182,10 @@ class AddUser extends React.Component {
                     />
                   </FormGroup>
                   <FormGroup>
-                    <Label for="officecountry">Pays</Label>
+                    <Label for="officecountry">Pays société</Label>
                     <Input
                       type="text"
-                      placeholder="Pays"
+                      placeholder="Pays de la société"
                       value={this.state.data.society_country || ""}
                       onChange={(e) =>
                         this.setState({
@@ -1203,10 +1203,28 @@ class AddUser extends React.Component {
             </Col>
           </Row>
 
-          {/* Expert + Mot de passe + Rôle */}
+          {/* Mot de passe + Expert + Rôle */}
           <Row>
+            {/* Mot de passe */}
+            <Col md="4" sm="12">
+              <FormGroup>
+                <Label for="password">Mot de passe</Label>
+                <Input
+                  type="text"
+                  name="password"
+                  id="password"
+                  value={this.state.data.password || ""}
+                  placeholder="Mot de passe"
+                  onChange={(e) =>
+                    this.setState({
+                      data: { ...this.state.data, password: e.target.value },
+                    })
+                  }
+                />
+              </FormGroup>
+            </Col>
             {/* Consultant (Optionnel) */}
-            <Col md="6" sm="12">
+            <Col md="4" sm="12">
               <FormGroup>
                 <Label for="parent_id">Consultant</Label>
                 <CustomInput
@@ -1230,8 +1248,9 @@ class AddUser extends React.Component {
               </FormGroup>
             </Col>
 
+
             {/* Rôle de l'utilisateur */}
-            <Col md="6" sm="12">
+            <Col md="4" sm="12">
               <FormGroup>
                 <Label for="role">Rôle de l'utilisateur</Label>
                 <CustomInput
