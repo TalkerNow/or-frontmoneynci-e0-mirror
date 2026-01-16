@@ -242,9 +242,9 @@ const UploadSection = ({
                         onClick={() => handleGenerateDoc("pre")}
                         disabled={isGenerating && reportType === "pre"}
                     >
-                        Rapport pré-entretien
+                        Rapport consultation
                     </Button>
-                    <Button
+                    {/* <Button
                         className={`notes-report-btn notes-action-btn ${reportType === "consult" ? "is-active" : ""
                             }`}
                         color="link"
@@ -252,7 +252,7 @@ const UploadSection = ({
                         disabled={isGenerating}
                     >
                         Rapport consultation
-                    </Button>
+                    </Button> */}
                 </div>
 
                 {isGenerating && (

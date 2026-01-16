@@ -37,6 +37,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
     chatMessage,
     setChatMessage,
     handleDownloadPdf,
+    handleDownloadHtml,
     handleReportDoc,
     handleModalGenerate,
     reportModalOpen,
@@ -103,6 +104,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         chatMessage={chatMessage}
         setChatMessage={setChatMessage}
         handleDownloadPdf={handleDownloadPdf}
+        handleDownloadHtml={handleDownloadHtml}
         handleReportDoc={handleReportDoc}
         handleModalGenerate={handleModalGenerate}
         isGenerating={isGenerating}

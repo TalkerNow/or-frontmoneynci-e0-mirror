@@ -1,6 +1,6 @@
 import React from "react";
 import { Modal, ModalHeader, ModalBody, Button, Input } from "reactstrap";
-import { Download, AlertTriangle } from "react-feather";
+import { Download, AlertTriangle, FileText } from "react-feather";
 
 const DocumentViewerModal = ({
     viewingDoc,
@@ -9,9 +9,12 @@ const DocumentViewerModal = ({
     setChatMessage,
     handleDownloadPdf,
     handleReportDoc,
+    handleDownloadHtml,
     handleModalGenerate,
     isGenerating,
 }) => {
+
+
     return (
         <Modal
             isOpen={!!viewingDoc}
@@ -51,6 +54,17 @@ const DocumentViewerModal = ({
                         >
                             <Download size={16} className="mr-1" /> Télécharger en PDF
                         </Button>
+
+                        {(viewingDoc?.htmlContent || viewingDoc?.url) && (
+                            <Button
+                                color="secondary"
+                                outline
+                                className="mb-3 d-flex align-items-center justify-content-center"
+                                onClick={handleDownloadHtml}
+                            >
+                                <FileText size={16} className="mr-1" /> Télécharger en HTML
+                            </Button>
+                        )}
 
                         <Button
                             color="danger"
