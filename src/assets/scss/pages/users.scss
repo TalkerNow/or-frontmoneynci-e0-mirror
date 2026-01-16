@@ -25,14 +25,25 @@
 }
 
 // User view info
-.users-page-view-table .user-info {
-  div {
-    padding: 0.5rem;
+  .users-page-view-table .user-info {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    div {
+      padding: 0.5rem;
+    }
+    .user-info-title {
+      min-width: 140px;
+      flex-shrink: 0;
+      @media (min-width: 576px) {
+        min-width: 180px;
+      }
+    }
+    div:not(.user-info-title) {
+      flex: 1;
+      min-width: 120px;
+    }
   }
-  .user-info-title {
-    min-width: 140px;
-  }
-}
 
 @media (max-width: 576px) {
   .ag-grid-table {
@@ -114,7 +125,7 @@
 .doc-section-title {
   font-weight: 600;
   font-size: 0.95rem;
-  color: #4B5563;
+  color: #4b5563;
   margin-bottom: 8px;
 }
 
@@ -130,9 +141,9 @@
   justify-content: space-between;
   gap: 12px;
   padding: 12px 16px;
-  border: 1px solid #E5E7EB;
+  border: 1px solid #e5e7eb;
   border-radius: 8px;
-  background: #FFFFFF;
+  background: #ffffff;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
   flex-wrap: wrap;
 }
@@ -148,12 +159,12 @@
 .doc-card-icon {
   width: 44px;
   height: 44px;
-  border: 1px solid #E5E7EB;
+  border: 1px solid #e5e7eb;
   border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #F9FAFB;
+  background: #f9fafb;
 }
 
 .doc-card-text {
@@ -174,11 +185,11 @@
 }
 
 .doc-name-btn:hover {
-  color: #6D28D9;
+  color: #6d28d9;
 }
 
 .doc-name-input {
-  border: 1px solid #D1D5DB;
+  border: 1px solid #d1d5db;
   border-radius: 6px;
   padding: 4px 8px;
   font-weight: 600;
@@ -187,7 +198,7 @@
 
 .doc-card-subtitle {
   font-size: 0.85rem;
-  color: #6B7280;
+  color: #6b7280;
 }
 
 .doc-word-btn,
@@ -198,7 +209,7 @@
   gap: 8px;
   min-width: 40px;
   height: 34px;
-  border: 1px solid #D1D5DB;
+  border: 1px solid #d1d5db;
   border-radius: 8px;
   font-weight: 600;
   padding: 4px 10px;
@@ -207,13 +218,13 @@
 }
 
 .doc-word-btn {
-  background: #FFFFFF;
+  background: #ffffff;
   border-radius: 8px;
-  color: #2563EB;
+  color: #2563eb;
 }
 
 .doc-word-btn:hover {
-  background: #F4F6FB;
+  background: #f4f6fb;
   transform: translateY(-1px);
   box-shadow: 0 3px 8px rgba(37, 99, 235, 0.15);
 }
@@ -228,14 +239,14 @@
 }
 
 .doc-delete-btn {
-  border-color: #FECACA;
-  background: #FFF5F5;
-  color: #B91C1C;
+  border-color: #fecaca;
+  background: #fff5f5;
+  color: #b91c1c;
 }
 
 .doc-delete-btn:hover {
-  background: #FEE2E2;
-  color: #991B1B;
+  background: #fee2e2;
+  color: #991b1b;
   transform: translateY(-1px);
   box-shadow: 0 3px 8px rgba(248, 113, 113, 0.2);
 }
@@ -305,14 +316,14 @@
 }
 
 .career-card .manual-actions .action-btn.danger {
-  border-color: #FECACA !important;
-  color: #B91C1C;
-  background: #FFF5F5;
+  border-color: #fecaca !important;
+  color: #b91c1c;
+  background: #fff5f5;
 }
 
 .career-card .manual-actions .action-btn.danger:hover {
-  background: #FEE2E2 !important;
-  color: #991B1B;
+  background: #fee2e2 !important;
+  color: #991b1b;
 }
 .comment-dot {
   display: inline-block;
