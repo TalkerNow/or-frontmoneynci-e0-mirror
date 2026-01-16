@@ -179,12 +179,12 @@ class UserEdit extends React.Component {
                 <MessageCircle className='text-primary mr-50' size={16}/> Commentaires
               </NavLink>
             </NavItem>
-            <NavItem>
+              <NavItem>
               <NavLink id={`simulateur-link-old-${id}`} className={classnames({ active: this.state.activeTab === 'simulateur' })} onClick={() => this.toggle('simulateur')}>
                 <Activity className='text-primary mr-50' size={16}/>
-                <span id={`simulateur-label-old-${id}`}> Simulateur</span>
-              </NavLink>
-            </NavItem>
+                  <span id={`simulateur-label-old-${id}`}> Simulateur</span>
+                </NavLink>
+              </NavItem>
           </Nav>
           <TabContent activeTab={this.state.activeTab}>
             <TabPane tabId='notes'>

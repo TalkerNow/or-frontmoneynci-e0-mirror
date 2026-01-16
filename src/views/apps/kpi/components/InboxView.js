@@ -23,6 +23,7 @@ import {
   Mail,
   FileText,
   EyeOff,
+  Plus,
   Briefcase,
 } from "lucide-react";
 import { Badge } from "./SharedComponents";
@@ -191,30 +192,79 @@ async function generateStrategicAnalysis(diagnosticData) {
   }
 }
 
+// Helper: Extract task text from the 'data' JSON field
+function getTaskText(item) {
+  // If it has a data field (from API), try to parse it
+  if (item.data) {
+    try {
+      const parsed =
+        typeof item.data === "string" ? JSON.parse(item.data) : item.data;
+      return parsed.text || parsed.task_text || "";
+    } catch {
+      // If parsing fails, return data as-is if it's a string
+      return typeof item.data === "string" ? item.data : "";
+    }
+  }
+  // Fallback to other possible fields
+  return item.task_text || item.text || "";
+}
+
 // ========== ACTIONS SECTION COMPONENT ==========
-const ActionsSection = ({ clientId, adminId, prospectId }) => {
+const ActionsSection = ({
+  clientId,
+  adminId,
+  prospectId,
+  type,
+  prospectData = {},
+}) => {
   const routerHistory = useHistory();
   const [activeView, setActiveView] = useState("HOME");
   const [newCallReport, setNewCallReport] = useState("");
   const [newTaskText, setNewTaskText] = useState("");
   const [taskDateTime, setTaskDateTime] = useState("");
 
+  // Create Prospect Modal State
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isCreatingProspect, setIsCreatingProspect] = useState(false);
+  const [prospectForm, setProspectForm] = useState({
+    firstName: prospectData.firstName || "",
+    lastName: prospectData.lastName || "",
+    email: prospectData.email || "",
+    phone: prospectData.phone || "",
+  });
+
+  // Update form if props change
+  useEffect(() => {
+    setProspectForm((prev) => ({
+      ...prev,
+      firstName: prospectData.firstName || "",
+      lastName: prospectData.lastName || "",
+      email: prospectData.email || "",
+      phone: prospectData.phone || "",
+    }));
+  }, [prospectData]);
+  const [localClientId, setLocalClientId] = useState(null);
+
+  // Effective Client ID (prop or locally created)
+  const effectiveClientId = clientId || localClientId;
+
+  const isBlocked =
+    !effectiveClientId &&
+    (type === "chatbot" ||
+      type === "diagnostic" ||
+      type === "conversations-archives" ||
+      type === "simulator-difficulty-result");
+
   // Determine the effective owner ID (Client or Prospect)
-  const ownerId = clientId || prospectId;
+  const ownerId = effectiveClientId || prospectId;
 
   // API State for Call Reports
   const [callReports, setCallReports] = useState([]);
   const [, setIsLoadingReports] = useState(false);
 
-  // Load from localStorage on mount (TASKS ONLY - Call Reports are now API)
-  const [tasks, setTasks] = useState(() => {
-    try {
-      const stored = localStorage.getItem("inbox_tasks");
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
+  // API State for Tasks (no more localStorage)
+  const [tasks, setTasks] = useState([]);
+  const [, setIsLoadingTasks] = useState(false);
 
   const logs = []; // Logs can be added later if needed
 
@@ -233,7 +283,7 @@ const ActionsSection = ({ clientId, adminId, prospectId }) => {
         };
         // Attempt to fetch using the ownerId (whether client or prospect)
         const response = await axios.get(
-          `https://api.optionretraite.net/api/v1/call-reports/client/${ownerId}`,
+          global.config.server_url + `/v1/call-reports/client/${ownerId}`,
           Config
         );
         // Ensure we handle array or wrapped object
@@ -259,9 +309,45 @@ const ActionsSection = ({ clientId, adminId, prospectId }) => {
     fetchCallReports();
   }, [ownerId]);
 
+  // Fetch Tasks from API
   useEffect(() => {
-    localStorage.setItem("inbox_tasks", JSON.stringify(tasks));
-  }, [tasks]);
+    const fetchTasks = async () => {
+      if (!ownerId) {
+        setTasks([]);
+        return;
+      }
+      setIsLoadingTasks(true);
+      try {
+        const Config = {
+          headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+        };
+        // TEMPORARY TEST: Remove filter to see if base route works
+        const response = await axios.get(
+          global.config.server_url + `/v1/inbox-tasks`,
+          Config
+        );
+
+        // Handle paginated response (Laravel standards)
+        const tasksData = Array.isArray(response.data)
+          ? response.data
+          : response.data.data || [];
+
+        setTasks(
+          tasksData.sort(
+            (a, b) =>
+              new Date(b.created_at || b.date) -
+              new Date(a.created_at || a.date)
+          )
+        );
+      } catch (error) {
+        console.error("Failed to fetch tasks", error);
+      } finally {
+        setIsLoadingTasks(false);
+      }
+    };
+
+    fetchTasks();
+  }, [ownerId]);
 
   // ===== STYLES =====
   const iconButtonStyle = (isActive) => ({
@@ -356,17 +442,15 @@ const ActionsSection = ({ clientId, adminId, prospectId }) => {
       };
 
       const payload = {
-        client_id: ownerId, // Use ownerId as client_id (backend may accept prospect ID here)
+        client_id: ownerId,
         admin_id: adminId || localStorage.getItem("userid"),
-        content: newCallReport.trim(),
-        call_report: newCallReport.trim(), // Send as call_report as well, since that seems to be the field name
-        date: new Date().toISOString(),
+        call_report: newCallReport.trim(),
       };
       // If we are strictly a prospect (no clientId but have prospectId), we might want to send prospect_id as well/instead
       // But based on plan, we try sending as client_id first.
 
       const response = await axios.post(
-        "https://api.optionretraite.net/api/v1/call-reports",
+        global.config.server_url + "/v1/call-reports",
         payload,
         Config
       );
@@ -383,19 +467,157 @@ const ActionsSection = ({ clientId, adminId, prospectId }) => {
     }
   };
 
-  const handleAddTask = () => {
+  const handleAddTask = async () => {
     if (!newTaskText.trim()) return;
-    const newTask = {
-      id: Date.now(),
-      text: newTaskText.trim(),
-      date: taskDateTime || new Date().toISOString(),
-      done: false,
-      ownerId: ownerId, // Associate task with current client/prospect
-    };
-    setTasks((prev) => [newTask, ...prev]);
-    setNewTaskText("");
-    setTaskDateTime("");
-    setActiveView("HOME"); // Switch to history after adding
+
+    if (!ownerId) {
+      window.alert(
+        "Erreur: Impossible d'identifier le client ou le prospect pour sauvegarder la tâche."
+      );
+      return;
+    }
+
+    try {
+      const Config = {
+        headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+      };
+
+      const payload = {
+        user_id: ownerId,
+        admin_id: adminId || localStorage.getItem("userid"),
+        data: JSON.stringify({ text: newTaskText.trim() }),
+        date: taskDateTime
+          ? taskDateTime.split("T")[0]
+          : new Date().toISOString().split("T")[0],
+      };
+
+      const response = await axios.post(
+        global.config.server_url + "/v1/inbox-tasks",
+        payload,
+        Config
+      );
+
+      // Add new task to state (use server response)
+      const savedTask = response.data.data || response.data;
+      setTasks((prev) => [savedTask, ...prev]);
+
+      setNewTaskText("");
+      setTaskDateTime("");
+      setActiveView("HOME"); // Switch to history after adding
+    } catch (error) {
+      console.error("Failed to add task", error);
+      window.alert("Erreur lors de la sauvegarde de la tâche.");
+    }
+  };
+
+  const handleCreateProspect = async () => {
+    const { firstName, lastName, email, phone } = prospectForm;
+
+    if (!firstName || !lastName) {
+      alert("Nom et prénom sont obligatoires");
+      return;
+    }
+
+    setIsCreatingProspect(true);
+    try {
+      const token = localStorage.getItem("token");
+      const currentUserId = localStorage.getItem("userid");
+      const roleStr = (localStorage.getItem("role") || "").toLowerCase();
+      const isConsultant = roleStr.includes("consultant");
+
+      const parentId = isConsultant ? currentUserId : null;
+      const businessIntroducerId = isConsultant ? null : currentUserId;
+
+      // 1. Register User
+      const registerPayload = {
+        name: `${firstName} ${lastName}`,
+        email: email || `prospect_${Date.now()}@placeholder.com`, // Fallback if email missing
+        password: Math.random().toString(36).slice(-10) + "1!", // Random password
+        role: "Prospect", // Keeping Prospect as requested initially.
+        parent_id: parentId,
+        business_introducer_id: businessIntroducerId,
+      };
+
+      const registerResponse = await axios.post(
+        global.config.server_url + "/register",
+        registerPayload,
+        { headers: { Authorization: "Bearer " + token } }
+      );
+
+      if (registerResponse.data && registerResponse.data.user) {
+        const newUserId = registerResponse.data.user.id;
+
+        // 2. Add Personal Info
+        const infoPayload = {
+          id: newUserId,
+          user_id: 10, // Legacy/Default
+          first_name: firstName,
+          last_name: lastName,
+          email: email,
+          mobile_number: phone,
+          parent_id: parentId,
+          business_introducer_id: businessIntroducerId,
+          civility: "Monsieur", // Default
+          martial_status: "Célibataire", // Default
+        };
+
+        await axios.post(
+          global.config.server_url + "/personal_information",
+          infoPayload,
+          { headers: { Authorization: "Bearer " + token } }
+        );
+
+        // Success
+        setLocalClientId(newUserId);
+        setShowCreateModal(false);
+        setActiveView("CALLREPORT"); // Switch to actions immediately
+
+        // 3. Link User ID to Source Item (Chatbot or Simulator)
+        try {
+          if (type === "chatbot" || type === "conversations-archives") {
+            await axios.put(
+              global.config.server_url + `/conversation-archives/${prospectId}`,
+              { user_id: newUserId },
+              { headers: { Authorization: "Bearer " + token } }
+            );
+          } else if (
+            type === "diagnostic" ||
+            type === "simulator-difficulty-result"
+          ) {
+            await axios.put(
+              global.config.server_url +
+                `/v1/simulator-difficulty-results/${prospectId}`,
+              { user_id: newUserId },
+              { headers: { Authorization: "Bearer " + token } }
+            );
+          }
+        } catch (linkError) {
+          console.error("Failed to link user to source item:", linkError);
+          // Non-blocking error, user is created anyway - show warning instead of success
+          setWarningAlertMessage(
+            "Prospect créé, mais la liaison avec la conversation a échoué. " +
+              (linkError.response?.data?.message || linkError.message)
+          );
+          setWarningAlertVisible(true);
+          return; // Don't show success if there was a link error
+        }
+
+        // Show success popup
+        setSuccessAlertMessage(
+          "Prospect créé avec succès ! Vous pouvez maintenant ajouter des actions."
+        );
+        setSuccessAlertVisible(true);
+      }
+    } catch (error) {
+      console.error("Create Prospect Error:", error);
+      setErrorAlertMessage(
+        "Erreur lors de la création du prospect. " +
+          (error.response?.data?.message || error.message)
+      );
+      setErrorAlertVisible(true);
+    } finally {
+      setIsCreatingProspect(false);
+    }
   };
 
   // ===== EDIT STATE =====
@@ -404,7 +626,11 @@ const ActionsSection = ({ clientId, adminId, prospectId }) => {
 
   const handleEditItem = (item) => {
     setEditingItem(item);
-    setEditText(item.report || item.content || item.text || "");
+    if (item.type === "TASK") {
+      setEditText(getTaskText(item));
+    } else {
+      setEditText(item.report || item.content || item.call_report || "");
+    }
   };
 
   const handleSaveEdit = async () => {
@@ -415,12 +641,15 @@ const ActionsSection = ({ clientId, adminId, prospectId }) => {
         const Config = {
           headers: { Authorization: "Bearer " + localStorage.getItem("token") },
         };
+        // Ensure we send only allowed fields for update
+        const updatePayload = {
+          call_report: editText.trim(),
+          // client_id & admin_id could be sent if they changed, strictly speaking only need to send what changed
+        };
+
         await axios.put(
-          `https://api.optionretraite.net/api/v1/call-reports/${editingItem.id}`,
-          {
-            content: editText.trim(),
-            call_report: editText.trim(), // Send both to be safe
-          },
+          global.config.server_url + `/v1/call-reports/${editingItem.id}`,
+          updatePayload,
           Config
         );
 
@@ -443,11 +672,36 @@ const ActionsSection = ({ clientId, adminId, prospectId }) => {
         return;
       }
     } else if (editingItem.type === "TASK") {
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.id === editingItem.id ? { ...t, text: editText.trim() } : t
-        )
-      );
+      try {
+        const Config = {
+          headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+        };
+        const updatePayload = {
+          data: JSON.stringify({ text: editText.trim() }),
+        };
+
+        await axios.put(
+          global.config.server_url + `/v1/inbox-tasks/${editingItem.id}`,
+          updatePayload,
+          Config
+        );
+
+        // Update local state
+        setTasks((prev) =>
+          prev.map((t) =>
+            t.id === editingItem.id
+              ? {
+                  ...t,
+                  data: JSON.stringify({ text: editText.trim() }),
+                }
+              : t
+          )
+        );
+      } catch (error) {
+        console.error("Failed to update task", error);
+        window.alert("Erreur lors de la mise à jour de la tâche.");
+        return;
+      }
     }
 
     setEditingItem(null);
@@ -462,6 +716,18 @@ const ActionsSection = ({ clientId, adminId, prospectId }) => {
   // ===== DELETE STATE =====
   const [alertVisible, setAlertVisible] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
+
+  // Success alert state for prospect creation
+  const [successAlertVisible, setSuccessAlertVisible] = useState(false);
+  const [successAlertMessage, setSuccessAlertMessage] = useState("");
+
+  // Warning alert state for prospect creation with link error
+  const [warningAlertVisible, setWarningAlertVisible] = useState(false);
+  const [warningAlertMessage, setWarningAlertMessage] = useState("");
+
+  // Error alert state for prospect creation failure
+  const [errorAlertVisible, setErrorAlertVisible] = useState(false);
+  const [errorAlertMessage, setErrorAlertMessage] = useState("");
 
   const handleDeleteItem = (item) => {
     setItemToDelete(item);
@@ -482,7 +748,7 @@ const ActionsSection = ({ clientId, adminId, prospectId }) => {
           },
         };
         await axios.delete(
-          `https://api.optionretraite.net/api/v1/call-reports/${item.id}`,
+          global.config.server_url + `/v1/call-reports/${item.id}`,
           Config
         );
         setCallReports((prev) => prev.filter((r) => r.id !== item.id));
@@ -491,7 +757,21 @@ const ActionsSection = ({ clientId, adminId, prospectId }) => {
         window.alert("Erreur lors de la suppression du rapport.");
       }
     } else if (item.type === "TASK") {
-      setTasks((prev) => prev.filter((t) => t.id !== item.id));
+      try {
+        const Config = {
+          headers: {
+            Authorization: "Bearer " + localStorage.getItem("token"),
+          },
+        };
+        await axios.delete(
+          global.config.server_url + `/v1/inbox-tasks/${item.id}`,
+          Config
+        );
+        setTasks((prev) => prev.filter((t) => t.id !== item.id));
+      } catch (error) {
+        console.error("Failed to delete task", error);
+        window.alert("Erreur lors de la suppression de la tâche.");
+      }
     }
 
     setItemToDelete(null);
@@ -692,12 +972,13 @@ const ActionsSection = ({ clientId, adminId, prospectId }) => {
                           fontWeight: 500,
                         }}
                       >
-                        {item.call_report ||
-                          item.content ||
-                          item.report ||
-                          item.text ||
-                          item.message ||
-                          "Élément"}
+                        {item.type === "TASK"
+                          ? getTaskText(item)
+                          : item.call_report ||
+                            item.content ||
+                            item.report ||
+                            item.message ||
+                            "Élément"}
                       </p>
                       <p
                         style={{
@@ -764,6 +1045,250 @@ const ActionsSection = ({ clientId, adminId, prospectId }) => {
     );
   };
 
+  if (isBlocked) {
+    return (
+      <div
+        style={{
+          padding: "24px",
+          textAlign: "center",
+          backgroundColor: "#f0f9ff", // Light blue
+          borderRadius: "12px",
+          border: "1px dashed #bae6fd", // Dashed blue border
+          color: "#0369a1",
+        }}
+      >
+        <User size={32} style={{ marginBottom: "12px", opacity: 0.8 }} />
+        <p style={{ margin: "0 0 16px", fontWeight: 500, fontSize: "15px" }}>
+          Créer un prospect pour pouvoir ajouter une action
+        </p>
+
+        <button
+          onClick={() => setShowCreateModal(true)}
+          style={{
+            backgroundColor: "#7367f0", // Primary violet
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+            padding: "10px 20px",
+            fontSize: "14px",
+            fontWeight: 500,
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            boxShadow: "0 2px 4px rgba(115, 103, 240, 0.3)",
+            transition: "background-color 0.2s",
+          }}
+          onMouseOver={(e) =>
+            (e.currentTarget.style.backgroundColor = "#5e50ee")
+          }
+          onMouseOut={(e) =>
+            (e.currentTarget.style.backgroundColor = "#7367f0")
+          }
+        >
+          <Plus size={16} />
+          Créer le prospect
+        </button>
+
+        {/* Modal Création Prospect */}
+        {showCreateModal && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0,0,0,0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 10000,
+            }}
+            onClick={() => setShowCreateModal(false)}
+          >
+            <div
+              style={{
+                backgroundColor: "white",
+                borderRadius: "12px",
+                width: "90%",
+                maxWidth: "500px",
+                padding: "24px",
+                textAlign: "left",
+                boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3
+                style={{
+                  fontSize: "18px",
+                  fontWeight: 600,
+                  marginBottom: "20px",
+                  color: "#1f2937",
+                }}
+              >
+                Créer un compte Prospect
+              </h3>
+
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "16px",
+                }}
+              >
+                <div style={{ display: "flex", gap: "16px" }}>
+                  <div style={{ flex: 1 }}>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "12px",
+                        fontWeight: 500,
+                        color: "#374151",
+                        marginBottom: "4px",
+                      }}
+                    >
+                      Prénom *
+                    </label>
+                    <input
+                      type="text"
+                      value={prospectForm.firstName}
+                      onChange={(e) =>
+                        setProspectForm({
+                          ...prospectForm,
+                          firstName: e.target.value,
+                        })
+                      }
+                      style={inputStyle}
+                      placeholder="Prénom"
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "12px",
+                        fontWeight: 500,
+                        color: "#374151",
+                        marginBottom: "4px",
+                      }}
+                    >
+                      Nom *
+                    </label>
+                    <input
+                      type="text"
+                      value={prospectForm.lastName}
+                      onChange={(e) =>
+                        setProspectForm({
+                          ...prospectForm,
+                          lastName: e.target.value,
+                        })
+                      }
+                      style={inputStyle}
+                      placeholder="Nom"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "12px",
+                      fontWeight: 500,
+                      color: "#374151",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={prospectForm.email}
+                    onChange={(e) =>
+                      setProspectForm({
+                        ...prospectForm,
+                        email: e.target.value,
+                      })
+                    }
+                    style={inputStyle}
+                    placeholder="email@exemple.com"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "12px",
+                      fontWeight: 500,
+                      color: "#374151",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    Téléphone
+                  </label>
+                  <input
+                    type="tel"
+                    value={prospectForm.phone}
+                    onChange={(e) =>
+                      setProspectForm({
+                        ...prospectForm,
+                        phone: e.target.value,
+                      })
+                    }
+                    style={inputStyle}
+                    placeholder="06 12 34 56 78"
+                  />
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: "12px",
+                  marginTop: "24px",
+                }}
+              >
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: "6px",
+                    backgroundColor: "#dc3545",
+                    border: "none",
+                    color: "white",
+                    cursor: "pointer",
+                    fontWeight: 500,
+                  }}
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleCreateProspect}
+                  disabled={isCreatingProspect}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: "6px",
+                    backgroundColor: "#7367f0",
+                    border: "none",
+                    color: "white",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    opacity: isCreatingProspect ? 0.7 : 1,
+                  }}
+                >
+                  {isCreatingProspect ? "Création..." : "Créer le prospect"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div>
       {/* Icon Navigation Bar */}
@@ -802,6 +1327,20 @@ const ActionsSection = ({ clientId, adminId, prospectId }) => {
         >
           <Briefcase size={20} />
         </button>
+
+        {ownerId && (
+          <button
+            style={{
+              ...iconButtonStyle(false),
+              color: "#059669",
+              backgroundColor: "#d1fae5",
+            }}
+            onClick={() => routerHistory.push(`/app/user/edit/${ownerId}/2`)}
+            title="Voir le profil complet"
+          >
+            <User size={20} />
+          </button>
+        )}
       </div>
 
       {/* Views */}
@@ -902,6 +1441,42 @@ const ActionsSection = ({ clientId, adminId, prospectId }) => {
         <p className="sweet-alert-text">
           Êtes-vous sûr de vouloir supprimer cet élément ?
         </p>
+      </SweetAlert>
+
+      {/* Success Alert for Prospect Creation */}
+      <SweetAlert
+        success
+        title="Succès !"
+        show={successAlertVisible}
+        confirmBtnText="OK"
+        confirmBtnBsStyle="success"
+        onConfirm={() => setSuccessAlertVisible(false)}
+      >
+        <p className="sweet-alert-text">{successAlertMessage}</p>
+      </SweetAlert>
+
+      {/* Warning Alert for Prospect Creation with Link Error */}
+      <SweetAlert
+        warning
+        title="Attention"
+        show={warningAlertVisible}
+        confirmBtnText="OK"
+        confirmBtnBsStyle="warning"
+        onConfirm={() => setWarningAlertVisible(false)}
+      >
+        <p className="sweet-alert-text">{warningAlertMessage}</p>
+      </SweetAlert>
+
+      {/* Error Alert for Prospect Creation Failure */}
+      <SweetAlert
+        error
+        title="Erreur"
+        show={errorAlertVisible}
+        confirmBtnText="OK"
+        confirmBtnBsStyle="danger"
+        onConfirm={() => setErrorAlertVisible(false)}
+      >
+        <p className="sweet-alert-text">{errorAlertMessage}</p>
       </SweetAlert>
     </div>
   );
@@ -1242,31 +1817,17 @@ const InboxView = ({
   const [disqualifyComment, setDisqualifyComment] = useState("");
   const [isDisqualifying, setIsDisqualifying] = useState(false);
 
-  // Track disqualified IDs to filter them out locally
-  const [disqualifiedIds, setDisqualifiedIds] = useState(() => {
-    try {
-      const stored = localStorage.getItem("inbox_disqualified_ids");
-      return stored ? new Set(JSON.parse(stored)) : new Set();
-    } catch {
-      return new Set();
-    }
-  });
-
-  // Persist disqualified IDs to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        "inbox_disqualified_ids",
-        JSON.stringify([...disqualifiedIds])
-      );
-    } catch (e) {
-      console.error("Failed to save disqualified IDs:", e);
-    }
-  }, [disqualifiedIds]);
+  // Track disqualified IDs to filter them out locally (Optimistic UI only, not persisted)
+  const [disqualifiedIds, setDisqualifiedIds] = useState(new Set());
 
   // Filter out disqualified items from the visible list
+  // We check both the local "disqualifiedIds" (optimistic) and the backend "invisible" flag (source of truth)
   const visibleInboxItems = inboxItems.filter(
-    (item) => !disqualifiedIds.has(item.id)
+    (item) =>
+      !disqualifiedIds.has(item.id) &&
+      !item.raw?.invisible && // Standard boolean
+      item.raw?.invisible !== 1 && // Laravel/SQL integer boolean
+      item.raw?.status !== "DISQUALIFIED" // Additional status check if needed
   );
 
   // Get current strategic analysis for selected item
@@ -1429,29 +1990,51 @@ const InboxView = ({
     setIsDisqualifying(true);
 
     try {
-      // API call to update status (soft delete)
+      // API call to update status (soft delete / invisible)
       const token = localStorage.getItem("token");
-      const response = await fetch(
-        `${
-          process.env.REACT_APP_API_URL || window.location.origin
-        }/api/prospects/${selectedItem.id}/disqualify`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            status: "DISQUALIFIED",
-            disqualification_reason: disqualifyReason,
-            disqualification_comment: disqualifyComment,
-          }),
-        }
-      );
+      const config = {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      };
 
-      // Even if API fails, we update locally for UX (optimistic update)
-      if (!response.ok) {
-        console.warn("API disqualify failed, applying local update only");
+      if (
+        selectedItem.type === "chatbot" ||
+        selectedItem.type === "conversations-archives"
+      ) {
+        await axios.put(
+          global.config.server_url +
+            `/conversation-archives/${selectedItem.id}`,
+          { invisible: true },
+          config
+        );
+      } else if (
+        selectedItem.type === "diagnostic" ||
+        selectedItem.type === "simulator-difficulty-result"
+      ) {
+        await axios.put(
+          global.config.server_url +
+            `/v1/simulator-difficulty-results/${selectedItem.id}`,
+          { invisible: true },
+          config
+        );
+      } else {
+        // Fallback for other types
+        await fetch(
+          `${
+            process.env.REACT_APP_API_URL || window.location.origin
+          }/api/prospects/${selectedItem.id}/disqualify`,
+          {
+            method: "PATCH",
+            headers: config.headers,
+            body: JSON.stringify({
+              status: "DISQUALIFIED",
+              disqualification_reason: disqualifyReason,
+              disqualification_comment: disqualifyComment,
+            }),
+          }
+        );
       }
 
       // Add to disqualified IDs to filter out from list
@@ -3734,6 +4317,13 @@ const InboxView = ({
               clientId={selectedItem.clientId}
               prospectId={selectedItem.id} // Pass prospectId as fallback
               adminId={localStorage.getItem("userid")}
+              type={selectedItem.type}
+              prospectData={{
+                firstName: selectedItem.firstName,
+                lastName: selectedItem.lastName,
+                email: selectedItem.email,
+                phone: selectedItem.phone,
+              }}
             />
           </div>
         </div>
