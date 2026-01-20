@@ -84,7 +84,7 @@ class FilterSidebar extends React.Component {
                 }}
                 active={
                   this.props.routerProps.location.pathname ===
-                    "/app/user/clientTask/" + this.props.id + "/all"
+                    "/app/user/task/" + this.props.id + "/all"
                     ? true
                     : false
                 }
@@ -103,7 +103,7 @@ class FilterSidebar extends React.Component {
                 }}
                 active={
                   this.props.routerProps.location.pathname ===
-                    "/app/user/clientTask/" + this.props.id + "/unread"
+                    "/app/user/task/" + this.props.id + "/unread"
                     ? true
                     : false
                 }
@@ -118,7 +118,7 @@ class FilterSidebar extends React.Component {
                 }}
                 active={
                   this.props.routerProps.location.pathname ===
-                    "/app/user/clientTask/" + this.props.id + "/important"
+                    "/app/user/task/" + this.props.id + "/important"
                     ? true
                     : false
                 }
@@ -133,7 +133,7 @@ class FilterSidebar extends React.Component {
                 }}
                 active={
                   this.props.routerProps.location.pathname ===
-                    "/app/user/clientTask/" + this.props.id + "/completed"
+                    "/app/user/task/" + this.props.id + "/completed"
                     ? true
                     : false
                 }
@@ -147,7 +147,7 @@ class FilterSidebar extends React.Component {
               {/*      this.props.changeFilter("trashed")*/}
               {/*    }}*/}
               {/*    active={*/}
-              {/*      this.props.routerProps.location.pathname === "/clientTask/trashed"*/}
+              {/*      this.props.routerProps.location.pathname === "/task/trashed"*/}
               {/*          ? true*/}
               {/*          : false*/}
               {/*    }*/}
@@ -166,7 +166,7 @@ class FilterSidebar extends React.Component {
                 }}
                 active={
                   this.props.routerProps.location.pathname ===
-                    "/app/user/clientTask/" + this.props.id + "/relance_caisse"
+                    "/app/user/task/" + this.props.id + "/relance_caisse"
                     ? true
                     : false
                 }
@@ -181,7 +181,7 @@ class FilterSidebar extends React.Component {
                 }}
                 active={
                   this.props.routerProps.location.pathname ===
-                    "/app/user/clientTask/" + this.props.id + "/relance_client"
+                    "/app/user/task/" + this.props.id + "/relance_client"
                     ? true
                     : false
                 }
@@ -196,7 +196,7 @@ class FilterSidebar extends React.Component {
                 }}
                 active={
                   this.props.routerProps.location.pathname ===
-                    "/app/user/clientTask/" + this.props.id + "/envoi_caisse"
+                    "/app/user/task/" + this.props.id + "/envoi_caisse"
                     ? true
                     : false
                 }
@@ -211,7 +211,7 @@ class FilterSidebar extends React.Component {
                 }}
                 active={
                   this.props.routerProps.location.pathname ===
-                    "/app/user/clientTask/" + this.props.id + "/envoi_client"
+                    "/app/user/task/" + this.props.id + "/envoi_client"
                     ? true
                     : false
                 }
@@ -226,7 +226,7 @@ class FilterSidebar extends React.Component {
                 }}
                 active={
                   this.props.routerProps.location.pathname ===
-                    "/app/user/clientTask/" + this.props.id + "/appel_client"
+                    "/app/user/task/" + this.props.id + "/appel_client"
                     ? true
                     : false
                 }
@@ -241,7 +241,7 @@ class FilterSidebar extends React.Component {
                 }}
                 active={
                   this.props.routerProps.location.pathname ===
-                    "/app/user/clientTask/" + this.props.id + "/appel_caisse"
+                    "/app/user/task/" + this.props.id + "/appel_caisse"
                     ? true
                     : false
                 }

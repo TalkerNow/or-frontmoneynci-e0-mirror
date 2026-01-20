@@ -5,61 +5,42 @@ import {
   Input,
   Button,
   FormGroup,
-  UncontrolledDropdown,
-  DropdownItem,
-  DropdownMenu,
-  DropdownToggle,
+  Modal,
+  ModalHeader,
+  ModalBody,
   Col,
   Row,
 } from "reactstrap";
-import { X, Info, Star, Tag, Check } from "react-feather";
+import { X, Star, Tag, Check } from "react-feather";
 import Checkbox from "../../../components/@vuexy/checkbox/CheckboxesVuexy";
-import PerfectScrollbar from "react-perfect-scrollbar";
 import { connect } from "react-redux";
 import {
   readTask,
   completeTask,
-  importantTask,
   updateTask,
   updateLabel,
   addNewTask,
 } from "../../../redux/actions/todo/index";
-import Radio from "../../../components/@vuexy/radio/RadioVuexy";
 import Select from "react-select";
-import InputMaskDate from "./InputMaskDate";
 import axios from "axios";
 import "flatpickr/dist/themes/light.css";
 import "../../../../src/assets/scss/plugins/forms/flatpickr/flatpickr.scss";
 import Flatpickr from "react-flatpickr";
-var senders = [];
-class FilterSidebar extends React.Component {
-  // static getDerivedStateFromProps (props, state){
-  //   if (
-  //    ( props.taskToUpdate !== null &&
-  //     props.taskToUpdate.title !== state.taskTitle) ||
-  //     (props.taskToUpdate !== null && props.taskToUpdate.isCompleted !== state.newTask.isCompleted)
-  //   ) {
-  //     let todosArr = props.app.todo.todos
-  //     let receivedTask =
-  //       props.taskToUpdate !== null ? props.taskToUpdate : 1
-  //     let filteredTask = todosArr.filter(i => i.id === receivedTask.id)
-  //     let taskToUpdate, taskTitle, taskDesc
-  //     filteredTask.map(clientTask => {
-  //       return (
-  //         (taskToUpdate = clientTask),
-  //         (taskTitle = clientTask.title),
-  //         (taskDesc = clientTask.desc)
-  //       )
-  //     })
-  //     return {
-  //       taskToUpdate,
-  //       taskTitle,
-  //       taskDesc
-  //     }
-  //   }
-  //   return null
-  // }
 
+var senders = [];
+
+const VALID_SERVICES = new Set(["CH", "SIMU", "AR", "TFD", "ACTU", "RAC"]);
+
+const chipColors = {
+  CH: "warning",
+  SIMU: "success",
+  AR: "primary",
+  TFD: "danger",
+  ACTU: "primary",
+  RAC: "warning",
+};
+
+class FilterSidebar extends React.Component {
   state = {
     basicPicker: new Date(),
     role: localStorage.getItem("role"),
@@ -69,7 +50,6 @@ class FilterSidebar extends React.Component {
     taskDesc: "",
     taskStatus: false,
     taskRead: false,
-    taskImportant: false,
     taskType: "",
     taskEndDate: "",
     newTask: {
@@ -78,7 +58,6 @@ class FilterSidebar extends React.Component {
       desc: "",
       type: "",
       isCompleted: false,
-      isImportant: false,
       isRead: false,
       end_date: "",
     },
@@ -95,7 +74,6 @@ class FilterSidebar extends React.Component {
         taskDesc: this.props.taskToUpdate.desc,
         taskStatus: this.props.taskToUpdate.isCompleted,
         taskRead: this.props.taskToUpdate.isRead,
-        taskImportant: this.props.taskToUpdate.isImportant,
         taskType: this.props.taskToUpdate.type,
         taskEndDate: this.props.taskToUpdate.end_date,
         taskReceiver: this.props.taskToUpdate.customer_id,
@@ -104,53 +82,42 @@ class FilterSidebar extends React.Component {
       (this.props.taskToUpdate !== null &&
         this.state.taskStatus !== this.props.taskToUpdate.isCompleted) ||
       (this.props.taskToUpdate !== null &&
-        this.state.taskRead !== this.props.taskToUpdate.isRead) ||
-      (this.props.taskToUpdate !== null &&
-        this.state.taskImportant !== this.props.taskToUpdate.isImportant)
+        this.state.taskRead !== this.props.taskToUpdate.isRead)
     ) {
       this.setState({
         taskStatus: this.props.taskToUpdate.isCompleted,
         taskRead: this.props.taskToUpdate.isRead,
-        taskImportant: this.props.taskToUpdate.isImportant,
       });
     } else {
       return;
     }
   }
 
-  handleNewTaskTags = (tag) => {
-    let tagsArr = this.state.newTask.tags;
-    if (tagsArr.includes(tag)) {
-      tagsArr.splice(tagsArr.indexOf(tag), 1);
-    } else {
-      tagsArr.push(tag);
+  parseServices = (raw) => {
+    if (raw === null || raw === undefined) return [];
+    let s = String(raw).toUpperCase();
+
+    // enlever guillemets et antislashs, unifier séparateurs
+    s = s.replace(/["\\]/g, "");
+    s = s.replace(/[|,]/g, "/");
+
+    // couper, trim, garder uniquement codes connus (CH, SIMU, AR, TFD, ACTU, RAC)
+    const parts = s
+      .split("/")
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    const seen = new Set();
+    const out = [];
+    for (const p of parts) {
+      if (VALID_SERVICES.has(p) && !seen.has(p)) {
+        out.push(p);
+        seen.add(p);
+      }
     }
-    this.setState({
-      ...this.state.newTask,
-      tags: tag,
-    });
+    return out;
   };
-  renderTags = (taskArr) => {
-    return taskArr.map((tag, i) => (
-      <div className="chip mb-0 mr-50" key={i}>
-        <div className="chip-body">
-          <span className="chip-text">
-            <span
-              className={`bullet bullet-${tag === "backend"
-                  ? "warning"
-                  : tag === "doc"
-                    ? "success"
-                    : tag === "bug"
-                      ? "danger"
-                      : "primary"
-                } bullet-xs`}
-            />
-            <span className="text-capitalize ml-25">{tag}</span>
-          </span>
-        </div>
-      </div>
-    ));
-  };
+
   handleEndDate = (date) => {
     var str_date = new Date(date[0]);
     var MyDateString =
@@ -168,6 +135,7 @@ class FilterSidebar extends React.Component {
       });
     }
   };
+
   render() {
     const {
       taskToUpdate,
@@ -178,610 +146,314 @@ class FilterSidebar extends React.Component {
       taskType,
       taskEndDate,
       taskReceiver,
-      taskImportant,
       taskRead,
     } = this.state;
 
+    const isEditing = this.props.taskToUpdate && this.props.taskToUpdate.id;
+
     return (
-      <div
-        className={`task-sidebar ${this.props.addTaskState === true ? "show" : ""
-          }`}
+      <Modal
+        isOpen={this.props.addTaskState}
+        toggle={() => this.props.addTask("close")}
+        className="modal-dialog-centered modal-lg"
+        style={{ maxWidth: '700px' }}
       >
-        <div className="task-header">
-          <div className="d-flex justify-content-between">
-            <div className="task-type-title text-bold-600">
-              <h3>
-                {this.props.taskToUpdate && this.props.taskToUpdate.id
-                  ? "Modifier la tâche"
-                  : "Ajouter une tâche"}
-              </h3>
-            </div>
-            <div className="close-icon">
-              <X
-                className="cursor-pointer"
-                size={20}
-                onClick={() => this.props.addTask("close")}
-              />
-            </div>
-          </div>
-        </div>
-        <PerfectScrollbar className="todo-scroll-area">
-          <div className="task-body">
-            <div
-              className="d-flex justify-content-between"
-              style={{ marginBottom: "10px" }}
-            >
-              <div className="mark-complete">
-                {this.props.taskToUpdate && this.props.taskToUpdate.id && (
-                  <Checkbox
-                    color="primary"
-                    className="user-checkbox"
-                    icon={<Check className="vx-icon" size={15} />}
-                    label={""}
-                    checked={taskStatus}
-                    onChange={(e) => {
-                      this.props.completeTask(this.props.taskToUpdate);
-                    }}
-                  />
-                )}
-              </div>
-              <div className="task-actions">
-                <Info
-                  size={20}
-                  className={`mr-50 ${(this.props.taskToUpdate !== null &&
-                      this.state.taskImportant) ||
-                      newTask.isImportant
-                      ? "text-success"
-                      : ""
-                    }`}
-                  onClick={() => {
-                    if (this.props.taskToUpdate !== null) {
-                      this.props.importantTask(this.props.taskToUpdate);
-                    } else {
-                      this.setState({
-                        newTask: {
-                          ...this.state.newTask,
-                          isImportant: !this.state.newTask.isImportant,
-                        },
-                      });
-                    }
+        <ModalHeader toggle={() => this.props.addTask("close")}>
+          <div className="d-flex align-items-center justify-content-between w-100 pr-3">
+            <h4 className="mb-0 font-weight-bold">
+              {isEditing ? "Modifier la tâche" : "Nouvelle tâche"}
+            </h4>
+
+            {/* Actions rapides - icônes seulement */}
+            {isEditing && (
+              <div className="d-flex ml-3" style={{ gap: '0.5rem' }}>
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    this.props.completeTask(this.props.taskToUpdate);
                   }}
-                />
-                <Star
-                  size={20}
-                  className={`mr-50 ${(this.props.taskToUpdate !== null && this.state.taskRead) ||
-                      newTask.isRead
-                      ? "text-warning"
-                      : ""
-                    }`}
-                  onClick={() => {
-                    if (this.props.taskToUpdate !== null) {
-                      this.props.readTask(this.props.taskToUpdate);
-                    } else {
-                      this.setState({
-                        newTask: {
-                          ...this.state.newTask,
-                          isRead: !this.state.newTask.isRead,
-                        },
-                      });
-                    }
+                  title={taskStatus ? "Marquer comme non complétée" : "Marquer comme complétée"}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    border: `1.5px solid ${taskStatus ? '#28a745' : '#d0d0d0'}`,
+                    borderRadius: '50%',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: taskStatus ? '#28a745' : 'white',
+                    transition: 'all 0.2s'
                   }}
-                />
-              </div>
-            </div>
-            <FormGroup style={{ marginBottom: "10px" }}>
-              {this.props.receivers.length > 0 &&
-                this.props.taskToUpdate !== null && (
-                  <Select
-                    className="React"
-                    classNamePrefix="select"
-                    defaultValue={{
-                      value: this.props.taskToUpdate.customer_id,
-                      label: this.props.receivers.find((obj) => {
-                        return obj.value == this.props.taskToUpdate.customer_id;
-                      }).label,
-                    }}
-                    name="color"
-                    options={this.props.receivers}
-                    style={{ marginBottom: "10px" }}
-                    onChange={(option) => {
-                      this.setState({
-                        taskReceiver: option.value,
-                      });
-                    }}
-                  />
-                )}
-              {this.props.receivers.length > 0 &&
-                this.props.taskToUpdate == null && (
-                  <Select
-                    className="React"
-                    classNamePrefix="select"
-                    name="color"
-                    options={this.props.receivers}
-                    style={{ marginBottom: "10px" }}
-                    onChange={(option) => {
-                      this.setState({
-                        newTask: {
-                          ...this.state.newTask,
-                          receiver: option.value,
-                        },
-                      });
-                    }}
-                  />
-                )}
-            </FormGroup>
-            <FormGroup style={{ marginBottom: "10px" }}>
-              {(() => {
-                if (
-                  this.props.receivers.length > 0 &&
-                  this.props.taskToUpdate !== null
-                ) {
-                  var selected_receiver = this.props.receivers.find((obj) => {
-                    return obj.value == taskReceiver;
-                  });
-                  if (
-                    selected_receiver &&
-                    selected_receiver.subscribe_services != null
-                  ) {
-                    return (
-                      <div>
-                        <span className={`bullet bullet-success bullet-xs`} />
-                        <span
-                          className="text-capitalize"
-                          style={{ marginLeft: "10px" }}
-                        >
-                          {selected_receiver.subscribe_services}
-                        </span>
-                      </div>
-                    );
-                  } else {
-                    return (
-                      <div>
-                        <span className={`bullet bullet-warning bullet-xs`} />
-                        <span
-                          className="text-capitalize"
-                          style={{ marginLeft: "10px" }}
-                        >
-                          Pas d'abonnement
-                        </span>
-                      </div>
-                    );
-                  }
-                }
-                if (
-                  this.props.receivers.length > 0 &&
-                  this.props.taskToUpdate == null
-                ) {
-                  var selected_receiver = this.props.receivers.find((obj) => {
-                    return obj.value == newTask.receiver;
-                  });
-                  if (
-                    selected_receiver &&
-                    selected_receiver.subscribe_services != null
-                  ) {
-                    return (
-                      <div>
-                        <span className={`bullet bullet-success bullet-xs`} />
-                        <span
-                          className="text-capitalize"
-                          style={{ marginLeft: "10px" }}
-                        >
-                          {selected_receiver.subscribe_services}
-                        </span>
-                      </div>
-                    );
-                  } else {
-                    return (
-                      <div>
-                        <span className={`bullet bullet-warning bullet-xs`} />
-                        <span
-                          className="text-capitalize"
-                          style={{ marginLeft: "10px" }}
-                        >
-                          Pas d'abonnement
-                        </span>
-                      </div>
-                    );
-                  }
-                }
-              })()}
-            </FormGroup>
-            <FormGroup style={{ marginBottom: "10px" }}>
-              <Input
-                type="text"
-                placeholder="Titre"
-                value={
-                  this.props.taskToUpdate !== null ? taskTitle : newTask.title
-                }
-                onChange={(e) => {
-                  if (this.props.taskToUpdate !== null) {
-                    this.setState({
-                      taskTitle: e.target.value,
-                    });
-                  } else {
-                    this.setState({
-                      newTask: {
-                        ...this.state.newTask,
-                        title: e.target.value,
-                      },
-                    });
-                  }
-                }}
-              />
-            </FormGroup>
-            <FormGroup style={{ marginBottom: "10px" }}>
-              <Input
-                type="textarea"
-                placeholder="Description"
-                rows="4"
-                value={
-                  this.props.taskToUpdate !== null ? taskDesc : newTask.desc
-                }
-                onChange={(e) => {
-                  if (this.props.taskToUpdate !== null) {
-                    this.setState({
-                      taskDesc: e.target.value,
-                    });
-                  } else {
-                    this.setState({
-                      newTask: {
-                        ...this.state.newTask,
-                        desc: e.target.value,
-                      },
-                    });
-                  }
-                }}
-              />
-            </FormGroup>
-            <FormGroup style={{ marginBottom: "10px" }}>
-              {this.props.taskToUpdate !== null && (
-                <Flatpickr
-                  id="end_date"
-                  className="form-control"
-                  options={{ dateFormat: "d/m/Y" }}
-                  defaultValue={this.props.taskToUpdate.end_date}
-                  placeholder="Date de fin"
-                  onChange={(date) => this.handleEndDate(date)}
-                />
-              )}
-              {this.props.taskToUpdate == null && (
-                <Flatpickr
-                  id="end_date"
-                  className="form-control"
-                  options={{ dateFormat: "d/m/Y" }}
-                  placeholder="Date de fin"
-                  onChange={(date) => this.handleEndDate(date)}
-                />
-              )}
-            </FormGroup>
-            <Row style={{ marginLeft: "10px", marginBottom: "5px" }}>
-              <Col md="6" sm="12">
-                <FormGroup style={{ marginBottom: "3px" }}>
-                  <div className="d-inline-block mr-1">
-                    {this.props.taskToUpdate !== null && (
-                      <Radio
-                        label="Relance caisse"
-                        color="primary"
-                        defaultChecked={
-                          this.props.taskToUpdate.type == "relance_caisse"
-                            ? true
-                            : false
-                        }
-                        name="type"
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          // this.props.updateLabel(taskToUpdate.id, "backend")
-                          this.setState({ taskType: "relance_caisse" });
-                        }}
-                      />
-                    )}
-                    {this.props.taskToUpdate == null && (
-                      <Radio
-                        label="Relance caisse"
-                        color="primary"
-                        defaultChecked={true}
-                        name="type"
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          this.setState({
-                            newTask: {
-                              ...this.state.newTask,
-                              type: "relance_caisse",
-                            },
-                          });
-                        }}
-                      />
-                    )}
-                  </div>
-                </FormGroup>
-              </Col>
-              <Col md="6" sm="12">
-                <FormGroup style={{ marginBottom: "3px" }}>
-                  <div className="d-inline-block mr-1">
-                    {this.props.taskToUpdate !== null && (
-                      <Radio
-                        label="Relance client"
-                        color="warning"
-                        defaultChecked={
-                          this.props.taskToUpdate.type == "relance_client"
-                            ? true
-                            : false
-                        }
-                        name="type"
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          this.setState({ taskType: "relance_client" });
-                        }}
-                      />
-                    )}
-                    {this.props.taskToUpdate == null && (
-                      <Radio
-                        label="Relance client"
-                        color="warning"
-                        defaultChecked={false}
-                        name="type"
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          this.setState({
-                            newTask: {
-                              ...this.state.newTask,
-                              type: "relance_client",
-                            },
-                          });
-                        }}
-                      />
-                    )}
-                  </div>
-                </FormGroup>
-              </Col>
-              <Col md="6" sm="12">
-                <FormGroup style={{ marginBottom: "3px" }}>
-                  <div className="d-inline-block mr-1">
-                    {this.props.taskToUpdate !== null && (
-                      <Radio
-                        label="Envoi caisse"
-                        color="success"
-                        defaultChecked={
-                          this.props.taskToUpdate.type == "envoi_caisse"
-                            ? true
-                            : false
-                        }
-                        name="type"
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          this.setState({ taskType: "envoi_caisse" });
-                        }}
-                      />
-                    )}
-                    {this.props.taskToUpdate == null && (
-                      <Radio
-                        label="Envoi caisse"
-                        color="success"
-                        defaultChecked={false}
-                        name="type"
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          this.setState({
-                            newTask: {
-                              ...this.state.newTask,
-                              type: "envoi_caisse",
-                            },
-                          });
-                        }}
-                      />
-                    )}
-                  </div>
-                </FormGroup>
-              </Col>
-              <Col md="6" sm="12">
-                <FormGroup style={{ marginBottom: "3px" }}>
-                  <div className="d-inline-block mr-1">
-                    {this.props.taskToUpdate !== null && (
-                      <Radio
-                        label="Envoi client"
-                        color="danger"
-                        defaultChecked={
-                          this.props.taskToUpdate.type == "envoi_client"
-                            ? true
-                            : false
-                        }
-                        name="type"
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          this.setState({ taskType: "envoi_client" });
-                        }}
-                      />
-                    )}
-                    {this.props.taskToUpdate == null && (
-                      <Radio
-                        label="Envoi client"
-                        color="danger"
-                        defaultChecked={false}
-                        name="type"
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          this.setState({
-                            newTask: {
-                              ...this.state.newTask,
-                              type: "envoi_client",
-                            },
-                          });
-                        }}
-                      />
-                    )}
-                  </div>
-                </FormGroup>
-              </Col>
-              <Col md="6" sm="12">
-                <FormGroup style={{ marginBottom: "3px" }}>
-                  <div className="d-inline-block mr-1">
-                    {this.props.taskToUpdate !== null && (
-                      <Radio
-                        label="Appel client"
-                        color="info"
-                        defaultChecked={
-                          this.props.taskToUpdate.type == "appel_client"
-                            ? true
-                            : false
-                        }
-                        name="type"
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          this.setState({ taskType: "appel_client" });
-                        }}
-                      />
-                    )}
-                    {this.props.taskToUpdate == null && (
-                      <Radio
-                        label="Appel client"
-                        color="info"
-                        defaultChecked={false}
-                        name="type"
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          this.setState({
-                            newTask: {
-                              ...this.state.newTask,
-                              type: "appel_client",
-                            },
-                          });
-                        }}
-                      />
-                    )}
-                  </div>
-                </FormGroup>
-              </Col>
-              <Col md="6" sm="12">
-                <FormGroup style={{ marginBottom: "3px" }}>
-                  <div className="d-inline-block mr-1">
-                    {this.props.taskToUpdate !== null && (
-                      <Radio
-                        label="Appel caisse"
-                        color="primary"
-                        defaultChecked={
-                          this.props.taskToUpdate.type == "appel_caisse"
-                            ? true
-                            : false
-                        }
-                        name="type"
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          this.setState({ taskType: "appel_caisse" });
-                        }}
-                      />
-                    )}
-                    {this.props.taskToUpdate == null && (
-                      <Radio
-                        label="Appel caisse"
-                        color="primary"
-                        defaultChecked={false}
-                        name="type"
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          this.setState({
-                            newTask: {
-                              ...this.state.newTask,
-                              type: "appel_caisse",
-                            },
-                          });
-                        }}
-                      />
-                    )}
-                  </div>
-                </FormGroup>
-              </Col>
-            </Row>
-            {(this.state.role == "admin" || this.state.role == "Expert") && (
-              <>
-                <hr style={{ marginBottom: "10px", marginTop: 0 }} />
-                <div className="d-flex justify-content-between justify-content-md-end mr-2 mr-md-0">
-                  <Button.Ripple
-                    className="mr-1 mr-md-50 flex-grow-1 flex-md-grow-0"
-                    color="primary"
-                    size="sm"
-                    onClick={() => {
-                      if (this.props.taskToUpdate !== null) {
-                        var updateTask = {
-                          receiver: taskReceiver,
-                          title: taskTitle,
-                          desc: taskDesc,
-                          type: taskType,
-                          isCompleted: taskStatus,
-                          isImportant: taskImportant,
-                          isRead: taskRead,
-                          end_date: taskEndDate,
-                        };
-                        this.props.updateTask(taskToUpdate.id, updateTask);
-                      } else {
-                        var newTaskObject = this.state.newTask;
-                        if (newTaskObject.receiver == "") {
-                          if (this.props.receivers.length > 0) {
-                            newTaskObject.receiver =
-                              this.props.receivers[0].value;
-                            this.props.addNewTask(this.state.newTask);
-                          }
-                        } else {
-                          this.props.addNewTask(this.state.newTask);
-                        }
-                      }
-                      this.props.addTask("close");
-                      this.setState({
-                        newTask: {
-                          receiver: "",
-                          title: "",
-                          desc: "",
-                          type: "",
-                          isCompleted: false,
-                          isImportant: false,
-                          isRead: false,
-                          end_date: "",
-                        },
-                      });
-                    }}
-                    disabled={
-                      taskTitle.length > 0 || newTask.title.length > 0
-                        ? false
-                        : true
-                    }
-                  >
-                    {taskToUpdate &&
-                      taskToUpdate.id &&
-                      this.props.taskToUpdate !== null
-                      ? "Mettre à jour"
-                      : "Ajouter"}
-                  </Button.Ripple>
-                  <Button.Ripple
-                    className="flex-grow-1 flex-md-grow-0"
-                    color="light"
-                    outline
-                    size="sm"
-                    onClick={() => {
-                      this.props.addTask("close");
-                      this.setState({
-                        newTask: {
-                          receiver: "",
-                          title: "",
-                          desc: "",
-                          type: "",
-                          isCompleted: false,
-                          isImportant: false,
-                          isRead: false,
-                          end_date: "",
-                        },
-                      });
-                    }}
-                  >
-                    Annuler
-                  </Button.Ripple>
+                >
+                  <Check size={16} color={taskStatus ? 'white' : '#999'} />
                 </div>
-              </>
+
+                <div
+                  onClick={() => this.props.readTask(this.props.taskToUpdate)}
+                  title={taskRead ? "Retirer des favoris" : "Ajouter aux favoris"}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    border: `1.5px solid ${taskRead ? '#ffc107' : '#d0d0d0'}`,
+                    borderRadius: '50%',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: taskRead ? '#ffc107' : 'white',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <Star size={14} color={taskRead ? 'white' : '#999'} fill={taskRead ? 'white' : 'none'} />
+                </div>
+              </div>
             )}
           </div>
-        </PerfectScrollbar>
-      </div>
+        </ModalHeader>
+
+        <ModalBody className="pb-2">
+          <Row>
+            <Col md="12">
+              <FormGroup className="mb-2">
+                <label className="text-bold-600 font-small-3 mb-50">Client</label>
+                {this.props.receivers.length > 0 && (
+                  <>
+                    <Select
+                      className="React"
+                      classNamePrefix="select"
+                      defaultValue={isEditing ? {
+                        value: this.props.taskToUpdate.customer_id,
+                        label: this.props.receivers.find((obj) => obj.value == this.props.taskToUpdate.customer_id)?.label
+                      } : null}
+                      name="client"
+                      options={this.props.receivers}
+                      placeholder="Sélectionner un client..."
+                      onChange={(option) => {
+                        if (isEditing) {
+                          this.setState({ taskReceiver: option.value });
+                        } else {
+                          this.setState({
+                            newTask: { ...this.state.newTask, receiver: option.value }
+                          });
+                        }
+                      }}
+                    />
+
+                    {/* Chips services colorés */}
+                    {(() => {
+                      const selected = this.props.receivers.find((obj) =>
+                        obj.value == (isEditing ? taskReceiver : newTask.receiver)
+                      );
+                      if (selected && selected.subscribe_services) {
+                        const services = this.parseServices(selected.subscribe_services);
+                        if (services.length > 0) {
+                          return (
+                            <div className="d-flex flex-wrap mt-50" style={{ gap: '0.25rem' }}>
+                              {services.map((service) => (
+                                <span
+                                  key={service}
+                                  className={`badge badge-${chipColors[service]}`}
+                                  style={{ fontSize: '0.75rem' }}
+                                >
+                                  {service}
+                                </span>
+                              ))}
+                            </div>
+                          );
+                        }
+                      }
+                    })()}
+                  </>
+                )}
+              </FormGroup>
+            </Col>
+          </Row>
+
+          <Row>
+            <Col md="12">
+              <FormGroup className="mb-2">
+                <label className="text-bold-600 font-small-3 mb-50">Titre *</label>
+                <Input
+                  type="text"
+                  placeholder="Ex: Relancer le client..."
+                  value={isEditing ? taskTitle : newTask.title}
+                  onChange={(e) => {
+                    if (isEditing) {
+                      this.setState({ taskTitle: e.target.value });
+                    } else {
+                      this.setState({
+                        newTask: { ...this.state.newTask, title: e.target.value }
+                      });
+                    }
+                  }}
+                />
+              </FormGroup>
+            </Col>
+          </Row>
+
+          <Row>
+            <Col md="12">
+              <FormGroup className="mb-2">
+                <label className="text-bold-600 font-small-3 mb-50">Description</label>
+                <Input
+                  type="textarea"
+                  placeholder="Ajouter des détails..."
+                  rows="2"
+                  value={isEditing ? taskDesc : newTask.desc}
+                  onChange={(e) => {
+                    if (isEditing) {
+                      this.setState({ taskDesc: e.target.value });
+                    } else {
+                      this.setState({
+                        newTask: { ...this.state.newTask, desc: e.target.value }
+                      });
+                    }
+                  }}
+                />
+              </FormGroup>
+            </Col>
+          </Row>
+
+          <Row>
+            <Col md="12">
+              <FormGroup className="mb-2">
+                <label className="text-bold-600 font-small-3 mb-50">Date d'échéance</label>
+                <Flatpickr
+                  id="end_date"
+                  className="form-control"
+                  options={{ dateFormat: "d/m/Y" }}
+                  defaultValue={isEditing ? this.props.taskToUpdate.end_date : ""}
+                  placeholder="Sélectionner une date..."
+                  onChange={(date) => this.handleEndDate(date)}
+                />
+              </FormGroup>
+            </Col>
+          </Row>
+
+          <Row>
+            <Col md="12">
+              <FormGroup className="mb-2">
+                <label className="text-bold-600 font-small-3 mb-50">Type de tâche</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
+                  {[
+                    { value: 'relance_caisse', label: 'Relance caisse', color: 'primary' },
+                    { value: 'relance_client', label: 'Relance client', color: 'warning' },
+                    { value: 'envoi_caisse', label: 'Envoi caisse', color: 'success' },
+                    { value: 'envoi_client', label: 'Envoi client', color: 'danger' },
+                    { value: 'appel_client', label: 'Appel client', color: 'info' },
+                    { value: 'appel_caisse', label: 'Appel caisse', color: 'primary' }
+                  ].map((type) => {
+                    const isSelected = isEditing
+                      ? (taskType || this.props.taskToUpdate.type) == type.value
+                      : (newTask.type || 'relance_caisse') == type.value;
+
+                    return (
+                      <div
+                        key={type.value}
+                        onClick={() => {
+                          if (isEditing) {
+                            this.setState({ taskType: type.value });
+                          } else {
+                            this.setState({
+                              newTask: { ...this.state.newTask, type: type.value }
+                            });
+                          }
+                        }}
+                        className={`badge ${isSelected ? `badge-${type.color}` : 'badge-light'}`}
+                        style={{
+                          padding: '0.45rem 0.3rem',
+                          cursor: 'pointer',
+                          fontSize: '0.75rem',
+                          fontWeight: isSelected ? '600' : '400',
+                          textAlign: 'center',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {type.label}
+                      </div>
+                    );
+                  })}
+                </div>
+              </FormGroup>
+            </Col>
+          </Row>
+
+          {/* Boutons d'action */}
+          {(this.state.role == "admin" || this.state.role == "Expert") && (
+            <Row className="mt-2">
+              <Col md="6">
+                <Button
+                  color="light"
+                  outline
+                  block
+                  onClick={() => {
+                    this.props.addTask("close");
+                    this.setState({
+                      newTask: {
+                        receiver: "",
+                        title: "",
+                        desc: "",
+                        type: "",
+                        isCompleted: false,
+                        isRead: false,
+                        end_date: "",
+                      },
+                    });
+                  }}
+                >
+                  Annuler
+                </Button>
+              </Col>
+              <Col md="6">
+                <Button
+                  color="primary"
+                  block
+                  disabled={taskTitle.length == 0 && newTask.title.length == 0}
+                  onClick={() => {
+                    if (isEditing) {
+                      const updateTask = {
+                        receiver: taskReceiver,
+                        title: taskTitle,
+                        desc: taskDesc,
+                        type: taskType,
+                        isCompleted: taskStatus,
+                        isRead: taskRead,
+                        end_date: taskEndDate,
+                      };
+                      this.props.updateTask(taskToUpdate.id, updateTask);
+                    } else {
+                      const newTaskObject = this.state.newTask;
+                      if (newTaskObject.receiver == "" && this.props.receivers.length > 0) {
+                        newTaskObject.receiver = this.props.receivers[0].value;
+                      }
+                      this.props.addNewTask(this.state.newTask);
+                    }
+                    this.props.addTask("close");
+                    this.setState({
+                      newTask: {
+                        receiver: "",
+                        title: "",
+                        desc: "",
+                        type: "",
+                        isCompleted: false,
+                        isRead: false,
+                        end_date: "",
+                      },
+                    });
+                  }}
+                >
+                  {isEditing ? "Mettre à jour" : "Créer la tâche"}
+                </Button>
+              </Col>
+            </Row>
+          )}
+        </ModalBody>
+      </Modal>
     );
   }
 }
+
 const mapStateToProps = (state) => {
   return {
     app: state.todoApp,
@@ -790,7 +462,6 @@ const mapStateToProps = (state) => {
 
 export default connect(mapStateToProps, {
   completeTask,
-  importantTask,
   readTask,
   updateTask,
   updateLabel,

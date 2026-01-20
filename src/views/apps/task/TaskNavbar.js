@@ -7,7 +7,7 @@ import {
     DropdownToggle,
     Input,
 } from "reactstrap"
-import { Search, Plus, Filter, Check, Star, Info, Layers } from "react-feather"
+import { Search, Plus, Filter, Check, Star, Layers } from "react-feather"
 import { connect } from "react-redux"
 import { changeFilter, searchTask } from "../../../redux/actions/todo/index"
 
@@ -20,23 +20,8 @@ const TaskNavbar = (props) => {
 
     const handleFilterChange = (filter) => {
         props.changeFilter(filter)
-        // We might need to handle navigation if the filter relies on URL changes
-        // The original FilterSidebar just called changeFilter. 
-        // Assuming changeFilter action handles navigation or Redux state that TaskList listens to.
-        // Looking at FilterSidebar, it just calls props.changeFilter.
-        // But it also uses routerProps to check active state.
-        // Does changeFilter redirect? Or just update state?
-        // Usually it updates the reducer.
-        // But if the URL changes, it's likely handled by history.push in the action or the component updates the URL.
-        // Let's assume standard behavior for now.
-
-        // Actually, looking at FilterSidebar, it uses routerProps.history.push probably?
-        // No, it just calls changeFilter. 
-        // Wait, FilterSidebar checks routerProps.location.pathname.
-        // If changeFilter doesn't push to history, the URL won't update.
-        // Let's assume I need to push to history if I want the URL to reflect the filter.
         if (props.routerProps && props.routerProps.history) {
-            props.routerProps.history.push(`/clientTask/${filter}`)
+            props.routerProps.history.push(`/task/${filter}`)
         }
     }
 
@@ -49,21 +34,20 @@ const TaskNavbar = (props) => {
     }
 
     const activeFilter = props.routerProps.location.pathname.split("/").pop() || "all"
-
-    // Helper to determine button style
-    const validFilters = ["all", "unread", "important", "completed"]
+    const validFilters = ["all", "unread", "completed"]
     const currentIsLabel = !validFilters.includes(activeFilter)
 
     return (
-        <div className="task-navbar d-flex flex-wrap justify-content-between align-items-center bg-white p-1 mb-0 w-100 border-bottom">
+        <div className="task-navbar d-flex flex-wrap justify-content-between align-items-center bg-white px-2 py-1 mb-0 w-100 border-bottom">
             <div className="d-flex align-items-center flex-wrap">
-                <h3 className="mb-0 mr-2 text-primary d-none d-md-block brand-text font-weight-bold">Tâches</h3>
+                <h3 className="mb-0 mr-2 text-primary d-none d-md-block font-weight-bold">Tâches</h3>
 
-                {/* Main Filters Pills */}
+                {/* Filtres principaux */}
                 <div className="filter-pills d-flex mr-2">
                     <Button
-                        color={activeFilter === "all" ? "primary" : "flat-primary"}
-                        className="mr-1 rounded-pill"
+                        color={activeFilter === "all" ? "primary" : "light"}
+                        outline={activeFilter !== "all"}
+                        className="mr-1"
                         size="sm"
                         onClick={() => handleFilterChange("all")}
                     >
@@ -71,8 +55,9 @@ const TaskNavbar = (props) => {
                         <span className="d-none d-sm-inline">Tout</span>
                     </Button>
                     <Button
-                        color={activeFilter === "unread" ? "primary" : "flat-primary"}
-                        className="mr-1 rounded-pill"
+                        color={activeFilter === "unread" ? "warning" : "light"}
+                        outline={activeFilter !== "unread"}
+                        className="mr-1"
                         size="sm"
                         onClick={() => handleFilterChange("unread")}
                     >
@@ -80,17 +65,9 @@ const TaskNavbar = (props) => {
                         <span className="d-none d-sm-inline">Non lu</span>
                     </Button>
                     <Button
-                        color={activeFilter === "important" ? "primary" : "flat-primary"}
-                        className="mr-1 rounded-pill"
-                        size="sm"
-                        onClick={() => handleFilterChange("important")}
-                    >
-                        <Info size={14} className="mr-50" />
-                        <span className="d-none d-sm-inline">Important</span>
-                    </Button>
-                    <Button
-                        color={activeFilter === "completed" ? "primary" : "flat-primary"}
-                        className="mr-1 rounded-pill"
+                        color={activeFilter === "completed" ? "success" : "light"}
+                        outline={activeFilter !== "completed"}
+                        className="mr-1"
                         size="sm"
                         onClick={() => handleFilterChange("completed")}
                     >
@@ -99,9 +76,9 @@ const TaskNavbar = (props) => {
                     </Button>
                 </div>
 
-                {/* Labels Dropdown */}
+                {/* Dropdown Types */}
                 <UncontrolledDropdown className="mr-2">
-                    <DropdownToggle color={currentIsLabel ? "primary" : "flat-secondary"} caret size="sm" className="rounded-pill">
+                    <DropdownToggle color={currentIsLabel ? "primary" : "light"} outline={!currentIsLabel} caret size="sm">
                         <Filter size={14} className="mr-50" />
                         {currentIsLabel ? <span className="text-capitalize">{activeFilter.replace("_", " ")}</span> : "Type"}
                     </DropdownToggle>
@@ -137,8 +114,8 @@ const TaskNavbar = (props) => {
                         placeholder="Rechercher..."
                         value={searchTerm}
                         onChange={handleSearch}
-                        className="round"
-                        style={{ maxWidth: "250px", minWidth: "150px" }}
+                        bsSize="sm"
+                        style={{ minWidth: "150px" }}
                     />
                     <div className="form-control-position">
                         <Search size={15} />
@@ -148,12 +125,12 @@ const TaskNavbar = (props) => {
                 {/* Add Button */}
                 <Button
                     color="primary"
-                    className="rounded-circle p-0 d-flex justify-content-center align-items-center shadow hover-scale"
-                    style={{ width: "40px", height: "40px", transition: "transform 0.2s" }}
+                    size="sm"
                     onClick={() => props.addTask("open")}
                     title="Ajouter une nouvelle tâche"
                 >
-                    <Plus size={20} />
+                    <Plus size={16} className="mr-50" />
+                    <span className="d-none d-sm-inline">Nouvelle</span>
                 </Button>
             </div>
         </div>
