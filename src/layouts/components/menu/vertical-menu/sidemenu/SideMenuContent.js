@@ -80,9 +80,9 @@ class SideMenuContent extends React.Component {
     };
   }
   state = {
-    badge: "",
     crmBadge: 0, // NEW: badge pour KPI/CRM
     inboxBadge: 0, // NEW: badge pour Inbox (chat)
+    tasksBadge: 0, // NEW: badge pour Tâches urgentes
     flag: true,
     isHovered: false,
     activeGroups: [],
@@ -187,12 +187,6 @@ class SideMenuContent extends React.Component {
         Authorization: "Bearer " + localStorage.getItem("token"),
       },
     };
-    axios
-      .get(global.config.server_url + "/unread_count", Config)
-      .then((response) => {
-        if (response.data.count > 0)
-          this.setState({ badge: response.data.count + " news" });
-      });
 
     // --- Fetch KPI Urgent Count ---
     axios
@@ -277,6 +271,33 @@ class SideMenuContent extends React.Component {
         this.setState({ inboxBadge: unreadCount });
       })
       .catch((err) => console.error("Error fetching inbox count", err));
+
+    // --- Fetch Urgent Tasks Count ---
+    axios
+      .get(global.config.server_url + "/tasks?filter=all", Config)
+      .then((res) => {
+        console.log("📋 Tasks API Response:", res.data);
+        const tasks = Array.isArray(res.data) ? res.data : [];
+        console.log("📋 Total tasks:", tasks.length);
+
+        // Get today's date (without time) - same logic as TaskList.js
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+
+        // Count urgent tasks: end_date <= today AND isCompleted = false
+        const urgentTasks = tasks.filter((task) => {
+          if (!task.end_date) return false;
+          if (task.isCompleted) return false;
+          const endDate = new Date(task.end_date);
+          endDate.setHours(0, 0, 0, 0);
+          return endDate <= now; // <= pour inclure aujourd'hui
+        });
+
+        console.log("🔥 Urgent tasks (due today or overdue):", urgentTasks.length, urgentTasks);
+
+        this.setState({ tasksBadge: urgentTasks.length });
+      })
+      .catch((err) => console.error("❌ Error fetching urgent tasks count", err));
   }
 
   componentDidUpdate(prevProps, prevState) {
@@ -366,15 +387,14 @@ class SideMenuContent extends React.Component {
               item.filterBase
                 ? item.filterBase
                 : item.navLink && item.type === "item"
-                ? item.navLink
-                : ""
+                  ? item.navLink
+                  : ""
             }
             href={item.type === "external-link" ? item.navLink : ""}
-            className={`d-flex ${
-              item.badgeText
-                ? "justify-content-between"
-                : "justify-content-start"
-            }`}
+            className={`d-flex ${item.badgeText
+              ? "justify-content-between"
+              : "justify-content-start"
+              }`}
             onMouseEnter={() => {
               this.props.handleSidebarMouseEnter(item.id);
             }}
@@ -395,10 +415,11 @@ class SideMenuContent extends React.Component {
               </span>
             </div>
 
-            {item.id === "tasks" && this.state.badge !== "" ? (
+            {/* ✅ Badge Tâches Urgentes */}
+            {item.id === "tasks" && this.state.tasksBadge > 0 ? (
               <div className="menu-badge">
-                <Badge color="primary" className="mr-1" pill>
-                  {this.state.badge}
+                <Badge color="danger" className="mr-1" pill>
+                  {this.state.tasksBadge}
                 </Badge>
               </div>
             ) : null}
