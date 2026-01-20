@@ -621,7 +621,7 @@ class EditContract extends React.Component {
     if (input_values["c1"])
       nbHT1 = Math.trunc(
         (this.state.formValues["nb1-price"] / 60) *
-          parseInt(this.state.formValues["nb1"], 10)
+        parseInt(this.state.formValues["nb1"], 10)
       );
     this.state.formValues["nbHT1"] = nbHT1;
     this.state.formValues["TTC1"] = nbHT1 * VTA;
@@ -730,8 +730,8 @@ class EditContract extends React.Component {
     axios
       .get(
         global.config.server_url +
-          "/get_contract/" +
-          this.props.match.params.id,
+        "/get_contract/" +
+        this.props.match.params.id,
         Config
       )
       .then((response) => {
@@ -739,14 +739,14 @@ class EditContract extends React.Component {
         const acompteDates = Array.isArray(rowData.acompte_dates)
           ? rowData.acompte_dates
           : rowData.acompte_dates
-          ? JSON.parse(rowData.acompte_dates)
-          : [];
+            ? JSON.parse(rowData.acompte_dates)
+            : [];
 
         const soldDates = Array.isArray(rowData.sold_dates)
           ? rowData.sold_dates
           : rowData.sold_dates
-          ? JSON.parse(rowData.sold_dates)
-          : [];
+            ? JSON.parse(rowData.sold_dates)
+            : [];
         const KNOWN_PAYMENT_METHODS = [
           "Virement bancaire",
           "Chèque de banque",
@@ -2100,8 +2100,8 @@ class EditContract extends React.Component {
                           <h6>
                             {moment(this.ifExist("birth_date")).isValid()
                               ? moment(this.ifExist("birth_date")).format(
-                                  "DD/MM/YYYY"
-                                )
+                                "DD/MM/YYYY"
+                              )
                               : ""}
                           </h6>
                         </Col>
@@ -2131,8 +2131,8 @@ class EditContract extends React.Component {
                           <h6>
                             {moment(this.ifExist("updated_at")).isValid()
                               ? moment(this.ifExist("updated_at")).format(
-                                  "DD/MM/YYYY"
-                                )
+                                "DD/MM/YYYY"
+                              )
                               : ""}
                           </h6>{" "}
                         </Col>

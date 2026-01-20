@@ -134,7 +134,7 @@ const InboxDetail = ({
                             }}
                             title="Marquer comme non lu"
                         >
-                            <EyeOff size={16} /> Non lu
+                            <EyeOff size={16} /> Marquer comme non lu
                         </button>
                         <button
                             onClick={onDisqualify}

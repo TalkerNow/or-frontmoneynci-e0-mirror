@@ -136,15 +136,14 @@ class FilterSidebar extends React.Component {
         <div className="chip-body">
           <span className="chip-text">
             <span
-              className={`bullet bullet-${
-                tag === "backend"
+              className={`bullet bullet-${tag === "backend"
                   ? "warning"
                   : tag === "doc"
-                  ? "success"
-                  : tag === "bug"
-                  ? "danger"
-                  : "primary"
-              } bullet-xs`}
+                    ? "success"
+                    : tag === "bug"
+                      ? "danger"
+                      : "primary"
+                } bullet-xs`}
             />
             <span className="text-capitalize ml-25">{tag}</span>
           </span>
@@ -185,9 +184,8 @@ class FilterSidebar extends React.Component {
 
     return (
       <div
-        className={`task-sidebar ${
-          this.props.addTaskState === true ? "show" : ""
-        }`}
+        className={`task-sidebar ${this.props.addTaskState === true ? "show" : ""
+          }`}
       >
         <div className="task-header">
           <div className="d-flex justify-content-between">
@@ -230,13 +228,12 @@ class FilterSidebar extends React.Component {
               <div className="task-actions">
                 <Info
                   size={20}
-                  className={`mr-50 ${
-                    (this.props.taskToUpdate !== null &&
+                  className={`mr-50 ${(this.props.taskToUpdate !== null &&
                       this.state.taskImportant) ||
-                    newTask.isImportant
+                      newTask.isImportant
                       ? "text-success"
                       : ""
-                  }`}
+                    }`}
                   onClick={() => {
                     if (this.props.taskToUpdate !== null) {
                       this.props.importantTask(this.props.taskToUpdate);
@@ -252,12 +249,11 @@ class FilterSidebar extends React.Component {
                 />
                 <Star
                   size={20}
-                  className={`mr-50 ${
-                    (this.props.taskToUpdate !== null && this.state.taskRead) ||
-                    newTask.isRead
+                  className={`mr-50 ${(this.props.taskToUpdate !== null && this.state.taskRead) ||
+                      newTask.isRead
                       ? "text-warning"
                       : ""
-                  }`}
+                    }`}
                   onClick={() => {
                     if (this.props.taskToUpdate !== null) {
                       this.props.readTask(this.props.taskToUpdate);
@@ -749,8 +745,8 @@ class FilterSidebar extends React.Component {
                     }
                   >
                     {taskToUpdate &&
-                    taskToUpdate.id &&
-                    this.props.taskToUpdate !== null
+                      taskToUpdate.id &&
+                      this.props.taskToUpdate !== null
                       ? "Mettre à jour"
                       : "Ajouter"}
                   </Button.Ripple>

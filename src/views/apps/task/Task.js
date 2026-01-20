@@ -1,9 +1,7 @@
 /* eslint-disable */
 
 import React from "react";
-import Sidebar from "react-sidebar";
-import { ContextLayout } from "../../../utility/context/Layout";
-import FilterSidebar from "./FilterSidebar";
+import TaskNavbar from "./TaskNavbar";
 import TaskList from "./TaskList";
 import TaskSidebar from "./TaskSidebar";
 import "../../../assets/scss/pages/app-todo.scss";
@@ -21,6 +19,7 @@ class TODO extends React.Component {
     prevState: null,
     receivers: [],
     role: localStorage.getItem("role"),
+    searchQuery: "",
   };
   UNSAFE_componentWillMount() {
     mql.addListener(this.mediaQueryChanged);
@@ -57,6 +56,11 @@ class TODO extends React.Component {
       prevState: arr,
     });
   };
+
+  handleSearch = (query) => {
+    this.setState({ searchQuery: query });
+  }
+
   async componentDidMount() {
     this._isMounted = true;
     const Config = {
@@ -82,52 +86,40 @@ class TODO extends React.Component {
   }
   render() {
     return (
-      <div className="todo-application position-relative">
+      <div
+        className="todo-application w-100 bg-white d-flex flex-column"
+        style={{ height: '100%', border: 'none', borderRadius: 0, boxShadow: 'none' }}
+      >
         {(this.state.role == "admin" || this.state.role == "Expert") && (
           <div
-            className={`app-content-overlay ${
-              this.state.addTask || this.state.sidebarOpen ? "show" : ""
-            }`}
+            className={`app-content-overlay ${this.state.addTask ? "show" : ""
+              }`}
             onClick={() => {
               this.handleAddTask("close");
-              this.onSetSidebarOpen(false);
             }}
           />
         )}
-        <ContextLayout.Consumer>
-          {(context) => (
-            <Sidebar
-              sidebar={
-                <FilterSidebar
-                  routerProps={this.props}
-                  addTask={this.handleAddTask}
-                  mainSidebar={this.onSetSidebarOpen}
-                />
-              }
-              docked={this.state.sidebarDocked}
-              open={this.state.sidebarOpen}
-              sidebarClassName="sidebar-content todo-sidebar d-flex"
-              touch={false}
-              contentClassName="sidebar-children d-none"
-              pullRight={context.state.direction === "rtl"}
-            >
-              ""
-            </Sidebar>
-          )}
-        </ContextLayout.Consumer>
-        <TaskList
+
+        <TaskNavbar
           routerProps={this.props}
-          handleUpdateTask={this.handleUpdateTask}
-          mainSidebar={this.onSetSidebarOpen}
-          prevState={this.state.prevState}
+          addTask={this.handleAddTask}
+          onSearch={this.handleSearch}
         />
+
+        <div className="flex-grow-1 overflow-hidden">
+          <TaskList
+            routerProps={this.props}
+            handleUpdateTask={this.handleUpdateTask}
+            prevState={this.state.prevState}
+            searchQuery={this.state.searchQuery}
+          />
+        </div>
         <TaskSidebar
           receivers={this.state.receivers}
           addTask={this.handleAddTask}
           addTaskState={this.state.addTask}
           taskToUpdate={this.state.taskToUpdate}
           newTask={this.state.newTask}
-          mainSidebar={this.onSetSidebarOpen}
           handleUndoChanges={this.handleUndoChanges}
         />
       </div>
