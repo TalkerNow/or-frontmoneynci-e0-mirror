@@ -71,7 +71,7 @@ class DropzoneBasic extends React.Component {
         counts[0] = files.filter((f) => !f.dossier || f.dossier === 0).length;
         FOLDERS.forEach((folder) => {
           counts[folder.id] = files.filter(
-            (f) => f.dossier === folder.id
+            (f) => f.dossier === folder.id,
           ).length;
         });
         this.setState({ files, folderCounts: counts });
@@ -87,7 +87,7 @@ class DropzoneBasic extends React.Component {
     formData.set("user_id", this.props.id);
     formData.set("dossier", dossier || 0);
     acceptedFiles.forEach((file, i) =>
-      formData.append("photoUpload" + i, file)
+      formData.append("photoUpload" + i, file),
     );
 
     const Config = {
@@ -147,7 +147,7 @@ class DropzoneBasic extends React.Component {
       .put(
         global.config.server_url + "/files/" + fileId,
         { dossier: newFolder },
-        Config
+        Config,
       )
       .then(() => this.loadFiles());
   };
@@ -179,7 +179,7 @@ class DropzoneBasic extends React.Component {
       .put(
         global.config.server_url + "/files/" + fileToRenameId,
         { filename: newFileName },
-        Config
+        Config,
       )
       .then(() => {
         this.loadFiles();
@@ -202,7 +202,7 @@ class DropzoneBasic extends React.Component {
     axios
       .get(
         global.config.server_url + "/downloadFile?file_id=" + file_id,
-        Config
+        Config,
       )
       .then((response) => {
         waiterHide();
@@ -419,7 +419,7 @@ class DropzoneBasic extends React.Component {
   // 🔹 Fichiers non triés
   renderUnsortedFiles = () => {
     const unsortedFiles = this.state.files.filter(
-      (f) => !f.dossier || f.dossier === 0
+      (f) => !f.dossier || f.dossier === 0,
     );
     if (unsortedFiles.length === 0) return null;
     return (
@@ -474,10 +474,11 @@ class DropzoneBasic extends React.Component {
                     height: 28,
                     padding: "0 8px",
                     borderRadius: 999,
-                    backgroundColor: "#e9ecef",
+                    // On change la couleur de fond et du texte ici :
+                    backgroundColor: "#20be00", // Un vert clair (type Bootstrap success light)
+                    color: "#ffffff", // Un vert foncé pour le contraste et l'accessibilité
                     fontSize: 13,
                     fontWeight: 600,
-                    color: "#212529",
                     display: "inline-flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -499,10 +500,10 @@ class DropzoneBasic extends React.Component {
   // 🔹 Vue fichiers d’un dossier (dropzone pour upload dans ce dossier)
   renderFileView = () => {
     const currentFolderObj = FOLDERS.find(
-      (f) => f.id === this.state.currentFolder
+      (f) => f.id === this.state.currentFolder,
     );
     const filesInFolder = this.state.files.filter(
-      (f) => f.dossier === this.state.currentFolder
+      (f) => f.dossier === this.state.currentFolder,
     );
 
     return (
