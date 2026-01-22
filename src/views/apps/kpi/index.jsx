@@ -265,8 +265,8 @@ function renderActionBadge(action) {
   const key = ACTIONS_KNOWN.includes(action)
     ? action
     : action
-    ? ACTION_OTHER
-    : null;
+      ? ACTION_OTHER
+      : null;
   if (!key) {
     return <em style={{ opacity: 0.6 }}>(vide)</em>;
   }
@@ -297,7 +297,7 @@ const parseServices = (servicesRaw) => {
       s
         .replace(/["\\]/g, "") // enlève guillemets / backslashes
         .trim()
-        .toUpperCase()
+        .toUpperCase(),
     )
     .filter(Boolean);
 };
@@ -669,7 +669,12 @@ export default function KpiPage() {
   const [selectedConv, setSelectedConv] = useState(null);
 
   const handleSelectConversation = (id) => {
-    // TODO: fetch conversation details /api/conversation-archives/{id}
+    // Check if it's a diagnostic to fetch details
+    const isDiag = diagnostics.some((d) => d.id === id);
+    if (isDiag) {
+      fetchDiagnosticDetail(id);
+    }
+    // Add other types if needed
   };
 
   // Dropdown state for New Button
@@ -728,8 +733,8 @@ export default function KpiPage() {
       const data = Array.isArray(payload?.data)
         ? payload.data
         : Array.isArray(payload)
-        ? payload
-        : [];
+          ? payload
+          : [];
 
       setItems(data);
 
@@ -739,7 +744,7 @@ export default function KpiPage() {
       console.error(e);
       setError(
         e?.response?.data?.message ||
-          "Erreur lors du chargement des KPI. Vérifie l'API."
+          "Erreur lors du chargement des KPI. Vérifie l'API.",
       );
     } finally {
       setLoadingList(false);
@@ -758,7 +763,7 @@ export default function KpiPage() {
       console.error(e);
       setSuivisError(
         e?.response?.data?.message ||
-          "Erreur lors du chargement des suivis d'avancement."
+          "Erreur lors du chargement des suivis d'avancement.",
       );
     } finally {
       setLoadingSuivis(false);
@@ -781,8 +786,8 @@ export default function KpiPage() {
         const data = Array.isArray(payload.data)
           ? payload.data
           : Array.isArray(payload)
-          ? payload
-          : [];
+            ? payload
+            : [];
 
         aggregated = aggregated.concat(data);
         setConversations([...aggregated]);
@@ -816,8 +821,8 @@ export default function KpiPage() {
         const data = Array.isArray(payload.data)
           ? payload.data
           : Array.isArray(payload)
-          ? payload
-          : [];
+            ? payload
+            : [];
 
         aggregated = aggregated.concat(data);
         setDiagnostics([...aggregated]);
@@ -832,6 +837,29 @@ export default function KpiPage() {
       setDiagError("Impossible de charger les diagnostics.");
     } finally {
       setLoadingDiagnostics(false);
+    }
+  }
+
+  async function fetchDiagnosticDetail(id) {
+    try {
+      const res = await API.get(`/v1/simulator-difficulty-results/${id}`);
+      const payload = res.data;
+      const data = payload?.data || payload;
+
+      if (data && data.id) {
+        setDiagnostics((prev) => {
+          const exists = prev.find((d) => d.id === data.id);
+          if (exists) {
+            // Update existing
+            return prev.map((d) => (d.id === data.id ? data : d));
+          } else {
+            // Should not happen usually as we select from list, but safe to add
+            return [...prev, data];
+          }
+        });
+      }
+    } catch (e) {
+      console.error("fetchDiagnosticDetail error:", e);
     }
   }
 
@@ -852,8 +880,8 @@ export default function KpiPage() {
         const data = Array.isArray(payload?.data)
           ? payload.data
           : Array.isArray(payload)
-          ? payload
-          : [];
+            ? payload
+            : [];
 
         aggregated = aggregated.concat(data);
 
@@ -879,7 +907,7 @@ export default function KpiPage() {
       setError(
         e?.response?.data?.message ||
           e?.response?.data?.error ||
-          "Erreur lors du chargement complet des KPI pour le graphique."
+          "Erreur lors du chargement complet des KPI pour le graphique.",
       );
     } finally {
       setLoadingChart(false);
@@ -897,8 +925,8 @@ export default function KpiPage() {
       const list = Array.isArray(payload?.data)
         ? payload.data
         : Array.isArray(payload)
-        ? payload
-        : [];
+          ? payload
+          : [];
 
       const map = {};
       list.forEach((u) => {
@@ -932,8 +960,8 @@ export default function KpiPage() {
       const list = Array.isArray(payload?.data)
         ? payload.data
         : Array.isArray(payload)
-        ? payload
-        : [];
+          ? payload
+          : [];
 
       const map = {};
       list.forEach((u) => {
@@ -1014,7 +1042,7 @@ export default function KpiPage() {
       setError(
         e?.response?.data?.message ||
           e?.response?.data?.error ||
-          "Impossible de créer le KPI."
+          "Impossible de créer le KPI.",
       );
     } finally {
       setCreating(false);
@@ -1170,7 +1198,7 @@ export default function KpiPage() {
             const d3Only = new Date(
               d3.getFullYear(),
               d3.getMonth(),
-              d3.getDate()
+              d3.getDate(),
             );
 
             // 👉 la date de l'étape 3 est arrivée ou passée
@@ -1205,7 +1233,7 @@ export default function KpiPage() {
             const rdvOnly = new Date(
               rdvDate.getFullYear(),
               rdvDate.getMonth(),
-              rdvDate.getDate()
+              rdvDate.getDate(),
             );
 
             if (rdvOnly.getTime() <= today.getTime()) {
@@ -1223,14 +1251,14 @@ export default function KpiPage() {
       const bucket = isContractFinished
         ? "completed"
         : isFacturationUrgent
-        ? "facturation"
-        : isAfter5Days
-        ? "after5days"
-        : isSuiviSpecific
-        ? "suivi"
-        : isProcessing
-        ? "processing"
-        : "active";
+          ? "facturation"
+          : isAfter5Days
+            ? "after5days"
+            : isSuiviSpecific
+              ? "suivi"
+              : isProcessing
+                ? "processing"
+                : "active";
 
       res[bucket].push({ s, steps, last, next, isRdvToday });
     });
@@ -1378,10 +1406,10 @@ export default function KpiPage() {
             {location.pathname.includes("/kpi/suivi")
               ? "Suivi Administratif"
               : location.pathname.includes("/kpi/opportunities")
-              ? "Opportunités"
-              : location.pathname.includes("/kpi/clients") // Assuming clients route exists or will exist
-              ? "Clients"
-              : "Boîte De Réception"}
+                ? "Opportunités"
+                : location.pathname.includes("/kpi/clients") // Assuming clients route exists or will exist
+                  ? "Clients"
+                  : "Boîte De Réception"}
           </span>
         </div>
         <div style={{ marginLeft: "auto" }}>
@@ -1633,7 +1661,7 @@ export default function KpiPage() {
                                       const clientLabel =
                                         getClientDisplayNameFromSuivi(
                                           s,
-                                          clientsById
+                                          clientsById,
                                         );
                                       const contractId =
                                         s.facture_id ||
@@ -1651,7 +1679,7 @@ export default function KpiPage() {
                                           onClick={() => {
                                             if (clientId) {
                                               history.push(
-                                                `/app/user/edit/${clientId}/2`
+                                                `/app/user/edit/${clientId}/2`,
                                               );
                                             }
                                           }}
@@ -1666,7 +1694,7 @@ export default function KpiPage() {
                                               next,
                                               isRdvToday
                                                 ? "Alerte : Jour du RDV"
-                                                : null
+                                                : null,
                                             )}
                                           </td>
 
@@ -1717,7 +1745,7 @@ export default function KpiPage() {
                                                 onClick={(e) => {
                                                   e.stopPropagation();
                                                   history.push(
-                                                    `/pages/contract/${contractId}`
+                                                    `/pages/contract/${contractId}`,
                                                   );
                                                 }}
                                                 title="Voir le contrat"
@@ -1728,7 +1756,7 @@ export default function KpiPage() {
                                           </td>
                                         </tr>
                                       );
-                                    }
+                                    },
                                   )}
                                 </>
                               )}
@@ -1752,7 +1780,7 @@ export default function KpiPage() {
                                       const clientLabel =
                                         getClientDisplayNameFromSuivi(
                                           s,
-                                          clientsById
+                                          clientsById,
                                         );
                                       const contractId =
                                         s.facture_id ||
@@ -1770,7 +1798,7 @@ export default function KpiPage() {
                                           onClick={() => {
                                             if (clientId) {
                                               history.push(
-                                                `/app/user/edit/${clientId}/2`
+                                                `/app/user/edit/${clientId}/2`,
                                               );
                                             }
                                           }}
@@ -1829,7 +1857,7 @@ export default function KpiPage() {
                                                 onClick={(e) => {
                                                   e.stopPropagation();
                                                   history.push(
-                                                    `/pages/contract/${contractId}`
+                                                    `/pages/contract/${contractId}`,
                                                   );
                                                 }}
                                                 title="Voir le contrat"
@@ -1847,7 +1875,7 @@ export default function KpiPage() {
                                           </td>
                                         </tr>
                                       );
-                                    }
+                                    },
                                   )}
                                 </>
                               )}
@@ -1891,7 +1919,7 @@ export default function KpiPage() {
                                       const clientLabel =
                                         getClientDisplayNameFromSuivi(
                                           s,
-                                          clientsById
+                                          clientsById,
                                         );
                                       const contractId =
                                         s.facture_id ||
@@ -1909,7 +1937,7 @@ export default function KpiPage() {
                                           onClick={() => {
                                             if (clientId) {
                                               history.push(
-                                                `/app/user/edit/${clientId}/2`
+                                                `/app/user/edit/${clientId}/2`,
                                               );
                                             }
                                           }}
@@ -1959,7 +1987,7 @@ export default function KpiPage() {
                                                 onClick={(e) => {
                                                   e.stopPropagation();
                                                   history.push(
-                                                    `/pages/contract/${contractId}`
+                                                    `/pages/contract/${contractId}`,
                                                   );
                                                 }}
                                                 title="Voir le contrat"
@@ -1977,7 +2005,7 @@ export default function KpiPage() {
                                           </td>
                                         </tr>
                                       );
-                                    }
+                                    },
                                   )}
                                 </>
                               )}
@@ -1989,7 +2017,7 @@ export default function KpiPage() {
                                   const clientLabel =
                                     getClientDisplayNameFromSuivi(
                                       s,
-                                      clientsById
+                                      clientsById,
                                     );
                                   const contractId =
                                     s.facture_id ||
@@ -2005,7 +2033,7 @@ export default function KpiPage() {
                                       onClick={() => {
                                         if (clientId) {
                                           history.push(
-                                            `/app/user/edit/${clientId}/2`
+                                            `/app/user/edit/${clientId}/2`,
                                           );
                                         }
                                       }}
@@ -2063,7 +2091,7 @@ export default function KpiPage() {
                                             onClick={(e) => {
                                               e.stopPropagation();
                                               history.push(
-                                                `/pages/contract/${contractId}`
+                                                `/pages/contract/${contractId}`,
                                               );
                                             }}
                                             title="Voir le contrat"
@@ -2081,7 +2109,7 @@ export default function KpiPage() {
                                       </td>
                                     </tr>
                                   );
-                                }
+                                },
                               )}
 
                             {/* 2) Dossiers en cours de traitement (tiroir) */}
@@ -2102,7 +2130,7 @@ export default function KpiPage() {
                                       const clientLabel =
                                         getClientDisplayNameFromSuivi(
                                           s,
-                                          clientsById
+                                          clientsById,
                                         );
                                       const contractId =
                                         s.facture_id ||
@@ -2120,7 +2148,7 @@ export default function KpiPage() {
                                           onClick={() => {
                                             if (clientId) {
                                               history.push(
-                                                `/app/user/edit/${clientId}/2`
+                                                `/app/user/edit/${clientId}/2`,
                                               );
                                             }
                                           }}
@@ -2172,7 +2200,7 @@ export default function KpiPage() {
                                                 onClick={(e) => {
                                                   e.stopPropagation();
                                                   history.push(
-                                                    `/pages/contract/${contractId}`
+                                                    `/pages/contract/${contractId}`,
                                                   );
                                                 }}
                                                 title="Voir le contrat"
@@ -2190,7 +2218,7 @@ export default function KpiPage() {
                                           </td>
                                         </tr>
                                       );
-                                    }
+                                    },
                                   )}
                                 </>
                               )}
@@ -2213,7 +2241,7 @@ export default function KpiPage() {
                                       const clientLabel =
                                         getClientDisplayNameFromSuivi(
                                           s,
-                                          clientsById
+                                          clientsById,
                                         );
                                       const contractId =
                                         s.facture_id ||
@@ -2231,7 +2259,7 @@ export default function KpiPage() {
                                           onClick={() => {
                                             if (clientId) {
                                               history.push(
-                                                `/app/user/edit/${clientId}/2`
+                                                `/app/user/edit/${clientId}/2`,
                                               );
                                             }
                                           }}
@@ -2295,7 +2323,7 @@ export default function KpiPage() {
                                                 onClick={(e) => {
                                                   e.stopPropagation();
                                                   history.push(
-                                                    `/pages/contract/${contractId}`
+                                                    `/pages/contract/${contractId}`,
                                                   );
                                                 }}
                                                 title="Voir le contrat"
@@ -2313,7 +2341,7 @@ export default function KpiPage() {
                                           </td>
                                         </tr>
                                       );
-                                    }
+                                    },
                                   )}
                                 </>
                               )}
@@ -2378,12 +2406,12 @@ export default function KpiPage() {
           const chatbotPhones = new Set(
             conversations
               .map((c) => normalizePhone(extractPhone(c)))
-              .filter(Boolean)
+              .filter(Boolean),
           );
           const diagnosticPhones = new Set(
             diagnostics
               .map((d) => normalizePhone(extractPhone(d)))
-              .filter(Boolean)
+              .filter(Boolean),
           );
 
           // Marquer les items avec _hasMultipleChannels
@@ -2501,12 +2529,12 @@ export default function KpiPage() {
                 location.pathname.includes("/inbox/chatbot")
                   ? "chatbot"
                   : location.pathname.includes("/inbox/diagnostic")
-                  ? "diagnostic"
-                  : location.pathname.includes("/inbox/call")
-                  ? "call"
-                  : location.pathname.includes("/inbox/email")
-                  ? "email"
-                  : "all"
+                    ? "diagnostic"
+                    : location.pathname.includes("/inbox/call")
+                      ? "call"
+                      : location.pathname.includes("/inbox/email")
+                        ? "email"
+                        : "all"
               }
               loading={
                 loadingConversations || loadingDiagnostics || loadingList

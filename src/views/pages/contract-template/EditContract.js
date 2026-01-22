@@ -1,7 +1,6 @@
 /* eslint-disable */
 import React from "react";
 import moment from "moment";
-import Moment from "react-moment";
 import {
   Card,
   CardBody,
@@ -603,11 +602,11 @@ class EditContract extends React.Component {
   handleFieldChange = (field, value) => {
     input_values[field] = value;
     this.state.formValues[field] = value;
-    if (field == "fp1") {
+    if (field === "fp1") {
       this.state.formValues["fp2"] = 100 - value;
       input_values["fp2"] = 100 - value;
     }
-    if (field == "fp2") {
+    if (field === "fp2") {
       this.state.formValues["fp1"] = 100 - value;
       input_values["fp1"] = 100 - value;
     }

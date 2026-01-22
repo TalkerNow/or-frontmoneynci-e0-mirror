@@ -8,10 +8,7 @@ import {
   calculateComplexityScore,
   mapConversationToInboxItem,
 } from "./inbox/utils";
-import {
-  generateStrategicAnalysis,
-  generateGeminiContent,
-} from "./inbox/api";
+import { generateStrategicAnalysis, generateGeminiContent } from "./inbox/api";
 import InboxList from "./inbox/InboxList";
 import InboxDetail from "./inbox/InboxDetail";
 import DisqualifyModal from "./inbox/DisqualifyModal";
@@ -76,7 +73,7 @@ const InboxView = ({
     try {
       localStorage.setItem(
         "inbox_manual_unread_ids",
-        JSON.stringify([...manualUnreadIds])
+        JSON.stringify([...manualUnreadIds]),
       );
     } catch (e) {
       console.error("Failed to save manual unread IDs:", e);
@@ -98,7 +95,7 @@ const InboxView = ({
     try {
       localStorage.setItem(
         "inbox_strategic_analyses",
-        JSON.stringify(strategicAnalysisCache)
+        JSON.stringify(strategicAnalysisCache),
       );
     } catch (e) {
       console.error("Failed to save analyses:", e);
@@ -126,14 +123,14 @@ const InboxView = ({
       !disqualifiedIds.has(item.id) &&
       !item.raw?.invisible &&
       item.raw?.invisible !== 1 &&
-      item.raw?.status !== "DISQUALIFIED"
+      item.raw?.status !== "DISQUALIFIED",
   );
 
   // Restore context from navigation
   useEffect(() => {
     if (location.state?.fromInbox && location.state?.conversationId) {
       const targetItem = allInboxItems.find(
-        (item) => item.id === location.state.conversationId
+        (item) => item.id === location.state.conversationId,
       );
       if (targetItem) {
         setSelectedItem(targetItem);
@@ -143,11 +140,17 @@ const InboxView = ({
     }
 
     // Default selection if current selection is invalid
+    // Default selection if current selection is invalid
     if (visibleInboxItems.length > 0) {
       const currentInList = visibleInboxItems.find(
-        (i) => i.id === selectedItem.id
+        (i) => i.id === selectedItem.id,
       );
-      if (!currentInList) {
+      if (currentInList) {
+        // Update to fresh object from list to reflect changes (e.g. score update)
+        if (currentInList !== selectedItem) {
+          setSelectedItem(currentInList);
+        }
+      } else {
         setSelectedItem(visibleInboxItems[0]);
       }
     }
@@ -160,12 +163,10 @@ const InboxView = ({
     setIsGenerating(false);
   }, [selectedItem.id]);
 
-
-
   const unreadCount = inboxItems.filter(
     (item) =>
       (item.status === "new" || manualUnreadIds.has(item.id)) &&
-      !readIds.has(item.id)
+      !readIds.has(item.id),
   ).length;
 
   // Handlers
@@ -180,15 +181,17 @@ const InboxView = ({
     if (onSelect) onSelect(item.id);
   };
 
-  const handleMarkAsUnread = (e) => {
-    e.stopPropagation();
-    if (!selectedItem?.id) return;
+  const handleMarkAsUnread = (e, item = null) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    const target = item || selectedItem;
+    
+    if (!target?.id) return;
     setReadIds((prev) => {
       const newSet = new Set(prev);
-      newSet.delete(selectedItem.id);
+      newSet.delete(target.id);
       return newSet;
     });
-    setManualUnreadIds((prev) => new Set(prev).add(selectedItem.id));
+    setManualUnreadIds((prev) => new Set(prev).add(target.id));
 
     // Toast notification could be moved to a utility or separate component
     const toast = document.createElement("div");
@@ -234,11 +237,12 @@ const InboxView = ({
       - Nom: ${selectedItem.name}
       - Type : ${selectedItem.type}
       - Points clés : ${selectedItem.summary?.join(", ")}
-      ${selectedItem.type === "diagnostic"
-        ? `- Score complexité : ${calculateComplexityScore(
-          selectedItem.raw?.attributes
-        )}/100`
-        : ""
+      ${
+        selectedItem.type === "diagnostic"
+          ? `- Score complexité : ${calculateComplexityScore(
+              selectedItem.raw?.attributes,
+            )}/100`
+          : ""
       }
       TÂCHE : Rédige un email de premier contact.
     `;
@@ -273,7 +277,7 @@ const InboxView = ({
     if (birthDateRaw) {
       try {
         birth_date = new Date(birthDateRaw).toISOString().split("T")[0];
-      } catch (e) { }
+      } catch (e) {}
     }
 
     const prefillData = {
@@ -316,9 +320,9 @@ const InboxView = ({
       ) {
         await axios.put(
           global.config.server_url +
-          `/conversation-archives/${selectedItem.id}`,
+            `/conversation-archives/${selectedItem.id}`,
           { invisible: true },
-          config
+          config,
         );
       } else if (
         selectedItem.type === "diagnostic" ||
@@ -326,13 +330,14 @@ const InboxView = ({
       ) {
         await axios.put(
           global.config.server_url +
-          `/v1/simulator-difficulty-results/${selectedItem.id}`,
+            `/v1/simulator-difficulty-results/${selectedItem.id}`,
           { invisible: true },
-          config
+          config,
         );
       } else {
         await fetch(
-          `${process.env.REACT_APP_API_URL || window.location.origin
+          `${
+            process.env.REACT_APP_API_URL || window.location.origin
           }/api/prospects/${selectedItem.id}/disqualify`,
           {
             method: "PATCH",
@@ -342,7 +347,7 @@ const InboxView = ({
               disqualification_reason: disqualifyReason,
               disqualification_comment: disqualifyComment,
             }),
-          }
+          },
         );
       }
 
@@ -353,7 +358,7 @@ const InboxView = ({
 
       // Move selection
       const currentIndex = visibleInboxItems.findIndex(
-        (item) => item.id === selectedItem.id
+        (item) => item.id === selectedItem.id,
       );
       const nextItem =
         visibleInboxItems[currentIndex + 1] || visibleInboxItems[0];
@@ -362,7 +367,9 @@ const InboxView = ({
       }
     } catch (error) {
       console.error("Disqualify error:", error);
-      window.alert("Une erreur est survenue, mais l'élément est masqué localement.");
+      window.alert(
+        "Une erreur est survenue, mais l'élément est masqué localement.",
+      );
       setDisqualifiedIds((prev) => new Set([...prev, selectedItem.id]));
       setShowDisqualifyModal(false);
     } finally {
@@ -394,6 +401,7 @@ const InboxView = ({
         unreadCount={unreadCount}
         readIds={readIds}
         manualUnreadIds={manualUnreadIds}
+        onMarkAsUnread={handleMarkAsUnread}
       />
 
       <InboxDetail
