@@ -58,12 +58,13 @@ class UserEdit extends React.Component {
   };
 
   navRef = null;
+  documentsHubRef = React.createRef();
 
   computeSimuOffset = () => {
     try {
       const nav = this.navRef;
       const label = document.getElementById(
-        `simulateur-label-client-${this.props.match.params.id}`
+        `simulateur-label-client-${this.props.match.params.id}`,
       );
       if (nav && label) {
         const delta =
@@ -77,7 +78,7 @@ class UserEdit extends React.Component {
     try {
       const nav = this.navRef;
       const label = document.getElementById(
-        `documents-label-client-${this.props.match.params.id}`
+        `documents-label-client-${this.props.match.params.id}`,
       );
       if (nav && label) {
         const delta =
@@ -91,7 +92,7 @@ class UserEdit extends React.Component {
     try {
       const nav = this.navRef;
       const label = document.getElementById(
-        `courriers-label-client-${this.props.match.params.id}`
+        `courriers-label-client-${this.props.match.params.id}`,
       );
       if (nav && label) {
         const delta =
@@ -131,7 +132,7 @@ class UserEdit extends React.Component {
     const { id } = this.props.match.params;
     const response = await axios.get(
       global.config.server_url + "/users/" + id,
-      Config
+      Config,
     );
     this.setState({ rowData: response.data });
   };
@@ -142,7 +143,7 @@ class UserEdit extends React.Component {
     };
     const response = await axios.get(
       global.config.server_url + "/users?kind=member",
-      Config
+      Config,
     );
     this.setState({ members: response.data });
   };
@@ -205,6 +206,10 @@ class UserEdit extends React.Component {
         if (tab === "documents") setTimeout(this.computeDocsOffset, 0);
         if (tab === "courriers") setTimeout(this.computeCourriersOffset, 0);
       });
+    } else {
+      if (tab === "documents" && this.documentsHubRef.current) {
+        this.documentsHubRef.current.resetView();
+      }
     }
   };
 
@@ -236,7 +241,7 @@ class UserEdit extends React.Component {
     if (form) {
       // The form submit handler in Informations.js handles the save and navigation
       form.dispatchEvent(
-        new Event("submit", { cancelable: true, bubbles: true })
+        new Event("submit", { cancelable: true, bubbles: true }),
       );
     }
   };
@@ -330,7 +335,7 @@ class UserEdit extends React.Component {
             "profile-left profile-sidebar-fixed client-left",
             {
               collapsed: this.state.isCollapsed,
-            }
+            },
           )}
         >
           <div>
@@ -496,6 +501,7 @@ class UserEdit extends React.Component {
             </TabPane>
             <TabPane tabId="documents">
               <DocumentsHub
+                ref={this.documentsHubRef}
                 id={id}
                 name={this.state.rowData.name}
                 parent_id={this.state.rowData.parent_id}

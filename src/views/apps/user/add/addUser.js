@@ -267,10 +267,16 @@ class AddUser extends React.Component {
         Authorization: "Bearer " + localStorage.getItem("token"),
       },
     };
+
+    const emailForRegistration =
+      data.email || `client_${Date.now()}@placeholder.local`;
+
+    const locationState = this.props.location?.state;
+
     waiterShow();
     axios
       .post(global.config.server_url + "/register", {
-        email: data.email,
+        email: emailForRegistration,
         password: data.password,
         name: data.first_name + " " + data.last_name,
         role: data.role,
@@ -317,6 +323,25 @@ class AddUser extends React.Component {
             })
             .then((response) => {
               waiterHide();
+
+              // Handle conversation hiding after successful client creation (from Convert workflow)
+              const originId = locationState?.originConversationId;
+              if (originId) {
+                const hiddenIds = JSON.parse(
+                  localStorage.getItem("MOCK_HIDDEN_CONV_IDS") || "[]"
+                );
+                if (!hiddenIds.includes(originId)) {
+                  hiddenIds.push(originId);
+                  localStorage.setItem(
+                    "MOCK_HIDDEN_CONV_IDS",
+                    JSON.stringify(hiddenIds)
+                  );
+                }
+                toast.success("Client créé avec succès !");
+                history.push("/kpi/inbox");
+                return;
+              }
+
               if (type === 1) {
                 history.push("/pages/create-contract/" + response.data.user_id);
               } else if (type === 0) {
@@ -1247,7 +1272,6 @@ class AddUser extends React.Component {
                 </CustomInput>
               </FormGroup>
             </Col>
-
 
             {/* Rôle de l'utilisateur */}
             <Col md="4" sm="12">

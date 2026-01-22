@@ -25,7 +25,29 @@ export const useNotesLogic = (id, perso) => {
   const [reportType, setReportType] = useState("pre");
   const [deleteConfirmTarget, setDeleteConfirmTarget] = useState(null);
   const [fileToSend, setFileToSend] = useState(null);
-  const [n8nMessage, setN8nMessage] = useState("");
+  const [n8nMessage, setN8nMessage] = useState(() => {
+    if (id) {
+      return localStorage.getItem(`n8n_message_${id}`) || "";
+    }
+    return "";
+  });
+  const [messageLoadedId, setMessageLoadedId] = useState(id);
+
+  // Load message from localStorage when id changes
+  useEffect(() => {
+    if (id && id !== messageLoadedId) {
+      const saved = localStorage.getItem(`n8n_message_${id}`);
+      setN8nMessage(saved || "");
+      setMessageLoadedId(id);
+    }
+  }, [id, messageLoadedId]);
+
+  // Save message to localStorage when it changes
+  useEffect(() => {
+    if (id && messageLoadedId === id) {
+      localStorage.setItem(`n8n_message_${id}`, n8nMessage);
+    }
+  }, [n8nMessage, id, messageLoadedId]);
 
   // Load selected tags from localStorage on mount
   const [selectedTags, setSelectedTags] = useState(() => {
@@ -79,7 +101,7 @@ export const useNotesLogic = (id, perso) => {
     try {
       localStorage.setItem(
         "notes_selected_analysis_tags",
-        JSON.stringify(selectedTags)
+        JSON.stringify(selectedTags),
       );
     } catch (e) {
       console.error("Failed to save selected tags:", e);
@@ -102,7 +124,7 @@ export const useNotesLogic = (id, perso) => {
 
         const response = await axios.get(
           `${global.config.server_url}/files?user_id=${id}`,
-          Config
+          Config,
         );
 
         const files = Array.isArray(response.data) ? response.data : [];
@@ -152,7 +174,7 @@ export const useNotesLogic = (id, perso) => {
       const year = Number(payload.year) || 2024;
       const pointsValue =
         Number(
-          payload.pointsYear != null ? payload.pointsYear : payload.pointsTotal
+          payload.pointsYear != null ? payload.pointsYear : payload.pointsTotal,
         ) || 0;
       setManualCareerRows((prev) => {
         const safeRows = Array.isArray(prev) ? [...prev] : [];
@@ -181,8 +203,9 @@ export const useNotesLogic = (id, perso) => {
         return safeRows;
       });
       toast.success(
-        `Points ${eventType === "ARRCO_POINTS_SAVE" ? "ARRCO" : "IRCANTEC"
-        } mis à jour`
+        `Points ${
+          eventType === "ARRCO_POINTS_SAVE" ? "ARRCO" : "IRCANTEC"
+        } mis à jour`,
       );
     };
     window.addEventListener("message", handleComplementaryPointsMessage);
@@ -203,7 +226,7 @@ export const useNotesLogic = (id, perso) => {
       await axios.put(
         `${global.config.server_url}/personal_information/${id}`,
         { notes },
-        Config
+        Config,
       );
       toast.info("Modifications enregistrées");
       setOriginalNotes(notes);
@@ -232,7 +255,7 @@ export const useNotesLogic = (id, perso) => {
         const formData = new FormData();
         formData.set("user_id", id);
         acceptedFiles.forEach((file, index) =>
-          formData.append(`photoUpload${index}`, file)
+          formData.append(`photoUpload${index}`, file),
         );
 
         const Config = {
@@ -245,7 +268,7 @@ export const useNotesLogic = (id, perso) => {
         const response = await axios.post(
           `${global.config.server_url}/uploadFiles`,
           formData,
-          Config
+          Config,
         );
         const files = Array.isArray(response?.data?.files)
           ? response.data.files
@@ -265,7 +288,7 @@ export const useNotesLogic = (id, perso) => {
             return next;
           });
           toast.success(
-            files.length > 1 ? "Documents importés" : "Relevé importé"
+            files.length > 1 ? "Documents importés" : "Relevé importé",
           );
         }
       } catch {
@@ -274,7 +297,7 @@ export const useNotesLogic = (id, perso) => {
         setIsUploading(false);
       }
     },
-    [id]
+    [id],
   );
 
   const handleGenerateDoc = useCallback(
@@ -313,7 +336,7 @@ export const useNotesLogic = (id, perso) => {
         String(childrenCountVal).trim() === ""
       ) {
         toast.error(
-          "Le nombre d'enfants est manquant. Veuillez le renseigner dans les informations du client."
+          "Le nombre d'enfants est manquant. Veuillez le renseigner dans les informations du client.",
         );
         return;
       }
@@ -326,7 +349,7 @@ export const useNotesLogic = (id, perso) => {
         String(birthDateVal).trim() === ""
       ) {
         toast.error(
-          "La date de naissance est manquante. Veuillez la renseigner dans les informations du client."
+          "La date de naissance est manquante. Veuillez la renseigner dans les informations du client.",
         );
         return;
       }
@@ -362,11 +385,12 @@ export const useNotesLogic = (id, perso) => {
         const tagsPrefix =
           selectedTags.length > 0
             ? `Thématiques d'analyse : ${selectedTags
-              .map((t) => t.label)
-              .join(", ")}\n\n`
+                .map((t) => t.label)
+                .join(", ")}\n\n`
             : "";
-        const finalMessage = `${tagsPrefix}${currentMessage || ""
-          }\n\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDate}`.trim();
+        const finalMessage = `${tagsPrefix}${
+          currentMessage || ""
+        }\n\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDate}`.trim();
         n8nFormData.append("message", finalMessage);
 
         // Ajout du contenu HTML précédent si disponible (pour les rapports spécifiques)
@@ -380,8 +404,9 @@ export const useNotesLogic = (id, perso) => {
         }
 
         toast.info(
-          `Analyse en cours (${normalizedType === "custom" ? "Spécifique" : "Standard"
-          })…`
+          `Analyse en cours (${
+            normalizedType === "custom" ? "Spécifique" : "Standard"
+          })…`,
         );
 
         const n8nResponse = await axios.post(webhookUrl, n8nFormData, {
@@ -425,8 +450,9 @@ export const useNotesLogic = (id, perso) => {
         // Si c'est du HTML, il sera affiché tel quel. Si c'est du texte, il sera affiché brut.
 
         // On crée un fichier HTML pour display
-        const fileName = `Rapport_${normalizedType === "custom" ? "Specifique" : "Standard"
-          }_${new Date().getTime()}.html`;
+        const fileName = `Rapport_${
+          normalizedType === "custom" ? "Specifique" : "Standard"
+        }_${new Date().getTime()}.html`;
         const fileBlob = new Blob([contentString], {
           type: "text/html;charset=utf-8",
         });
@@ -447,13 +473,13 @@ export const useNotesLogic = (id, perso) => {
           const uploadRes = await axios.post(
             `${global.config.server_url}/uploadFiles`,
             uploadForm,
-            uploadConfig
+            uploadConfig,
           );
           if (uploadRes?.data?.files?.[0]?.url) {
             reportUrl = uploadRes.data.files[0].url;
           } else {
             throw new Error(
-              "Pas d'URL de fichier renvoyée lors de la sauvegarde"
+              "Pas d'URL de fichier renvoyée lors de la sauvegarde",
             );
           }
         } catch (err) {
@@ -482,7 +508,7 @@ export const useNotesLogic = (id, perso) => {
         setIsGenerating(false);
       }
     },
-    [clientNames.displayName, fileToSend, id, n8nMessage, perso, selectedTags]
+    [clientNames.displayName, fileToSend, id, n8nMessage, perso, selectedTags],
   );
 
   const handleSaveDoc = useCallback(
@@ -579,7 +605,7 @@ export const useNotesLogic = (id, perso) => {
         const response = await axios.post(
           `${global.config.server_url}/fetch-html`,
           { url: viewingDoc.url },
-          Config
+          Config,
         );
         if (response.data && response.data.html) {
           htmlToSend = response.data.html;
@@ -599,7 +625,7 @@ export const useNotesLogic = (id, perso) => {
 
   const handleDeleteDoc = useCallback((docId) => {
     setGeneratedDocs((prev) =>
-      Array.isArray(prev) ? prev.filter((doc) => doc && doc.id !== docId) : []
+      Array.isArray(prev) ? prev.filter((doc) => doc && doc.id !== docId) : [],
     );
   }, []);
 
@@ -607,13 +633,13 @@ export const useNotesLogic = (id, perso) => {
     (docId) => {
       setUploadedDocs((prev) => {
         const next = (Array.isArray(prev) ? prev : []).filter(
-          (doc) => doc && doc.id !== docId
+          (doc) => doc && doc.id !== docId,
         );
         persistUploadedDocs(id, next);
         return next;
       });
     },
-    [id]
+    [id],
   );
 
   const handleRenameDoc = useCallback(
@@ -641,7 +667,7 @@ export const useNotesLogic = (id, perso) => {
         return prev;
       });
     },
-    [id]
+    [id],
   );
 
   const requestDeleteGenerated = useCallback((doc) => {
@@ -764,7 +790,7 @@ export const useNotesLogic = (id, perso) => {
         const response = await axios.post(
           `${global.config.server_url}/fetch-html`,
           { url: viewingDoc.url },
-          Config
+          Config,
         );
 
         if (!response.data?.html) {
@@ -841,7 +867,7 @@ export const useNotesLogic = (id, perso) => {
       } catch (error) {
         console.error("Erreur téléchargement PDF backend:", error);
         toast.error(
-          "Erreur lors du téléchargement du PDF. Veuillez régénérer le document."
+          "Erreur lors du téléchargement du PDF. Veuillez régénérer le document.",
         );
         return;
       }
@@ -849,7 +875,7 @@ export const useNotesLogic = (id, perso) => {
 
     // CAS 3 : Ni htmlContent ni URL
     toast.error(
-      "Ce document ne peut pas être téléchargé. Veuillez le régénérer."
+      "Ce document ne peut pas être téléchargé. Veuillez le régénérer.",
     );
   }, [viewingDoc]);
 
@@ -867,7 +893,7 @@ export const useNotesLogic = (id, perso) => {
         const response = await axios.post(
           `${global.config.server_url}/fetch-html`,
           { url: viewingDoc.url },
-          Config
+          Config,
         );
         if (response.data && response.data.html) {
           content = response.data.html;
@@ -893,7 +919,6 @@ export const useNotesLogic = (id, perso) => {
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
-
   }, [viewingDoc]);
 
   const handleReportDoc = useCallback((doc) => {
@@ -934,7 +959,7 @@ export const useNotesLogic = (id, perso) => {
         const response = await axios.post(
           `${global.config.server_url}/fetch-html`,
           { url: reportDoc.url },
-          Config
+          Config,
         );
         if (response.data && response.data.html) {
           htmlContent = response.data.html;
@@ -942,7 +967,7 @@ export const useNotesLogic = (id, perso) => {
       } catch (err) {
         console.warn(
           "Impossible de récupérer le HTML pour le signalement:",
-          err
+          err,
         );
       }
     }
@@ -971,7 +996,7 @@ export const useNotesLogic = (id, perso) => {
       console.error("Erreur envoi webhook signalement", error);
       if (toast.dismiss) toast.dismiss(toastId);
       toast.error(
-        "Erreur technique lors de l'envoi (vérifiez la console pour CORS)"
+        "Erreur technique lors de l'envoi (vérifiez la console pour CORS)",
       );
     }
 
