@@ -5,64 +5,64 @@ import { MessageSquare, Phone, Mail, FileText } from "lucide-react";
  * Calculates a dynamic complexity score (0-100) based on diagnostic attributes.
  */
 export function calculateComplexityScore(input = {}) {
-    // 1. Determine attributes object
-    let attrs = input;
-    // If input appears to be the main object with an 'attributes' key
-    if (input && typeof input === "object" && input.attributes) {
-        attrs = input.attributes;
+  // 1. Determine attributes object
+  let attrs = input;
+  // If input appears to be the main object with an 'attributes' key
+  if (input && typeof input === "object" && input.attributes) {
+    attrs = input.attributes;
+  }
+
+  // Safe check if attributes is a string (rare but possible)
+  if (typeof attrs === "string") {
+    try {
+      attrs = JSON.parse(attrs);
+    } catch (e) {
+      attrs = {};
     }
+  }
+  if (!attrs) attrs = {};
 
-    // Safe check if attributes is a string (rare but possible)
-    if (typeof attrs === "string") {
-        try {
-            attrs = JSON.parse(attrs);
-        } catch (e) {
-            attrs = {};
-        }
-    }
-    if (!attrs) attrs = {};
+  // 2. Priority: use backend provided score (handle casing)
+  const directScore =
+    attrs.SCORE ?? attrs.Score ?? attrs.score ?? attrs.diagnostic_score;
+  if (directScore !== undefined && directScore !== null) {
+    const parsed = parseInt(directScore, 10);
+    if (!isNaN(parsed)) return parsed;
+  }
 
-    // 2. Priority: use backend provided score (handle casing)
-    const directScore =
-        attrs.SCORE ?? attrs.Score ?? attrs.score ?? attrs.diagnostic_score;
-    if (directScore !== undefined && directScore !== null) {
-        const parsed = parseInt(directScore, 10);
-        if (!isNaN(parsed)) return parsed;
-    }
+  // 3. Fallback: Calculate from answers
+  let score = 30; // Base score
 
-    // 3. Fallback: Calculate from answers
-    let score = 30; // Base score
+  // Q1: Number of companies
+  const q1 = (attrs.SIMULATEUR_DIFFICULTE_Q1 || "").toString();
+  if (q1.includes("9+")) score += 25;
+  else if (q1.includes("4-9") || q1.includes("4–9")) score += 15;
 
-    // Q1: Number of companies
-    const q1 = (attrs.SIMULATEUR_DIFFICULTE_Q1 || "").toString();
-    if (q1.includes("9+")) score += 25;
-    else if (q1.includes("4-9") || q1.includes("4–9")) score += 15;
+  // Q2: Simultaneous companies
+  if ((attrs.SIMULATEUR_DIFFICULTE_Q2 || "").toLowerCase() === "oui")
+    score += 10;
 
-    // Q2: Simultaneous companies
-    if ((attrs.SIMULATEUR_DIFFICULTE_Q2 || "").toLowerCase() === "oui")
-        score += 10;
+  // Q3: Abroad career
+  if ((attrs.SIMULATEUR_DIFFICULTE_Q3 || "").toLowerCase() === "oui")
+    score += 20;
 
-    // Q3: Abroad career
-    if ((attrs.SIMULATEUR_DIFFICULTE_Q3 || "").toLowerCase() === "oui")
-        score += 20;
+  // Q4: Career gaps (maladie, chomage)
+  if ((attrs.SIMULATEUR_DIFFICULTE_Q4 || "").toLowerCase() === "oui")
+    score += 10;
 
-    // Q4: Career gaps (maladie, chomage)
-    if ((attrs.SIMULATEUR_DIFFICULTE_Q4 || "").toLowerCase() === "oui")
-        score += 10;
+  // Q5: Specific regimes (Fonctionnaire/Contractuel)
+  const q5 = (attrs.SIMULATEUR_DIFFICULTE_Q5 || "").toLowerCase();
+  if (q5.includes("oui")) score += 15;
 
-    // Q5: Specific regimes (Fonctionnaire/Contractuel)
-    const q5 = (attrs.SIMULATEUR_DIFFICULTE_Q5 || "").toLowerCase();
-    if (q5.includes("oui")) score += 15;
+  // Q6: Independent / Manager
+  if ((attrs.SIMULATEUR_DIFFICULTE_Q6 || "").toLowerCase() === "oui")
+    score += 15;
 
-    // Q6: Independent / Manager
-    if ((attrs.SIMULATEUR_DIFFICULTE_Q6 || "").toLowerCase() === "oui")
-        score += 15;
+  // Q8: RIS not checked
+  if ((attrs.SIMULATEUR_DIFFICULTE_Q8 || "").toLowerCase() === "non")
+    score += 15;
 
-    // Q8: RIS not checked
-    if ((attrs.SIMULATEUR_DIFFICULTE_Q8 || "").toLowerCase() === "non")
-        score += 15;
-
-    return Math.min(100, score);
+  return Math.min(100, score);
 }
 
 // Helper: Extract task text from the 'data' JSON field
@@ -361,3 +361,211 @@ export const getTypeColor = (type) => {
       return "gray";
   }
 };
+
+/**
+ * Generates a complete HTML visual report for a prospect/diagnostic item.
+ * @param {Object} item - The inbox item object (with item.raw containing attributes)
+ * @returns {string} - Complete HTML document string
+ */
+export function generateVisualReport(item) {
+  let attrs = item?.raw?.attributes;
+
+  if (!attrs) {
+    // Fallback for Strapi v4 response structure { data: { attributes: ... } }
+    if (item?.raw?.data?.attributes) {
+      attrs = item.raw.data.attributes;
+    }
+    // Fallback if item IS the attribs object or has direct attributes
+    else if (item?.attributes) {
+      attrs = item.attributes;
+    }
+    // Fallback if raw object IS the attributes (flat structure)
+    else if (
+      item?.raw?.SIMULATEUR_DIFFICULTE_Q1 ||
+      item?.raw?.PRENOM ||
+      item?.raw?.q1 ||
+      item?.raw?.prenom
+    ) {
+      attrs = item.raw;
+    } else {
+      attrs = item?.raw || {};
+    }
+  }
+
+  // Normalize attributes (handle lowercase / missing prefix / new API format)
+  const getKey = (...keys) => {
+    for (const key of keys) {
+      if (attrs[key] !== undefined && attrs[key] !== null) return attrs[key];
+    }
+    return undefined;
+  };
+
+  const nAttrs = {
+    PRENOM: getKey("PRENOM", "prenom", "first_name"),
+    NOM: getKey("NOM", "nom", "last_name"),
+    EMAIL: getKey("EMAIL", "email"),
+    CIVILITE: getKey("CIVILITE", "civilite"),
+    STATUT: getKey("STATUT", "statut"),
+    SCORE: getKey("SCORE", "score", "diagnostic_score"),
+    SMS: getKey("SMS", "sms", "TELEPHONE", "telephone", "phone", "mobile"),
+    DATE_NAISSANCE: getKey("DATE_NAISSANCE", "date_naissance", "birth_date"),
+    CODE_POSTAL: getKey("CODE_POSTAL", "code_postal", "zip"),
+    NBR_ENFANTS: getKey("NBR_ENFANTS", "nbr_enfants"),
+
+    // Dates
+    SIMULATEUR_DIFFICULTE_DATE_DEPART: getKey(
+      "SIMULATEUR_DIFFICULTE_DATE_DEPART",
+      "date_depart",
+      "departure_date",
+    ),
+
+    // Questions (Map q1 -> SIMULATEUR_DIFFICULTE_Q1)
+    SIMULATEUR_DIFFICULTE_Q1: getKey("SIMULATEUR_DIFFICULTE_Q1", "q1"),
+    SIMULATEUR_DIFFICULTE_Q2: getKey("SIMULATEUR_DIFFICULTE_Q2", "q2"),
+    SIMULATEUR_DIFFICULTE_Q3: getKey("SIMULATEUR_DIFFICULTE_Q3", "q3"),
+    SIMULATEUR_DIFFICULTE_Q4: getKey("SIMULATEUR_DIFFICULTE_Q4", "q4"),
+    SIMULATEUR_DIFFICULTE_Q5: getKey("SIMULATEUR_DIFFICULTE_Q5", "q5"),
+    SIMULATEUR_DIFFICULTE_Q6: getKey("SIMULATEUR_DIFFICULTE_Q6", "q6"),
+    SIMULATEUR_DIFFICULTE_Q7: getKey("SIMULATEUR_DIFFICULTE_Q7", "q7"),
+    SIMULATEUR_DIFFICULTE_Q8: getKey("SIMULATEUR_DIFFICULTE_Q8", "q8"),
+    SIMULATEUR_DIFFICULTE_Q9: getKey("SIMULATEUR_DIFFICULTE_Q9", "q9"),
+    SIMULATEUR_DIFFICULTE_Q10: getKey("SIMULATEUR_DIFFICULTE_Q10", "q10"),
+    SIMULATEUR_DIFFICULTE_Q11: getKey("SIMULATEUR_DIFFICULTE_Q11", "q11"),
+  };
+
+  const email = item?.email || nAttrs.EMAIL || "—";
+
+  // Helper functions
+  const v = (val) => (val != null && val !== "" ? String(val) : "—");
+  const formatDate = (d) => {
+    if (!d) return "—";
+    try {
+      return new Date(d).toLocaleDateString("fr-FR");
+    } catch {
+      return "—";
+    }
+  };
+  const formatPrenom = (p) => {
+    if (!p) return "—";
+    return p[0].toUpperCase() + p.slice(1).toLowerCase();
+  };
+  const formatCodePostal = (cp) => {
+    if (cp == null) return "—";
+    return String(cp).padStart(5, "0");
+  };
+  const formatCivilite = (c) => {
+    if (!c) return "—";
+    if (c === "homme" || c === "M") return "Monsieur";
+    if (c === "femme" || c === "Mme") return "Madame";
+    return c;
+  };
+
+  // Highlighting logic
+  const isQ1Highlight = (val) => {
+    const v = (val || "").toString().toLowerCase().replace(/\s/g, "");
+    return (
+      v === "9+" ||
+      v === "9plus" ||
+      v === "4-9" ||
+      v === "4–9" ||
+      v === "4à9" ||
+      v === "4a9"
+    );
+  };
+  const isOui = (val) => (val || "").toString().toLowerCase() === "oui";
+  const isNon = (val) => (val || "").toString().toLowerCase() === "non";
+  const isQ5Highlight = (val) => {
+    const v = (val || "").toString().toLowerCase().trim();
+    return v === "oui_contractuel" || v === "oui_fonctionnaire";
+  };
+
+  const highlightStyle = "background:#dcfce7;";
+
+  const formatTags = (val) => {
+    if (!val) return "—";
+    return val
+      .split(",")
+      .map(
+        (t) =>
+          `<span style="display:inline-block;border:1px solid #e2e8f0;border-radius:999px;padding:2px 10px;margin:2px 6px 2px 0;font-size:12px;background:#f8fafc;">${t.replace(/_/g, " ")}</span>`,
+      )
+      .join(" ");
+  };
+
+  return `<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Rapport Diagnostic Retraite</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body style="margin:0;padding:0;background:#ffffff;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:collapse;">
+    <tr>
+      <td style="background:#002060;padding:18px 22px;color:#ffffff;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">
+          <tr>
+            <td valign="middle" style="padding:0 12px 0 0;width:1%;white-space:nowrap;">
+              <img src="https://www.eor.fr/wp-content/uploads/2024/03/eor-250px.png" alt="EOR" width="70" border="0" style="display:block;width:70px;max-width:70px;height:auto;line-height:100%;outline:none;text-decoration:none;" />
+            </td>
+            <td valign="middle" style="padding:0;">
+              <div style="font-size:20px;font-weight:700;line-height:1.3;margin:0;">
+                ${v(nAttrs.PRENOM)} ${v(nAttrs.NOM)}
+                <span style="display:inline-block;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.18);font-size:12px;margin-left:8px;">${formatCivilite(nAttrs.CIVILITE)}</span>
+                ${nAttrs.STATUT ? `<span style="display:inline-block;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.18);font-size:12px;margin-left:8px;">${nAttrs.STATUT}</span>` : ""}
+                ${nAttrs.SCORE != null ? `<span style="display:inline-block;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.18);font-size:12px;margin-left:8px;">Score: ${nAttrs.SCORE}</span>` : ""}
+              </div>
+              <div style="font-size:13px;opacity:.95;margin-top:4px;">
+                ${nAttrs.SMS ? ` · ${nAttrs.SMS}` : ""}
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr>
+      <td style="padding:18px 22px;">
+        <div style="font-size:15px;font-weight:700;color:#0f172a;margin:0 0 10px;">Informations personnelles</div>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">
+          <tr><td style="padding:8px 10px;border-bottom:1px solid #dbe0e6;width:240px;color:#475569;font-weight:600;">Nom</td><td style="padding:8px 10px;border-bottom:1px solid #dbe0e6;">${v(nAttrs.NOM)}</td></tr>
+          <tr><td style="padding:8px 10px;border-bottom:1px solid #dbe0e6;width:240px;color:#475569;font-weight:600;">Prénom</td><td style="padding:8px 10px;border-bottom:1px solid #dbe0e6;">${formatPrenom(nAttrs.PRENOM)}</td></tr>
+          <tr><td style="padding:8px 10px;border-bottom:1px solid #dbe0e6;width:240px;color:#475569;font-weight:600;">Email</td><td style="padding:8px 10px;border-bottom:1px solid #dbe0e6;">${v(email)}</td></tr>
+          <tr><td style="padding:8px 10px;border-bottom:1px solid #dbe0e6;width:240px;color:#475569;font-weight:600;">Téléphone</td><td style="padding:8px 10px;border-bottom:1px solid #dbe0e6;">${v(nAttrs.SMS)}</td></tr>
+          <tr><td style="padding:8px 10px;border-bottom:1px solid #dbe0e6;width:240px;color:#475569;font-weight:600;">Date de naissance</td><td style="padding:8px 10px;border-bottom:1px solid #dbe0e6;">${formatDate(nAttrs.DATE_NAISSANCE)}</td></tr>
+          <tr><td style="padding:8px 10px;border-bottom:1px solid #dbe0e6;width:240px;color:#475569;font-weight:600;">Code postal</td><td style="padding:8px 10px;border-bottom:1px solid #dbe0e6;">${formatCodePostal(nAttrs.CODE_POSTAL)}</td></tr>
+          <tr><td style="padding:8px 10px;border-bottom:1px solid #dbe0e6;width:240px;color:#475569;font-weight:600;">Nombre d'enfants</td><td style="padding:8px 10px;border-bottom:1px solid #dbe0e6;">${v(nAttrs.NBR_ENFANTS)}</td></tr>
+          <tr><td style="padding:8px 10px;border-bottom:1px solid #dbe0e6;width:240px;color:#475569;font-weight:600;">Date de départ souhaitée</td><td style="padding:8px 10px;border-bottom:1px solid #dbe0e6;">${formatDate(nAttrs.SIMULATEUR_DIFFICULTE_DATE_DEPART)}</td></tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr>
+      <td style="padding:0 22px 18px 22px;">
+        <div style="font-size:15px;font-weight:700;color:#0f172a;margin:0 0 10px;">Questionnaire</div>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">
+          <tr><td style="padding:12px 16px;border-bottom:1px solid #d1d5db;width:62%;color:#334155;font-weight:600;">Durant votre carrière, dans combien d'entreprises avez-vous travaillé ?</td><td style="padding:12px 16px;border-bottom:1px solid #d1d5db;${isQ1Highlight(nAttrs.SIMULATEUR_DIFFICULTE_Q1) ? highlightStyle : ""}">${v(nAttrs.SIMULATEUR_DIFFICULTE_Q1)}</td></tr>
+          <tr><td style="padding:12px 16px;border-bottom:1px solid #d1d5db;width:62%;color:#334155;font-weight:600;">Avez-vous, au cours d'une même période, travaillé dans plusieurs entreprises à la fois ?</td><td style="padding:12px 16px;border-bottom:1px solid #d1d5db;${isOui(nAttrs.SIMULATEUR_DIFFICULTE_Q2) ? highlightStyle : ""}">${v(nAttrs.SIMULATEUR_DIFFICULTE_Q2)}</td></tr>
+          <tr><td style="padding:12px 16px;border-bottom:1px solid #d1d5db;width:62%;color:#334155;font-weight:600;">Avez-vous travaillé à l'étranger ?</td><td style="padding:12px 16px;border-bottom:1px solid #d1d5db;${isOui(nAttrs.SIMULATEUR_DIFFICULTE_Q3) ? highlightStyle : ""}">${v(nAttrs.SIMULATEUR_DIFFICULTE_Q3)}${isOui(nAttrs.SIMULATEUR_DIFFICULTE_Q3) ? '<div style="color:#64748b;font-size:12px;margin-top:6px;">→ A travaillé à l\'étranger.</div>' : ""}</td></tr>
+          <tr><td style="padding:12px 16px;border-bottom:1px solid #d1d5db;width:62%;color:#334155;font-weight:600;">Arrêt maladie, accident du travail ou chômage ?</td><td style="padding:12px 16px;border-bottom:1px solid #d1d5db;${isOui(nAttrs.SIMULATEUR_DIFFICULTE_Q4) ? highlightStyle : ""}">${v(nAttrs.SIMULATEUR_DIFFICULTE_Q4)}</td></tr>
+          <tr><td style="padding:12px 16px;border-bottom:1px solid #d1d5db;width:62%;color:#334155;font-weight:600;">Fonctionnaire, assimilé ou régimes spéciaux ?</td><td style="padding:12px 16px;border-bottom:1px solid #d1d5db;${isQ5Highlight(nAttrs.SIMULATEUR_DIFFICULTE_Q5) ? highlightStyle : ""}">${v(nAttrs.SIMULATEUR_DIFFICULTE_Q5)}</td></tr>
+          <tr><td style="padding:12px 16px;border-bottom:1px solid #d1d5db;width:62%;color:#334155;font-weight:600;">Profession libérale / gérant / chef d'entreprise ?</td><td style="padding:12px 16px;border-bottom:1px solid #d1d5db;${isOui(nAttrs.SIMULATEUR_DIFFICULTE_Q6) ? highlightStyle : ""}">${v(nAttrs.SIMULATEUR_DIFFICULTE_Q6)}</td></tr>
+          <tr><td style="padding:12px 16px;border-bottom:1px solid #d1d5db;width:62%;color:#334155;font-weight:600;">Sources de revenus complémentaires prévues ?</td><td style="padding:12px 16px;border-bottom:1px solid #d1d5db;">${formatTags(nAttrs.SIMULATEUR_DIFFICULTE_Q7)}</td></tr>
+          <tr><td style="padding:12px 16px;border-bottom:1px solid #d1d5db;width:62%;color:#334155;font-weight:600;">Êtes-vous allé consulter vos relevés de carrière auprès de l'Assurance Retraite et de vos caisses de retraite complémentaire ?</td><td style="padding:12px 16px;border-bottom:1px solid #d1d5db;${isNon(nAttrs.SIMULATEUR_DIFFICULTE_Q8) ? highlightStyle : ""}">${v(nAttrs.SIMULATEUR_DIFFICULTE_Q8)}</td></tr>
+          <tr><td style="padding:12px 16px;border-bottom:1px solid #d1d5db;width:62%;color:#334155;font-weight:600;">Connaissance du rachat de trimestres ?</td><td style="padding:12px 16px;border-bottom:1px solid #d1d5db;">${v(nAttrs.SIMULATEUR_DIFFICULTE_Q9)}</td></tr>
+          <tr><td style="padding:12px 16px;border-bottom:1px solid #d1d5db;width:62%;color:#334155;font-weight:600;">Cumul emploi-retraite vs cessation progressive :</td><td style="padding:12px 16px;border-bottom:1px solid #d1d5db;">${formatTags(nAttrs.SIMULATEUR_DIFFICULTE_Q10)}</td></tr>
+          <tr><td style="padding:12px 16px;border-bottom:1px solid #d1d5db;width:62%;color:#334155;font-weight:600;">Avez-vous fait le service militaire ?</td><td style="padding:12px 16px;border-bottom:1px solid #d1d5db;${isOui(nAttrs.SIMULATEUR_DIFFICULTE_Q11) ? highlightStyle : ""}">${v(nAttrs.SIMULATEUR_DIFFICULTE_Q11)}</td></tr>
+        </table>
+      </td>
+    </tr>
+
+    <table role="presentation" width="820" cellspacing="0" cellpadding="0" border="0" style="width:820px;max-width:820px;">
+      <tr><td height="16" style="line-height:16px;font-size:0;">&nbsp;</td></tr>
+      <tr><td style="border-top:2px dashed #cbd5e1;">&nbsp;</td></tr>
+      <tr><td height="16" style="line-height:16px;font-size:0;">&nbsp;</td></tr>
+    </table>
+
+  </table>
+</body>
+</html>`;
+}
