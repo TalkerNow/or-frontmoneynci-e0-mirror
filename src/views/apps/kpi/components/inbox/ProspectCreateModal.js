@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { Plus } from "lucide-react";
 import SweetAlert from "react-bootstrap-sweetalert";
 
 const ProspectCreateModal = ({

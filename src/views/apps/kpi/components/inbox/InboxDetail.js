@@ -10,7 +10,6 @@ import {
     CheckCircle,
     Clock,
     Target,
-    Brain,
     AlertCircle,
     TrendingUp,
     Star,

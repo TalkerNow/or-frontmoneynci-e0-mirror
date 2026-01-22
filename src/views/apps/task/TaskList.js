@@ -1,6 +1,5 @@
 import React from "react";
-import { Button, FormGroup, Input } from "reactstrap";
-import { Menu, Search, Check, Star, Trash } from "react-feather";
+import { Check, Star, Trash } from "react-feather";
 import PerfectScrollbar from "react-perfect-scrollbar";
 import { connect } from "react-redux";
 import {
