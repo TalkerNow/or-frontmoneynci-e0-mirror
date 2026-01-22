@@ -51,6 +51,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
     handleManualAddLine,
     handleManualImport,
     fileToSend,
+    handleSaveDoc,
   } = useNotesLogic(id, perso);
 
   return (
@@ -108,6 +109,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         handleReportDoc={handleReportDoc}
         handleModalGenerate={handleModalGenerate}
         isGenerating={isGenerating}
+        handleSaveDoc={handleSaveDoc}
       />
 
       <ReportErrorModal

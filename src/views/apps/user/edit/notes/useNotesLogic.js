@@ -511,6 +511,76 @@ export const useNotesLogic = (id, perso) => {
     [clientNames.displayName, fileToSend, id, n8nMessage, perso, selectedTags],
   );
 
+  const handleSaveDoc = useCallback(
+    async (docToSave) => {
+      if (!docToSave || !docToSave.htmlContent) {
+        toast.error("Aucun contenu à sauvegarder");
+        return;
+      }
+
+      const fileName = `Rapport_Modifie_${new Date().getTime()}.html`;
+      const fileBlob = new Blob([docToSave.htmlContent], {
+        type: "text/html;charset=utf-8",
+      });
+
+      const uploadForm = new FormData();
+      uploadForm.append("user_id", id);
+      uploadForm.append("photoUpload0", fileBlob, fileName);
+
+      const uploadConfig = {
+        headers: {
+          Authorization: "Bearer " + localStorage.getItem("token"),
+          "Content-Type": "multipart/form-data",
+        },
+      };
+
+      try {
+        const uploadRes = await axios.post(
+          `${global.config.server_url}/uploadFiles`,
+          uploadForm,
+          uploadConfig
+        );
+
+        if (uploadRes?.data?.files?.[0]?.url) {
+          const newUrl = uploadRes.data.files[0].url;
+
+          // Update local state
+          setGeneratedDocs((prev) => {
+            const safePrev = Array.isArray(prev) ? prev : [];
+            const idx = safePrev.findIndex((d) => d.id === docToSave.id);
+            if (idx !== -1) {
+              const next = [...safePrev];
+              next[idx] = {
+                ...next[idx],
+                url: newUrl,
+                htmlContent: docToSave.htmlContent
+              };
+              return next;
+            }
+            return safePrev;
+          });
+
+          // Update viewing doc if it matches
+          if (viewingDoc && viewingDoc.id === docToSave.id) {
+            setViewingDoc((prev) => ({
+              ...prev,
+              url: newUrl,
+              htmlContent: docToSave.htmlContent // Ensure content is synced
+            }));
+          }
+
+          toast.success("Modifications enregistrées avec succès");
+        } else {
+          throw new Error("Pas d'URL renvoyée");
+        }
+      } catch (e) {
+        console.error(e);
+        toast.error("Erreur lors de l'enregistrement");
+      }
+    },
+    [id, viewingDoc]
+  );
+
   const handleOpenDoc = useCallback((doc) => {
     if (!doc || !doc.url) {
       toast.info("Aucun fichier disponible pour ce document");
@@ -1005,5 +1075,6 @@ export const useNotesLogic = (id, perso) => {
     handleManualAddLine,
     handleManualImport,
     fileToSend,
+    handleSaveDoc,
   };
 };
