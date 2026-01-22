@@ -48,11 +48,25 @@ const DROPDOWN_CSS = `
   .tab-dd .chev { transition: transform .2s ease; }
   .tab-dd .nav-link.active .chev { transform: rotate(180deg); }
   .tab-dd .dropdown-menu {
-    border-radius: 8px;
-    box-shadow: 0 6px 24px rgba(0,0,0,.12);
-    padding: 6px;
-    max-height: 320px;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,.15);
+    padding: 8px;
+    max-height: 450px;
     overflow-y: auto;
+    border: 1px solid rgba(0,0,0,.05);
+  }
+
+  /* Grid layouts for dropdowns to avoid scroll */
+  .grid-dropdown-menu {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    min-width: 280px;
+    max-height: none !important;
+  }
+  .grid-dropdown-menu .dropdown-item {
+    text-align: center;
+    padding: 8px 4px;
   }
   .tab-dd .dropdown-item { color: #212529 !important; border-radius: 6px; }
   .tab-dd .dropdown-item:hover,
@@ -251,13 +265,16 @@ class PrestationStatistics extends React.Component {
     // optional: prepare weekly series for current week (doesn't switch tab)
     this.getWeekData(`W${isoWeek}`, isoYear);
     // optional auto-refresh check (daily) to update currentWeek when week changes
-    this._weekTimer = setInterval(() => {
-      const { isoWeek: w, isoYear: y } = isoWeekInfo(new Date());
-      const next = `W${w}`;
-      if (next !== this.state.currentWeek || y !== this.state.year) {
-        this.setState({ currentWeek: next, year: y });
-      }
-    }, 24 * 60 * 60 * 1000);
+    this._weekTimer = setInterval(
+      () => {
+        const { isoWeek: w, isoYear: y } = isoWeekInfo(new Date());
+        const next = `W${w}`;
+        if (next !== this.state.currentWeek || y !== this.state.year) {
+          this.setState({ currentWeek: next, year: y });
+        }
+      },
+      24 * 60 * 60 * 1000,
+    );
   }
 
   componentWillUnmount() {
@@ -270,10 +287,10 @@ class PrestationStatistics extends React.Component {
       .then((response) => {
         let responseAsArray = response.data;
         responseAsArray["En attente"] = Object.entries(
-          responseAsArray["En attente"]
+          responseAsArray["En attente"],
         );
         responseAsArray["En cours"] = Object.entries(
-          responseAsArray["En cours"]
+          responseAsArray["En cours"],
         );
         responseAsArray["Termine"] = Object.entries(responseAsArray["Termine"]);
         responseAsArray["Perdu"] = Object.entries(responseAsArray["Perdu"]);
@@ -646,10 +663,10 @@ class PrestationStatistics extends React.Component {
               !this.props.iconRight && !this.props.hideChart
                 ? "flex-column align-items-start"
                 : this.props.iconRight
-                ? "justify-content-between flex-row-reverse align-items-center"
-                : this.props.hideChart && !this.props.iconRight
-                ? "justify-content-center flex-column text-center"
-                : null
+                  ? "justify-content-between flex-row-reverse align-items-center"
+                  : this.props.hideChart && !this.props.iconRight
+                    ? "justify-content-center flex-column text-center"
+                    : null
             } ${!this.props.hideChart ? "pb-0" : "pb-2"} pt-2`}
           >
             <TabContent activeTab={this.state.activeTab}>
@@ -669,16 +686,18 @@ class PrestationStatistics extends React.Component {
                       <TabDropdown
                         label="Année"
                         valueLabel={String(
-                          this.state.year || new Date().getFullYear()
+                          this.state.year || new Date().getFullYear(),
                         )}
                         isOpen={this.state.openYear}
                         toggle={() =>
                           this.setState({ openYear: !this.state.openYear })
                         }
                         minWidth={70}
+                        menuClassName="grid-dropdown-menu"
                       >
-                        {Array.from({ length: 13 }, (_, i) => 2018 + i).map(
-                          (y) => (
+                        {Array.from({ length: 13 }, (_, i) => 2018 + i)
+                          .reverse()
+                          .map((y) => (
                             <DropdownItem
                               toggle={false}
                               key={y}
@@ -690,8 +709,7 @@ class PrestationStatistics extends React.Component {
                             >
                               {y}
                             </DropdownItem>
-                          )
-                        )}
+                          ))}
                       </TabDropdown>
                     </NavItem>
 
@@ -706,6 +724,7 @@ class PrestationStatistics extends React.Component {
                           this.setState({ openMonth: !this.state.openMonth })
                         }
                         minWidth={90}
+                        menuClassName="grid-dropdown-menu"
                       >
                         {FrenchMonth.map((m) => (
                           <DropdownItem
@@ -810,16 +829,18 @@ class PrestationStatistics extends React.Component {
                       <TabDropdown
                         label="Année"
                         valueLabel={String(
-                          this.state.year || new Date().getFullYear()
+                          this.state.year || new Date().getFullYear(),
                         )}
                         isOpen={this.state.openYear}
                         toggle={() =>
                           this.setState({ openYear: !this.state.openYear })
                         }
                         minWidth={70}
+                        menuClassName="grid-dropdown-menu"
                       >
-                        {Array.from({ length: 13 }, (_, i) => 2018 + i).map(
-                          (y) => (
+                        {Array.from({ length: 13 }, (_, i) => 2018 + i)
+                          .reverse()
+                          .map((y) => (
                             <DropdownItem
                               toggle={false}
                               key={y}
@@ -831,8 +852,7 @@ class PrestationStatistics extends React.Component {
                             >
                               {y}
                             </DropdownItem>
-                          )
-                        )}
+                          ))}
                       </TabDropdown>
                     </NavItem>
                     <NavItem className="mr-1">
@@ -953,16 +973,18 @@ class PrestationStatistics extends React.Component {
                       <TabDropdown
                         label="Année"
                         valueLabel={String(
-                          this.state.year || new Date().getFullYear()
+                          this.state.year || new Date().getFullYear(),
                         )}
                         isOpen={this.state.openYear}
                         toggle={() =>
                           this.setState({ openYear: !this.state.openYear })
                         }
                         minWidth={70}
+                        menuClassName="grid-dropdown-menu"
                       >
-                        {Array.from({ length: 13 }, (_, i) => 2018 + i).map(
-                          (y) => (
+                        {Array.from({ length: 13 }, (_, i) => 2018 + i)
+                          .reverse()
+                          .map((y) => (
                             <DropdownItem
                               toggle={false}
                               key={y}
@@ -974,8 +996,7 @@ class PrestationStatistics extends React.Component {
                             >
                               {y}
                             </DropdownItem>
-                          )
-                        )}
+                          ))}
                       </TabDropdown>
                     </NavItem>
                   </Nav>
@@ -1069,16 +1090,18 @@ class PrestationStatistics extends React.Component {
                       <TabDropdown
                         label="Année"
                         valueLabel={String(
-                          this.state.year || new Date().getFullYear()
+                          this.state.year || new Date().getFullYear(),
                         )}
                         isOpen={this.state.openYear}
                         toggle={() =>
                           this.setState({ openYear: !this.state.openYear })
                         }
                         minWidth={70}
+                        menuClassName="grid-dropdown-menu"
                       >
-                        {Array.from({ length: 13 }, (_, i) => 2018 + i).map(
-                          (y) => (
+                        {Array.from({ length: 13 }, (_, i) => 2018 + i)
+                          .reverse()
+                          .map((y) => (
                             <DropdownItem
                               toggle={false}
                               key={y}
@@ -1090,8 +1113,7 @@ class PrestationStatistics extends React.Component {
                             >
                               {y}
                             </DropdownItem>
-                          )
-                        )}
+                          ))}
                       </TabDropdown>
                     </NavItem>
 
@@ -1104,6 +1126,7 @@ class PrestationStatistics extends React.Component {
                           this.setState({ openWeek: !this.state.openWeek })
                         }
                         minWidth={110}
+                        menuClassName="grid-dropdown-menu"
                       >
                         {Array.from(
                           {
@@ -1111,7 +1134,7 @@ class PrestationStatistics extends React.Component {
                               this.state.year === new Date().getFullYear()
                                 ? isoWeekInfo(new Date()).isoWeek
                                 : isoWeeksInYear(
-                                    this.state.year || new Date().getFullYear()
+                                    this.state.year || new Date().getFullYear(),
                                   ),
                           },
                           (_, i) => (
@@ -1123,7 +1146,7 @@ class PrestationStatistics extends React.Component {
                                 this.getWeekData(`W${i + 1}`, this.state.year);
                               }}
                             >{`W${i + 1}`}</DropdownItem>
-                          )
+                          ),
                         )}
                       </TabDropdown>
                     </NavItem>

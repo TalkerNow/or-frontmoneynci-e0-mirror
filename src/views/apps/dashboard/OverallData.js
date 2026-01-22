@@ -135,11 +135,25 @@ const DROPDOWN_CSS = `
   .tab-dd .nav-link.active .chev { transform: rotate(180deg); }
 
   .tab-dd .dropdown-menu {
-    border-radius: 8px;
-    box-shadow: 0 6px 24px rgba(0,0,0,.12);
-    padding: 6px;
-    max-height: 320px;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,.15);
+    padding: 8px;
+    max-height: 450px;
     overflow-y: auto;
+    border: 1px solid rgba(0,0,0,.05);
+  }
+
+  /* Grid layouts for dropdowns to avoid scroll */
+  .grid-dropdown-menu {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    min-width: 280px;
+    max-height: none !important;
+  }
+  .grid-dropdown-menu .dropdown-item {
+    text-align: center;
+    padding: 8px 4px;
   }
   .tab-dd .dropdown-item { color: #212529 !important; border-radius: 6px; }
   .tab-dd .dropdown-item:hover,
@@ -281,7 +295,7 @@ const StatGrid = ({ stats, onProspectsClick }) => (
 function normalizeApiYear(dataByMonthIndex1to12) {
   const months = Array.from(
     { length: 12 },
-    (_, i) => dataByMonthIndex1to12[i + 1] || {}
+    (_, i) => dataByMonthIndex1to12[i + 1] || {},
   );
   return {
     client_count: months.map((m) => m.current_acompte_count || 0),
@@ -309,7 +323,7 @@ export default function OverallCard() {
   const [trimIndex, setTrimIndex] = useState(Math.floor(now.getMonth() / 3));
   const [openWeek, setOpenWeek] = useState(false);
   const [currentWeek, setCurrentWeek] = useState(
-    () => `W${isoWeekInfo(new Date()).isoWeek}`
+    () => `W${isoWeekInfo(new Date()).isoWeek}`,
   );
 
   const [loading, setLoading] = useState(false);
@@ -326,7 +340,7 @@ export default function OverallCard() {
         setError("");
         const res = await axios.get(
           `${global.config.server_url}/get_statistics_total_income?year=${y}`,
-          AUTH_CONFIG
+          AUTH_CONFIG,
         );
         setData(normalizeApiYear(res.data || {}));
       } catch (e) {
@@ -336,7 +350,7 @@ export default function OverallCard() {
         setLoading(false);
       }
     },
-    [isAdmin]
+    [isAdmin],
   );
   useEffect(() => {
     fetchYear(year);
@@ -352,11 +366,11 @@ export default function OverallCard() {
       prospects: fmt(data.opportunite_count[i]),
       totalClients: fmt(
         (Number(data.client_count[i]) || 0) +
-          (Number(data.opportunite_count[i]) || 0)
+          (Number(data.opportunite_count[i]) || 0),
       ),
       contratsClotures: fmt(data.total_ended_count[i]),
     }),
-    [data]
+    [data],
   );
 
   const monthlyStats = useMemo(
@@ -369,11 +383,11 @@ export default function OverallCard() {
       prospects: fmt(data.opportunite_count[monthIndex]),
       totalClients: fmt(
         (Number(data.client_count[monthIndex]) || 0) +
-          (Number(data.opportunite_count[monthIndex]) || 0)
+          (Number(data.opportunite_count[monthIndex]) || 0),
       ),
       contratsClotures: fmt(data.total_ended_count[monthIndex]),
     }),
-    [data, monthIndex]
+    [data, monthIndex],
   );
 
   const trimesterStats = useMemo(() => {
@@ -387,7 +401,7 @@ export default function OverallCard() {
       clientsSignes: fmt(sum(pick(data.client_count))),
       prospects: fmt(sum(pick(data.opportunite_count))),
       totalClients: fmt(
-        sum(pick(data.client_count)) + sum(pick(data.opportunite_count))
+        sum(pick(data.client_count)) + sum(pick(data.opportunite_count)),
       ),
       contratsClotures: fmt(sum(pick(data.total_ended_count))),
     };
@@ -404,7 +418,7 @@ export default function OverallCard() {
       totalClients: fmt(sum(data.client_count) + sum(data.opportunite_count)),
       contratsClotures: fmt(sum(data.total_ended_count)),
     }),
-    [data]
+    [data],
   );
 
   const weeklyStats = useMemo(() => {
@@ -418,7 +432,7 @@ export default function OverallCard() {
 
   const yearOptions = useMemo(() => {
     const current = now.getFullYear();
-    return range(2018, current + 5);
+    return range(2018, current + 5).reverse();
   }, [now]);
 
   const tabStats = useMemo(() => {
@@ -527,6 +541,7 @@ export default function OverallCard() {
           isOpen={openYear}
           toggle={() => setOpenYear(!openYear)}
           minWidth={70}
+          menuClassName="grid-dropdown-menu"
         >
           {yearOptions.map((y) => (
             <DropdownItem
@@ -551,6 +566,7 @@ export default function OverallCard() {
             isOpen={openMonth}
             toggle={() => setOpenMonth(!openMonth)}
             minWidth={90}
+            menuClassName="grid-dropdown-menu"
           >
             {FRENCH_MONTHS.map((m, idx) => (
               <DropdownItem
@@ -601,6 +617,7 @@ export default function OverallCard() {
             isOpen={openWeek}
             toggle={() => setOpenWeek(!openWeek)}
             minWidth={90}
+            menuClassName="grid-dropdown-menu"
           >
             {Array.from(
               {
@@ -609,7 +626,7 @@ export default function OverallCard() {
                     ? isoWeekInfo(new Date()).isoWeek
                     : isoWeeksInYear(year),
               },
-              (_, i) => `W${i + 1}`
+              (_, i) => `W${i + 1}`,
             ).map((w) => (
               <DropdownItem
                 key={w}
@@ -779,7 +796,7 @@ export default function OverallCard() {
                             ? " €"
                             : ""),
                         label,
-                      })
+                      }),
                     );
                   })()}
                   onProspectsClick={handleProspectsClick}

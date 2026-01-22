@@ -276,9 +276,7 @@ class SideMenuContent extends React.Component {
     axios
       .get(global.config.server_url + "/tasks?filter=all", Config)
       .then((res) => {
-        console.log("📋 Tasks API Response:", res.data);
         const tasks = Array.isArray(res.data) ? res.data : [];
-        console.log("📋 Total tasks:", tasks.length);
 
         // Get today's date (without time) - same logic as TaskList.js
         const now = new Date();
@@ -292,8 +290,6 @@ class SideMenuContent extends React.Component {
           endDate.setHours(0, 0, 0, 0);
           return endDate <= now; // <= pour inclure aujourd'hui
         });
-
-        console.log("🔥 Urgent tasks (due today or overdue):", urgentTasks.length, urgentTasks);
 
         this.setState({ tasksBadge: urgentTasks.length });
       })
