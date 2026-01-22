@@ -1,6 +1,8 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Modal, ModalHeader, ModalBody, Button, Input } from "reactstrap";
-import { Download, AlertTriangle, FileText } from "react-feather";
+import { Download, AlertTriangle, FileText, Edit2, Save } from "react-feather";
+import axios from "axios";
+import { toast } from "react-toastify";
 
 const DocumentViewerModal = ({
     viewingDoc,
@@ -12,8 +14,84 @@ const DocumentViewerModal = ({
     handleDownloadHtml,
     handleModalGenerate,
     isGenerating,
+    handleSaveDoc,
 }) => {
+    const iframeRef = useRef(null);
+    const [staticHtmlContent, setStaticHtmlContent] = useState(viewingDoc?.htmlContent || "");
+    const [isLoadingEdit, setIsLoadingEdit] = useState(false);
 
+    useEffect(() => {
+        if (viewingDoc) {
+            setStaticHtmlContent(viewingDoc.htmlContent || "");
+        }
+    }, [viewingDoc?.id, viewingDoc?.url]); // Update only when document ID/URL changes
+
+    const handleIframeLoad = () => {
+        const iframe = iframeRef.current;
+        if (!iframe) return;
+        try {
+            const doc = iframe.contentDocument;
+            if (doc && doc.body) {
+                doc.body.contentEditable = "true";
+                doc.body.style.cursor = "text";
+
+                const updateContent = () => {
+                    setViewingDoc((prev) => ({
+                        ...prev,
+                        htmlContent: doc.documentElement.outerHTML
+                    }));
+                };
+
+                doc.body.addEventListener("input", updateContent);
+                doc.body.addEventListener("blur", updateContent);
+            }
+        } catch (e) {
+            // Check for CORS issues if accessing external URL
+        }
+    };
+
+    const handleEnableEdit = async () => {
+        if (viewingDoc?.htmlContent) {
+            toast.info("Le document est déjà modifiable.");
+            const iframe = iframeRef.current;
+            if (iframe && iframe.contentDocument && iframe.contentDocument.body) {
+                iframe.contentDocument.body.contentEditable = "true";
+                iframe.contentDocument.body.focus();
+            }
+            return;
+        }
+
+        if (!viewingDoc?.url) {
+            toast.error("Aucune source disponible pour l'édition.");
+            return;
+        }
+
+        setIsLoadingEdit(true);
+        try {
+            const Config = {
+                headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+            };
+            const response = await axios.post(
+                `${global.config.server_url}/fetch-html`,
+                { url: viewingDoc.url },
+                Config
+            );
+
+            if (response.data && response.data.html) {
+                const fetchedHtml = response.data.html;
+                setStaticHtmlContent(fetchedHtml);
+                setViewingDoc((prev) => ({ ...prev, htmlContent: fetchedHtml }));
+                toast.success("Mode édition activé");
+            } else {
+                toast.error("Impossible de récupérer le contenu modifiable.");
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error("Erreur lors de l'activation du mode édition.");
+        } finally {
+            setIsLoadingEdit(false);
+        }
+    };
 
     return (
         <Modal
@@ -56,14 +134,41 @@ const DocumentViewerModal = ({
                         </Button>
 
                         {(viewingDoc?.htmlContent || viewingDoc?.url) && (
-                            <Button
-                                color="secondary"
-                                outline
-                                className="mb-3 d-flex align-items-center justify-content-center"
-                                onClick={handleDownloadHtml}
-                            >
-                                <FileText size={16} className="mr-1" /> Télécharger en HTML
-                            </Button>
+                            <>
+                                <Button
+                                    color="info"
+                                    outline
+                                    className="mb-3 d-flex align-items-center justify-content-center"
+                                    onClick={handleEnableEdit}
+                                    disabled={isLoadingEdit}
+                                >
+                                    {isLoadingEdit ? (
+                                        <span className="spinner-border spinner-border-sm mr-1" />
+                                    ) : (
+                                        <Edit2 size={16} className="mr-1" />
+                                    )}
+                                    Modifier le texte
+                                </Button>
+
+                                <Button
+                                    color="success"
+                                    outline
+                                    className="mb-3 d-flex align-items-center justify-content-center"
+                                    onClick={() => handleSaveDoc(viewingDoc)}
+                                    disabled={!viewingDoc?.htmlContent}
+                                >
+                                    <Save size={16} className="mr-1" /> Enregistrer
+                                </Button>
+
+                                <Button
+                                    color="secondary"
+                                    outline
+                                    className="mb-3 d-flex align-items-center justify-content-center"
+                                    onClick={handleDownloadHtml}
+                                >
+                                    <FileText size={16} className="mr-1" /> Télécharger en HTML
+                                </Button>
+                            </>
                         )}
 
                         <Button
@@ -107,15 +212,19 @@ const DocumentViewerModal = ({
                     <div className="flex-grow-1 bg-white position-relative">
                         {viewingDoc?.htmlContent ? (
                             <iframe
+                                ref={iframeRef}
                                 id="preview-iframe"
-                                srcDoc={viewingDoc.htmlContent}
+                                srcDoc={staticHtmlContent}
+                                onLoad={handleIframeLoad}
                                 title="Document Preview"
                                 style={{ width: "100%", height: "100%", border: "none" }}
                             />
                         ) : viewingDoc?.url ? (
                             <iframe
+                                ref={iframeRef}
                                 id="preview-iframe"
                                 src={viewingDoc.url}
+                                onLoad={handleIframeLoad}
                                 title="Document Preview"
                                 style={{ width: "100%", height: "100%", border: "none" }}
                             />
