@@ -83,9 +83,13 @@ class DropzoneBasic extends React.Component {
     const acceptedFiles = Array.from(files || []);
     if (acceptedFiles.length === 0) return;
 
+    waiterShow(); // Show loader
+
     const formData = new FormData();
     formData.set("user_id", this.props.id);
-    formData.set("dossier", dossier || 0);
+    const dossierId = dossier || 0;
+    formData.set("dossier", dossierId);
+    console.log("Uploading to dossier:", dossierId); // Debug
     acceptedFiles.forEach((file, i) =>
       formData.append("photoUpload" + i, file),
     );
@@ -100,13 +104,35 @@ class DropzoneBasic extends React.Component {
     axios
       .post(global.config.server_url + "/uploadFiles", formData, Config)
       .then((response) => {
-        if (response.data && response.data.success === true) this.loadFiles();
+        waiterHide(); // Hide loader
+        if (response.data && response.data.success === true) {
+          this.loadFiles();
+          // If we uploaded to a specific folder, make sure we are viewing it
+          if (dossier && dossier > 0) {
+            if (this.props.setFolderId) {
+              this.props.setFolderId(dossier);
+            } else {
+              this.setState({ currentFolder: dossier });
+            }
+          }
+        } else {
+          // Fallback reload
+          this.loadFiles();
+        }
+      })
+      .catch((err) => {
+        waiterHide();
+        console.error(err);
       });
   };
 
   // 🔹 Upload depuis la dropzone interne (dans un dossier ouvert)
   onDrop = (acceptedFiles) => {
-    this.uploadFilesToDossier(acceptedFiles, this.state.currentFolder || 0);
+    const currentFolder =
+      this.props.folderId !== undefined
+        ? this.props.folderId
+        : this.state.currentFolder;
+    this.uploadFilesToDossier(acceptedFiles, currentFolder || 0);
   };
 
   // 🔹 Gestion de la modale de suppression
@@ -217,8 +243,21 @@ class DropzoneBasic extends React.Component {
       .catch(() => waiterHide());
   };
 
-  openFolder = (folderId) => this.setState({ currentFolder: folderId });
-  closeFolder = () => this.setState({ currentFolder: null });
+  openFolder = (folderId) => {
+    if (this.props.setFolderId) {
+      this.props.setFolderId(folderId);
+    } else {
+      this.setState({ currentFolder: folderId });
+    }
+  };
+
+  closeFolder = () => {
+    if (this.props.setFolderId) {
+      this.props.setFolderId(null);
+    } else {
+      this.setState({ currentFolder: null });
+    }
+  };
 
   // 🔹 Helpers pour le type de fichier
   getFileExtension = (filename) => {
@@ -300,7 +339,7 @@ class DropzoneBasic extends React.Component {
             onDragStart={(e) => this.handleDragStart(e, file.id)}
             style={{
               padding: "6px 10px",
-              borderRadius: 8,
+              borderRadius: 12,
               backgroundColor: "#f8f9fa",
               border: "1px solid #e9ecef",
               marginBottom: 6,
@@ -318,7 +357,7 @@ class DropzoneBasic extends React.Component {
                 style={{
                   width: 34,
                   height: 34,
-                  borderRadius: 8,
+                  borderRadius: 12,
                   backgroundColor: "#ffffff",
                   border: "1px solid #e9ecef",
                   marginRight: 8,
@@ -366,7 +405,7 @@ class DropzoneBasic extends React.Component {
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  borderRadius: 8,
+                  borderRadius: 12,
                   border: "1px solid #e5e5e5",
                   backgroundColor: "#ffffff",
                   marginLeft: 8,
@@ -499,24 +538,19 @@ class DropzoneBasic extends React.Component {
 
   // 🔹 Vue fichiers d’un dossier (dropzone pour upload dans ce dossier)
   renderFileView = () => {
-    const currentFolderObj = FOLDERS.find(
-      (f) => f.id === this.state.currentFolder,
-    );
+    const currentFolder =
+      this.props.folderId !== undefined
+        ? this.props.folderId
+        : this.state.currentFolder;
+    const currentFolderObj = FOLDERS.find((f) => f.id === currentFolder);
     const filesInFolder = this.state.files.filter(
-      (f) => f.dossier === this.state.currentFolder,
+      (f) => f.dossier === currentFolder,
     );
 
     return (
       <>
         <div className="d-flex align-items-center mb-2">
-          <Button
-            color="primary"
-            onClick={this.closeFolder}
-            size="sm"
-            className="mr-2 p-1"
-          >
-            <ArrowLeft size={16} />
-          </Button>
+          {/* Back button removed as it is now in DocumentsHub */}
           <Folder size={20} className="mr-2" />
           <div>
             <strong>{currentFolderObj.name}</strong>
@@ -527,23 +561,38 @@ class DropzoneBasic extends React.Component {
         </div>
 
         <Dropzone onDrop={this.onDrop}>
-          {({ getRootProps, getInputProps }) => (
+          {({ getRootProps, getInputProps, isDragActive }) => (
             <div
-              {...getRootProps({ className: "dropzone text-center mb-2" })}
+              {...getRootProps()}
+              className={`dropzone text-center mb-2 ${isDragActive ? "active-dropzone" : ""}`}
               style={{
                 padding: "14px",
-                borderRadius: 10,
-                border: "1px dashed #ced4da",
-                backgroundColor: "#f8f9fa",
+                borderRadius: 16,
+                border: isDragActive
+                  ? "2px dashed #00cfe8"
+                  : "1px dashed #ced4da",
+                backgroundColor: isDragActive ? "#d1f2f6" : "#f8f9fa",
+                transition: "all 0.2s ease",
+                outline: "none",
               }}
             >
               <input {...getInputProps()} />
-              <DownloadCloud size={35} className="mb-1" />
+              <DownloadCloud
+                size={35}
+                className="mb-1"
+                style={{ color: isDragActive ? "#00cfe8" : "inherit" }}
+              />
               <p
                 className="mb-0"
-                style={{ fontSize: "13px", color: "#495057" }}
+                style={{
+                  fontSize: "13px",
+                  color: isDragActive ? "#00cfe8" : "#495057",
+                  fontWeight: isDragActive ? "bold" : "normal",
+                }}
               >
-                Glissez vos fichiers ici ou cliquez pour sélectionner
+                {isDragActive
+                  ? "C'est bon, lâchez tout !"
+                  : "Glissez vos fichiers ici ou cliquez pour sélectionner"}
               </p>
             </div>
           )}
@@ -555,9 +604,13 @@ class DropzoneBasic extends React.Component {
   };
 
   render() {
+    const currentFolder =
+      this.props.folderId !== undefined
+        ? this.props.folderId
+        : this.state.currentFolder;
     return (
       <>
-        {this.state.currentFolder === null
+        {currentFolder === null
           ? this.renderFolderView()
           : this.renderFileView()}
 
@@ -602,10 +655,10 @@ class DropzoneBasic extends React.Component {
           </ModalHeader>
           <ModalBody>Êtes-vous sûr de vouloir supprimer ce fichier ?</ModalBody>
           <ModalFooter>
-            <Button color="primary" onClick={this.handleDeleteSubmit}>
+            <Button color="danger" onClick={this.handleDeleteSubmit}>
               Supprimer
             </Button>{" "}
-            <Button color="danger" onClick={this.toggleDeleteModal}>
+            <Button color="primary" onClick={this.toggleDeleteModal}>
               Annuler
             </Button>
           </ModalFooter>
