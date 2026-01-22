@@ -122,6 +122,18 @@ const VSep = () => (
   />
 );
 
+const formatTitle = (title) => {
+  if (!title) return "";
+  const up = title.toUpperCase();
+  if (up.includes("AUDIT RETRAITE PARTICULIER")) {
+    return "AUDIT BILAN RETRAITE PARTICULIER";
+  }
+  if (up.includes("AUDIT RETRAITE ENTREPRISE")) {
+    return "AUDIT BILAN RETRAITE ENTREPRISE";
+  }
+  return title;
+};
+
 const RowMinutes = ({ i, formValues, onPrimaryToggle, handleFieldChange }) => (
   <div style={{ ...stripe(i), ...GRID }}>
     <LabeledCheckboxMaterialUi
@@ -130,7 +142,7 @@ const RowMinutes = ({ i, formValues, onPrimaryToggle, handleFieldChange }) => (
       onChange={(checked) => onPrimaryToggle(checked, "c1", "r1")}
     />
     <span style={{ fontWeight: 500, color: "#5e5873" }}>
-      {formValues["title1"]}
+      {formatTitle(formValues["title1"])}
     </span>
 
     <span className="text-muted" style={{ fontSize: "0.85rem" }}>
@@ -179,7 +191,7 @@ const RowFixed = ({ i, n, formValues, onPrimaryToggle, handleFieldChange }) => (
       onChange={(checked) => onPrimaryToggle(checked, `c${n}`, `r${n}`)}
     />
     <span style={{ fontWeight: 500, color: "#5e5873" }}>
-      {formValues[`title${n}`]}
+      {formatTitle(formValues[`title${n}`])}
     </span>
 
     <Ghost>Nb (min)</Ghost>
@@ -237,7 +249,7 @@ const RowWithOption = ({
         onChange={(checked) => onPrimaryToggle(checked, `c${n}`, `r${n}`)}
       />
       <span style={{ fontWeight: 500, color: "#5e5873" }}>
-        {formValues[`title${n}`]}
+        {formatTitle(formValues[`title${n}`])}
       </span>
 
       {/* colonnes minutes / PU fantômes */}
@@ -557,7 +569,7 @@ class EditContract extends React.Component {
         formValues: key ? { ...prev.formValues, [key]: true } : prev.formValues,
         isDirty: true,
       }),
-      this.calculate
+      this.calculate,
     );
     if (key) input_values[key] = true;
   };
@@ -572,7 +584,7 @@ class EditContract extends React.Component {
           : prev.formValues,
         isDirty: true,
       }),
-      this.calculate
+      this.calculate,
     );
     if (key) input_values[key] = false;
   };
@@ -621,7 +633,7 @@ class EditContract extends React.Component {
     if (input_values["c1"])
       nbHT1 = Math.trunc(
         (this.state.formValues["nb1-price"] / 60) *
-        parseInt(this.state.formValues["nb1"], 10)
+          parseInt(this.state.formValues["nb1"], 10),
       );
     this.state.formValues["nbHT1"] = nbHT1;
     this.state.formValues["TTC1"] = nbHT1 * VTA;
@@ -730,9 +742,9 @@ class EditContract extends React.Component {
     axios
       .get(
         global.config.server_url +
-        "/get_contract/" +
-        this.props.match.params.id,
-        Config
+          "/get_contract/" +
+          this.props.match.params.id,
+        Config,
       )
       .then((response) => {
         let rowData = response.data.data;
@@ -787,7 +799,7 @@ class EditContract extends React.Component {
               formValues: values,
               selectedRows: this.computeSelectedRows(values),
             },
-            this.calculate
+            this.calculate,
           );
         } else {
           // nouveau contrat → interface vide par défaut
@@ -814,7 +826,7 @@ class EditContract extends React.Component {
       // 1) Récupérer les notes actuelles
       const res = await axios.get(
         `${global.config.server_url}/users/${userId}`,
-        config
+        config,
       );
 
       const user = res.data || {};
@@ -840,7 +852,7 @@ class EditContract extends React.Component {
       await axios.put(
         `${global.config.server_url}/personal_information/${userId}`,
         { notes: newNotes },
-        config
+        config,
       );
     } catch (e) {
       console.error("Erreur mise à jour des notes crédit d'impôt", e);
@@ -904,7 +916,7 @@ class EditContract extends React.Component {
       await axios.put(
         global.config.server_url + "/documents/" + this.props.match.params.id,
         parameters,
-        Config
+        Config,
       );
 
       // 📡 3) maj des services liés
@@ -1022,7 +1034,7 @@ class EditContract extends React.Component {
           user_id: userid,
           subscribe_services: JSON.stringify(subscribe_services),
         },
-        Config
+        Config,
       )
       .catch(function (error) {
         toast.error("API injoignable" + error);
@@ -1076,7 +1088,7 @@ class EditContract extends React.Component {
       await axios.put(
         global.config.server_url + "/documents/" + this.props.match.params.id,
         parameters,
-        Config
+        Config,
       );
     } catch (error) {
       console.error(error);
@@ -1181,16 +1193,74 @@ class EditContract extends React.Component {
         }
       }
 
-      let serviceString = "Audit Retraite EOR Consultants";
-      if (selectedServices.length === 1) {
-        serviceString = selectedServices[0];
-      } else if (selectedServices.length === 2) {
-        serviceString = `${selectedServices[0]} + ${selectedServices[1]}`;
-      } else if (selectedServices.length > 2) {
-        serviceString = `${selectedServices[0]} et autres`;
+      let fileName = "";
+      const upperServices = selectedServices.map((s) => s.toUpperCase());
+      const isAudit =
+        upperServices.some((s) => s.includes("AUDIT RETRAITE PARTICULIER")) ||
+        upperServices.some((s) =>
+          s.includes("AUDIT BILAN RETRAITE PARTICULIER"),
+        ) ||
+        upperServices.some((s) => s.includes("AUDIT RETRAITE ENTREPRISE")) ||
+        upperServices.some((s) =>
+          s.includes("AUDIT BILAN RETRAITE ENTREPRISE"),
+        );
+
+      if (isAudit) {
+        // --- LOGIQUE SPÉCIALE POUR AUDIT (Particulier ou Entreprise) ---
+        // 1. Filtrer "Liquidation"
+        const filteredServices = selectedServices.filter(
+          (s) => !s.toUpperCase().includes("LIQUIDATION"),
+        );
+
+        // 2. Renommages spécifiques
+        const mappedServices = filteredServices.map((s) => {
+          const up = s.toUpperCase();
+          if (
+            up.includes("AUDIT RETRAITE PARTICULIER") ||
+            up.includes("AUDIT BILAN RETRAITE PARTICULIER") ||
+            up.includes("AUDIT BILANRETRAITE PARTICULIER")
+          ) {
+            return "AUDIT BILAN RETRAITE";
+          }
+          if (
+            up.includes("AUDIT RETRAITE ENTREPRISE") ||
+            up.includes("AUDIT BILAN RETRAITE ENTREPRISE")
+          ) {
+            return "AUDIT BILAN RETRAITE ENTREPRISE";
+          }
+          return s;
+        });
+
+        // 3. Construction de la chaîne de services
+        let serviceString = "Dossier";
+        if (mappedServices.length > 0) {
+          if (mappedServices.length === 1) {
+            serviceString = mappedServices[0];
+          } else if (mappedServices.length === 2) {
+            serviceString = `${mappedServices[0]} + ${mappedServices[1]}`;
+          } else {
+            serviceString = `${mappedServices[0]} et autres`;
+          }
+        }
+
+        // 4. Format avec suffixe "- EOR Consultants"
+        fileName = `${serviceString} ${firstName} ${lastName} - EOR Consultants`;
+      } else {
+        // --- LOGIQUE PAR DÉFAUT (AUTRES PRESTATIONS) ---
+        let serviceString = "Dossier";
+        if (selectedServices.length > 0) {
+          if (selectedServices.length === 1) {
+            serviceString = selectedServices[0];
+          } else if (selectedServices.length === 2) {
+            serviceString = `${selectedServices[0]} + ${selectedServices[1]}`;
+          } else {
+            serviceString = `${selectedServices[0]} et autres`;
+          }
+        }
+        // Format demandé : "Prestation Prénom Nom - EOR Consultants"
+        fileName = `${serviceString} ${firstName} ${lastName} - EOR Consultants`;
       }
 
-      const fileName = `${serviceString} - ${firstName} ${lastName}`;
       pdf.save(`${fileName}.pdf`);
       toast.success("Téléchargement du contrat PDF réussi !");
     } catch (err) {
@@ -1852,7 +1922,7 @@ class EditContract extends React.Component {
                                         this.updateDate(
                                           "acompte_dates",
                                           idx,
-                                          this.fromInputValue(e.target.value)
+                                          this.fromInputValue(e.target.value),
                                         )
                                       }
                                     />
@@ -1944,7 +2014,7 @@ class EditContract extends React.Component {
                                         this.updateDate(
                                           "sold_dates",
                                           idx,
-                                          this.fromInputValue(e.target.value)
+                                          this.fromInputValue(e.target.value),
                                         )
                                       }
                                     />
@@ -2100,8 +2170,8 @@ class EditContract extends React.Component {
                           <h6>
                             {moment(this.ifExist("birth_date")).isValid()
                               ? moment(this.ifExist("birth_date")).format(
-                                "DD/MM/YYYY"
-                              )
+                                  "DD/MM/YYYY",
+                                )
                               : ""}
                           </h6>
                         </Col>
@@ -2131,8 +2201,8 @@ class EditContract extends React.Component {
                           <h6>
                             {moment(this.ifExist("updated_at")).isValid()
                               ? moment(this.ifExist("updated_at")).format(
-                                "DD/MM/YYYY"
-                              )
+                                  "DD/MM/YYYY",
+                                )
                               : ""}
                           </h6>{" "}
                         </Col>
@@ -2603,7 +2673,7 @@ class EditContract extends React.Component {
                                   onChange={(e) =>
                                     this.handleFieldChange(
                                       "nb1",
-                                      e.target.value
+                                      e.target.value,
                                     )
                                   }
                                   required
@@ -2851,7 +2921,7 @@ class EditContract extends React.Component {
                                   onChange={(e) =>
                                     this.handleFieldChange(
                                       "nb2",
-                                      e.target.value
+                                      e.target.value,
                                     )
                                   }
                                   required
@@ -3232,7 +3302,7 @@ class EditContract extends React.Component {
                                   onChange={(e) =>
                                     this.handleFieldChange(
                                       "nb4",
-                                      e.target.value
+                                      e.target.value,
                                     )
                                   }
                                   required
@@ -3476,7 +3546,7 @@ class EditContract extends React.Component {
                                   onChange={(e) =>
                                     this.handleFieldChange(
                                       "nb5",
-                                      e.target.value
+                                      e.target.value,
                                     )
                                   }
                                   required
@@ -3903,7 +3973,7 @@ class EditContract extends React.Component {
                                   onChange={(e) =>
                                     this.handleFieldChange(
                                       "TVAP",
-                                      e.target.value
+                                      e.target.value,
                                     )
                                   }
                                   required
@@ -3993,7 +4063,7 @@ class EditContract extends React.Component {
                                   onChange={(e) =>
                                     this.handleFieldChange(
                                       "table3-subcontent1",
-                                      e.target.value
+                                      e.target.value,
                                     )
                                   }
                                   required
@@ -4010,7 +4080,7 @@ class EditContract extends React.Component {
                                   onChange={(e) =>
                                     this.handleFieldChange(
                                       "fp1",
-                                      e.target.value
+                                      e.target.value,
                                     )
                                   }
                                   required
@@ -4059,7 +4129,7 @@ class EditContract extends React.Component {
                                   onChange={(e) =>
                                     this.handleFieldChange(
                                       "table3-subcontent2",
-                                      e.target.value
+                                      e.target.value,
                                     )
                                   }
                                   required
@@ -4077,7 +4147,7 @@ class EditContract extends React.Component {
                                   onChange={(e) =>
                                     this.handleFieldChange(
                                       "fp2",
-                                      e.target.value
+                                      e.target.value,
                                     )
                                   }
                                   required
