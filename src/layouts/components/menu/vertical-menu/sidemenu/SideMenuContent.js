@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import classnames from "classnames";
 import navigationConfig from "../../../../../configs/navigationConfig";
 import SideMenuGroup from "./SideMenuGroup";
-import { Badge } from "reactstrap";
 import { ChevronRight } from "react-feather";
 import { FormattedMessage } from "react-intl";
 import { history } from "../../../../../history";
@@ -83,6 +82,7 @@ class SideMenuContent extends React.Component {
     crmBadge: 0, // NEW: badge pour KPI/CRM
     inboxBadge: 0, // NEW: badge pour Inbox (chat)
     tasksBadge: 0, // NEW: badge pour Tâches urgentes
+    contractsBadge: 0, // NEW: badge pour Contrats terminés impayés
     flag: true,
     isHovered: false,
     activeGroups: [],
@@ -231,7 +231,7 @@ class SideMenuContent extends React.Component {
                 const d3Only = new Date(
                   d3.getFullYear(),
                   d3.getMonth(),
-                  d3.getDate()
+                  d3.getDate(),
                 );
 
                 // If date of step 3 <= today => URGENT
@@ -246,7 +246,7 @@ class SideMenuContent extends React.Component {
         this.setState({ crmBadge: urgentCount });
       })
       .catch((err) =>
-        console.error("Error fetching urgent count for sidebar", err)
+        console.error("Error fetching urgent count for sidebar", err),
       );
 
     // --- Fetch Inbox Unread Count ---
@@ -293,7 +293,28 @@ class SideMenuContent extends React.Component {
 
         this.setState({ tasksBadge: urgentTasks.length });
       })
-      .catch((err) => console.error("❌ Error fetching urgent tasks count", err));
+      .catch((err) =>
+        console.error("❌ Error fetching urgent tasks count", err),
+      );
+
+    // --- Fetch Unpaid Terminated Contracts Count ---
+    axios
+      .get(global.config.server_url + "/documents", Config)
+      .then((res) => {
+        const contracts = Array.isArray(res.data) ? res.data : [];
+
+        // Count unpaid terminated contracts (same logic as AllContracts.js)
+        const unpaidCount = contracts.filter((contract) => {
+          const isTerminated = contract.document_state === "Terminé";
+          const isNotFullyPaid = contract.status_payment < 2;
+          return isTerminated && isNotFullyPaid;
+        }).length;
+
+        this.setState({ contractsBadge: unpaidCount });
+      })
+      .catch((err) =>
+        console.error("❌ Error fetching unpaid contracts count", err),
+      );
   }
 
   componentDidUpdate(prevProps, prevState) {
@@ -387,10 +408,11 @@ class SideMenuContent extends React.Component {
                   : ""
             }
             href={item.type === "external-link" ? item.navLink : ""}
-            className={`d-flex ${item.badgeText
-              ? "justify-content-between"
-              : "justify-content-start"
-              }`}
+            className={`d-flex ${
+              item.badgeText
+                ? "justify-content-between"
+                : "justify-content-start"
+            }`}
             onMouseEnter={() => {
               this.props.handleSidebarMouseEnter(item.id);
             }}
@@ -411,21 +433,75 @@ class SideMenuContent extends React.Component {
               </span>
             </div>
 
+            {/* ✅ Badge Contrats terminés impayés */}
+            {item.id === "contracts" && this.state.contractsBadge > 0 ? (
+              <div className="menu-badge">
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 22,
+                    height: 22,
+                    borderRadius: "50%",
+                    backgroundColor: "#ea5455",
+                    color: "#fff",
+                    fontSize: 10,
+                    fontWeight: 600,
+                    lineHeight: 1,
+                    marginRight: 4,
+                  }}
+                >
+                  {this.state.contractsBadge}
+                </span>
+              </div>
+            ) : null}
+
             {/* ✅ Badge Tâches Urgentes */}
             {item.id === "tasks" && this.state.tasksBadge > 0 ? (
               <div className="menu-badge">
-                <Badge color="danger" className="mr-1" pill>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 22,
+                    height: 22,
+                    borderRadius: "50%",
+                    backgroundColor: "#ea5455",
+                    color: "#fff",
+                    fontSize: 10,
+                    fontWeight: 600,
+                    lineHeight: 1,
+                    marginRight: 4,
+                  }}
+                >
                   {this.state.tasksBadge}
-                </Badge>
+                </span>
               </div>
             ) : null}
 
             {/* ✅ Badge CRM Urgent */}
             {item.id === "kpi" && this.state.crmBadge > 0 ? (
               <div className="menu-badge">
-                <Badge color="danger" className="mr-1" pill>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 22,
+                    height: 22,
+                    borderRadius: "50%",
+                    backgroundColor: "#ea5455",
+                    color: "#fff",
+                    fontSize: 10,
+                    fontWeight: 600,
+                    lineHeight: 1,
+                    marginRight: 4,
+                  }}
+                >
                   {this.state.crmBadge}
-                </Badge>
+                </span>
               </div>
             ) : null}
 

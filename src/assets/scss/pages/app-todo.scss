@@ -100,8 +100,8 @@
       padding: 1rem;
     }
     .todo-scroll-area {
-        flex-grow: 1;
-        position: relative;
+      flex-grow: 1;
+      position: relative;
     }
     .task-body {
       padding: 1rem;
@@ -145,6 +145,15 @@
     .todo-title,
     .todo-desc {
       text-decoration: line-through;
+    }
+  }
+
+  // Client name link - hover effect
+  .client-link {
+    cursor: pointer;
+    transition: text-decoration 0.2s ease;
+    &:hover {
+      text-decoration: underline !important;
     }
   }
 

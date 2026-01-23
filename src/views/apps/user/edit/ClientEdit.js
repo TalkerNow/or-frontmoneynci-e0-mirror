@@ -363,6 +363,16 @@ class UserEdit extends React.Component {
             className="border-0 d-flex align-items-center gap-3 mb-1 nav-tabs"
             ref={(el) => (this.navRef = el)}
           >
+            <Button.Ripple
+              color="primary"
+              aria-label="Retour"
+              title="Retour à la page précédente"
+              className="btn-icon rounded-circle p-0 d-flex align-items-center justify-content-center mr-1"
+              style={{ width: 32, height: 32, minWidth: 32, flexShrink: 0 }}
+              onClick={() => history.push("/app/user/clientslist")}
+            >
+              <ArrowLeft size={16} />
+            </Button.Ripple>
             <Nav
               tabs
               className="border-0 d-flex align-items-center gap-3 mb-0"

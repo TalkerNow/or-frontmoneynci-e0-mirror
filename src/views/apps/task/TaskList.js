@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { Check, Star, Trash } from "react-feather";
 import PerfectScrollbar from "react-perfect-scrollbar";
 import { connect } from "react-redux";
@@ -93,14 +94,14 @@ class TaskList extends React.Component {
     const now = new Date();
     now.setHours(0, 0, 0, 0); // Reset time to midnight for comparison
 
-    const urgentTodos = todosArr.filter(todo => {
+    const urgentTodos = todosArr.filter((todo) => {
       if (!todo.end_date) return false;
       const endDate = new Date(todo.end_date);
       endDate.setHours(0, 0, 0, 0);
       return endDate < now && !todo.isCompleted;
     });
 
-    const normalTodos = todosArr.filter(todo => {
+    const normalTodos = todosArr.filter((todo) => {
       if (!todo.end_date) return true;
       const endDate = new Date(todo.end_date);
       endDate.setHours(0, 0, 0, 0);
@@ -135,19 +136,42 @@ class TaskList extends React.Component {
 
               <div className="d-flex flex-column">
                 <div className="d-flex align-items-center">
-                  <span className="font-weight-bold text-primary mr-1">{todo.task_customer?.name || "Client Inconnu"}</span>
-                  {todo.task_customer?.subscribe_services && (() => {
-                    const services = this.parseServices(todo.task_customer.subscribe_services);
-                    return services.map((service) => (
-                      <span
-                        key={service}
-                        className={`badge badge-${chipColors[service]} mr-50`}
+                  {/* CAS A : Client lié - Lien vers fiche client */}
+                  {todo.task_customer?.id ? (
+                    <Link
+                      to={`/app/user/edit/${todo.task_customer.id}/2`}
+                      className="font-weight-bold text-primary mr-1 client-link"
+                      style={{ textDecoration: "none" }}
+                      onClick={(e) => {
+                        e.stopPropagation(); // Empêche l'ouverture de la modale
+                      }}
+                    >
+                      {todo.task_customer.name}
+                    </Link>
+                  ) : (
+                    /* CAS B : Client Inconnu - Texte simple */
+                    <span
+                      className="font-weight-bold text-body mr-1"
+                      style={{ cursor: "default" }}
+                    >
+                      {todo.task_customer?.name || "Client Inconnu"}
+                    </span>
+                  )}
+                  {todo.task_customer?.subscribe_services &&
+                    (() => {
+                      const services = this.parseServices(
+                        todo.task_customer.subscribe_services,
+                      );
+                      return services.map((service) => (
+                        <span
+                          key={service}
+                          className={`badge badge-${chipColors[service]} mr-50`}
                         style={{ fontSize: '0.65rem', padding: '0.2rem 0.4rem' }}
-                      >
-                        {service}
-                      </span>
-                    ));
-                  })()}
+                        >
+                          {service}
+                        </span>
+                      ));
+                    })()}
                   {todo.type && (
                     <span className={`badge badge-light-${todo.type === "relance_caisse" ? "primary" :
                       todo.type === "relance_client" ? "warning" :
