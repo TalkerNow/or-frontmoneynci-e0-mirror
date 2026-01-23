@@ -41,6 +41,7 @@ import SimulatorHub from "./SimulatorHub";
 import { history } from "../../../../history";
 import Contracts from "./Contracts";
 import SuiviAvancementBox from "./SuiviAvancementBox";
+import ClientTasksTab from "./ClientTasksTab";
 import { canAccessSimulator } from "../../../../constants/permissions";
 
 class UserEdit extends React.Component {
@@ -520,14 +521,10 @@ class UserEdit extends React.Component {
               />
             </TabPane>
             <TabPane tabId="tasks">
-              <Card className="mb-1">
-                <CardBody>
-                  <div className="text-muted">
-                    Utilise le module tâches dédié:{" "}
-                    <a href={`/app/user/clientTask/${id}/all`}>Ouvrir</a>
-                  </div>
-                </CardBody>
-              </Card>
+              <ClientTasksTab
+                clientId={id}
+                clientName={this.state.rowData.name}
+              />
             </TabPane>
             <TabPane tabId="courriers">
               <CourriersHub
