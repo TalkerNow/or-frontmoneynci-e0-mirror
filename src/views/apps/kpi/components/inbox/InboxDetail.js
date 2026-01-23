@@ -15,6 +15,7 @@ import {
   Star,
   Loader,
   Eye,
+  EyeOff,
   Trash2,
   MessageSquare,
   FileText,
@@ -45,6 +46,7 @@ const InboxDetail = ({
   isGeneratingAi,
   onGenerateAiReply,
   setAiDraft,
+  onMarkAsUnread,
 }) => {
   const [showConversationModal, setShowConversationModal] = useState(false);
   const [showVisualReport, setShowVisualReport] = useState(false);
@@ -188,6 +190,25 @@ const InboxDetail = ({
               className="header-btn-stack"
               style={{ display: "flex", gap: "8px" }}
             >
+              <button
+                onClick={onMarkAsUnread}
+                style={{
+                  padding: "8px 12px",
+                  fontSize: "14px",
+                  color: "#4b5563",
+                  backgroundColor: "#f3f4f6",
+                  borderRadius: "8px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  border: "none",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                }}
+                title="Marquer comme non lu"
+              >
+                <EyeOff size={16} /> Marquer comme non lu
+              </button>
               <button
                 onClick={onDisqualify}
                 style={{
