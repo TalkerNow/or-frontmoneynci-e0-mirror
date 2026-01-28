@@ -51,6 +51,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
     handleManualAddLine,
     handleManualImport,
     fileToSend,
+    clearFileToSend,
     handleSaveDoc,
   } = useNotesLogic(id, perso);
 
@@ -67,6 +68,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
 
         <UploadSection
           fileToSend={fileToSend}
+          clearFileToSend={clearFileToSend}
           isUploading={isUploading}
           onUpload={handleUpload}
           selectedTags={selectedTags}
