@@ -1,0 +1,126 @@
+// Kanban Board Styles
+
+.kanban-board-wrapper {
+  padding: 1rem;
+  background-color: #f8f8f8;
+  min-height: calc(100vh - 200px);
+}
+
+.kanban-board {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 1rem;
+
+  @media (max-width: 991px) {
+    flex-wrap: wrap;
+  }
+}
+
+.kanban-column {
+  min-width: 300px;
+  max-width: 350px;
+
+  @media (max-width: 991px) {
+    min-width: 100%;
+    max-width: 100%;
+  }
+
+  .card {
+    background-color: #f8f8f8;
+    border: none;
+
+    .card-header {
+      background-color: #fff;
+      border-top-left-radius: 0.5rem;
+      border-top-right-radius: 0.5rem;
+      padding: 1rem;
+    }
+
+    .card-body {
+      background-color: #f8f8f8;
+    }
+  }
+}
+
+.kanban-cards-container {
+  max-height: calc(100vh - 350px);
+  overflow-y: auto;
+  padding-right: 0.25rem;
+  border-radius: 8px;
+
+  @media (max-width: 991px) {
+    max-height: 500px;
+  }
+
+  &.dragging-over {
+    background-color: rgba(115, 103, 240, 0.05);
+  }
+}
+
+.kanban-card {
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  background-color: #fff !important;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  .card-body {
+    background-color: #fff !important;
+  }
+
+  .badge {
+    font-weight: 600;
+    padding: 0.25rem 0.65rem;
+  }
+
+  .fill-warning {
+    fill: #ff9f43;
+  }
+}
+
+// Custom scrollbar for kanban
+.kanban-cards-container {
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 10px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.3);
+    }
+  }
+}
+
+// Badge colors
+.badge-light-secondary {
+  background-color: rgba(130, 134, 139, 0.12);
+  color: #82868b;
+}
+
+.badge-light-primary {
+  background-color: rgba(115, 103, 240, 0.12);
+  color: #7367f0;
+}
+
+.badge-light-success {
+  background-color: rgba(40, 199, 111, 0.12);
+  color: #28c76f;
+}
+
+.badge-light-warning {
+  background-color: rgba(255, 159, 67, 0.12);
+  color: #ff9f43;
+}
