@@ -1,9 +1,8 @@
 import React from "react";
 import { Card, CardHeader, CardBody, Button, Input } from "reactstrap";
-import { Plus, Edit2, Check, X, Droplet } from "react-feather";
+import { Plus, Edit2, Check, X, Droplet, Move } from "react-feather";
 import { Droppable, Draggable } from "react-beautiful-dnd";
 import KanbanCard from "./KanbanCard";
-import PerfectScrollbar from "react-perfect-scrollbar";
 import "./kanban.scss";
 
 class KanbanColumn extends React.Component {
@@ -103,6 +102,7 @@ class KanbanColumn extends React.Component {
       onStarClick,
       onMenuClick,
       dragHandleProps,
+      isDragging,
     } = this.props;
     const { isEditingTitle, editedTitle, showColorPicker } = this.state;
     const color = this.getColumnColor();
@@ -112,7 +112,14 @@ class KanbanColumn extends React.Component {
 
     return (
       <div className="kanban-column" style={{ position: "relative" }}>
-        <Card className="mb-0 shadow-sm" style={{ overflow: "visible" }}>
+        <Card
+          className="mb-0 shadow-sm"
+          style={{
+            overflow: "visible",
+            transform: isDragging ? "rotate(3deg) scale(1.02)" : "none",
+            transition: isDragging ? "none" : "transform 0.2s ease",
+          }}
+        >
           <CardHeader
             className="pb-1 border-bottom"
             style={{
@@ -122,10 +129,35 @@ class KanbanColumn extends React.Component {
               backgroundColor: "#fff",
               padding: "1rem",
             }}
-            {...dragHandleProps}
           >
             <div className="d-flex justify-content-between align-items-center w-100">
               <div className="d-flex align-items-center flex-grow-1">
+                <div
+                  {...dragHandleProps}
+                  className="kanban-drag-handle"
+                  style={{
+                    cursor: "grab",
+                    marginRight: "8px",
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "4px",
+                    borderRadius: "4px",
+                    transition: "background-color 0.2s",
+                  }}
+                  title="⇄ Glisser pour déplacer la colonne"
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = "rgba(0,0,0,0.05)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                  }}
+                >
+                  <Move
+                    size={18}
+                    className="text-secondary"
+                    style={{ strokeWidth: 2.5 }}
+                  />
+                </div>
                 {isEditingTitle ? (
                   <div className="d-flex align-items-center flex-grow-1">
                     <Input
@@ -261,38 +293,32 @@ class KanbanColumn extends React.Component {
                     transition: "background-color 0.2s ease",
                   }}
                 >
-                  <PerfectScrollbar
-                    options={{
-                      wheelPropagation: false,
-                    }}
-                  >
-                    {cards.map((card, index) => (
-                      <Draggable
-                        key={card.id}
-                        draggableId={`card-${card.id}`}
-                        index={index}
-                      >
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            style={{
-                              ...provided.draggableProps.style,
-                              opacity: snapshot.isDragging ? 0.8 : 1,
-                            }}
-                          >
-                            <KanbanCard
-                              card={card}
-                              onStarClick={onStarClick}
-                              onMenuClick={onMenuClick}
-                            />
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </PerfectScrollbar>
+                  {cards.map((card, index) => (
+                    <Draggable
+                      key={card.id}
+                      draggableId={`card-${card.id}`}
+                      index={index}
+                    >
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          {...provided.dragHandleProps}
+                          style={{
+                            ...provided.draggableProps.style,
+                            opacity: snapshot.isDragging ? 0.8 : 1,
+                          }}
+                        >
+                          <KanbanCard
+                            card={card}
+                            onStarClick={onStarClick}
+                            onMenuClick={onMenuClick}
+                          />
+                        </div>
+                      )}
+                    </Draggable>
+                  ))}
+                  {provided.placeholder}
                 </div>
               )}
             </Droppable>

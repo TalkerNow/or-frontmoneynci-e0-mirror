@@ -1,6 +1,6 @@
 import React from "react";
 import { Card, CardBody, Badge } from "reactstrap";
-import { Star, MoreVertical, Calendar } from "react-feather";
+import { Star, MoreVertical, Calendar, Clock } from "react-feather";
 import "./kanban.scss";
 
 class KanbanCard extends React.Component {
@@ -45,9 +45,42 @@ class KanbanCard extends React.Component {
     }).format(amount);
   };
 
+  formatDateTime = (dateString, hourString) => {
+    if (!dateString || !hourString) return "";
+
+    // Combine date and hour to create a Date object
+    const date = new Date(`${dateString}T${hourString}:00`);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    // Si c'est aujourd'hui
+    if (date.toDateString() === today.toDateString()) {
+      return `Aujourd'hui ${hourString}`;
+    }
+    // Si c'est hier
+    if (date.toDateString() === yesterday.toDateString()) {
+      return `Hier ${hourString}`;
+    }
+    // Sinon afficher la date complète
+    const dateStr = new Intl.DateTimeFormat("fr-FR", {
+      day: "2-digit",
+      month: "short",
+    }).format(date);
+    return `${dateStr} ${hourString}`;
+  };
+
+  isOverdue = (dateString, hourString) => {
+    if (!dateString || !hourString) return false;
+    const date = new Date(`${dateString}T${hourString}:00`);
+    const now = new Date();
+    return date < now;
+  };
+
   render() {
     const { card, onStarClick, onMenuClick } = this.props;
-    const { type, name, amount, deadline, isStarred } = card;
+    const { type, name, amount, deadline, isStarred, date, hour } = card;
+    const overdue = this.isOverdue(date, hour);
 
     return (
       <Card className="kanban-card mb-1">
@@ -95,8 +128,23 @@ class KanbanCard extends React.Component {
             </div>
           </div>
 
-          {deadline && (
+          {date && hour && (
             <div className="mt-75 d-flex align-items-center">
+              <Clock
+                size={13}
+                className={`mr-50 ${overdue ? "text-danger" : "text-muted"}`}
+              />
+              <span
+                className={`font-small-2 ${overdue ? "text-danger font-weight-bold" : "text-muted"}`}
+              >
+                {overdue && "⚠️ "}
+                {this.formatDateTime(date, hour)}
+              </span>
+            </div>
+          )}
+
+          {deadline && (
+            <div className="mt-50 d-flex align-items-center">
               <Calendar size={14} className="text-danger mr-50" />
               <span className="text-danger font-small-2 font-weight-bold">
                 {deadline}

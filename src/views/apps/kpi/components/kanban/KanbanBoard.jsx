@@ -1,7 +1,8 @@
 import React from "react";
 import { connect } from "react-redux";
-import { Row, Col } from "reactstrap";
+import { Button, Input, Card, CardBody } from "reactstrap";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
+import { Plus, Check, X } from "react-feather";
 import KanbanColumn from "./KanbanColumn";
 import {
   getKanbans,
@@ -36,6 +37,9 @@ class KanbanBoard extends React.Component {
         color: "#a78bfa",
       },
     ],
+    isCreatingColumn: false,
+    newColumnTitle: "",
+    newColumnColor: "#60a5fa",
     cards: [
       {
         id: 1,
@@ -44,6 +48,8 @@ class KanbanBoard extends React.Component {
         name: "Paul Gueutal",
         amount: 0,
         isStarred: false,
+        date: "2026-01-28",
+        hour: "09:30",
       },
       {
         id: 2,
@@ -52,6 +58,8 @@ class KanbanBoard extends React.Component {
         name: "Nicolas Gomart",
         amount: 0,
         isStarred: false,
+        date: "2026-01-28",
+        hour: "10:15",
       },
       {
         id: 3,
@@ -60,6 +68,8 @@ class KanbanBoard extends React.Component {
         name: "Chetrit",
         amount: 0,
         isStarred: false,
+        date: "2026-01-28",
+        hour: "11:00",
       },
       {
         id: 4,
@@ -68,6 +78,8 @@ class KanbanBoard extends React.Component {
         name: "Pascal Gilly",
         amount: 0,
         isStarred: false,
+        date: "2026-01-28",
+        hour: "14:20",
       },
       {
         id: 5,
@@ -75,8 +87,9 @@ class KanbanBoard extends React.Component {
         type: "Bilan",
         name: "M. Martin",
         amount: 2800,
-        deadline: "Demain 14h",
         isStarred: false,
+        date: "2026-01-27",
+        hour: "16:45",
       },
       {
         id: 6,
@@ -85,6 +98,68 @@ class KanbanBoard extends React.Component {
         name: "Sarl Dupuis",
         amount: 4500,
         isStarred: false,
+        date: "2026-01-26",
+        hour: "13:10",
+      },
+      {
+        id: 7,
+        kanban_id: 1,
+        type: "Bilan",
+        name: "Sophie Laurent",
+        amount: 3200,
+        isStarred: true,
+        date: "2026-03-15",
+        hour: "14:00",
+      },
+      {
+        id: 8,
+        kanban_id: 2,
+        type: "Particulier",
+        name: "Jean Dubois",
+        amount: 1800,
+        isStarred: false,
+        date: "2026-03-22",
+        hour: "10:30",
+      },
+      {
+        id: 9,
+        kanban_id: 2,
+        type: "Entreprise",
+        name: "EURL Techno",
+        amount: 5600,
+        isStarred: false,
+        date: "2026-04-10",
+        hour: "16:00",
+      },
+      {
+        id: 10,
+        kanban_id: 3,
+        type: "Bilan",
+        name: "Marie Fontaine",
+        amount: 2100,
+        isStarred: true,
+        date: "2026-04-18",
+        hour: "09:15",
+      },
+      {
+        id: 11,
+        kanban_id: 1,
+        type: "Particulier",
+        name: "Pierre Moreau",
+        amount: 950,
+        isStarred: false,
+        date: "2026-05-05",
+        hour: "11:45",
+      },
+      {
+        id: 12,
+        kanban_id: 3,
+        type: "Entreprise",
+        name: "SAS Innovation",
+        amount: 7800,
+        isStarred: false,
+        date: "2026-05-20",
+        hour: "15:30",
       },
     ],
   };
@@ -213,8 +288,54 @@ class KanbanBoard extends React.Component {
     // this.props.updateKanban(columnId, { color: newColor });
   };
 
+  handleStartCreateColumn = () => {
+    this.setState({ isCreatingColumn: true });
+  };
+
+  handleCancelCreateColumn = () => {
+    this.setState({
+      isCreatingColumn: false,
+      newColumnTitle: "",
+      newColumnColor: "#60a5fa",
+    });
+  };
+
+  handleCreateColumn = () => {
+    const { newColumnTitle, newColumnColor, columns } = this.state;
+    if (newColumnTitle.trim() === "") return;
+
+    const newColumn = {
+      id: Math.max(...columns.map((c) => c.id), 0) + 1,
+      title: newColumnTitle.trim(),
+      order: columns.length + 1,
+      color: newColumnColor,
+    };
+
+    this.setState({
+      columns: [...columns, newColumn],
+      isCreatingColumn: false,
+      newColumnTitle: "",
+      newColumnColor: "#60a5fa",
+    });
+
+    // TODO: Appeler l'API pour créer la colonne
+    // this.props.createKanban(newColumn);
+  };
+
   render() {
     const { columns } = this.state;
+    const { isCreatingColumn, newColumnTitle, newColumnColor } = this.state;
+
+    const colorPalette = [
+      { name: "Jaune", hex: "#facc15" },
+      { name: "Bleu", hex: "#60a5fa" },
+      { name: "Violet", hex: "#a78bfa" },
+      { name: "Vert", hex: "#4ade80" },
+      { name: "Rose", hex: "#f472b6" },
+      { name: "Orange", hex: "#fb923c" },
+      { name: "Rouge", hex: "#f87171" },
+      { name: "Cyan", hex: "#22d3ee" },
+    ];
 
     return (
       <DragDropContext onDragEnd={this.handleDragEnd}>
@@ -224,11 +345,16 @@ class KanbanBoard extends React.Component {
             direction="horizontal"
             type="column"
           >
-            {(provided) => (
-              <Row
+            {(provided, snapshot) => (
+              <div
                 className="kanban-board"
                 ref={provided.innerRef}
                 {...provided.droppableProps}
+                style={{
+                  backgroundColor: snapshot.isDraggingOver
+                    ? "rgba(0,0,0,0.02)"
+                    : "transparent",
+                }}
               >
                 {columns.map((column, index) => (
                   <Draggable
@@ -237,16 +363,13 @@ class KanbanBoard extends React.Component {
                     index={index}
                   >
                     {(provided, snapshot) => (
-                      <Col
-                        lg="4"
-                        md="6"
-                        sm="12"
-                        className="mb-2"
+                      <div
                         ref={provided.innerRef}
                         {...provided.draggableProps}
+                        className="kanban-column-wrapper"
                         style={{
                           ...provided.draggableProps.style,
-                          opacity: snapshot.isDragging ? 0.8 : 1,
+                          opacity: snapshot.isDragging ? 0.9 : 1,
                         }}
                       >
                         <KanbanColumn
@@ -264,13 +387,103 @@ class KanbanBoard extends React.Component {
                             this.handleEditColumnColor(column.id, newColor)
                           }
                           dragHandleProps={provided.dragHandleProps}
+                          isDragging={snapshot.isDragging}
                         />
-                      </Col>
+                      </div>
                     )}
                   </Draggable>
                 ))}
                 {provided.placeholder}
-              </Row>
+
+                {/* Bouton pour créer une nouvelle colonne */}
+                <div className="kanban-column-wrapper">
+                  {!isCreatingColumn ? (
+                    <Button
+                      color="light"
+                      className="w-100 d-flex align-items-center justify-content-center"
+                      style={{
+                        height: "50px",
+                        border: "2px dashed #d0d0d0",
+                        backgroundColor: "transparent",
+                      }}
+                      onClick={this.handleStartCreateColumn}
+                    >
+                      <Plus size={18} className="mr-50" />
+                      Nouvelle colonne
+                    </Button>
+                  ) : (
+                    <Card className="shadow-sm">
+                      <CardBody className="p-1">
+                        <Input
+                          type="text"
+                          placeholder="Titre de la colonne"
+                          value={newColumnTitle}
+                          onChange={(e) =>
+                            this.setState({ newColumnTitle: e.target.value })
+                          }
+                          onKeyPress={(e) => {
+                            if (e.key === "Enter") this.handleCreateColumn();
+                            if (e.key === "Escape")
+                              this.handleCancelCreateColumn();
+                          }}
+                          autoFocus
+                          className="mb-75"
+                        />
+
+                        <div
+                          className="d-flex flex-wrap mb-75"
+                          style={{ gap: "6px" }}
+                        >
+                          {colorPalette.map((c) => (
+                            <div
+                              key={c.hex}
+                              onClick={() =>
+                                this.setState({ newColumnColor: c.hex })
+                              }
+                              title={c.name}
+                              style={{
+                                width: "28px",
+                                height: "28px",
+                                backgroundColor: c.hex,
+                                borderRadius: "50%",
+                                cursor: "pointer",
+                                border:
+                                  newColumnColor === c.hex
+                                    ? "3px solid #000"
+                                    : "2px solid #fff",
+                                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                              }}
+                            />
+                          ))}
+                        </div>
+
+                        <div className="d-flex" style={{ gap: "8px" }}>
+                          <Button
+                            color="primary"
+                            size="sm"
+                            onClick={this.handleCreateColumn}
+                            disabled={!newColumnTitle.trim()}
+                            className="d-flex align-items-center"
+                          >
+                            <Check size={14} className="mr-25" />
+                            Créer
+                          </Button>
+                          <Button
+                            color="secondary"
+                            size="sm"
+                            outline
+                            onClick={this.handleCancelCreateColumn}
+                            className="d-flex align-items-center"
+                          >
+                            <X size={14} className="mr-25" />
+                            Annuler
+                          </Button>
+                        </div>
+                      </CardBody>
+                    </Card>
+                  )}
+                </div>
+              </div>
             )}
           </Droppable>
         </div>
