@@ -28,6 +28,7 @@ import {
   File as FileIcon,
 } from "react-feather";
 import axios from "axios";
+import { toast } from "react-toastify";
 import { waiterHide, waiterShow } from "../../../../helpers/waiter";
 
 // 🔹 Dossiers
@@ -71,7 +72,7 @@ class DropzoneBasic extends React.Component {
         counts[0] = files.filter((f) => !f.dossier || f.dossier === 0).length;
         FOLDERS.forEach((folder) => {
           counts[folder.id] = files.filter(
-            (f) => f.dossier === folder.id,
+            (f) => f.dossier === folder.id
           ).length;
         });
         this.setState({ files, folderCounts: counts });
@@ -83,15 +84,11 @@ class DropzoneBasic extends React.Component {
     const acceptedFiles = Array.from(files || []);
     if (acceptedFiles.length === 0) return;
 
-    waiterShow(); // Show loader
-
     const formData = new FormData();
     formData.set("user_id", this.props.id);
-    const dossierId = dossier || 0;
-    formData.set("dossier", dossierId);
-    console.log("Uploading to dossier:", dossierId); // Debug
+    formData.set("dossier", dossier || 0);
     acceptedFiles.forEach((file, i) =>
-      formData.append("photoUpload" + i, file),
+      formData.append("photoUpload" + i, file)
     );
 
     const Config = {
@@ -104,35 +101,13 @@ class DropzoneBasic extends React.Component {
     axios
       .post(global.config.server_url + "/uploadFiles", formData, Config)
       .then((response) => {
-        waiterHide(); // Hide loader
-        if (response.data && response.data.success === true) {
-          this.loadFiles();
-          // If we uploaded to a specific folder, make sure we are viewing it
-          if (dossier && dossier > 0) {
-            if (this.props.setFolderId) {
-              this.props.setFolderId(dossier);
-            } else {
-              this.setState({ currentFolder: dossier });
-            }
-          }
-        } else {
-          // Fallback reload
-          this.loadFiles();
-        }
-      })
-      .catch((err) => {
-        waiterHide();
-        console.error(err);
+        if (response.data && response.data.success === true) this.loadFiles();
       });
   };
 
   // 🔹 Upload depuis la dropzone interne (dans un dossier ouvert)
   onDrop = (acceptedFiles) => {
-    const currentFolder =
-      this.props.folderId !== undefined
-        ? this.props.folderId
-        : this.state.currentFolder;
-    this.uploadFilesToDossier(acceptedFiles, currentFolder || 0);
+    this.uploadFilesToDossier(acceptedFiles, this.state.currentFolder || 0);
   };
 
   // 🔹 Gestion de la modale de suppression
@@ -173,7 +148,7 @@ class DropzoneBasic extends React.Component {
       .put(
         global.config.server_url + "/files/" + fileId,
         { dossier: newFolder },
-        Config,
+        Config
       )
       .then(() => this.loadFiles());
   };
@@ -205,7 +180,7 @@ class DropzoneBasic extends React.Component {
       .put(
         global.config.server_url + "/files/" + fileToRenameId,
         { filename: newFileName },
-        Config,
+        Config
       )
       .then(() => {
         this.loadFiles();
@@ -228,7 +203,7 @@ class DropzoneBasic extends React.Component {
     axios
       .get(
         global.config.server_url + "/downloadFile?file_id=" + file_id,
-        Config,
+        Config
       )
       .then((response) => {
         waiterHide();
@@ -243,21 +218,59 @@ class DropzoneBasic extends React.Component {
       .catch(() => waiterHide());
   };
 
-  openFolder = (folderId) => {
-    if (this.props.setFolderId) {
-      this.props.setFolderId(folderId);
-    } else {
-      this.setState({ currentFolder: folderId });
+  // 🔹 Envoyer un fichier vers l'analyse carrière (Notes)
+  sendToCareerAnalysis = async (fileId, fileName, fileUrl) => {
+    try {
+      toast.info("Préparation du fichier pour l'analyse...");
+
+      const Config = {
+        headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+        responseType: "blob",
+      };
+
+      // Télécharger le fichier depuis le serveur
+      const response = await axios.get(
+        global.config.server_url + "/downloadFile?file_id=" + fileId,
+        Config
+      );
+
+      const blob = response.data;
+      const file = new File([blob], fileName, { type: blob.type || "application/pdf" });
+
+      // Convertir en base64 et stocker dans sessionStorage
+      const reader = new FileReader();
+      reader.onload = () => {
+        const fileData = {
+          name: file.name,
+          type: file.type,
+          dataUrl: reader.result,
+        };
+        sessionStorage.setItem(
+          `notes_file_to_send_${this.props.id}`,
+          JSON.stringify(fileData)
+        );
+        // Dispatch custom event to notify Notes component
+        window.dispatchEvent(
+          new CustomEvent("careerAnalysisFileReady", {
+            detail: { clientId: this.props.id, fileData },
+          })
+        );
+        toast.success(
+          `"${fileName}" prêt pour l'analyse ! Rendez-vous dans l'onglet Notes.`
+        );
+      };
+      reader.onerror = () => {
+        toast.error("Erreur lors de la préparation du fichier.");
+      };
+      reader.readAsDataURL(blob);
+    } catch (err) {
+      console.error("Erreur sendToCareerAnalysis:", err);
+      toast.error("Impossible de préparer le fichier pour l'analyse.");
     }
   };
 
-  closeFolder = () => {
-    if (this.props.setFolderId) {
-      this.props.setFolderId(null);
-    } else {
-      this.setState({ currentFolder: null });
-    }
-  };
+  openFolder = (folderId) => this.setState({ currentFolder: folderId });
+  closeFolder = () => this.setState({ currentFolder: null });
 
   // 🔹 Helpers pour le type de fichier
   getFileExtension = (filename) => {
@@ -339,7 +352,7 @@ class DropzoneBasic extends React.Component {
             onDragStart={(e) => this.handleDragStart(e, file.id)}
             style={{
               padding: "6px 10px",
-              borderRadius: 12,
+              borderRadius: 8,
               backgroundColor: "#f8f9fa",
               border: "1px solid #e9ecef",
               marginBottom: 6,
@@ -357,7 +370,7 @@ class DropzoneBasic extends React.Component {
                 style={{
                   width: 34,
                   height: 34,
-                  borderRadius: 12,
+                  borderRadius: 8,
                   backgroundColor: "#ffffff",
                   border: "1px solid #e9ecef",
                   marginRight: 8,
@@ -405,7 +418,7 @@ class DropzoneBasic extends React.Component {
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  borderRadius: 12,
+                  borderRadius: 8,
                   border: "1px solid #e5e5e5",
                   backgroundColor: "#ffffff",
                   marginLeft: 8,
@@ -433,6 +446,15 @@ class DropzoneBasic extends React.Component {
                   </DropdownItem>
                 ))}
                 <DropdownItem divider />
+                <DropdownItem
+                  onClick={() =>
+                    this.sendToCareerAnalysis(file.id, file.filename, file.url)
+                  }
+                  style={{ color: "#7367f0", fontWeight: 500 }}
+                >
+                  📊 Analyse carrière
+                </DropdownItem>
+                <DropdownItem divider />
                 <DropdownItem onClick={() => this.download(file.id, file.url)}>
                   Télécharger
                 </DropdownItem>
@@ -458,7 +480,7 @@ class DropzoneBasic extends React.Component {
   // 🔹 Fichiers non triés
   renderUnsortedFiles = () => {
     const unsortedFiles = this.state.files.filter(
-      (f) => !f.dossier || f.dossier === 0,
+      (f) => !f.dossier || f.dossier === 0
     );
     if (unsortedFiles.length === 0) return null;
     return (
@@ -513,11 +535,10 @@ class DropzoneBasic extends React.Component {
                     height: 28,
                     padding: "0 8px",
                     borderRadius: 999,
-                    // On change la couleur de fond et du texte ici :
-                    backgroundColor: "#20be00", // Un vert clair (type Bootstrap success light)
-                    color: "#ffffff", // Un vert foncé pour le contraste et l'accessibilité
+                    backgroundColor: "#e9ecef",
                     fontSize: 13,
                     fontWeight: 600,
+                    color: "#212529",
                     display: "inline-flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -538,19 +559,24 @@ class DropzoneBasic extends React.Component {
 
   // 🔹 Vue fichiers d’un dossier (dropzone pour upload dans ce dossier)
   renderFileView = () => {
-    const currentFolder =
-      this.props.folderId !== undefined
-        ? this.props.folderId
-        : this.state.currentFolder;
-    const currentFolderObj = FOLDERS.find((f) => f.id === currentFolder);
+    const currentFolderObj = FOLDERS.find(
+      (f) => f.id === this.state.currentFolder
+    );
     const filesInFolder = this.state.files.filter(
-      (f) => f.dossier === currentFolder,
+      (f) => f.dossier === this.state.currentFolder
     );
 
     return (
       <>
         <div className="d-flex align-items-center mb-2">
-          {/* Back button removed as it is now in DocumentsHub */}
+          <Button
+            color="primary"
+            onClick={this.closeFolder}
+            size="sm"
+            className="mr-2 p-1"
+          >
+            <ArrowLeft size={16} />
+          </Button>
           <Folder size={20} className="mr-2" />
           <div>
             <strong>{currentFolderObj.name}</strong>
@@ -561,38 +587,23 @@ class DropzoneBasic extends React.Component {
         </div>
 
         <Dropzone onDrop={this.onDrop}>
-          {({ getRootProps, getInputProps, isDragActive }) => (
+          {({ getRootProps, getInputProps }) => (
             <div
-              {...getRootProps()}
-              className={`dropzone text-center mb-2 ${isDragActive ? "active-dropzone" : ""}`}
+              {...getRootProps({ className: "dropzone text-center mb-2" })}
               style={{
                 padding: "14px",
-                borderRadius: 16,
-                border: isDragActive
-                  ? "2px dashed #00cfe8"
-                  : "1px dashed #ced4da",
-                backgroundColor: isDragActive ? "#d1f2f6" : "#f8f9fa",
-                transition: "all 0.2s ease",
-                outline: "none",
+                borderRadius: 10,
+                border: "1px dashed #ced4da",
+                backgroundColor: "#f8f9fa",
               }}
             >
               <input {...getInputProps()} />
-              <DownloadCloud
-                size={35}
-                className="mb-1"
-                style={{ color: isDragActive ? "#00cfe8" : "inherit" }}
-              />
+              <DownloadCloud size={35} className="mb-1" />
               <p
                 className="mb-0"
-                style={{
-                  fontSize: "13px",
-                  color: isDragActive ? "#00cfe8" : "#495057",
-                  fontWeight: isDragActive ? "bold" : "normal",
-                }}
+                style={{ fontSize: "13px", color: "#495057" }}
               >
-                {isDragActive
-                  ? "C'est bon, lâchez tout !"
-                  : "Glissez vos fichiers ici ou cliquez pour sélectionner"}
+                Glissez vos fichiers ici ou cliquez pour sélectionner
               </p>
             </div>
           )}
@@ -604,13 +615,9 @@ class DropzoneBasic extends React.Component {
   };
 
   render() {
-    const currentFolder =
-      this.props.folderId !== undefined
-        ? this.props.folderId
-        : this.state.currentFolder;
     return (
       <>
-        {currentFolder === null
+        {this.state.currentFolder === null
           ? this.renderFolderView()
           : this.renderFileView()}
 
@@ -655,10 +662,10 @@ class DropzoneBasic extends React.Component {
           </ModalHeader>
           <ModalBody>Êtes-vous sûr de vouloir supprimer ce fichier ?</ModalBody>
           <ModalFooter>
-            <Button color="danger" onClick={this.handleDeleteSubmit}>
+            <Button color="primary" onClick={this.handleDeleteSubmit}>
               Supprimer
             </Button>{" "}
-            <Button color="primary" onClick={this.toggleDeleteModal}>
+            <Button color="danger" onClick={this.toggleDeleteModal}>
               Annuler
             </Button>
           </ModalFooter>

@@ -6,6 +6,7 @@ import { QUICK_TAGS_OPTIONS } from "./utils";
 
 const UploadSection = ({
     fileToSend,
+    clearFileToSend,
     isUploading,
     onUpload, // handleUpload
     selectedTags,
@@ -51,16 +52,46 @@ const UploadSection = ({
                                 color: "#166534",
                                 fontWeight: "bold",
                                 fontSize: "0.9rem",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: "8px",
                             }}
                         >
                             <span
                                 role="img"
                                 aria-label="check"
-                                style={{ marginRight: "6px" }}
                             >
                                 ✅
                             </span>
-                            Fichier chargé : {fileToSend.name}
+                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                Fichier chargé : {fileToSend.name}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={clearFileToSend}
+                                style={{
+                                    background: "#fee2e2",
+                                    border: "1px solid #fca5a5",
+                                    borderRadius: "4px",
+                                    color: "#dc2626",
+                                    cursor: "pointer",
+                                    padding: "2px 8px",
+                                    fontSize: "0.75rem",
+                                    fontWeight: "600",
+                                    marginLeft: "4px",
+                                    transition: "all 0.15s ease",
+                                }}
+                                onMouseOver={(e) => {
+                                    e.target.style.background = "#fecaca";
+                                }}
+                                onMouseOut={(e) => {
+                                    e.target.style.background = "#fee2e2";
+                                }}
+                                title="Retirer le fichier"
+                            >
+                                ✕
+                            </button>
                         </div>
                         <div
                             style={{
