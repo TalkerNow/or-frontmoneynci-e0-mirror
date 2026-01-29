@@ -2370,7 +2370,7 @@ export default function KpiPage() {
         </AdminView>
       )}
       {/* 2. OPPORTUNITIES (Pipeline View) */}
-      {location.pathname.includes("/kpi/opportunities") && <PipelineView />}
+      {/* {location.pathname.includes("/kpi/opportunities") && <PipelineView />} */}
       {location.pathname.includes("/kpi/opportunities") && <KanbanBoard />}
 
       {/* 3. INBOX (Default) */}

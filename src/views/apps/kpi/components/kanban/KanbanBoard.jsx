@@ -29,6 +29,8 @@ import {
   createUserKanban,
   moveUserKanban,
   updateKanban,
+  deleteKanban,
+  deleteUserKanban,
   reorderKanbans,
 } from "../../../../../redux/actions/kanban";
 import "./kanban.scss";
@@ -40,128 +42,6 @@ class KanbanBoard extends React.Component {
     newColumnColor: "#60a5fa",
     selectedCard: null,
     isModalOpen: false,
-    cards: [
-      {
-        id: 1,
-        kanban_id: 1,
-        type: "Autre",
-        name: "Paul Gueutal",
-        amount: 0,
-        isStarred: false,
-        date: "2026-01-28",
-        hour: "09:30",
-      },
-      {
-        id: 2,
-        kanban_id: 1,
-        type: "Autre",
-        name: "Nicolas Gomart",
-        amount: 0,
-        isStarred: false,
-        date: "2026-01-28",
-        hour: "10:15",
-      },
-      {
-        id: 3,
-        kanban_id: 1,
-        type: "Autre",
-        name: "Chetrit",
-        amount: 0,
-        isStarred: false,
-        date: "2026-01-28",
-        hour: "11:00",
-      },
-      {
-        id: 4,
-        kanban_id: 1,
-        type: "Autre",
-        name: "Pascal Gilly",
-        amount: 0,
-        isStarred: false,
-        date: "2026-01-28",
-        hour: "14:20",
-      },
-      {
-        id: 5,
-        kanban_id: 2,
-        type: "Bilan",
-        name: "M. Martin",
-        amount: 2800,
-        isStarred: false,
-        date: "2026-01-27",
-        hour: "16:45",
-      },
-      {
-        id: 6,
-        kanban_id: 3,
-        type: "Entreprise",
-        name: "Sarl Dupuis",
-        amount: 4500,
-        isStarred: false,
-        date: "2026-01-26",
-        hour: "13:10",
-      },
-      {
-        id: 7,
-        kanban_id: 1,
-        type: "Bilan",
-        name: "Sophie Laurent",
-        amount: 3200,
-        isStarred: true,
-        date: "2026-03-15",
-        hour: "14:00",
-      },
-      {
-        id: 8,
-        kanban_id: 2,
-        type: "Particulier",
-        name: "Jean Dubois",
-        amount: 1800,
-        isStarred: false,
-        date: "2026-03-22",
-        hour: "10:30",
-      },
-      {
-        id: 9,
-        kanban_id: 2,
-        type: "Entreprise",
-        name: "EURL Techno",
-        amount: 5600,
-        isStarred: false,
-        date: "2026-04-10",
-        hour: "16:00",
-      },
-      {
-        id: 10,
-        kanban_id: 3,
-        type: "Bilan",
-        name: "Marie Fontaine",
-        amount: 2100,
-        isStarred: true,
-        date: "2026-04-18",
-        hour: "09:15",
-      },
-      {
-        id: 11,
-        kanban_id: 1,
-        type: "Particulier",
-        name: "Pierre Moreau",
-        amount: 950,
-        isStarred: false,
-        date: "2026-05-05",
-        hour: "11:45",
-      },
-      {
-        id: 12,
-        kanban_id: 3,
-        type: "Entreprise",
-        name: "SAS Innovation",
-        amount: 7800,
-        isStarred: false,
-        date: "2026-05-20",
-        hour: "15:30",
-      },
-    ],
   };
 
   componentDidMount() {
@@ -170,24 +50,61 @@ class KanbanBoard extends React.Component {
   }
 
   getCardsForColumn = (columnId) => {
-    const { kanbans } = this.props;
-    const { cards } = this.state;
-    
-    // Trouver l'index de la colonne actuelle dans les vrais kanbans
-    const columnIndex = kanbans.findIndex(k => k.id === columnId);
-    if (columnIndex === -1) return [];
-    
-    // Mapper les cartes mock (qui utilisent kanban_id 1,2,3) aux vrais kanbans par ordre
-    // kanban_id 1 -> première colonne, kanban_id 2 -> deuxième colonne, etc.
-    return cards.filter((card) => {
-      const mockKanbanIndex = card.kanban_id - 1; // Convertir l'ID mock en index (1->0, 2->1, 3->2)
-      return mockKanbanIndex === columnIndex;
-    });
+    const { userKanbans } = this.props;
+
+    if (!userKanbans || userKanbans.length === 0) return [];
+
+    // Filtrer les userKanbans par kanban_id et mapper au format attendu par KanbanCard
+    return userKanbans
+      .filter((userKanban) => userKanban.kanban_id === columnId)
+      .map((userKanban) => {
+        // Extraire la date au format YYYY-MM-DD depuis l'ISO string
+        let formattedDate = userKanban.date;
+        if (userKanban.date && userKanban.date.includes("T")) {
+          formattedDate = userKanban.date.split("T")[0];
+        }
+
+        // Extraire l'heure au format HH:MM (sans les secondes)
+        let formattedHour = userKanban.hour;
+        if (userKanban.hour && userKanban.hour.length > 5) {
+          formattedHour = userKanban.hour.substring(0, 5);
+        }
+
+        return {
+          id: userKanban.id,
+          type: "Autre", // Valeur par défaut (peut être enrichi plus tard)
+          name: userKanban.user?.name || "Utilisateur inconnu",
+          amount: 0, // Pas de montant dans le modèle backend actuel
+          isStarred: false, // Pas de favoris dans le modèle backend actuel
+          date: formattedDate,
+          hour: formattedHour,
+          description: userKanban.description,
+          status: userKanban.status,
+          user_id: userKanban.user_id,
+          kanban_id: userKanban.kanban_id,
+        };
+      });
   };
 
   getDefaultColor = (color) => {
     // Si pas de couleur, retourner bleu par défaut
     return color || "#60a5fa";
+  };
+
+  getRandomColor = () => {
+    // Palette de couleurs
+    const colorPalette = [
+      "#facc15", // Jaune
+      "#60a5fa", // Bleu
+      "#a78bfa", // Violet
+      "#4ade80", // Vert
+      "#f472b6", // Rose
+      "#fb923c", // Orange
+      "#f87171", // Rouge
+      "#22d3ee", // Cyan
+    ];
+    // Retourner une couleur aléatoire
+    return colorPalette[Math.floor(Math.random() * colorPalette.length)];
   };
 
   handleAddCard = (columnId) => {
@@ -200,9 +117,8 @@ class KanbanBoard extends React.Component {
     this.props.updateUserKanban(card.id, updatedCard);
   };
 
-  handleMenuClick = (card) => {
-    console.log("Menu pour:", card);
-    // TODO: Implémenter le menu d'actions
+  handleDeleteCard = (card) => {
+    this.props.deleteUserKanban(card.id);
   };
 
   handleCardClick = (card) => {
@@ -270,8 +186,15 @@ class KanbanBoard extends React.Component {
     this.props.updateKanban(columnId, { color: newColor });
   };
 
+  handleDeleteColumn = (columnId) => {
+    this.props.deleteKanban(columnId);
+  };
+
   handleStartCreateColumn = () => {
-    this.setState({ isCreatingColumn: true });
+    this.setState({
+      isCreatingColumn: true,
+      newColumnColor: this.getRandomColor(),
+    });
   };
 
   handleCancelCreateColumn = () => {
@@ -374,13 +297,16 @@ class KanbanBoard extends React.Component {
                           cards={this.getCardsForColumn(column.id)}
                           onAddCard={() => this.handleAddCard(column.id)}
                           onStarClick={this.handleStarClick}
-                          onMenuClick={this.handleMenuClick}
+                          onDeleteClick={this.handleDeleteCard}
                           onCardClick={this.handleCardClick}
                           onEditTitle={(newTitle) =>
                             this.handleEditColumnTitle(column.id, newTitle)
                           }
                           onEditColor={(newColor) =>
                             this.handleEditColumnColor(column.id, newColor)
+                          }
+                          onDelete={(columnId) =>
+                            this.handleDeleteColumn(columnId)
                           }
                           dragHandleProps={provided.dragHandleProps}
                           isDragging={snapshot.isDragging}
@@ -621,5 +547,7 @@ export default connect(mapStateToProps, {
   createUserKanban,
   moveUserKanban,
   updateKanban,
+  deleteKanban,
+  deleteUserKanban,
   reorderKanbans,
 })(KanbanBoard);

@@ -1,9 +1,19 @@
 import React from "react";
 import { Card, CardBody, Badge } from "reactstrap";
-import { Star, MoreVertical, Calendar, Clock } from "react-feather";
+import { Star, MoreVertical, Calendar, Clock, Trash2 } from "react-feather";
+import SweetAlert from "react-bootstrap-sweetalert";
 import "./kanban.scss";
 
 class KanbanCard extends React.Component {
+  state = {
+    Alert: false,
+  };
+
+  handleDeleteClick = (e) => {
+    e.stopPropagation();
+    this.setState({ Alert: true });
+  };
+
   getBadgeColor = (type) => {
     const colors = {
       autre: "light-secondary",
@@ -78,93 +88,120 @@ class KanbanCard extends React.Component {
   };
 
   render() {
-    const { card, onStarClick, onMenuClick, onCardClick } = this.props;
+    const { card, onStarClick, onDeleteClick, onCardClick } = this.props;
     const { type, name, amount, deadline, isStarred, date, hour } = card;
     const overdue = this.isOverdue(date, hour);
+    const { Alert } = this.state;
 
     return (
-      <Card
-        className="kanban-card mb-1"
-        onClick={(e) => {
-          // Ne pas ouvrir la modale si on clique sur l'étoile ou le menu
-          if (
-            e.target.closest(".cursor-pointer") &&
-            (e.target.closest("svg") || e.target.tagName === "svg")
-          ) {
-            return;
-          }
-          onCardClick && onCardClick(card);
-        }}
-      >
-        <CardBody className="p-75">
-          <div className="d-flex justify-content-between align-items-start mb-50">
-            <Badge
-              color={this.getBadgeColor(type)}
-              pill
-              className="text-capitalize font-small-2"
-            >
-              {type || "Autre"}
-            </Badge>
-            <div className="d-flex align-items-center">
-              <Star
-                size={16}
-                className={`cursor-pointer mr-50 ${isStarred ? "text-warning fill-warning" : "text-muted"}`}
-                onClick={() => onStarClick && onStarClick(card)}
-              />
-              <MoreVertical
-                size={16}
-                className="cursor-pointer text-muted"
-                onClick={() => onMenuClick && onMenuClick(card)}
-              />
-            </div>
-          </div>
-
-          <h5 className="mb-50 font-weight-bold text-dark">{name}</h5>
-
-          <div className="d-flex justify-content-between align-items-center">
-            <h4 className="mb-0 font-weight-bold text-primary">
-              {this.formatAmount(amount || 0)}
-            </h4>
-            <div
-              className="rounded-circle d-flex align-items-center justify-content-center"
-              style={{
-                width: "32px",
-                height: "32px",
-                backgroundColor: this.getInitialsBgColor(name),
-                color: "#fff",
-                fontSize: "0.75rem",
-                fontWeight: "600",
-              }}
-            >
-              {this.getInitials(name)}
-            </div>
-          </div>
-
-          {date && hour && (
-            <div className="mt-75 d-flex align-items-center">
-              <Clock
-                size={13}
-                className={`mr-50 ${overdue ? "text-danger" : "text-muted"}`}
-              />
-              <span
-                className={`font-small-2 ${overdue ? "text-danger font-weight-bold" : "text-muted"}`}
+      <>
+        <SweetAlert
+          warning
+          title="Êtes-vous certain ?"
+          show={Alert}
+          onConfirm={() => {
+            this.setState({ Alert: false });
+            if (onDeleteClick) {
+              onDeleteClick(card);
+            }
+          }}
+          onCancel={() => {
+            this.setState({ Alert: false });
+          }}
+          showCancel
+          confirmBtnText="Oui, supprimer"
+          cancelBtnText="Annuler"
+        >
+          <p className="sweet-alert-text">
+            Supprimer le rendez-vous de <strong>{name}</strong> ?
+          </p>
+          <p style={{ color: "#666", marginTop: "8px" }}>
+            Cette action est irréversible.
+          </p>
+        </SweetAlert>
+        <Card
+          className="kanban-card mb-1"
+          onClick={(e) => {
+            // Ne pas ouvrir la modale si on clique sur l'étoile ou le menu
+            if (
+              e.target.closest(".cursor-pointer") &&
+              (e.target.closest("svg") || e.target.tagName === "svg")
+            ) {
+              return;
+            }
+            onCardClick && onCardClick(card);
+          }}
+        >
+          <CardBody className="p-75">
+            <div className="d-flex justify-content-between align-items-start mb-50">
+              <Badge
+                color={this.getBadgeColor(type)}
+                pill
+                className="text-capitalize font-small-2"
               >
-                {overdue && "⚠️ "}
-                {this.formatDateTime(date, hour)}
-              </span>
+                {type || "Autre"}
+              </Badge>
+              <div className="d-flex align-items-center">
+                <Star
+                  size={16}
+                  className={`cursor-pointer mr-50 ${isStarred ? "text-warning fill-warning" : "text-muted"}`}
+                  onClick={() => onStarClick && onStarClick(card)}
+                />
+                <Trash2
+                  size={14}
+                  className="cursor-pointer text-danger"
+                  onClick={this.handleDeleteClick}
+                />
+              </div>
             </div>
-          )}
 
-          {deadline && (
-            <div className="mt-50 d-flex align-items-center">
-              <Calendar size={14} className="text-danger mr-50" />
-              <span className="text-danger font-small-2 font-weight-bold">
-                {deadline}
-              </span>
+            <h5 className="mb-50 font-weight-bold text-dark">{name}</h5>
+
+            <div className="d-flex justify-content-between align-items-center">
+              <h4 className="mb-0 font-weight-bold text-primary">
+                {this.formatAmount(amount || 0)}
+              </h4>
+              <div
+                className="rounded-circle d-flex align-items-center justify-content-center"
+                style={{
+                  width: "32px",
+                  height: "32px",
+                  backgroundColor: this.getInitialsBgColor(name),
+                  color: "#fff",
+                  fontSize: "0.75rem",
+                  fontWeight: "600",
+                }}
+              >
+                {this.getInitials(name)}
+              </div>
             </div>
-          )}
-        </CardBody>
-      </Card>
+
+            {date && hour && (
+              <div className="mt-75 d-flex align-items-center">
+                <Clock
+                  size={13}
+                  className={`mr-50 ${overdue ? "text-danger" : "text-muted"}`}
+                />
+                <span
+                  className={`font-small-2 ${overdue ? "text-danger font-weight-bold" : "text-muted"}`}
+                >
+                  {overdue && "⚠️ "}
+                  {this.formatDateTime(date, hour)}
+                </span>
+              </div>
+            )}
+
+            {deadline && (
+              <div className="mt-50 d-flex align-items-center">
+                <Calendar size={14} className="text-danger mr-50" />
+                <span className="text-danger font-small-2 font-weight-bold">
+                  {deadline}
+                </span>
+              </div>
+            )}
+          </CardBody>
+        </Card>
+      </>
     );
   }
 }

@@ -50,7 +50,7 @@ export const updateKanban = (id, data) => {
         type: "UPDATE_KANBAN",
         payload: response.data,
       });
-      toast.success("Colonne mise à jour");
+      // toast.success("Colonne mise à jour");
       dispatch(getKanbans());
     } catch (error) {
       toast.error("Erreur lors de la mise à jour");

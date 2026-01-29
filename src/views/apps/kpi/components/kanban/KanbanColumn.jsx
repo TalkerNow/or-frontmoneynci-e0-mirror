@@ -1,7 +1,8 @@
 import React from "react";
 import { Card, CardHeader, CardBody, Button, Input } from "reactstrap";
-import { Plus, Edit2, Check, X, Droplet, Move } from "react-feather";
+import { Plus, Edit2, Check, X, Droplet, Move, Trash2 } from "react-feather";
 import { Droppable, Draggable } from "react-beautiful-dnd";
+import SweetAlert from "react-bootstrap-sweetalert";
 import KanbanCard from "./KanbanCard";
 import "./kanban.scss";
 
@@ -10,6 +11,8 @@ class KanbanColumn extends React.Component {
     isEditingTitle: false,
     editedTitle: this.props.title,
     showColorPicker: false,
+    Alert: false,
+    delete_id: null,
   };
 
   colorPalette = [
@@ -65,6 +68,12 @@ class KanbanColumn extends React.Component {
     }
     this.setState({ showColorPicker: false });
   };
+
+  handleDeleteColumn = (e) => {
+    e.stopPropagation();
+    this.setState({ delete_id: this.props.column.id, Alert: true });
+  };
+
   getColumnColor = () => {
     // Utilise la couleur passée en prop, avec fallback sur bleu
     return this.props.color || "#60a5fa";
@@ -100,12 +109,13 @@ class KanbanColumn extends React.Component {
       cards,
       onAddCard,
       onStarClick,
-      onMenuClick,
+      onDeleteClick,
       onCardClick,
       dragHandleProps,
       isDragging,
     } = this.props;
-    const { isEditingTitle, editedTitle, showColorPicker } = this.state;
+    const { isEditingTitle, editedTitle, showColorPicker, Alert, delete_id } =
+      this.state;
     const color = this.getColumnColor();
     const badgeColor = this.getColumnBadgeColor(title);
     const total = this.calculateTotal();
@@ -113,6 +123,39 @@ class KanbanColumn extends React.Component {
 
     return (
       <div className="kanban-column" style={{ position: "relative" }}>
+        <SweetAlert
+          warning
+          title="Êtes-vous certain ?"
+          show={Alert}
+          onConfirm={() => {
+            this.setState({ Alert: false });
+            if (this.props.onDelete) {
+              this.props.onDelete(delete_id);
+            }
+          }}
+          onCancel={() => {
+            this.setState({ Alert: false });
+          }}
+          showCancel
+          confirmBtnText="Oui, supprimer"
+          cancelBtnText="Annuler"
+        >
+          <p className="sweet-alert-text">
+            Supprimer la colonne: <strong>{title}</strong>
+          </p>
+          <p
+            style={{ color: "#dc3545", fontWeight: "bold", marginTop: "15px" }}
+          >
+            ⚠️ Attention:
+          </p>
+          <p style={{ color: "#666", marginTop: "8px" }}>
+            Cette action supprimera aussi les{" "}
+            <strong>{count} rendez-vous</strong> associés à cette colonne.
+          </p>
+          <p style={{ color: "#666", marginTop: "8px" }}>
+            Cette action est irréversible.
+          </p>
+        </SweetAlert>
         <Card
           className="mb-0 shadow-sm"
           style={{
@@ -208,6 +251,12 @@ class KanbanColumn extends React.Component {
                       onClick={this.toggleColorPicker}
                       title="Changer la couleur"
                       style={{ fill: color, color: color }}
+                    />
+                    <Trash2
+                      size={14}
+                      className="text-danger cursor-pointer mr-50"
+                      onClick={this.handleDeleteColumn}
+                      title="Supprimer la colonne"
                     />
                     <span
                       className={`badge badge-light-${badgeColor} badge-pill font-small-3`}
@@ -313,7 +362,7 @@ class KanbanColumn extends React.Component {
                           <KanbanCard
                             card={card}
                             onStarClick={onStarClick}
-                            onMenuClick={onMenuClick}
+                            onDeleteClick={onDeleteClick}
                             onCardClick={onCardClick}
                           />
                         </div>

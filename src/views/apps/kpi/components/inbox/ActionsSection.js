@@ -8,11 +8,13 @@ import {
   Briefcase,
   User,
   Plus,
+  Calendar,
 } from "lucide-react";
 import SweetAlert from "react-bootstrap-sweetalert";
 
 import { getTaskText } from "./utils";
 import ProspectCreateModal from "./ProspectCreateModal";
+import CreateUserKanbanModal from "../kanban/users-kanbans/CreateUserKanbanModal";
 import ActivityList from "./ActivityList";
 
 const ActionsSection = ({
@@ -31,6 +33,9 @@ const ActionsSection = ({
 
   // Create Prospect Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // Create User Kanban Modal State
+  const [showKanbanModal, setShowKanbanModal] = useState(false);
 
   // Local state for prospect creation result
   const [localClientId, setLocalClientId] = useState(null);
@@ -566,17 +571,30 @@ const ActionsSection = ({
         </button>
 
         {ownerId && (
-          <button
-            style={{
-              ...iconButtonStyle(false),
-              color: "#059669",
-              backgroundColor: "#d1fae5",
-            }}
-            onClick={() => routerHistory.push(`/app/user/edit/${ownerId}/2`)}
-            title="Voir le profil complet"
-          >
-            <User size={20} />
-          </button>
+          <>
+            <button
+              style={{
+                ...iconButtonStyle(false),
+                color: "#059669",
+                backgroundColor: "#d1fae5",
+              }}
+              onClick={() => routerHistory.push(`/app/user/edit/${ownerId}/2`)}
+              title="Voir le profil complet"
+            >
+              <User size={20} />
+            </button>
+            <button
+              style={{
+                ...iconButtonStyle(false),
+                color: "#7c3aed",
+                backgroundColor: "#ede9fe",
+              }}
+              onClick={() => setShowKanbanModal(true)}
+              title="Ajouter au Kanban"
+            >
+              <Calendar size={20} />
+            </button>
+          </>
         )}
       </div>
 
@@ -690,6 +708,18 @@ const ActionsSection = ({
           Êtes-vous sûr de vouloir supprimer cet élément ?
         </p>
       </SweetAlert>
+
+      {/* Create User Kanban Modal */}
+      <CreateUserKanbanModal
+        isOpen={showKanbanModal}
+        onClose={() => setShowKanbanModal(false)}
+        userId={ownerId}
+        onSuccess={() => {
+          console.log("✅ Rendez-vous Kanban créé avec succès");
+          setShowKanbanModal(false);
+          // Optionnel: recharger les données si nécessaire
+        }}
+      />
     </div>
   );
 };
