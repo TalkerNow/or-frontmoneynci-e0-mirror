@@ -352,7 +352,6 @@ class OldClientsList extends React.Component {
       .get(global.config.server_url + "/users?kind=oldclient", Config)
       .then((response) => {
         let rowData = response.data;
-        console.log(rowData);
         this.setState({ rowData });
       });
   }

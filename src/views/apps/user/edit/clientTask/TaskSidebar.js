@@ -600,7 +600,6 @@ class FilterSidebar extends React.Component {
                     color="light"
                     outline
                     onClick={() => {
-                      console.log("ici");
                       this.props.addTask("close");
                       this.setState({
                         newTask: {

@@ -209,7 +209,9 @@ class MembersList extends React.Component {
     await axios
       .get(global.config.server_url + "/users?kind=member", Config)
       .then((response) => {
-        let rowData = response.data;
+        let rowData = (response.data || []).filter(
+          (user) => (user.role || "").toLowerCase() !== "prospect",
+        );
         this.setState({ rowData });
       });
   }
