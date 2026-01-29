@@ -1,41 +1,25 @@
 import React from "react";
-import Sidebar from "react-sidebar";
-import { ContextLayout } from "../../../../../utility/context/Layout";
-import FilterSidebar from "./FilterSidebar";
+import ClientTaskNavbar from "./ClientTaskNavbar";
 import TaskList from "./TaskList";
 import TaskSidebar from "./TaskSidebar";
 import "../../../../../assets/scss/pages/app-todo.scss";
 import axios from "axios";
-const mql = window.matchMedia(`(min-width: 992px)`);
 
 class TODO extends React.Component {
   _isMounted = false;
 
   state = {
     addTask: false,
-    sidebarDocked: mql.matches,
-    sidebarOpen: false,
     taskToUpdate: null,
     prevState: null,
     customer: null,
     role: localStorage.getItem("role"),
+    searchQuery: "",
   };
-  UNSAFE_componentWillMount() {
-    mql.addListener(this.mediaQueryChanged);
-  }
 
   componentWillUnmount() {
     this._isMounted = false;
-    mql.removeListener(this.mediaQueryChanged);
   }
-
-  onSetSidebarOpen = (open) => {
-    this.setState({ sidebarOpen: open });
-  };
-
-  mediaQueryChanged = () => {
-    this.setState({ sidebarDocked: mql.matches, sidebarOpen: false });
-  };
 
   handleAddTask = (status) => {
     status === "open"
@@ -55,6 +39,11 @@ class TODO extends React.Component {
       prevState: arr,
     });
   };
+
+  handleSearch = (query) => {
+    this.setState({ searchQuery: query });
+  }
+
   async componentDidMount() {
     this._isMounted = true;
     const Config = {
@@ -75,57 +64,46 @@ class TODO extends React.Component {
   }
   render() {
     return (
-      <div className="todo-application position-relative">
+      <div
+        className="todo-application w-100 bg-white d-flex flex-column"
+        style={{ height: '100%', border: 'none', borderRadius: 0, boxShadow: 'none' }}
+      >
         {(this.state.role === "admin" || this.state.role === "Expert") && (
           <div
-            className={`app-content-overlay ${
-              this.state.addTask || this.state.sidebarOpen ? "show" : ""
-            }`}
+            className={`app-content-overlay ${this.state.addTask ? "show" : ""
+              }`}
             onClick={() => {
               this.handleAddTask("close");
-              this.onSetSidebarOpen(false);
             }}
           />
         )}
-        {console.log(this.state.customer)}
-        <ContextLayout.Consumer>
-          {(context) => (
-            <Sidebar
-              sidebar={
-                <FilterSidebar
-                  customer={this.state.customer}
-                  id={this.props.match.params.id}
-                  routerProps={this.props}
-                  addTask={this.handleAddTask}
-                  mainSidebar={this.onSetSidebarOpen}
-                />
-              }
-              docked={this.state.sidebarDocked}
-              open={this.state.sidebarOpen}
-              sidebarClassName="sidebar-content todo-sidebar d-flex"
-              touch={false}
-              contentClassName="sidebar-children d-none"
-              pullRight={context.state.direction === "rtl"}
-            >
-              ""
-            </Sidebar>
-          )}
-        </ContextLayout.Consumer>
-        <TaskList
+
+        <ClientTaskNavbar
+          id={this.props.match.params.id}
           routerProps={this.props}
-          handleUpdateTask={this.handleUpdateTask}
-          mainSidebar={this.onSetSidebarOpen}
-          prevState={this.state.prevState}
-        />
-        <TaskSidebar
-          customer_id={this.props.match.params.id}
           addTask={this.handleAddTask}
-          addTaskState={this.state.addTask}
-          taskToUpdate={this.state.taskToUpdate}
-          newTask={this.state.newTask}
-          mainSidebar={this.onSetSidebarOpen}
-          handleUndoChanges={this.handleUndoChanges}
+          embedded={this.props.embedded}
+          onSearch={this.handleSearch}
         />
+
+        <div className="flex-grow-1 overflow-hidden">
+          <TaskList
+            routerProps={this.props}
+            handleUpdateTask={this.handleUpdateTask}
+            prevState={this.state.prevState}
+            searchQuery={this.state.searchQuery}
+            embedded={this.props.embedded}
+            addTask={this.handleAddTask}
+          />
+        </div>
+          <TaskSidebar
+            receivers={this.state.customer ? [{ value: this.state.customer.id, label: this.state.customer.first_name + " " + this.state.customer.last_name, subscribe_services: this.state.customer.subscribe_services }] : []}
+            addTask={this.handleAddTask}
+            addTaskState={this.state.addTask}
+            taskToUpdate={this.state.taskToUpdate}
+            newTask={this.state.newTask}
+            handleUndoChanges={this.handleUndoChanges}
+          />
       </div>
     );
   }

@@ -5,8 +5,19 @@ import { X, Layers, Star, Info, Check, ArrowLeft } from "react-feather";
 import { connect } from "react-redux";
 import { changeFilter } from "../../../../../redux/actions/client-todo/index";
 import { history } from "../../../../../history";
+
 class FilterSidebar extends React.Component {
   render() {
+    const { routeParam } = this.props;
+    // Determine the current active filter from Redux state OR router params
+    const reduxFilter =
+      typeof routeParam === "object" && routeParam !== null
+        ? routeParam.filter
+        : routeParam;
+
+    // Fallback to router params (standard behavior) or default to 'all'
+    const activeFilter = reduxFilter || this.props.routerProps.match.params.filter || "all";
+
     return (
       <React.Fragment>
         <span
@@ -44,19 +55,21 @@ class FilterSidebar extends React.Component {
                 </div>
               </>
             )}
-            <Button.Ripple
-              block
-              className="btn-block my-1"
-              color="primary"
-              onClick={() => {
-                history.push("/app/user/edit/" + this.props.id + "/2");
-              }}
-              aria-label="Retour"
-              title="Retour"
-            >
-              <ArrowLeft size={16} className="mr-50" />
-              Retour
-            </Button.Ripple>
+            {!this.props.embedded && (
+              <Button.Ripple
+                block
+                className="btn-block my-1"
+                color="primary"
+                onClick={() => {
+                  history.push("/app/user/edit/" + this.props.id + "/2");
+                }}
+                aria-label="Retour"
+                title="Retour"
+              >
+                <ArrowLeft size={16} className="mr-50" />
+                Retour
+              </Button.Ripple>
+            )}
             <Button.Ripple
               block
               className="btn-block my-1"
@@ -80,14 +93,9 @@ class FilterSidebar extends React.Component {
                 className="border-0 pt-0"
                 action
                 onClick={() => {
-                  this.props.changeFilter(this.props.id, "all");
+                  this.props.changeFilter(this.props.id, "all", this.props.embedded);
                 }}
-                active={
-                  this.props.routerProps.location.pathname ===
-                    "/app/user/task/" + this.props.id + "/all"
-                    ? true
-                    : false
-                }
+                active={activeFilter === "all"}
               >
                 <Layers size={22} />
                 <span className="align-middle ml-1">Tout</span>
@@ -99,14 +107,9 @@ class FilterSidebar extends React.Component {
               <ListGroupItem
                 className="border-0"
                 onClick={() => {
-                  this.props.changeFilter(this.props.id, "unread");
+                  this.props.changeFilter(this.props.id, "unread", this.props.embedded);
                 }}
-                active={
-                  this.props.routerProps.location.pathname ===
-                    "/app/user/task/" + this.props.id + "/unread"
-                    ? true
-                    : false
-                }
+                active={activeFilter === "unread"}
               >
                 <Star size={22} />
                 <span className="align-middle ml-1">Non lu</span>
@@ -114,14 +117,9 @@ class FilterSidebar extends React.Component {
               <ListGroupItem
                 className="border-0"
                 onClick={() => {
-                  this.props.changeFilter(this.props.id, "important");
+                  this.props.changeFilter(this.props.id, "important", this.props.embedded);
                 }}
-                active={
-                  this.props.routerProps.location.pathname ===
-                    "/app/user/task/" + this.props.id + "/important"
-                    ? true
-                    : false
-                }
+                active={activeFilter === "important"}
               >
                 <Info size={22} />
                 <span className="align-middle ml-1">Important</span>
@@ -129,32 +127,13 @@ class FilterSidebar extends React.Component {
               <ListGroupItem
                 className="border-0"
                 onClick={() => {
-                  this.props.changeFilter(this.props.id, "completed");
+                  this.props.changeFilter(this.props.id, "completed", this.props.embedded);
                 }}
-                active={
-                  this.props.routerProps.location.pathname ===
-                    "/app/user/task/" + this.props.id + "/completed"
-                    ? true
-                    : false
-                }
+                active={activeFilter === "completed"}
               >
                 <Check size={22} />
                 <span className="align-middle ml-1">Terminé</span>
               </ListGroupItem>
-              {/*<ListGroupItem*/}
-              {/*    className="border-0"*/}
-              {/*    onClick={() => {*/}
-              {/*      this.props.changeFilter("trashed")*/}
-              {/*    }}*/}
-              {/*    active={*/}
-              {/*      this.props.routerProps.location.pathname === "/task/trashed"*/}
-              {/*          ? true*/}
-              {/*          : false*/}
-              {/*    }*/}
-              {/*>*/}
-              {/*  <Trash size={22} />*/}
-              {/*  <span className="align-middle ml-1">Trashed</span>*/}
-              {/*</ListGroupItem>*/}
             </ListGroup>
             <hr />
             <h5 className="mt-2 mb-1 pt-25">Labels</h5>
@@ -162,14 +141,9 @@ class FilterSidebar extends React.Component {
               <ListGroupItem
                 className="border-0"
                 onClick={() => {
-                  this.props.changeFilter(this.props.id, "relance_caisse");
+                  this.props.changeFilter(this.props.id, "relance_caisse", this.props.embedded);
                 }}
-                active={
-                  this.props.routerProps.location.pathname ===
-                    "/app/user/task/" + this.props.id + "/relance_caisse"
-                    ? true
-                    : false
-                }
+                active={activeFilter === "relance_caisse"}
               >
                 <span className="bullet bullet-primary align-middle" />
                 <span className="align-middle ml-1">Relance caisse</span>
@@ -177,14 +151,9 @@ class FilterSidebar extends React.Component {
               <ListGroupItem
                 className="border-0"
                 onClick={() => {
-                  this.props.changeFilter(this.props.id, "relance_client");
+                  this.props.changeFilter(this.props.id, "relance_client", this.props.embedded);
                 }}
-                active={
-                  this.props.routerProps.location.pathname ===
-                    "/app/user/task/" + this.props.id + "/relance_client"
-                    ? true
-                    : false
-                }
+                active={activeFilter === "relance_client"}
               >
                 <span className="bullet bullet-warning align-middle" />
                 <span className="align-middle ml-1">Relance client</span>
@@ -192,14 +161,9 @@ class FilterSidebar extends React.Component {
               <ListGroupItem
                 className="border-0"
                 onClick={() => {
-                  this.props.changeFilter(this.props.id, "envoi_caisse");
+                  this.props.changeFilter(this.props.id, "envoi_caisse", this.props.embedded);
                 }}
-                active={
-                  this.props.routerProps.location.pathname ===
-                    "/app/user/task/" + this.props.id + "/envoi_caisse"
-                    ? true
-                    : false
-                }
+                active={activeFilter === "envoi_caisse"}
               >
                 <span className="bullet bullet-success align-middle" />
                 <span className="align-middle ml-1">Envoi caisse</span>
@@ -207,14 +171,9 @@ class FilterSidebar extends React.Component {
               <ListGroupItem
                 className="border-0"
                 onClick={() => {
-                  this.props.changeFilter(this.props.id, "envoi_client");
+                  this.props.changeFilter(this.props.id, "envoi_client", this.props.embedded);
                 }}
-                active={
-                  this.props.routerProps.location.pathname ===
-                    "/app/user/task/" + this.props.id + "/envoi_client"
-                    ? true
-                    : false
-                }
+                active={activeFilter === "envoi_client"}
               >
                 <span className="bullet bullet-danger align-middle" />
                 <span className="align-middle ml-1">Envoi client</span>
@@ -222,14 +181,9 @@ class FilterSidebar extends React.Component {
               <ListGroupItem
                 className="border-0"
                 onClick={() => {
-                  this.props.changeFilter(this.props.id, "appel_client");
+                  this.props.changeFilter(this.props.id, "appel_client", this.props.embedded);
                 }}
-                active={
-                  this.props.routerProps.location.pathname ===
-                    "/app/user/task/" + this.props.id + "/appel_client"
-                    ? true
-                    : false
-                }
+                active={activeFilter === "appel_client"}
               >
                 <span className="bullet bullet-info align-middle" />
                 <span className="align-middle ml-1">Appel client</span>
@@ -237,14 +191,9 @@ class FilterSidebar extends React.Component {
               <ListGroupItem
                 className="border-0"
                 onClick={() => {
-                  this.props.changeFilter(this.props.id, "appel_caisse");
+                  this.props.changeFilter(this.props.id, "appel_caisse", this.props.embedded);
                 }}
-                active={
-                  this.props.routerProps.location.pathname ===
-                    "/app/user/task/" + this.props.id + "/appel_caisse"
-                    ? true
-                    : false
-                }
+                active={activeFilter === "appel_caisse"}
               >
                 <span className="bullet bullet-primary align-middle" />
                 <span className="align-middle ml-1">Appel caisse</span>
@@ -257,4 +206,10 @@ class FilterSidebar extends React.Component {
   }
 }
 
-export default connect(null, { changeFilter })(FilterSidebar);
+const mapStateToProps = (state) => {
+  return {
+    routeParam: state.todoApp.todo.routeParam,
+  };
+};
+
+export default connect(mapStateToProps, { changeFilter })(FilterSidebar);

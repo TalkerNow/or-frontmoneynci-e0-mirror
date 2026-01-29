@@ -13,9 +13,13 @@ import {
   InputGroup,
   InputGroupAddon,
   InputGroupText,
+  Modal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
 } from "reactstrap";
 import ReactCountryFlag from "react-country-flag";
-import { User, Home, Briefcase, Heart, Plus, Minus } from "react-feather";
+import { User, Home, Briefcase, Heart, Plus, Minus, AlertTriangle } from "react-feather";
 import "flatpickr/dist/themes/light.css";
 import "../../../../assets/scss/plugins/forms/flatpickr/flatpickr.scss";
 import InputMaskDate from "./InputMaskDate";
@@ -71,6 +75,9 @@ class UserAccountTab extends React.Component {
     showAddress2: !!this.props.data.personal_address_2,
     showSociety: !!this.props.data.society_name,
     showSocietyAddress2: !!this.props.data.society_address_2,
+
+    // Modal State
+    modalSocietyDelete: false,
   };
 
   markDirty = () => {
@@ -220,19 +227,19 @@ class UserAccountTab extends React.Component {
           role: information.role
             ? information.role
             : this.props.data.role
-            ? this.props.data.role
-            : "Client",
+              ? this.props.data.role
+              : "Client",
           p_password: information.p_password,
           status: information.status
             ? information.status
             : this.props.data.status
-            ? this.props.data.status
-            : "En attente",
+              ? this.props.data.status
+              : "En attente",
           status_fa: information.status_fa
             ? information.status_fa
             : this.props.data.status_fa
-            ? this.props.data.status_fa
-            : false,
+              ? this.props.data.status_fa
+              : false,
           parent_id: information.parent_id,
           business_introducer_id: information.business_introducer_id,
         },
@@ -246,8 +253,8 @@ class UserAccountTab extends React.Component {
               civility: information.civility
                 ? information.civility
                 : this.props.data.civility
-                ? this.props.data.civility
-                : "",
+                  ? this.props.data.civility
+                  : "",
               first_name: information.first_name,
               last_name: information.last_name,
               birth_date: information.dob,
@@ -256,8 +263,8 @@ class UserAccountTab extends React.Component {
               martial_status: information.martial_status
                 ? information.martial_status
                 : this.props.data.martial_status
-                ? this.props.data.martial_status
-                : "Célibataire",
+                  ? this.props.data.martial_status
+                  : "Célibataire",
               children_number: information.children_number,
               secu_social: information.secu_social,
               secu_social_key: information.secu_social_key,
@@ -278,8 +285,8 @@ class UserAccountTab extends React.Component {
               military_service: information.military_service
                 ? information.military_service
                 : this.props.data.military_service
-                ? this.props.data.military_service
-                : "oui",
+                  ? this.props.data.military_service
+                  : "oui",
               parent_id: information.parent_id,
               business_introducer_id: information.business_introducer_id,
               notes: information.notes,
@@ -340,6 +347,28 @@ class UserAccountTab extends React.Component {
     e.preventDefault();
     this.updateUsersInformation(this.state);
   };
+
+  // Toggle modal visibility
+  toggleSocietyModal = () => {
+    this.setState({ modalSocietyDelete: !this.state.modalSocietyDelete });
+  };
+
+  // Confirm deletion of society data
+  confirmDeleteSociety = () => {
+    this.setState({
+      showSociety: false,
+      showSocietyAddress2: false,
+      society_name: "",
+      society_address: "",
+      society_address_2: "",
+      society_zip_code: "",
+      society_city: "",
+      society_country: "",
+      modalSocietyDelete: false
+    });
+    this.markDirty();
+  };
+
   render() {
     return (
       <Row>
@@ -546,8 +575,8 @@ class UserAccountTab extends React.Component {
                           placeholder="Numéro de Téléphone"
                           value={this.formatPhonePretty(
                             this.state.contact_number ??
-                              this.ifExist("mobile_number") ??
-                              this.ifExist("office_number")
+                            this.ifExist("mobile_number") ??
+                            this.ifExist("office_number")
                           )}
                           onChange={(e) =>
                             this.setState({
@@ -947,21 +976,6 @@ class UserAccountTab extends React.Component {
                   </CustomInput>
                 </FormGroup>
               </Col>
-              {/* <Col md="6" sm="12">
-                <FormGroup>
-                  <Label for="officenumber">
-                    Numéro de Téléphone de la société
-                  </Label>
-                  <Input
-                    type="text"
-                    id="officenumber"
-                    value={this.formatPhonePretty(this.state.office_number ?? this.ifExist("office_number"))}
-                    placeholder="Numéro de Téléphone de la société"
-                    onChange={(e) => { this.setState({ contact_number: this.normalizePhone(e.target.value) }); this.markDirty(); }}
-                    onBlur={(e) => this.setState({ office_number: this.normalizePhone(e.target.value) })}
-                  />
-                </FormGroup>
-              </Col> */}
               {/* Nombre d’enfants / Nom société */}
               <Col md="6" sm="12">
                 <FormGroup>
@@ -1105,8 +1119,14 @@ class UserAccountTab extends React.Component {
                     inline
                     checked={this.state.showSociety}
                     onChange={(e) => {
-                      this.setState({ showSociety: e.target.checked });
-                      this.markDirty();
+                      if (e.target.checked) {
+                        // Activation
+                        this.setState({ showSociety: true });
+                        this.markDirty();
+                      } else {
+                        // Désactivation -> Demande de confirmation
+                        this.setState({ modalSocietyDelete: true });
+                      }
                     }}
                   >
                     <span className="switch-label">Ajouter une société</span>
@@ -1316,6 +1336,33 @@ class UserAccountTab extends React.Component {
               </Col>
             </Row>
           </Form>
+
+          {/* MODAL DE CONFIRMATION DE SUPPRESSION SOCIÉTÉ */}
+          <Modal
+            isOpen={this.state.modalSocietyDelete}
+            toggle={this.toggleSocietyModal}
+            className="modal-dialog-centered"
+          >
+            <ModalHeader toggle={this.toggleSocietyModal} className="bg-danger text-white">
+              Confirmation de suppression
+            </ModalHeader>
+            <ModalBody className="text-center p-3">
+              <AlertTriangle size={50} className="text-danger mb-2" />
+              <h4>Êtes-vous sûr ?</h4>
+              <p>
+                En décochant cette option, <strong>toutes les données relatives à la société seront effacées</strong> définitivement lors de la sauvegarde.
+              </p>
+            </ModalBody>
+            <ModalFooter>
+              <Button color="secondary" onClick={this.toggleSocietyModal}>
+                Annuler
+              </Button>
+              <Button color="danger" onClick={this.confirmDeleteSociety}>
+                Oui, supprimer les données
+              </Button>
+            </ModalFooter>
+          </Modal>
+
         </Col>
       </Row>
     );
