@@ -1,17 +1,6 @@
 import React from "react";
 import { UserPlus, Trash2, User, Users, Target, Clock } from "react-feather";
-import {
-  Button,
-  Card,
-  CardBody,
-  Input,
-  Row,
-  Col,
-  Nav,
-  NavItem,
-  NavLink,
-  Badge,
-} from "reactstrap";
+import { Button, Card, CardBody, Input, Row, Col, Nav, NavItem, NavLink, Badge } from "reactstrap";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { ContextLayout } from "../../../../utility/context/Layout";
