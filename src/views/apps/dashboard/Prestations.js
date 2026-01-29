@@ -170,7 +170,10 @@ class PrestationStatistics extends React.Component {
     monthb: undefined,
     currentWeek: `W${isoWeekInfo(new Date()).isoWeek}`,
     prestation: null,
-    openYear: false,
+    openYearMonth: false,
+    openYearTrim: false,
+    openYearYear: false,
+    openYearWeek: false,
     openMonth: false,
     openTrim: false,
     openWeek: false,
@@ -282,20 +285,23 @@ class PrestationStatistics extends React.Component {
   }
 
   async getYearData(newYear) {
-    await axios
-      .get(global.config.server_url + "/getPrestation?year=" + newYear, Config)
-      .then((response) => {
-        let responseAsArray = response.data;
-        responseAsArray["En attente"] = Object.entries(
-          responseAsArray["En attente"],
-        );
-        responseAsArray["En cours"] = Object.entries(
-          responseAsArray["En cours"],
-        );
-        responseAsArray["Termine"] = Object.entries(responseAsArray["Termine"]);
-        responseAsArray["Perdu"] = Object.entries(responseAsArray["Perdu"]);
+    const response = await axios.get(
+      global.config.server_url + "/getPrestation?year=" + newYear,
+      Config
+    );
+    let responseAsArray = response.data;
+    responseAsArray["En attente"] = Object.entries(
+      responseAsArray["En attente"],
+    );
+    responseAsArray["En cours"] = Object.entries(
+      responseAsArray["En cours"],
+    );
+    responseAsArray["Termine"] = Object.entries(responseAsArray["Termine"]);
+    responseAsArray["Perdu"] = Object.entries(responseAsArray["Perdu"]);
 
-        this.setState({
+    return new Promise((resolve) => {
+      this.setState(
+        {
           prestation: responseAsArray,
           seriesYW: [
             responseAsArray["En attente"].reduce((acc, elem) => {
@@ -378,8 +384,10 @@ class PrestationStatistics extends React.Component {
             }, 0),
           ],
           year: newYear,
-        });
-      });
+        },
+        resolve
+      );
+    });
   }
 
   async getTrimData(trimester, newYear) {
@@ -509,6 +517,7 @@ class PrestationStatistics extends React.Component {
       ],
       trim: trimester,
       activeTab: "2",
+      year: newYear,
     });
   }
 
@@ -529,6 +538,7 @@ class PrestationStatistics extends React.Component {
       month: FrenchMonth[i],
       monthb: i,
       activeTab: "1",
+      year: newYear,
     });
   }
 
@@ -688,9 +698,9 @@ class PrestationStatistics extends React.Component {
                         valueLabel={String(
                           this.state.year || new Date().getFullYear(),
                         )}
-                        isOpen={this.state.openYear}
+                        isOpen={this.state.openYearMonth}
                         toggle={() =>
-                          this.setState({ openYear: !this.state.openYear })
+                          this.setState({ openYearMonth: !this.state.openYearMonth })
                         }
                         minWidth={70}
                         menuClassName="grid-dropdown-menu"
@@ -703,7 +713,7 @@ class PrestationStatistics extends React.Component {
                               key={y}
                               active={y === this.state.year}
                               onClick={() => {
-                                this.setState({ openYear: false });
+                                this.setState({ openYearMonth: false });
                                 this.getMonthdata(this.state.month, y);
                               }}
                             >
@@ -831,9 +841,9 @@ class PrestationStatistics extends React.Component {
                         valueLabel={String(
                           this.state.year || new Date().getFullYear(),
                         )}
-                        isOpen={this.state.openYear}
+                        isOpen={this.state.openYearTrim}
                         toggle={() =>
-                          this.setState({ openYear: !this.state.openYear })
+                          this.setState({ openYearTrim: !this.state.openYearTrim })
                         }
                         minWidth={70}
                         menuClassName="grid-dropdown-menu"
@@ -846,7 +856,7 @@ class PrestationStatistics extends React.Component {
                               key={y}
                               active={y === this.state.year}
                               onClick={() => {
-                                this.setState({ openYear: false });
+                                this.setState({ openYearTrim: false });
                                 this.getTrimData(this.state.trim, y);
                               }}
                             >
@@ -975,9 +985,9 @@ class PrestationStatistics extends React.Component {
                         valueLabel={String(
                           this.state.year || new Date().getFullYear(),
                         )}
-                        isOpen={this.state.openYear}
+                        isOpen={this.state.openYearYear}
                         toggle={() =>
-                          this.setState({ openYear: !this.state.openYear })
+                          this.setState({ openYearYear: !this.state.openYearYear })
                         }
                         minWidth={70}
                         menuClassName="grid-dropdown-menu"
@@ -990,7 +1000,7 @@ class PrestationStatistics extends React.Component {
                               key={y}
                               active={y === this.state.year}
                               onClick={() => {
-                                this.setState({ openYear: false });
+                                this.setState({ openYearYear: false });
                                 this.getYearData(y);
                               }}
                             >
@@ -1092,9 +1102,9 @@ class PrestationStatistics extends React.Component {
                         valueLabel={String(
                           this.state.year || new Date().getFullYear(),
                         )}
-                        isOpen={this.state.openYear}
+                        isOpen={this.state.openYearWeek}
                         toggle={() =>
-                          this.setState({ openYear: !this.state.openYear })
+                          this.setState({ openYearWeek: !this.state.openYearWeek })
                         }
                         minWidth={70}
                         menuClassName="grid-dropdown-menu"
@@ -1107,7 +1117,7 @@ class PrestationStatistics extends React.Component {
                               key={y}
                               active={y === this.state.year}
                               onClick={() => {
-                                this.setState({ openYear: false });
+                                this.setState({ openYearWeek: false });
                                 this.getWeekData(this.state.currentWeek, y);
                               }}
                             >
