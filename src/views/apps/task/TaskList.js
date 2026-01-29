@@ -13,6 +13,9 @@ import {
 import Checkbox from "../../../components/@vuexy/checkbox/CheckboxesVuexy";
 import SweetAlert from "react-bootstrap-sweetalert";
 import dateConvert from "../../../helpers/dateConvert";
+import ReactDOM from "react-dom";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const VALID_SERVICES = new Set(["CH", "SIMU", "AR", "TFD", "ACTU", "RAC"]);
 
@@ -42,6 +45,10 @@ class TaskList extends React.Component {
 
     handleUpdateTask: null,
     currentLocation: this.props.routerProps.location.pathname,
+
+    // Pour la confirmation de completion
+    showCompleteAlert: false,
+    taskToComplete: null,
   };
   _isMounted = false;
 
@@ -88,7 +95,9 @@ class TaskList extends React.Component {
   render() {
     const { todos, handleUpdateTask } = this.state;
     let routerFilter = this.props.routerProps.match.params.filter;
-    let todosArr = this.props.searchQuery.length ? this.props.app.todo.filteredTodos : todos;
+    let todosArr = this.props.searchQuery.length
+      ? this.props.app.todo.filteredTodos
+      : todos;
 
     // Séparer les tâches urgentes (date dépassée) et les autres
     const now = new Date();
@@ -119,7 +128,10 @@ class TaskList extends React.Component {
           style={{ transition: "background-color 0.2s" }}
         >
           <div className="d-flex justify-content-between align-items-center">
-            <div className="d-flex align-items-center flex-grow-1" style={{ maxWidth: "70%" }}>
+            <div
+              className="d-flex align-items-center flex-grow-1"
+              style={{ maxWidth: "70%" }}
+            >
               <Checkbox
                 color="primary"
                 className="user-checkbox mr-1"
@@ -129,7 +141,10 @@ class TaskList extends React.Component {
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
-                  this.props.completeTask(todo);
+                  this.setState({
+                    showCompleteAlert: true,
+                    taskToComplete: todo,
+                  });
                 }}
                 onChange={(e) => e.stopPropagation()}
               />
@@ -166,31 +181,52 @@ class TaskList extends React.Component {
                         <span
                           key={service}
                           className={`badge badge-${chipColors[service]} mr-50`}
-                        style={{ fontSize: '0.65rem', padding: '0.2rem 0.4rem' }}
+                          style={{
+                            fontSize: "0.65rem",
+                            padding: "0.2rem 0.4rem",
+                          }}
                         >
                           {service}
                         </span>
                       ));
                     })()}
                   {todo.type && (
-                    <span className={`badge badge-light-${todo.type === "relance_caisse" ? "primary" :
-                      todo.type === "relance_client" ? "warning" :
-                        todo.type === "envoi_caisse" ? "success" :
-                          todo.type === "envoi_client" ? "danger" :
-                            todo.type === "appel_client" ? "info" : "secondary"
-                      } badge-pill font-small-1`}>
+                    <span
+                      className={`badge badge-light-${
+                        todo.type === "relance_caisse"
+                          ? "primary"
+                          : todo.type === "relance_client"
+                            ? "warning"
+                            : todo.type === "envoi_caisse"
+                              ? "success"
+                              : todo.type === "envoi_client"
+                                ? "danger"
+                                : todo.type === "appel_client"
+                                  ? "info"
+                                  : "secondary"
+                      } badge-pill font-small-1`}
+                    >
                       {todo.type ? todo.type.replace("_", " ") : ""}
                     </span>
                   )}
                 </div>
                 <span className="text-secondary mt-1">{todo.title}</span>
-                {todo.desc && <small className="text-muted mt-50 d-inline-block text-truncate" style={{ maxWidth: "400px" }}>{todo.desc}</small>}
+                {todo.desc && (
+                  <small
+                    className="text-muted mt-50 d-inline-block text-truncate"
+                    style={{ maxWidth: "400px" }}
+                  >
+                    {todo.desc}
+                  </small>
+                )}
               </div>
             </div>
 
             <div className="d-flex align-items-center">
               {todo.end_date && (
-                <div className={`mr-2 font-small-3 ${new Date() > new Date(todo.end_date) ? "text-danger font-weight-bold" : "text-muted"}`}>
+                <div
+                  className={`mr-2 font-small-3 ${new Date() > new Date(todo.end_date) ? "text-danger font-weight-bold" : "text-muted"}`}
+                >
                   {dateConvert(todo.end_date)}
                 </div>
               )}
@@ -224,15 +260,79 @@ class TaskList extends React.Component {
       <div className="w-100 h-100 d-flex flex-column">
         <SweetAlert
           warning
-          title="Warning"
+          title="Êtes-vous sûr de vouloir supprimer ?"
           show={this.state.Alert}
+          showCancel
+          reverseButtons
+          closeOnClickOutside
+          confirmBtnBsStyle="danger"
+          cancelBtnBsStyle="secondary"
+          confirmBtnText="Confirmer"
+          cancelBtnText="Annuler"
           onConfirm={() => {
             this.setState({ Alert: false });
             this.props.trashTask(this.state.delete_id);
           }}
+          onCancel={() => {
+            this.setState({ Alert: false, delete_id: null });
+          }}
         >
-          <p className="sweet-alert-text"> Êtes-vous certain? </p>
+          Cette action supprimera la tâche.
         </SweetAlert>
+
+        {this.state.showCompleteAlert &&
+          ReactDOM.createPortal(
+            <SweetAlert
+              title={
+                this.state.taskToComplete?.isCompleted
+                  ? "Marquer cette tâche comme non complétée ?"
+                  : "Marquer cette tâche comme complétée ?"
+              }
+              warning
+              show={true}
+              showCancel
+              reverseButtons
+              confirmBtnBsStyle="success"
+              cancelBtnBsStyle="secondary"
+              confirmBtnText="Oui, confirmer"
+              cancelBtnText="Annuler"
+              onConfirm={() => {
+                try {
+                  this.props.completeTask(this.state.taskToComplete);
+
+                  const message = this.state.taskToComplete?.isCompleted
+                    ? "Tâche marquée comme à faire"
+                    : "Tâche marquée comme complétée";
+
+                  toast.success(message, {
+                    position: "top-right",
+                    autoClose: 3000,
+                  });
+                } catch (error) {
+                  toast.error("Erreur lors de la mise à jour de la tâche", {
+                    position: "top-right",
+                    autoClose: 3000,
+                  });
+                }
+
+                this.setState({
+                  showCompleteAlert: false,
+                  taskToComplete: null,
+                });
+              }}
+              onCancel={() => {
+                this.setState({
+                  showCompleteAlert: false,
+                  taskToComplete: null,
+                });
+              }}
+            >
+              {this.state.taskToComplete?.isCompleted
+                ? "La tâche sera marquée comme à faire."
+                : "La tâche sera marquée comme terminée."}
+            </SweetAlert>,
+            document.body,
+          )}
 
         <PerfectScrollbar
           className="todo-task-list flex-grow-1"
@@ -248,33 +348,49 @@ class TaskList extends React.Component {
                 <li
                   className="px-3 py-2 bg-white border-bottom"
                   style={{
-                    position: 'sticky',
+                    position: "sticky",
                     top: 0,
                     zIndex: 1,
-                    borderLeft: '3px solid #ea5455'
+                    borderLeft: "3px solid #ea5455",
                   }}
                 >
                   <div className="d-flex align-items-center">
                     <div
                       className="rounded-circle d-flex align-items-center justify-content-center mr-1"
                       style={{
-                        width: '24px',
-                        height: '24px',
-                        background: '#fff5f5',
-                        border: '1px solid #ea5455'
+                        width: "24px",
+                        height: "24px",
+                        background: "#fff5f5",
+                        border: "1px solid #ea5455",
                       }}
                     >
-                      <span style={{ fontSize: '12px', color: '#ea5455', fontWeight: 'bold' }}>!</span>
+                      <span
+                        style={{
+                          fontSize: "12px",
+                          color: "#ea5455",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        !
+                      </span>
                     </div>
-                    <span className="font-weight-bold text-dark" style={{ fontSize: '0.9rem' }}>
+                    <span
+                      className="font-weight-bold text-dark"
+                      style={{ fontSize: "0.9rem" }}
+                    >
                       Tâches urgentes
                     </span>
-                    <span className="badge badge-light-danger ml-1" style={{ fontSize: '0.7rem' }}>
+                    <span
+                      className="badge badge-light-danger ml-1"
+                      style={{ fontSize: "0.7rem" }}
+                    >
                       {urgentTodos.length}
                     </span>
                   </div>
                 </li>
-                {urgentTodos.map((todo, i) => renderTodoItem(todo, `urgent-${i}`))}
+                {urgentTodos.map((todo, i) =>
+                  renderTodoItem(todo, `urgent-${i}`),
+                )}
               </>
             )}
 
@@ -285,35 +401,43 @@ class TaskList extends React.Component {
                   <li
                     className="px-3 py-2 bg-white border-bottom"
                     style={{
-                      position: 'sticky',
+                      position: "sticky",
                       top: 0,
                       zIndex: 1,
-                      borderLeft: '3px solid #7367f0',
-                      marginTop: '0.5rem'
+                      borderLeft: "3px solid #7367f0",
+                      marginTop: "0.5rem",
                     }}
                   >
                     <div className="d-flex align-items-center">
                       <div
                         className="rounded-circle d-flex align-items-center justify-content-center mr-1"
                         style={{
-                          width: '24px',
-                          height: '24px',
-                          background: '#f3f2ff',
-                          border: '1px solid #7367f0'
+                          width: "24px",
+                          height: "24px",
+                          background: "#f3f2ff",
+                          border: "1px solid #7367f0",
                         }}
                       >
                         <Check size={12} color="#7367f0" />
                       </div>
-                      <span className="font-weight-bold text-dark" style={{ fontSize: '0.9rem' }}>
+                      <span
+                        className="font-weight-bold text-dark"
+                        style={{ fontSize: "0.9rem" }}
+                      >
                         Autres tâches
                       </span>
-                      <span className="badge badge-light-primary ml-1" style={{ fontSize: '0.7rem' }}>
+                      <span
+                        className="badge badge-light-primary ml-1"
+                        style={{ fontSize: "0.7rem" }}
+                      >
                         {normalTodos.length}
                       </span>
                     </div>
                   </li>
                 )}
-                {normalTodos.map((todo, i) => renderTodoItem(todo, `normal-${i}`))}
+                {normalTodos.map((todo, i) =>
+                  renderTodoItem(todo, `normal-${i}`),
+                )}
               </>
             )}
 

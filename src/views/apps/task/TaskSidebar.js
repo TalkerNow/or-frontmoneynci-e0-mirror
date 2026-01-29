@@ -26,6 +26,9 @@ import axios from "axios";
 import "flatpickr/dist/themes/light.css";
 import "../../../../src/assets/scss/plugins/forms/flatpickr/flatpickr.scss";
 import Flatpickr from "react-flatpickr";
+import convertDateForFlatpickr from "../../../helpers/convertDateForFlatpickr";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 var senders = [];
 
@@ -151,12 +154,21 @@ class FilterSidebar extends React.Component {
 
     const isEditing = this.props.taskToUpdate && this.props.taskToUpdate.id;
 
+    // Vérifier si des changements ont été effectués
+    const hasChanges = isEditing
+      ? taskTitle !== this.props.taskToUpdate.title ||
+        taskDesc !== this.props.taskToUpdate.desc ||
+        taskType !== this.props.taskToUpdate.type ||
+        taskEndDate !== this.props.taskToUpdate.end_date ||
+        taskReceiver !== this.props.taskToUpdate.customer_id
+      : true;
+
     return (
       <Modal
         isOpen={this.props.addTaskState}
         toggle={() => this.props.addTask("close")}
         className="modal-dialog-centered modal-lg"
-        style={{ maxWidth: '700px' }}
+        style={{ maxWidth: "700px" }}
       >
         <ModalHeader toggle={() => this.props.addTask("close")}>
           <div className="d-flex align-items-center justify-content-between w-100 pr-3">
@@ -166,46 +178,56 @@ class FilterSidebar extends React.Component {
 
             {/* Actions rapides - icônes seulement */}
             {isEditing && (
-              <div className="d-flex ml-3" style={{ gap: '0.5rem' }}>
+              <div className="d-flex ml-3" style={{ gap: "0.5rem" }}>
                 <div
                   onClick={(e) => {
                     e.stopPropagation();
                     this.props.completeTask(this.props.taskToUpdate);
                   }}
-                  title={taskStatus ? "Marquer comme non complétée" : "Marquer comme complétée"}
+                  title={
+                    taskStatus
+                      ? "Marquer comme non complétée"
+                      : "Marquer comme complétée"
+                  }
                   style={{
-                    width: '32px',
-                    height: '32px',
-                    border: `1.5px solid ${taskStatus ? '#28a745' : '#d0d0d0'}`,
-                    borderRadius: '50%',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: taskStatus ? '#28a745' : 'white',
-                    transition: 'all 0.2s'
+                    width: "32px",
+                    height: "32px",
+                    border: `1.5px solid ${taskStatus ? "#28a745" : "#d0d0d0"}`,
+                    borderRadius: "50%",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: taskStatus ? "#28a745" : "white",
+                    transition: "all 0.2s",
                   }}
                 >
-                  <Check size={16} color={taskStatus ? 'white' : '#999'} />
+                  <Check size={16} color={taskStatus ? "white" : "#999"} />
                 </div>
 
                 <div
                   onClick={() => this.props.readTask(this.props.taskToUpdate)}
-                  title={taskRead ? "Retirer des favoris" : "Ajouter aux favoris"}
+                  title={
+                    taskRead ? "Retirer des favoris" : "Ajouter aux favoris"
+                  }
                   style={{
-                    width: '32px',
-                    height: '32px',
-                    border: `1.5px solid ${taskRead ? '#ffc107' : '#d0d0d0'}`,
-                    borderRadius: '50%',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: taskRead ? '#ffc107' : 'white',
-                    transition: 'all 0.2s'
+                    width: "32px",
+                    height: "32px",
+                    border: `1.5px solid ${taskRead ? "#ffc107" : "#d0d0d0"}`,
+                    borderRadius: "50%",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: taskRead ? "#ffc107" : "white",
+                    transition: "all 0.2s",
                   }}
                 >
-                  <Star size={14} color={taskRead ? 'white' : '#999'} fill={taskRead ? 'white' : 'none'} />
+                  <Star
+                    size={14}
+                    color={taskRead ? "white" : "#999"}
+                    fill={taskRead ? "white" : "none"}
+                  />
                 </div>
               </div>
             )}
@@ -216,16 +238,26 @@ class FilterSidebar extends React.Component {
           <Row>
             <Col md="12">
               <FormGroup className="mb-2">
-                <label className="text-bold-600 font-small-3 mb-50">Client</label>
+                <label className="text-bold-600 font-small-3 mb-50">
+                  Client
+                </label>
                 {this.props.receivers.length > 0 && (
                   <>
                     <Select
                       className="React"
                       classNamePrefix="select"
-                      defaultValue={isEditing ? {
-                        value: this.props.taskToUpdate.customer_id,
-                        label: this.props.receivers.find((obj) => obj.value == this.props.taskToUpdate.customer_id)?.label
-                      } : null}
+                      defaultValue={
+                        isEditing
+                          ? {
+                              value: this.props.taskToUpdate.customer_id,
+                              label: this.props.receivers.find(
+                                (obj) =>
+                                  obj.value ==
+                                  this.props.taskToUpdate.customer_id,
+                              )?.label,
+                            }
+                          : null
+                      }
                       name="client"
                       options={this.props.receivers}
                       placeholder="Sélectionner un client..."
@@ -234,7 +266,10 @@ class FilterSidebar extends React.Component {
                           this.setState({ taskReceiver: option.value });
                         } else {
                           this.setState({
-                            newTask: { ...this.state.newTask, receiver: option.value }
+                            newTask: {
+                              ...this.state.newTask,
+                              receiver: option.value,
+                            },
                           });
                         }
                       }}
@@ -242,19 +277,26 @@ class FilterSidebar extends React.Component {
 
                     {/* Chips services colorés */}
                     {(() => {
-                      const selected = this.props.receivers.find((obj) =>
-                        obj.value == (isEditing ? taskReceiver : newTask.receiver)
+                      const selected = this.props.receivers.find(
+                        (obj) =>
+                          obj.value ==
+                          (isEditing ? taskReceiver : newTask.receiver),
                       );
                       if (selected && selected.subscribe_services) {
-                        const services = this.parseServices(selected.subscribe_services);
+                        const services = this.parseServices(
+                          selected.subscribe_services,
+                        );
                         if (services.length > 0) {
                           return (
-                            <div className="d-flex flex-wrap mt-50" style={{ gap: '0.25rem' }}>
+                            <div
+                              className="d-flex flex-wrap mt-50"
+                              style={{ gap: "0.25rem" }}
+                            >
                               {services.map((service) => (
                                 <span
                                   key={service}
                                   className={`badge badge-${chipColors[service]}`}
-                                  style={{ fontSize: '0.75rem' }}
+                                  style={{ fontSize: "0.75rem" }}
                                 >
                                   {service}
                                 </span>
@@ -273,7 +315,9 @@ class FilterSidebar extends React.Component {
           <Row>
             <Col md="12">
               <FormGroup className="mb-2">
-                <label className="text-bold-600 font-small-3 mb-50">Titre *</label>
+                <label className="text-bold-600 font-small-3 mb-50">
+                  Titre *
+                </label>
                 <Input
                   type="text"
                   placeholder="Ex: Relancer le client..."
@@ -283,7 +327,10 @@ class FilterSidebar extends React.Component {
                       this.setState({ taskTitle: e.target.value });
                     } else {
                       this.setState({
-                        newTask: { ...this.state.newTask, title: e.target.value }
+                        newTask: {
+                          ...this.state.newTask,
+                          title: e.target.value,
+                        },
                       });
                     }
                   }}
@@ -295,7 +342,9 @@ class FilterSidebar extends React.Component {
           <Row>
             <Col md="12">
               <FormGroup className="mb-2">
-                <label className="text-bold-600 font-small-3 mb-50">Description</label>
+                <label className="text-bold-600 font-small-3 mb-50">
+                  Description
+                </label>
                 <Input
                   type="textarea"
                   placeholder="Ajouter des détails..."
@@ -306,7 +355,10 @@ class FilterSidebar extends React.Component {
                       this.setState({ taskDesc: e.target.value });
                     } else {
                       this.setState({
-                        newTask: { ...this.state.newTask, desc: e.target.value }
+                        newTask: {
+                          ...this.state.newTask,
+                          desc: e.target.value,
+                        },
                       });
                     }
                   }}
@@ -318,12 +370,25 @@ class FilterSidebar extends React.Component {
           <Row>
             <Col md="12">
               <FormGroup className="mb-2">
-                <label className="text-bold-600 font-small-3 mb-50">Date d'échéance</label>
+                <label className="text-bold-600 font-small-3 mb-50">
+                  Date d'échéance
+                </label>
                 <Flatpickr
+                  key={
+                    isEditing
+                      ? `date-${this.props.taskToUpdate.id}`
+                      : "date-new"
+                  }
                   id="end_date"
                   className="form-control"
                   options={{ dateFormat: "d/m/Y" }}
-                  defaultValue={isEditing ? this.props.taskToUpdate.end_date : ""}
+                  value={
+                    isEditing
+                      ? convertDateForFlatpickr(
+                          taskEndDate || this.props.taskToUpdate.end_date,
+                        )
+                      : convertDateForFlatpickr(newTask.end_date)
+                  }
                   placeholder="Sélectionner une date..."
                   onChange={(date) => this.handleEndDate(date)}
                 />
@@ -334,19 +399,51 @@ class FilterSidebar extends React.Component {
           <Row>
             <Col md="12">
               <FormGroup className="mb-2">
-                <label className="text-bold-600 font-small-3 mb-50">Type de tâche</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
+                <label className="text-bold-600 font-small-3 mb-50">
+                  Type de tâche
+                </label>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, 1fr)",
+                    gap: "0.5rem",
+                  }}
+                >
                   {[
-                    { value: 'relance_caisse', label: 'Relance caisse', color: 'primary' },
-                    { value: 'relance_client', label: 'Relance client', color: 'warning' },
-                    { value: 'envoi_caisse', label: 'Envoi caisse', color: 'success' },
-                    { value: 'envoi_client', label: 'Envoi client', color: 'danger' },
-                    { value: 'appel_client', label: 'Appel client', color: 'info' },
-                    { value: 'appel_caisse', label: 'Appel caisse', color: 'primary' }
+                    {
+                      value: "relance_caisse",
+                      label: "Relance caisse",
+                      color: "primary",
+                    },
+                    {
+                      value: "relance_client",
+                      label: "Relance client",
+                      color: "warning",
+                    },
+                    {
+                      value: "envoi_caisse",
+                      label: "Envoi caisse",
+                      color: "success",
+                    },
+                    {
+                      value: "envoi_client",
+                      label: "Envoi client",
+                      color: "danger",
+                    },
+                    {
+                      value: "appel_client",
+                      label: "Appel client",
+                      color: "info",
+                    },
+                    {
+                      value: "appel_caisse",
+                      label: "Appel caisse",
+                      color: "primary",
+                    },
                   ].map((type) => {
                     const isSelected = isEditing
                       ? (taskType || this.props.taskToUpdate.type) == type.value
-                      : (newTask.type || 'relance_caisse') == type.value;
+                      : (newTask.type || "relance_caisse") == type.value;
 
                     return (
                       <div
@@ -356,18 +453,21 @@ class FilterSidebar extends React.Component {
                             this.setState({ taskType: type.value });
                           } else {
                             this.setState({
-                              newTask: { ...this.state.newTask, type: type.value }
+                              newTask: {
+                                ...this.state.newTask,
+                                type: type.value,
+                              },
                             });
                           }
                         }}
-                        className={`badge ${isSelected ? `badge-${type.color}` : 'badge-light'}`}
+                        className={`badge ${isSelected ? `badge-${type.color}` : "badge-light"}`}
                         style={{
-                          padding: '0.45rem 0.3rem',
-                          cursor: 'pointer',
-                          fontSize: '0.75rem',
-                          fontWeight: isSelected ? '600' : '400',
-                          textAlign: 'center',
-                          transition: 'all 0.2s'
+                          padding: "0.45rem 0.3rem",
+                          cursor: "pointer",
+                          fontSize: "0.75rem",
+                          fontWeight: isSelected ? "600" : "400",
+                          textAlign: "center",
+                          transition: "all 0.2s",
                         }}
                       >
                         {type.label}
@@ -409,7 +509,24 @@ class FilterSidebar extends React.Component {
                 <Button
                   color="primary"
                   block
-                  disabled={taskTitle.length == 0 && newTask.title.length == 0}
+                  disabled={
+                    (taskTitle.length == 0 && newTask.title.length == 0) ||
+                    (isEditing && !hasChanges)
+                  }
+                  title={
+                    isEditing && !hasChanges
+                      ? "Aucune modification à enregistrer"
+                      : taskTitle.length == 0 && newTask.title.length == 0
+                        ? "Le titre est obligatoire"
+                        : ""
+                  }
+                  style={{
+                    cursor:
+                      (taskTitle.length == 0 && newTask.title.length == 0) ||
+                      (isEditing && !hasChanges)
+                        ? "not-allowed"
+                        : "pointer",
+                  }}
                   onClick={() => {
                     if (isEditing) {
                       const updateTask = {
@@ -421,13 +538,43 @@ class FilterSidebar extends React.Component {
                         isRead: taskRead,
                         end_date: taskEndDate,
                       };
-                      this.props.updateTask(taskToUpdate.id, updateTask);
+
+                      try {
+                        this.props.updateTask(taskToUpdate.id, updateTask);
+                        toast.success("Tâche mise à jour avec succès !", {
+                          position: "top-right",
+                          autoClose: 3000,
+                        });
+                      } catch (error) {
+                        toast.error(
+                          "Erreur lors de la mise à jour de la tâche",
+                          {
+                            position: "top-right",
+                            autoClose: 3000,
+                          },
+                        );
+                      }
                     } else {
                       const newTaskObject = this.state.newTask;
-                      if (newTaskObject.receiver == "" && this.props.receivers.length > 0) {
+                      if (
+                        newTaskObject.receiver == "" &&
+                        this.props.receivers.length > 0
+                      ) {
                         newTaskObject.receiver = this.props.receivers[0].value;
                       }
-                      this.props.addNewTask(this.state.newTask);
+
+                      try {
+                        this.props.addNewTask(this.state.newTask);
+                        toast.success("Tâche créée avec succès !", {
+                          position: "top-right",
+                          autoClose: 3000,
+                        });
+                      } catch (error) {
+                        toast.error("Erreur lors de la création de la tâche", {
+                          position: "top-right",
+                          autoClose: 3000,
+                        });
+                      }
                     }
                     this.props.addTask("close");
                     this.setState({
