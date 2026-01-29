@@ -227,36 +227,38 @@ const InboxDetail = ({
               >
                 <XCircle size={16} /> Disqualifier
               </button>
-              <button
-                onClick={() => setShowVisualReport(true)}
-                style={{
-                  padding: "8px 16px",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                  color: "#1e3a8a", // Dark blue text
-                  backgroundColor: "#eff6ff", // Very light blue background
-                  borderRadius: "8px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  border: "none",
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = "#dbeafe";
-                  e.currentTarget.style.color = "#172554";
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = "#eff6ff";
-                  e.currentTarget.style.color = "#1e3a8a";
-                }}
-                title="Générer le rapport visuel"
-              >
-                <FileText size={16} strokeWidth={2} />
-                <span className="hide-on-mobile">Rapport Visuel</span>
-              </button>
+              {selectedItem.type === "diagnostic" && (
+                <button
+                  onClick={() => setShowVisualReport(true)}
+                  style={{
+                    padding: "8px 16px",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                    color: "#1e3a8a", // Dark blue text
+                    backgroundColor: "#eff6ff", // Very light blue background
+                    borderRadius: "8px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    border: "none",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.backgroundColor = "#dbeafe";
+                    e.currentTarget.style.color = "#172554";
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.backgroundColor = "#eff6ff";
+                    e.currentTarget.style.color = "#1e3a8a";
+                  }}
+                  title="Générer le rapport visuel"
+                >
+                  <FileText size={16} strokeWidth={2} />
+                  <span className="hide-on-mobile">Rapport Visuel</span>
+                </button>
+              )}
               <button
                 style={{
                   padding: "8px 16px",
