@@ -78,12 +78,24 @@ class KanbanCard extends React.Component {
   };
 
   render() {
-    const { card, onStarClick, onMenuClick } = this.props;
+    const { card, onStarClick, onMenuClick, onCardClick } = this.props;
     const { type, name, amount, deadline, isStarred, date, hour } = card;
     const overdue = this.isOverdue(date, hour);
 
     return (
-      <Card className="kanban-card mb-1">
+      <Card
+        className="kanban-card mb-1"
+        onClick={(e) => {
+          // Ne pas ouvrir la modale si on clique sur l'étoile ou le menu
+          if (
+            e.target.closest(".cursor-pointer") &&
+            (e.target.closest("svg") || e.target.tagName === "svg")
+          ) {
+            return;
+          }
+          onCardClick && onCardClick(card);
+        }}
+      >
         <CardBody className="p-75">
           <div className="d-flex justify-content-between align-items-start mb-50">
             <Badge

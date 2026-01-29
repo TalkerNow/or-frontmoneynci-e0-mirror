@@ -101,6 +101,7 @@ class KanbanColumn extends React.Component {
       onAddCard,
       onStarClick,
       onMenuClick,
+      onCardClick,
       dragHandleProps,
       isDragging,
     } = this.props;
@@ -313,6 +314,7 @@ class KanbanColumn extends React.Component {
                             card={card}
                             onStarClick={onStarClick}
                             onMenuClick={onMenuClick}
+                            onCardClick={onCardClick}
                           />
                         </div>
                       )}

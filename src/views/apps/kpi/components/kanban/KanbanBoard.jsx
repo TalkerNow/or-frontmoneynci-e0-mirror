@@ -1,11 +1,30 @@
 import React from "react";
 import { connect } from "react-redux";
-import { Button, Input, Card, CardBody } from "reactstrap";
+import {
+  Button,
+  Input,
+  Card,
+  CardBody,
+  Modal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+} from "reactstrap";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
-import { Plus, Check, X } from "react-feather";
+import {
+  Plus,
+  Check,
+  X,
+  Clock,
+  Calendar,
+  Star,
+  Edit,
+  Trash2,
+} from "react-feather";
 import KanbanColumn from "./KanbanColumn";
 import {
   getKanbans,
+  createKanban,
   getUserKanbans,
   createUserKanban,
   moveUserKanban,
@@ -16,30 +35,11 @@ import "./kanban.scss";
 
 class KanbanBoard extends React.Component {
   state = {
-    // Données mockées pour le design
-    columns: [
-      {
-        id: 1,
-        title: "À TRAVAILLER",
-        order: 1,
-        color: "#facc15",
-      },
-      {
-        id: 2,
-        title: "EN DISCUSSIONS",
-        order: 2,
-        color: "#60a5fa",
-      },
-      {
-        id: 3,
-        title: "PROPOSITION ENVOYÉE",
-        order: 3,
-        color: "#a78bfa",
-      },
-    ],
     isCreatingColumn: false,
     newColumnTitle: "",
     newColumnColor: "#60a5fa",
+    selectedCard: null,
+    isModalOpen: false,
     cards: [
       {
         id: 1,
@@ -165,13 +165,29 @@ class KanbanBoard extends React.Component {
   };
 
   componentDidMount() {
-    // Plus tard, on chargera les vraies données depuis Redux
-    // this.props.getKanbans();
-    // this.props.getUserKanbans();
+    this.props.getKanbans();
+    this.props.getUserKanbans();
   }
 
   getCardsForColumn = (columnId) => {
-    return this.state.cards.filter((card) => card.kanban_id === columnId);
+    const { kanbans } = this.props;
+    const { cards } = this.state;
+    
+    // Trouver l'index de la colonne actuelle dans les vrais kanbans
+    const columnIndex = kanbans.findIndex(k => k.id === columnId);
+    if (columnIndex === -1) return [];
+    
+    // Mapper les cartes mock (qui utilisent kanban_id 1,2,3) aux vrais kanbans par ordre
+    // kanban_id 1 -> première colonne, kanban_id 2 -> deuxième colonne, etc.
+    return cards.filter((card) => {
+      const mockKanbanIndex = card.kanban_id - 1; // Convertir l'ID mock en index (1->0, 2->1, 3->2)
+      return mockKanbanIndex === columnIndex;
+    });
+  };
+
+  getDefaultColor = (color) => {
+    // Si pas de couleur, retourner bleu par défaut
+    return color || "#60a5fa";
   };
 
   handleAddCard = (columnId) => {
@@ -180,18 +196,27 @@ class KanbanBoard extends React.Component {
   };
 
   handleStarClick = (card) => {
-    console.log("Toggle star pour:", card);
-    // TODO: Implémenter toggle étoile
-    this.setState({
-      cards: this.state.cards.map((c) =>
-        c.id === card.id ? { ...c, isStarred: !c.isStarred } : c,
-      ),
-    });
+    const updatedCard = { ...card, isStarred: !card.isStarred };
+    this.props.updateUserKanban(card.id, updatedCard);
   };
 
   handleMenuClick = (card) => {
     console.log("Menu pour:", card);
     // TODO: Implémenter le menu d'actions
+  };
+
+  handleCardClick = (card) => {
+    this.setState({
+      selectedCard: card,
+      isModalOpen: true,
+    });
+  };
+
+  handleCloseModal = () => {
+    this.setState({
+      isModalOpen: false,
+      selectedCard: null,
+    });
   };
 
   handleDragEnd = (result) => {
@@ -210,7 +235,7 @@ class KanbanBoard extends React.Component {
 
     // Handle column reordering
     if (type === "column") {
-      const newColumns = Array.from(this.state.columns);
+      const newColumns = Array.from(this.props.kanbans);
       const [movedColumn] = newColumns.splice(source.index, 1);
       newColumns.splice(destination.index, 0, movedColumn);
 
@@ -220,72 +245,29 @@ class KanbanBoard extends React.Component {
         order: idx + 1,
       }));
 
-      this.setState({ columns: updatedColumns });
-      // TODO: Appeler l'API pour sauvegarder l'ordre
+      this.props.reorderKanbans(updatedColumns);
       return;
     }
 
     // Handle card movement
     const cardId = parseInt(draggableId.replace("card-", ""), 10);
-    const sourceColumnId = parseInt(
-      source.droppableId.replace("column-", ""),
-      10,
-    );
     const destColumnId = parseInt(
       destination.droppableId.replace("column-", ""),
       10,
     );
 
-    // Get source and destination cards
-    const sourceCards = this.state.cards.filter(
-      (card) => card.kanban_id === sourceColumnId,
-    );
-    const destCards =
-      sourceColumnId === destColumnId
-        ? sourceCards
-        : this.state.cards.filter((card) => card.kanban_id === destColumnId);
-
-    // Remove card from source
-    const [movedCard] = sourceCards.splice(source.index, 1);
-
-    // Update kanban_id if moved to different column
-    if (sourceColumnId !== destColumnId) {
-      movedCard.kanban_id = destColumnId;
-    }
-
-    // Insert into destination
-    destCards.splice(destination.index, 0, movedCard);
-
-    // Rebuild the full cards array
-    const otherCards = this.state.cards.filter(
-      (card) =>
-        card.kanban_id !== sourceColumnId && card.kanban_id !== destColumnId,
-    );
-
-    const updatedCards = [...otherCards, ...sourceCards, ...destCards];
-
-    this.setState({ cards: updatedCards });
-
-    // TODO: Appeler l'API via Redux
-    // this.props.moveUserKanban(cardId, { kanban_id: destColumnId, order: destination.index });
+    this.props.moveUserKanban(cardId, {
+      kanban_id: destColumnId,
+      order: destination.index,
+    });
   };
 
   handleEditColumnTitle = (columnId, newTitle) => {
-    const updatedColumns = this.state.columns.map((col) =>
-      col.id === columnId ? { ...col, title: newTitle } : col,
-    );
-    this.setState({ columns: updatedColumns });
-    // TODO: Appeler l'API pour sauvegarder le nouveau titre
-    // this.props.updateKanban(columnId, { title: newTitle });
+    this.props.updateKanban(columnId, { title: newTitle });
   };
 
   handleEditColumnColor = (columnId, newColor) => {
-    const updatedColumns = this.state.columns.map((col) =>
-      col.id === columnId ? { ...col, color: newColor } : col,
-    );
-    this.setState({ columns: updatedColumns });
-    // TODO: Appeler l'API pour sauvegarder la nouvelle couleur
-    // this.props.updateKanban(columnId, { color: newColor });
+    this.props.updateKanban(columnId, { color: newColor });
   };
 
   handleStartCreateColumn = () => {
@@ -301,30 +283,43 @@ class KanbanBoard extends React.Component {
   };
 
   handleCreateColumn = () => {
-    const { newColumnTitle, newColumnColor, columns } = this.state;
+    const { newColumnTitle, newColumnColor } = this.state;
+    const { kanbans } = this.props;
     if (newColumnTitle.trim() === "") return;
 
     const newColumn = {
-      id: Math.max(...columns.map((c) => c.id), 0) + 1,
       title: newColumnTitle.trim(),
-      order: columns.length + 1,
+      order: kanbans.length + 1,
       color: newColumnColor,
     };
 
+    this.props.createKanban(newColumn);
+
     this.setState({
-      columns: [...columns, newColumn],
       isCreatingColumn: false,
       newColumnTitle: "",
       newColumnColor: "#60a5fa",
     });
-
-    // TODO: Appeler l'API pour créer la colonne
-    // this.props.createKanban(newColumn);
   };
 
   render() {
-    const { columns } = this.state;
+    const { kanbans, loading } = this.props;
     const { isCreatingColumn, newColumnTitle, newColumnColor } = this.state;
+
+    if (loading) {
+      return (
+        <div
+          className="d-flex justify-content-center align-items-center"
+          style={{ height: "400px" }}
+        >
+          <div className="spinner-border text-primary" role="status">
+            <span className="sr-only">Chargement...</span>
+          </div>
+        </div>
+      );
+    }
+
+    const columns = kanbans || [];
 
     const colorPalette = [
       { name: "Jaune", hex: "#facc15" },
@@ -375,11 +370,12 @@ class KanbanBoard extends React.Component {
                         <KanbanColumn
                           column={column}
                           title={column.title}
-                          color={column.color}
+                          color={this.getDefaultColor(column.color)}
                           cards={this.getCardsForColumn(column.id)}
                           onAddCard={() => this.handleAddCard(column.id)}
                           onStarClick={this.handleStarClick}
                           onMenuClick={this.handleMenuClick}
+                          onCardClick={this.handleCardClick}
                           onEditTitle={(newTitle) =>
                             this.handleEditColumnTitle(column.id, newTitle)
                           }
@@ -487,6 +483,124 @@ class KanbanBoard extends React.Component {
             )}
           </Droppable>
         </div>
+
+        {/* Modale de détail client */}
+        <Modal
+          isOpen={this.state.isModalOpen}
+          toggle={this.handleCloseModal}
+          size="lg"
+        >
+          {this.state.selectedCard && (
+            <>
+              <ModalHeader toggle={this.handleCloseModal}>
+                <div className="d-flex align-items-center">
+                  {this.state.selectedCard.isStarred && (
+                    <Star
+                      size={20}
+                      className="text-warning fill-warning mr-50"
+                    />
+                  )}
+                  <span>{this.state.selectedCard.name}</span>
+                </div>
+              </ModalHeader>
+              <ModalBody>
+                <div className="mb-2">
+                  <h6 className="text-muted mb-50">Type de prospect</h6>
+                  <h5 className="text-capitalize">
+                    {this.state.selectedCard.type || "Autre"}
+                  </h5>
+                </div>
+
+                <div className="mb-2">
+                  <h6 className="text-muted mb-50">Montant</h6>
+                  <h4 className="text-primary font-weight-bold">
+                    {new Intl.NumberFormat("fr-FR", {
+                      style: "currency",
+                      currency: "EUR",
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0,
+                    }).format(this.state.selectedCard.amount || 0)}
+                  </h4>
+                </div>
+
+                {this.state.selectedCard.date &&
+                  this.state.selectedCard.hour && (
+                    <div className="mb-2">
+                      <h6 className="text-muted mb-50">Date et heure</h6>
+                      <div className="d-flex align-items-center">
+                        <Clock size={16} className="mr-50" />
+                        <span>
+                          {new Date(
+                            `${this.state.selectedCard.date}T${this.state.selectedCard.hour}:00`,
+                          ).toLocaleDateString("fr-FR", {
+                            day: "2-digit",
+                            month: "long",
+                            year: "numeric",
+                          })}
+                          {" à "}
+                          {this.state.selectedCard.hour}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                {this.state.selectedCard.deadline && (
+                  <div className="mb-2">
+                    <h6 className="text-muted mb-50">Échéance</h6>
+                    <div className="d-flex align-items-center text-danger">
+                      <Calendar size={16} className="mr-50" />
+                      <span className="font-weight-bold">
+                        {this.state.selectedCard.deadline}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mb-2">
+                  <h6 className="text-muted mb-50">Statut</h6>
+                  <span>
+                    Colonne:{" "}
+                    <strong>
+                      {this.props.kanbans.find(
+                        (col) => col.id === this.state.selectedCard.kanban_id,
+                      )?.title || "N/A"}
+                    </strong>
+                  </span>
+                </div>
+              </ModalBody>
+              <ModalFooter>
+                <Button
+                  color="primary"
+                  outline
+                  onClick={() => {
+                    console.log("Éditer:", this.state.selectedCard);
+                    // TODO: Implémenter l'édition
+                  }}
+                  className="d-flex align-items-center"
+                >
+                  <Edit size={14} className="mr-50" />
+                  Éditer
+                </Button>
+                <Button
+                  color="danger"
+                  outline
+                  onClick={() => {
+                    console.log("Supprimer:", this.state.selectedCard);
+                    // TODO: Implémenter la suppression
+                    this.handleCloseModal();
+                  }}
+                  className="d-flex align-items-center"
+                >
+                  <Trash2 size={14} className="mr-50" />
+                  Supprimer
+                </Button>
+                <Button color="secondary" onClick={this.handleCloseModal}>
+                  Fermer
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </Modal>
       </DragDropContext>
     );
   }
@@ -494,14 +608,15 @@ class KanbanBoard extends React.Component {
 
 const mapStateToProps = (state) => {
   return {
-    // kanbans: state.kanbanApp.kanban.kanbans,
-    // userKanbans: state.kanbanApp.kanban.userKanbans,
-    // loading: state.kanbanApp.kanban.loading,
+    kanbans: state.kanbanApp.kanban.kanbans,
+    userKanbans: state.kanbanApp.kanban.userKanbans,
+    loading: state.kanbanApp.kanban.loading,
   };
 };
 
 export default connect(mapStateToProps, {
   getKanbans,
+  createKanban,
   getUserKanbans,
   createUserKanban,
   moveUserKanban,

@@ -53,6 +53,6 @@ export const kanbanService = {
    * @param {Array} columns - [{ id: number, order: number }, ...]
    */
   reorder: (columns) => {
-    return api.post("/kanbans/reorder", { columns });
+    return api.post("/kanbans/reorder", { kanbans: columns });
   },
 };
