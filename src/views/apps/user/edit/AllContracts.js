@@ -580,7 +580,7 @@ class AllContracts extends React.Component {
                   <div className="d-flex align-items-center mb-1 text-danger">
                     <AlertTriangle className="mr-50" size={20} />
                     <h4 className="mb-0 text-danger">
-                      Contrats terminés impayés ({lateContracts.length})
+                      Contrats terminés impayés ({lateContracts.length}) <i style={{fontWeight: 'normal', fontSize: '0.85em'}}>depuis plus d'une semaine</i>
                     </h4>
                   </div>
                   <Table responsive hover className="mb-0">
