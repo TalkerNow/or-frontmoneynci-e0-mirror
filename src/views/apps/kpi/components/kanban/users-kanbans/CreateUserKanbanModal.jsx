@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useHistory } from "react-router-dom";
 import {
@@ -17,6 +17,7 @@ import { toast } from "react-toastify";
 
 const CreateUserKanbanModal = ({ isOpen, onClose, onSuccess, userId }) => {
   const history = useHistory();
+  const dateTimeInputRef = useRef(null);
   const [kanbans, setKanbans] = useState([]);
   const [loadingKanbans, setLoadingKanbans] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -33,9 +34,6 @@ const CreateUserKanbanModal = ({ isOpen, onClose, onSuccess, userId }) => {
   useEffect(() => {
     if (isOpen) {
       fetchKanbans();
-      // Set default date to today
-      const today = new Date().toISOString().split("T")[0];
-      setFormData((prev) => ({ ...prev, date: today }));
     }
   }, [isOpen]);
 
@@ -138,6 +136,63 @@ const CreateUserKanbanModal = ({ isOpen, onClose, onSuccess, userId }) => {
     }
   };
 
+  const handleDateTimeChange = (e) => {
+    const value = e.target.value;
+    if (!value) return;
+    const [date, time] = value.split("T");
+    setFormData((prev) => ({
+      ...prev,
+      date: date || prev.date,
+      hour: time || prev.hour,
+    }));
+  };
+
+  const handleDateTimeClick = () => {
+    const inputEl = dateTimeInputRef.current;
+    if (!inputEl) return;
+    if (inputEl.showPicker) {
+      inputEl.showPicker();
+    } else {
+      inputEl.focus();
+      inputEl.click();
+    }
+  };
+
+  const formatDateTimeLabel = () => {
+    if (!formData.date) return "Choisir date et heure";
+    const time = formData.hour || "00:00";
+    const dt = new Date(`${formData.date}T${time}`);
+    const dateLabel = new Intl.DateTimeFormat("fr-FR", {
+      weekday: "long",
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    }).format(dt);
+    return `${dateLabel}  •  ${time}`;
+  };
+
+  const isMorning = () => {
+    const now = new Date();
+    return now.getHours() < 13;
+  };
+
+  const setSuggestedTime = (hour) => {
+    const now = new Date();
+    const tomorrow = new Date(now);
+
+    // Si c'est vendredi (5), ajouter 3 jours pour aller au lundi
+    // Sinon, ajouter 1 jour
+    const daysToAdd = now.getDay() === 5 ? 3 : 1;
+
+    tomorrow.setDate(tomorrow.getDate() + daysToAdd);
+    const tomorrowDate = tomorrow.toISOString().split("T")[0];
+    setFormData((prev) => ({
+      ...prev,
+      date: tomorrowDate,
+      hour: hour,
+    }));
+  };
+
   const getKanbanColor = (color) => {
     return color || "#60a5fa";
   };
@@ -203,35 +258,85 @@ const CreateUserKanbanModal = ({ isOpen, onClose, onSuccess, userId }) => {
                 )}
               </FormGroup>
 
-              {/* Date */}
+              {/* Date + Heure */}
               <FormGroup>
-                <Label for="date">
+                <Label>
                   <Calendar size={16} className="mr-50" />
-                  Date <span className="text-danger">*</span>
+                  Date & Heure <span className="text-danger">*</span>
                 </Label>
-                <Input
-                  type="date"
-                  name="date"
-                  id="date"
-                  value={formData.date}
-                  onChange={handleInputChange}
-                  required
-                />
-              </FormGroup>
-
-              {/* Heure */}
-              <FormGroup>
-                <Label for="hour">
-                  <Clock size={16} className="mr-50" />
-                  Heure
-                </Label>
-                <Input
-                  type="time"
-                  name="hour"
-                  id="hour"
-                  value={formData.hour}
-                  onChange={handleInputChange}
-                />
+                <div
+                  className="d-flex align-items-center"
+                  style={{ gap: "12px" }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <Button
+                      color="primary"
+                      outline
+                      type="button"
+                      onClick={handleDateTimeClick}
+                      style={{ width: "100%", justifyContent: "center" }}
+                    >
+                      <Clock size={16} className="mr-50" />
+                      {formatDateTimeLabel()}
+                    </Button>
+                    <Input
+                      innerRef={dateTimeInputRef}
+                      type="datetime-local"
+                      value={
+                        formData.date
+                          ? `${formData.date}T${formData.hour || "00:00"}`
+                          : ""
+                      }
+                      onChange={handleDateTimeChange}
+                      style={{
+                        position: "absolute",
+                        opacity: 0,
+                        pointerEvents: "none",
+                        height: 0,
+                        width: 0,
+                      }}
+                      tabIndex={-1}
+                    />
+                  </div>
+                  <div
+                    style={{
+                      flex: 1,
+                      display: "flex",
+                      gap: "8px",
+                      alignItems: "stretch",
+                    }}
+                  >
+                    {isMorning() ? (
+                      <Button
+                        color="info"
+                        outline
+                        type="button"
+                        onClick={() => setSuggestedTime("16:00")}
+                        style={{
+                          fontSize: "0.85rem",
+                          whiteSpace: "nowrap",
+                          flex: 1,
+                        }}
+                      >
+                        Demain 16h
+                      </Button>
+                    ) : (
+                      <Button
+                        color="info"
+                        outline
+                        type="button"
+                        onClick={() => setSuggestedTime("10:30")}
+                        style={{
+                          fontSize: "0.85rem",
+                          whiteSpace: "nowrap",
+                          flex: 1,
+                        }}
+                      >
+                        Demain 10h30
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </FormGroup>
 
               {/* Description */}

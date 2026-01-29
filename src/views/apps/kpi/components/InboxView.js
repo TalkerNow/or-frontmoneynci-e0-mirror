@@ -24,6 +24,10 @@ const InboxView = ({
   const routerHistory = useHistory();
   const location = useLocation();
 
+  // States that need to be declared early
+  const [kanbanUserIds, setKanbanUserIds] = useState(new Set());
+  const [disqualifiedIds, setDisqualifiedIds] = useState(new Set());
+
   // Sort and Map Items
   const allInboxItems = useMemo(() => {
     if (!items || items.length === 0) return [];
@@ -36,9 +40,23 @@ const InboxView = ({
 
   // Filter Items
   const inboxItems = useMemo(() => {
-    if (filter === "all") return allInboxItems;
-    return allInboxItems.filter((item) => item.type === filter);
-  }, [allInboxItems, filter]);
+    let filtered = allInboxItems;
+
+    // Filtre par type (all/chatbot/diagnostic/etc)
+    if (filter !== "all") {
+      filtered = filtered.filter((item) => item.type === filter);
+    }
+
+    // Exclure les users avec role "Client"
+    filtered = filtered.filter((item) => item.raw?.user?.role !== "Client");
+
+    // Exclure les conversations dont le user_id est dans user-kanbans
+    filtered = filtered.filter(
+      (item) => !item.raw?.user_id || !kanbanUserIds.has(item.raw.user_id),
+    );
+
+    return filtered;
+  }, [allInboxItems, filter, kanbanUserIds]);
 
   const [selectedItem, setSelectedItem] = useState(inboxItems[0] || {});
 
@@ -116,9 +134,31 @@ const InboxView = ({
   const [disqualifyReason, setDisqualifyReason] = useState("");
   const [disqualifyComment, setDisqualifyComment] = useState("");
   const [isDisqualifying, setIsDisqualifying] = useState(false);
-  const [disqualifiedIds, setDisqualifiedIds] = useState(new Set());
 
-  // Derived visible items
+  // Fetch user-kanbans to get user_id list
+  useEffect(() => {
+    const fetchKanbanUsers = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await axios.get(
+          global.config.server_url + "/user-kanbans",
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+        const userKanbans = Array.isArray(response.data) ? response.data : [];
+        const userIds = new Set(
+          userKanbans.map((uk) => uk.user_id).filter((id) => id != null),
+        );
+        setKanbanUserIds(userIds);
+      } catch (error) {
+        console.error("Error fetching user-kanbans:", error);
+      }
+    };
+    fetchKanbanUsers();
+  }, []);
+
+  // Derived visible items (filtre uniquement les disqualified/invisible)
   const visibleInboxItems = inboxItems.filter(
     (item) =>
       !disqualifiedIds.has(item.id) &&
@@ -164,7 +204,7 @@ const InboxView = ({
     setIsGenerating(false);
   }, [selectedItem.id]);
 
-  const unreadCount = inboxItems.filter(
+  const unreadCount = visibleInboxItems.filter(
     (item) =>
       (item.status === "new" || manualUnreadIds.has(item.id)) &&
       !readIds.has(item.id),

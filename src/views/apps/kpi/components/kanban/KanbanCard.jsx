@@ -58,31 +58,44 @@ class KanbanCard extends React.Component {
   formatDateTime = (dateString, hourString) => {
     if (!dateString || !hourString) return "";
 
+    // Extraire la date au format YYYY-MM-DD depuis le format ISO
+    const datePart = dateString.split("T")[0];
+
+    // Extraire l'heure au format HH:MM depuis le format HH:MM:SS
+    const timePart = hourString.split(":").slice(0, 2).join(":");
+
     // Combine date and hour to create a Date object
-    const date = new Date(`${dateString}T${hourString}:00`);
+    const date = new Date(`${datePart}T${timePart}:00`);
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
 
     // Si c'est aujourd'hui
     if (date.toDateString() === today.toDateString()) {
-      return `Aujourd'hui ${hourString}`;
+      return `Aujourd'hui ${timePart}`;
     }
     // Si c'est hier
     if (date.toDateString() === yesterday.toDateString()) {
-      return `Hier ${hourString}`;
+      return `Hier ${timePart}`;
     }
     // Sinon afficher la date complète
     const dateStr = new Intl.DateTimeFormat("fr-FR", {
       day: "2-digit",
       month: "short",
     }).format(date);
-    return `${dateStr} ${hourString}`;
+    return `${dateStr} ${timePart}`;
   };
 
   isOverdue = (dateString, hourString) => {
     if (!dateString || !hourString) return false;
-    const date = new Date(`${dateString}T${hourString}:00`);
+
+    // Extraire la date au format YYYY-MM-DD depuis le format ISO
+    const datePart = dateString.split("T")[0];
+
+    // Extraire l'heure au format HH:MM depuis le format HH:MM:SS
+    const timePart = hourString.split(":").slice(0, 2).join(":");
+
+    const date = new Date(`${datePart}T${timePart}:00`);
     const now = new Date();
     return date < now;
   };

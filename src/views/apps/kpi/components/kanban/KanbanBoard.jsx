@@ -493,6 +493,13 @@ class KanbanBoard extends React.Component {
                     </strong>
                   </span>
                 </div>
+
+                {this.state.selectedCard.description && (
+                  <div className="mb-2">
+                    <h6 className="text-muted mb-50">Description</h6>
+                    <p>{this.state.selectedCard.description}</p>
+                  </div>
+                )}
               </ModalBody>
               <ModalFooter>
                 <Button
@@ -519,9 +526,6 @@ class KanbanBoard extends React.Component {
                 >
                   <Trash2 size={14} className="mr-50" />
                   Supprimer
-                </Button>
-                <Button color="secondary" onClick={this.handleCloseModal}>
-                  Fermer
                 </Button>
               </ModalFooter>
             </>
