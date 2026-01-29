@@ -1792,8 +1792,11 @@ class EditContract extends React.Component {
                               }
                             />
                           </div>
+                        </Col>
+
+                        <Col md="6" sm="12" className="mb-1">
                           <div
-                            className="d-flex align-items-center mt-1"
+                            className="d-flex align-items-center mb-1"
                             style={{ gap: 8 }}
                           >
                             <span style={{ minWidth: 130 }}>
@@ -1850,9 +1853,6 @@ class EditContract extends React.Component {
                               />
                             )}
                           </div>
-                        </Col>
-
-                        <Col md="6" sm="12" className="mb-1">
                           <div
                             className="d-flex align-items-center"
                             style={{ gap: 18 }}
