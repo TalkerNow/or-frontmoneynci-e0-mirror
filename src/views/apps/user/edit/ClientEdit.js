@@ -42,6 +42,7 @@ import { history } from "../../../../history";
 import Contracts from "./Contracts";
 import SuiviAvancementBox from "./SuiviAvancementBox";
 import { canAccessSimulator } from "../../../../constants/permissions";
+import ClientTasks from "./clientTask/Task";
 
 class UserEdit extends React.Component {
   state = {
@@ -55,6 +56,8 @@ class UserEdit extends React.Component {
     courriersOffset: 0,
     isDirty: false,
     showUnsavedModal: false,
+    taskCount: 0,
+    hasUrgentTask: false,
   };
 
   navRef = null;
@@ -71,7 +74,7 @@ class UserEdit extends React.Component {
           label.getBoundingClientRect().left - nav.getBoundingClientRect().left;
         this.setState({ simuOffset: Math.max(0, Math.round(delta)) });
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   computeDocsOffset = () => {
@@ -85,7 +88,7 @@ class UserEdit extends React.Component {
           label.getBoundingClientRect().left - nav.getBoundingClientRect().left;
         this.setState({ docsOffset: Math.max(0, Math.round(delta)) });
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   computeCourriersOffset = () => {
@@ -99,7 +102,7 @@ class UserEdit extends React.Component {
           label.getBoundingClientRect().left - nav.getBoundingClientRect().left;
         this.setState({ courriersOffset: Math.max(0, Math.round(delta)) });
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   applyTabFromRoute(tabParam) {
@@ -137,6 +140,42 @@ class UserEdit extends React.Component {
     this.setState({ rowData: response.data });
   };
 
+  fetchTaskCount = async () => {
+    const Config = {
+      headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+    };
+    const { id } = this.props.match.params;
+    try {
+      const response = await axios.get(
+        global.config.server_url + "/tasks?filter=all",
+        Config,
+      );
+      const tasks = Array.isArray(response.data) ? response.data : [];
+      
+      // Filtre par client ET non complété
+      const clientTasks = tasks.filter(t => 
+        String(t.customer_id) === String(id) && !t.isCompleted
+      );
+
+      // Vérifie si au moins une tâche est urgente (date passée)
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      const hasUrgent = clientTasks.some(t => {
+        if (!t.end_date) return false;
+        const endDate = new Date(t.end_date);
+        endDate.setHours(0, 0, 0, 0);
+        return endDate < now;
+      });
+      
+      this.setState({ 
+        taskCount: clientTasks.length,
+        hasUrgentTask: hasUrgent
+      });
+    } catch (e) {
+      console.error("Error fetching task count", e);
+    }
+  };
+
   fetchMembers = async () => {
     const Config = {
       headers: { Authorization: "Bearer " + localStorage.getItem("token") },
@@ -159,7 +198,7 @@ class UserEdit extends React.Component {
     // Utilise les méthodes centralisées
     await this.fetchUser();
     await this.fetchMembers();
-
+    await this.fetchTaskCount();
     // Calculate offsets immediately after mount for alignment
     setTimeout(() => {
       if (this.state.activeTab === "simulateur") this.computeSimuOffset();
@@ -442,13 +481,29 @@ class UserEdit extends React.Component {
               </NavItem>
               <NavItem>
                 <NavLink
-                  className={classnames({
+                  className={classnames("d-flex align-items-center", {
                     active: this.state.activeTab === "tasks",
                   })}
                   onClick={() => this.toggle("tasks")}
                 >
-                  <CheckSquare className="text-primary mr-50" size={16} />{" "}
+                  <CheckSquare className="text-primary mr-50" size={16} />
                   Tâches
+                  {this.state.taskCount > 0 && (
+                    <span 
+                      className={`badge badge-${this.state.hasUrgentTask ? 'danger' : 'primary'} ml-50`}
+                      style={{ 
+                        fontSize: '0.65rem', 
+                        minWidth: '18px',
+                        height: '18px',
+                        padding: '0',
+                        lineHeight: '18px',
+                        textAlign: 'center',
+                        borderRadius: '50%'
+                      }}
+                    >
+                      {this.state.taskCount}
+                    </span>
+                  )}
                 </NavLink>
               </NavItem>
               <NavItem>
@@ -520,14 +575,18 @@ class UserEdit extends React.Component {
               />
             </TabPane>
             <TabPane tabId="tasks">
-              <Card className="mb-1">
-                <CardBody>
-                  <div className="text-muted">
-                    Utilise le module tâches dédié:{" "}
-                    <a href={`/app/user/clientTask/${id}/all`}>Ouvrir</a>
-                  </div>
-                </CardBody>
-              </Card>
+              <ClientTasks
+                {...this.props}
+                match={{
+                  params: {
+                    id: id,
+                    filter: "all",
+                  },
+                  path: this.props.match.path,
+                  url: this.props.match.url,
+                }}
+                embedded={true}
+              />
             </TabPane>
             <TabPane tabId="courriers">
               <CourriersHub
