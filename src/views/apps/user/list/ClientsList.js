@@ -1,6 +1,17 @@
 import React from "react";
-import { UserPlus, Trash2, User, Users, Target } from "react-feather";
-import { Button, Card, CardBody, Input, Row, Col, Nav, NavItem, NavLink, Badge } from "reactstrap";
+import { UserPlus, Trash2, User, Users, Target, Clock } from "react-feather";
+import {
+  Button,
+  Card,
+  CardBody,
+  Input,
+  Row,
+  Col,
+  Nav,
+  NavItem,
+  NavLink,
+  Badge,
+} from "reactstrap";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { ContextLayout } from "../../../../utility/context/Layout";
@@ -140,11 +151,19 @@ class ClientsList extends React.Component {
           const isProspect = role === "prospect";
           return (
             <Badge
-              color={isProspect ? "light-warning" : "light-success"}
+              color={isProspect ? undefined : "light-success"}
               pill
-              style={{ fontSize: "0.75rem" }}
+              style={
+                isProspect
+                  ? {
+                      backgroundColor: "#dbeafe",
+                      color: "#2c6ddf",
+                      fontSize: "0.75rem",
+                    }
+                  : { fontSize: "0.75rem" }
+              }
             >
-              {isProspect ? "Prospect" : "Client"}
+              {isProspect ? "PROSPECT" : "CLIENT"}
             </Badge>
           );
         },
@@ -489,12 +508,8 @@ class ClientsList extends React.Component {
       const documents = docsRes.data || [];
       const servicesByUserId = this.buildServicesMapFromDocuments(documents);
 
-      // Trier pour que les Prospects apparaissent en premier, puis par date de création décroissante
+      // Trier uniquement par date de création décroissante (plus récent en premier)
       const sortedData = allRowData.sort((a, b) => {
-        const aIsProspect = (a.role || "").toLowerCase() === "prospect" ? 0 : 1;
-        const bIsProspect = (b.role || "").toLowerCase() === "prospect" ? 0 : 1;
-        if (aIsProspect !== bIsProspect) return aIsProspect - bIsProspect;
-        // Ensuite par date de création décroissante (plus récent en premier)
         return new Date(b.created_at) - new Date(a.created_at);
       });
 
@@ -515,7 +530,7 @@ class ClientsList extends React.Component {
       try {
         const meRes = await axios.get(
           `${global.config.server_url}/users/${userIdRaw}`,
-          Config
+          Config,
         );
         const currentUserEmail = (meRes?.data?.email || "").toLowerCase();
         this.setState({ currentUserEmail });
@@ -695,7 +710,7 @@ class ClientsList extends React.Component {
       ];
 
       const match = candidates.some(
-        (v) => v !== undefined && v !== null && String(v) === target
+        (v) => v !== undefined && v !== null && String(v) === target,
       );
 
       if (!match) return false;
@@ -776,6 +791,8 @@ class ClientsList extends React.Component {
 
   componentWillUnmount() {
     window.removeEventListener("resize", this.sizeToFit);
+    this.gridApi = null;
+    this.gridColumnApi = null;
   }
 
   // Toggle Mes clients / Tous les clients (désactivé pour les consultants)
@@ -789,12 +806,13 @@ class ClientsList extends React.Component {
       (prev) => ({ myFilterId: prev.myFilterId === null ? me : null }),
       () => {
         if (this.gridApi) this.gridApi.onFilterChanged();
-      }
+      },
     );
   };
 
   render() {
-    const { rowData, columnDefs, defaultColDef, pageSize, activeTab } = this.state;
+    const { rowData, columnDefs, defaultColDef, pageSize, activeTab } =
+      this.state;
     return (
       <div>
         <SweetAlert
@@ -827,7 +845,7 @@ class ClientsList extends React.Component {
           onConfirm={() => {
             this.setState({
               rowData: this.state.rowData.filter(
-                (elem) => elem.id !== this.state.IdToDelete
+                (elem) => elem.id !== this.state.IdToDelete,
               ),
             });
             this.handleAlert("defaultAlert", false, 0);
@@ -858,12 +876,21 @@ class ClientsList extends React.Component {
                 style={{ paddingBottom: "0.5rem" }}
               >
                 {/* ONGLETS: Tous / Clients / Prospects */}
-                <Nav pills className="nav-pills-primary mb-1 flex-wrap">
+                <Nav pills className="mb-1 flex-wrap">
                   <NavItem>
                     <NavLink
                       className={activeTab === "all" ? "active" : ""}
                       onClick={() => this.toggleTab("all")}
-                      style={{ cursor: "pointer" }}
+                      style={{
+                        cursor: "pointer",
+                        ...(activeTab === "all"
+                          ? {
+                              backgroundColor: "transparent",
+                              border: "1px solid #7367f0",
+                              color: "#7367f0",
+                            }
+                          : {}),
+                      }}
                     >
                       Tous
                     </NavLink>
@@ -872,7 +899,16 @@ class ClientsList extends React.Component {
                     <NavLink
                       className={activeTab === "client" ? "active" : ""}
                       onClick={() => this.toggleTab("client")}
-                      style={{ cursor: "pointer" }}
+                      style={{
+                        cursor: "pointer",
+                        ...(activeTab === "client"
+                          ? {
+                              backgroundColor: "transparent",
+                              border: "1px solid #7367f0",
+                              color: "#7367f0",
+                            }
+                          : {}),
+                      }}
                     >
                       <Users size={15} className="mr-50" />
                       <span className="align-middle">Clients</span>
@@ -882,7 +918,16 @@ class ClientsList extends React.Component {
                     <NavLink
                       className={activeTab === "prospect" ? "active" : ""}
                       onClick={() => this.toggleTab("prospect")}
-                      style={{ cursor: "pointer" }}
+                      style={{
+                        cursor: "pointer",
+                        ...(activeTab === "prospect"
+                          ? {
+                              backgroundColor: "transparent",
+                              border: "1px solid #7367f0",
+                              color: "#7367f0",
+                            }
+                          : {}),
+                      }}
                     >
                       <Target size={15} className="mr-50" />
                       <span className="align-middle">Prospects</span>
@@ -967,6 +1012,18 @@ class ClientsList extends React.Component {
                       )}
                     </ContextLayout.Consumer>
                   ) : null}
+                </div>
+
+                {/* Bouton Anciens Clients - en bas de page */}
+                <div className="pt-50">
+                  <Button
+                    outline
+                    color="primary"
+                    onClick={() => history.push("/app/user/oldclientslist")}
+                  >
+                    <Clock size={15} className="mr-50" />
+                    Anciens Clients
+                  </Button>
                 </div>
               </CardBody>
             </Card>
