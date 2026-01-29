@@ -19,6 +19,7 @@ const InboxView = ({
   loading,
   error,
   onSelect,
+  onDataRefresh, // Nouveau callback pour déclencher le refresh des données
 }) => {
   const routerHistory = useHistory();
   const location = useLocation();
@@ -184,7 +185,7 @@ const InboxView = ({
   const handleMarkAsUnread = (e, item = null) => {
     if (e && e.stopPropagation) e.stopPropagation();
     const target = item || selectedItem;
-    
+
     if (!target?.id) return;
     setReadIds((prev) => {
       const newSet = new Set(prev);
@@ -417,6 +418,12 @@ const InboxView = ({
         isGeneratingAi={isGenerating}
         onGenerateAiReply={handleGenerateReply}
         setAiDraft={setAiDraft}
+        onProspectCreated={(newId) => {
+          console.log("🔄 Prospect créé, rechargement des données...", newId);
+          if (onDataRefresh) {
+            onDataRefresh();
+          }
+        }}
       />
 
       <DisqualifyModal

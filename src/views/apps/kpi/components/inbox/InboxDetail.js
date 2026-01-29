@@ -47,6 +47,7 @@ const InboxDetail = ({
   onGenerateAiReply,
   setAiDraft,
   onMarkAsUnread,
+  onProspectCreated, // Nouveau callback
 }) => {
   const [showConversationModal, setShowConversationModal] = useState(false);
   const [showVisualReport, setShowVisualReport] = useState(false);
@@ -1277,6 +1278,7 @@ const InboxDetail = ({
                 email: selectedItem.email,
                 phone: selectedItem.phone,
               }}
+              onProspectCreated={onProspectCreated}
             />
           </div>
         </div>
