@@ -817,20 +817,19 @@ export const useNotesLogic = (id, perso) => {
         const pdfHeight = pdf.internal.pageSize.getHeight();
 
         const imgProps = pdf.getImageProperties(imgData);
-        const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        let imgWidth = pdfWidth;
+        let imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
-        let heightLeft = imgHeight;
-        let position = 0;
-
-        pdf.addImage(imgData, "PNG", 0, position, pdfWidth, imgHeight);
-        heightLeft -= pdfHeight;
-
-        while (heightLeft > 10) {
-          position -= pdfHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, "PNG", 0, position, pdfWidth, imgHeight);
-          heightLeft -= pdfHeight;
+        // Si l'image dépasse la hauteur de la page, on la redimensionne
+        if (imgHeight > pdfHeight) {
+          imgHeight = pdfHeight;
+          imgWidth = (imgProps.width * pdfHeight) / imgProps.height;
         }
+
+        // Centrer l'image si elle est plus petite que la largeur
+        const xOffset = (pdfWidth - imgWidth) / 2;
+
+        pdf.addImage(imgData, "PNG", xOffset, 0, imgWidth, imgHeight);
 
         const safeName = (viewingDoc.name || "document")
           .replace(/[^a-zA-Z0-9À-ÿ\s-_]/g, "")
@@ -911,20 +910,19 @@ export const useNotesLogic = (id, perso) => {
         const pdfHeight = pdf.internal.pageSize.getHeight();
 
         const imgProps = pdf.getImageProperties(imgData);
-        const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        let imgWidth = pdfWidth;
+        let imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
-        let heightLeft = imgHeight;
-        let position = 0;
-
-        pdf.addImage(imgData, "PNG", 0, position, pdfWidth, imgHeight);
-        heightLeft -= pdfHeight;
-
-        while (heightLeft > 10) {
-          position -= pdfHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, "PNG", 0, position, pdfWidth, imgHeight);
-          heightLeft -= pdfHeight;
+        // Si l'image dépasse la hauteur de la page, on la redimensionne
+        if (imgHeight > pdfHeight) {
+          imgHeight = pdfHeight;
+          imgWidth = (imgProps.width * pdfHeight) / imgProps.height;
         }
+
+        // Centrer l'image si elle est plus petite que la largeur
+        const xOffset = (pdfWidth - imgWidth) / 2;
+
+        pdf.addImage(imgData, "PNG", xOffset, 0, imgWidth, imgHeight);
 
         const safeName = (viewingDoc.name || "document")
           .replace(/[^a-zA-Z0-9À-ÿ\s-_]/g, "")
@@ -980,8 +978,75 @@ export const useNotesLogic = (id, perso) => {
       return;
     }
 
+    // Rendre le HTML non-modifiable
+    let nonEditableContent = content;
+
+    // Ajouter contenteditable="false" sur le body s'il existe
+    nonEditableContent = nonEditableContent.replace(
+      /<body([^>]*)>/i,
+      '<body$1 contenteditable="false">'
+    );
+
+    // Ajouter des styles et scripts pour bloquer l'édition
+    const protectionCode = `
+      <style>
+        * {
+          -webkit-user-modify: read-only !important;
+          -moz-user-modify: read-only !important;
+          user-select: text !important;
+        }
+        body, body * {
+          cursor: default !important;
+        }
+      </style>
+      <script>
+        (function() {
+          // Bloquer l'édition au chargement
+          document.addEventListener('DOMContentLoaded', function() {
+            document.body.contentEditable = 'false';
+            document.designMode = 'off';
+
+            // Empêcher toute modification
+            document.body.addEventListener('input', function(e) {
+              e.preventDefault();
+              e.stopPropagation();
+              return false;
+            }, true);
+
+            document.body.addEventListener('keydown', function(e) {
+              if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) {
+                return;
+              }
+              if (e.ctrlKey || e.metaKey) {
+                return;
+              }
+              if (e.target !== document.body && e.target.isContentEditable) {
+                e.preventDefault();
+                return false;
+              }
+            });
+          });
+
+          // Application immédiate
+          if (document.body) {
+            document.body.contentEditable = 'false';
+            document.designMode = 'off';
+          }
+        })();
+      </script>
+    `;
+
+    // Insérer avant la fermeture du head, ou au début du body si pas de head
+    if (nonEditableContent.includes('</head>')) {
+      nonEditableContent = nonEditableContent.replace('</head>', protectionCode + '</head>');
+    } else if (nonEditableContent.includes('<body')) {
+      nonEditableContent = nonEditableContent.replace(/<body([^>]*)>/, '<body$1>' + protectionCode);
+    } else {
+      nonEditableContent = protectionCode + nonEditableContent;
+    }
+
     const element = document.createElement("a");
-    const file = new Blob([content], {
+    const file = new Blob([nonEditableContent], {
       type: "text/html",
     });
     element.href = URL.createObjectURL(file);
