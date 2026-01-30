@@ -63,6 +63,7 @@ class UserEdit extends React.Component {
 
   navRef = null;
   documentsHubRef = React.createRef();
+  contractsRef = React.createRef();
 
   computeSimuOffset = () => {
     try {
@@ -387,7 +388,14 @@ class UserEdit extends React.Component {
             />
 
             {/* 👇 Ta box de suivi d'avancement, dans un fichier séparé */}
-            <SuiviAvancementBox clientId={id} />
+            <SuiviAvancementBox
+              clientId={id}
+              onContractUpdate={() => {
+                if (this.contractsRef.current) {
+                  this.contractsRef.current.fetchData();
+                }
+              }}
+            />
           </div>
         </Col>
         <Col
@@ -403,16 +411,6 @@ class UserEdit extends React.Component {
             className="border-0 d-flex align-items-center gap-3 mb-1 nav-tabs"
             ref={(el) => (this.navRef = el)}
           >
-            <Button.Ripple
-              color="primary"
-              aria-label="Retour"
-              title="Retour à la page précédente"
-              className="btn-icon rounded-circle p-0 d-flex align-items-center justify-content-center mr-1"
-              style={{ width: 32, height: 32, minWidth: 32, flexShrink: 0 }}
-              onClick={() => history.push("/app/user/clientslist")}
-            >
-              <ArrowLeft size={16} />
-            </Button.Ripple>
             <Nav
               tabs
               className="border-0 d-flex align-items-center gap-3 mb-0"
@@ -491,15 +489,15 @@ class UserEdit extends React.Component {
                   Tâches
                   {this.state.taskCount > 0 && (
                     <span
-                      className={`badge badge-${this.state.hasUrgentTask ? 'danger' : 'primary'} ml-50`}
+                      className={`badge badge-${this.state.hasUrgentTask ? "danger" : "primary"} ml-50`}
                       style={{
-                        fontSize: '0.65rem', 
-                        minWidth: '18px',
-                        height: '18px',
-                        padding: '0',
-                        lineHeight: '18px',
-                        textAlign: 'center',
-                        borderRadius: '50%'
+                        fontSize: "0.65rem",
+                        minWidth: "18px",
+                        height: "18px",
+                        padding: "0",
+                        lineHeight: "18px",
+                        textAlign: "center",
+                        borderRadius: "50%",
                       }}
                     >
                       {this.state.taskCount}
@@ -563,7 +561,7 @@ class UserEdit extends React.Component {
               </Card>
             </TabPane>
             <TabPane tabId="contrats">
-              <Contracts id={id} />
+              <Contracts id={id} ref={this.contractsRef} />
             </TabPane>
             <TabPane tabId="documents">
               <DocumentsHub
