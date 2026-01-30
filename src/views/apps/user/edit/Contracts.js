@@ -21,6 +21,7 @@ import {
   FileText,
   DollarSign,
   TrendingUp,
+  Download,
 } from "react-feather";
 import { history } from "../../../../history";
 import axios from "axios";
@@ -29,6 +30,8 @@ import "../../../../assets/scss/pages/users.scss";
 import Moment from "react-moment";
 import SweetAlert from "react-bootstrap-sweetalert";
 import Chip from "../../../../../src/components/@vuexy/chips/ChipComponent";
+import jsPDF from "jspdf";
+import { toast } from "react-toastify";
 
 const chipColors = {
   CH: "warning",
@@ -53,6 +56,9 @@ class Contracts extends React.Component {
     requestingSignature: false,
     signatureAlertSuccess: false,
     signatureAlertError: { show: false, message: "" },
+
+    // Download
+    downloadingContractId: null,
   };
 
   async componentDidMount() {
@@ -182,6 +188,152 @@ class Contracts extends React.Component {
     }
   };
 
+  // Direct PDF download
+  downloadContract = async (contractId) => {
+    this.setState({ downloadingContractId: contractId });
+
+    const Config = {
+      headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+    };
+
+    try {
+      // Fetch complete contract data
+      const response = await axios.get(
+        global.config.server_url + "/get_contract/" + contractId,
+        Config,
+      );
+
+      const contract = response.data.data;
+      if (!contract) {
+        throw new Error("Contrat introuvable");
+      }
+
+      // Parse values
+      const values = contract.values ? JSON.parse(contract.values) : {};
+      const firstName = contract.first_name || "";
+      const lastName = contract.last_name || "";
+
+      // Get services list
+      const services = (contract.subscribe_services || "")
+        .replaceAll('"', "")
+        .trim()
+        .split("/")
+        .filter((s) => s && s.trim() !== "");
+
+      // Create PDF
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      let y = 20;
+
+      // Header
+      pdf.setFontSize(18);
+      pdf.setTextColor(115, 103, 240); // Primary purple
+      pdf.text("Contrat - EOR Consultants", pageWidth / 2, y, {
+        align: "center",
+      });
+      y += 15;
+
+      // Client info
+      pdf.setFontSize(14);
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(`Client: ${firstName} ${lastName}`, 20, y);
+      y += 10;
+
+      // Contract date
+      pdf.setFontSize(11);
+      pdf.setTextColor(100, 100, 100);
+      if (contract.created_at) {
+        const createdDate = new Date(contract.created_at).toLocaleDateString(
+          "fr-FR",
+          {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          },
+        );
+        pdf.text(`Date de création: ${createdDate}`, 20, y);
+        y += 8;
+      }
+
+      // Status
+      pdf.text(`Statut: ${contract.document_state || "Non défini"}`, 20, y);
+      y += 12;
+
+      // Services
+      if (services.length > 0) {
+        pdf.setFontSize(12);
+        pdf.setTextColor(0, 0, 0);
+        pdf.text("Prestations:", 20, y);
+        y += 8;
+
+        pdf.setFontSize(10);
+        services.forEach((service) => {
+          pdf.text(`• ${service.trim()}`, 25, y);
+          y += 6;
+        });
+        y += 5;
+      }
+
+      // Financial summary
+      pdf.setFontSize(12);
+      pdf.setTextColor(0, 0, 0);
+      pdf.text("Résumé financier:", 20, y);
+      y += 8;
+
+      pdf.setFontSize(10);
+      const totalTTC = values.TOTALTTC || contract.advanced_payment || 0;
+      const acompte = values.FINAL75 || contract.pre_payment || 0;
+      const solde = values.FINAL25 || contract.end_payment || 0;
+      const tva = values.TVAP || 20;
+
+      pdf.text(`Total TTC: ${Number(totalTTC).toFixed(2)} €`, 25, y);
+      y += 6;
+      pdf.text(
+        `Acompte (${values.fp1 || 75}%): ${Number(acompte).toFixed(2)} €`,
+        25,
+        y,
+      );
+      y += 6;
+      pdf.text(
+        `Solde (${values.fp2 || 25}%): ${Number(solde).toFixed(2)} €`,
+        25,
+        y,
+      );
+      y += 6;
+      pdf.text(`TVA: ${tva}%`, 25, y);
+      y += 12;
+
+      // Footer
+      pdf.setFontSize(8);
+      pdf.setTextColor(150, 150, 150);
+      pdf.text(
+        "Document généré automatiquement - EOR Consultants",
+        pageWidth / 2,
+        280,
+        { align: "center" },
+      );
+
+      // Generate filename
+      let serviceString = "Dossier";
+      if (services.length === 1) {
+        serviceString = services[0].trim();
+      } else if (services.length === 2) {
+        serviceString = `${services[0].trim()} + ${services[1].trim()}`;
+      } else if (services.length > 2) {
+        serviceString = `${services[0].trim()} et autres`;
+      }
+      const fileName = `${serviceString} ${firstName} ${lastName} - EOR Consultants.pdf`;
+
+      pdf.save(fileName);
+      toast.success("Contrat téléchargé avec succès !");
+    } catch (error) {
+      console.error("Erreur lors du téléchargement:", error);
+      toast.error("Erreur lors du téléchargement du contrat");
+    } finally {
+      this.setState({ downloadingContractId: null });
+    }
+  };
+
   // Helper to render services chips
   renderServices = (servicesString) => {
     if (!servicesString) return null;
@@ -244,39 +396,62 @@ class Contracts extends React.Component {
     const labelStyle = { fontSize: '10px', letterSpacing: '1px', color: '#4b4b4b', fontWeight: 'bold' };
 
     return (
-      <Card key={contract.id} className={`mb-2 border shadow-sm ${isTerminated ? 'border-success' : ''}`} style={{ transition: '0.3s', borderRadius: '12px' }}>
+      <Card
+        key={contract.id}
+        className={`mb-2 border shadow-sm ${isTerminated ? "border-success" : ""}`}
+        style={{ transition: "0.3s", borderRadius: "12px" }}
+      >
         <CardBody className="p-3">
           <Row>
             {/* Header / Main Info */}
-            <Col md="12" className="d-flex justify-content-between align-items-center mb-2">
+            <Col
+              md="12"
+              className="d-flex justify-content-between align-items-center mb-2"
+            >
               <div className="d-flex align-items-center">
                 <div>
                   <h5
                     className="mb-0 font-weight-bold cursor-pointer text-primary"
-                    onClick={() => history.push("/pages/contract/" + contract.id)}
+                    onClick={() =>
+                      history.push("/pages/contract/" + contract.id)
+                    }
                     title="Ouvrir le contrat"
                   >
                     {contract.comment}
                   </h5>
-                  <div className="d-flex align-items-center small mt-1" style={darkGreyStyle}>
+                  <div
+                    className="d-flex align-items-center small mt-1"
+                    style={darkGreyStyle}
+                  >
                     <Calendar size={12} className="mr-1" />
                     <Moment format="DD/MM/YYYY HH:mm" date={contract.created_at} />
                   </div>
                 </div>
               </div>
               <div className="d-flex align-items-center">
-                <Badge color={isTerminated ? "success" : "light-info"} className="mr-3" style={{ fontSize: '12.5px', borderRadius: '4px', padding: '8px 12px' }}>
+                <Badge color={isTerminated ? "success" : "light-info"} className="mr-2" style={{
+                    fontSize: "12.5px",
+                    borderRadius: "4px",
+                    padding: "8px 12px",
+                  }}>
                   {(contract.document_state || "").toUpperCase()}
                 </Badge>
                 <Button.Ripple
-                  className="btn-icon rounded-circle"
-                  color="flat-danger"
+                  className="btn-icon rounded-circle mr-1"
+                  color="flat-primary"
                   size="sm"
-                  onClick={() => this.handleAlert("defaultAlert", true, contract.id)}
-                  id={`delete-btn-${contract.id}`}
+                  onClick={() =>
+                    history.push(
+                      "/pages/contract/" + contract.id + "?download=true",
+                    )
+                  }
+                  id={`download-btn-${contract.id}`}
+                  title="Télécharger le contrat"
                 >
-                  <Trash2 size={18} />
+                  <Download size={18} />
                 </Button.Ripple>
+                <UncontrolledTooltip placement="top" target={`download-btn-${contract.id}`}>Télécharger le contrat</UncontrolledTooltip>
+                <Button.Ripple className="btn-icon rounded-circle" color="flat-danger" size="sm" onClick={() => this.handleAlert("defaultAlert", true, contract.id)} id={`delete-btn-${contract.id}`}><Trash2 size={18} /></Button.Ripple>
                 <UncontrolledTooltip placement="top" target={`delete-btn-${contract.id}`}>
                   Supprimer le contrat
                 </UncontrolledTooltip>
@@ -397,7 +572,7 @@ class Contracts extends React.Component {
               </Card>
             ) : (
               <div className="contract-list">
-                {rowData.map(contract => this.renderContractCard(contract))}
+                {rowData.map((contract) => this.renderContractCard(contract))}
               </div>
             )}
           </Col>

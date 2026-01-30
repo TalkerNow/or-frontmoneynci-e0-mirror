@@ -21,7 +21,7 @@ import {
 import axios from "axios";
 import { ContextLayout } from "../../../../utility/context/Layout";
 import { AgGridReact } from "ag-grid-react";
-import { ChevronDown, Trash2, Edit, CheckSquare } from "react-feather";
+import { ChevronDown, Trash2, Edit, CheckSquare, ArrowLeft } from "react-feather";
 import classnames from "classnames";
 import { history } from "../../../../history";
 import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss";
@@ -275,27 +275,17 @@ class OldClientsList extends React.Component {
               <Edit
                 className="mr-50"
                 size={20}
-                onClick={() =>
-                  history.push(
-                    "/app/olduser/edit/" + params.data.clcleunik + "/1"
-                  )
-                }
+                onClick={() => history.push("/app/olduser/edit/" + params.data.clcleunik + "/1")}
               />
               <CheckSquare
                 className="mr-50"
                 size={20}
-                onClick={() =>
-                  history.push(
-                    "/app/user/clientTask/" + params.data.clcleunik + "/all"
-                  )
-                }
+                onClick={() => history.push("/app/user/clientTask/" + params.data.clcleunik + "/all")}
                 title="Tâches"
               />
               <Trash2
                 size={20}
-                onClick={() => {
-                  this.handleAlert("defaultAlert", true, params.data.clcleunik);
-                }}
+                onClick={() => this.handleAlert("defaultAlert", true, params.data.clcleunik)}
               />
             </div>
           );
@@ -352,7 +342,6 @@ class OldClientsList extends React.Component {
       .get(global.config.server_url + "/users?kind=oldclient", Config)
       .then((response) => {
         let rowData = response.data;
-        console.log(rowData);
         this.setState({ rowData });
       });
   }
@@ -517,8 +506,16 @@ class OldClientsList extends React.Component {
                 }
               )}
             >
-              <CardHeader>
-                <CardTitle>
+              <CardHeader className="d-flex align-items-center">
+                <Button
+                  color="primary"
+                  className="btn-icon rounded-circle mr-1"
+                  onClick={() => history.push("/app/user/clientslist")}
+                  title="Retour aux Contacts"
+                >
+                  <ArrowLeft size={20} />
+                </Button>
+                <CardTitle className="mb-0">
                   Cette page permet de recenser les clients provenant de
                   l'ancien site Optionretraite.net
                 </CardTitle>

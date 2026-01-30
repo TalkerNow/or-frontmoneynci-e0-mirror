@@ -325,3 +325,652 @@
     }
   }
 }
+
+// ================================================================================================
+// STATUS & PAYMENTS CLEAN UI - Refonte visuelle
+// ================================================================================================
+
+// --- STATUS STEPPER ---
+.status-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  padding: 15px 0;
+  
+  // Ligne de connexion entre les étapes
+  &::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 12%;
+    right: 12%;
+    height: 3px;
+    background: linear-gradient(to right, #e9ecef 0%, #e9ecef 100%);
+    z-index: 0;
+    border-radius: 3px;
+  }
+  
+  .stepper-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    flex: 1;
+    
+    .stepper-circle {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 3px solid #e9ecef;
+      background: #fff;
+      color: #adb5bd;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      
+      svg {
+        width: 16px;
+        height: 16px;
+        stroke-width: 3;
+      }
+    }
+    
+    .stepper-label {
+      margin-top: 8px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: #adb5bd;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      transition: all 0.3s ease;
+      text-align: center;
+      white-space: nowrap;
+    }
+    
+    // État passé (complété)
+    &.completed {
+      .stepper-circle {
+        background: linear-gradient(135deg, #28c76f 0%, #1fa567 100%);
+        border-color: #28c76f;
+        color: #fff;
+        box-shadow: 0 3px 10px rgba(40, 199, 111, 0.3);
+      }
+      
+      .stepper-label {
+        color: #28c76f;
+        font-weight: 600;
+      }
+    }
+    
+    // État actif (en cours)
+    &.active {
+      .stepper-circle {
+        background: linear-gradient(135deg, #7367f0 0%, #5e54d4 100%);
+        border-color: #7367f0;
+        color: #fff;
+        transform: scale(1.1);
+        box-shadow: 0 4px 14px rgba(115, 103, 240, 0.35);
+      }
+      
+      .stepper-label {
+        color: #7367f0;
+        font-weight: 700;
+        font-size: 0.85rem;
+      }
+    }
+    
+    // État "Perdu" (rouge)
+    &.lost {
+      .stepper-circle {
+        background: linear-gradient(135deg, #ea5455 0%, #d63031 100%);
+        border-color: #ea5455;
+        color: #fff;
+        box-shadow: 0 4px 12px rgba(234, 84, 85, 0.35);
+      }
+      
+      .stepper-label {
+        color: #ea5455;
+        font-weight: 600;
+      }
+    }
+    
+    // Hover state
+    &:hover:not(.active) {
+      .stepper-circle {
+        transform: scale(1.05);
+        box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+      }
+    }
+  }
+  
+  // Ligne de progression
+  .stepper-line-progress {
+    position: absolute;
+    top: 50%;
+    left: 12%;
+    height: 3px;
+    background: linear-gradient(to right, #28c76f, #7367f0);
+    z-index: 0;
+    border-radius: 3px;
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+// --- MONEY BAR (KPI Cards) ---
+.money-bar {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  padding: 16px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+  border-top: 1px solid #e9ecef;
+  border-bottom: 1px solid #e9ecef;
+  
+  .kpi-card {
+    flex: 1;
+    max-width: 200px;
+    text-align: center;
+    padding: 14px 18px;
+    border-radius: 12px;
+    background: #fff;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid transparent;
+    
+    .kpi-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      opacity: 0.85;
+    }
+    
+    .kpi-value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin: 0;
+      line-height: 1.2;
+    }
+    
+    // Carte Payé (Vert)
+    &.kpi-paid {
+      background: linear-gradient(135deg, rgba(40, 199, 111, 0.08) 0%, rgba(40, 199, 111, 0.02) 100%);
+      border-color: rgba(40, 199, 111, 0.2);
+      
+      .kpi-label {
+        color: #1fa567;
+      }
+      
+      .kpi-value {
+        color: #28c76f;
+      }
+      
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(40, 199, 111, 0.15);
+        border-color: rgba(40, 199, 111, 0.4);
+      }
+    }
+    
+    // Carte Reste (Rouge/Orange)
+    &.kpi-remaining {
+      background: linear-gradient(135deg, rgba(234, 84, 85, 0.08) 0%, rgba(234, 84, 85, 0.02) 100%);
+      border-color: rgba(234, 84, 85, 0.2);
+      
+      .kpi-label {
+        color: #d63031;
+      }
+      
+      .kpi-value {
+        color: #ea5455;
+      }
+      
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(234, 84, 85, 0.15);
+        border-color: rgba(234, 84, 85, 0.4);
+      }
+    }
+    
+    // Reste = 0 (tout payé)
+    &.kpi-remaining.all-paid {
+      background: linear-gradient(135deg, rgba(40, 199, 111, 0.05) 0%, rgba(40, 199, 111, 0.02) 100%);
+      border-color: rgba(40, 199, 111, 0.15);
+      
+      .kpi-label, .kpi-value {
+        color: #28c76f;
+      }
+    }
+    
+    // Carte Total (Neutre)
+    &.kpi-total {
+      background: linear-gradient(135deg, rgba(94, 88, 115, 0.05) 0%, rgba(94, 88, 115, 0.02) 100%);
+      border-color: rgba(94, 88, 115, 0.15);
+      
+      .kpi-label {
+        color: #6c757d;
+      }
+      
+      .kpi-value {
+        color: #5e5873;
+      }
+      
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(94, 88, 115, 0.1);
+      }
+    }
+  }
+}
+
+// --- SETTINGS BOX (Paramètres de facturation) ---
+.settings-box {
+  background: linear-gradient(135deg, #f8f9fa 0%, #f4f5f7 100%);
+  border-radius: 12px;
+  padding: 12px 18px;
+  margin-bottom: 16px;
+  border: 1px solid #e9ecef;
+  
+  .settings-title {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6c757d;
+    font-weight: 600;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    
+    svg {
+      opacity: 0.7;
+    }
+  }
+  
+  .settings-content {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+  }
+  
+  .setting-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    
+    .setting-label {
+      font-weight: 500;
+      color: #5e5873;
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+    
+    .setting-unit {
+      color: #adb5bd;
+      font-size: 0.8rem;
+    }
+    
+    input.form-control {
+      width: 60px;
+      padding: 4px 8px;
+      height: 32px;
+      text-align: center;
+      font-weight: 600;
+      border-radius: 6px;
+      border: 1px solid #d8d6de;
+      background: #fff;
+      font-size: 0.9rem;
+      
+      &:focus {
+        border-color: #7367f0;
+        box-shadow: 0 0 0 3px rgba(115, 103, 240, 0.15);
+      }
+    }
+  }
+  
+  .credit-impot-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: rgba(40, 199, 111, 0.1);
+    border-radius: 6px;
+    border: 1px solid rgba(40, 199, 111, 0.2);
+    transition: all 0.2s ease;
+    
+    span {
+      font-weight: 600;
+      color: #28c76f;
+      font-size: 0.8rem;
+    }
+    
+    &:hover {
+      background: rgba(40, 199, 111, 0.15);
+    }
+  }
+}
+
+// --- PAYMENTS TABLE HEADER ---
+.payments-table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  
+  h4 {
+    margin: 0;
+    font-weight: 600;
+    color: #5e5873;
+    font-size: 1rem;
+  }
+}
+
+// --- RESPONSIVE ---
+@media (max-width: 768px) {
+  .money-bar {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    
+    .kpi-card {
+      max-width: 100%;
+      width: 100%;
+    }
+  }
+  
+  .status-stepper {
+    padding: 10px 0;
+    
+    .stepper-step {
+      .stepper-circle {
+        width: 32px;
+        height: 32px;
+        font-size: 0.8rem;
+        border-width: 2px;
+        
+        svg {
+          width: 14px;
+          height: 14px;
+        }
+      }
+      
+      .stepper-label {
+        font-size: 0.65rem;
+        margin-top: 6px;
+      }
+    }
+  }
+  
+  .settings-box .settings-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr; 
+    gap: 15px;
+    
+    .setting-item {
+      width: 100%;
+    }
+    
+    .credit-impot-badge {
+      grid-column: span 2;
+      justify-content: center;
+    }
+  }
+  
+  .payments-table-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    
+    h4 {
+      margin-bottom: 4px;
+    }
+    
+    button {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+}
+
+// ================================================================================================
+// SALESFORCE PATH & COMPACT LAYOUT STYLES
+// ================================================================================================
+
+/* Structure de base pour le Salesforce Path */
+.salesforce-path {
+  display: flex;
+  list-style: none;
+  padding: 0;
+  margin-bottom: 1rem;
+  overflow: hidden;
+  border-radius: 4px;
+  width: 100%;
+  
+  /* RESPONSIVE: Allow scroll on small screens */
+  @media (max-width: 768px) {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 0;
+  }
+}
+
+.salesforce-path li {
+  flex: 1;
+  position: relative;
+  padding: 10px 0 10px 30px;
+  background: #e9ecef; /* Couleur Futur (Gris) */
+  color: #6c757d;
+  font-weight: bold;
+  text-align: center;
+  margin-right: 4px; /* Petit espace entre les flèches */
+  clip-path: polygon(0% 0%, 95% 0%, 100% 50%, 95% 100%, 0% 100%, 5% 50%);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+  display: flex; /* Pour centrer le contenu (icône + texte) */
+  align-items: center;
+  justify-content: center;
+  /* Prevent shrinking */
+  flex-shrink: 0; 
+  white-space: nowrap;
+
+  @media (max-width: 576px) {
+    font-size: 0.8rem;
+    padding: 10px 10px 10px 25px;
+  }
+}
+
+/* Correction pour le premier élément (bord droit) */
+.salesforce-path li:first-child {
+  padding-left: 15px;
+  clip-path: polygon(0% 0%, 95% 0%, 100% 50%, 95% 100%, 0% 100%);
+}
+
+/* État : COMPLÉTÉ (Vert) */
+.salesforce-path li.completed {
+  background-color: #28c76f; 
+  color: white;
+}
+
+/* État : ACTIF (Bleu) */
+.salesforce-path li.active {
+  background-color: #0176D3; /* Salesforce Blue */
+  color: white;
+}
+
+/* État : ACTIF + SUCCÈS (Terminé) override */
+.salesforce-path li.active.bg-success {
+  background-color: #28c76f !important;
+  border-color: #28c76f !important;
+}
+
+/* Hover effects */
+.salesforce-path li:not(.active):hover {
+  background-color: #dbe0e6;
+}
+.salesforce-path li.completed:hover {
+  background-color: #24b464;
+}
+
+/* Toolbar Compacte */
+.contract-toolbar {
+  background-color: #f8f9fa; /* bg-light */
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 5px; /* Collé au tableau */
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between; /* KPIs à gauche, Inputs à droite */
+  align-items: center;
+  border: none;
+}
+
+/* KPIs Section */
+.toolbar-kpis {
+  display: flex;
+  align-items: center;
+}
+
+.kpi-item {
+  display: flex;
+  align-items: center;
+  margin-right: 20px; /* Espacement généreux */
+  white-space: nowrap;
+}
+
+/* Séparateur vertical entre KPIs */
+.kpi-separator {
+  border-left: 1px solid #d8d6de;
+  height: 20px;
+  margin-right: 20px;
+}
+
+/* Inputs Section */
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.action-group {
+  display: flex;
+  align-items: center;
+  margin-right: 15px;
+}
+
+.action-label {
+  font-size: 0.85rem;
+  margin-right: 5px;
+  color: #6c757d;
+}
+
+/* RESPONSIVE TOOLBAR */
+@media (max-width: 768px) {
+  .contract-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .toolbar-kpis {
+    width: 100%;
+    margin-bottom: 15px; /* Space between KPIs and Inputs */
+    justify-content: space-between;
+    overflow-x: auto;
+  }
+
+  .toolbar-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .action-group {
+    margin-right: 10px;
+    margin-bottom: 5px;
+  }
+
+  .kpi-item {
+    font-size: 0.8rem;
+    margin-right: 10px !important;
+  }
+}
+
+/* Modification du tableau pour qu'il "colle" à la toolbar */
+.payment-table-compact {
+  margin-top: 0 !important;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.btn-white-primary {
+  background-color: transparent !important; /* Fond transparent par défaut */
+  color: #7367f0 !important;
+  border: none !important;
+  transition: all 0.3s ease;
+  font-weight: 600;
+
+  /* Force color on children icons/spans */
+  & * {
+    color: #7367f0 !important;
+  }
+
+  &:focus {
+    outline: none;
+    box-shadow: none !important;
+    background-color: transparent !important;
+  }
+
+  &:hover, &:active {
+    background-color: rgba(115, 103, 240, 0.25) !important;
+    color: #7367f0 !important;
+    box-shadow: none !important;
+  }
+}
+
+.payment-table-wrapper {
+  max-height: 400px;
+  overflow-y: auto;
+  /* Removed border-bottom to avoid double lines or extra spacing */
+  
+  /* Custom Scrollbar for better aesthetics */
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: #d8d6de;
+    border-radius: 4px;
+  }
+  &::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
+}
+
+.payment-table-wrapper table thead th {
+  position: sticky;
+  top: 0;
+  background-color: #f8f9fa; /* Match thead-light */
+  z-index: 10;
+  box-shadow: 0 1px 0 #e9ecef;
+}
+
+.contract-action-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0;
+  /* Reduced padding for compact look */
+  padding: 5px 15px 0 15px; 
+  background-color: #ffffff;
+  border-top: 1px solid #e9ecef;
+  position: relative;
+  z-index: 1;
+}

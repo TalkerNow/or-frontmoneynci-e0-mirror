@@ -1,6 +1,6 @@
 import React from "react";
-import { UserPlus, Trash2, User } from "react-feather";
-import { Button, Card, CardBody, Input, Row, Col } from "reactstrap";
+import { UserPlus, Trash2, User, Users, Target, Clock } from "react-feather";
+import { Button, Card, CardBody, Input, Row, Col, Nav, NavItem, NavLink, Badge } from "reactstrap";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { ContextLayout } from "../../../../utility/context/Layout";
@@ -84,6 +84,8 @@ class ClientsList extends React.Component {
     cancelAlert: false,
     IdToDelete: 0,
     rowData: null,
+    allRowData: null, // Données brutes complètes (clients + prospects)
+    activeTab: "all", // Onglet actif: "all", "client", "prospect"
     pageSize: 70, // par défaut 70 par page
     defaultColDef: {
       resizable: true,
@@ -119,6 +121,42 @@ class ClientsList extends React.Component {
       suppressRowClickSelection: true,
     },
     columnDefs: [
+      // ====== COLONNE "Type" - Badge Client/Prospect ======
+      {
+        headerName: "Type",
+        field: "role",
+        colId: "type",
+        filter: false,
+        width: 100,
+        minWidth: 100,
+        flex: 0,
+        cellStyle: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        },
+        cellRendererFramework: (params) => {
+          const role = (params?.data?.role || "").toLowerCase();
+          const isProspect = role === "prospect";
+          return (
+            <Badge
+              color={isProspect ? undefined : "light-success"}
+              pill
+              style={
+                isProspect
+                  ? {
+                      backgroundColor: "#dbeafe",
+                      color: "#2c6ddf",
+                      fontSize: "0.75rem",
+                    }
+                  : { fontSize: "0.75rem" }
+              }
+            >
+              {isProspect ? "PROSPECT" : "CLIENT"}
+            </Badge>
+          );
+        },
+      },
       {
         headerName: "Création",
         filter: true,
@@ -441,22 +479,37 @@ class ClientsList extends React.Component {
 
     this.setState({ isConsultant, myFilterId });
 
-    // Récupère clients + documents en parallèle
+    // Récupère clients + prospects (depuis members) + documents en parallèle
     try {
-      const [usersRes, docsRes] = await Promise.all([
+      const [clientsRes, membersRes, docsRes] = await Promise.all([
         axios.get(global.config.server_url + "/users?kind=client", Config),
+        axios.get(global.config.server_url + "/users?kind=member", Config),
         axios.get(global.config.server_url + "/documents", Config),
       ]);
 
-      const rowData = usersRes.data;
+      // Filtrer les Prospects depuis la liste des membres
+      const prospects = (membersRes.data || []).filter(
+        (user) => (user.role || "").toLowerCase() === "prospect",
+      );
+
+      // Fusionner clients + prospects
+      const allRowData = [...(clientsRes.data || []), ...prospects];
       const documents = docsRes.data || [];
       const servicesByUserId = this.buildServicesMapFromDocuments(documents);
 
-      this.setState({ rowData, servicesByUserId }, () => {
-        if (this.gridApi && this.isExternalFilterPresent()) {
-          this.gridApi.onFilterChanged();
-        }
+      // Trier uniquement par date de création décroissante (plus récent en premier)
+      const sortedData = allRowData.sort((a, b) => {
+        return new Date(b.created_at) - new Date(a.created_at);
       });
+
+      this.setState(
+        { allRowData: sortedData, rowData: sortedData, servicesByUserId },
+        () => {
+          if (this.gridApi && this.isExternalFilterPresent()) {
+            this.gridApi.onFilterChanged();
+          }
+        },
+      );
     } catch (e) {
       console.error("Erreur chargement clients/documents", e);
     }
@@ -466,7 +519,7 @@ class ClientsList extends React.Component {
       try {
         const meRes = await axios.get(
           `${global.config.server_url}/users/${userIdRaw}`,
-          Config
+          Config,
         );
         const currentUserEmail = (meRes?.data?.email || "").toLowerCase();
         this.setState({ currentUserEmail });
@@ -475,6 +528,30 @@ class ClientsList extends React.Component {
       }
     }
   }
+
+  // Toggle entre les onglets (Tous, Clients, Prospects)
+  toggleTab = (tab) => {
+    if (tab === this.state.activeTab) return;
+
+    const { allRowData } = this.state;
+    let filteredData = allRowData || [];
+
+    if (tab === "client") {
+      filteredData = (allRowData || []).filter(
+        (user) => (user.role || "").toLowerCase() !== "prospect",
+      );
+    } else if (tab === "prospect") {
+      filteredData = (allRowData || []).filter(
+        (user) => (user.role || "").toLowerCase() === "prospect",
+      );
+    }
+
+    this.setState({ activeTab: tab, rowData: filteredData }, () => {
+      if (this.gridApi) {
+        this.gridApi.onFilterChanged();
+      }
+    });
+  };
 
   sizeToFit = () => {
     if (this.gridApi) {
@@ -530,8 +607,8 @@ class ClientsList extends React.Component {
       c.civility === "Monsieur"
         ? "M."
         : c.civility === "Madame"
-        ? "Mme"
-        : c.civility || "";
+          ? "Mme"
+          : c.civility || "";
     const apport = c.business_introducer
       ? c.business_introducer.name || c.business_introducer
       : "";
@@ -622,7 +699,7 @@ class ClientsList extends React.Component {
       ];
 
       const match = candidates.some(
-        (v) => v !== undefined && v !== null && String(v) === target
+        (v) => v !== undefined && v !== null && String(v) === target,
       );
 
       if (!match) return false;
@@ -703,6 +780,8 @@ class ClientsList extends React.Component {
 
   componentWillUnmount() {
     window.removeEventListener("resize", this.sizeToFit);
+    this.gridApi = null;
+    this.gridColumnApi = null;
   }
 
   // Toggle Mes clients / Tous les clients (désactivé pour les consultants)
@@ -716,12 +795,13 @@ class ClientsList extends React.Component {
       (prev) => ({ myFilterId: prev.myFilterId === null ? me : null }),
       () => {
         if (this.gridApi) this.gridApi.onFilterChanged();
-      }
+      },
     );
   };
 
   render() {
-    const { rowData, columnDefs, defaultColDef, pageSize } = this.state;
+    const { rowData, columnDefs, defaultColDef, pageSize, activeTab } =
+      this.state;
     return (
       <div>
         <SweetAlert
@@ -754,7 +834,7 @@ class ClientsList extends React.Component {
           onConfirm={() => {
             this.setState({
               rowData: this.state.rowData.filter(
-                (elem) => elem.id !== this.state.IdToDelete
+                (elem) => elem.id !== this.state.IdToDelete,
               ),
             });
             this.handleAlert("defaultAlert", false, 0);
@@ -784,6 +864,66 @@ class ClientsList extends React.Component {
                 className="h-100 d-flex flex-column"
                 style={{ paddingBottom: "0.5rem" }}
               >
+                {/* ONGLETS: Tous / Clients / Prospects */}
+                <Nav pills className="mb-1 flex-wrap">
+                  <NavItem>
+                    <NavLink
+                      className={activeTab === "all" ? "active" : ""}
+                      onClick={() => this.toggleTab("all")}
+                      style={{
+                        cursor: "pointer",
+                        ...(activeTab === "all"
+                          ? {
+                              backgroundColor: "transparent",
+                              border: "1px solid #7367f0",
+                              color: "#7367f0",
+                            }
+                          : {}),
+                      }}
+                    >
+                      Tous
+                    </NavLink>
+                  </NavItem>
+                  <NavItem>
+                    <NavLink
+                      className={activeTab === "client" ? "active" : ""}
+                      onClick={() => this.toggleTab("client")}
+                      style={{
+                        cursor: "pointer",
+                        ...(activeTab === "client"
+                          ? {
+                              backgroundColor: "transparent",
+                              border: "1px solid #7367f0",
+                              color: "#7367f0",
+                            }
+                          : {}),
+                      }}
+                    >
+                      <Users size={15} className="mr-50" />
+                      <span className="align-middle">Clients</span>
+                    </NavLink>
+                  </NavItem>
+                  <NavItem>
+                    <NavLink
+                      className={activeTab === "prospect" ? "active" : ""}
+                      onClick={() => this.toggleTab("prospect")}
+                      style={{
+                        cursor: "pointer",
+                        ...(activeTab === "prospect"
+                          ? {
+                              backgroundColor: "transparent",
+                              border: "1px solid #7367f0",
+                              color: "#7367f0",
+                            }
+                          : {}),
+                      }}
+                    >
+                      <Target size={15} className="mr-50" />
+                      <span className="align-middle">Prospects</span>
+                    </NavLink>
+                  </NavItem>
+                </Nav>
+
                 {/* HEADER: recherche à gauche, boutons à droite */}
                 <div className="ag-grid-actions d-flex justify-content-between flex-wrap align-items-center mb-1">
                   {/* Gauche : Recherche */}
@@ -861,6 +1001,18 @@ class ClientsList extends React.Component {
                       )}
                     </ContextLayout.Consumer>
                   ) : null}
+                </div>
+
+                {/* Bouton Anciens Clients - en bas de page */}
+                <div className="pt-50">
+                  <Button
+                    outline
+                    color="primary"
+                    onClick={() => history.push("/app/user/oldclientslist")}
+                  >
+                    <Clock size={15} className="mr-50" />
+                    Anciens Clients
+                  </Button>
                 </div>
               </CardBody>
             </Card>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import axios from "axios";
 import { useHistory, useLocation } from "react-router-dom";
 import "./InboxView.css";
@@ -22,6 +22,14 @@ const InboxView = ({
 }) => {
   const routerHistory = useHistory();
   const location = useLocation();
+
+  // Track mounted state for async operations
+  const isMounted = useRef(true);
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   // Sort and Map Items
   const allInboxItems = useMemo(() => {
@@ -184,7 +192,7 @@ const InboxView = ({
   const handleMarkAsUnread = (e, item = null) => {
     if (e && e.stopPropagation) e.stopPropagation();
     const target = item || selectedItem;
-    
+
     if (!target?.id) return;
     setReadIds((prev) => {
       const newSet = new Set(prev);
@@ -208,6 +216,7 @@ const InboxView = ({
     if (!selectedItem?.raw || !selectedItem?.id) return;
     setIsAnalyzing(true);
     const result = await generateStrategicAnalysis(selectedItem.raw);
+    if (!isMounted.current) return; // Prevent state update if unmounted
     if (result) {
       setStrategicAnalysisCache((prev) => ({
         ...prev,
@@ -248,6 +257,7 @@ const InboxView = ({
     `;
 
     const result = await generateGeminiContent(prompt);
+    if (!isMounted.current) return; // Prevent state update if unmounted
     setAiDraft(result);
     setIsGenerating(false);
   };
@@ -350,6 +360,7 @@ const InboxView = ({
           },
         );
       }
+      if (!isMounted.current) return; // Prevent state update if unmounted
 
       setDisqualifiedIds((prev) => new Set([...prev, selectedItem.id]));
       setShowDisqualifyModal(false);
@@ -367,13 +378,16 @@ const InboxView = ({
       }
     } catch (error) {
       console.error("Disqualify error:", error);
+      if (!isMounted.current) return; // Prevent state update if unmounted
       window.alert(
         "Une erreur est survenue, mais l'élément est masqué localement.",
       );
       setDisqualifiedIds((prev) => new Set([...prev, selectedItem.id]));
       setShowDisqualifyModal(false);
     } finally {
-      setIsDisqualifying(false);
+      if (isMounted.current) {
+        setIsDisqualifying(false);
+      }
     }
   };
 
