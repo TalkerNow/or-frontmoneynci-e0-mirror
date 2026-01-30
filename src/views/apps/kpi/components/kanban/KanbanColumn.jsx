@@ -319,7 +319,7 @@ class KanbanColumn extends React.Component {
             </div>
           )}
           <CardBody className="p-75">
-            <Button
+            {/* <Button
               color="light"
               block
               className="mb-75 d-flex align-items-center justify-content-center"
@@ -327,7 +327,7 @@ class KanbanColumn extends React.Component {
             >
               <Plus size={16} className="mr-50" />
               Nouvelle carte
-            </Button>
+            </Button> */}
 
             <Droppable droppableId={`column-${column.id}`}>
               {(provided, snapshot) => (
@@ -364,6 +364,7 @@ class KanbanColumn extends React.Component {
                             onStarClick={onStarClick}
                             onDeleteClick={onDeleteClick}
                             onCardClick={onCardClick}
+                            isLoadingData={this.props.isLoadingData}
                           />
                         </div>
                       )}

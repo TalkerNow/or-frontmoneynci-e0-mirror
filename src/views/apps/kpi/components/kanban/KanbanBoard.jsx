@@ -1,27 +1,12 @@
 import React from "react";
 import { connect } from "react-redux";
-import {
-  Button,
-  Input,
-  Card,
-  CardBody,
-  Modal,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-} from "reactstrap";
+import { withRouter } from "react-router-dom";
+import axios from "axios";
+import { Button, Input, Card, CardBody } from "reactstrap";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
-import {
-  Plus,
-  Check,
-  X,
-  Clock,
-  Calendar,
-  Star,
-  Edit,
-  Trash2,
-} from "react-feather";
+import { Plus, Check, X } from "react-feather";
 import KanbanColumn from "./KanbanColumn";
+import UserKanbanModal from "./Modals/UserKanbanModal";
 import {
   getKanbans,
   createKanban,
@@ -29,28 +14,112 @@ import {
   createUserKanban,
   moveUserKanban,
   updateKanban,
+  updateUserKanban,
   deleteKanban,
   deleteUserKanban,
   reorderKanbans,
 } from "../../../../../redux/actions/kanban";
 import "./kanban.scss";
+import getBadgeColor from "../../../../../helpers/getBadgeColor";
 
 class KanbanBoard extends React.Component {
-  state = {
-    isCreatingColumn: false,
-    newColumnTitle: "",
-    newColumnColor: "#60a5fa",
-    selectedCard: null,
-    isModalOpen: false,
-  };
+  constructor(props) {
+    super(props);
+    this.kanbanBoardRef = React.createRef();
+    this.autoScrollInterval = null;
+    this.state = {
+      isCreatingColumn: false,
+      newColumnTitle: "",
+      newColumnColor: "#60a5fa",
+      selectedCard: null,
+      isModalOpen: false,
+      userDetails: null,
+      loadingUserDetails: false,
+      usersData: {}, // Cache des données utilisateur
+      loadingUsersData: false, // État de chargement des données utilisateur
+    };
+  }
 
   componentDidMount() {
     this.props.getKanbans();
     this.props.getUserKanbans();
+    this.fetchAllUsersData();
   }
+
+  componentDidUpdate(prevProps) {
+    // Recharger les données utilisateurs si les userKanbans changent
+    if (prevProps.userKanbans !== this.props.userKanbans) {
+      this.fetchAllUsersData();
+    }
+  }
+
+  componentWillUnmount() {
+    if (this.autoScrollInterval) {
+      clearInterval(this.autoScrollInterval);
+    }
+  }
+
+  fetchAllUsersData = async () => {
+    const { userKanbans } = this.props;
+    if (!userKanbans || userKanbans.length === 0) return;
+
+    this.setState({ loadingUsersData: true });
+
+    const userIds = [...new Set(userKanbans.map((uk) => uk.user_id))];
+    const token = localStorage.getItem("token");
+    const usersData = {};
+
+    try {
+      const promises = userIds.map((userId) =>
+        axios
+          .get(
+            `${global.config.server_url}/users/${userId}?include=documents`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            },
+          )
+          .then((response) => {
+            const user = response.data;
+            // Calculer le montant total et les services
+            const totalAmount = user.documents
+              ? user.documents.reduce(
+                  (sum, doc) => sum + (doc.advanced_payment || 0),
+                  0,
+                )
+              : 0;
+            const allServices = user.documents
+              ? user.documents
+                  .map((doc) => doc.subscribe_services)
+                  .filter(Boolean)
+                  .join(" / ")
+              : "";
+
+            usersData[userId] = {
+              totalAmount,
+              allServices,
+              documents: user.documents || [],
+            };
+          })
+          .catch((error) => {
+            console.error(`Error fetching user ${userId}:`, error);
+            usersData[userId] = {
+              totalAmount: 0,
+              allServices: "",
+              documents: [],
+            };
+          }),
+      );
+
+      await Promise.all(promises);
+      this.setState({ usersData });
+    } catch (error) {
+      console.error("Error fetching users data:", error);
+    }
+  };
 
   getCardsForColumn = (columnId) => {
     const { userKanbans } = this.props;
+    const { usersData } = this.state;
 
     if (!userKanbans || userKanbans.length === 0) return [];
 
@@ -70,12 +139,18 @@ class KanbanBoard extends React.Component {
           formattedHour = userKanban.hour.substring(0, 5);
         }
 
+        // Récupérer les données de l'utilisateur depuis le cache
+        const userData = usersData[userKanban.user_id] || {
+          totalAmount: 0,
+          allServices: "",
+        };
+
         return {
           id: userKanban.id,
-          type: "Autre", // Valeur par défaut (peut être enrichi plus tard)
+          type: userData.allServices || "Autre",
           name: userKanban.user?.name || "Utilisateur inconnu",
-          amount: 0, // Pas de montant dans le modèle backend actuel
-          isStarred: false, // Pas de favoris dans le modèle backend actuel
+          amount: userData.totalAmount,
+          isStarred: false,
           date: formattedDate,
           hour: formattedHour,
           description: userKanban.description,
@@ -121,21 +196,94 @@ class KanbanBoard extends React.Component {
     this.props.deleteUserKanban(card.id);
   };
 
-  handleCardClick = (card) => {
+  handleCardClick = async (card) => {
     this.setState({
       selectedCard: card,
       isModalOpen: true,
+      loadingUserDetails: true,
+      userDetails: null,
     });
+
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get(
+        `${global.config.server_url}/users/${card.user_id}?include=documents,conversationArchives,simulatorDifficultyResults`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      this.setState({
+        userDetails: response.data,
+        loadingUserDetails: false,
+      });
+    } catch (error) {
+      console.error("Error fetching user details:", error);
+      this.setState({ loadingUserDetails: false });
+    }
   };
 
   handleCloseModal = () => {
     this.setState({
       isModalOpen: false,
       selectedCard: null,
+      userDetails: null,
     });
   };
 
+  handleSaveEdit = async (editFormData) => {
+    const { selectedCard } = this.state;
+    await this.props.updateUserKanban(selectedCard.id, editFormData);
+    // Recharger les données
+    this.props.getUserKanbans();
+  };
+
+  handleDragStart = () => {
+    // Ajouter l'event listener pour le mouvement de la souris
+    document.addEventListener("mousemove", this.handleAutoScroll);
+  };
+
+  handleAutoScroll = (e) => {
+    const kanbanBoard = this.kanbanBoardRef.current;
+    if (!kanbanBoard) return;
+
+    const scrollThreshold = 150; // Zone de déclenchement en pixels
+    const scrollSpeed = 15; // Vitesse de scroll
+    const rect = kanbanBoard.getBoundingClientRect();
+    const mouseX = e.clientX;
+
+    // Clear any existing interval
+    if (this.autoScrollInterval) {
+      clearInterval(this.autoScrollInterval);
+      this.autoScrollInterval = null;
+    }
+
+    // Scroll vers la gauche
+    if (mouseX < rect.left + scrollThreshold) {
+      this.autoScrollInterval = setInterval(() => {
+        if (kanbanBoard.scrollLeft > 0) {
+          kanbanBoard.scrollLeft -= scrollSpeed;
+        }
+      }, 20);
+    }
+    // Scroll vers la droite
+    else if (mouseX > rect.right - scrollThreshold) {
+      this.autoScrollInterval = setInterval(() => {
+        const maxScroll = kanbanBoard.scrollWidth - kanbanBoard.clientWidth;
+        if (kanbanBoard.scrollLeft < maxScroll) {
+          kanbanBoard.scrollLeft += scrollSpeed;
+        }
+      }, 20);
+    }
+  };
+
   handleDragEnd = (result) => {
+    // Nettoyer l'auto-scroll
+    document.removeEventListener("mousemove", this.handleAutoScroll);
+    if (this.autoScrollInterval) {
+      clearInterval(this.autoScrollInterval);
+      this.autoScrollInterval = null;
+    }
+
     const { destination, source, draggableId, type } = result;
 
     // Dropped outside a droppable area
@@ -256,7 +404,10 @@ class KanbanBoard extends React.Component {
     ];
 
     return (
-      <DragDropContext onDragEnd={this.handleDragEnd}>
+      <DragDropContext
+        onDragStart={this.handleDragStart}
+        onDragEnd={this.handleDragEnd}
+      >
         <div className="kanban-board-wrapper">
           <Droppable
             droppableId="all-columns"
@@ -266,7 +417,10 @@ class KanbanBoard extends React.Component {
             {(provided, snapshot) => (
               <div
                 className="kanban-board"
-                ref={provided.innerRef}
+                ref={(el) => {
+                  provided.innerRef(el);
+                  this.kanbanBoardRef.current = el;
+                }}
                 {...provided.droppableProps}
                 style={{
                   backgroundColor: snapshot.isDraggingOver
@@ -411,126 +565,16 @@ class KanbanBoard extends React.Component {
         </div>
 
         {/* Modale de détail client */}
-        <Modal
+        <UserKanbanModal
           isOpen={this.state.isModalOpen}
-          toggle={this.handleCloseModal}
-          size="lg"
-        >
-          {this.state.selectedCard && (
-            <>
-              <ModalHeader toggle={this.handleCloseModal}>
-                <div className="d-flex align-items-center">
-                  {this.state.selectedCard.isStarred && (
-                    <Star
-                      size={20}
-                      className="text-warning fill-warning mr-50"
-                    />
-                  )}
-                  <span>{this.state.selectedCard.name}</span>
-                </div>
-              </ModalHeader>
-              <ModalBody>
-                <div className="mb-2">
-                  <h6 className="text-muted mb-50">Type de prospect</h6>
-                  <h5 className="text-capitalize">
-                    {this.state.selectedCard.type || "Autre"}
-                  </h5>
-                </div>
-
-                <div className="mb-2">
-                  <h6 className="text-muted mb-50">Montant</h6>
-                  <h4 className="text-primary font-weight-bold">
-                    {new Intl.NumberFormat("fr-FR", {
-                      style: "currency",
-                      currency: "EUR",
-                      minimumFractionDigits: 0,
-                      maximumFractionDigits: 0,
-                    }).format(this.state.selectedCard.amount || 0)}
-                  </h4>
-                </div>
-
-                {this.state.selectedCard.date &&
-                  this.state.selectedCard.hour && (
-                    <div className="mb-2">
-                      <h6 className="text-muted mb-50">Date et heure</h6>
-                      <div className="d-flex align-items-center">
-                        <Clock size={16} className="mr-50" />
-                        <span>
-                          {new Date(
-                            `${this.state.selectedCard.date}T${this.state.selectedCard.hour}:00`,
-                          ).toLocaleDateString("fr-FR", {
-                            day: "2-digit",
-                            month: "long",
-                            year: "numeric",
-                          })}
-                          {" à "}
-                          {this.state.selectedCard.hour}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                {this.state.selectedCard.deadline && (
-                  <div className="mb-2">
-                    <h6 className="text-muted mb-50">Échéance</h6>
-                    <div className="d-flex align-items-center text-danger">
-                      <Calendar size={16} className="mr-50" />
-                      <span className="font-weight-bold">
-                        {this.state.selectedCard.deadline}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                <div className="mb-2">
-                  <h6 className="text-muted mb-50">Statut</h6>
-                  <span>
-                    Colonne:{" "}
-                    <strong>
-                      {this.props.kanbans.find(
-                        (col) => col.id === this.state.selectedCard.kanban_id,
-                      )?.title || "N/A"}
-                    </strong>
-                  </span>
-                </div>
-
-                {this.state.selectedCard.description && (
-                  <div className="mb-2">
-                    <h6 className="text-muted mb-50">Description</h6>
-                    <p>{this.state.selectedCard.description}</p>
-                  </div>
-                )}
-              </ModalBody>
-              <ModalFooter>
-                <Button
-                  color="primary"
-                  outline
-                  onClick={() => {
-                    console.log("Éditer:", this.state.selectedCard);
-                    // TODO: Implémenter l'édition
-                  }}
-                  className="d-flex align-items-center"
-                >
-                  <Edit size={14} className="mr-50" />
-                  Éditer
-                </Button>
-                <Button
-                  color="danger"
-                  outline
-                  onClick={() => {
-                    console.log("Supprimer:", this.state.selectedCard);
-                    // TODO: Implémenter la suppression
-                    this.handleCloseModal();
-                  }}
-                  className="d-flex align-items-center"
-                >
-                  <Trash2 size={14} className="mr-50" />
-                  Supprimer
-                </Button>
-              </ModalFooter>
-            </>
-          )}
-        </Modal>
+          onClose={this.handleCloseModal}
+          selectedCard={this.state.selectedCard}
+          userDetails={this.state.userDetails}
+          loadingUserDetails={this.state.loadingUserDetails}
+          kanbans={this.props.kanbans}
+          onSave={this.handleSaveEdit}
+          onDelete={this.handleDeleteCard}
+        />
       </DragDropContext>
     );
   }
@@ -551,7 +595,8 @@ export default connect(mapStateToProps, {
   createUserKanban,
   moveUserKanban,
   updateKanban,
+  updateUserKanban,
   deleteKanban,
   deleteUserKanban,
   reorderKanbans,
-})(KanbanBoard);
+})(withRouter(KanbanBoard));

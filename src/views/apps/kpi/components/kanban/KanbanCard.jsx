@@ -1,8 +1,10 @@
 import React from "react";
 import { Card, CardBody, Badge } from "reactstrap";
 import { Star, MoreVertical, Calendar, Clock, Trash2 } from "react-feather";
+import { withRouter } from "react-router-dom";
 import SweetAlert from "react-bootstrap-sweetalert";
 import "./kanban.scss";
+import getBadgeColor from "../../../../../helpers/getBadgeColor";
 
 class KanbanCard extends React.Component {
   state = {
@@ -12,16 +14,6 @@ class KanbanCard extends React.Component {
   handleDeleteClick = (e) => {
     e.stopPropagation();
     this.setState({ Alert: true });
-  };
-
-  getBadgeColor = (type) => {
-    const colors = {
-      autre: "light-secondary",
-      bilan: "light-primary",
-      entreprise: "light-success",
-      particulier: "light-warning",
-    };
-    return colors[type?.toLowerCase()] || "light-secondary";
   };
 
   getInitials = (name) => {
@@ -86,6 +78,37 @@ class KanbanCard extends React.Component {
     return `${dateStr} ${timePart}`;
   };
 
+  getRelativeDateBadge = (dateString) => {
+    if (!dateString) return null;
+    const datePart = dateString.split("T")[0];
+    const date = new Date(`${datePart}T00:00:00`);
+    const today = new Date();
+    const startOfToday = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+    );
+    const yesterday = new Date(startOfToday);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const tomorrow = new Date(startOfToday);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const toKey = (d) => d.toISOString().split("T")[0];
+    const dateKey = toKey(date);
+
+    if (dateKey === toKey(startOfToday)) {
+      return { label: "Aujourd'hui", color: "light-success" };
+    }
+    if (dateKey === toKey(tomorrow)) {
+      return { label: "Demain", color: "light-warning" };
+    }
+    if (dateKey === toKey(yesterday)) {
+      return { label: "Hier", color: "light-danger" };
+    }
+
+    return null;
+  };
+
   isOverdue = (dateString, hourString) => {
     if (!dateString || !hourString) return false;
 
@@ -100,8 +123,24 @@ class KanbanCard extends React.Component {
     return date < now;
   };
 
+  handleNameClick = (userId) => {
+    // Déclencher l'animation
+    const nameElement = document.querySelector(".clickable-name");
+    if (nameElement) {
+      nameElement.style.animation = "none";
+      setTimeout(() => {
+        nameElement.style.animation = "bubbleLift 0.6s ease-out";
+      }, 10);
+    }
+    // Rediriger après l'animation
+    setTimeout(() => {
+      this.props.history.push(`/app/user/edit/${userId}/2`);
+    }, 300);
+  };
+
   render() {
-    const { card, onStarClick, onDeleteClick, onCardClick } = this.props;
+    const { card, onStarClick, onDeleteClick, onCardClick, isLoadingData } =
+      this.props;
     const { type, name, amount, deadline, isStarred, date, hour } = card;
     const overdue = this.isOverdue(date, hour);
     const { Alert } = this.state;
@@ -147,19 +186,61 @@ class KanbanCard extends React.Component {
         >
           <CardBody className="p-75">
             <div className="d-flex justify-content-between align-items-start mb-50">
-              <Badge
-                color={this.getBadgeColor(type)}
-                pill
-                className="text-capitalize font-small-2"
-              >
-                {type || "Autre"}
-              </Badge>
+              {isLoadingData ? (
+                <div
+                  style={{
+                    width: "80px",
+                    height: "22px",
+                    backgroundColor: "#e0e0e0",
+                    borderRadius: "12px",
+                    animation: "pulse 1.5s ease-in-out infinite",
+                  }}
+                />
+              ) : (
+                <div
+                  className="d-flex flex-wrap"
+                  style={{ gap: "4px", maxWidth: "70%" }}
+                >
+                  {type && type !== "Autre" ? (
+                    type
+                      .split(/\s*\/\s*/) // Split par / avec ou sans espaces
+                      .map((s) => s.trim())
+                      .filter(Boolean) // Enlever les éléments vides
+                      .map((service, idx) => (
+                        <Badge
+                          key={idx}
+                          color={getBadgeColor(service)}
+                          className="font-weight-bold"
+                          style={{
+                            fontSize: "0.7rem",
+                            padding: "0.3rem 0.6rem",
+                            borderRadius: "6px",
+                          }}
+                        >
+                          {service}
+                        </Badge>
+                      ))
+                  ) : (
+                    <Badge
+                      color="light-secondary"
+                      className="font-weight-bold"
+                      style={{
+                        fontSize: "0.7rem",
+                        padding: "0.3rem 0.6rem",
+                        borderRadius: "6px",
+                      }}
+                    >
+                      Autre
+                    </Badge>
+                  )}
+                </div>
+              )}
               <div className="d-flex align-items-center">
-                <Star
+                {/* <Star
                   size={16}
                   className={`cursor-pointer mr-50 ${isStarred ? "text-warning fill-warning" : "text-muted"}`}
                   onClick={() => onStarClick && onStarClick(card)}
-                />
+                /> */}
                 <Trash2
                   size={14}
                   className="cursor-pointer text-danger"
@@ -168,12 +249,33 @@ class KanbanCard extends React.Component {
               </div>
             </div>
 
-            <h5 className="mb-50 font-weight-bold text-dark">{name}</h5>
+            <h5
+              className="mb-50 font-weight-bold text-dark clickable-name"
+              onClick={(e) => {
+                e.stopPropagation();
+                this.handleNameClick(card.user_id);
+              }}
+              title="Cliquer pour voir le profil"
+            >
+              {name}
+            </h5>
 
             <div className="d-flex justify-content-between align-items-center">
-              <h4 className="mb-0 font-weight-bold text-primary">
-                {this.formatAmount(amount || 0)}
-              </h4>
+              {isLoadingData ? (
+                <div
+                  style={{
+                    width: "100px",
+                    height: "24px",
+                    backgroundColor: "#e0e0e0",
+                    borderRadius: "4px",
+                    animation: "pulse 1.5s ease-in-out infinite",
+                  }}
+                />
+              ) : (
+                <h4 className="mb-0 font-weight-bold text-primary">
+                  {this.formatAmount(amount || 0)}
+                </h4>
+              )}
               <div
                 className="rounded-circle d-flex align-items-center justify-content-center"
                 style={{
@@ -195,12 +297,30 @@ class KanbanCard extends React.Component {
                   size={13}
                   className={`mr-50 ${overdue ? "text-danger" : "text-muted"}`}
                 />
-                <span
-                  className={`font-small-2 ${overdue ? "text-danger font-weight-bold" : "text-muted"}`}
-                >
-                  {overdue && "⚠️ "}
-                  {this.formatDateTime(date, hour)}
-                </span>
+                {(() => {
+                  const badge = this.getRelativeDateBadge(date);
+                  return badge ? (
+                    <Badge
+                      color={badge.color}
+                      className="font-small-2"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      {overdue && "⚠️ "}
+                      {badge.label} • {hour}
+                    </Badge>
+                  ) : (
+                    <span
+                      className={`font-small-2 ${overdue ? "text-danger font-weight-bold" : "text-muted"}`}
+                    >
+                      {overdue && "⚠️ "}
+                      {this.formatDateTime(date, hour)}
+                    </span>
+                  );
+                })()}
               </div>
             )}
 
@@ -219,4 +339,4 @@ class KanbanCard extends React.Component {
   }
 }
 
-export default KanbanCard;
+export default withRouter(KanbanCard);

@@ -11,6 +11,7 @@ import {
   Label,
   Input,
   Spinner,
+  Badge,
 } from "reactstrap";
 import { Calendar, Clock, FileText, CheckCircle } from "react-feather";
 import { toast } from "react-toastify";
@@ -29,6 +30,7 @@ const CreateUserKanbanModal = ({ isOpen, onClose, onSuccess, userId }) => {
     hour: "",
     status: "scheduled",
   });
+  const [dateSource, setDateSource] = useState(null); // 'manual' ou 'suggested'
 
   // Fetch kanbans on mount
   useEffect(() => {
@@ -145,6 +147,7 @@ const CreateUserKanbanModal = ({ isOpen, onClose, onSuccess, userId }) => {
       date: date || prev.date,
       hour: time || prev.hour,
     }));
+    setDateSource("manual");
   };
 
   const handleDateTimeClick = () => {
@@ -191,6 +194,20 @@ const CreateUserKanbanModal = ({ isOpen, onClose, onSuccess, userId }) => {
       date: tomorrowDate,
       hour: hour,
     }));
+    setDateSource("suggested");
+  };
+
+  const formatSuggestedDate = (hour) => {
+    const now = new Date();
+    const tomorrow = new Date(now);
+    const daysToAdd = now.getDay() === 5 ? 3 : 1;
+    tomorrow.setDate(tomorrow.getDate() + daysToAdd);
+    const dateLabel = new Intl.DateTimeFormat("fr-FR", {
+      weekday: "long",
+      day: "2-digit",
+      month: "long",
+    }).format(tomorrow);
+    return `${dateLabel} ${hour.replace(":", "h")}`;
   };
 
   const getKanbanColor = (color) => {
@@ -202,7 +219,7 @@ const CreateUserKanbanModal = ({ isOpen, onClose, onSuccess, userId }) => {
       <ModalHeader toggle={onClose}>
         <div className="d-flex align-items-center">
           <Calendar size={20} className="mr-50" />
-          Ajouter un rendez-vous au Kanban
+          Ajouter une tâche au Kanban
         </div>
       </ModalHeader>
       <form onSubmit={handleSubmit}>
@@ -264,8 +281,24 @@ const CreateUserKanbanModal = ({ isOpen, onClose, onSuccess, userId }) => {
                   <Calendar size={16} className="mr-50" />
                   Date & Heure <span className="text-danger">*</span>
                 </Label>
+                {dateSource && (
+                  <div className="text-center mb-50">
+                    <Badge
+                      color={
+                        dateSource === "suggested"
+                          ? "light-success"
+                          : "light-primary"
+                      }
+                      className="font-small-2"
+                    >
+                      {dateSource === "suggested"
+                        ? "✓ Suggestion"
+                        : "📅 Manuel"}
+                    </Badge>
+                  </div>
+                )}
                 <div
-                  className="d-flex align-items-center"
+                  className="d-flex align-items-stretch"
                   style={{ gap: "12px" }}
                 >
                   <div style={{ flex: 1 }}>
@@ -274,10 +307,19 @@ const CreateUserKanbanModal = ({ isOpen, onClose, onSuccess, userId }) => {
                       outline
                       type="button"
                       onClick={handleDateTimeClick}
-                      style={{ width: "100%", justifyContent: "center" }}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: "0.5rem",
+                      }}
                     >
                       <Clock size={16} className="mr-50" />
-                      {formatDateTimeLabel()}
+                      <span style={{ fontSize: "0.75rem", lineHeight: "1.2" }}>
+                        {formatDateTimeLabel()}
+                      </span>
                     </Button>
                     <Input
                       innerRef={dateTimeInputRef}
@@ -298,27 +340,26 @@ const CreateUserKanbanModal = ({ isOpen, onClose, onSuccess, userId }) => {
                       tabIndex={-1}
                     />
                   </div>
-                  <div
-                    style={{
-                      flex: 1,
-                      display: "flex",
-                      gap: "8px",
-                      alignItems: "stretch",
-                    }}
-                  >
+                  <div style={{ flex: 1 }}>
                     {isMorning() ? (
                       <Button
                         color="info"
                         outline
                         type="button"
-                        onClick={() => setSuggestedTime("16:00")}
+                        onClick={() => setSuggestedTime("16:30")}
                         style={{
-                          fontSize: "0.85rem",
-                          whiteSpace: "nowrap",
-                          flex: 1,
+                          width: "100%",
+                          height: "100%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "0.75rem",
+                          whiteSpace: "normal",
+                          lineHeight: "1.2",
+                          padding: "0.5rem",
                         }}
                       >
-                        Demain 16h
+                        {formatSuggestedDate("16:30")}
                       </Button>
                     ) : (
                       <Button
@@ -327,12 +368,18 @@ const CreateUserKanbanModal = ({ isOpen, onClose, onSuccess, userId }) => {
                         type="button"
                         onClick={() => setSuggestedTime("10:30")}
                         style={{
-                          fontSize: "0.85rem",
-                          whiteSpace: "nowrap",
-                          flex: 1,
+                          width: "100%",
+                          height: "100%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "0.75rem",
+                          whiteSpace: "normal",
+                          lineHeight: "1.2",
+                          padding: "0.5rem",
                         }}
                       >
-                        Demain 10h30
+                        {formatSuggestedDate("10:30")}
                       </Button>
                     )}
                   </div>
@@ -357,7 +404,7 @@ const CreateUserKanbanModal = ({ isOpen, onClose, onSuccess, userId }) => {
               </FormGroup>
 
               {/* Statut */}
-              <FormGroup>
+              {/* <FormGroup>
                 <Label for="status">
                   <CheckCircle size={16} className="mr-50" />
                   Statut
@@ -374,7 +421,7 @@ const CreateUserKanbanModal = ({ isOpen, onClose, onSuccess, userId }) => {
                   <option value="completed">Terminé</option>
                   <option value="cancelled">Annulé</option>
                 </Input>
-              </FormGroup>
+              </FormGroup> */}
             </>
           )}
         </ModalBody>

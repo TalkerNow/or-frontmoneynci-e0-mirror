@@ -14,7 +14,7 @@ import SweetAlert from "react-bootstrap-sweetalert";
 
 import { getTaskText } from "./utils";
 import ProspectCreateModal from "./ProspectCreateModal";
-import CreateUserKanbanModal from "../kanban/users-kanbans/CreateUserKanbanModal";
+import CreateUserKanbanModal from "../kanban/Modals/CreateUserKanbanModal";
 import ActivityList from "./ActivityList";
 
 const ActionsSection = ({
