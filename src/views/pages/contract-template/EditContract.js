@@ -15,6 +15,8 @@ import {
   ModalHeader,
   ModalBody,
   ModalFooter,
+  Table,
+  Badge,
 } from "reactstrap";
 import Chip from "../../../../src/components/@vuexy/chips/ChipComponent";
 import LabeledCheckboxMaterialUi from "labeled-checkbox-material-ui";
@@ -30,6 +32,10 @@ import {
   Plus,
 } from "react-feather";
 import "../../../assets/scss/pages/contract.scss";
+import "flatpickr/dist/themes/light.css";
+import "../../../../src/assets/scss/plugins/forms/flatpickr/flatpickr.scss";
+import Flatpickr from "react-flatpickr";
+import { French } from "flatpickr/dist/l10n/fr.js";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { history } from "../../../history";
@@ -149,7 +155,7 @@ const RowMinutes = ({ i, formValues, onPrimaryToggle, handleFieldChange }) => (
     </span>
     <Input
       type="text"
-      value={formValues["nb1"]}
+      value={formValues["nb1"] || ""}
       onChange={(e) => handleFieldChange("nb1", e.target.value)}
       style={{ ...inputStyle, width: "100%" }}
     />
@@ -159,7 +165,7 @@ const RowMinutes = ({ i, formValues, onPrimaryToggle, handleFieldChange }) => (
     </span>
     <Input
       type="text"
-      value={formValues["nb1-price"]}
+      value={formValues["nb1-price"] || ""}
       onChange={(e) => handleFieldChange("nb1-price", e.target.value)}
       style={{ ...inputStyle, width: "100%" }}
     />
@@ -204,7 +210,7 @@ const RowFixed = ({ i, n, formValues, onPrimaryToggle, handleFieldChange }) => (
 
     <Input
       type="text"
-      value={formValues[`p${n}`]}
+      value={formValues[`p${n}`] || ""}
       onChange={(e) => handleFieldChange(`p${n}`, e.target.value)}
       style={{
         ...inputStyle,
@@ -264,7 +270,7 @@ const RowWithOption = ({
       {/* prix forfait */}
       <Input
         type="text"
-        value={formValues[`p${n}`]}
+        value={formValues[`p${n}`] || ""}
         onChange={(e) => handleFieldChange(`p${n}`, e.target.value)}
         style={{
           ...inputStyle,
@@ -316,7 +322,7 @@ const RowWithOption = ({
             </span>
             <Input
               type="text"
-              value={formValues[optionNbKey]}
+              value={formValues[optionNbKey] || ""}
               onChange={(e) => handleFieldChange(optionNbKey, e.target.value)}
               style={{ ...inputStyle, width: 70 }}
             />
@@ -378,7 +384,7 @@ const RowWithOption = ({
           </span>
           <Input
             type="text"
-            value={formValues[optionNbKey]}
+            value={formValues[optionNbKey] || ""}
             onChange={(e) => handleFieldChange(optionNbKey, e.target.value)}
             style={{ ...inputStyle, width: 70 }}
           />
@@ -595,6 +601,102 @@ class EditContract extends React.Component {
     else this.removeRowById(id);
   };
 
+  openPaymentModal = () => {
+    const totalTTC = this.state.formValues["TOTALTTC"] || 0; // Total BRUT (348 €)
+    const fp1 = this.state.formValues["fp1"] || 0;
+
+    // Simulation du montant payé
+    // On additionne les acomptes existants (basé sur fp1 global divisé par nb dates ?)
+    // Non, si fp1 est le % TOTAL des acomptes, alors montant_total_acomptes = totalTTC * fp1.
+    // Si on a des dates d'acompte, on considère ce montant comme "engagé".
+
+    // MAIS, le calcul du 'PaidAmount' doit être plus SIMPLE pour correspondre à l'instruction :
+    // "Récupère la somme des paiements existants."
+
+    const acompteDates = this.state.acompte_dates || [];
+    const soldDates = this.state.sold_dates || [];
+
+    const amountAcompteGlobal = (totalTTC * fp1) / 100;
+
+    let paidAmount = 0;
+
+    // Si des acomptes sont présents, on compte le montant total des acomptes
+    if (acompteDates.length > 0) {
+      paidAmount += amountAcompteGlobal;
+    }
+
+    // Si des soldes sont présents
+    if (soldDates.length > 0) {
+      // Le reste (Solde)
+      paidAmount += totalTTC - amountAcompteGlobal;
+    }
+
+    // Force la précision à 2 décimales pour éviter les epsilon
+    paidAmount = Math.round(paidAmount * 100) / 100;
+
+    let suggestedType = "acompte";
+    let suggestedAmount = 0;
+
+    if (paidAmount === 0) {
+      // Scénario A : Rien -> Acompte
+      suggestedType = "acompte";
+      suggestedAmount = amountAcompteGlobal;
+
+      // Si fp1 est 0, on propose le défaut 50%
+      if (suggestedAmount === 0 && totalTTC > 0) {
+        suggestedAmount = totalTTC * 0.5;
+      }
+    } else {
+      // Scénario B : Déjà payé -> Solde
+      suggestedType = "sold";
+      const remainder = totalTTC - paidAmount;
+      suggestedAmount = remainder > 0 ? remainder : 0;
+    }
+
+    this.setState({
+      showPaymentModal: true,
+      modalPaymentType: suggestedType,
+      modalPaymentAmount: suggestedAmount,
+      modalPaymentDate: moment().format("YYYY-MM-DD"),
+    });
+  };
+
+  handlePaymentSubmit = () => {
+    const { modalPaymentType, modalPaymentAmount, modalPaymentDate } =
+      this.state;
+    const totalTTC = this.state.formValues["TOTALTTC"] || 0;
+
+    // Mise à jour des pourcentages si l'utilisateur change le montant
+    // (Uniquement si c'est le premier paiement de ce type, pour simplifier)
+
+    if (totalTTC > 0) {
+      if (modalPaymentType === "acompte") {
+        // Si c'est le tout premier acompte, on ajuste le % d'acompte (fp1)
+        // pour correspondre au montant saisi.
+        const currentAcomptes = this.state.acompte_dates || [];
+        if (currentAcomptes.length === 0) {
+          const newFp1 = (modalPaymentAmount / totalTTC) * 100;
+          this.handleFieldChange("fp1", parseFloat(newFp1.toFixed(2)));
+        }
+        this.addDate("acompte_dates", modalPaymentDate);
+      } else {
+        // Si c'est le tout premier solde, on ajuste le % de solde (fp2) ?
+        // En général fp2 = 100 - fp1.
+        // Mais si on ajoute un solde, on l'ajoute juste à la liste.
+        // Le calcul des montants dans le tableau divise le reste par le nb de soldes.
+        this.addDate("sold_dates", modalPaymentDate);
+      }
+    } else {
+      // Fallback sans montant total
+      this.addDate(
+        modalPaymentType === "acompte" ? "acompte_dates" : "sold_dates",
+        modalPaymentDate,
+      );
+    }
+
+    this.setState({ showPaymentModal: false });
+  };
+
   ifExist(name) {
     if (this.state.rowData) return this.state.rowData[name];
     else return "N/a";
@@ -603,8 +705,99 @@ class EditContract extends React.Component {
     input_values[field] = value;
     this.state.formValues[field] = value;
     if (field === "fp1") {
-      this.state.formValues["fp2"] = 100 - value;
-      input_values["fp2"] = 100 - value;
+      // Clamp fp1 between 0% and 100%
+      if (value === "" || value === undefined || value === null) {
+        // Allow empty value for typing
+        input_values[field] = "";
+        this.state.formValues[field] = "";
+        // Assume 0 for calculations but don't force it in the field
+        this.state.formValues["fp2"] = 100;
+        input_values["fp2"] = 100;
+      } else {
+        let clampedValue = parseInt(value);
+        if (isNaN(clampedValue)) clampedValue = 0;
+        if (clampedValue < 0) clampedValue = 0;
+        if (clampedValue > 100) clampedValue = 100;
+
+        value = clampedValue;
+        input_values[field] = clampedValue;
+        this.state.formValues[field] = clampedValue;
+
+        this.state.formValues["fp2"] = 100 - clampedValue;
+        input_values["fp2"] = 100 - clampedValue;
+      }
+      if (parseInt(value) <= 95) {
+        let newSoldDates = [...(this.state.sold_dates || [])];
+        let newEditingSold = [...(this.state.editingSold || [])];
+        let newAcompteDates = [...(this.state.acompte_dates || [])];
+        let newEditingAcompte = [...(this.state.editingAcompte || [])];
+
+        const defaultMethod = this.state.payment_method || "Virement bancaire";
+
+        // Ensure at least 1 Acompte date field
+        if (newAcompteDates.length === 0) {
+          newAcompteDates.push({
+            date: "",
+            method: defaultMethod,
+            is_paid: false,
+          });
+          newEditingAcompte.push(0);
+        }
+
+        // ALWAYS ensure at least 1 Solde date field when fp1 < 100
+        if (newSoldDates.length === 0) {
+          newSoldDates.push({
+            date: "",
+            method: defaultMethod,
+            is_paid: false,
+          });
+          newEditingSold.push(0);
+        }
+
+        // Only update status_payment if it was 0
+        const newStatusPayment =
+          this.state.status_payment === 0 ? 1 : this.state.status_payment;
+        const newDepositDate =
+          this.state.status_payment === 0
+            ? moment().format("YYYY-MM-DD HH:mm:ss")
+            : this.state.deposit_date;
+
+        this.setState({
+          status_payment: newStatusPayment,
+          deposit_date: newDepositDate,
+          sold_dates: newSoldDates,
+          editingSold: newEditingSold,
+          acompte_dates: newAcompteDates,
+          editingAcompte: newEditingAcompte,
+          isDirty: true,
+        });
+      }
+      if (parseInt(value) === 100) {
+        // 100% acompte means no solde, everything paid upfront
+        const defaultMethod = this.state.payment_method || "Virement bancaire";
+        let newAcompteDates = [...(this.state.acompte_dates || [])];
+        let newEditingAcompte = [...(this.state.editingAcompte || [])];
+
+        // Ensure at least one acompte line
+        if (newAcompteDates.length === 0) {
+          newAcompteDates.push({
+            date: "",
+            method: defaultMethod,
+            is_paid: false,
+          });
+          newEditingAcompte.push(0);
+        }
+
+        this.setState({
+          status_payment: 0,
+          deposit_date: null,
+          sold_date: null,
+          sold_dates: [],
+          editingSold: [],
+          acompte_dates: newAcompteDates,
+          editingAcompte: newEditingAcompte,
+        });
+      }
     }
     if (field === "fp2") {
       this.state.formValues["fp1"] = 100 - value;
@@ -709,12 +902,21 @@ class EditContract extends React.Component {
     this.state.formValues["TVA"] = (TOTALHT * input_values["TVAP"]) / 100;
     this.state.formValues["TOTALTTC"] = Math.trunc(TOTALHT * VTA);
 
+    // Si crédit d'impôt 50%, on divise le total TTC par 2
+    if (input_values["credit_impot_50"]) {
+      this.state.formValues["TOTALTTC"] = Math.trunc(
+        this.state.formValues["TOTALTTC"] / 2,
+      );
+    }
+
     var percent1 = input_values["fp1"] / 100;
     var percent2 = 1 - input_values["fp1"] / 100;
-    this.state.formValues["FINAL75"] =
-      Math.trunc(TOTALHT * VTA * percent1) + ".00";
-    this.state.formValues["FINAL25"] =
-      Math.trunc(TOTALHT * VTA * percent2) + ".00";
+
+    // On utilise le TOTALTTC déjà calculé (qui inclut la réduction si active)
+    const baseTotal = this.state.formValues["TOTALTTC"];
+
+    this.state.formValues["FINAL75"] = Math.trunc(baseTotal * percent1) + ".00";
+    this.state.formValues["FINAL25"] = Math.trunc(baseTotal * percent2) + ".00";
 
     this.setState({
       formValues: this.state.formValues,
@@ -728,15 +930,20 @@ class EditContract extends React.Component {
       },
     };
 
-    axios
-      .get(global.config.server_url + "/get_template/1", Config)
-      .then((response) => {
-        if (response.data != null) {
-          this.setState({
-            general_condition: response.data.general_condition,
-          });
-        }
-      });
+    // Load template (general conditions) first - wait for it
+    try {
+      const templateResponse = await axios.get(
+        global.config.server_url + "/get_template/1",
+        Config,
+      );
+      if (templateResponse.data != null) {
+        this.setState({
+          general_condition: templateResponse.data.general_condition,
+        });
+      }
+    } catch (e) {
+      console.error("Error loading template:", e);
+    }
 
     axios
       .get(
@@ -774,6 +981,22 @@ class EditContract extends React.Component {
           payment_method = "Autre";
         }
 
+        const normalizeDates = (dates, defaultMethod) => {
+          if (!Array.isArray(dates)) return [];
+          return dates.map((d) => {
+            if (typeof d === "string") {
+              return { date: d, method: defaultMethod };
+            }
+            return d; // Already an object (hopefully)
+          });
+        };
+
+        const acompteDatesNormalized = normalizeDates(
+          acompteDates,
+          payment_method,
+        );
+        const soldDatesNormalized = normalizeDates(soldDates, payment_method);
+
         this.setState({
           rowData,
           user_id: rowData.id,
@@ -782,16 +1005,48 @@ class EditContract extends React.Component {
           sold_date: rowData.sold_date,
           status: rowData.document_state,
           status_payment: rowData.status_payment,
-          payment_method, // <-- on garde la valeur calculée
-          payment_method_other, // <-- et le champ "Autre"
+          payment_method,
+          payment_method_other,
           subscribe_services: rowData.subscribe_services,
-          acompte_dates: acompteDates,
-          sold_dates: soldDates,
+          acompte_dates: acompteDatesNormalized,
+          sold_dates: soldDatesNormalized,
         });
 
         if (rowData.values != null) {
           let values = JSON.parse(rowData.values);
           input_values = { ...values };
+
+          // Ensure we have payment date entries if fp1 < 100
+          const fp1Val = parseInt(values.fp1) || 0;
+          if (fp1Val < 100 && fp1Val > 0) {
+            const defaultMethod = payment_method || "Virement bancaire";
+
+            // Ensure at least 1 Acompte date
+            if (acompteDatesNormalized.length === 0) {
+              acompteDatesNormalized.push({ date: "", method: defaultMethod });
+            }
+            // Ensure at least 1 Solde date
+            if (soldDatesNormalized.length === 0) {
+              soldDatesNormalized.push({ date: "", method: defaultMethod });
+            }
+
+            // Update state with the ensured dates
+            this.setState({
+              acompte_dates: acompteDatesNormalized,
+              sold_dates: soldDatesNormalized,
+              // STARTING IN VIEW MODE (removed auto-edit)
+              editingAcompte: [],
+              editingSold: [],
+            });
+          }
+
+          // Enforce "En attente" if no payments exist
+          const finalAcompteDates = this.state.acompte_dates || [];
+          const finalSoldDates = this.state.sold_dates || [];
+          if (finalAcompteDates.length === 0 && finalSoldDates.length === 0) {
+            this.setState({ status: "En attente" });
+          }
+
           // calcule les montants puis active les lignes concernées
           this.setState(
             {
@@ -802,8 +1057,32 @@ class EditContract extends React.Component {
           );
         } else {
           // nouveau contrat → interface vide par défaut
-          this.setState({ selectedRows: [] });
+          this.setState({ selectedRows: [], status: "En attente" });
           this.calculate();
+        }
+
+        // Check if we should auto-download
+        const urlParams = new URLSearchParams(window.location.search);
+        const shouldDownload = urlParams.get("download") === "true";
+        if (shouldDownload) {
+          const startTime = Date.now();
+          const checkInterval = setInterval(async () => {
+            const pages = document.getElementsByClassName("contract-page");
+            const elapsed = Date.now() - startTime;
+
+            // Wait for 3 pages OR 10 seconds timeout (fallback)
+            if (pages.length >= 3 || elapsed > 10000) {
+              clearInterval(checkInterval);
+              // Small additional buffer to ensure styles are applied
+              setTimeout(async () => {
+                await this.print();
+                // Redirect back to the contracts tab after download
+                if (this.state.user_id) {
+                  history.push("/app/user/edit/" + this.state.user_id + "/8");
+                }
+              }, 500);
+            }
+          }, 500);
         }
       })
       .catch((e) => console.log(e));
@@ -898,8 +1177,8 @@ class EditContract extends React.Component {
       payment_method: moyenPaiementFinal,
       values: JSON.stringify(input_values),
       unipro: this.state.formValues.credit_impot_50 ? 1 : 0,
-      acompte_dates: this.state.acompte_dates,
-      sold_dates: this.state.sold_dates,
+      acompte_dates: JSON.stringify(this.state.acompte_dates || []),
+      sold_dates: JSON.stringify(this.state.sold_dates || []),
       advanced_payment: this.state.formValues["TOTALTTC"] || 0,
       pre_payment: parseFloat(this.state.formValues["FINAL75"]) || 0,
       end_payment: parseFloat(this.state.formValues["FINAL25"]) || 0,
@@ -987,12 +1266,52 @@ class EditContract extends React.Component {
   setStatusPayment(value) {
     if (value == 1) {
       if (this.state.status_payment == 0) {
-        this.setState({ status_payment: 1 });
-        this.setState({ deposit_date: moment().format("YYYY-MM-DD HH:mm:ss") });
+        // Turn ON Acompte - create acompte payment line if needed
+        const defaultMethod = this.state.payment_method || "Virement bancaire";
+        let newAcompteDates = [...(this.state.acompte_dates || [])];
+        let newEditingAcompte = [...(this.state.editingAcompte || [])];
+
+        if (newAcompteDates.length === 0) {
+          newAcompteDates.push({
+            date: "",
+            method: defaultMethod,
+            is_paid: false,
+          });
+          newEditingAcompte.push(0);
+        }
+
+        this.setState({
+          status_payment: 1,
+          deposit_date: moment().format("YYYY-MM-DD HH:mm:ss"),
+          acompte_dates: newAcompteDates,
+          editingAcompte: newEditingAcompte,
+        });
       } else {
-        this.setState({ status_payment: 0 });
-        this.setState({ sold_date: null });
-        this.setState({ deposit_date: null });
+        // Turn OFF Acompte - create a solde line for 100% payment
+        const defaultMethod = this.state.payment_method || "Virement bancaire";
+        let newSoldDates = [...(this.state.sold_dates || [])];
+        let newEditingSold = [...(this.state.editingSold || [])];
+
+        // Add a solde line if none exists
+        if (newSoldDates.length === 0) {
+          newSoldDates.push({
+            date: "",
+            method: defaultMethod,
+            is_paid: false,
+          });
+          newEditingSold.push(0);
+        }
+
+        // Set fp1 to 100 (no acompte, pay all as solde)
+        this.handleFieldChange("fp1", 100);
+
+        this.setState({
+          status_payment: 0,
+          sold_date: null,
+          deposit_date: null,
+          sold_dates: newSoldDates,
+          editingSold: newEditingSold,
+        });
       }
     } else if (value == 2) {
       if (this.state.status_payment == 1) {
@@ -1292,25 +1611,99 @@ class EditContract extends React.Component {
     return v + " 00:00:00";
   };
 
-  addDate = (key) => {
+  addDate = (key, dateValue = "") => {
     this.setState((prev) => {
-      const newArr = [...(prev[key] || []), ""];
+      // Default method: global payment method or "Virement bancaire"
+      const defaultMethod = this.state.payment_method || "Virement bancaire";
+      // Use the passed date value or empty string
+      const dateToUse = dateValue || "";
+      const newObj = { date: dateToUse, method: defaultMethod, is_paid: false };
+
+      const newArr = [...(prev[key] || []), newObj];
       const newIdx = newArr.length - 1;
       const editKey =
         key === "acompte_dates" ? "editingAcompte" : "editingSold";
-      return {
+
+      const newState = {
         [key]: newArr,
         [editKey]: [...prev[editKey], newIdx],
         isDirty: true,
       };
+
+      // Transition automatique du statut selon la présence de lignes
+      if (prev.status === "Terminé" || prev.status === "En attente") {
+        newState.status = "En cours";
+      }
+
+      return newState;
     });
   };
 
-  updateDate = (key, idx, v) => {
+  updateDate = (key, idx, field, v) => {
     this.setState((prev) => {
       const arr = [...(prev[key] || [])];
-      arr[idx] = v;
+      // Ensure element is object
+      if (typeof arr[idx] === "string") {
+        arr[idx] = { date: arr[idx], method: this.state.payment_method || "" };
+      }
+
+      // Update specific field
+      if (field === "date") {
+        arr[idx] = { ...arr[idx], date: v };
+      } else if (field === "method") {
+        arr[idx] = { ...arr[idx], method: v };
+      }
+
       return { [key]: arr, isDirty: true };
+    });
+  };
+
+  togglePaymentPaidStatus = (key, idx) => {
+    this.setState((prev) => {
+      // 1. Get current arrays (create copies)
+      const acomptes = [...(prev.acompte_dates || [])];
+      const soldes = [...(prev.sold_dates || [])];
+
+      // 2. Identify which array we are modifying
+      const targetArray = key === "acompte_dates" ? acomptes : soldes;
+
+      // 3. Update the specific item
+      // Ensure element is object
+      if (typeof targetArray[idx] === "string") {
+        targetArray[idx] = {
+          date: targetArray[idx],
+          method: this.state.payment_method || "",
+          is_paid: false,
+        };
+      }
+
+      const newIsPaid = !targetArray[idx].is_paid;
+      targetArray[idx] = { ...targetArray[idx], is_paid: newIsPaid };
+
+      // 4. Calculate global status
+      // Check if ALL payments are paid
+      const allAcomptesPaid = acomptes.every((p) => p && p.is_paid);
+      const allSoldesPaid = soldes.every((p) => p && p.is_paid);
+      const hasPayments = acomptes.length > 0 || soldes.length > 0;
+      const isAllPaid = hasPayments && allAcomptesPaid && allSoldesPaid;
+
+      // Check if AT LEAST ONE payment is paid
+      const isSomePaid =
+        acomptes.some((p) => p && p.is_paid) ||
+        soldes.some((p) => p && p.is_paid);
+
+      const newState = { [key]: targetArray, isDirty: true };
+
+      if (isAllPaid) {
+        newState.status = "Terminé";
+      } else if (hasPayments) {
+        // "En cours" dès qu'il y a une ligne (payée ou non), tant que tout n'est pas payé
+        newState.status = "En cours";
+      } else {
+        newState.status = "En attente";
+      }
+
+      return newState;
     });
   };
 
@@ -1321,7 +1714,29 @@ class EditContract extends React.Component {
       const editArr = [...(prev[editKey] || [])];
       arr.splice(idx, 1);
       editArr.splice(idx, 1);
-      return { [key]: arr, [editKey]: editArr, isDirty: true };
+      const newState = { [key]: arr, [editKey]: editArr, isDirty: true };
+
+      // Recalcule le statut global après suppression
+      const acomptesRemaining =
+        key === "acompte_dates" ? arr : prev.acompte_dates || [];
+      const soldesRemaining =
+        key === "sold_dates" ? arr : prev.sold_dates || [];
+      const hasPaymentsRemaining =
+        acomptesRemaining.length > 0 || soldesRemaining.length > 0;
+
+      if (!hasPaymentsRemaining) {
+        newState.status = "En attente";
+      } else {
+        const allAcomptesPaid = acomptesRemaining.every((p) => p && p.is_paid);
+        const allSoldesPaid = soldesRemaining.every((p) => p && p.is_paid);
+        if (allAcomptesPaid && allSoldesPaid) {
+          newState.status = "Terminé";
+        } else {
+          newState.status = "En cours";
+        }
+      }
+
+      return newState;
     });
   };
 
@@ -1364,6 +1779,78 @@ class EditContract extends React.Component {
                 >
                   <ArrowLeft size={16} />
                 </Button.Ripple>
+                {/* Payment Modal */}
+                <Modal
+                  isOpen={this.state.showPaymentModal || false}
+                  toggle={() =>
+                    this.setState({
+                      showPaymentModal: !this.state.showPaymentModal,
+                    })
+                  }
+                  className="modal-dialog-centered"
+                >
+                  <ModalHeader
+                    toggle={() =>
+                      this.setState({
+                        showPaymentModal: !this.state.showPaymentModal,
+                      })
+                    }
+                  >
+                    Ajouter un paiement
+                  </ModalHeader>
+                  <ModalBody>
+                    <FormGroup>
+                      <label>Date</label>
+                      <Input
+                        type="date"
+                        value={this.state.modalPaymentDate || ""}
+                        onChange={(e) =>
+                          this.setState({ modalPaymentDate: e.target.value })
+                        }
+                      />
+                    </FormGroup>
+                    <FormGroup>
+                      <label>Type</label>
+                      <Input
+                        type="select"
+                        value={this.state.modalPaymentType || "acompte"}
+                        onChange={(e) =>
+                          this.setState({ modalPaymentType: e.target.value })
+                        }
+                      >
+                        <option value="acompte">Acompte</option>
+                        <option value="sold">Solde</option>
+                      </Input>
+                    </FormGroup>
+                    <FormGroup>
+                      <label>Montant (€)</label>
+                      <Input
+                        type="number"
+                        value={this.state.modalPaymentAmount ?? ""}
+                        onChange={(e) =>
+                          this.setState({
+                            modalPaymentAmount:
+                              e.target.value === ""
+                                ? ""
+                                : parseFloat(e.target.value),
+                          })
+                        }
+                      />
+                    </FormGroup>
+                  </ModalBody>
+                  <ModalFooter>
+                    <Button color="primary" onClick={this.handlePaymentSubmit}>
+                      Valider
+                    </Button>
+                    <Button
+                      color="secondary"
+                      onClick={() => this.setState({ showPaymentModal: false })}
+                    >
+                      Annuler
+                    </Button>
+                  </ModalFooter>
+                </Modal>
+
                 <Modal
                   isOpen={this.state.showUnsavedModal}
                   toggle={() =>
@@ -1610,474 +2097,740 @@ class EditContract extends React.Component {
                         return null;
                     }
                   })}
-
-                  <div
-                    key="row-tva"
-                    className="d-flex align-items-center flex-wrap"
-                    style={{
-                      backgroundColor: "#f8f9fa",
-                      border: "1px solid #ebe9f1",
-                      borderRadius: 8,
-                      padding: "15px 20px",
-                      marginTop: 25,
-                      gap: 15,
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <div
-                      className="d-flex align-items-center"
-                      style={{ gap: 10 }}
-                    >
-                      <span style={{ fontWeight: 600, color: "#5e5873" }}>
-                        TVA
-                      </span>
-                      <Input
-                        type="text"
-                        value={this.state.formValues["TVAP"] ?? 20}
-                        onChange={(e) =>
-                          this.handleFieldChange("TVAP", e.target.value)
-                        }
-                        style={{
-                          ...inputStyle,
-                          width: 60,
-                          textAlign: "center",
-                        }}
-                      />
-                      <span style={{ color: "#b9b9c3" }}>%</span>
-                    </div>
-
-                    <VSep />
-
-                    <div
-                      className="d-flex align-items-center"
-                      style={{ gap: 10 }}
-                    >
-                      <span style={{ color: "#5e5873" }}>
-                        {this.state.formValues["table3-subcontent1"] ||
-                          "Acompte à la commande :"}
-                      </span>
-                      <Input
-                        type="text"
-                        value={this.state.formValues["fp1"] ?? 100}
-                        onChange={(e) =>
-                          this.handleFieldChange("fp1", e.target.value)
-                        }
-                        style={{
-                          ...inputStyle,
-                          width: 60,
-                          textAlign: "center",
-                        }}
-                      />
-                      <span style={{ color: "#b9b9c3" }}>%</span>
-                    </div>
-
-                    <VSep />
-
-                    <div
-                      className="d-flex align-items-center"
-                      style={{ gap: 10 }}
-                    >
-                      <span style={{ color: "#5e5873" }}>
-                        {this.state.formValues["table3-subcontent2"] ||
-                          "Solde fin de mission :"}
-                      </span>
-                      <Input
-                        type="text"
-                        value={this.state.formValues["fp2"] ?? 0}
-                        onChange={(e) =>
-                          this.handleFieldChange("fp2", e.target.value)
-                        }
-                        style={{
-                          ...inputStyle,
-                          width: 60,
-                          textAlign: "center",
-                        }}
-                      />
-                      <span style={{ color: "#b9b9c3" }}>%</span>
-                    </div>
-
-                    {/* 👇 séparation avant le crédit d'impôts */}
-                    <VSep />
-
-                    {/* 👇 checkbox + texte avec le même style que les autres spans */}
-                    <div
-                      className="d-flex align-items-center"
-                      style={{
-                        gap: 8,
-                        backgroundColor: "#fff",
-                        padding: "5px 10px",
-                        borderRadius: 6,
-                        border: "1px solid #eee",
-                      }}
-                    >
-                      <LabeledCheckboxMaterialUi
-                        label="" // important : label vide
-                        checked={!!this.state.formValues.credit_impot_50}
-                        onChange={(checked) =>
-                          this.handleCheckChange(checked, "credit_impot_50")
-                        }
-                      />
-                      <span style={{ fontWeight: 500, color: "#28c76f" }}>
-                        Crédit d'impôts 50%
-                      </span>
-                    </div>
-                  </div>
                 </CardBody>
               </Card>
 
               {this.state.status != null &&
                 this.state.subscribe_services != null &&
                 this.state.status_payment != null && (
-                  <Card className="mb-1 shadow-sm" style={{ borderRadius: 10 }}>
-                    <CardHeader
-                      className="py-1 d-flex align-items-center"
-                      style={{
-                        background: "#f8f9fa",
-                        borderBottom: "1px solid #e9ecef",
-                      }}
+                  <Card
+                    className="border-0 shadow-sm mb-3"
+                    style={{
+                      borderRadius: 12,
+                      height: "auto",
+                      overflow: "visible",
+                    }}
+                  >
+                    <CardBody
+                      className="p-2 pb-0"
+                      style={{ overflow: "visible" }}
                     >
-                      <h5 className="mb-0">Statut & Paiements</h5>
-                    </CardHeader>
+                      {/* ZONE 1 : SALESFORCE PATH */}
+                      {(() => {
+                        const statuses = ["En attente", "En cours", "Terminé"];
+                        const currentStatus = this.state.status;
+                        const currentIndex = statuses.indexOf(currentStatus);
+                        return (
+                          <ul className="salesforce-path">
+                            {statuses.map((status, idx) => {
+                              let className = "";
+                              const isFinishedStep = status === "Terminé";
 
-                    <CardBody className="pt-1">
-                      <Row className="align-items-center">
-                        <Col md="6" sm="12" className="mb-1">
-                          <div className="d-flex flex-wrap" style={{ gap: 8 }}>
-                            <Radio
-                              label="En attente"
-                              color="primary"
-                              name="status"
-                              checked={this.state.status === "En attente"}
-                              onChange={() =>
-                                this.setState({
-                                  status: "En attente",
-                                  isDirty: true,
-                                })
-                              }
-                            />
-                            <Radio
-                              label="En cours"
-                              color="primary"
-                              name="status"
-                              checked={this.state.status === "En cours"}
-                              onChange={() =>
-                                this.setState({
-                                  status: "En cours",
-                                  isDirty: true,
-                                })
-                              }
-                            />
-                            <Radio
-                              label="Terminé"
-                              color="primary"
-                              name="status"
-                              checked={this.state.status === "Terminé"}
-                              onChange={() => {
-                                this.setState({
-                                  status: "Terminé",
-                                  isDirty: true,
-                                });
-                              }}
-                            />
-                            <Radio
-                              label="Perdu"
-                              color="primary"
-                              name="status"
-                              checked={this.state.status === "Perdu"}
-                              onChange={() =>
-                                this.setState({
-                                  status: "Perdu",
-                                  isDirty: true,
-                                })
-                              }
-                            />
-                          </div>
-                          <div
-                            className="d-flex align-items-center mt-1"
-                            style={{ gap: 8 }}
-                          >
-                            <span style={{ minWidth: 130 }}>
-                              Moyen de paiement
-                            </span>
-
-                            {/* Liste de choix */}
-                            <Input
-                              type="select"
-                              style={{
-                                minWidth: 100,
-                                maxWidth: 200,
-                                height: 40,
-                              }}
-                              value={this.state.payment_method || ""}
-                              color="primary"
-                              onChange={(e) =>
-                                this.setState({
-                                  payment_method: e.target.value,
-                                  isDirty: true,
-                                })
-                              }
-                            >
-                              <option value="" disabled hidden>
-                                Sélectionner…
-                              </option>
-                              <option value="Virement bancaire">
-                                Virement bancaire
-                              </option>
-                              <option value="Chèque de banque">
-                                Chèque de banque
-                              </option>
-                              <option value="Carte bancaire">
-                                Carte bancaire
-                              </option>
-                              <option value="Espèce">Espèce</option>
-                              <option value="Autre">Autre</option>
-                            </Input>
-
-                            {/* Champ texte si "Autre" */}
-                            {this.state.payment_method === "Autre" && (
-                              <Input
-                                style={{ width: 220, height: 34 }}
-                                value={this.state.payment_method_other || ""}
-                                color="primary"
-                                type="text"
-                                placeholder="Précisez le moyen de paiement"
-                                onChange={(e) =>
-                                  this.setState({
-                                    payment_method_other: e.target.value,
-                                    isDirty: true,
-                                  })
+                              if (idx < currentIndex) {
+                                className = "completed";
+                              } else if (idx === currentIndex) {
+                                className = "active";
+                                // SPECIFIC : If active step is "Terminé", add success class
+                                if (isFinishedStep) {
+                                  className += " bg-success text-white";
                                 }
+                              }
+
+                              return (
+                                <li
+                                  key={status}
+                                  className={className}
+                                  onClick={() => {
+                                    const hasP =
+                                      (this.state.acompte_dates || []).length >
+                                        0 ||
+                                      (this.state.sold_dates || []).length > 0;
+                                    if (!hasP && status !== "En attente") {
+                                      toast.warning(
+                                        "Veuillez ajouter au moins une date de paiement pour changer le statut.",
+                                      );
+                                      return;
+                                    }
+                                    this.setState({ status, isDirty: true });
+                                  }}
+                                >
+                                  {(idx < currentIndex ||
+                                    (isFinishedStep &&
+                                      idx === currentIndex)) && (
+                                    <Check size={14} className="mr-1" />
+                                  )}
+                                  {status}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        );
+                      })()}
+
+                      {/* ZONE 2 : TOOLBAR COMPACTE */}
+                      {(() => {
+                        const totalTTC = this.state.formValues["TOTALTTC"] || 0;
+                        const fp1 = this.state.formValues["fp1"] || 0;
+                        const fp2 = this.state.formValues["fp2"] || 0;
+
+                        // Recalculate totals for display
+                        const amountAcompte = (totalTTC * fp1) / 100;
+                        const amountTotalSolde = (totalTTC * fp2) / 100;
+                        let totalPercu = 0;
+                        const acompteDates = this.state.acompte_dates || [];
+                        const amountPerAcompte =
+                          acompteDates.length > 0
+                            ? amountAcompte / acompteDates.length
+                            : amountAcompte;
+                        acompteDates.forEach((d) => {
+                          if (d && typeof d === "object" && d.is_paid)
+                            totalPercu += amountPerAcompte;
+                        });
+                        const soldDates = this.state.sold_dates || [];
+                        const amountPerSolde =
+                          soldDates.length > 0
+                            ? amountTotalSolde / soldDates.length
+                            : amountTotalSolde;
+                        soldDates.forEach((d) => {
+                          if (d && typeof d === "object" && d.is_paid)
+                            totalPercu += amountPerSolde;
+                        });
+                        const reste = totalTTC - totalPercu;
+                        const formatMoney = (val) =>
+                          new Intl.NumberFormat("fr-FR", {
+                            style: "currency",
+                            currency: "EUR",
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0,
+                          }).format(val);
+
+                        return (
+                          <div className="contract-toolbar">
+                            {/* GAUCHE : KPIs - Affichage agrandi */}
+                            <div
+                              className="toolbar-kpis"
+                              style={{ fontSize: "1.1rem" }}
+                            >
+                              <div className="kpi-item">
+                                <span
+                                  className="mr-2"
+                                  style={{
+                                    fontSize: "1.1rem",
+                                    color: "#5e5873",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  Payé :
+                                </span>
+                                <span
+                                  className="text-success font-weight-bold"
+                                  style={{ fontSize: "1.25rem" }}
+                                >
+                                  {formatMoney(totalPercu)}
+                                </span>
+                              </div>
+                              <div className="kpi-separator"></div>
+                              <div className="kpi-item">
+                                <span
+                                  className="mr-2"
+                                  style={{
+                                    fontSize: "1.1rem",
+                                    color: "#5e5873",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  Reste :
+                                </span>
+                                <span
+                                  className="text-danger font-weight-bold"
+                                  style={{ fontSize: "1.25rem" }}
+                                >
+                                  {formatMoney(Math.max(0, reste))}
+                                </span>
+                              </div>
+                              <div className="kpi-separator"></div>
+                              <div className="kpi-item">
+                                <span
+                                  className="text-dark font-weight-bolder"
+                                  style={{ fontSize: "1.25rem" }}
+                                >
+                                  Total : {formatMoney(totalTTC)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* DROITE : ACTIONS - Affichage agrandi sur une ligne */}
+                            <div
+                              className="d-flex align-items-center"
+                              style={{
+                                backgroundColor: "#f8f9fa",
+                                border: "1px solid #ebe9f1",
+                                borderRadius: 8,
+                                padding: "10px 16px",
+                                gap: 16,
+                                flexWrap: "nowrap",
+                              }}
+                            >
+                              <div
+                                className="d-flex align-items-center"
+                                style={{ gap: 10 }}
+                              >
+                                <span
+                                  style={{
+                                    fontWeight: 600,
+                                    color: "#5e5873",
+                                    fontSize: "1.1rem",
+                                  }}
+                                >
+                                  TVA
+                                </span>
+                                <Input
+                                  type="text"
+                                  style={{
+                                    width: 70,
+                                    height: 42,
+                                    textAlign: "center",
+                                    borderRadius: 6,
+                                    border: "1px solid #d8d6de",
+                                    fontSize: "1.1rem",
+                                    fontWeight: 600,
+                                  }}
+                                  value={this.state.formValues["TVAP"] ?? 20}
+                                  onChange={(e) =>
+                                    this.handleFieldChange(
+                                      "TVAP",
+                                      e.target.value,
+                                    )
+                                  }
+                                />
+                                <span
+                                  style={{
+                                    color: "#5e5873",
+                                    fontSize: "1.1rem",
+                                  }}
+                                >
+                                  %
+                                </span>
+                              </div>
+
+                              <div
+                                style={{
+                                  width: 1,
+                                  height: 28,
+                                  background: "#d8d6de",
+                                }}
                               />
-                            )}
-                          </div>
-                        </Col>
 
-                        <Col md="6" sm="12" className="mb-1">
-                          <div
-                            className="d-flex align-items-center"
-                            style={{ gap: 18 }}
-                          >
-                            <CustomInput
-                              className="custom-switch-success"
-                              type="switch"
-                              id="acompte"
-                              name="Acompte"
-                              inline
-                              checked={this.state.status_payment > 0}
-                              onChange={() => this.setStatusPayment(1)}
-                            >
-                              <span
-                                className="mb-0 switch-label"
-                                style={{ paddingTop: 3 }}
-                              >
-                                Acompte
-                              </span>
-                            </CustomInput>
-                            <CustomInput
-                              className="custom-switch-success"
-                              type="switch"
-                              id="sold"
-                              name="Sold"
-                              inline
-                              checked={this.state.status_payment > 1}
-                              onChange={() => this.setStatusPayment(2)}
-                            >
-                              <span
-                                className="mb-0 switch-label"
-                                style={{ paddingTop: 3 }}
-                              >
-                                Soldé
-                              </span>
-                            </CustomInput>
-                          </div>
-                        </Col>
-                      </Row>
-
-                      <hr className="my-2" />
-
-                      <Row>
-                        <Col md="6" sm="12" className="mb-1">
-                          <div className="mb-1">
-                            <h6 className="mb-0">Dates d’acompte</h6>
-                          </div>
-                          {(this.state.acompte_dates || []).map((d, idx) => {
-                            const isEditing =
-                              this.state.editingAcompte.includes(idx);
-                            return (
                               <div
-                                key={`ad-${idx}`}
                                 className="d-flex align-items-center"
-                                style={{ gap: 8, marginBottom: 8 }}
+                                style={{ gap: 10 }}
                               >
-                                {isEditing ? (
-                                  <>
-                                    <Input
-                                      type="date"
-                                      max="9999-12-31"
-                                      min="1900-01-01"
-                                      style={{ width: 240, height: 34 }}
-                                      value={this.toInputValue(d)}
-                                      onChange={(e) =>
-                                        this.updateDate(
-                                          "acompte_dates",
-                                          idx,
-                                          this.fromInputValue(e.target.value),
+                                <span
+                                  style={{
+                                    color: "#5e5873",
+                                    fontSize: "1.1rem",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  Acompte :
+                                </span>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  max={100}
+                                  style={{
+                                    width: 70,
+                                    height: 42,
+                                    textAlign: "center",
+                                    borderRadius: 6,
+                                    border: "1px solid #d8d6de",
+                                    fontSize: "1.1rem",
+                                    fontWeight: 600,
+                                  }}
+                                  value={this.state.formValues["fp1"] ?? ""}
+                                  onChange={(e) =>
+                                    this.handleFieldChange(
+                                      "fp1",
+                                      e.target.value,
+                                    )
+                                  }
+                                />
+                                <span
+                                  style={{
+                                    color: "#5e5873",
+                                    fontSize: "1.1rem",
+                                  }}
+                                >
+                                  %
+                                </span>
+                              </div>
+
+                              <div
+                                style={{
+                                  width: 1,
+                                  height: 28,
+                                  background: "#d8d6de",
+                                }}
+                              />
+
+                              <div
+                                className="d-flex align-items-center"
+                                style={{ gap: 10 }}
+                              >
+                                <span
+                                  style={{
+                                    color: "#5e5873",
+                                    fontSize: "1.1rem",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  Solde :
+                                </span>
+                                <Input
+                                  type="text"
+                                  style={{
+                                    width: 70,
+                                    height: 42,
+                                    textAlign: "center",
+                                    borderRadius: 6,
+                                    border: "1px solid #d8d6de",
+                                    fontSize: "1.1rem",
+                                    fontWeight: 600,
+                                  }}
+                                  value={this.state.formValues["fp2"] ?? 0}
+                                  onChange={(e) =>
+                                    this.handleFieldChange(
+                                      "fp2",
+                                      e.target.value,
+                                    )
+                                  }
+                                />
+                                <span
+                                  style={{
+                                    color: "#5e5873",
+                                    fontSize: "1.1rem",
+                                  }}
+                                >
+                                  %
+                                </span>
+                              </div>
+
+                              <div
+                                style={{
+                                  width: 1,
+                                  height: 28,
+                                  background: "#d8d6de",
+                                }}
+                              />
+
+                              <div
+                                className="d-flex align-items-center"
+                                style={{
+                                  gap: 8,
+                                  backgroundColor: "#fff",
+                                  padding: "6px 12px",
+                                  borderRadius: 6,
+                                  border: "1px solid #eee",
+                                }}
+                              >
+                                <LabeledCheckboxMaterialUi
+                                  label=""
+                                  checked={
+                                    !!this.state.formValues.credit_impot_50
+                                  }
+                                  onChange={(checked) =>
+                                    this.handleCheckChange(
+                                      checked,
+                                      "credit_impot_50",
+                                    )
+                                  }
+                                  style={{ padding: 0 }}
+                                />
+                                <span
+                                  style={{
+                                    fontSize: "1.1rem",
+                                    fontWeight: 600,
+                                    color: "#28c76f",
+                                  }}
+                                >
+                                  Crédit d'impôts 50%
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      <div className="payment-table-wrapper">
+                        <Table
+                          responsive
+                          hover
+                          size="sm"
+                          className="payment-table-compact mb-0"
+                        >
+                          <thead className="thead-light">
+                            <tr>
+                              <th
+                                style={{
+                                  whiteSpace: "nowrap",
+                                  padding: "0.5rem",
+                                }}
+                              >
+                                Date de paiement
+                              </th>
+                              <th style={{ padding: "0.5rem" }}>Type</th>
+                              <th
+                                style={{
+                                  whiteSpace: "nowrap",
+                                  padding: "0.5rem",
+                                }}
+                              >
+                                Moyen de paiement
+                              </th>
+                              <th
+                                className="text-right"
+                                style={{
+                                  whiteSpace: "nowrap",
+                                  padding: "0.5rem",
+                                }}
+                              >
+                                Montant
+                              </th>
+                              <th
+                                className="text-center"
+                                style={{
+                                  whiteSpace: "nowrap",
+                                  padding: "0.5rem",
+                                }}
+                              >
+                                Statut
+                              </th>
+                              <th
+                                className="text-center"
+                                style={{ width: "100px", padding: "0.5rem" }}
+                              >
+                                Actions
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(() => {
+                              const totalTTC =
+                                this.state.formValues["TOTALTTC"] || 0;
+                              const fp1 = this.state.formValues["fp1"] || 0;
+                              const fp2 = this.state.formValues["fp2"] || 0;
+                              const amountAcompte = (totalTTC * fp1) / 100;
+                              const amountTotalSolde = (totalTTC * fp2) / 100;
+
+                              let acompteDates = this.state.acompte_dates || [];
+                              let soldDates = this.state.sold_dates || [];
+
+                              // Removed auto-creation of default entries in render to avoid side-effects and stay in view mode
+
+                              const amountPerAcompte =
+                                acompteDates.length > 0
+                                  ? amountAcompte / acompteDates.length
+                                  : amountAcompte;
+                              const amountPerSolde =
+                                soldDates.length > 0
+                                  ? amountTotalSolde / soldDates.length
+                                  : amountTotalSolde;
+
+                              const rows = [];
+
+                              // Acompte Rows
+                              acompteDates.forEach((d, idx) => {
+                                if (d === null || d === undefined) return;
+                                const dateVal =
+                                  typeof d === "object" ? d.date : d;
+                                const methodVal =
+                                  typeof d === "object"
+                                    ? d.method
+                                    : this.state.payment_method;
+                                const isPaid =
+                                  typeof d === "object" ? d.is_paid : false;
+                                rows.push({
+                                  type: "acompte",
+                                  date: dateVal,
+                                  method: methodVal,
+                                  idx,
+                                  amount: amountPerAcompte,
+                                  is_paid: isPaid,
+                                  isEditing: (
+                                    this.state.editingAcompte || []
+                                  ).includes(idx),
+                                });
+                              });
+
+                              // Solde Rows
+                              soldDates.forEach((d, idx) => {
+                                if (d === null || d === undefined) return;
+                                const dateVal =
+                                  typeof d === "object" ? d.date : d;
+                                const methodVal =
+                                  typeof d === "object"
+                                    ? d.method
+                                    : this.state.payment_method;
+                                const isPaid =
+                                  typeof d === "object" ? d.is_paid : false;
+                                rows.push({
+                                  type: "sold",
+                                  date: dateVal,
+                                  method: methodVal,
+                                  idx,
+                                  amount: amountPerSolde,
+                                  is_paid: isPaid,
+                                  isEditing: (
+                                    this.state.editingSold || []
+                                  ).includes(idx),
+                                });
+                              });
+
+                              if (rows.length === 0) {
+                                return (
+                                  <tr>
+                                    <td
+                                      colSpan="6"
+                                      className="text-center py-4 text-muted"
+                                    >
+                                      <div style={{ opacity: 0.6 }}>
+                                        Aucun paiement enregistré
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              }
+
+                              return rows.map((row, i) => (
+                                <tr
+                                  key={`${row.type}-${row.idx}`}
+                                  style={{
+                                    backgroundColor: row.is_paid
+                                      ? "rgba(40, 199, 111, 0.08)"
+                                      : row.date &&
+                                          moment().diff(
+                                            moment(row.date),
+                                            "days",
+                                          ) > 7
+                                        ? "rgba(234, 84, 85, 0.08)"
+                                        : "transparent",
+                                    transition: "background-color 0.3s ease",
+                                  }}
+                                >
+                                  <td>
+                                    {row.isEditing ? (
+                                      <Flatpickr
+                                        className="form-control"
+                                        value={
+                                          row.date
+                                            ? moment(row.date).toDate()
+                                            : null
+                                        }
+                                        options={{
+                                          dateFormat: "d/m/Y",
+                                          locale: French,
+                                          allowInput: true,
+                                        }}
+                                        onChange={(date) => {
+                                          if (date && date.length) {
+                                            this.updateDate(
+                                              row.type === "acompte"
+                                                ? "acompte_dates"
+                                                : "sold_dates",
+                                              row.idx,
+                                              "date",
+                                              moment(date[0]).format(
+                                                "YYYY-MM-DD",
+                                              ),
+                                            );
+                                          }
+                                        }}
+                                        style={{
+                                          minWidth: 150,
+                                          cursor: "pointer",
+                                          backgroundColor: "#fff",
+                                        }}
+                                      />
+                                    ) : row.date ? (
+                                      moment(row.date).format("DD/MM/YYYY")
+                                    ) : (
+                                      <span className="text-muted">
+                                        Non définie
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td>
+                                    {row.type === "acompte" ? (
+                                      <Badge color="light-info" pill>
+                                        Acompte
+                                      </Badge>
+                                    ) : (
+                                      <Badge color="light-success" pill>
+                                        Solde
+                                      </Badge>
+                                    )}
+                                  </td>
+                                  <td>
+                                    {row.isEditing ? (
+                                      <Input
+                                        type="select"
+                                        value={
+                                          row.method || "Virement bancaire"
+                                        }
+                                        onChange={(e) =>
+                                          this.updateDate(
+                                            row.type === "acompte"
+                                              ? "acompte_dates"
+                                              : "sold_dates",
+                                            row.idx,
+                                            "method",
+                                            e.target.value,
+                                          )
+                                        }
+                                        style={{ minWidth: 200 }}
+                                      >
+                                        <option value="Virement bancaire">
+                                          Virement bancaire
+                                        </option>
+                                        <option value="Chèque de banque">
+                                          Chèque de banque
+                                        </option>
+                                        <option value="Carte bancaire">
+                                          Carte bancaire
+                                        </option>
+                                        <option value="Espèce">Espèce</option>
+                                        <option value="Autre">Autre</option>
+                                      </Input>
+                                    ) : (
+                                      <span>
+                                        {row.method || "Virement bancaire"}
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="text-right font-weight-bold">
+                                    {new Intl.NumberFormat("fr-FR", {
+                                      style: "currency",
+                                      currency: "EUR",
+                                    }).format(row.amount)}
+                                  </td>
+                                  <td className="text-center">
+                                    <div
+                                      className="d-flex align-items-center justify-content-center"
+                                      style={{ gap: 8 }}
+                                    >
+                                      <CustomInput
+                                        type="switch"
+                                        id={`status-switch-${row.type}-${row.idx}`}
+                                        name={`status-switch-${row.type}-${row.idx}`}
+                                        className="custom-switch-success d-inline-block"
+                                        label=""
+                                        checked={row.is_paid === true}
+                                        onChange={() =>
+                                          this.togglePaymentPaidStatus(
+                                            row.type === "acompte"
+                                              ? "acompte_dates"
+                                              : "sold_dates",
+                                            row.idx,
+                                          )
+                                        }
+                                      />
+                                      <Badge
+                                        color={
+                                          row.is_paid
+                                            ? "light-success"
+                                            : row.date &&
+                                                moment().diff(
+                                                  moment(row.date),
+                                                  "days",
+                                                ) > 7
+                                              ? "light-danger"
+                                              : "light-warning"
+                                        }
+                                        pill
+                                        style={{
+                                          fontSize: "0.75rem",
+                                          transition: "all 0.3s ease",
+                                        }}
+                                      >
+                                        {row.is_paid
+                                          ? "Payé"
+                                          : row.date &&
+                                              moment().diff(
+                                                moment(row.date),
+                                                "days",
+                                              ) > 7
+                                            ? "En retard"
+                                            : "En attente"}
+                                      </Badge>
+                                    </div>
+                                  </td>
+                                  <td className="text-center">
+                                    {row.isEditing ? (
+                                      <Button.Ripple
+                                        className="btn-icon rounded-circle mr-1"
+                                        color="success"
+                                        size="sm"
+                                        onClick={() =>
+                                          this.handleSaveDate(
+                                            row.type === "acompte"
+                                              ? "acompte"
+                                              : "sold",
+                                            row.idx,
+                                          )
+                                        }
+                                      >
+                                        <Check size={14} />
+                                      </Button.Ripple>
+                                    ) : (
+                                      <Edit
+                                        size={16}
+                                        className="mr-1 text-secondary cursor-pointer"
+                                        onClick={() =>
+                                          row.type === "acompte"
+                                            ? this.toggleEditAcompte(row.idx)
+                                            : this.toggleEditSold(row.idx)
+                                        }
+                                      />
+                                    )}
+                                    <Trash
+                                      size={16}
+                                      className="text-danger cursor-pointer"
+                                      onClick={() =>
+                                        this.handleDeleteDate(
+                                          row.type === "acompte"
+                                            ? "acompte_dates"
+                                            : "sold_dates",
+                                          row.idx,
                                         )
                                       }
                                     />
-                                    <Button.Ripple
-                                      className="btn-icon rounded-circle"
-                                      color="success"
-                                      size="sm"
-                                      onClick={() =>
-                                        this.handleSaveDate("acompte", idx)
-                                      }
-                                    >
-                                      <Check size={16} />
-                                    </Button.Ripple>
-                                  </>
-                                ) : (
-                                  <>
-                                    <div
-                                      style={{
-                                        width: 240,
-                                        height: 34,
-                                        display: "flex",
-                                        alignItems: "center",
-                                        paddingLeft: 10,
-                                        border: "1px solid #d9d9d9",
-                                        borderRadius: 5,
-                                        backgroundColor: "#f8f9fa",
-                                      }}
-                                    >
-                                      {d ? moment(d).format("DD/MM/YYYY") : "-"}
-                                    </div>
-                                    <Button.Ripple
-                                      className="btn-icon rounded-circle"
-                                      color="primary"
-                                      size="sm"
-                                      onClick={() =>
-                                        this.toggleEditAcompte(idx)
-                                      }
-                                    >
-                                      <Edit size={16} />
-                                    </Button.Ripple>
-                                  </>
-                                )}
-                                <Button.Ripple
-                                  className="btn-icon rounded-circle"
-                                  color="danger"
-                                  size="sm"
-                                  onClick={() =>
-                                    this.handleDeleteDate("acompte_dates", idx)
-                                  }
-                                >
-                                  <Trash size={16} />
-                                </Button.Ripple>
-                              </div>
-                            );
-                          })}
-                          <Button
-                            outline
-                            color="primary"
-                            size="sm"
-                            className="mt-1"
-                            onClick={() => this.addDate("acompte_dates")}
-                          >
-                            <Plus size={14} className="mr-50" /> Ajouter
-                          </Button>
-                        </Col>
-
-                        <Col md="6" sm="12" className="mb-1">
-                          <div className="mb-1">
-                            <h6 className="mb-0">Dates de paiement</h6>
-                          </div>
-                          {(this.state.sold_dates || []).map((d, idx) => {
-                            const isEditing =
-                              this.state.editingSold.includes(idx);
-                            return (
-                              <div
-                                key={`sd-${idx}`}
-                                className="d-flex align-items-center"
-                                style={{ gap: 8, marginBottom: 8 }}
-                              >
-                                {isEditing ? (
-                                  <>
-                                    <Input
-                                      type="date"
-                                      max="9999-12-31"
-                                      min="1900-01-01"
-                                      style={{ width: 240, height: 34 }}
-                                      value={this.toInputValue(d)}
-                                      onChange={(e) =>
-                                        this.updateDate(
-                                          "sold_dates",
-                                          idx,
-                                          this.fromInputValue(e.target.value),
-                                        )
-                                      }
-                                    />
-                                    <Button.Ripple
-                                      className="btn-icon rounded-circle"
-                                      color="success"
-                                      size="sm"
-                                      onClick={() =>
-                                        this.handleSaveDate("sold", idx)
-                                      }
-                                    >
-                                      <Check size={16} />
-                                    </Button.Ripple>
-                                  </>
-                                ) : (
-                                  <>
-                                    <div
-                                      style={{
-                                        width: 240,
-                                        height: 34,
-                                        display: "flex",
-                                        alignItems: "center",
-                                        paddingLeft: 10,
-                                        border: "1px solid #d9d9d9",
-                                        borderRadius: 5,
-                                        backgroundColor: "#f8f9fa",
-                                      }}
-                                    >
-                                      {d ? moment(d).format("DD/MM/YYYY") : "-"}
-                                    </div>
-                                    <Button.Ripple
-                                      className="btn-icon rounded-circle"
-                                      color="primary"
-                                      size="sm"
-                                      onClick={() => this.toggleEditSold(idx)}
-                                    >
-                                      <Edit size={16} />
-                                    </Button.Ripple>
-                                  </>
-                                )}
-                                <Button.Ripple
-                                  className="btn-icon rounded-circle"
-                                  color="danger"
-                                  size="sm"
-                                  onClick={() =>
-                                    this.handleDeleteDate("sold_dates", idx)
-                                  }
-                                >
-                                  <Trash size={16} />
-                                </Button.Ripple>
-                              </div>
-                            );
-                          })}
-                          <Button
-                            outline
-                            color="primary"
-                            size="sm"
-                            className="mt-1"
-                            onClick={() => this.addDate("sold_dates")}
-                          >
-                            <Plus size={14} className="mr-50" /> Ajouter
-                          </Button>
-                        </Col>
-                      </Row>
+                                  </td>
+                                </tr>
+                              ));
+                            })()}
+                          </tbody>
+                        </Table>
+                      </div>
+                      <div className="contract-action-bar">
+                        <Button
+                          className="btn-white-primary d-flex align-items-center"
+                          size="sm"
+                          onClick={() => {
+                            let type = "sold_dates";
+                            const fp1 = this.state.formValues["fp1"];
+                            if ((this.state.acompte_dates || []).length === 0)
+                              type = "acompte_dates";
+                            else if (fp1 && parseInt(fp1) >= 100)
+                              type = "acompte_dates";
+                            this.addDate(type, moment().format("YYYY-MM-DD"));
+                          }}
+                        >
+                          <Plus size={14} className="mr-1" />
+                          <span style={{ fontSize: "0.85rem" }}>
+                            Ajouter une date
+                          </span>
+                        </Button>
+                      </div>
                     </CardBody>
                   </Card>
                 )}
@@ -2254,7 +3007,6 @@ class EditContract extends React.Component {
                           <h6>
                             {(() => {
                               const v = this.ifExist("military_service");
-                              console.log("military_service", v);
                               const yes =
                                 v === true ||
                                 v === 1 ||
@@ -2550,12 +3302,12 @@ class EditContract extends React.Component {
                     {this.ifExist("notes") &&
                       this.ifExist("notes")
                         .split("\n")
-                        .map(function (item) {
+                        .map(function (item, index) {
                           return (
-                            <>
+                            <React.Fragment key={index}>
                               {item}
                               <br />
-                            </>
+                            </React.Fragment>
                           );
                         })}
                   </h5>
@@ -2668,7 +3420,7 @@ class EditContract extends React.Component {
                                 <Input
                                   type="text"
                                   className="contract-text"
-                                  value={this.state.formValues["nb1"]}
+                                  value={this.state.formValues["nb1"] || ""}
                                   onChange={(e) =>
                                     this.handleFieldChange(
                                       "nb1",
@@ -2783,7 +3535,7 @@ class EditContract extends React.Component {
                                   type="text"
                                   className="contract-text2"
                                   style={{ fontWeight: "bold" }}
-                                  value={this.state.formValues["p2"]}
+                                  value={this.state.formValues["p2"] || ""}
                                   onChange={(e) =>
                                     this.handleFieldChange("p2", e.target.value)
                                   }
@@ -2916,7 +3668,7 @@ class EditContract extends React.Component {
                                   type="text"
                                   className="contract-text"
                                   style={{ fontWeight: "bold", height: "20px" }}
-                                  value={this.state.formValues["nb2"]}
+                                  value={this.state.formValues["nb2"] || ""}
                                   onChange={(e) =>
                                     this.handleFieldChange(
                                       "nb2",
@@ -3030,7 +3782,7 @@ class EditContract extends React.Component {
                                   type="text"
                                   className="contract-text2"
                                   style={{ fontWeight: "bold" }}
-                                  value={this.state.formValues["p3"]}
+                                  value={this.state.formValues["p3"] || ""}
                                   onChange={(e) =>
                                     this.handleFieldChange("p3", e.target.value)
                                   }
@@ -3118,7 +3870,7 @@ class EditContract extends React.Component {
                                   type="text"
                                   className="contract-text2"
                                   style={{ fontWeight: "bold" }}
-                                  value={this.state.formValues["p4"]}
+                                  value={this.state.formValues["p4"] || ""}
                                   onChange={(e) =>
                                     this.handleFieldChange("p4", e.target.value)
                                   }
@@ -3297,7 +4049,7 @@ class EditContract extends React.Component {
                                   type="text"
                                   className="contract-text"
                                   style={{ fontWeight: "bold", height: "20px" }}
-                                  value={this.state.formValues["nb4"]}
+                                  value={this.state.formValues["nb4"] || ""}
                                   onChange={(e) =>
                                     this.handleFieldChange(
                                       "nb4",
@@ -3411,7 +4163,7 @@ class EditContract extends React.Component {
                                   type="text"
                                   className="contract-text2"
                                   style={{ fontWeight: "bold" }}
-                                  value={this.state.formValues["p5"]}
+                                  value={this.state.formValues["p5"] || ""}
                                   onChange={(e) =>
                                     this.handleFieldChange("p5", e.target.value)
                                   }
@@ -3541,7 +4293,7 @@ class EditContract extends React.Component {
                                   type="text"
                                   className="contract-text"
                                   style={{ fontWeight: "bold", height: "20px" }}
-                                  value={this.state.formValues["nb5"]}
+                                  value={this.state.formValues["nb5"] || ""}
                                   onChange={(e) =>
                                     this.handleFieldChange(
                                       "nb5",
@@ -3676,7 +4428,7 @@ class EditContract extends React.Component {
                                   type="text"
                                   className="contract-text2"
                                   style={{ fontWeight: "bold" }}
-                                  value={this.state.formValues["p6"]}
+                                  value={this.state.formValues["p6"] || ""}
                                   onChange={(e) =>
                                     this.handleFieldChange("p6", e.target.value)
                                   }
@@ -3793,7 +4545,7 @@ class EditContract extends React.Component {
                                   type="text"
                                   className="contract-text2"
                                   style={{ fontWeight: "bold" }}
-                                  value={this.state.formValues["p7"]}
+                                  value={this.state.formValues["p7"] || ""}
                                   onChange={(e) =>
                                     this.handleFieldChange("p7", e.target.value)
                                   }
@@ -3968,7 +4720,7 @@ class EditContract extends React.Component {
                                   type="text"
                                   className="contract-text2"
                                   style={{ width: "20px" }}
-                                  value={this.state.formValues["TVAP"]}
+                                  value={this.state.formValues["TVAP"] || ""}
                                   onChange={(e) =>
                                     this.handleFieldChange(
                                       "TVAP",
@@ -4057,7 +4809,9 @@ class EditContract extends React.Component {
                                   type="text"
                                   className="contract-subcontent"
                                   value={
-                                    this.state.formValues["table3-subcontent1"]
+                                    this.state.formValues[
+                                      "table3-subcontent1"
+                                    ] || ""
                                   }
                                   onChange={(e) =>
                                     this.handleFieldChange(
@@ -4075,7 +4829,7 @@ class EditContract extends React.Component {
                                 <Input
                                   type="text"
                                   className="contract-subcontent"
-                                  value={this.state.formValues["fp1"]}
+                                  value={this.state.formValues["fp1"] || ""}
                                   onChange={(e) =>
                                     this.handleFieldChange(
                                       "fp1",
@@ -4123,7 +4877,9 @@ class EditContract extends React.Component {
                                   type="text"
                                   className="contract-subcontent"
                                   value={
-                                    this.state.formValues["table3-subcontent2"]
+                                    this.state.formValues[
+                                      "table3-subcontent2"
+                                    ] || ""
                                   }
                                   onChange={(e) =>
                                     this.handleFieldChange(
@@ -4142,7 +4898,7 @@ class EditContract extends React.Component {
                                   type="text"
                                   style={{ width: "45px" }}
                                   className="contract-subcontent"
-                                  value={this.state.formValues["fp2"]}
+                                  value={this.state.formValues["fp2"] || ""}
                                   onChange={(e) =>
                                     this.handleFieldChange(
                                       "fp2",

@@ -223,32 +223,81 @@ export default function UserDetails({
         )}
 
         {/* En-tête avec icône utilisateur */}
-        <div className="d-flex justify-content-center mb-50">
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: "50%",
-              border: "1px solid #c4b5fd",
-              backgroundColor: "#f5f5ff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <UserIcon size={22} color="#7367f0" />
-          </div>
-        </div>
+        {/* En-tête avec icône utilisateur */}
+        {(() => {
+          const role = (user.role || "").toLowerCase();
+          const isProspect = role === "prospect";
+          const isClient = role === "client";
 
-        <h5 className="mb-25 text-center">{fullName}</h5>
+          // Couleurs pour Prospect (Bleu standard)
+          const colorProspect = "#2c6ddf";
+          const bgProspect = "#dbeafe";
 
-        {user.role ? (
-          <div className="d-flex justify-content-center mb-75">
-            <Badge color="light-primary" pill>
-              {String(user.role).toUpperCase()}
-            </Badge>
-          </div>
-        ) : null}
+          // Couleurs pour Client (Vert success)
+          const colorClient = "#28c76f";
+          const bgClient = "#dcfce7"; // équivalent light-success
+
+          // Par défaut (Violet primary)
+          let borderColor = "#c4b5fd";
+          let bgColor = "#f5f5ff";
+          let iconColor = "#7367f0";
+
+          if (isProspect) {
+            borderColor = colorProspect;
+            bgColor = bgProspect;
+            iconColor = colorProspect;
+          } else if (isClient) {
+            borderColor = colorClient;
+            bgColor = bgClient;
+            iconColor = colorClient;
+          }
+
+          return (
+            <>
+              <div className="d-flex justify-content-center mb-50">
+                <div
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: "50%",
+                    border: `1px solid ${borderColor}`,
+                    backgroundColor: bgColor,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <UserIcon size={22} color={iconColor} />
+                </div>
+              </div>
+
+              <h5 className="mb-25 text-center">{fullName}</h5>
+
+              {user.role ? (
+                <div className="d-flex justify-content-center mb-75">
+                  {isProspect ? (
+                    <Badge
+                      pill
+                      style={{
+                        backgroundColor: bgProspect,
+                        color: colorProspect,
+                      }}
+                    >
+                      {String(user.role).toUpperCase()}
+                    </Badge>
+                  ) : (
+                    <Badge
+                      color={isClient ? "light-success" : "light-primary"}
+                      pill
+                    >
+                      {String(user.role).toUpperCase()}
+                    </Badge>
+                  )}
+                </div>
+              ) : null}
+            </>
+          );
+        })()}
 
         <div className="mt-1">
           <div className="users-page-view-table compact-rows">

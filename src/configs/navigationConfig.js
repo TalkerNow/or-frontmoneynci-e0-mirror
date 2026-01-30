@@ -115,32 +115,14 @@ const items = {
     navLink: "/app/profile",
   },
 
-  // 🔻 Clients = collapse (sans parentOf)
+  // Menu Contacts simplifié (sans dropdown)
   users: {
     id: "users",
-    title: "Clients",
-    type: "collapse",
+    title: "Contacts",
+    type: "item",
     icon: <Icon.Users size={20} />,
     permissions: ["admin", "Expert", "Consultant"],
-    navLink: "/app/user/clientslist", // clic sur le libellé => navigate direct
-    children: [
-      {
-        id: "users-list",
-        title: "Liste des clients",
-        type: "item",
-        icon: <Icon.Users size={18} />,
-        permissions: ["admin", "Expert", "Consultant"],
-        navLink: "/app/user/clientslist",
-      },
-      {
-        id: "oldUsers",
-        title: "Anciens Clients",
-        type: "item",
-        icon: <Icon.Clock size={18} />,
-        permissions: ["admin"],
-        navLink: "/app/user/oldclientslist",
-      },
-    ],
+    navLink: "/app/user/clientslist",
   },
 
   // (facultatif, non utilisé dans l’ordre)

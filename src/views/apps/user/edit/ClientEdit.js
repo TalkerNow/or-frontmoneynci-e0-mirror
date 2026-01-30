@@ -41,6 +41,7 @@ import SimulatorHub from "./SimulatorHub";
 import { history } from "../../../../history";
 import Contracts from "./Contracts";
 import SuiviAvancementBox from "./SuiviAvancementBox";
+
 import { canAccessSimulator } from "../../../../constants/permissions";
 import ClientTasks from "./clientTask/Task";
 
@@ -62,6 +63,7 @@ class UserEdit extends React.Component {
 
   navRef = null;
   documentsHubRef = React.createRef();
+  contractsRef = React.createRef();
 
   computeSimuOffset = () => {
     try {
@@ -74,7 +76,7 @@ class UserEdit extends React.Component {
           label.getBoundingClientRect().left - nav.getBoundingClientRect().left;
         this.setState({ simuOffset: Math.max(0, Math.round(delta)) });
       }
-    } catch (e) { }
+    } catch (e) {}
   };
 
   computeDocsOffset = () => {
@@ -88,7 +90,7 @@ class UserEdit extends React.Component {
           label.getBoundingClientRect().left - nav.getBoundingClientRect().left;
         this.setState({ docsOffset: Math.max(0, Math.round(delta)) });
       }
-    } catch (e) { }
+    } catch (e) {}
   };
 
   computeCourriersOffset = () => {
@@ -102,7 +104,7 @@ class UserEdit extends React.Component {
           label.getBoundingClientRect().left - nav.getBoundingClientRect().left;
         this.setState({ courriersOffset: Math.max(0, Math.round(delta)) });
       }
-    } catch (e) { }
+    } catch (e) {}
   };
 
   applyTabFromRoute(tabParam) {
@@ -151,23 +153,23 @@ class UserEdit extends React.Component {
         Config,
       );
       const tasks = Array.isArray(response.data) ? response.data : [];
-      
+
       // Filtre par client ET non complété
-      const clientTasks = tasks.filter(t => 
-        String(t.customer_id) === String(id) && !t.isCompleted
+      const clientTasks = tasks.filter(
+        (t) => String(t.customer_id) === String(id) && !t.isCompleted,
       );
 
       // Vérifie si au moins une tâche est urgente (date passée)
       const now = new Date();
       now.setHours(0, 0, 0, 0);
-      const hasUrgent = clientTasks.some(t => {
+      const hasUrgent = clientTasks.some((t) => {
         if (!t.end_date) return false;
         const endDate = new Date(t.end_date);
         endDate.setHours(0, 0, 0, 0);
         return endDate < now;
       });
-      
-      this.setState({ 
+
+      this.setState({
         taskCount: clientTasks.length,
         hasUrgentTask: hasUrgent
       });
@@ -386,7 +388,14 @@ class UserEdit extends React.Component {
             />
 
             {/* 👇 Ta box de suivi d'avancement, dans un fichier séparé */}
-            <SuiviAvancementBox clientId={id} />
+            <SuiviAvancementBox
+              clientId={id}
+              onContractUpdate={() => {
+                if (this.contractsRef.current) {
+                  this.contractsRef.current.fetchData();
+                }
+              }}
+            />
           </div>
         </Col>
         <Col
@@ -402,16 +411,6 @@ class UserEdit extends React.Component {
             className="border-0 d-flex align-items-center gap-3 mb-1 nav-tabs"
             ref={(el) => (this.navRef = el)}
           >
-            <Button.Ripple
-              color="primary"
-              aria-label="Retour"
-              title="Retour à la page précédente"
-              className="btn-icon rounded-circle p-0 d-flex align-items-center justify-content-center mr-1"
-              style={{ width: 32, height: 32, minWidth: 32, flexShrink: 0 }}
-              onClick={() => history.push("/app/user/clientslist")}
-            >
-              <ArrowLeft size={16} />
-            </Button.Ripple>
             <Nav
               tabs
               className="border-0 d-flex align-items-center gap-3 mb-0"
@@ -489,16 +488,16 @@ class UserEdit extends React.Component {
                   <CheckSquare className="text-primary mr-50" size={16} />
                   Tâches
                   {this.state.taskCount > 0 && (
-                    <span 
-                      className={`badge badge-${this.state.hasUrgentTask ? 'danger' : 'primary'} ml-50`}
-                      style={{ 
-                        fontSize: '0.65rem', 
-                        minWidth: '18px',
-                        height: '18px',
-                        padding: '0',
-                        lineHeight: '18px',
-                        textAlign: 'center',
-                        borderRadius: '50%'
+                    <span
+                      className={`badge badge-${this.state.hasUrgentTask ? "danger" : "primary"} ml-50`}
+                      style={{
+                        fontSize: "0.65rem",
+                        minWidth: "18px",
+                        height: "18px",
+                        padding: "0",
+                        lineHeight: "18px",
+                        textAlign: "center",
+                        borderRadius: "50%",
                       }}
                     >
                       {this.state.taskCount}
@@ -562,7 +561,7 @@ class UserEdit extends React.Component {
               </Card>
             </TabPane>
             <TabPane tabId="contrats">
-              <Contracts id={id} />
+              <Contracts id={id} ref={this.contractsRef} />
             </TabPane>
             <TabPane tabId="documents">
               <DocumentsHub

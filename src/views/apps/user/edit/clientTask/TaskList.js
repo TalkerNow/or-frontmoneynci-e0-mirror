@@ -216,14 +216,14 @@ class TaskList extends React.Component {
         <div className="content-right w-100 h-100 d-flex flex-column" style={{ width: "100%" }}>
           <SweetAlert
             warning
-            title="Warning"
+            title="Attention"
             show={this.state.Alert}
             onConfirm={() => {
               this.setState({ Alert: false });
               this.props.trashTask(this.state.delete_id);
             }}
           >
-            <p className="sweet-alert-text"> Êtes-vous certain? </p>
+            <p className="sweet-alert-text"> Êtes-vous certain ? </p>
           </SweetAlert>
 
           <div className="todo-app-area w-100 h-100">

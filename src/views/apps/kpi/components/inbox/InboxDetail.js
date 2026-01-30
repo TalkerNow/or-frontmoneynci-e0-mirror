@@ -228,36 +228,38 @@ const InboxDetail = ({
               >
                 <XCircle size={16} /> Disqualifier
               </button>
-              <button
-                onClick={() => setShowVisualReport(true)}
-                style={{
-                  padding: "8px 16px",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                  color: "#1e3a8a", // Dark blue text
-                  backgroundColor: "#eff6ff", // Very light blue background
-                  borderRadius: "8px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  border: "none",
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = "#dbeafe";
-                  e.currentTarget.style.color = "#172554";
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = "#eff6ff";
-                  e.currentTarget.style.color = "#1e3a8a";
-                }}
-                title="Générer le rapport visuel"
-              >
-                <FileText size={16} strokeWidth={2} />
-                <span className="hide-on-mobile">Rapport Visuel</span>
-              </button>
+              {selectedItem.type === "diagnostic" && (
+                <button
+                  onClick={() => setShowVisualReport(true)}
+                  style={{
+                    padding: "8px 16px",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                    color: "#1e3a8a", // Dark blue text
+                    backgroundColor: "#eff6ff", // Very light blue background
+                    borderRadius: "8px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    border: "none",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.backgroundColor = "#dbeafe";
+                    e.currentTarget.style.color = "#172554";
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.backgroundColor = "#eff6ff";
+                    e.currentTarget.style.color = "#1e3a8a";
+                  }}
+                  title="Générer le rapport visuel"
+                >
+                  <FileText size={16} strokeWidth={2} />
+                  <span className="hide-on-mobile">Rapport Visuel</span>
+                </button>
+              )}
               <button
                 style={{
                   padding: "8px 16px",
@@ -1155,99 +1157,101 @@ const InboxDetail = ({
           />
 
           {/* AI REPLY */}
-          {selectedItem.type !== "call" && selectedItem.type !== "email" && (
-            <div style={{ marginTop: "24px", marginBottom: "24px" }}>
-              <div
-                className="header-btn-stack"
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: "12px",
-                }}
-              >
-                <h3
+          {selectedItem.type !== "call" &&
+            selectedItem.type !== "email" &&
+            selectedItem.type !== "chatbot" && (
+              <div style={{ marginTop: "24px", marginBottom: "24px" }}>
+                <div
+                  className="header-btn-stack"
                   style={{
-                    fontWeight: 600,
-                    color: "#374151",
-                    fontSize: "16px",
-                    margin: 0,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "12px",
                   }}
                 >
-                  Réponse Rapide
-                </h3>
-                {!aiDraft && !isGeneratingAi && (
-                  <button
-                    onClick={onGenerateAiReply}
-                    className="btn-sm btn-light-primary"
+                  <h3
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      borderRadius: "999px",
+                      fontWeight: 600,
+                      color: "#374151",
+                      fontSize: "16px",
+                      margin: 0,
                     }}
                   >
-                    <Star size={14} style={{ marginRight: "4px" }} /> Brouillon
-                    IA
-                  </button>
-                )}
-              </div>
-
-              {isGeneratingAi && (
-                <div
-                  style={{
-                    padding: "24px",
-                    textAlign: "center",
-                    color: "#6b7280",
-                    backgroundColor: "#f9fafb",
-                    borderRadius: "8px",
-                  }}
-                >
-                  Génération...
-                </div>
-              )}
-
-              {aiDraft && (
-                <div
-                  style={{
-                    border: "1px solid #e9d5ff",
-                    borderRadius: "8px",
-                    overflow: "hidden",
-                  }}
-                >
-                  <div
-                    style={{
-                      backgroundColor: "#f3e8ff",
-                      padding: "8px 16px",
-                      borderBottom: "1px solid #e9d5ff",
-                      display: "flex",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <span
+                    Réponse Rapide
+                  </h3>
+                  {!aiDraft && !isGeneratingAi && (
+                    <button
+                      onClick={onGenerateAiReply}
+                      className="btn-sm btn-light-primary"
                       style={{
-                        fontSize: "12px",
-                        fontWeight: "bold",
-                        color: "#6b21a8",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        borderRadius: "999px",
                       }}
                     >
-                      Suggestion IA
-                    </span>
-                    <XCircle
-                      size={14}
-                      style={{ cursor: "pointer", color: "#9333ea" }}
-                      onClick={() => setAiDraft(null)}
+                      <Star size={14} style={{ marginRight: "4px" }} />{" "}
+                      Brouillon IA
+                    </button>
+                  )}
+                </div>
+
+                {isGeneratingAi && (
+                  <div
+                    style={{
+                      padding: "24px",
+                      textAlign: "center",
+                      color: "#6b7280",
+                      backgroundColor: "#f9fafb",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    Génération...
+                  </div>
+                )}
+
+                {aiDraft && (
+                  <div
+                    style={{
+                      border: "1px solid #e9d5ff",
+                      borderRadius: "8px",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        backgroundColor: "#f3e8ff",
+                        padding: "8px 16px",
+                        borderBottom: "1px solid #e9d5ff",
+                        display: "flex",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "12px",
+                          fontWeight: "bold",
+                          color: "#6b21a8",
+                        }}
+                      >
+                        Suggestion IA
+                      </span>
+                      <XCircle
+                        size={14}
+                        style={{ cursor: "pointer", color: "#9333ea" }}
+                        onClick={() => setAiDraft(null)}
+                      />
+                    </div>
+                    <textarea
+                      className="form-control"
+                      style={{ border: "none", minHeight: "150px" }}
+                      defaultValue={aiDraft}
                     />
                   </div>
-                  <textarea
-                    className="form-control"
-                    style={{ border: "none", minHeight: "150px" }}
-                    defaultValue={aiDraft}
-                  />
-                </div>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            )}
 
           {/* Actions Section */}
           <div

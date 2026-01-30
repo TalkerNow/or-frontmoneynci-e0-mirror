@@ -17,9 +17,12 @@ export default function CourriersHub({ id, alignOffset = 0, labelId }) {
     return () => cancelAnimationFrame(raf);
   }, [alignOffset]);
 
+  const [isNotFound, setIsNotFound] = useState(false);
+
   const loadCourriers = useCallback(async () => {
     try {
       setLoading(true);
+      setIsNotFound(false);
       const Config = {
         headers: {
           Authorization: "Bearer " + localStorage.getItem("token"),
@@ -28,11 +31,12 @@ export default function CourriersHub({ id, alignOffset = 0, labelId }) {
       // Adapter l'endpoint selon votre API
       const response = await axios.get(
         `${global.config.server_url}/courriers/user/${id}`,
-        Config
+        Config,
       );
       setCourriers(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       if (error?.response?.status === 404) {
+        setIsNotFound(true);
         setCourriers([]);
         return;
       }
@@ -67,7 +71,7 @@ export default function CourriersHub({ id, alignOffset = 0, labelId }) {
       await axios.post(
         `${global.config.server_url}/courriers/upload`,
         formData,
-        Config
+        Config,
       );
 
       toast.success("Courrier téléchargé avec succès");
@@ -160,6 +164,11 @@ export default function CourriersHub({ id, alignOffset = 0, labelId }) {
               <div className="spinner-border text-primary" role="status">
                 <span className="sr-only">Chargement...</span>
               </div>
+            </div>
+          ) : isNotFound ? (
+            <div className="text-center py-3">
+              <Mail size={48} className="text-muted mb-1" />
+              <p className="text-muted mb-2">Utilisateur supprimé</p>
             </div>
           ) : courriers.length > 0 ? (
             <div className="table-responsive">
