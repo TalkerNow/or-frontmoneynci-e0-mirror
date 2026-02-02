@@ -27,6 +27,7 @@ import { Plus } from "lucide-react";
 import InboxView from "./components/InboxView";
 import PipelineView from "./components/PipelineView";
 import AdminView from "./components/AdminView";
+import KanbanBoard from "./components/kanban/KanbanBoard.jsx";
 
 /** =============================
  *  Helpers (token, admin id, date)
@@ -2369,7 +2370,8 @@ export default function KpiPage() {
         </AdminView>
       )}
       {/* 2. OPPORTUNITIES (Pipeline View) */}
-      {location.pathname.includes("/kpi/opportunities") && <PipelineView />}
+      {/* {location.pathname.includes("/kpi/opportunities") && <PipelineView />} */}
+      {location.pathname.includes("/kpi/opportunities") && <KanbanBoard />}
 
       {/* 3. INBOX (Default) */}
       {(location.pathname === "/kpi" || location.pathname.includes("/inbox")) &&
@@ -2541,6 +2543,13 @@ export default function KpiPage() {
               }
               error={convError || diagError}
               onSelect={handleSelectConversation}
+              onDataRefresh={() => {
+                console.log(
+                  "🔄 Rechargement des données après création prospect...",
+                );
+                fetchConversationArchives();
+                fetchDiagnosticResults();
+              }}
             />
           );
         })()}
