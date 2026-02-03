@@ -201,9 +201,9 @@ class AddUser extends React.Component {
   };
   fetchCitiesByZip = async (zip, which /* 'personal' | 'society' */) => {
     const key = `${which}_city_options`;
-    if (!/^\d{5}$/.test(zip)) {
+    if (!zip || zip.trim() === "") {
       this.setState((prev) => ({
-        data: { ...prev.data, [key]: [], [`${which}_city`]: "" },
+        data: { ...prev.data, [key]: [] },
       }));
       return;
     }
@@ -231,13 +231,12 @@ class AddUser extends React.Component {
   };
 
   handleZipChange = (zip, which) => {
-    const sanitized = (zip || "").replace(/\D/g, "").slice(0, 5);
     this.setState((prev) => ({
-      data: { ...prev.data, [`${which}_zip_code`]: sanitized },
+      data: { ...prev.data, [`${which}_zip_code`]: zip },
     }));
     if (this.zipTimeout) clearTimeout(this.zipTimeout);
     this.zipTimeout = setTimeout(
-      () => this.fetchCitiesByZip(sanitized, which),
+      () => this.fetchCitiesByZip(zip, which),
       300
     );
   };
@@ -1016,8 +1015,6 @@ class AddUser extends React.Component {
                 <Label for="postalcode">Code postal</Label>
                 <Input
                   type="text"
-                  inputMode="numeric"
-                  pattern="\d{5}"
                   id="postalcode"
                   placeholder="Code postal"
                   value={this.state.data.personal_zip_code || ""}
