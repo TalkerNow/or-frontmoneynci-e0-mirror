@@ -529,24 +529,26 @@ class ClientsList extends React.Component {
     }
   }
 
-  // Toggle entre les onglets (Tous, Clients, Prospects)
+  // Toggle entre les onglets (Clients, Prospects) - recliquer désactive le filtre
   toggleTab = (tab) => {
-    if (tab === this.state.activeTab) return;
+    const { allRowData, activeTab } = this.state;
 
-    const { allRowData } = this.state;
+    // Si on clique sur le même filtre, on revient à "all" (tous)
+    const newTab = tab === activeTab ? "all" : tab;
+
     let filteredData = allRowData || [];
 
-    if (tab === "client") {
+    if (newTab === "client") {
       filteredData = (allRowData || []).filter(
         (user) => (user.role || "").toLowerCase() !== "prospect",
       );
-    } else if (tab === "prospect") {
+    } else if (newTab === "prospect") {
       filteredData = (allRowData || []).filter(
         (user) => (user.role || "").toLowerCase() === "prospect",
       );
     }
 
-    this.setState({ activeTab: tab, rowData: filteredData }, () => {
+    this.setState({ activeTab: newTab, rowData: filteredData }, () => {
       if (this.gridApi) {
         this.gridApi.onFilterChanged();
       }
@@ -864,89 +866,84 @@ class ClientsList extends React.Component {
                 className="h-100 d-flex flex-column"
                 style={{ paddingBottom: "0.5rem" }}
               >
-                {/* ONGLETS: Tous / Clients / Prospects */}
-                <Nav pills className="mb-1 flex-wrap">
-                  <NavItem>
-                    <NavLink
-                      className={activeTab === "all" ? "active" : ""}
-                      onClick={() => this.toggleTab("all")}
-                      style={{
-                        cursor: "pointer",
-                        ...(activeTab === "all"
-                          ? {
-                              backgroundColor: "transparent",
-                              border: "1px solid #7367f0",
-                              color: "#7367f0",
-                            }
-                          : {}),
-                      }}
-                    >
-                      Tous
-                    </NavLink>
-                  </NavItem>
-                  <NavItem>
-                    <NavLink
-                      className={activeTab === "client" ? "active" : ""}
-                      onClick={() => this.toggleTab("client")}
-                      style={{
-                        cursor: "pointer",
-                        ...(activeTab === "client"
-                          ? {
-                              backgroundColor: "transparent",
-                              border: "1px solid #7367f0",
-                              color: "#7367f0",
-                            }
-                          : {}),
-                      }}
-                    >
-                      <Users size={15} className="mr-50" />
-                      <span className="align-middle">Clients</span>
-                    </NavLink>
-                  </NavItem>
-                  <NavItem>
-                    <NavLink
-                      className={activeTab === "prospect" ? "active" : ""}
-                      onClick={() => this.toggleTab("prospect")}
-                      style={{
-                        cursor: "pointer",
-                        ...(activeTab === "prospect"
-                          ? {
-                              backgroundColor: "transparent",
-                              border: "1px solid #7367f0",
-                              color: "#7367f0",
-                            }
-                          : {}),
-                      }}
-                    >
-                      <Target size={15} className="mr-50" />
-                      <span className="align-middle">Prospects</span>
-                    </NavLink>
-                  </NavItem>
-                </Nav>
+                {/* HEADER: Barre d'outils */}
+                <div
+                  className="ag-grid-actions d-flex justify-content-between flex-wrap align-items-center mb-1"
+                  style={{ gap: "0.75rem" }}
+                >
+                  {/* === GAUCHE : Filtres + Recherche === */}
+                  <div className="d-flex align-items-center" style={{ gap: "0.75rem", flex: 1, minWidth: 0 }}>
+                    {/* Filtre par type (Clients / Prospects) - recliquer désactive */}
+                    <Nav pills className="flex-nowrap" style={{ marginBottom: 0, flexShrink: 0 }}>
+                      <NavItem>
+                        <NavLink
+                          className={activeTab === "client" ? "active" : ""}
+                          onClick={() => this.toggleTab("client")}
+                          style={{
+                            cursor: "pointer",
+                            padding: "0.5rem 1rem",
+                            ...(activeTab === "client"
+                              ? {
+                                  backgroundColor: "transparent",
+                                  border: "1px solid #7367f0",
+                                  color: "#7367f0",
+                                }
+                              : {}),
+                          }}
+                        >
+                          <Users size={15} className="mr-50" />
+                          <span className="align-middle">Clients</span>
+                        </NavLink>
+                      </NavItem>
+                      <NavItem>
+                        <NavLink
+                          className={activeTab === "prospect" ? "active" : ""}
+                          onClick={() => this.toggleTab("prospect")}
+                          style={{
+                            cursor: "pointer",
+                            padding: "0.5rem 1rem",
+                            ...(activeTab === "prospect"
+                              ? {
+                                  backgroundColor: "transparent",
+                                  border: "1px solid #7367f0",
+                                  color: "#7367f0",
+                                }
+                              : {}),
+                          }}
+                        >
+                          <Target size={15} className="mr-50" />
+                          <span className="align-middle">Prospects</span>
+                        </NavLink>
+                      </NavItem>
+                    </Nav>
 
-                {/* HEADER: recherche à gauche, boutons à droite */}
-                <div className="ag-grid-actions d-flex justify-content-between flex-wrap align-items-center mb-1">
-                  {/* Gauche : Recherche */}
-                  <div
-                    className="d-flex align-items-center mb-1 mr-1"
-                    style={{ flex: "1 1 200px" }}
-                  >
+                    {/* Séparateur vertical */}
+                    <div
+                      style={{
+                        width: "1px",
+                        height: "24px",
+                        backgroundColor: "#d8d6de",
+                        flexShrink: 0,
+                      }}
+                    />
+
+                    {/* Barre de recherche - prend tout l'espace disponible */}
                     <Input
-                      className="w-100 mb-1"
                       type="text"
                       placeholder="Rechercher..."
                       onChange={(e) => this.updateSearchQuery(e.target.value)}
                       value={this.state.searchVal}
+                      style={{ flex: 1, minWidth: "150px" }}
                     />
                   </div>
 
-                  {/* Droite : Mes/Tous les clients (non consultant) + Créer un compte */}
-                  <div className="d-flex flex-wrap align-items-center mb-1">
+                  {/* === DROITE : Actions === */}
+                  <div className="d-flex align-items-center flex-wrap" style={{ gap: "0.5rem" }}>
+                    {/* Boutons de filtrage */}
                     {!this.state.isConsultant && (
                       <Button
                         outline
                         color="primary"
-                        className="mr-1 mb-1"
                         style={{ whiteSpace: "nowrap" }}
                         onClick={this.toggleMyClients}
                       >
@@ -958,13 +955,31 @@ class ClientsList extends React.Component {
                     )}
 
                     <Button
-                      color="success"
-                      className="mb-1"
+                      outline
+                      color="primary"
                       style={{ whiteSpace: "nowrap" }}
-                      onClick={() => history.push("/app/user/createUser")}
+                      onClick={() => history.push("/app/user/oldclientslist")}
                     >
-                      <UserPlus size={15} className="mr-50" />
-                      Créer un compte
+                      <Clock size={15} className="mr-50" />
+                      Anciens Clients
+                    </Button>
+
+                    {/* Séparateur vertical */}
+                    <div
+                      style={{
+                        width: "1px",
+                        height: "24px",
+                        backgroundColor: "#d8d6de",
+                      }}
+                    />
+
+                    {/* Bouton d'action principal */}
+                    <Button
+                      color="success"
+                      onClick={() => history.push("/app/user/createUser")}
+                      title="Créer un compte"
+                    >
+                      <UserPlus size={18} />
                     </Button>
                   </div>
                 </div>
@@ -1003,17 +1018,6 @@ class ClientsList extends React.Component {
                   ) : null}
                 </div>
 
-                {/* Bouton Anciens Clients - en bas de page */}
-                <div className="pt-50">
-                  <Button
-                    outline
-                    color="primary"
-                    onClick={() => history.push("/app/user/oldclientslist")}
-                  >
-                    <Clock size={15} className="mr-50" />
-                    Anciens Clients
-                  </Button>
-                </div>
               </CardBody>
             </Card>
           </Col>

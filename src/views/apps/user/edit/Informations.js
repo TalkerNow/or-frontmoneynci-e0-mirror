@@ -110,7 +110,7 @@ class UserAccountTab extends React.Component {
   // Appel API : code postal -> liste de villes
   fetchCitiesByZip = async (zip, which /* 'personal' | 'society' */) => {
     const key = `${which}_city_options`;
-    if (!/^\d{5}$/.test(zip)) {
+    if (!zip || zip.trim() === "") {
       this.setState({ [key]: [] });
       return;
     }
@@ -1061,8 +1061,6 @@ class UserAccountTab extends React.Component {
                   <Label for="pincode">Code postal</Label>
                   <Input
                     type="text"
-                    inputMode="numeric"
-                    pattern="\d{5}"
                     id="pincode"
                     placeholder="Code postal"
                     defaultValue={this.ifExist("personal_zip_code")}
