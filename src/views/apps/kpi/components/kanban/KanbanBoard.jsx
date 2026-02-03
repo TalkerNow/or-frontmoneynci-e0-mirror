@@ -73,7 +73,7 @@ class KanbanBoard extends React.Component {
       const promises = userIds.map((userId) =>
         axios
           .get(
-            `${global.config.server_url}/users/${userId}?include=documents`,
+            `${global.config.server_url}/users/${userId}?include=documents,conversationArchives,simulatorDifficultyResults`,
             {
               headers: { Authorization: `Bearer ${token}` },
             },
@@ -94,10 +94,25 @@ class KanbanBoard extends React.Component {
                   .join(" / ")
               : "";
 
+            // Déterminer la source du client
+            let channel_origin = null;
+            if (
+              user.conversation_archives &&
+              user.conversation_archives.length > 0
+            ) {
+              channel_origin = "chatbot";
+            } else if (
+              user.simulator_difficulty_results &&
+              user.simulator_difficulty_results.length > 0
+            ) {
+              channel_origin = "diagnostic";
+            }
+
             usersData[userId] = {
               totalAmount,
               allServices,
               documents: user.documents || [],
+              channel_origin: channel_origin,
             };
           })
           .catch((error) => {
@@ -106,6 +121,7 @@ class KanbanBoard extends React.Component {
               totalAmount: 0,
               allServices: "",
               documents: [],
+              channel_origin: null,
             };
           }),
       );
@@ -114,6 +130,59 @@ class KanbanBoard extends React.Component {
       this.setState({ usersData });
     } catch (error) {
       console.error("Error fetching users data:", error);
+    }
+  };
+
+  // Rafraîchir les données d'un utilisateur spécifique
+  refreshUserData = async (userId) => {
+    const token = localStorage.getItem("token");
+
+    try {
+      const response = await axios.get(
+        `${global.config.server_url}/users/${userId}?include=documents,conversationArchives,simulatorDifficultyResults`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
+      const user = response.data;
+      const totalAmount = user.documents
+        ? user.documents.reduce(
+            (sum, doc) => sum + (doc.advanced_payment || 0),
+            0,
+          )
+        : 0;
+      const allServices = user.documents
+        ? user.documents
+            .map((doc) => doc.subscribe_services)
+            .filter(Boolean)
+            .join(" / ")
+        : "";
+
+      let channel_origin = null;
+      if (user.conversation_archives && user.conversation_archives.length > 0) {
+        channel_origin = "chatbot";
+      } else if (
+        user.simulator_difficulty_results &&
+        user.simulator_difficulty_results.length > 0
+      ) {
+        channel_origin = "diagnostic";
+      }
+
+      this.setState((prevState) => ({
+        usersData: {
+          ...prevState.usersData,
+          [userId]: {
+            totalAmount,
+            allServices,
+            documents: user.documents || [],
+            channel_origin: channel_origin,
+          },
+        },
+        userDetails: user, // Mettre à jour aussi les détails affichés dans le modal
+      }));
+    } catch (error) {
+      console.error(`Error refreshing user ${userId}:`, error);
     }
   };
 
@@ -143,6 +212,7 @@ class KanbanBoard extends React.Component {
         const userData = usersData[userKanban.user_id] || {
           totalAmount: 0,
           allServices: "",
+          channel_origin: null,
         };
 
         return {
@@ -157,6 +227,7 @@ class KanbanBoard extends React.Component {
           status: userKanban.status,
           user_id: userKanban.user_id,
           kanban_id: userKanban.kanban_id,
+          channel_origin: userData.channel_origin,
         };
       });
   };
@@ -574,6 +645,7 @@ class KanbanBoard extends React.Component {
           kanbans={this.props.kanbans}
           onSave={this.handleSaveEdit}
           onDelete={this.handleDeleteCard}
+          onContractChange={this.refreshUserData}
         />
       </DragDropContext>
     );

@@ -38,6 +38,62 @@ class KanbanCard extends React.Component {
     return colors[index];
   };
 
+  getChannelBadge = (channel_origin) => {
+    const channelConfig = {
+      chatbot: {
+        label: "Chatbot",
+        color: "primary",
+        icon: "💬",
+      },
+      diagnostic: {
+        label: "Diag",
+        color: "warning",
+        icon: "📊",
+      },
+      simulator: {
+        label: "Simu",
+        color: "info",
+        icon: "🧮",
+      },
+      email: {
+        label: "Email",
+        color: "success",
+        icon: "📧",
+      },
+      phone: {
+        label: "Tel",
+        color: "danger",
+        icon: "📞",
+      },
+      default: {
+        label: "Direct",
+        color: "secondary",
+        icon: "👤",
+      },
+    };
+
+    const config =
+      channelConfig[channel_origin?.toLowerCase()] || channelConfig.default;
+
+    return (
+      <Badge
+        color={`light-${config.color}`}
+        className="font-weight-bold"
+        style={{
+          fontSize: "0.65rem",
+          padding: "0.35rem 0.5rem",
+          borderRadius: "8px",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "4px",
+        }}
+      >
+        <span>{config.icon}</span>
+        <span>{config.label}</span>
+      </Badge>
+    );
+  };
+
   formatAmount = (amount) => {
     return new Intl.NumberFormat("fr-FR", {
       style: "currency",
@@ -141,7 +197,16 @@ class KanbanCard extends React.Component {
   render() {
     const { card, onStarClick, onDeleteClick, onCardClick, isLoadingData } =
       this.props;
-    const { type, name, amount, deadline, isStarred, date, hour } = card;
+    const {
+      type,
+      name,
+      amount,
+      deadline,
+      isStarred,
+      date,
+      hour,
+      channel_origin,
+    } = card;
     const overdue = this.isOverdue(date, hour);
     const { Alert } = this.state;
 
@@ -276,19 +341,6 @@ class KanbanCard extends React.Component {
                   {this.formatAmount(amount || 0)}
                 </h4>
               )}
-              <div
-                className="rounded-circle d-flex align-items-center justify-content-center"
-                style={{
-                  width: "32px",
-                  height: "32px",
-                  backgroundColor: this.getInitialsBgColor(name),
-                  color: "#fff",
-                  fontSize: "0.75rem",
-                  fontWeight: "600",
-                }}
-              >
-                {this.getInitials(name)}
-              </div>
             </div>
 
             {date && hour && (
@@ -330,6 +382,12 @@ class KanbanCard extends React.Component {
                 <span className="text-danger font-small-2 font-weight-bold">
                   {deadline}
                 </span>
+              </div>
+            )}
+
+            {channel_origin && (
+              <div className="mt-75 d-flex justify-content-end">
+                {this.getChannelBadge(channel_origin)}
               </div>
             )}
           </CardBody>
