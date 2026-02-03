@@ -35,46 +35,30 @@ import {
   generateVisualReport,
 } from "../../inbox/utils";
 import VisualReportModal from "../../inbox/VisualReportModal";
+import CreateContractButton from "./components/CreateContractButton";
+import EditModeSection from "./sections/EditModeSection";
+import DisplayModeSection from "./sections/DisplayModeSection";
+import ContactSection from "./sections/ContactSection";
+import ContractsSection from "./sections/ContractsSection";
+import DiagnosticSection from "./sections/DiagnosticSection";
+import ConversationsSection from "./sections/ConversationsSection";
+import {
+  formatDateTimeLabel,
+  formatSuggestedDate,
+  getRelativeDateBadge,
+  getNextEligibleDate,
+  getLatestDiagnostic,
+  getDiagnosticAttributes,
+  loadContractTemplate,
+  normalizeTemplateValues,
+  getRowLabel,
+  buildValuesForSelection,
+  buildSubscribeServicesString,
+  computeTotalsFromValues,
+  generateContractLabel,
+} from "./utils";
 import axios from "axios";
 import { toast } from "react-toastify";
-
-// Composant fonctionnel pour le bouton de création de contrat
-const CreateContractButton = ({ onClick, disabled }) => {
-  const [isHovered, setIsHovered] = React.useState(false);
-
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          if (onClick) onClick();
-        }
-      }}
-      title="Créer un contrat"
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: "10px",
-        border: isHovered ? "1px solid #7367f0" : "1px dashed #7367f0",
-        borderRadius: "8px",
-        padding: "8px 10px",
-        cursor: disabled ? "not-allowed" : "pointer",
-        transition: "all 0.2s ease",
-        backgroundColor: isHovered && !disabled ? "#7367f0" : "#f8fafc",
-        minWidth: "72px",
-        opacity: disabled ? 0.5 : 1,
-      }}
-    >
-      <Plus size={16} color={isHovered && !disabled ? "#ffffff" : "#7367f0"} />
-    </div>
-  );
-};
 
 class UserKanbanModal extends React.Component {
   constructor(props) {
@@ -230,16 +214,7 @@ class UserKanbanModal extends React.Component {
 
   formatDateTimeLabel = () => {
     const { editFormData } = this.state;
-    if (!editFormData.date) return "Choisir date et heure";
-    const time = editFormData.hour || "00:00";
-    const dt = new Date(`${editFormData.date}T${time}`);
-    const dateLabel = new Intl.DateTimeFormat("fr-FR", {
-      weekday: "long",
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    }).format(dt);
-    return `${dateLabel}  •  ${time}`;
+    return formatDateTimeLabel(editFormData.date, editFormData.hour);
   };
 
   isMorning = () => {
@@ -248,11 +223,7 @@ class UserKanbanModal extends React.Component {
   };
 
   setSuggestedTime = (hour) => {
-    const now = new Date();
-    const tomorrow = new Date(now);
-    const daysToAdd = now.getDay() === 5 ? 3 : 1;
-    tomorrow.setDate(tomorrow.getDate() + daysToAdd);
-    const tomorrowDate = tomorrow.toISOString().split("T")[0];
+    const tomorrowDate = getNextEligibleDate();
     this.setState((prevState) => ({
       editFormData: {
         ...prevState.editFormData,
@@ -264,82 +235,19 @@ class UserKanbanModal extends React.Component {
   };
 
   formatSuggestedDate = (hour) => {
-    const now = new Date();
-    const tomorrow = new Date(now);
-    const daysToAdd = now.getDay() === 5 ? 3 : 1;
-    tomorrow.setDate(tomorrow.getDate() + daysToAdd);
-    const dateLabel = new Intl.DateTimeFormat("fr-FR", {
-      weekday: "long",
-      day: "2-digit",
-      month: "long",
-    }).format(tomorrow);
-    return `${dateLabel} ${hour.replace(":", "h")}`;
+    return formatSuggestedDate(hour);
   };
 
   getRelativeDateBadge = (dateString) => {
-    if (!dateString) return null;
-    const datePart = dateString.split("T")[0];
-    const date = new Date(`${datePart}T00:00:00`);
-    const today = new Date();
-    const startOfToday = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate(),
-    );
-    const yesterday = new Date(startOfToday);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const tomorrow = new Date(startOfToday);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const toKey = (d) => d.toISOString().split("T")[0];
-    const dateKey = toKey(date);
-
-    if (dateKey === toKey(startOfToday)) {
-      return { label: "Aujourd'hui", color: "light-success" };
-    }
-    if (dateKey === toKey(tomorrow)) {
-      return { label: "Demain", color: "light-warning" };
-    }
-    if (dateKey === toKey(yesterday)) {
-      return { label: "Hier", color: "light-danger" };
-    }
-
-    return null;
+    return getRelativeDateBadge(dateString);
   };
 
   getLatestDiagnostic = (userDetails) => {
-    const list =
-      userDetails?.simulator_difficulty_results ||
-      userDetails?.simulatorDifficultyResults ||
-      [];
-    if (!Array.isArray(list) || list.length === 0) return null;
-
-    const sorted = [...list].sort((a, b) => {
-      const aDate = new Date(
-        a?.created_at || a?.createdAt || a?.date || 0,
-      ).getTime();
-      const bDate = new Date(
-        b?.created_at || b?.createdAt || b?.date || 0,
-      ).getTime();
-      if (!Number.isNaN(aDate) && !Number.isNaN(bDate)) {
-        return bDate - aDate;
-      }
-      return (b?.id || 0) - (a?.id || 0);
-    });
-
-    return sorted[0] || list[list.length - 1];
+    return getLatestDiagnostic(userDetails);
   };
 
   getDiagnosticAttributes = (raw) => {
-    let attrs = raw?.attributes || raw;
-    if (typeof attrs === "string") {
-      try {
-        attrs = JSON.parse(attrs);
-      } catch (e) {
-        attrs = {};
-      }
-    }
-    return attrs || {};
+    return getDiagnosticAttributes(raw);
   };
 
   handleNameClickModal = (userId) => {
@@ -899,416 +807,24 @@ class UserKanbanModal extends React.Component {
               <>
                 {/* Ligne 1: Colonne Kanban + Rendez-vous - Mode édition en colonnes */}
                 {isEditing ? (
-                  <div
-                    style={{
-                      backgroundColor: "#f0f4ff",
-                      borderRadius: "8px",
-                      padding: "16px",
-                      marginBottom: "16px",
-                      border: "2px solid #7367f0",
-                    }}
-                  >
-                    <div
-                      className="mb-75"
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                      }}
-                    >
-                      <Badge color="primary" style={{ fontSize: "0.7rem" }}>
-                        MODE ÉDITION
-                      </Badge>
-                      <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>
-                        Modifiez les informations ci-dessous
-                      </span>
-                    </div>
-                    <div className="row">
-                      <div className="col-12 mb-2">
-                        <h6
-                          className="mb-50"
-                          style={{ fontSize: "0.85rem", fontWeight: 700 }}
-                        >
-                          Colonne Kanban
-                        </h6>
-                        <Input
-                          type="select"
-                          value={editFormData.kanban_id}
-                          onChange={(e) =>
-                            this.handleEditFormChange(
-                              "kanban_id",
-                              parseInt(e.target.value),
-                            )
-                          }
-                        >
-                          <option value="">Sélectionnez une colonne...</option>
-                          {kanbans.map((col) => (
-                            <option key={col.id} value={col.id}>
-                              {col.title}
-                            </option>
-                          ))}
-                        </Input>
-                      </div>
-                      <div className="col-12 mb-2">
-                        {currentCard.date && currentCard.hour && (
-                          <div>
-                            <h6
-                              className="mb-50 d-flex align-items-center"
-                              style={{ fontSize: "0.85rem", fontWeight: 700 }}
-                            >
-                              <Clock size={14} className="mr-50" />
-                              Rendez-vous
-                            </h6>
-                            <div className="mb-2">
-                              <label
-                                className="font-weight-bold mb-75"
-                                style={{ fontSize: "0.75rem" }}
-                              >
-                                Date & Heure
-                              </label>
-
-                              {/* Afficher la date/heure actuelle avec une flèche vers la nouvelle */}
-                              {currentCard.date && currentCard.hour && (
-                                <div
-                                  style={{
-                                    backgroundColor: "#f9fafb",
-                                    padding: "8px",
-                                    borderRadius: "6px",
-                                    border: "1px solid #e5e7eb",
-                                    marginBottom: "12px",
-                                    fontSize: "0.75rem",
-                                  }}
-                                >
-                                  <div className="d-flex align-items-center justify-content-between">
-                                    <div>
-                                      <div
-                                        style={{
-                                          color: "#6b7280",
-                                          marginBottom: "4px",
-                                        }}
-                                      >
-                                        Actuellement :
-                                      </div>
-                                      <div
-                                        style={{
-                                          fontSize: "0.85rem",
-                                          fontWeight: 600,
-                                          color: "#1f2937",
-                                        }}
-                                      >
-                                        {new Date(
-                                          `${currentCard.date}T${currentCard.hour}:00`,
-                                        ).toLocaleDateString("fr-FR", {
-                                          weekday: "short",
-                                          day: "2-digit",
-                                          month: "short",
-                                          year: "numeric",
-                                        })}{" "}
-                                        à {currentCard.hour}
-                                      </div>
-                                    </div>
-                                    {(editFormData.date !== currentCard.date ||
-                                      editFormData.hour !==
-                                        currentCard.hour) && (
-                                      <>
-                                        <div
-                                          style={{
-                                            color: "#7367f0",
-                                            fontSize: "1.2rem",
-                                          }}
-                                        >
-                                          →
-                                        </div>
-                                        <div>
-                                          <div
-                                            style={{
-                                              color: "#6b7280",
-                                              marginBottom: "4px",
-                                            }}
-                                          >
-                                            Nouveau :
-                                          </div>
-                                          <div
-                                            style={{
-                                              fontSize: "0.85rem",
-                                              fontWeight: 600,
-                                              color: "#16a34a",
-                                            }}
-                                          >
-                                            {new Date(
-                                              `${editFormData.date}T${editFormData.hour}:00`,
-                                            ).toLocaleDateString("fr-FR", {
-                                              weekday: "short",
-                                              day: "2-digit",
-                                              month: "short",
-                                              year: "numeric",
-                                            })}{" "}
-                                            à {editFormData.hour}
-                                          </div>
-                                        </div>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Date et Heure pickers avec suggestion à droite */}
-                              <div
-                                className="d-flex align-items-stretch"
-                                style={{ gap: "12px", marginBottom: "12px" }}
-                              >
-                                <div style={{ flex: 2 }}>
-                                  <label
-                                    style={{
-                                      fontSize: "0.7rem",
-                                      color: "#6b7280",
-                                      display: "block",
-                                      marginBottom: "4px",
-                                      fontWeight: 700,
-                                    }}
-                                  >
-                                    Sélectionner date et heure
-                                  </label>
-                                  <Button
-                                    color="primary"
-                                    outline
-                                    type="button"
-                                    onClick={this.handleDateTimeClick}
-                                    style={{
-                                      width: "100%",
-                                      height: "44px",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                      padding: "0.5rem",
-                                      fontSize: "0.75rem",
-                                    }}
-                                  >
-                                    <Calendar size={16} className="mr-50" />
-                                    <span style={{ lineHeight: "1.2" }}>
-                                      {this.formatDateTimeLabel()}
-                                    </span>
-                                  </Button>
-                                  <Input
-                                    innerRef={this.dateTimeInputRef}
-                                    type="datetime-local"
-                                    value={
-                                      editFormData.date
-                                        ? `${editFormData.date}T${
-                                            editFormData.hour || "00:00"
-                                          }`
-                                        : ""
-                                    }
-                                    onChange={this.handleDateTimeChange}
-                                    style={{
-                                      position: "absolute",
-                                      opacity: 0,
-                                      pointerEvents: "none",
-                                      height: 0,
-                                      width: 0,
-                                    }}
-                                    tabIndex={-1}
-                                  />
-                                </div>
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    gap: "8px",
-                                    flex: 1,
-                                  }}
-                                >
-                                  <div style={{ flex: 1 }}>
-                                    <label
-                                      style={{
-                                        fontSize: "0.7rem",
-                                        color: "#6b7280",
-                                        display: "block",
-                                        marginBottom: "4px",
-                                        fontWeight: 700,
-                                      }}
-                                    >
-                                      Suggestions
-                                    </label>
-                                    <Button
-                                      color="info"
-                                      outline
-                                      type="button"
-                                      onClick={() =>
-                                        this.setSuggestedTime("10:30")
-                                      }
-                                      style={{
-                                        width: "100%",
-                                        height: "44px",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        fontSize: "0.7rem",
-                                        whiteSpace: "normal",
-                                        lineHeight: "1.2",
-                                        padding: "0.5rem",
-                                      }}
-                                    >
-                                      {this.formatSuggestedDate("10:30")}
-                                    </Button>
-                                  </div>
-                                  <div style={{ flex: 1 }}>
-                                    <label
-                                      style={{
-                                        fontSize: "0.7rem",
-                                        color: "#6b7280",
-                                        display: "block",
-                                        marginBottom: "4px",
-                                        fontWeight: 700,
-                                        visibility: "hidden",
-                                      }}
-                                    >
-                                      .
-                                    </label>
-                                    <Button
-                                      color="info"
-                                      outline
-                                      type="button"
-                                      onClick={() =>
-                                        this.setSuggestedTime("16:30")
-                                      }
-                                      style={{
-                                        width: "100%",
-                                        height: "44px",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        fontSize: "0.7rem",
-                                        whiteSpace: "normal",
-                                        lineHeight: "1.2",
-                                        padding: "0.5rem",
-                                      }}
-                                    >
-                                      {this.formatSuggestedDate("16:30")}
-                                    </Button>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="row">
-                      <div className="col-12">
-                        <label
-                          className="font-weight-bold"
-                          style={{ fontSize: "0.75rem" }}
-                        >
-                          Description
-                        </label>
-                        <Input
-                          type="textarea"
-                          rows="3"
-                          value={editFormData.description}
-                          onChange={(e) =>
-                            this.handleEditFormChange(
-                              "description",
-                              e.target.value,
-                            )
-                          }
-                          placeholder="Description du rendez-vous..."
-                          style={{ fontSize: "0.75rem" }}
-                        />
-                      </div>
-                    </div>
-                  </div>
+                  <EditModeSection
+                    editFormData={editFormData}
+                    kanbans={kanbans}
+                    currentCard={currentCard}
+                    onFormChange={this.handleEditFormChange}
+                    onDateTimeClick={this.handleDateTimeClick}
+                    formatDateTimeLabel={this.formatDateTimeLabel}
+                    formatSuggestedDate={this.formatSuggestedDate}
+                    onSetSuggestedTime={this.setSuggestedTime}
+                    dateTimeInputRef={this.dateTimeInputRef}
+                    onDateTimeChange={this.handleDateTimeChange}
+                  />
                 ) : (
-                  <div className="row mb-2">
-                    <div className="col-lg-6 mb-2">
-                      <h6
-                        className="mb-50"
-                        style={{ fontSize: "0.85rem", fontWeight: 700 }}
-                      >
-                        Colonne Kanban
-                      </h6>
-                      <div className="pl-1">
-                        <Badge
-                          pill
-                          style={{
-                            fontSize: "0.9rem",
-                            padding: "0.5rem 1rem",
-                            fontWeight: "600",
-                            backgroundColor:
-                              kanbans.find(
-                                (col) => col.id === currentCard.kanban_id,
-                              )?.color || "#7367f0",
-                            color: "#fff",
-                          }}
-                        >
-                          {(
-                            kanbans.find(
-                              (col) => col.id === currentCard.kanban_id,
-                            )?.title || "N/A"
-                          ).toUpperCase()}
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="col-lg-6 mb-2">
-                      {currentCard.date && currentCard.hour && (
-                        <div className="mb-2">
-                          <h6
-                            className="mb-50 d-flex align-items-center"
-                            style={{ fontSize: "0.85rem", fontWeight: 700 }}
-                          >
-                            <Clock size={14} className="mr-50" />
-                            Rendez-vous
-                          </h6>
-                          <div style={{ fontSize: "0.75rem" }}>
-                            <div className="d-flex align-items-center mb-50">
-                              <Calendar size={14} className="mr-50" />
-                              {(() => {
-                                const badge = this.getRelativeDateBadge(
-                                  currentCard.date,
-                                );
-                                const formattedDate = new Date(
-                                  `${currentCard.date}T${currentCard.hour}:00`,
-                                ).toLocaleDateString("fr-FR", {
-                                  weekday: "long",
-                                  day: "2-digit",
-                                  month: "long",
-                                  year: "numeric",
-                                });
-
-                                return badge ? (
-                                  <Badge
-                                    color={badge.color}
-                                    className="font-small-2"
-                                    style={{
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                      gap: "6px",
-                                    }}
-                                  >
-                                    {badge.label} • {currentCard.hour}
-                                  </Badge>
-                                ) : (
-                                  <span>
-                                    {formattedDate} {" à "} {currentCard.hour}
-                                  </span>
-                                );
-                              })()}
-                            </div>
-                            {currentCard.description && (
-                              <div>
-                                <strong>Description :</strong>
-                                <p
-                                  className="mt-50 mb-0"
-                                  style={{ fontSize: "0.75rem" }}
-                                >
-                                  {currentCard.description}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <DisplayModeSection
+                    currentCard={currentCard}
+                    kanbans={kanbans}
+                    getRelativeDateBadge={this.getRelativeDateBadge}
+                  />
                 )}
 
                 {/* Ligne 2: Contact + Contrats */}
@@ -1344,435 +860,30 @@ class UserKanbanModal extends React.Component {
                   )}
                   {/* Informations de contact */}
                   <div className="col-lg-6 mb-2">
-                    <div className="mb-2">
-                      <div className="d-flex align-items-center justify-content-between mb-50">
-                        <h6
-                          className="mb-0 d-flex align-items-center"
-                          style={{ fontSize: "0.85rem", fontWeight: 700 }}
-                        >
-                          <User size={14} className="mr-50" />
-                          Contact
-                        </h6>
-                        <a
-                          href={`/app/user/edit/${userDetails.id}/2`}
-                          onClick={(e) => {
-                            if (e.ctrlKey || e.metaKey || e.button === 1) {
-                              return;
-                            }
-                            e.preventDefault();
-                            this.props.history.push(
-                              `/app/user/edit/${userDetails.id}/2`,
-                            );
-                          }}
-                          title="Voir fiche client"
-                          className="btn btn-sm btn-outline-primary d-flex align-items-center"
-                          style={{ textDecoration: "none" }}
-                        >
-                          <Edit size={14} className="mr-25" />
-                          Fiche client
-                        </a>
-                      </div>
-                      <div style={{ fontSize: "0.85rem" }}>
-                        <div className="mb-50">
-                          <strong>Email :</strong>{" "}
-                          <a href={`mailto:${userDetails.email}`}>
-                            {userDetails.email}
-                          </a>
-                        </div>
-                        {userDetails.mobile_number && (
-                          <div className="mb-50">
-                            <strong>Téléphone:</strong>{" "}
-                            <a href={`tel:${userDetails.mobile_number}`}>
-                              {userDetails.mobile_number}
-                            </a>
-                          </div>
-                        )}
-                        {/* {userDetails.status && (
-                        <div className="mb-1">
-                          <strong>Statut:</strong>{" "}
-                          <Badge color="light-info" pill>
-                            {userDetails.status}
-                          </Badge>
-                        </div>
-                      )} */}
-                      </div>
-                    </div>
+                    <ContactSection
+                      userDetails={userDetails}
+                      history={this.props.history}
+                    />
                   </div>
 
                   {/* Contrat en cours */}
                   <div className="col-lg-6 mb-2">
-                    <div className="mb-2">
-                      <div className="d-flex align-items-center justify-content-between mb-50">
-                        <h6
-                          className="mb-0 d-flex align-items-center"
-                          style={{ fontSize: "0.85rem", fontWeight: 700 }}
-                        >
-                          <FileText size={14} className="mr-50" />
-                          Contrats
-                        </h6>
-                        <Button
-                          size="sm"
-                          color={
-                            this.state.showCreateContractForm
-                              ? "danger"
-                              : "primary"
-                          }
-                          outline
-                          onClick={this.toggleCreateContractForm}
-                          className="d-flex align-items-center"
-                          title={
-                            this.state.showCreateContractForm
-                              ? "Annuler"
-                              : "Créer un contrat rapide"
-                          }
-                        >
-                          {this.state.showCreateContractForm ? (
-                            <>
-                              <X size={14} className="mr-25" />
-                              Annuler
-                            </>
-                          ) : (
-                            <>
-                              <Plus size={14} className="mr-25" />
-                              Créer contrat
-                            </>
-                          )}
-                        </Button>
-                      </div>
-
-                      {/* Formulaire de création rapide de contrat */}
-                      {this.state.showCreateContractForm && (
-                        <div
-                          style={{
-                            backgroundColor: "#f0f4ff",
-                            borderRadius: "8px",
-                            padding: "12px",
-                            marginBottom: "12px",
-                            border: "1px solid #d8d6de",
-                          }}
-                        >
-                          <h6
-                            style={{
-                              fontSize: "0.8rem",
-                              fontWeight: "bold",
-                              marginBottom: "12px",
-                              color: "#7367f0",
-                              textTransform: "uppercase",
-                              letterSpacing: "0.05em",
-                            }}
-                          >
-                            ⚡ Création express
-                          </h6>
-
-                          {/* Sélection des prestations - Seule interaction requise */}
-                          <FormGroup className="mb-2">
-                            <Label
-                              style={{
-                                fontSize: "0.75rem",
-                                fontWeight: "600",
-                                color: "#5e5873",
-                                marginBottom: "8px",
-                                textTransform: "uppercase",
-                                letterSpacing: "0.5px",
-                              }}
-                            >
-                              Sélectionnez les prestations 🎯
-                            </Label>
-                            {this.state.contractTemplateLoading ? (
-                              <div
-                                className="text-muted"
-                                style={{ fontSize: "0.75rem" }}
-                              >
-                                Chargement des prestations...
-                              </div>
-                            ) : (
-                              <div
-                                style={{
-                                  display: "grid",
-                                  gridTemplateColumns: "1fr 1fr",
-                                  gap: "6px",
-                                }}
-                              >
-                                {["r1", "r2", "r3", "r4", "r5", "r6", "r7"].map(
-                                  (rowId) => {
-                                    const isSelected =
-                                      this.state.contractFormData.selectedRows.includes(
-                                        rowId,
-                                      );
-                                    const label = this.getRowLabel(
-                                      rowId,
-                                      this.state.contractTemplateValues || {},
-                                    );
-                                    return (
-                                      <div
-                                        key={rowId}
-                                        onClick={() =>
-                                          this.handleContractServiceToggle(
-                                            rowId,
-                                          )
-                                        }
-                                        style={{
-                                          display: "flex",
-                                          alignItems: "center",
-                                          justifyContent: "space-between",
-                                          fontSize: "0.8rem",
-                                          cursor: "pointer",
-                                          padding: "8px 10px",
-                                          backgroundColor: isSelected
-                                            ? "#7367f0"
-                                            : "#fff",
-                                          color: isSelected
-                                            ? "#fff"
-                                            : "#5e5873",
-                                          border: `2px solid ${
-                                            isSelected ? "#7367f0" : "#d8d6de"
-                                          }`,
-                                          borderRadius: "6px",
-                                          fontWeight: isSelected
-                                            ? "600"
-                                            : "500",
-                                          transition: "all 0.2s ease",
-                                        }}
-                                      >
-                                        <span>{label}</span>
-                                        {isSelected && (
-                                          <Check
-                                            size={14}
-                                            style={{ marginLeft: "4px" }}
-                                          />
-                                        )}
-                                      </div>
-                                    );
-                                  },
-                                )}
-                              </div>
-                            )}
-                          </FormGroup>
-
-                          {/* Affichage du résumé auto-calculé */}
-                          {this.state.contractFormData.selectedRows.length >
-                            0 && (
-                            <div
-                              style={{
-                                backgroundColor: "#fff",
-                                borderRadius: "6px",
-                                padding: "10px",
-                                marginBottom: "12px",
-                                border: "1px solid #e0e0e0",
-                                fontSize: "0.75rem",
-                              }}
-                            >
-                              <div
-                                style={{
-                                  marginBottom: "6px",
-                                  color: "#5e5873",
-                                }}
-                              >
-                                <strong>Libellé :</strong>{" "}
-                                {this.state.contractFormData.comment}
-                              </div>
-                              <div
-                                style={{
-                                  display: "grid",
-                                  gridTemplateColumns: "1fr 1fr",
-                                  gap: "8px",
-                                  fontSize: "0.8rem",
-                                  fontWeight: "600",
-                                }}
-                              >
-                                <div>
-                                  <span style={{ color: "#6b7280" }}>
-                                    Total TTC :
-                                  </span>{" "}
-                                  {new Intl.NumberFormat("fr-FR", {
-                                    style: "currency",
-                                    currency: "EUR",
-                                    minimumFractionDigits: 0,
-                                    maximumFractionDigits: 0,
-                                  }).format(
-                                    this.state.contractFormData
-                                      .advanced_payment,
-                                  )}
-                                </div>
-                                <div>
-                                  <span style={{ color: "#6b7280" }}>
-                                    Acompte 75% :
-                                  </span>{" "}
-                                  {new Intl.NumberFormat("fr-FR", {
-                                    style: "currency",
-                                    currency: "EUR",
-                                    minimumFractionDigits: 0,
-                                    maximumFractionDigits: 0,
-                                  }).format(
-                                    this.state.contractFormData.pre_payment,
-                                  )}
-                                </div>
-                                <div>
-                                  <span style={{ color: "#6b7280" }}>
-                                    Solde 25% :
-                                  </span>{" "}
-                                  {new Intl.NumberFormat("fr-FR", {
-                                    style: "currency",
-                                    currency: "EUR",
-                                    minimumFractionDigits: 0,
-                                    maximumFractionDigits: 0,
-                                  }).format(
-                                    this.state.contractFormData.end_payment,
-                                  )}
-                                </div>
-                                <div style={{ color: "#999" }}>
-                                  Prestations :{" "}
-                                  {this.state.contractFormData.selectedRows
-                                    .map((rowId) =>
-                                      this.getRowLabel(
-                                        rowId,
-                                        this.state.contractTemplateValues || {},
-                                      ),
-                                    )
-                                    .join(" / ")}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Boutons d'action */}
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: "8px",
-                              justifyContent: "flex-end",
-                            }}
-                          >
-                            <Button
-                              size="sm"
-                              color="secondary"
-                              outline
-                              onClick={this.toggleCreateContractForm}
-                              disabled={this.state.creatingContract}
-                            >
-                              Annuler
-                            </Button>
-                            <Button
-                              size="sm"
-                              color="success"
-                              onClick={this.createQuickContract}
-                              disabled={
-                                this.state.creatingContract ||
-                                this.state.contractFormData.selectedRows
-                                  .length === 0
-                              }
-                            >
-                              {this.state.creatingContract ? (
-                                <>
-                                  <Spinner
-                                    size="sm"
-                                    color="light"
-                                    className="mr-50"
-                                  />
-                                  Création...
-                                </>
-                              ) : (
-                                <>
-                                  <Check size={14} className="mr-50" />
-                                  Créer contrat
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-
-                      {visibleDocuments.length > 0 ? (
-                        (() => {
-                          // Calculer le total et les services cumulés
-                          const totalAmount = visibleDocuments.reduce(
-                            (sum, doc) => sum + (doc.advanced_payment || 0),
-                            0,
-                          );
-
-                          return (
-                            <div
-                              style={{
-                                backgroundColor: "#f8f9fa",
-                                padding: "8px",
-                                borderRadius: "6px",
-                                borderLeft: "3px solid #7367f0",
-                                fontSize: "0.85rem",
-                              }}
-                            >
-                              <div className="mb-50">
-                                <strong>Montant total:</strong>{" "}
-                                <span
-                                  className="text-primary font-weight-bold"
-                                  style={{ fontSize: "0.95rem" }}
-                                >
-                                  {new Intl.NumberFormat("fr-FR", {
-                                    style: "currency",
-                                    currency: "EUR",
-                                    minimumFractionDigits: 0,
-                                    maximumFractionDigits: 0,
-                                  }).format(totalAmount)}
-                                </span>
-                              </div>
-                              <div className="mb-1">
-                                {/* <strong>Nombre de contrats:</strong>{" "}
-                              <span>{userDetails.documents.length}</span> */}
-                              </div>
-                              <div className="mb-50">
-                                <div
-                                  className="d-flex flex-wrap"
-                                  style={{ marginTop: "4px", gap: "6px" }}
-                                >
-                                  {visibleDocuments.map((doc) => (
-                                    <ContractButton
-                                      key={doc.id}
-                                      doc={doc}
-                                      onDelete={
-                                        this.handleRequestDeleteContract
-                                      }
-                                    />
-                                  ))}
-                                  <CreateContractButton
-                                    onClick={() => {
-                                      if (!this.state.showCreateContractForm) {
-                                        this.toggleCreateContractForm();
-                                      }
-                                    }}
-                                    disabled={this.state.showCreateContractForm}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })()
-                      ) : (
-                        <div
-                          className="text-muted"
-                          style={{
-                            backgroundColor: "#f8f9fa",
-                            padding: "8px",
-                            borderRadius: "6px",
-                            borderLeft: "3px solid #7367f0",
-                            fontSize: "0.85rem",
-                          }}
-                        >
-                          Aucun contrat pour le moment.
-                          <div
-                            className="d-flex flex-wrap"
-                            style={{ marginTop: "8px", gap: "6px" }}
-                          >
-                            <CreateContractButton
-                              onClick={() => {
-                                if (!this.state.showCreateContractForm) {
-                                  this.toggleCreateContractForm();
-                                }
-                              }}
-                              disabled={this.state.showCreateContractForm}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                    <ContractsSection
+                      userDetails={userDetails}
+                      visibleDocuments={visibleDocuments}
+                      showCreateContractForm={this.state.showCreateContractForm}
+                      creatingContract={this.state.creatingContract}
+                      contractTemplateLoading={
+                        this.state.contractTemplateLoading
+                      }
+                      contractFormData={this.state.contractFormData}
+                      contractTemplateValues={this.state.contractTemplateValues}
+                      onToggleCreateForm={this.toggleCreateContractForm}
+                      onRequestDeleteContract={this.handleRequestDeleteContract}
+                      onServiceToggle={this.handleContractServiceToggle}
+                      onCreateContract={this.createQuickContract}
+                      getRowLabel={this.getRowLabel}
+                    />
                   </div>
                 </div>
 
@@ -1808,468 +919,14 @@ class UserKanbanModal extends React.Component {
                         </Badge>
                       </div>
                     )}
-                    <div
-                      style={{
-                        backgroundColor: "#fff7ed",
-                        borderRadius: "8px",
-                        padding: "12px",
-                        border: "1px solid #ffedd5",
-                      }}
-                    >
-                      <div
-                        className="header-btn-stack"
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          marginBottom: "10px",
-                          gap: "8px",
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        <h3
-                          style={{
-                            fontSize: "0.8rem",
-                            fontWeight: "bold",
-                            color: "#9a3412",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.05em",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "8px",
-                            margin: 0,
-                          }}
-                        >
-                          <FileText size={14} /> Diagnostic
-                        </h3>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "12px",
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          <button
-                            onClick={() =>
-                              this.setState({ showVisualReport: true })
-                            }
-                            style={{
-                              padding: "6px 12px",
-                              fontSize: "12px",
-                              fontWeight: "600",
-                              color: "#1e3a8a",
-                              backgroundColor: "#eff6ff",
-                              borderRadius: "6px",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "6px",
-                              border: "none",
-                              cursor: "pointer",
-                              transition: "all 0.2s ease",
-                              boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-                            }}
-                            onMouseOver={(e) => {
-                              e.currentTarget.style.backgroundColor = "#dbeafe";
-                              e.currentTarget.style.color = "#172554";
-                            }}
-                            onMouseOut={(e) => {
-                              e.currentTarget.style.backgroundColor = "#eff6ff";
-                              e.currentTarget.style.color = "#1e3a8a";
-                            }}
-                            title="Voir le rapport visuel"
-                          >
-                            <FileText size={14} strokeWidth={2} />
-                            <span>Rapport Visuel</span>
-                          </button>
-                          {(diagnosticRaw?.profile_type ||
-                            diagnosticAttrs?.PROFILE_TYPE) && (
-                            <span
-                              style={{
-                                fontSize: "12px",
-                                fontWeight: 600,
-                                color: "#6b7280",
-                                textTransform: "uppercase",
-                              }}
-                            >
-                              {diagnosticRaw?.profile_type ||
-                                diagnosticAttrs?.PROFILE_TYPE}
-                            </span>
-                          )}
-                          {(() => {
-                            const score =
-                              calculateComplexityScore(diagnosticRaw);
-                            const scoreNum = parseInt(score, 10);
-
-                            let bg;
-                            let color;
-                            if (!Number.isNaN(scoreNum)) {
-                              if (scoreNum < 30) {
-                                bg = "#ffe5e5";
-                                color = "#d93025";
-                              } else if (scoreNum < 70) {
-                                bg = "#fff4e5";
-                                color = "#ff9800";
-                              } else {
-                                bg = "#e6f4ea";
-                                color = "#1e8e3e";
-                              }
-                            } else {
-                              bg = "#f3f4f6";
-                              color = "#6b7280";
-                            }
-
-                            return (
-                              <span
-                                style={{
-                                  backgroundColor: bg,
-                                  borderRadius: "999px",
-                                  padding: "4px 10px",
-                                  fontSize: "0.75rem",
-                                  fontWeight: 700,
-                                  color: color,
-                                }}
-                              >
-                                {score}/100
-                              </span>
-                            );
-                          })()}
-                        </div>
-                      </div>
-
-                      <div className="row" style={{ marginBottom: "8px" }}>
-                        <div className="col-6">
-                          <div
-                            style={{
-                              backgroundColor: "#fff",
-                              borderRadius: "6px",
-                              padding: "8px",
-                              border: "1px solid #fed7aa",
-                            }}
-                          >
-                            <div
-                              style={{
-                                fontSize: "0.75rem",
-                                color: "#ea580c",
-                                fontWeight: 600,
-                                marginBottom: "4px",
-                              }}
-                            >
-                              Date de naissance
-                            </div>
-                            <div
-                              style={{
-                                fontSize: "0.85rem",
-                                fontWeight: 700,
-                                color: "#1f2937",
-                              }}
-                            >
-                              {(() => {
-                                const d =
-                                  diagnosticRaw?.birth_date ||
-                                  diagnosticRaw?.date_naissance ||
-                                  diagnosticAttrs?.DATE_NAISSANCE ||
-                                  diagnosticRaw?.attributes?.DATE_NAISSANCE;
-                                if (!d) return "-";
-                                try {
-                                  return new Date(d).toLocaleDateString(
-                                    "fr-FR",
-                                  );
-                                } catch {
-                                  return d;
-                                }
-                              })()}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="col-6">
-                          <div
-                            style={{
-                              backgroundColor: "#fff",
-                              borderRadius: "6px",
-                              padding: "8px",
-                              border: "1px solid #fed7aa",
-                            }}
-                          >
-                            <div
-                              style={{
-                                fontSize: "0.75rem",
-                                color: "#ea580c",
-                                fontWeight: 600,
-                                marginBottom: "4px",
-                              }}
-                            >
-                              Départ souhaité
-                            </div>
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "baseline",
-                                gap: "12px",
-                                flexWrap: "wrap",
-                              }}
-                            >
-                              <span
-                                style={{
-                                  fontSize: "0.85rem",
-                                  fontWeight: 700,
-                                  color: "#1f2937",
-                                }}
-                              >
-                                {(() => {
-                                  const d =
-                                    diagnosticRaw?.departure_date ||
-                                    diagnosticRaw?.date_depart ||
-                                    diagnosticAttrs?.SIMULATEUR_DIFFICULTE_DATE_DEPART ||
-                                    diagnosticRaw?.attributes
-                                      ?.SIMULATEUR_DIFFICULTE_DATE_DEPART;
-                                  if (!d) return "-";
-                                  try {
-                                    return new Date(d).toLocaleDateString(
-                                      "fr-FR",
-                                    );
-                                  } catch {
-                                    return d;
-                                  }
-                                })()}
-                              </span>
-                              {(() => {
-                                const birthDate =
-                                  diagnosticRaw?.birth_date ||
-                                  diagnosticRaw?.date_naissance ||
-                                  diagnosticAttrs?.DATE_NAISSANCE ||
-                                  diagnosticRaw?.attributes?.DATE_NAISSANCE;
-                                const departDate =
-                                  diagnosticRaw?.departure_date ||
-                                  diagnosticRaw?.date_depart ||
-                                  diagnosticAttrs?.SIMULATEUR_DIFFICULTE_DATE_DEPART ||
-                                  diagnosticRaw?.attributes
-                                    ?.SIMULATEUR_DIFFICULTE_DATE_DEPART;
-                                if (!birthDate || !departDate) return null;
-                                try {
-                                  const birth = new Date(birthDate);
-                                  const depart = new Date(departDate);
-                                  let years =
-                                    depart.getFullYear() - birth.getFullYear();
-                                  let months =
-                                    depart.getMonth() - birth.getMonth();
-                                  if (months < 0) {
-                                    years--;
-                                    months += 12;
-                                  }
-                                  return (
-                                    <span
-                                      style={{
-                                        fontSize: "0.7rem",
-                                        fontWeight: 600,
-                                        color: "#ea580c",
-                                      }}
-                                    >
-                                      ({years} ans
-                                      {months > 0 ? ` et ${months} mois` : ""})
-                                    </span>
-                                  );
-                                } catch {
-                                  return null;
-                                }
-                              })()}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {(() => {
-                        const children = diagnosticAttrs?.NBR_ENFANTS;
-                        const military =
-                          diagnosticAttrs?.SIMULATEUR_DIFFICULTE_Q11;
-                        if (!children && !military) return null;
-                        return (
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: "6px",
-                              marginBottom: "8px",
-                              flexWrap: "wrap",
-                            }}
-                          >
-                            {children != null && (
-                              <div
-                                style={{
-                                  backgroundColor: "#fff",
-                                  borderRadius: "6px",
-                                  padding: "6px 10px",
-                                  border: "1px solid #fed7aa",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: "8px",
-                                }}
-                              >
-                                <User size={14} color="#ea580c" />
-                                <span
-                                  style={{
-                                    fontSize: "0.75rem",
-                                    color: "#374151",
-                                  }}
-                                >
-                                  <strong>{children}</strong> enfant
-                                  {parseInt(children, 10) > 1 ? "s" : ""}
-                                </span>
-                              </div>
-                            )}
-                            {military &&
-                              typeof military === "string" &&
-                              military.toLowerCase() === "oui" && (
-                                <div
-                                  style={{
-                                    backgroundColor: "#fff",
-                                    borderRadius: "6px",
-                                    padding: "6px 10px",
-                                    border: "1px solid #dcfce7",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "6px",
-                                  }}
-                                >
-                                  <Check size={14} color="#16a34a" />
-                                  <span
-                                    style={{
-                                      fontSize: "0.75rem",
-                                      color: "#374151",
-                                    }}
-                                  >
-                                    Service militaire effectué
-                                  </span>
-                                </div>
-                              )}
-                          </div>
-                        );
-                      })()}
-
-                      {(() => {
-                        const birthDate =
-                          diagnosticRaw?.birth_date ||
-                          diagnosticRaw?.date_naissance ||
-                          diagnosticAttrs?.DATE_NAISSANCE ||
-                          diagnosticRaw?.attributes?.DATE_NAISSANCE;
-                        if (!birthDate) return null;
-                        try {
-                          const birth = new Date(birthDate);
-                          const birthYear = birth.getFullYear();
-                          const legalAge = 64;
-                          const legalDate = new Date(birth);
-                          legalDate.setFullYear(birthYear + legalAge);
-                          const tauxPleinAge = 67;
-                          const tauxPleinDate = new Date(birth);
-                          tauxPleinDate.setFullYear(birthYear + tauxPleinAge);
-                          return (
-                            <div
-                              style={{
-                                backgroundColor: "#f9fafb",
-                                borderRadius: "6px",
-                                padding: "10px",
-                                marginBottom: "8px",
-                                border: "1px solid #e5e7eb",
-                              }}
-                            >
-                              <div
-                                style={{
-                                  fontSize: "0.7rem",
-                                  fontWeight: 600,
-                                  color: "#374151",
-                                  marginBottom: "12px",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: "6px",
-                                }}
-                              >
-                                <Clock size={14} /> REPÈRES CLÉS (CALCULÉS)
-                              </div>
-                              <div className="reperes-grid">
-                                <div>
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: "4px",
-                                      marginBottom: "2px",
-                                    }}
-                                  >
-                                    <Clock size={12} color="#ea580c" />
-                                    <span
-                                      style={{
-                                        fontSize: "0.7rem",
-                                        color: "#374151",
-                                      }}
-                                    >
-                                      Âge Légal
-                                    </span>
-                                  </div>
-                                  <div
-                                    style={{
-                                      fontSize: "0.85rem",
-                                      fontWeight: 700,
-                                      color: "#ea580c",
-                                    }}
-                                  >
-                                    {legalDate.toLocaleDateString("fr-FR")}
-                                  </div>
-                                  <div
-                                    style={{
-                                      fontSize: "0.75rem",
-                                      color: "#374151",
-                                      fontWeight: 500,
-                                    }}
-                                  >
-                                    {legalAge} ans
-                                  </div>
-                                </div>
-                                <div>
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: "4px",
-                                      marginBottom: "2px",
-                                    }}
-                                  >
-                                    <Target size={12} color="#16a34a" />
-                                    <span
-                                      style={{
-                                        fontSize: "0.7rem",
-                                        color: "#374151",
-                                        fontWeight: 600,
-                                      }}
-                                    >
-                                      Taux Plein Auto
-                                    </span>
-                                  </div>
-                                  <div
-                                    style={{
-                                      fontSize: "0.85rem",
-                                      fontWeight: 700,
-                                      color: "#16a34a",
-                                    }}
-                                  >
-                                    {tauxPleinDate.toLocaleDateString("fr-FR")}
-                                  </div>
-                                  <div
-                                    style={{
-                                      fontSize: "0.75rem",
-                                      color: "#374151",
-                                      fontWeight: 500,
-                                    }}
-                                  >
-                                    Automatique à {tauxPleinAge} ans
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        } catch {
-                          return null;
-                        }
-                      })()}
-                    </div>
+                    <DiagnosticSection
+                      diagnostic={diagnostic}
+                      diagnosticRaw={diagnosticRaw}
+                      diagnosticAttrs={diagnosticAttrs}
+                      onShowVisualReport={() =>
+                        this.setState({ showVisualReport: true })
+                      }
+                    />
                   </div>
                 )}
 
@@ -2367,14 +1024,14 @@ class UserKanbanModal extends React.Component {
                                 {userDetails.conversation_archives[0].messages
                                   .filter((msg) => msg.role !== "system")
                                   .map((msg, idx) => {
-                                    const isUser = msg.role === "user";
+                                    const isBot = msg.role !== "user";
                                     return (
                                       <div
                                         key={idx}
                                         style={{
                                           display: "flex",
                                           flexDirection: "column",
-                                          alignItems: isUser
+                                          alignItems: isBot
                                             ? "flex-end"
                                             : "flex-start",
                                           marginBottom: "8px",
@@ -2384,16 +1041,16 @@ class UserKanbanModal extends React.Component {
                                           style={{
                                             maxWidth: "85%",
                                             padding: "6px 10px",
-                                            borderRadius: isUser
+                                            borderRadius: isBot
                                               ? "12px 12px 2px 12px"
                                               : "12px 12px 12px 2px",
-                                            backgroundColor: isUser
+                                            backgroundColor: isBot
                                               ? "#3b82f6"
                                               : "#fff",
-                                            color: isUser ? "#fff" : "#374151",
+                                            color: isBot ? "#fff" : "#374151",
                                             boxShadow:
                                               "0 1px 2px rgba(0,0,0,0.05)",
-                                            border: isUser
+                                            border: isBot
                                               ? "none"
                                               : "1px solid #e5e7eb",
                                           }}
@@ -2414,11 +1071,11 @@ class UserKanbanModal extends React.Component {
                                             fontSize: "0.65rem",
                                             color: "#9ca3af",
                                             marginTop: "2px",
-                                            paddingLeft: isUser ? "0" : "4px",
-                                            paddingRight: isUser ? "4px" : "0",
+                                            paddingLeft: isBot ? "0" : "4px",
+                                            paddingRight: isBot ? "4px" : "0",
                                           }}
                                         >
-                                          {isUser ? "👤" : "🤖"}
+                                          {isBot ? "🤖" : "👤"}
                                         </span>
                                       </div>
                                     );
