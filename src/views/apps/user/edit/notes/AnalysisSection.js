@@ -1,5 +1,5 @@
 import React from "react";
-import { Card, CardBody, Button, Input, Row, Col } from "reactstrap";
+import { Card, CardBody, Button, Input } from "reactstrap";
 import Select from "react-select";
 import { QUICK_TAGS_OPTIONS } from "./utils";
 
@@ -18,16 +18,21 @@ const AnalysisSection = ({
       className="notes-card notes-card--analysis mt-2"
       style={{ width: "100%" }}
     >
-      <CardBody style={{ position: "relative" }}>
-        <div className="mb-1">
+      <CardBody
+        style={{
+          position: "relative",
+          padding: window.innerWidth < 576 ? "0.75rem" : "1.25rem",
+        }}
+      >
+        <div className="mb-75">
           <label
             htmlFor="quickTagsSelect"
             style={{
               display: "block",
-              fontSize: "0.8rem",
+              fontSize: window.innerWidth < 576 ? "0.7rem" : "0.8rem",
               fontWeight: 600,
               color: "#64748b",
-              marginBottom: "0.5rem",
+              marginBottom: "0.4rem",
               textTransform: "uppercase",
               letterSpacing: "0.03em",
             }}
@@ -48,7 +53,7 @@ const AnalysisSection = ({
             styles={{
               control: (base, state) => ({
                 ...base,
-                minHeight: "42px",
+                minHeight: window.innerWidth < 576 ? "34px" : "38px",
                 borderRadius: "8px",
                 border: state.isFocused
                   ? "2px solid #7367f0"
@@ -65,14 +70,14 @@ const AnalysisSection = ({
               }),
               valueContainer: (base) => ({
                 ...base,
-                padding: "4px 8px",
+                padding: window.innerWidth < 576 ? "2px 4px" : "4px 8px",
                 gap: "4px",
                 flexWrap: "wrap",
               }),
               placeholder: (base) => ({
                 ...base,
                 color: "#a0aec0",
-                fontSize: "0.875rem",
+                fontSize: window.innerWidth < 576 ? "0.8rem" : "0.875rem",
               }),
               menu: (base) => ({
                 ...base,
@@ -89,19 +94,23 @@ const AnalysisSection = ({
               }),
               multiValue: (base) => ({
                 ...base,
-                backgroundColor: "#f0f0ff",
-                borderRadius: "6px",
-                border: "1px solid #e0e0ff",
+                backgroundColor: "#f3f0ff",
+                borderRadius: "20px",
+                border: "1px solid #e0d7ff",
                 margin: "2px",
                 maxWidth: "100%",
+                display: "flex",
               }),
               multiValueLabel: (base) => ({
                 ...base,
-                color: "#5a52cc",
-                fontSize: "0.85rem",
-                fontWeight: 500,
-                padding: "4px 6px 4px 8px",
-                whiteSpace: "normal",
+                color: "#7367f0",
+                fontSize: window.innerWidth < 576 ? "0.7rem" : "0.85rem",
+                fontWeight: 600,
+                padding: "2px 8px",
+                whiteSpace: "nowrap",
+                maxWidth: "150px",
+                textOverflow: "ellipsis",
+                overflow: "hidden",
               }),
               multiValueRemove: (base) => ({
                 ...base,
@@ -159,7 +168,7 @@ const AnalysisSection = ({
           />
         </div>
 
-        <div className="mb-1">
+        <div className="mb-75">
           <label
             className="mb-0 font-small-3"
             htmlFor="n8nMessage"
@@ -175,7 +184,8 @@ const AnalysisSection = ({
             value={n8nMessage}
             onChange={(e) => setN8nMessage(e.target.value)}
             style={{
-              minHeight: "200px",
+              minHeight: window.innerWidth < 576 ? "120px" : "200px",
+              fontSize: window.innerWidth < 576 ? "0.85rem" : "1rem",
               backgroundColor: isGenerating ? "#fff" : undefined,
               color: isGenerating ? "#334155" : undefined,
               opacity: isGenerating ? 0.9 : 1,
@@ -184,7 +194,7 @@ const AnalysisSection = ({
           />
         </div>
 
-        <div className="d-flex justify-content-end mt-2">
+        <div className="notes-action-row mt-1">
           <Button
             className={`notes-report-btn notes-action-btn ${
               reportType === "pre" ? "is-active" : ""
