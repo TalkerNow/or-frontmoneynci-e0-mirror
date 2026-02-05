@@ -580,7 +580,6 @@ export const useNotesLogic = (id, perso) => {
         return doc;
       } catch (error) {
         if (axios.isCancel(error)) {
-          console.log("Génération annulée");
           return null;
         }
         console.error(error);
