@@ -3,6 +3,7 @@ import "../../../../assets/scss/pages/notes-hub.scss";
 import { useNotesLogic } from "./notes/useNotesLogic";
 import NotesForm from "./notes/NotesForm";
 import UploadSection from "./notes/UploadSection";
+import AnalysisSection from "./notes/AnalysisSection";
 import GeneratedDocsSection from "./notes/GeneratedDocsSection";
 import ManualCareerTable from "./notes/ManualCareerTable";
 import DocumentViewerModal from "./notes/DocumentViewerModal";
@@ -71,15 +72,19 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
           clearFileToSend={clearFileToSend}
           isUploading={isUploading}
           onUpload={handleUpload}
-          selectedTags={selectedTags}
-          handleTagsChange={handleTagsChange}
-          n8nMessage={n8nMessage}
-          setN8nMessage={setN8nMessage}
-          reportType={reportType}
-          handleGenerateDoc={handleGenerateDoc}
           isGenerating={isGenerating}
         />
       </div>
+
+      <AnalysisSection
+        selectedTags={selectedTags}
+        handleTagsChange={handleTagsChange}
+        n8nMessage={n8nMessage}
+        setN8nMessage={setN8nMessage}
+        reportType={reportType}
+        handleGenerateDoc={handleGenerateDoc}
+        isGenerating={isGenerating}
+      />
 
       <GeneratedDocsSection
         generatedDocs={generatedDocs}
