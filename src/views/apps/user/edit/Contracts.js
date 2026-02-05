@@ -72,7 +72,7 @@ class Contracts extends React.Component {
     try {
       const response = await axios.get(
         global.config.server_url + "/documents/user/" + this.props.id,
-        Config
+        Config,
       );
       this.setState({ rowData: response.data });
     } catch (error) {
@@ -92,7 +92,7 @@ class Contracts extends React.Component {
     try {
       const userRes = await axios.get(
         global.config.server_url + "/users/" + this.props.id,
-        Config
+        Config,
       );
       const u = userRes.data || {};
       const payload = {
@@ -119,14 +119,14 @@ class Contracts extends React.Component {
         "country",
       ];
       const missing = required.filter(
-        (k) => !payload[k] || String(payload[k]).trim() === ""
+        (k) => !payload[k] || String(payload[k]).trim() === "",
       );
       if (missing.length)
         throw new Error("Champs manquants: " + missing.join(", "));
       await axios.post(
         global.config.server_url + "/docusign/request-signature",
         payload,
-        Config
+        Config,
       );
       this.setState({ signatureAlertSuccess: true });
     } catch (err) {
@@ -153,14 +153,14 @@ class Contracts extends React.Component {
         const client_id = this.props.id;
         const res = await axios.get(
           global.config.server_url + "/suivi-avancement/client/" + client_id,
-          Config
+          Config,
         );
         if (res.data && Array.isArray(res.data)) {
           const suivi = res.data.find((s) => s.facture_id === id);
           if (suivi) {
             await axios.delete(
               global.config.server_url + "/suivi-avancement/" + suivi.id,
-              Config
+              Config,
             );
           }
         }
@@ -372,10 +372,17 @@ class Contracts extends React.Component {
     }
 
     return (
-      <div className={`d-flex align-items-center font-weight-bold ${color}`} style={{ fontSize: '0.95rem' }}>
+      <div
+        className={`d-flex align-items-center font-weight-bold ${color}`}
+        style={{ fontSize: "0.95rem" }}
+      >
         {icon}
         <span className="mr-2">{amount} €</span>
-        <span style={{ fontSize: "0.75rem", opacity: 0.9, fontWeight: 'normal' }}>({text})</span>
+        <span
+          style={{ fontSize: "0.75rem", opacity: 0.9, fontWeight: "normal" }}
+        >
+          ({text})
+        </span>
       </div>
     );
   };
@@ -384,16 +391,114 @@ class Contracts extends React.Component {
     const isTerminated = contract.document_state === "Terminé";
     const statusPayment = contract.status_payment || 0;
 
-    // Logic from original code for payment coloration
-    const isAcomptePaid = statusPayment >= 1;
-    const isAcompteProblem = !isAcomptePaid && (contract.document_state === "Terminé" || contract.document_state === "En cours");
+    // --- Synchronisation Données (Source of Truth : EditContract logic) ---
+    // 1. Parsing des données
+    let values = {};
+    try {
+      values = contract.values ? JSON.parse(contract.values) : {};
+    } catch (e) {
+      console.warn("Error parsing contract values", e);
+    }
 
-    const isSoldePaid = statusPayment === 2; // Assuming 2 means fully paid
-    const isSoldeProblem = !isSoldePaid && contract.document_state === "Terminé";
+    let acompteDates = [];
+    try {
+      acompteDates = contract.acompte_dates
+        ? typeof contract.acompte_dates === "string"
+          ? JSON.parse(contract.acompte_dates)
+          : contract.acompte_dates
+        : [];
+    } catch (e) {
+      console.warn("Error parsing acompte dates", e);
+    }
+
+    let soldDates = [];
+    try {
+      soldDates = contract.sold_dates
+        ? typeof contract.sold_dates === "string"
+          ? JSON.parse(contract.sold_dates)
+          : contract.sold_dates
+        : [];
+    } catch (e) {
+      console.warn("Error parsing sold dates", e);
+    }
+
+    // 2. Calculs
+    // Prioritize advanced_payment (DB Column) as it's the source of truth from EditContract save
+    const totalTTC =
+      parseFloat(contract.advanced_payment) || parseFloat(values.TOTALTTC) || 0;
+    const fp1 = values.fp1 || 0;
+    const fp2 = values.fp2 || 0;
+
+    const amountAcompte = (totalTTC * fp1) / 100;
+    const amountTotalSolde = (totalTTC * fp2) / 100;
+
+    let totalPaid = 0;
+
+    // Smart logic for Acompte
+    const fixedAcomptes = acompteDates.filter(
+      (d) => d && typeof d === "object" && d.amount !== undefined,
+    );
+    const sumFixedAcomptes = fixedAcomptes.reduce(
+      (acc, d) => acc + parseFloat(d.amount || 0),
+      0,
+    );
+    const unFixedAcomptesCount = acompteDates.length - fixedAcomptes.length;
+    let amountPerAcompte = 0;
+    if (unFixedAcomptesCount > 0) {
+      amountPerAcompte =
+        (amountAcompte - sumFixedAcomptes) / unFixedAcomptesCount;
+    }
+
+    acompteDates.forEach((d) => {
+      if (d && typeof d === "object" && d.is_paid) {
+        if (d.amount !== undefined) totalPaid += parseFloat(d.amount);
+        else totalPaid += amountPerAcompte;
+      }
+    });
+
+    // Smart logic for Solde
+    const fixedSoldes = soldDates.filter(
+      (d) => d && typeof d === "object" && d.amount !== undefined,
+    );
+    const sumFixedSoldes = fixedSoldes.reduce(
+      (acc, d) => acc + parseFloat(d.amount || 0),
+      0,
+    );
+    const unFixedSoldesCount = soldDates.length - fixedSoldes.length;
+    let amountPerSolde = 0;
+    if (unFixedSoldesCount > 0) {
+      amountPerSolde = (amountTotalSolde - sumFixedSoldes) / unFixedSoldesCount;
+    }
+
+    soldDates.forEach((d) => {
+      if (d && typeof d === "object" && d.is_paid) {
+        if (d.amount !== undefined) totalPaid += parseFloat(d.amount);
+        else totalPaid += amountPerSolde;
+      }
+    });
+
+    const totalRemaining = totalTTC - totalPaid;
+    const isFullyPaid = totalPaid >= totalTTC - 0.01;
+
+    // 3. Status logic (for colors)
+    const isAcomptePaid = totalPaid >= amountAcompte && amountAcompte > 0;
+    // Si tout est payé, on est bon. Sinon si Terminé/En cours et rien payé -> Problème.
+    const isAcompteProblem =
+      totalPaid < amountAcompte &&
+      (contract.document_state === "Terminé" ||
+        contract.document_state === "En cours");
+
+    const isSoldeProblem =
+      !isFullyPaid && contract.document_state === "Terminé";
 
     // Style for darker grey text
-    const darkGreyStyle = { color: '#4b4b4b' };
-    const labelStyle = { fontSize: '10px', letterSpacing: '1px', color: '#4b4b4b', fontWeight: 'bold' };
+    const darkGreyStyle = { color: "#4b4b4b" };
+    const labelStyle = {
+      fontSize: "10px",
+      letterSpacing: "1px",
+      color: "#4b4b4b",
+      fontWeight: "bold",
+    };
 
     return (
       <Card
@@ -417,23 +522,33 @@ class Contracts extends React.Component {
                     }
                     title="Ouvrir le contrat"
                   >
-                    {contract.comment}
+                    {(contract.comment || "").replace(
+                      /^(Contrat|Contract) de\s+/i,
+                      "",
+                    )}
                   </h5>
                   <div
                     className="d-flex align-items-center small mt-1"
                     style={darkGreyStyle}
                   >
                     <Calendar size={12} className="mr-1" />
-                    <Moment format="DD/MM/YYYY HH:mm" date={contract.created_at} />
+                    <Moment
+                      format="DD/MM/YYYY HH:mm"
+                      date={contract.created_at}
+                    />
                   </div>
                 </div>
               </div>
               <div className="d-flex align-items-center">
-                <Badge color={isTerminated ? "success" : "light-info"} className="mr-2" style={{
+                <Badge
+                  color={isTerminated ? "success" : "light-info"}
+                  className="mr-2"
+                  style={{
                     fontSize: "12.5px",
                     borderRadius: "4px",
                     padding: "8px 12px",
-                  }}>
+                  }}
+                >
                   {(contract.document_state || "").toUpperCase()}
                 </Badge>
                 <Button.Ripple
@@ -450,32 +565,75 @@ class Contracts extends React.Component {
                 >
                   <Download size={18} />
                 </Button.Ripple>
-                <UncontrolledTooltip placement="top" target={`download-btn-${contract.id}`}>Télécharger le contrat</UncontrolledTooltip>
-                <Button.Ripple className="btn-icon rounded-circle" color="flat-danger" size="sm" onClick={() => this.handleAlert("defaultAlert", true, contract.id)} id={`delete-btn-${contract.id}`}><Trash2 size={18} /></Button.Ripple>
-                <UncontrolledTooltip placement="top" target={`delete-btn-${contract.id}`}>
+                <UncontrolledTooltip
+                  placement="top"
+                  target={`download-btn-${contract.id}`}
+                >
+                  Télécharger le contrat
+                </UncontrolledTooltip>
+                <Button.Ripple
+                  className="btn-icon rounded-circle"
+                  color="flat-danger"
+                  size="sm"
+                  onClick={() =>
+                    this.handleAlert("defaultAlert", true, contract.id)
+                  }
+                  id={`delete-btn-${contract.id}`}
+                >
+                  <Trash2 size={18} />
+                </Button.Ripple>
+                <UncontrolledTooltip
+                  placement="top"
+                  target={`delete-btn-${contract.id}`}
+                >
                   Supprimer le contrat
                 </UncontrolledTooltip>
               </div>
             </Col>
 
             {/* Separator */}
-            <Col md="12"><hr className="my-2" /></Col>
+            <Col md="12">
+              <hr className="my-2" />
+            </Col>
 
             {/* Details Grid */}
-            <Col md="4" className="d-flex flex-column justify-content-center border-right">
-              <span className="text-uppercase mb-1" style={labelStyle}>Services</span>
+            <Col
+              md="4"
+              className="d-flex flex-column justify-content-center border-right"
+            >
+              <span className="text-uppercase mb-1" style={labelStyle}>
+                Services
+              </span>
               {this.renderServices(contract.subscribe_services)}
             </Col>
 
             <Col md="8">
               <Row>
                 <Col sm="6" className="mb-2 mb-sm-0">
-                  <span className="d-block text-uppercase mb-1" style={labelStyle}>Acompte</span>
-                  {this.getPaymentStatus(contract.pre_payment, isAcomptePaid, isAcompteProblem)}
+                  <span
+                    className="d-block text-uppercase mb-1"
+                    style={labelStyle}
+                  >
+                    Total Payé
+                  </span>
+                  {this.getPaymentStatus(
+                    Math.round(totalPaid),
+                    isFullyPaid, // On utilise isFullyPaid pour le vert global ?
+                    isAcompteProblem,
+                  )}
                 </Col>
                 <Col sm="6">
-                  <span className="d-block text-uppercase mb-1" style={labelStyle}>Solde</span>
-                  {this.getPaymentStatus(contract.end_payment, isSoldePaid, isSoldeProblem)}
+                  <span
+                    className="d-block text-uppercase mb-1"
+                    style={labelStyle}
+                  >
+                    Reste à Payer
+                  </span>
+                  {this.getPaymentStatus(
+                    Math.round(Math.max(0, totalRemaining)),
+                    false, // Jamais "Payé" (vert) pour le reste, sauf si 0
+                    isSoldeProblem,
+                  )}
                 </Col>
               </Row>
             </Col>
@@ -483,7 +641,7 @@ class Contracts extends React.Component {
         </CardBody>
       </Card>
     );
-  }
+  };
 
   render() {
     const { rowData } = this.state;

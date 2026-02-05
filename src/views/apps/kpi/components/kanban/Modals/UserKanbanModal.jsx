@@ -453,7 +453,7 @@ class UserKanbanModal extends React.Component {
     const firstName = userDetails.first_name || "Client";
     const lastName = userDetails.last_name || "";
     if (!selectedRows || selectedRows.length === 0) {
-      return `Contrat de ${firstName} ${lastName}`;
+      return `${firstName} ${lastName}`;
     }
     const serviceNames = selectedRows
       .map((id) => this.getRowLabel(id, values))

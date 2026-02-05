@@ -510,7 +510,7 @@ class CreateContract extends React.Component {
         user_id: this.state.user_id,
         recipient_email: this.state.recipientEmail || this.ifExist("email"),
         recipient_name: `${this.ifExist("first_name")} ${this.ifExist(
-          "last_name"
+          "last_name",
         )}`.trim(),
         embedded: false, // ou false si tu veux que DocuSign envoie l'email
 
@@ -532,7 +532,7 @@ class CreateContract extends React.Component {
         payload,
         {
           headers: { Authorization: "Bearer " + localStorage.getItem("token") },
-        }
+        },
       );
 
       toast.success("Contrat envoyé via DocuSign !");
@@ -756,7 +756,7 @@ class CreateContract extends React.Component {
     if (input_values["c1"])
       nbHT1 = Math.trunc(
         (this.state.formValues["nb1-price"] / 60) *
-        parseInt(this.state.formValues["nb1"], 10)
+          parseInt(this.state.formValues["nb1"], 10),
       );
     this.state.formValues["nbHT1"] = nbHT1;
     this.state.formValues["TTC1"] = nbHT1 * VTA;
@@ -954,7 +954,7 @@ class CreateContract extends React.Component {
       // 1) Récupérer les notes actuelles
       const res = await axios.get(
         `${global.config.server_url}/users/${userId}`,
-        config
+        config,
       );
 
       const user = res.data || {};
@@ -985,7 +985,7 @@ class CreateContract extends React.Component {
       await axios.put(
         `${global.config.server_url}/personal_information/${userId}`,
         { notes: newNotes },
-        config
+        config,
       );
     } catch (e) {
       console.error("Erreur mise à jour des notes crédit d'impôt", e);
@@ -1024,7 +1024,6 @@ class CreateContract extends React.Component {
       subscribe_services: sub_services,
       status_payment: 0,
       comment:
-        "Contrat de " +
         this.state.rowData["first_name"] +
         " " +
         this.state.rowData["last_name"],
@@ -1043,9 +1042,7 @@ class CreateContract extends React.Component {
       values: JSON.stringify(input_values),
       unipro:
         this.state.formValues.credit_impot_50 &&
-          (this.state.formValues.c3 ||
-            this.state.formValues.c4 ||
-            this.state.formValues.c5)
+        (this.state.formValues.c3 ||this.state.formValues.c4 ||this.state.formValues.c5)
           ? 1
           : 0,
     };
@@ -1100,9 +1097,9 @@ class CreateContract extends React.Component {
           parent_id: parentid,
           subscribe_services: subscribe_services,
         },
-        Config
+        Config,
       )
-      .then(function (result) { })
+      .then(function (result) {})
       .catch(function (error) {
         toast.error("API injoignable" + error);
       });
@@ -1159,7 +1156,11 @@ class CreateContract extends React.Component {
 
     try {
       // 1. Sauvegarde (Création)
-      await axios.post(global.config.server_url + "/documents", parameters, Config);
+      await axios.post(
+        global.config.server_url + "/documents",
+        parameters,
+        Config,
+      );
 
       // 2. MAJ Services
       this.setSubscribeServices();
@@ -1233,7 +1234,6 @@ class CreateContract extends React.Component {
         setTimeout(() => {
           history.push("/app/user/edit/" + userid + "/8");
         }, 1500);
-
       } catch (err) {
         console.error("Erreur génération PDF", err);
         toast.error("Erreur lors de la génération du PDF");
@@ -1243,14 +1243,11 @@ class CreateContract extends React.Component {
           firstPage.style.fontSize = originalFontSize;
         }
       }
-
     } catch (error) {
       console.error(error);
       toast.error("Erreur lors de la sauvegarde : " + error);
     }
   };
-
-
 
   render() {
     return (
@@ -1387,7 +1384,6 @@ class CreateContract extends React.Component {
               <Save size="15" />
               <span className="align-middle ml-50">Enregistrer le contrat</span>
             </Button>
-
           </Col>
           <Col
             className="contract-wrapper"

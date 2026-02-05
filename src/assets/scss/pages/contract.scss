@@ -974,3 +974,94 @@
   position: relative;
   z-index: 1;
 }
+/* --- PAYMENT TYPE DROPDOWN REFINEMENT --- */
+.payment-type-dropdown {
+  .dropdown-toggle {
+    transition: all 0.2s ease;
+    border-radius: 6px; /* Sharper */
+    padding: 4px 8px;
+    display: inline-flex !important;
+    align-items: center;
+    background-color: transparent;
+    
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.03);
+    }
+
+    svg {
+      transition: transform 0.2s ease;
+      margin-left: 4px;
+      opacity: 0.5;
+    }
+    
+    &[aria-expanded="true"] {
+      svg {
+        transform: rotate(180deg);
+        opacity: 1;
+      }
+    }
+    
+    /* Remove default dropdown arrow if present */
+    &::after {
+      display: none !important;
+    }
+  }
+
+  .dropdown-menu {
+    border: 1px solid #e9ecef !important; /* Subtle border for definition */
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08) !important; /* Softer shadow */
+    border-radius: 6px !important; /* Sharper corners */
+    padding: 4px !important; /* Tighter padding */
+    margin-top: 4px !important;
+    transform-origin: top center;
+    animation: dropdownFadeIn 0.2s cubic-bezier(0.2, 0, 0.2, 1);
+    min-width: auto !important; /* Fit content */
+    width: max-content !important;
+    background: #ffffff !important;
+
+    /* Remove speech bubble arrow */
+    &::before, &::after {
+      display: none !important;
+    }
+
+    .dropdown-item {
+      border-radius: 4px; /* Sharper items */
+      padding: 6px 10px; /* Compact padding */
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 0;
+      border: none !important;
+      width: 100%;
+
+      &:hover {
+        background-color: #f6f6f6 !important;
+        transform: none; /* No movement on hover for simpler feel */
+      }
+      
+      &:active {
+        background-color: #e9ecef !important;
+      }
+
+      .badge {
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        padding: 5px 10px;
+        font-size: 0.75rem;
+        width: 100%; /* Fill space */
+      }
+    }
+  }
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.96);
+  } 
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

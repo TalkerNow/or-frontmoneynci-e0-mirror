@@ -21,7 +21,13 @@ import {
 import axios from "axios";
 import { ContextLayout } from "../../../../utility/context/Layout";
 import { AgGridReact } from "ag-grid-react";
-import { ChevronDown, Trash2, Edit, CheckSquare, ArrowLeft } from "react-feather";
+import {
+  ChevronDown,
+  Trash2,
+  Edit,
+  CheckSquare,
+  ArrowLeft,
+} from "react-feather";
 import classnames from "classnames";
 import { history } from "../../../../history";
 import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss";
@@ -275,17 +281,27 @@ class OldClientsList extends React.Component {
               <Edit
                 className="mr-50"
                 size={20}
-                onClick={() => history.push("/app/olduser/edit/" + params.data.clcleunik + "/1")}
+                onClick={() =>
+                  history.push(
+                    "/app/olduser/edit/" + params.data.clcleunik + "/1",
+                  )
+                }
               />
               <CheckSquare
                 className="mr-50"
                 size={20}
-                onClick={() => history.push("/app/user/clientTask/" + params.data.clcleunik + "/all")}
+                onClick={() =>
+                  history.push(
+                    "/app/user/clientTask/" + params.data.clcleunik + "/all",
+                  )
+                }
                 title="Tâches"
               />
               <Trash2
                 size={20}
-                onClick={() => this.handleAlert("defaultAlert", true, params.data.clcleunik)}
+                onClick={() =>
+                  this.handleAlert("defaultAlert", true, params.data.clcleunik)
+                }
               />
             </div>
           );
@@ -318,7 +334,7 @@ class OldClientsList extends React.Component {
           type: "contrat",
           document_state: "Pending...",
           date: "2010-10-10",
-          comment: "Contrat de " + name,
+          comment: name,
           advanced_payment: "0",
           user_id: id,
         },

@@ -22,6 +22,100 @@ const chipColors = {
 var consultant_id = -1;
 
 class AllContracts extends React.Component {
+  calculateContractFinances = (contract) => {
+    let values = {};
+    try {
+      values = contract.values ? JSON.parse(contract.values) : {};
+    } catch (e) {
+      console.warn("Error parsing contract values", e);
+    }
+
+    let acompteDates = [];
+    try {
+      acompteDates = contract.acompte_dates
+        ? typeof contract.acompte_dates === "string"
+          ? JSON.parse(contract.acompte_dates)
+          : contract.acompte_dates
+        : [];
+    } catch (e) {
+      console.warn("Error parsing acompte dates", e);
+    }
+
+    let soldDates = [];
+    try {
+      soldDates = contract.sold_dates
+        ? typeof contract.sold_dates === "string"
+          ? JSON.parse(contract.sold_dates)
+          : contract.sold_dates
+        : [];
+    } catch (e) {
+      console.warn("Error parsing sold dates", e);
+    }
+
+    const totalTTC =
+      parseFloat(contract.advanced_payment) || parseFloat(values.TOTALTTC) || 0;
+    const fp1 = values.fp1 || 0;
+    const fp2 = values.fp2 || 0;
+
+    const amountAcompte = (totalTTC * fp1) / 100;
+    const amountTotalSolde = (totalTTC * fp2) / 100;
+
+    let totalPaid = 0;
+
+    // Smart logic for Acompte
+    const fixedAcomptes = acompteDates.filter(
+      (d) => d && typeof d === "object" && d.amount !== undefined,
+    );
+    const sumFixedAcomptes = fixedAcomptes.reduce(
+      (acc, d) => acc + parseFloat(d.amount || 0),
+      0,
+    );
+    const unFixedAcomptesCount = acompteDates.length - fixedAcomptes.length;
+    let amountPerAcompte = 0;
+    if (unFixedAcomptesCount > 0) {
+      amountPerAcompte =
+        (amountAcompte - sumFixedAcomptes) / unFixedAcomptesCount;
+    }
+
+    acompteDates.forEach((d) => {
+      if (d && typeof d === "object" && d.is_paid) {
+        if (d.amount !== undefined) totalPaid += parseFloat(d.amount);
+        else totalPaid += amountPerAcompte;
+      }
+    });
+
+    // Smart logic for Solde
+    const fixedSoldes = soldDates.filter(
+      (d) => d && typeof d === "object" && d.amount !== undefined,
+    );
+    const sumFixedSoldes = fixedSoldes.reduce(
+      (acc, d) => acc + parseFloat(d.amount || 0),
+      0,
+    );
+    const unFixedSoldesCount = soldDates.length - fixedSoldes.length;
+    let amountPerSolde = 0;
+    if (unFixedSoldesCount > 0) {
+      amountPerSolde = (amountTotalSolde - sumFixedSoldes) / unFixedSoldesCount;
+    }
+
+    soldDates.forEach((d) => {
+      if (d && typeof d === "object" && d.is_paid) {
+        if (d.amount !== undefined) totalPaid += parseFloat(d.amount);
+        else totalPaid += amountPerSolde;
+      }
+    });
+
+    const totalRemaining = totalTTC - totalPaid;
+    const isFullyPaid = totalPaid >= totalTTC - 0.01;
+
+    return {
+      totalPaid: Math.round(totalPaid),
+      totalRemaining: Math.round(Math.max(0, totalRemaining)),
+      isFullyPaid,
+      amountAcompte,
+    };
+  };
+
   state = {
     filter: false,
     defaultAlert: false,
@@ -50,12 +144,14 @@ class AllContracts extends React.Component {
         field: "comment",
         width: 300,
         cellRendererFramework: (params) => {
+          const name = params.data.comment || "";
+          const formattedName = name.replace(/^(Contrat|Contract) de\s+/i, "");
           return (
             <div
               className="d-flex align-items-center cursor-pointer"
               onClick={() => history.push("/pages/contract/" + params.data.id)}
             >
-              <span>{params.data.comment}</span>
+              <span>{formattedName}</span>
             </div>
           );
         },
@@ -98,7 +194,7 @@ class AllContracts extends React.Component {
                           key={index}
                           color={chipColors[service.trim()]}
                           text={service}
-                        />
+                        />,
                       );
                     }
                   });
@@ -122,72 +218,70 @@ class AllContracts extends React.Component {
         },
       },
       {
-        headerName: "Acompte",
+        headerName: "Total Payé",
         field: "pre_payment",
         width: 150,
         cellRendererFramework: (params) => {
-          if (
+          const { totalPaid, isFullyPaid, amountAcompte } =
+            this.calculateContractFinances(params.data);
+          const isAcompteProblem =
+            totalPaid < amountAcompte &&
             (params.data.document_state === "En cours" ||
-              params.data.document_state === "Terminé") &&
-            params.data.status_payment >= 1
-          ) {
+              params.data.document_state === "Terminé");
+
+          if (isFullyPaid) {
             return (
               <div className="d-flex align-items-center cursor-pointer text-success">
-                <span>{params.data.pre_payment + " €"}</span>
+                <span>{totalPaid + " €"}</span>
               </div>
             );
-          } else if (
-            (params.data.document_state === "En cours" ||
-              params.data.document_state === "Terminé") &&
-            params.data.status_payment < 1
-          ) {
+          } else if (isAcompteProblem) {
             return (
-              <div className="d-flex align-items-center cursor-pointer text-danger">
-                <span>{params.data.pre_payment + " €"}</span>
+              <div className="d-flex align-items-center cursor-pointer text-danger font-weight-bold">
+                <span>{totalPaid + " €"}</span>
               </div>
             );
           } else {
             return (
               <div className="d-flex align-items-center cursor-pointer">
-                <span>{params.data.pre_payment + " €"}</span>
+                <span>{totalPaid + " €"}</span>
               </div>
             );
           }
         },
       },
       {
-        headerName: "Solde",
+        headerName: "Reste",
         field: "end_payment",
         width: 150,
         cellRendererFramework: (params) => {
-          if (
-            (params.data.document_state === "En cours" ||
-              params.data.document_state === "Terminé") &&
-            params.data.status_payment === 2
-          ) {
+          const { totalRemaining, isFullyPaid } =
+            this.calculateContractFinances(params.data);
+          const isSoldeProblem =
+            !isFullyPaid && params.data.document_state === "Terminé";
+
+          if (isFullyPaid) {
             return (
               <div className="d-flex align-items-center cursor-pointer text-success">
-                <span>{params.data.end_payment + " €"}</span>
+                <span>{totalRemaining + " €"}</span>
               </div>
             );
-          } else if (
-            params.data.document_state === "Terminé" &&
-            params.data.status_payment < 2
-          ) {
+          } else if (isSoldeProblem) {
             return (
-              <div className="d-flex align-items-center cursor-pointer text-danger">
-                <span>{params.data.end_payment + " €"}</span>
+              <div className="d-flex align-items-center cursor-pointer text-danger font-weight-bold">
+                <span>{totalRemaining + " €"}</span>
               </div>
             );
           } else {
             return (
               <div className="d-flex align-items-center cursor-pointer">
-                <span>{params.data.end_payment + " €"}</span>
+                <span>{totalRemaining + " €"}</span>
               </div>
             );
           }
         },
       },
+
       {
         headerName: "État",
         field: "document_state",
@@ -596,35 +690,49 @@ class AllContracts extends React.Component {
                       </tr>
                     </thead>
                     <tbody>
-                      {lateContracts.map((contract) => (
-                        <tr
-                          key={contract.id}
-                          className="cursor-pointer"
-                          onClick={() =>
-                            history.push("/pages/contract/" + contract.id)
-                          }
-                        >
-                          <td>{contract.comment}</td>
-                          <td>
-                            <Moment
-                              format="DD/MM/YYYY"
-                              date={contract.updated_at}
-                            />
-                          </td>
-                          <td
-                            className={
-                              contract.status_payment < 1
-                                ? "text-danger font-weight-bold"
-                                : "text-success"
+                      {lateContracts.map((contract) => {
+                        const {
+                          totalPaid,
+                          totalRemaining,
+                          isFullyPaid,
+                          amountAcompte,
+                        } = this.calculateContractFinances(contract);
+                        const isAcompteProblem = totalPaid < amountAcompte;
+                        return (
+                          <tr
+                            key={contract.id}
+                            className="cursor-pointer"
+                            onClick={() =>
+                              history.push("/pages/contract/" + contract.id)
                             }
                           >
-                            {contract.pre_payment} €
-                          </td>
-                          <td className="text-danger font-weight-bold">
-                            {contract.end_payment} €
-                          </td>
-                        </tr>
-                      ))}
+                            <td>
+                              {(contract.comment || "").replace(
+                                /^(Contrat|Contract) de\s+/i,
+                                "",
+                              )}
+                            </td>
+                            <td>
+                              <Moment
+                                format="DD/MM/YYYY"
+                                date={contract.updated_at}
+                              />
+                            </td>
+                            <td
+                              className={
+                                isAcompteProblem
+                                  ? "text-danger font-weight-bold"
+                                  : "text-success"
+                              }
+                            >
+                              {totalPaid} €
+                            </td>
+                            <td className="text-danger font-weight-bold">
+                              {totalRemaining} €
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </Table>
                 </CardBody>

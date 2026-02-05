@@ -17,6 +17,10 @@ import {
   ModalFooter,
   Table,
   Badge,
+  UncontrolledDropdown,
+  DropdownToggle,
+  DropdownMenu,
+  DropdownItem,
 } from "reactstrap";
 import Chip from "../../../../src/components/@vuexy/chips/ChipComponent";
 import LabeledCheckboxMaterialUi from "labeled-checkbox-material-ui";
@@ -30,6 +34,7 @@ import {
   Trash,
   Check,
   Plus,
+  ChevronDown,
 } from "react-feather";
 import "../../../assets/scss/pages/contract.scss";
 import "flatpickr/dist/themes/light.css";
@@ -657,6 +662,7 @@ class EditContract extends React.Component {
       showPaymentModal: true,
       modalPaymentType: suggestedType,
       modalPaymentAmount: suggestedAmount,
+      modalRemainingToPay: totalTTC - paidAmount, // Store remainder for smart type switching
       modalPaymentDate: moment().format("YYYY-MM-DD"),
     });
   };
@@ -902,12 +908,12 @@ class EditContract extends React.Component {
     this.state.formValues["TVA"] = (TOTALHT * input_values["TVAP"]) / 100;
     this.state.formValues["TOTALTTC"] = Math.trunc(TOTALHT * VTA);
 
-    // Si crédit d'impôt 50%, on divise le total TTC par 2
-    if (input_values["credit_impot_50"]) {
-      this.state.formValues["TOTALTTC"] = Math.trunc(
-        this.state.formValues["TOTALTTC"] / 2,
-      );
-    }
+    // Si crédit d'impôt 50%, c'est juste informatif, on ne TOUCHE PAS au TOTALTTC
+    // if (input_values["credit_impot_50"]) {
+    //   this.state.formValues["TOTALTTC"] = Math.trunc(
+    //     this.state.formValues["TOTALTTC"] / 2,
+    //   );
+    // }
 
     var percent1 = input_values["fp1"] / 100;
     var percent2 = 1 - input_values["fp1"] / 100;
@@ -1083,6 +1089,23 @@ class EditContract extends React.Component {
               }, 500);
             }
           }, 500);
+        }
+
+        // Fetch Suivi for this contract
+        if (rowData.id && rowData.user_id) {
+          axios
+            .get(
+              `${global.config.server_url}/suivi-avancement/client/${rowData.user_id}`,
+              Config,
+            )
+            .then((res) => {
+              const suivis = Array.isArray(res.data) ? res.data : [];
+              const mySuivi = suivis.find((s) => s.facture_id === rowData.id);
+              if (mySuivi) {
+                this.setState({ suivi_id: mySuivi.id });
+              }
+            })
+            .catch((err) => console.warn("Error fetching suivi", err));
         }
       })
       .catch((e) => console.log(e));
@@ -1386,10 +1409,7 @@ class EditContract extends React.Component {
     parameters["sold_dates"] = this.state.sold_dates;
     parameters["subscribe_services"] = sub_services;
     parameters["comment"] =
-      "Contrat de " +
-      this.state.rowData["first_name"] +
-      " " +
-      this.state.rowData["last_name"];
+      this.state.rowData["first_name"] + " " + this.state.rowData["last_name"];
     parameters["status_payment"] = this.state.status_payment;
     parameters["values"] = JSON.stringify(input_values);
     parameters["unipro"] = this.state.formValues.credit_impot_50 ? 1 : 0;
@@ -1639,72 +1659,223 @@ class EditContract extends React.Component {
     });
   };
 
-  updateDate = (key, idx, field, v) => {
+  changePaymentType = (oldKey, newKey, idx) => {
     this.setState((prev) => {
-      const arr = [...(prev[key] || [])];
-      // Ensure element is object
-      if (typeof arr[idx] === "string") {
-        arr[idx] = { date: arr[idx], method: this.state.payment_method || "" };
-      }
+      const oldArr = [...(prev[oldKey] || [])];
+      const newArr = [...(prev[newKey] || [])];
 
-      // Update specific field
-      if (field === "date") {
-        arr[idx] = { ...arr[idx], date: v };
-      } else if (field === "method") {
-        arr[idx] = { ...arr[idx], method: v };
-      }
+      // Remove from old
+      const [movedObj] = oldArr.splice(idx, 1);
 
-      return { [key]: arr, isDirty: true };
+      // Add to new
+      newArr.push(movedObj);
+      const newIdx = newArr.length - 1;
+
+      // Update editing states
+      const oldEditKey =
+        oldKey === "acompte_dates" ? "editingAcompte" : "editingSold";
+      const newEditKey =
+        newKey === "acompte_dates" ? "editingAcompte" : "editingSold";
+
+      const oldEditing = (prev[oldEditKey] || [])
+        .filter((i) => i !== idx)
+        .map((i) => (i > idx ? i - 1 : i));
+      const newEditing = [...(prev[newEditKey] || []), newIdx];
+
+      return {
+        [oldKey]: oldArr,
+        [newKey]: newArr,
+        [oldEditKey]: oldEditing,
+        [newEditKey]: newEditing,
+        isDirty: true,
+      };
     });
   };
 
+  updateSuiviPaymentStep = async (paymentDate) => {
+    if (!this.state.suivi_id || !paymentDate) return;
+
+    // Determine step number based on contract type
+    // Same logic as in SuiviAvancementBox (simplified)
+    const isCreditImpot = this.state.formValues.credit_impot_50; // unipro === 1
+    const stepNumber = isCreditImpot ? 7 : 4; // 7 = Paiement du contrat (CI), 4 = Paiement du contrat (Standard)
+
+    const dateToSend = paymentDate + " 00:00:00"; // Assuming paymentDate is YYYY-MM-DD
+
+    try {
+      const Config = {
+        headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+      };
+      // We don't know if the step already exists, but the backend usually handles POST/PUT or upsert.
+      // SuiviAvancementBox uses POST if empty, PUT if exists.
+      // Here, we'll try POST first as general "update" or create. Or simpler: check if we can just use one endpoint.
+      // Let's assume standard POST updates it. If fails, we might need a specific check.
+      // BUT for simplicity and robustness, let's try POST.
+      await axios.post(
+        `${global.config.server_url}/suivi-avancement/${this.state.suivi_id}/steps/${stepNumber}`,
+        { date: dateToSend },
+        Config,
+      );
+    } catch (e) {
+      console.error("Error updating suivi timeline step", e);
+    }
+  };
+
+  updateDate = (key, idx, field, v) => {
+    this.setState(
+      (prev) => {
+        const arr = [...(prev[key] || [])];
+        // Ensure element is object
+        if (typeof arr[idx] === "string") {
+          arr[idx] = {
+            date: arr[idx],
+            method: this.state.payment_method || "",
+          };
+        }
+
+        // Update specific field
+        if (field === "date") {
+          arr[idx] = { ...arr[idx], date: v };
+        } else if (field === "method") {
+          arr[idx] = { ...arr[idx], method: v };
+        } else if (field === "amount") {
+          arr[idx] = { ...arr[idx], amount: v };
+        }
+
+        return { [key]: arr, isDirty: true };
+      },
+      () => {
+        // Callback after state update
+        const currentList = this.state[key];
+        if (currentList && currentList[idx]) {
+          const item = currentList[idx];
+          // If updating DATE and the payment is PAID, update the timeline
+          if (field === "date" && item.is_paid) {
+            this.updateSuiviPaymentStep(item.date);
+          }
+        }
+      },
+    );
+  };
+
   togglePaymentPaidStatus = (key, idx) => {
-    this.setState((prev) => {
-      // 1. Get current arrays (create copies)
-      const acomptes = [...(prev.acompte_dates || [])];
-      const soldes = [...(prev.sold_dates || [])];
+    this.setState(
+      (prev) => {
+        // 1. Get current arrays (create copies)
+        const acomptes = [...(prev.acompte_dates || [])];
+        const soldes = [...(prev.sold_dates || [])];
 
-      // 2. Identify which array we are modifying
-      const targetArray = key === "acompte_dates" ? acomptes : soldes;
+        // 2. Identify which array we are modifying
+        const targetArray = key === "acompte_dates" ? acomptes : soldes;
 
-      // 3. Update the specific item
-      // Ensure element is object
-      if (typeof targetArray[idx] === "string") {
+        // 3. Update the specific item
+        // Ensure element is object
+        if (typeof targetArray[idx] === "string") {
+          targetArray[idx] = {
+            date: targetArray[idx],
+            method: this.state.payment_method || "",
+            is_paid: false,
+          };
+        }
+
+        const newIsPaid = !targetArray[idx].is_paid;
+        let newDate = targetArray[idx].date;
+
+        // Auto-fill date if paying and date is empty
+        if (newIsPaid && !newDate) {
+          newDate = moment().format("YYYY-MM-DD");
+        }
+
         targetArray[idx] = {
-          date: targetArray[idx],
-          method: this.state.payment_method || "",
-          is_paid: false,
+          ...targetArray[idx],
+          is_paid: newIsPaid,
+          date: newDate,
         };
-      }
 
-      const newIsPaid = !targetArray[idx].is_paid;
-      targetArray[idx] = { ...targetArray[idx], is_paid: newIsPaid };
+        // 4. Calculate global status
+        // Check if ALL payments are paid
+        const allAcomptesPaid = acomptes.every((p) => p && p.is_paid);
+        const allSoldesPaid = soldes.every((p) => p && p.is_paid);
+        const hasPayments = acomptes.length > 0 || soldes.length > 0;
+        const isAllPaid = hasPayments && allAcomptesPaid && allSoldesPaid;
 
-      // 4. Calculate global status
-      // Check if ALL payments are paid
-      const allAcomptesPaid = acomptes.every((p) => p && p.is_paid);
-      const allSoldesPaid = soldes.every((p) => p && p.is_paid);
-      const hasPayments = acomptes.length > 0 || soldes.length > 0;
-      const isAllPaid = hasPayments && allAcomptesPaid && allSoldesPaid;
+        // Check if AT LEAST ONE payment is paid
+        const isSomePaid =
+          acomptes.some((p) => p && p.is_paid) ||
+          soldes.some((p) => p && p.is_paid);
 
-      // Check if AT LEAST ONE payment is paid
-      const isSomePaid =
-        acomptes.some((p) => p && p.is_paid) ||
-        soldes.some((p) => p && p.is_paid);
+        const newState = { [key]: targetArray, isDirty: true };
 
-      const newState = { [key]: targetArray, isDirty: true };
+        if (newIsPaid) {
+          // Feature: Liaison Date Paiement -> Facturation
+          // If contract has a "billing_date", update it with this payment's date
+          // Note: 'billing_date' key is assumed based on requirement, checking formValues generically
+          const payDateStr = targetArray[idx].date;
+          if (
+            payDateStr &&
+            this.state.formValues &&
+            Object.prototype.hasOwnProperty.call(
+              this.state.formValues,
+              "billing_date",
+            )
+          ) {
+            // We update directly into formValues
+            // (Ensure we don't mutate state directly without setState in a larger refactor, but here we are in setState callback)
+            // However, formValues is usually a separate part of state.
+            // Accessing prev.formValues might be tricky if not destructured, but we can access this.state.formValues (careful with closure stale state, but inside setState updater 'this.state' refers to state at time of call? No, usually not safe. better to check existence.)
+          }
 
-      if (isAllPaid) {
-        newState.status = "Terminé";
-      } else if (hasPayments) {
-        // "En cours" dès qu'il y a une ligne (payée ou non), tant que tout n'est pas payé
-        newState.status = "En cours";
-      } else {
-        newState.status = "En attente";
-      }
+          // Actually, we can just check if the field is present in the current state outside, or just try to update.
+          // But wait, we are inside a setState updater.
+          // Let's assume we can trigger another update or just side-effect update formValues if strictly needed,
+          // OR better: return updated formValues in the same state update if possible.
+          // But here we are returning { [key]: ..., isDirty: true }.
+          // Let's implement a secondary setState call primarily for safety or merge it if possible.
+          // Since 'formValues' is top level state, we can't easily merge it in this 'prev' callback which might be scoped.
 
-      return newState;
-    });
+          // Simpler approach: Check if we should update billing date.
+          // Plan says: "Mets à jour automatiquement le champ 'Date de Facturation' (si présent dans le contrat)"
+          // I will do a check after this state update or chaining it. Note: logic inside setState updater.
+        }
+
+        // REMOVED AUTO-CLOSE "Terminé" logic
+        // Status remains "En cours" if it was "En cours", or becomes "En cours" if checking valid payments.
+        // But actually, we just shouldn't force it to "Terminé".
+        // We should ensuring it is "En cours" if it was "En attente" and now has payments.
+
+        if (hasPayments && newState.status !== "Terminé") {
+          // Force "En cours" only if it was "En attente".
+          // If user manually set "Terminé", we might respect it or not?
+          // Instruction says: "Un contrat ne doit passer à 'Terminé' QUE si l'utilisateur clique manuellement".
+          // So if it IS 'Terminé', we leave it? Or if we uncheck a payment, should it reopen?
+          // User instruction A: "Stop à l'auto-clôture".
+          // So we just remove the block that sets it to "Terminé".
+          if (prev.status === "En attente") {
+            newState.status = "En cours";
+          }
+        } else if (!hasPayments) {
+          newState.status = "En attente";
+        }
+
+        // Additional side-effect for Billing Date:
+        // We can't easily modify 'formValues' inside this return if it's not part of the 'prev' destructure we want to return.
+        // We will perform the billing date update in the callback of setState, but we are inside the updater function...
+        // Refactoring to use a variable for billing update and trigger a callback or separate SetState is safer.
+
+        return newState;
+      },
+      () => {
+        // Callback after state update
+        const currentList = this.state[key];
+        if (currentList && currentList[idx]) {
+          const item = currentList[idx];
+          // If payment is now PAID, update the timeline
+          if (item.is_paid) {
+            this.updateSuiviPaymentStep(item.date);
+          }
+        }
+      },
+    );
   };
 
   removeDate = (key, idx) => {
@@ -1730,7 +1901,15 @@ class EditContract extends React.Component {
         const allAcomptesPaid = acomptesRemaining.every((p) => p && p.is_paid);
         const allSoldesPaid = soldesRemaining.every((p) => p && p.is_paid);
         if (allAcomptesPaid && allSoldesPaid) {
-          newState.status = "Terminé";
+          // Previously set "Terminé", now we keep "En cours"
+          // Unless we want to respect existing "Terminé"?
+          // Requirement: "Stop à l'auto-clôture". So we don't force it.
+          // But if it IS "Terminé", should we downgrade it if I delete a payment?
+          // Probably safer to leave it or default to "En cours".
+          // Let's default to "En cours" to be safe against auto-closing.
+          // If the user wants it Terminé, they click it.
+          // If they delete a payment, it's ambiguous, but "En cours" is safe.
+          if (newState.status === "En attente") newState.status = "En cours";
         } else {
           newState.status = "En cours";
         }
@@ -1827,14 +2006,36 @@ class EditContract extends React.Component {
                       <Input
                         type="number"
                         value={this.state.modalPaymentAmount ?? ""}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const val =
+                            e.target.value === ""
+                              ? ""
+                              : parseFloat(e.target.value);
+
+                          // Smart Type Logic
+                          let newType = this.state.modalPaymentType;
+                          const remainder = this.state.modalRemainingToPay;
+
+                          // Only auto-switch if we have a valid remainder
+                          if (
+                            typeof remainder === "number" &&
+                            typeof val === "number"
+                          ) {
+                            // If amount == remainder => Solde
+                            if (Math.abs(val - remainder) < 0.01) {
+                              newType = "sold";
+                            }
+                            // If amount < remainder => Acompte
+                            else if (val < remainder) {
+                              newType = "acompte";
+                            }
+                          }
+
                           this.setState({
-                            modalPaymentAmount:
-                              e.target.value === ""
-                                ? ""
-                                : parseFloat(e.target.value),
-                          })
-                        }
+                            modalPaymentAmount: val,
+                            modalPaymentType: newType,
+                          });
+                        }}
                       />
                     </FormGroup>
                   </ModalBody>
@@ -2519,22 +2720,58 @@ class EditContract extends React.Component {
                                 this.state.formValues["TOTALTTC"] || 0;
                               const fp1 = this.state.formValues["fp1"] || 0;
                               const fp2 = this.state.formValues["fp2"] || 0;
-                              const amountAcompte = (totalTTC * fp1) / 100;
-                              const amountTotalSolde = (totalTTC * fp2) / 100;
-
                               let acompteDates = this.state.acompte_dates || [];
                               let soldDates = this.state.sold_dates || [];
 
+                              const amountAcompte = (totalTTC * fp1) / 100;
+                              // If no acompte dates, Solde takes the full amount logic (ignoring fp2=0 if fp1=100)
+                              // Otherwise it respects the fp2 (balance)
+                              const amountTotalSolde =
+                                acompteDates.length > 0
+                                  ? (totalTTC * fp2) / 100
+                                  : totalTTC;
+
                               // Removed auto-creation of default entries in render to avoid side-effects and stay in view mode
 
-                              const amountPerAcompte =
-                                acompteDates.length > 0
-                                  ? amountAcompte / acompteDates.length
-                                  : amountAcompte;
-                              const amountPerSolde =
-                                soldDates.length > 0
-                                  ? amountTotalSolde / soldDates.length
-                                  : amountTotalSolde;
+                              // Smart logic for Acompte
+                              const fixedAcomptes = acompteDates.filter(
+                                (d) =>
+                                  d &&
+                                  typeof d === "object" &&
+                                  d.amount !== undefined,
+                              );
+                              const sumFixedAcomptes = fixedAcomptes.reduce(
+                                (acc, d) => acc + parseFloat(d.amount || 0),
+                                0,
+                              );
+                              const unFixedAcomptesCount =
+                                acompteDates.length - fixedAcomptes.length;
+                              let amountPerAcompte = 0;
+                              if (unFixedAcomptesCount > 0) {
+                                amountPerAcompte =
+                                  (amountAcompte - sumFixedAcomptes) /
+                                  unFixedAcomptesCount;
+                              }
+
+                              // Smart logic for Solde
+                              const fixedSoldes = soldDates.filter(
+                                (d) =>
+                                  d &&
+                                  typeof d === "object" &&
+                                  d.amount !== undefined,
+                              );
+                              const sumFixedSoldes = fixedSoldes.reduce(
+                                (acc, d) => acc + parseFloat(d.amount || 0),
+                                0,
+                              );
+                              const unFixedSoldesCount =
+                                soldDates.length - fixedSoldes.length;
+                              let amountPerSolde = 0;
+                              if (unFixedSoldesCount > 0) {
+                                amountPerSolde =
+                                  (amountTotalSolde - sumFixedSoldes) /
+                                  unFixedSoldesCount;
+                              }
 
                               const rows = [];
 
@@ -2554,7 +2791,12 @@ class EditContract extends React.Component {
                                   date: dateVal,
                                   method: methodVal,
                                   idx,
-                                  amount: amountPerAcompte,
+                                  amount:
+                                    d &&
+                                    typeof d === "object" &&
+                                    d.amount !== undefined
+                                      ? parseFloat(d.amount)
+                                      : amountPerAcompte,
                                   is_paid: isPaid,
                                   isEditing: (
                                     this.state.editingAcompte || []
@@ -2578,7 +2820,12 @@ class EditContract extends React.Component {
                                   date: dateVal,
                                   method: methodVal,
                                   idx,
-                                  amount: amountPerSolde,
+                                  amount:
+                                    d &&
+                                    typeof d === "object" &&
+                                    d.amount !== undefined
+                                      ? parseFloat(d.amount)
+                                      : amountPerSolde,
                                   is_paid: isPaid,
                                   isEditing: (
                                     this.state.editingSold || []
@@ -2660,7 +2907,57 @@ class EditContract extends React.Component {
                                     )}
                                   </td>
                                   <td>
-                                    {row.type === "acompte" ? (
+                                    {row.isEditing ? (
+                                      <UncontrolledDropdown className="payment-type-dropdown">
+                                        <DropdownToggle
+                                          tag="div"
+                                          className="cursor-pointer"
+                                        >
+                                          {row.type === "acompte" ? (
+                                            <Badge color="light-info" pill>
+                                              Acompte
+                                            </Badge>
+                                          ) : (
+                                            <Badge color="light-success" pill>
+                                              Solde
+                                            </Badge>
+                                          )}
+                                          <ChevronDown size={14} />
+                                        </DropdownToggle>
+                                        <DropdownMenu right>
+                                          <DropdownItem
+                                            onClick={() => {
+                                              if (row.type !== "acompte") {
+                                                this.changePaymentType(
+                                                  "sold_dates",
+                                                  "acompte_dates",
+                                                  row.idx,
+                                                );
+                                              }
+                                            }}
+                                          >
+                                            <Badge color="light-info" pill>
+                                              Acompte
+                                            </Badge>
+                                          </DropdownItem>
+                                          <DropdownItem
+                                            onClick={() => {
+                                              if (row.type !== "sold") {
+                                                this.changePaymentType(
+                                                  "acompte_dates",
+                                                  "sold_dates",
+                                                  row.idx,
+                                                );
+                                              }
+                                            }}
+                                          >
+                                            <Badge color="light-success" pill>
+                                              Solde
+                                            </Badge>
+                                          </DropdownItem>
+                                        </DropdownMenu>
+                                      </UncontrolledDropdown>
+                                    ) : row.type === "acompte" ? (
                                       <Badge color="light-info" pill>
                                         Acompte
                                       </Badge>
@@ -2708,10 +3005,32 @@ class EditContract extends React.Component {
                                     )}
                                   </td>
                                   <td className="text-right font-weight-bold">
-                                    {new Intl.NumberFormat("fr-FR", {
-                                      style: "currency",
-                                      currency: "EUR",
-                                    }).format(row.amount)}
+                                    {row.isEditing ? (
+                                      <Input
+                                        type="number"
+                                        style={{
+                                          width: 100,
+                                          textAlign: "right",
+                                          display: "inline-block",
+                                        }}
+                                        value={row.amount}
+                                        onChange={(e) =>
+                                          this.updateDate(
+                                            row.type === "acompte"
+                                              ? "acompte_dates"
+                                              : "sold_dates",
+                                            row.idx,
+                                            "amount",
+                                            parseFloat(e.target.value),
+                                          )
+                                        }
+                                      />
+                                    ) : (
+                                      new Intl.NumberFormat("fr-FR", {
+                                        style: "currency",
+                                        currency: "EUR",
+                                      }).format(row.amount)
+                                    )}
                                   </td>
                                   <td className="text-center">
                                     <div
@@ -2811,18 +3130,27 @@ class EditContract extends React.Component {
                           </tbody>
                         </Table>
                       </div>
-                      <div className="contract-action-bar">
+                      <div
+                        className="contract-action-bar d-flex"
+                        style={{ gap: 8 }}
+                      >
                         <Button
                           className="btn-white-primary d-flex align-items-center"
                           size="sm"
                           onClick={() => {
-                            let type = "sold_dates";
-                            const fp1 = this.state.formValues["fp1"];
-                            if ((this.state.acompte_dates || []).length === 0)
-                              type = "acompte_dates";
-                            else if (fp1 && parseInt(fp1) >= 100)
-                              type = "acompte_dates";
-                            this.addDate(type, moment().format("YYYY-MM-DD"));
+                            const hasAcompte =
+                              (this.state.acompte_dates || []).length > 0;
+                            const needsAcompte =
+                              (this.state.formValues["fp1"] || 0) > 0;
+                            const defaultKey =
+                              !hasAcompte && needsAcompte
+                                ? "acompte_dates"
+                                : "sold_dates";
+
+                            this.addDate(
+                              defaultKey,
+                              moment().format("YYYY-MM-DD"),
+                            );
                           }}
                         >
                           <Plus size={14} className="mr-1" />

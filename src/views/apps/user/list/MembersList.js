@@ -180,7 +180,7 @@ class MembersList extends React.Component {
           type: "contrat",
           document_state: "Pending...",
           date: "2010-10-10",
-          comment: "Contrat de " + name,
+          comment: name,
           advanced_payment: "0",
           user_id: id,
         },
@@ -358,9 +358,7 @@ class MembersList extends React.Component {
                       className="mb-1"
                       outline
                       color="primary"
-                      onClick={() =>
-                        history.push("/app/member/createUser")
-                      }
+                      onClick={() => history.push("/app/member/createUser")}
                     >
                       <UserPlus size={15} className="mr-50" />
                       Créer un compte
