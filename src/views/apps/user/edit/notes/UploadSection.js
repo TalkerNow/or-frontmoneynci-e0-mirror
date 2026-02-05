@@ -1,5 +1,5 @@
 import React from "react";
-import { Card, CardBody } from "reactstrap";
+import { Card, CardBody, Button } from "reactstrap";
 import UploadCard from "../components/UploadCard";
 
 const UploadSection = ({
@@ -8,6 +8,7 @@ const UploadSection = ({
   isUploading,
   onUpload, // handleUpload
   isGenerating,
+  onCancelGeneration,
 }) => {
   return (
     <Card className="notes-card notes-card--compact notes-card--upload">
@@ -131,6 +132,40 @@ const UploadSection = ({
             <p className="text-dark font-weight-bold">
               Merci de ne pas fermer cette page.
             </p>
+            <button
+              type="button"
+              onClick={onCancelGeneration}
+              style={{
+                position: "absolute",
+                top: "15px",
+                right: "15px",
+                background: "#fee2e2",
+                border: "1px solid #fca5a5",
+                borderRadius: "50%",
+                color: "#dc2626",
+                cursor: "pointer",
+                width: "32px",
+                height: "32px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "1.2rem",
+                fontWeight: "bold",
+                transition: "all 0.2s ease",
+                zIndex: 11,
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = "#fecaca";
+                e.currentTarget.style.transform = "scale(1.1)";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = "#fee2e2";
+                e.currentTarget.style.transform = "scale(1)";
+              }}
+              title="Interrompre l'analyse"
+            >
+              ✕
+            </button>
           </div>
         )}
       </CardBody>

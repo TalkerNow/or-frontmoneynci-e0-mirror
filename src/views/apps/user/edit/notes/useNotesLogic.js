@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { jsPDF } from "jspdf";
@@ -70,6 +70,16 @@ export const useNotesLogic = (id, perso) => {
       errR: false,
     },
   ]);
+
+  const cancelRef = useRef(null);
+
+  const handleCancelGeneration = useCallback(() => {
+    if (cancelRef.current) {
+      cancelRef.current.cancel("Opération annulée par l'utilisateur");
+      cancelRef.current = null;
+    }
+    setIsGenerating(false);
+  }, []);
 
   const clientNames = useMemo(() => extractClientNames(perso), [perso]);
   const hasChanged = notes !== originalNotes;
@@ -245,10 +255,7 @@ export const useNotesLogic = (id, perso) => {
         }
         return safeRows;
       });
-      toast.success(
-        `Points ${eventType === "ARRCO_POINTS_SAVE" ? "ARRCO" : "IRCANTEC"
-        } mis à jour`
-      );
+      toast.success(`Points ${eventType === "ARRCO_POINTS_SAVE" ? "ARRCO" : "IRCANTEC"} mis à jour`,);
     };
     window.addEventListener("message", handleComplementaryPointsMessage);
     return () =>
@@ -331,7 +338,7 @@ export const useNotesLogic = (id, perso) => {
         const response = await axios.post(
           `${global.config.server_url}/uploadFiles`,
           formData,
-          Config
+          Config,
         );
         const files = Array.isArray(response?.data?.files)
           ? response.data.files
@@ -428,6 +435,11 @@ export const useNotesLogic = (id, perso) => {
       }
 
       setIsGenerating(true);
+      if (cancelRef.current) {
+        cancelRef.current.cancel();
+      }
+      cancelRef.current = axios.CancelToken.source();
+
       try {
         // ---------- CALL 1 : FRONT → n8n (avec ou sans fichier) ----------
         const n8nFormData = new FormData();
@@ -457,12 +469,9 @@ export const useNotesLogic = (id, perso) => {
         // Build the message with Quick Tags if selected
         const tagsPrefix =
           selectedTags.length > 0
-            ? `Thématiques d'analyse : ${selectedTags
-              .map((t) => t.label)
-              .join(", ")}\n\n`
+            ? `Thématiques d'analyse : ${selectedTags.map((t) => t.label).join(", ")}\n\n`
             : "";
-        const finalMessage = `${tagsPrefix}${currentMessage || ""
-          }\n\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDate}`.trim();
+        const finalMessage = `${tagsPrefix}${currentMessage || ""}\n\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDate}`.trim();
         n8nFormData.append("message", finalMessage);
 
         // Ajout du contenu HTML précédent si disponible (pour les rapports spécifiques)
@@ -475,15 +484,13 @@ export const useNotesLogic = (id, perso) => {
           n8nFormData.append("client_id", id);
         }
 
-        toast.info(
-          `Analyse en cours (${normalizedType === "custom" ? "Spécifique" : "Standard"
-          })…`
-        );
+        toast.info(`Analyse en cours (${normalizedType === "custom" ? "Spécifique" : "Standard"})…`);
 
         const n8nResponse = await axios.post(webhookUrl, n8nFormData, {
           headers: {
             "Content-Type": "multipart/form-data",
           },
+          cancelToken: cancelRef.current.token,
         });
 
         let reportData = n8nResponse.data;
@@ -521,8 +528,9 @@ export const useNotesLogic = (id, perso) => {
         // Si c'est du HTML, il sera affiché tel quel. Si c'est du texte, il sera affiché brut.
 
         // On crée un fichier HTML pour display
-        const fileName = `Rapport_${normalizedType === "custom" ? "Specifique" : "Standard"
-          }_${new Date().getTime()}.html`;
+        const fileName = `Rapport_${
+          normalizedType === "custom" ? "Specifique" : "Standard"
+        }_${new Date().getTime()}.html`;
         const fileBlob = new Blob([contentString], {
           type: "text/html;charset=utf-8",
         });
@@ -543,7 +551,7 @@ export const useNotesLogic = (id, perso) => {
           const uploadRes = await axios.post(
             `${global.config.server_url}/uploadFiles`,
             uploadForm,
-            uploadConfig
+            {...uploadConfig, cancelToken: cancelRef.current.token},
           );
           if (uploadRes?.data?.files?.[0]?.url) {
             reportUrl = uploadRes.data.files[0].url;
@@ -571,11 +579,16 @@ export const useNotesLogic = (id, perso) => {
         toast.success(`${docLabel} généré avec succès`);
         return doc;
       } catch (error) {
+        if (axios.isCancel(error)) {
+          console.log("Génération annulée");
+          return null;
+        }
         console.error(error);
         toast.error("Erreur lors de la génération du rapport");
         return null;
       } finally {
         setIsGenerating(false);
+        cancelRef.current = null;
       }
     },
     [clientNames.displayName, fileToSend, id, n8nMessage, perso, selectedTags]
@@ -635,7 +648,7 @@ export const useNotesLogic = (id, perso) => {
             setViewingDoc((prev) => ({
               ...prev,
               url: newUrl,
-              htmlContent: docToSave.htmlContent // Ensure content is synced
+              htmlContent: docToSave.htmlContent,
             }));
           }
 
@@ -1037,10 +1050,16 @@ export const useNotesLogic = (id, perso) => {
     `;
 
     // Insérer avant la fermeture du head, ou au début du body si pas de head
-    if (nonEditableContent.includes('</head>')) {
-      nonEditableContent = nonEditableContent.replace('</head>', protectionCode + '</head>');
-    } else if (nonEditableContent.includes('<body')) {
-      nonEditableContent = nonEditableContent.replace(/<body([^>]*)>/, '<body$1>' + protectionCode);
+    if (nonEditableContent.includes("</head>")) {
+      nonEditableContent = nonEditableContent.replace(
+        "</head>",
+        protectionCode + "</head>",
+      );
+    } else if (nonEditableContent.includes("<body")) {
+      nonEditableContent = nonEditableContent.replace(
+        /<body([^>]*)>/,
+        "<body$1>" + protectionCode,
+      );
     } else {
       nonEditableContent = protectionCode + nonEditableContent;
     }
@@ -1054,7 +1073,6 @@ export const useNotesLogic = (id, perso) => {
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
-
   }, [viewingDoc]);
 
   const handleReportDoc = useCallback((doc) => {
@@ -1213,5 +1231,6 @@ export const useNotesLogic = (id, perso) => {
     fileToSend,
     clearFileToSend,
     handleSaveDoc,
+    handleCancelGeneration,
   };
 };

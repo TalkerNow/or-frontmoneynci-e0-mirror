@@ -11,6 +11,7 @@ const AnalysisSection = ({
   reportType,
   handleGenerateDoc,
   isGenerating,
+  onCancelGeneration,
 }) => {
   return (
     <Card
@@ -173,7 +174,12 @@ const AnalysisSection = ({
             placeholder="Ajouter une instruction ou un commentaire pour l'analyse..."
             value={n8nMessage}
             onChange={(e) => setN8nMessage(e.target.value)}
-            style={{ minHeight: "200px" }}
+            style={{
+              minHeight: "200px",
+              backgroundColor: isGenerating ? "#fff" : undefined,
+              color: isGenerating ? "#334155" : undefined,
+              opacity: isGenerating ? 0.9 : 1,
+            }}
             disabled={isGenerating}
           />
         </div>
@@ -199,13 +205,13 @@ const AnalysisSection = ({
               left: 0,
               width: "100%",
               height: "100%",
-              backgroundColor: "rgba(255, 255, 255, 0.85)",
+              backgroundColor: "rgba(255, 255, 255, 0.4)", // Translucide
               zIndex: 10,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              backdropFilter: "blur(2px)",
+              backdropFilter: "blur(1px)",
               borderRadius: "inherit",
             }}
           >
@@ -222,6 +228,40 @@ const AnalysisSection = ({
             <p className="text-dark font-weight-bold">
               Merci de ne pas fermer cette page.
             </p>
+            <button
+              type="button"
+              onClick={onCancelGeneration}
+              style={{
+                position: "absolute",
+                top: "15px",
+                right: "15px",
+                background: "#fee2e2",
+                border: "1px solid #fca5a5",
+                borderRadius: "50%",
+                color: "#dc2626",
+                cursor: "pointer",
+                width: "32px",
+                height: "32px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "1.2rem",
+                fontWeight: "bold",
+                transition: "all 0.2s ease",
+                zIndex: 11,
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = "#fecaca";
+                e.currentTarget.style.transform = "scale(1.1)";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = "#fee2e2";
+                e.currentTarget.style.transform = "scale(1)";
+              }}
+              title="Interrompre l'analyse"
+            >
+              ✕
+            </button>
           </div>
         )}
       </CardBody>

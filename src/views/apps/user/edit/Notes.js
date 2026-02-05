@@ -54,6 +54,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
     fileToSend,
     clearFileToSend,
     handleSaveDoc,
+    handleCancelGeneration,
   } = useNotesLogic(id, perso);
 
   return (
@@ -73,6 +74,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
           isUploading={isUploading}
           onUpload={handleUpload}
           isGenerating={isGenerating}
+          onCancelGeneration={handleCancelGeneration}
         />
       </div>
 
@@ -84,6 +86,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         reportType={reportType}
         handleGenerateDoc={handleGenerateDoc}
         isGenerating={isGenerating}
+        onCancelGeneration={handleCancelGeneration}
       />
 
       <GeneratedDocsSection
