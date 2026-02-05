@@ -22,10 +22,11 @@ const task = lazy(() => import("./views/apps/task/Task"));
 const clientTask = lazy(() => import("./views/apps/user/edit/clientTask/Task"));
 const memberTask = lazy(() => import("./views/apps/user/edit/memberTask/Task"));
 const document = lazy(() => import("./views/apps/document"));
+const prompts = lazy(() => import("./views/apps/prompts"));
 
 const clientslist = lazy(() => import("./views/apps/user/list/ClientsList"));
-const oldclientslist = lazy(() =>
-  import("./views/apps/user/list/OldClientsList")
+const oldclientslist = lazy(
+  () => import("./views/apps/user/list/OldClientsList"),
 );
 const memberslist = lazy(() => import("./views/apps/user/list/MembersList"));
 const createUser = lazy(() => import("./views/apps/user/add/addUser"));
@@ -34,27 +35,27 @@ const userEditOld = lazy(() => import("./views/apps/user/edit/OldClientEdit"));
 const memberEdit = lazy(() => import("./views/apps/user/edit/MemberEdit"));
 const AllContracts = lazy(() => import("./views/apps/user/edit/AllContracts"));
 
-const TemplateContract = lazy(() =>
-  import("./views/pages/contract-template/TemplateContract")
+const TemplateContract = lazy(
+  () => import("./views/pages/contract-template/TemplateContract"),
 );
-const createContract = lazy(() =>
-  import("./views/pages/contract-template/CreateContract")
+const createContract = lazy(
+  () => import("./views/pages/contract-template/CreateContract"),
 );
-const editContract = lazy(() =>
-  import("./views/pages/contract-template/EditContract")
+const editContract = lazy(
+  () => import("./views/pages/contract-template/EditContract"),
 );
 
 //-----------------------------------
 const Login = lazy(() => import("./views/pages/authentication/login/Login"));
-const forgotPassword = lazy(() =>
-  import("./views/pages/authentication/ForgotPassword")
+const forgotPassword = lazy(
+  () => import("./views/pages/authentication/ForgotPassword"),
 );
 // const lockScreen = lazy(() => import("./views/pages/authentication/LockScreen"))
-const resetPassword = lazy(() =>
-  import("./views/pages/authentication/ResetPassword")
+const resetPassword = lazy(
+  () => import("./views/pages/authentication/ResetPassword"),
 );
-const register = lazy(() =>
-  import("./views/pages/authentication/register/Register")
+const register = lazy(
+  () => import("./views/pages/authentication/register/Register"),
 );
 // const AdmUserList = lazy(() => import("./views/apps/user/list/usersList"))
 // const createService = lazy(() => import("./views/apps/Contract/Services/addService"))
@@ -77,8 +78,8 @@ const ProtectedRoute = ({
                 fullLayout === true
                   ? context.fullLayout
                   : context.state.activeLayout === "horizontal"
-                  ? context.horizontalLayout
-                  : context.VerticalLayout;
+                    ? context.horizontalLayout
+                    : context.VerticalLayout;
               return (
                 <LayoutTag {...props} permission={props.user}>
                   <Suspense fallback={<Spinner />}>
@@ -105,8 +106,8 @@ const RouteConfig = ({ component: Component, fullLayout, ...rest }) => (
               fullLayout === true
                 ? context.fullLayout
                 : context.state.activeLayout === "horizontal"
-                ? context.horizontalLayout
-                : context.VerticalLayout;
+                  ? context.horizontalLayout
+                  : context.VerticalLayout;
             return (
               <LayoutTag {...props} permission={props.user}>
                 <Suspense fallback={<Spinner />}>
@@ -269,6 +270,12 @@ class AppRouter extends React.Component {
             component={AllContracts}
             isAuth={{ user }}
             authorisation={employee_acess}
+          />
+          <ProtectedRoute
+            path="/app/prompts"
+            component={prompts}
+            isAuth={{ user }}
+            authorisation={reduced_acess}
           />
           <ProtectedRoute
             path="/app/contractTemplate"
