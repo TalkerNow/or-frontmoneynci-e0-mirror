@@ -12,6 +12,9 @@ const EditModeSection = ({
   onSetSuggestedTime,
   dateTimeInputRef,
   onDateTimeChange,
+  includeDateTime,
+  onToggleIncludeDateTime,
+  dateSource,
 }) => {
   return (
     <div
@@ -47,54 +50,94 @@ const EditModeSection = ({
         </div>
 
         <div className="col-12 mb-2">
-          <h6 style={{ fontSize: "0.85rem", fontWeight: 700 }}>Rendez-vous</h6>
-          <div
-            onClick={onDateTimeClick}
-            style={{
-              padding: "8px 12px",
-              border: "1px solid #d8d6de",
-              borderRadius: "4px",
-              cursor: "pointer",
-              backgroundColor: "#fff",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-            }}
-          >
-            <Calendar size={16} />
-            <span>{formatDateTimeLabel()}</span>
+          <div className="d-flex align-items-center justify-content-between">
+            <h6 style={{ fontSize: "0.85rem", fontWeight: 700, margin: 0 }}>
+              Rendez-vous (optionnel)
+            </h6>
+            <div className="d-flex align-items-center">
+              <Input
+                type="checkbox"
+                id="editIncludeDateTime"
+                checked={includeDateTime}
+                onChange={onToggleIncludeDateTime}
+              />
+              <label htmlFor="editIncludeDateTime" className="mb-0 ml-50">
+                Ajouter une date
+              </label>
+            </div>
           </div>
-          <input
-            ref={dateTimeInputRef}
-            type="datetime-local"
-            style={{ position: "absolute", opacity: 0, pointerEvents: "none" }}
-            onChange={onDateTimeChange}
-            value={
-              editFormData.date && editFormData.hour
-                ? `${editFormData.date}T${editFormData.hour}`
-                : ""
-            }
-          />
+          <div
+            className={`date-time-section mt-1 ${includeDateTime ? "is-open" : "is-closed"}`}
+          >
+            {dateSource && (
+              <div className="text-center mb-50">
+                <Badge
+                  color={
+                    dateSource === "suggested"
+                      ? "light-success"
+                      : "light-primary"
+                  }
+                  className="font-small-2"
+                >
+                  {dateSource === "suggested" ? "✓ Suggestion" : "📅 Manuel"}
+                </Badge>
+              </div>
+            )}
+            <div
+              onClick={includeDateTime ? onDateTimeClick : undefined}
+              style={{
+                padding: "8px 12px",
+                border: "1px solid #d8d6de",
+                borderRadius: "4px",
+                cursor: includeDateTime ? "pointer" : "not-allowed",
+                backgroundColor: "#fff",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                opacity: includeDateTime ? 1 : 0.6,
+              }}
+            >
+              <Calendar size={16} />
+              <span>{formatDateTimeLabel()}</span>
+            </div>
+            <input
+              ref={dateTimeInputRef}
+              type="datetime-local"
+              style={{
+                position: "absolute",
+                opacity: 0,
+                pointerEvents: "none",
+              }}
+              onChange={onDateTimeChange}
+              value={
+                editFormData.date && editFormData.hour
+                  ? `${editFormData.date}T${editFormData.hour}`
+                  : ""
+              }
+            />
 
-          <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
-            <Button
-              size="sm"
-              color="primary"
-              outline
-              onClick={() => onSetSuggestedTime("10:30")}
-              style={{ flex: 1 }}
-            >
-              {formatSuggestedDate("10:30")}
-            </Button>
-            <Button
-              size="sm"
-              color="primary"
-              outline
-              onClick={() => onSetSuggestedTime("16:30")}
-              style={{ flex: 1 }}
-            >
-              {formatSuggestedDate("16:30")}
-            </Button>
+            <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+              <Button
+                size="sm"
+                color="primary"
+                outline
+                onClick={() => onSetSuggestedTime("10:30")}
+                style={{ flex: 1 }}
+                disabled={!includeDateTime}
+              >
+                {formatSuggestedDate("10:30")}
+              </Button>
+              <Button
+                size="sm"
+                color="primary"
+                outline
+                onClick={() => onSetSuggestedTime("16:30")}
+                style={{ flex: 1 }}
+                disabled={!includeDateTime}
+              >
+                {formatSuggestedDate("16:30")}
+              </Button>
+            </div>
           </div>
         </div>
       </div>

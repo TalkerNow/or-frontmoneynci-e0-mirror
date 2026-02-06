@@ -79,6 +79,7 @@ class UserKanbanModal extends React.Component {
         description: "",
         status: "scheduled",
       },
+      includeDateTime: false,
       dateSource: null, // 'manual' ou 'suggested'
       displayCard: null, // Copie locale de selectedCard pour l'affichage
       showCreateContractForm: false, // Pour afficher/cacher le formulaire de création de contrat
@@ -114,6 +115,7 @@ class UserKanbanModal extends React.Component {
   handleStartEdit = () => {
     const { displayCard } = this.state;
     const cardToEdit = displayCard || this.props.selectedCard;
+    const hasDate = Boolean(cardToEdit?.date);
     this.setState({
       isEditing: true,
       editFormData: {
@@ -123,11 +125,33 @@ class UserKanbanModal extends React.Component {
         description: cardToEdit.description || "",
         status: cardToEdit.status || "scheduled",
       },
+      includeDateTime: hasDate,
     });
   };
 
   handleCancelEdit = () => {
-    this.setState({ isEditing: false, dateSource: null });
+    this.setState({
+      isEditing: false,
+      dateSource: null,
+      includeDateTime: false,
+    });
+  };
+
+  handleToggleIncludeDateTime = () => {
+    this.setState((prevState) => {
+      const next = !prevState.includeDateTime;
+      return {
+        includeDateTime: next,
+        dateSource: next ? prevState.dateSource : null,
+        editFormData: next
+          ? prevState.editFormData
+          : {
+              ...prevState.editFormData,
+              date: "",
+              hour: "",
+            },
+      };
+    });
   };
 
   handleEditFormChange = (field, value) => {
@@ -140,16 +164,27 @@ class UserKanbanModal extends React.Component {
   };
 
   handleSaveEdit = async () => {
-    const { editFormData } = this.state;
+    const { editFormData, includeDateTime } = this.state;
     const { onSave } = this.props;
 
-    if (!editFormData.kanban_id || !editFormData.date) {
-      alert("La colonne Kanban et la date sont obligatoires");
+    if (!editFormData.kanban_id) {
+      alert("La colonne Kanban est obligatoire");
       return;
     }
 
+    if (includeDateTime && (!editFormData.date || !editFormData.date.trim())) {
+      alert("Veuillez sélectionner une date");
+      return;
+    }
+
+    const normalizedEditFormData = {
+      ...editFormData,
+      date: includeDateTime ? editFormData.date || null : null,
+      hour: includeDateTime ? editFormData.hour || null : null,
+    };
+
     try {
-      await onSave(editFormData);
+      await onSave(normalizedEditFormData);
       // Mettre à jour displayCard avec les nouvelles valeurs
       this.setState((prevState) => ({
         isEditing: false,
@@ -157,11 +192,12 @@ class UserKanbanModal extends React.Component {
         displayCard: {
           ...prevState.displayCard,
           kanban_id: editFormData.kanban_id,
-          date: editFormData.date,
-          hour: editFormData.hour,
+          date: normalizedEditFormData.date,
+          hour: normalizedEditFormData.hour,
           description: editFormData.description,
           status: editFormData.status,
         },
+        includeDateTime: Boolean(normalizedEditFormData.date),
       }));
     } catch (error) {
       console.error("Erreur lors de la mise à jour:", error);
@@ -818,6 +854,9 @@ class UserKanbanModal extends React.Component {
                     onSetSuggestedTime={this.setSuggestedTime}
                     dateTimeInputRef={this.dateTimeInputRef}
                     onDateTimeChange={this.handleDateTimeChange}
+                    includeDateTime={this.state.includeDateTime}
+                    onToggleIncludeDateTime={this.handleToggleIncludeDateTime}
+                    dateSource={dateSource}
                   />
                 ) : (
                   <DisplayModeSection

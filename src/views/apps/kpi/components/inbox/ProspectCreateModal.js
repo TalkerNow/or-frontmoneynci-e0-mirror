@@ -47,17 +47,17 @@ const ProspectCreateModal = ({
   const handleCreateProspect = async () => {
     const { firstName, lastName, email, phone } = prospectForm;
 
-    if (!firstName || !lastName) {
-      setModalState("error");
-      setStatusMessage(
-        "Le prénom et le nom sont obligatoires pour créer un prospect.",
-      );
-      setTimeout(() => {
-        setModalState("form");
-        setStatusMessage("");
-      }, 3000);
-      return;
-    }
+    const normalizeNullable = (value) => {
+      if (value === null || value === undefined) return null;
+      const trimmed = String(value).trim();
+      return trimmed ? trimmed : null;
+    };
+    const normalizedFirstName = normalizeNullable(firstName);
+    const normalizedLastName = normalizeNullable(lastName);
+    const fullName =
+      [normalizedFirstName, normalizedLastName].filter(Boolean).join(" ") ||
+      null;
+    const normalizedPhone = fullName ? phone : null;
 
     setIsCreatingProspect(true);
     setModalState("loading");
@@ -74,7 +74,7 @@ const ProspectCreateModal = ({
 
       // 1. Register User
       const registerPayload = {
-        name: `${firstName} ${lastName}`,
+        name: fullName,
         email: email || `prospect_${Date.now()}@placeholder.com`, // Fallback if email missing
         password: Math.random().toString(36).slice(-10) + "1!", // Random password
         role: "Prospect",
@@ -96,10 +96,10 @@ const ProspectCreateModal = ({
         const infoPayload = {
           id: newUserId,
           user_id: 10, // Legacy/Default
-          first_name: firstName,
-          last_name: lastName,
+          first_name: normalizedFirstName,
+          last_name: normalizedLastName,
           email: email,
-          mobile_number: phone,
+          mobile_number: normalizedPhone,
           parent_id: parentId,
           business_introducer_id: businessIntroducerId,
           civility: "Monsieur", // Default
@@ -136,7 +136,7 @@ const ProspectCreateModal = ({
           // Si la liaison échoue mais le prospect est créé, on affiche quand même le succès
           setModalState("success");
           setStatusMessage(
-            `✅ Prospect créé avec succès !\n\nID: ${newUserId}\nNom: ${firstName} ${lastName}\n\nNote: La liaison automatique a échoué.`,
+            `✅ Prospect créé avec succès !\n\nID: ${newUserId}\nNom: ${fullName || "—"}\n\nNote: La liaison automatique a échoué.`,
           );
 
           // Réinitialiser le formulaire et notifier
@@ -161,7 +161,7 @@ const ProspectCreateModal = ({
         // Show success si tout s'est bien passé
         setModalState("success");
         setStatusMessage(
-          `✅ Prospect créé avec succès !\n\nID: ${newUserId}\nNom: ${firstName} ${lastName}\n\nVous pouvez maintenant ajouter des actions.`,
+          `✅ Prospect créé avec succès !\n\nID: ${newUserId}\nNom: ${fullName || "—"}\n\nVous pouvez maintenant ajouter des actions.`,
         );
 
         // Réinitialiser le formulaire et notifier
