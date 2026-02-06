@@ -3,7 +3,6 @@ import "../../../../assets/scss/pages/notes-hub.scss";
 import { useNotesLogic } from "./notes/useNotesLogic";
 import NotesForm from "./notes/NotesForm";
 import UploadSection from "./notes/UploadSection";
-import AnalysisSection from "./notes/AnalysisSection";
 import GeneratedDocsSection from "./notes/GeneratedDocsSection";
 import ManualCareerTable from "./notes/ManualCareerTable";
 import DocumentViewerModal from "./notes/DocumentViewerModal";
@@ -55,38 +54,39 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
     clearFileToSend,
     handleSaveDoc,
     handleCancelGeneration,
+    userDocuments,
+    isLoadingDocs,
+    fetchUserDocuments,
+    selectDocumentFromList,
   } = useNotesLogic(id, perso);
 
   return (
-    <div className="notes-layout">
-      <div className="notes-top-row">
-        <NotesForm
-          notes={notes}
-          handleNotesChange={handleNotesChange}
-          handleSubmit={handleSubmit}
-          hasChanged={hasChanged}
-          isSaving={isSaving}
-        />
+    <div className="notes-page">
+      <NotesForm
+        notes={notes}
+        handleNotesChange={handleNotesChange}
+        handleSubmit={handleSubmit}
+        hasChanged={hasChanged}
+        isSaving={isSaving}
+      />
 
-        <UploadSection
-          fileToSend={fileToSend}
-          clearFileToSend={clearFileToSend}
-          isUploading={isUploading}
-          onUpload={handleUpload}
-          isGenerating={isGenerating}
-          onCancelGeneration={handleCancelGeneration}
-        />
-      </div>
-
-      <AnalysisSection
+      <UploadSection
+        fileToSend={fileToSend}
+        clearFileToSend={clearFileToSend}
+        isUploading={isUploading}
+        onUpload={handleUpload}
+        isGenerating={isGenerating}
+        onCancelGeneration={handleCancelGeneration}
+        userDocuments={userDocuments}
+        isLoadingDocs={isLoadingDocs}
+        onFetchDocuments={fetchUserDocuments}
+        onSelectDocument={selectDocumentFromList}
         selectedTags={selectedTags}
         handleTagsChange={handleTagsChange}
         n8nMessage={n8nMessage}
         setN8nMessage={setN8nMessage}
         reportType={reportType}
         handleGenerateDoc={handleGenerateDoc}
-        isGenerating={isGenerating}
-        onCancelGeneration={handleCancelGeneration}
       />
 
       <GeneratedDocsSection

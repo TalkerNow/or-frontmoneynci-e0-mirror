@@ -10,7 +10,6 @@ import {
   TabContent,
   TabPane,
   Button,
-  UncontrolledTooltip,
   Modal,
   ModalHeader,
   ModalBody,
@@ -426,24 +425,20 @@ class UserEdit extends React.Component {
             >
               <style>{`.nav-tabs .nav-link { white-space: nowrap; } .nav-tabs::-webkit-scrollbar { display: none; }`}</style>
               {this.state.isCollapsed && (
-                <NavItem>
-                  <NavLink
-                    onClick={() => this.setState({ isCollapsed: false })}
-                    className="p-0"
+                <NavItem className="d-flex align-items-center mr-50">
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    className="profile-expand-btn"
+                    title="Afficher la fiche"
                     aria-label="Afficher la fiche"
+                    onClick={() => this.setState({ isCollapsed: false })}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") this.setState({ isCollapsed: false });
+                    }}
                   >
-                    <Circle
-                      id={`clientOpenToggle-${id}`}
-                      className="text-primary profile-toggle-pulse"
-                      size={20}
-                    />
-                  </NavLink>
-                  <UncontrolledTooltip
-                    placement="top"
-                    target={`clientOpenToggle-${id}`}
-                  >
-                    Afficher la fiche
-                  </UncontrolledTooltip>
+                    <Circle size={16} />
+                  </div>
                 </NavItem>
               )}
               <NavItem>
@@ -549,16 +544,12 @@ class UserEdit extends React.Component {
           </div>
           <TabContent activeTab={this.state.activeTab}>
             <TabPane tabId="notes">
-              <Card className="mb-1">
-                <CardBody>
-                  <NotesTab
-                    data={this.state.rowData}
-                    perso={this.state.rowData}
-                    members={this.state.members}
-                    id={id}
-                  />
-                </CardBody>
-              </Card>
+              <NotesTab
+                data={this.state.rowData}
+                perso={this.state.rowData}
+                members={this.state.members}
+                id={id}
+              />
             </TabPane>
             <TabPane tabId="contrats">
               <Contracts id={id} ref={this.contractsRef} />
