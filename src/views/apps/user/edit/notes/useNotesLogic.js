@@ -71,6 +71,9 @@ export const useNotesLogic = (id, perso) => {
     },
   ]);
 
+  const [userDocuments, setUserDocuments] = useState([]);
+  const [isLoadingDocs, setIsLoadingDocs] = useState(false);
+
   const cancelRef = useRef(null);
 
   const handleCancelGeneration = useCallback(() => {
@@ -80,6 +83,72 @@ export const useNotesLogic = (id, perso) => {
     }
     setIsGenerating(false);
   }, []);
+
+  // Fetch user documents from the server (for inline document picker)
+  const fetchUserDocuments = useCallback(async () => {
+    if (!id) return;
+    setIsLoadingDocs(true);
+    try {
+      const Config = {
+        headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+      };
+      const response = await axios.get(
+        `${global.config.server_url}/files?user_id=${id}`,
+        Config
+      );
+      const files = Array.isArray(response.data) ? response.data : [];
+      setUserDocuments(files);
+    } catch (err) {
+      console.error("Erreur chargement documents utilisateur:", err);
+      setUserDocuments([]);
+    } finally {
+      setIsLoadingDocs(false);
+    }
+  }, [id]);
+
+  // Select a document from the documents list (inline picker)
+  const selectDocumentFromList = useCallback(
+    async (file) => {
+      if (!file || !file.id) return;
+      try {
+        toast.info("Chargement du document...");
+        const Config = {
+          headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+          responseType: "blob",
+        };
+        const response = await axios.get(
+          `${global.config.server_url}/downloadFile?file_id=${file.id}`,
+          Config
+        );
+        const blob = response.data;
+        const fileObj = new File([blob], file.filename, {
+          type: blob.type || "application/pdf",
+        });
+        setFileToSend(fileObj);
+
+        // Persist to sessionStorage
+        const reader = new FileReader();
+        reader.onload = () => {
+          const fileData = {
+            name: fileObj.name,
+            type: fileObj.type,
+            dataUrl: reader.result,
+          };
+          sessionStorage.setItem(
+            `notes_file_to_send_${id}`,
+            JSON.stringify(fileData)
+          );
+        };
+        reader.readAsDataURL(blob);
+
+        toast.success(`"${file.filename}" chargé avec succès`);
+      } catch (err) {
+        console.error("Erreur sélection document:", err);
+        toast.error("Impossible de charger le document sélectionné");
+      }
+    },
+    [id]
+  );
 
   const clientNames = useMemo(() => extractClientNames(perso), [perso]);
   const hasChanged = notes !== originalNotes;
@@ -1231,5 +1300,9 @@ export const useNotesLogic = (id, perso) => {
     clearFileToSend,
     handleSaveDoc,
     handleCancelGeneration,
+    userDocuments,
+    isLoadingDocs,
+    fetchUserDocuments,
+    selectDocumentFromList,
   };
 };

@@ -549,16 +549,12 @@ class UserEdit extends React.Component {
           </div>
           <TabContent activeTab={this.state.activeTab}>
             <TabPane tabId="notes">
-              <Card className="mb-1">
-                <CardBody>
-                  <NotesTab
-                    data={this.state.rowData}
-                    perso={this.state.rowData}
-                    members={this.state.members}
-                    id={id}
-                  />
-                </CardBody>
-              </Card>
+              <NotesTab
+                data={this.state.rowData}
+                perso={this.state.rowData}
+                members={this.state.members}
+                id={id}
+              />
             </TabPane>
             <TabPane tabId="contrats">
               <Contracts id={id} ref={this.contractsRef} />
