@@ -7,6 +7,7 @@ import { ContextLayout } from "../../../../utility/context/Layout";
 import { AgGridReact } from "ag-grid-react";
 import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss";
 import "../../../../assets/scss/pages/users.scss";
+import "../../../../assets/scss/pages/contract.scss";
 import Moment from "react-moment";
 import SweetAlert from "react-bootstrap-sweetalert";
 import Chip from "../../../../../src/components/@vuexy/chips/ChipComponent";
@@ -61,6 +62,8 @@ class AllContracts extends React.Component {
     const amountTotalSolde = (totalTTC * fp2) / 100;
 
     let totalPaid = 0;
+    let acomptePaid = 0;
+    let soldePaid = 0;
 
     // Smart logic for Acompte
     const fixedAcomptes = acompteDates.filter(
@@ -79,8 +82,10 @@ class AllContracts extends React.Component {
 
     acompteDates.forEach((d) => {
       if (d && typeof d === "object" && d.is_paid) {
-        if (d.amount !== undefined) totalPaid += parseFloat(d.amount);
-        else totalPaid += amountPerAcompte;
+        const paidAmount =
+          d.amount !== undefined ? parseFloat(d.amount) : amountPerAcompte;
+        totalPaid += paidAmount;
+        acomptePaid += paidAmount;
       }
     });
 
@@ -100,19 +105,33 @@ class AllContracts extends React.Component {
 
     soldDates.forEach((d) => {
       if (d && typeof d === "object" && d.is_paid) {
-        if (d.amount !== undefined) totalPaid += parseFloat(d.amount);
-        else totalPaid += amountPerSolde;
+        const paidAmount =
+          d.amount !== undefined ? parseFloat(d.amount) : amountPerSolde;
+        totalPaid += paidAmount;
+        soldePaid += paidAmount;
       }
     });
 
     const totalRemaining = totalTTC - totalPaid;
     const isFullyPaid = totalPaid >= totalTTC - 0.01;
 
+    // Check if acompte is fully paid (with small tolerance)
+    const isAcomptePaid =
+      amountAcompte > 0 ? acomptePaid >= amountAcompte - 0.01 : true;
+    // Check if solde is fully paid
+    const isSoldePaid =
+      amountTotalSolde > 0 ? soldePaid >= amountTotalSolde - 0.01 : true;
+
     return {
       totalPaid: Math.round(totalPaid),
       totalRemaining: Math.round(Math.max(0, totalRemaining)),
       isFullyPaid,
       amountAcompte,
+      amountTotalSolde,
+      acomptePaid: Math.round(acomptePaid),
+      soldePaid: Math.round(soldePaid),
+      isAcomptePaid,
+      isSoldePaid,
     };
   };
 
@@ -148,10 +167,12 @@ class AllContracts extends React.Component {
           const formattedName = name.replace(/^(Contrat|Contract) de\s+/i, "");
           return (
             <div
-              className="d-flex align-items-center cursor-pointer"
+              className="d-flex align-items-center cursor-pointer contract-name-cell"
               onClick={() => history.push("/pages/contract/" + params.data.id)}
             >
-              <span>{formattedName}</span>
+              <span style={{ fontWeight: 700, color: "#283046" }}>
+                {formattedName}
+              </span>
             </div>
           );
         },
@@ -208,77 +229,40 @@ class AllContracts extends React.Component {
       {
         headerName: "Montant",
         field: "advanced_payment",
-        width: 150,
+        width: 160,
         cellRendererFramework: (params) => {
+          const totalAmount = params.data.advanced_payment || 0;
           return (
-            <div className="d-flex align-items-center cursor-pointer">
-              <span>{params.data.advanced_payment + " €"}</span>
+            <div className="d-flex align-items-center">
+              <span style={{ fontWeight: 600 }}>{totalAmount} €</span>
             </div>
           );
         },
       },
       {
-        headerName: "Total Payé",
-        field: "pre_payment",
-        width: 150,
-        cellRendererFramework: (params) => {
-          const { totalPaid, isFullyPaid, amountAcompte } =
-            this.calculateContractFinances(params.data);
-          const isAcompteProblem =
-            totalPaid < amountAcompte &&
-            (params.data.document_state === "En cours" ||
-              params.data.document_state === "Terminé");
-
-          if (isFullyPaid) {
-            return (
-              <div className="d-flex align-items-center cursor-pointer text-success">
-                <span>{totalPaid + " €"}</span>
-              </div>
-            );
-          } else if (isAcompteProblem) {
-            return (
-              <div className="d-flex align-items-center cursor-pointer text-danger font-weight-bold">
-                <span>{totalPaid + " €"}</span>
-              </div>
-            );
-          } else {
-            return (
-              <div className="d-flex align-items-center cursor-pointer">
-                <span>{totalPaid + " €"}</span>
-              </div>
-            );
-          }
-        },
-      },
-      {
         headerName: "Reste",
-        field: "end_payment",
-        width: 150,
+        field: "reste",
+        width: 160,
         cellRendererFramework: (params) => {
           const { totalRemaining, isFullyPaid } =
             this.calculateContractFinances(params.data);
-          const isSoldeProblem =
-            !isFullyPaid && params.data.document_state === "Terminé";
 
-          if (isFullyPaid) {
+          // Vert si soldé (0 €), Rouge si reste à payer
+          if (isFullyPaid || totalRemaining === 0) {
             return (
-              <div className="d-flex align-items-center cursor-pointer text-success">
-                <span>{totalRemaining + " €"}</span>
-              </div>
-            );
-          } else if (isSoldeProblem) {
-            return (
-              <div className="d-flex align-items-center cursor-pointer text-danger font-weight-bold">
-                <span>{totalRemaining + " €"}</span>
-              </div>
-            );
-          } else {
-            return (
-              <div className="d-flex align-items-center cursor-pointer">
-                <span>{totalRemaining + " €"}</span>
+              <div className="d-flex align-items-center">
+                <span style={{ color: "#28c76f", fontWeight: 600 }}>0 €</span>
               </div>
             );
           }
+
+          return (
+            <div className="d-flex align-items-center">
+              <span style={{ color: "#ea5455", fontWeight: 600 }}>
+                {totalRemaining} €
+              </span>
+            </div>
+          );
         },
       },
 
@@ -287,10 +271,34 @@ class AllContracts extends React.Component {
         field: "document_state",
         width: 170,
         cellRendererFramework: (params) => {
+          const { isFullyPaid } = this.calculateContractFinances(params.data);
+          const state = params.data.document_state || "";
+          const stateLower = state.toLowerCase();
+
+          // Determine badge style and text based on state and payment
+          let badgeClass = "etat-badge";
+          let badgeText = state;
+
+          if (stateLower.startsWith("termin")) {
+            if (isFullyPaid) {
+              badgeClass += " etat-success"; // Green - Paid and finished
+              badgeText = "Terminé";
+            } else {
+              badgeClass += " etat-danger"; // Red/Pink - Finished but unpaid
+              badgeText = "Terminé (Impayé)";
+            }
+          } else if (stateLower === "en cours") {
+            badgeClass += " etat-primary"; // Blue - In progress
+          } else if (stateLower === "en attente") {
+            badgeClass += " etat-secondary"; // Gray - Pending
+          } else {
+            badgeClass += " etat-secondary"; // Default gray
+          }
+
           return (
             params.data.user && (
-              <div className="d-flex align-items-center cursor-pointer">
-                <span>{params.data.document_state}</span>
+              <div className="d-flex align-items-center">
+                <span className={badgeClass}>{badgeText}</span>
               </div>
             )
           );
@@ -312,23 +320,7 @@ class AllContracts extends React.Component {
           );
         },
       },
-      {
-        headerName: "Date de Modification",
-        field: "updated_at",
-        width: 200,
-        sort: "desc",
-        cellRendererFramework: (params) => {
-          return (
-            <div>
-              <Moment
-                format="DD/MM/YYYY HH:mm"
-                date={params.data.updated_at}
-                utc
-              />
-            </div>
-          );
-        },
-      },
+
       {
         headerName: "Date acompte",
         field: "deposit_date",
@@ -402,6 +394,12 @@ class AllContracts extends React.Component {
       .get(global.config.server_url + "/documents", Config)
       .then((response) => {
         let rowData = response.data;
+        // Sort by created_at descending (recent to oldest)
+        if (rowData && Array.isArray(rowData)) {
+          rowData.sort(
+            (a, b) => new Date(b.created_at) - new Date(a.created_at),
+          );
+        }
         this.setState({ rowData }, () => {
           // Apply filter immediately after data load if consultant
           if (this.gridApi && isConsultant) {
@@ -455,7 +453,7 @@ class AllContracts extends React.Component {
     ];
 
     return candidates.some(
-      (v) => v !== undefined && v !== null && String(v) === target
+      (v) => v !== undefined && v !== null && String(v) === target,
     );
   };
 
@@ -556,14 +554,14 @@ class AllContracts extends React.Component {
             global.config.server_url +
               "/suivi-avancement/client/" +
               contract.user_id,
-            Config
+            Config,
           );
           if (res.data && Array.isArray(res.data)) {
             const suivi = res.data.find((s) => s.facture_id === id);
             if (suivi) {
               await axios.delete(
                 global.config.server_url + "/suivi-avancement/" + suivi.id,
-                Config
+                Config,
               );
             }
           }
@@ -607,12 +605,7 @@ class AllContracts extends React.Component {
         const isTerminated = contract.document_state === "Terminé";
         const isNotFullyPaid = contract.status_payment < 2;
 
-        const updatedAt = new Date(contract.updated_at);
-        const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-        const isOldEnough = updatedAt < oneWeekAgo;
-
-        return isTerminated && isNotFullyPaid && isOldEnough;
+        return isTerminated && isNotFullyPaid;
       });
     }
 
@@ -674,19 +667,18 @@ class AllContracts extends React.Component {
                   <div className="d-flex align-items-center mb-1 text-danger">
                     <AlertTriangle className="mr-50" size={20} />
                     <h4 className="mb-0 text-danger">
-                      Contrats terminés impayés ({lateContracts.length}){" "}
-                      <i style={{ fontWeight: "normal", fontSize: "0.85em" }}>
-                        depuis plus d'une semaine
-                      </i>
+                      Contrats impayés ({lateContracts.length})
                     </h4>
                   </div>
                   <Table responsive hover className="mb-0">
                     <thead>
                       <tr>
                         <th>Contrat</th>
+                        <th>Prestation</th>
                         <th>Date de modification</th>
                         <th>Acompte</th>
                         <th>Solde</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -698,6 +690,29 @@ class AllContracts extends React.Component {
                           amountAcompte,
                         } = this.calculateContractFinances(contract);
                         const isAcompteProblem = totalPaid < amountAcompte;
+
+                        // Parse services logic (copied from columnDefs)
+                        let servicesRender = null;
+                        if (contract.subscribe_services) {
+                          const services = contract.subscribe_services
+                            .replaceAll('"', "")
+                            .trim()
+                            .split("/");
+                          servicesRender = services.map((service, index) => {
+                            if (service && service.trim() !== "") {
+                              return (
+                                <Chip
+                                  className="m-0 text-center ml-1"
+                                  key={index}
+                                  color={chipColors[service.trim()]}
+                                  text={service}
+                                />
+                              );
+                            }
+                            return null;
+                          });
+                        }
+
                         return (
                           <tr
                             key={contract.id}
@@ -706,11 +721,16 @@ class AllContracts extends React.Component {
                               history.push("/pages/contract/" + contract.id)
                             }
                           >
-                            <td>
+                            <td style={{ fontWeight: 700 }}>
                               {(contract.comment || "").replace(
                                 /^(Contrat|Contract) de\s+/i,
                                 "",
                               )}
+                            </td>
+                            <td>
+                              <div className="d-flex flex-wrap">
+                                {servicesRender}
+                              </div>
                             </td>
                             <td>
                               <Moment
@@ -729,6 +749,21 @@ class AllContracts extends React.Component {
                             </td>
                             <td className="text-danger font-weight-bold">
                               {totalRemaining} €
+                            </td>
+                            <td>
+                              <div className="actions cursor-pointer">
+                                <Trash2
+                                  size={15}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    this.handleAlert(
+                                      "defaultAlert",
+                                      true,
+                                      contract.id,
+                                    );
+                                  }}
+                                />
+                              </div>
                             </td>
                           </tr>
                         );
@@ -783,7 +818,7 @@ class AllContracts extends React.Component {
                               color="primary"
                               onClick={() =>
                                 this.externalFilterChanged(
-                                  localStorage.getItem("userid")
+                                  localStorage.getItem("userid"),
                                 )
                               }
                             >
@@ -798,7 +833,7 @@ class AllContracts extends React.Component {
                   <ContextLayout.Consumer>
                     {(context) => (
                       <div
-                        className="ag-theme-material ag-grid-table flex-grow-1"
+                        className="ag-theme-material ag-grid-table flex-grow-1 contracts-row-cards"
                         style={{ width: "100%", minHeight: 0 }}
                       >
                         <AgGridReact
@@ -818,19 +853,26 @@ class AllContracts extends React.Component {
                           paginationPageSize={pageSize}
                           resizable={true}
                           enableRtl={context.state.direction === "rtl"}
-                          getRowStyle={(params) => {
-                            if (params.data.document_state === "Terminé") {
-                              if (params.data.status_payment === 2) {
-                                return {
-                                  background: "rgba(40, 199, 111, 0.25)",
-                                };
-                              } else {
-                                return {
-                                  background: "rgba(234, 84, 85, 0.25)",
-                                };
-                              }
+                          getRowClass={(params) => {
+                            const { isFullyPaid } =
+                              this.calculateContractFinances(params.data);
+                            const state = (
+                              params.data.document_state || ""
+                            ).toLowerCase();
+
+                            // PRIORITÉ 1: Terminé + payé à 100% = VERT
+                            if (state.startsWith("termin") && isFullyPaid) {
+                              return "row-stripe-success"; // Vert - Terminé et payé
                             }
-                            return null;
+
+                            // PRIORITÉ 2: Terminé + impayé = ROUGE OBLIGATOIRE
+                            if (state.startsWith("termin") && !isFullyPaid) {
+                              return "row-stripe-danger"; // Rouge - Terminé mais impayé
+                            }
+
+                            // PRIORITÉ 3: Autres états (En cours, En attente) = BLANC
+                            // Même si payé partiellement, ils restent blancs
+                            return ""; // Normal/Blanc
                           }}
                         />
                       </div>

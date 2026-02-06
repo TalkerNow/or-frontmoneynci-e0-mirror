@@ -1,6 +1,6 @@
 import React from "react";
 import { Card, CardBody, Badge } from "reactstrap";
-import { Star, MoreVertical, Calendar, Clock, Trash2 } from "react-feather";
+import { Calendar, Clock, Trash2 } from "react-feather";
 import { withRouter } from "react-router-dom";
 import SweetAlert from "react-bootstrap-sweetalert";
 import "./kanban.scss";
@@ -187,14 +187,13 @@ class KanbanCard extends React.Component {
   };
 
   render() {
-    const { card, onStarClick, onDeleteClick, onCardClick, isLoadingData } =
+    const { card, onDeleteClick, onCardClick, isLoadingData } =
       this.props;
     const {
       type,
       name,
       amount,
       deadline,
-      isStarred,
       date,
       hour,
       channel_origin,

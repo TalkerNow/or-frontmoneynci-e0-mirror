@@ -767,59 +767,109 @@
 .salesforce-path li {
   flex: 1;
   position: relative;
-  padding: 10px 0 10px 30px;
-  background: #e9ecef; /* Couleur Futur (Gris) */
+  padding: 12px 10px 12px 35px;
+  background: #f0f2f5; 
   color: #6c757d;
-  font-weight: bold;
+  font-weight: 600;
   text-align: center;
-  margin-right: 4px; /* Petit espace entre les flèches */
-  clip-path: polygon(0% 0%, 95% 0%, 100% 50%, 95% 100%, 0% 100%, 5% 50%);
+  margin-right: 2px;
+  /* Premium shape with smoother arrow */
+  clip-path: polygon(0% 0%, 96% 0%, 100% 50%, 96% 100%, 0% 100%, 4% 50%);
   cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 0.9rem;
-  display: flex; /* Pour centrer le contenu (icône + texte) */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 0.85rem;
+  display: flex;
   align-items: center;
   justify-content: center;
-  /* Prevent shrinking */
   flex-shrink: 0; 
   white-space: nowrap;
+  letter-spacing: 0.5px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.5);
+
+  &:hover {
+    filter: brightness(0.95);
+    z-index: 5;
+  }
 
   @media (max-width: 576px) {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     padding: 10px 10px 10px 25px;
   }
 }
 
-/* Correction pour le premier élément (bord droit) */
+/* First element specific shape */
 .salesforce-path li:first-child {
   padding-left: 15px;
-  clip-path: polygon(0% 0%, 95% 0%, 100% 50%, 95% 100%, 0% 100%);
+  clip-path: polygon(0% 0%, 96% 0%, 100% 50%, 96% 100%, 0% 100%);
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
 }
 
-/* État : COMPLÉTÉ (Vert) */
+/* Last element specific shape */
+.salesforce-path li:last-child {
+  margin-right: 0;
+  clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%, 4% 50%);
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+
+/* État : COMPLÉTÉ (Vert Moderne) */
 .salesforce-path li.completed {
-  background-color: #28c76f; 
+  background: linear-gradient(135deg, #28c76f 0%, #1fa567 100%);
   color: white;
+  box-shadow: 0 2px 4px rgba(40, 199, 111, 0.2);
+  
+  &:hover {
+    box-shadow: 0 4px 8px rgba(40, 199, 111, 0.3);
+  }
 }
 
-/* État : ACTIF (Bleu) */
+/* État : ACTIF (Bleu Salesforce Vibrant) */
 .salesforce-path li.active {
-  background-color: #0176D3; /* Salesforce Blue */
+  background: linear-gradient(135deg, #0176D3 0%, #014c8f 100%);
   color: white;
+  z-index: 3;
+  box-shadow: 0 3px 6px rgba(1, 118, 211, 0.3);
+  
+  &:hover {
+    box-shadow: 0 5px 12px rgba(1, 118, 211, 0.4);
+  }
 }
 
 /* État : ACTIF + SUCCÈS (Terminé) override */
 .salesforce-path li.active.bg-success {
-  background-color: #28c76f !important;
+  background: linear-gradient(135deg, #28c76f 0%, #1fa567 100%) !important;
   border-color: #28c76f !important;
 }
 
-/* Hover effects */
-.salesforce-path li:not(.active):hover {
-  background-color: #dbe0e6;
+/* Global Banner version refinement */
+.w-100 .salesforce-path {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
-.salesforce-path li.completed:hover {
-  background-color: #24b464;
+
+/* === VERSION COMPACTE (pour les cartes résumés) === */
+.salesforce-path.path-compact {
+  margin-bottom: 0;
+  width: auto;
+  display: inline-flex;
+  min-width: 300px;
+}
+
+.salesforce-path.path-compact li {
+  padding: 5px 15px; /* Reduced padding as requested */
+  font-size: 10px; /* Smaller font as requested */
+  font-weight: 600;
+  margin-right: 2px;
+}
+
+.salesforce-path.path-compact li:first-child {
+  padding-left: 10px;
+}
+
+.salesforce-path.path-compact li svg {
+  width: 12px;
+  height: 12px;
 }
 
 /* Toolbar Compacte */
@@ -1063,5 +1113,186 @@
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+// ================================================================================================
+// ALL CONTRACTS TABLE - ROW CARDS STYLE
+// ================================================================================================
+
+// When .contracts-row-cards is on the same element as .ag-theme-material
+.ag-theme-material.contracts-row-cards,
+.contracts-row-cards .ag-theme-material,
+.contracts-row-cards.ag-theme-material {
+  --ag-background-color: transparent !important;
+  --ag-odd-row-background-color: transparent !important;
+  --ag-row-border-color: transparent !important;
+  background-color: transparent !important;
+  
+  .ag-root-wrapper {
+    background: transparent !important;
+    border: none !important;
+  }
+  
+  .ag-header {
+    background: transparent !important;
+    border-bottom: none !important;
+    
+    .ag-header-cell {
+      color: #6c757d !important;
+      font-size: 0.75rem !important;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600 !important;
+      background: transparent !important;
+    }
+  }
+  
+  .ag-body-viewport {
+    background: transparent !important;
+  }
+  
+  .ag-center-cols-container {
+    background: transparent !important;
+  }
+  
+  .ag-row {
+    background: white !important;
+    box-shadow: 0 4px 24px 0 rgba(0,0,0,0.08) !important;
+    border-radius: 10px !important;
+    margin-bottom: 14px !important;
+    border: none !important;
+    transition: all 0.25s ease !important;
+    
+    &:hover {
+      box-shadow: 0 8px 32px 0 rgba(0,0,0,0.14) !important;
+      transform: translateY(-2px);
+    }
+    
+    .ag-cell {
+      border: none !important;
+      display: flex;
+      align-items: center;
+      line-height: 1.4;
+    }
+    
+    // Status row background colors
+    &.row-stripe-success {
+      background: rgba(40, 199, 111, 0.12) !important; // Light Green - Paid
+    }
+    
+    &.row-stripe-danger {
+      background: rgba(234, 84, 85, 0.12) !important; // Light Red - Unpaid
+    }
+  }
+  
+  // Remove row selection highlight interference
+  .ag-row-selected {
+    background: white !important;
+    
+    &::before {
+      display: none !important;
+    }
+  }
+  
+  // Pagination styling
+  .ag-paging-panel {
+    background: transparent !important;
+    border-top: none !important;
+    padding-top: 16px;
+  }
+}
+
+// Contract name column styling - global scope
+.contract-name-cell {
+  font-weight: 700 !important;
+  color: #283046 !important;
+  font-size: 0.95rem !important;
+}
+
+// Remaining amount styling - global scope
+.remaining-debt {
+  display: flex;
+  flex-direction: column;
+  color: #ea5455 !important;
+  font-weight: 700 !important;
+  
+  .remaining-label {
+    font-size: 0.65rem;
+    color: #adb5bd !important;
+    font-weight: 500;
+    margin-top: 2px;
+  }
+}
+
+.remaining-paid {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  background: rgba(40, 199, 111, 0.15) !important;
+  color: #28c76f !important;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+// Combined Montant / Solde column styling
+.montant-solde-cell {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+  
+  .solde-status {
+    font-weight: 600;
+    font-size: 0.9rem;
+    
+    &.solde-paid {
+      color: #28c76f;
+    }
+    
+    &.solde-due {
+      color: #ea5455;
+    }
+  }
+  
+  .solde-total {
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin-top: 2px;
+  }
+}
+
+// État column badge styles
+.etat-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-weight: 500;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  
+  // Terminé payé - Green
+  &.etat-success {
+    background-color: rgba(40, 199, 111, 0.12);
+    color: #28c76f;
+  }
+  
+  // Terminé impayé - Red/Pink  
+  &.etat-danger {
+    background-color: rgba(234, 84, 85, 0.12);
+    color: #ea5455;
+  }
+  
+  // En cours - Blue
+  &.etat-primary {
+    background-color: rgba(115, 103, 240, 0.12);
+    color: #7367f0;
+  }
+  
+  // En attente - Gray
+  &.etat-secondary {
+    background-color: rgba(108, 117, 125, 0.12);
+    color: #6c757d;
   }
 }

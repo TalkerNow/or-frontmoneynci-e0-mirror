@@ -6,42 +6,27 @@ import {
   ModalBody,
   ModalFooter,
   Button,
-  Input,
   Spinner,
   Badge,
-  FormGroup,
-  Label,
 } from "reactstrap";
 import {
   Star,
   Edit,
   Trash2,
-  User,
-  FileText,
-  Clock,
-  Calendar,
   Check,
   X,
-  Target,
   MessageSquare,
-  Plus,
-  ChevronUp,
-  ChevronDown,
 } from "react-feather";
 import SweetAlert from "react-bootstrap-sweetalert";
-import ContractButton from "../Buttons/Contract";
 import {
-  calculateComplexityScore,
   generateVisualReport,
 } from "../../inbox/utils";
 import VisualReportModal from "../../inbox/VisualReportModal";
-import CreateContractButton from "./components/CreateContractButton";
 import EditModeSection from "./sections/EditModeSection";
 import DisplayModeSection from "./sections/DisplayModeSection";
 import ContactSection from "./sections/ContactSection";
 import ContractsSection from "./sections/ContractsSection";
 import DiagnosticSection from "./sections/DiagnosticSection";
-import ConversationsSection from "./sections/ConversationsSection";
 import {
   formatDateTimeLabel,
   formatSuggestedDate,
@@ -49,13 +34,6 @@ import {
   getNextEligibleDate,
   getLatestDiagnostic,
   getDiagnosticAttributes,
-  loadContractTemplate,
-  normalizeTemplateValues,
-  getRowLabel,
-  buildValuesForSelection,
-  buildSubscribeServicesString,
-  computeTotalsFromValues,
-  generateContractLabel,
 } from "./utils";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -740,7 +718,7 @@ class UserKanbanModal extends React.Component {
       onDelete,
     } = this.props;
 
-    const { isEditing, editFormData, dateSource, includeDateTime } = this.state;
+    const { isEditing, editFormData, includeDateTime } = this.state;
 
     // Utiliser displayCard si disponible, sinon selectedCard
     const currentCard = this.state.displayCard || selectedCard;

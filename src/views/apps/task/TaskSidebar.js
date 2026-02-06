@@ -11,8 +11,7 @@ import {
   Col,
   Row,
 } from "reactstrap";
-import { X, Star, Tag, Check } from "react-feather";
-import Checkbox from "../../../components/@vuexy/checkbox/CheckboxesVuexy";
+import { Check } from "react-feather";
 import { connect } from "react-redux";
 import {
   readTask,
@@ -22,7 +21,6 @@ import {
   addNewTask,
 } from "../../../redux/actions/todo/index";
 import Select from "react-select";
-import axios from "axios";
 import "flatpickr/dist/themes/light.css";
 import "../../../../src/assets/scss/plugins/forms/flatpickr/flatpickr.scss";
 import Flatpickr from "react-flatpickr";
@@ -203,31 +201,6 @@ class FilterSidebar extends React.Component {
                   }}
                 >
                   <Check size={16} color={taskStatus ? "white" : "#999"} />
-                </div>
-
-                <div
-                  onClick={() => this.props.readTask(this.props.taskToUpdate)}
-                  title={
-                    taskRead ? "Retirer des favoris" : "Ajouter aux favoris"
-                  }
-                  style={{
-                    width: "32px",
-                    height: "32px",
-                    border: `1.5px solid ${taskRead ? "#ffc107" : "#d0d0d0"}`,
-                    borderRadius: "50%",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    background: taskRead ? "#ffc107" : "white",
-                    transition: "all 0.2s",
-                  }}
-                >
-                  <Star
-                    size={14}
-                    color={taskRead ? "white" : "#999"}
-                    fill={taskRead ? "white" : "none"}
-                  />
                 </div>
               </div>
             )}

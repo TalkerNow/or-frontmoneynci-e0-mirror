@@ -1,5 +1,5 @@
 import React from "react";
-import { Badge, Button, Collapse } from "reactstrap";
+import { Badge, Button } from "reactstrap";
 import { MessageSquare, ChevronDown, ChevronUp } from "react-feather";
 
 const ConversationsSection = ({

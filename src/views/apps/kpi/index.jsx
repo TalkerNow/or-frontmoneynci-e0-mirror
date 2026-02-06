@@ -25,7 +25,6 @@ import KPIModal from "./KPIModal";
 import { Plus } from "lucide-react";
 // CRM v2 Components
 import InboxView from "./components/InboxView";
-import PipelineView from "./components/PipelineView";
 import AdminView from "./components/AdminView";
 import KanbanBoard from "./components/kanban/KanbanBoard.jsx";
 

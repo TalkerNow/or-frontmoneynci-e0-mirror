@@ -44,9 +44,9 @@ import { French } from "flatpickr/dist/l10n/fr.js";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { history } from "../../../history";
-import Radio from "../../../components/@vuexy/radio/RadioVuexy";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import ContractStatusPath from "../../../components/ContractStatusPath";
 const chipColors = {
   CH: "warning",
   SIMU: "success",
@@ -1022,29 +1022,9 @@ class EditContract extends React.Component {
           let values = JSON.parse(rowData.values);
           input_values = { ...values };
 
-          // Ensure we have payment date entries if fp1 < 100
-          const fp1Val = parseInt(values.fp1) || 0;
-          if (fp1Val < 100 && fp1Val > 0) {
-            const defaultMethod = payment_method || "Virement bancaire";
-
-            // Ensure at least 1 Acompte date
-            if (acompteDatesNormalized.length === 0) {
-              acompteDatesNormalized.push({ date: "", method: defaultMethod });
-            }
-            // Ensure at least 1 Solde date
-            if (soldDatesNormalized.length === 0) {
-              soldDatesNormalized.push({ date: "", method: defaultMethod });
-            }
-
-            // Update state with the ensured dates
-            this.setState({
-              acompte_dates: acompteDatesNormalized,
-              sold_dates: soldDatesNormalized,
-              // STARTING IN VIEW MODE (removed auto-edit)
-              editingAcompte: [],
-              editingSold: [],
-            });
-          }
+          // No longer auto-creating payment lines on load.
+          // Users can add payment lines manually via "+ Ajouter une date" button.
+          // This ensures deleted lines stay deleted after refresh.
 
           // Enforce "En attente" if no payments exist
           const finalAcompteDates = this.state.acompte_dates || [];
@@ -1633,10 +1613,10 @@ class EditContract extends React.Component {
 
   addDate = (key, dateValue = "") => {
     this.setState((prev) => {
-      // Default method: global payment method or "Virement bancaire"
-      const defaultMethod = this.state.payment_method || "Virement bancaire";
-      // Use the passed date value or empty string
-      const dateToUse = dateValue || "";
+      // Default method: "-" to indicate it needs to be filled
+      const defaultMethod = "-";
+      // Use empty string to show placeholder "JJ/MM/AAAA"
+      const dateToUse = "";
       const newObj = { date: dateToUse, method: defaultMethod, is_paid: false };
 
       const newArr = [...(prev[key] || []), newObj];
@@ -2074,15 +2054,18 @@ class EditContract extends React.Component {
                     Voulez-vous enregistrer vos modifications avant de quitter ?
                   </ModalBody>
                   <ModalFooter>
-                    <Button color="primary" onClick={this.handleSaveAndLeave}>
+                    <Button
+                      color="primary"
+                      outline
+                      onClick={this.handleSaveAndLeave}
+                    >
                       Enregistrer et Quitter
                     </Button>
                     <Button
                       color="danger"
-                      outline
                       onClick={this.handleLeaveWithoutSaving}
                     >
-                      Quitter sans sauvegarder
+                      Annuler
                     </Button>
                   </ModalFooter>
                 </Modal>
@@ -2317,56 +2300,37 @@ class EditContract extends React.Component {
                       style={{ overflow: "visible" }}
                     >
                       {/* ZONE 1 : SALESFORCE PATH */}
-                      {(() => {
-                        const statuses = ["En attente", "En cours", "Terminé"];
-                        const currentStatus = this.state.status;
-                        const currentIndex = statuses.indexOf(currentStatus);
-                        return (
-                          <ul className="salesforce-path">
-                            {statuses.map((status, idx) => {
-                              let className = "";
-                              const isFinishedStep = status === "Terminé";
+                      {/* ZONE 1 : SALESFORCE PATH */}
+                      <ContractStatusPath
+                        status={this.state.status}
+                        onStatusChange={(status) => {
+                          const hasP =
+                            (this.state.acompte_dates || []).length > 0 ||
+                            (this.state.sold_dates || []).length > 0;
 
-                              if (idx < currentIndex) {
-                                className = "completed";
-                              } else if (idx === currentIndex) {
-                                className = "active";
-                                // SPECIFIC : If active step is "Terminé", add success class
-                                if (isFinishedStep) {
-                                  className += " bg-success text-white";
-                                }
-                              }
-
-                              return (
-                                <li
-                                  key={status}
-                                  className={className}
-                                  onClick={() => {
-                                    const hasP =
-                                      (this.state.acompte_dates || []).length >
-                                        0 ||
-                                      (this.state.sold_dates || []).length > 0;
-                                    if (!hasP && status !== "En attente") {
-                                      toast.warning(
-                                        "Veuillez ajouter au moins une date de paiement pour changer le statut.",
-                                      );
-                                      return;
-                                    }
-                                    this.setState({ status, isDirty: true });
-                                  }}
-                                >
-                                  {(idx < currentIndex ||
-                                    (isFinishedStep &&
-                                      idx === currentIndex)) && (
-                                    <Check size={14} className="mr-1" />
-                                  )}
-                                  {status}
-                                </li>
+                          if (status === "En cours" && !hasP) {
+                            // Auto-add line if switching to En cours with no payments
+                            const needsAcompte =
+                              (this.state.formValues["fp1"] || 0) > 0;
+                            const defaultKey = needsAcompte
+                              ? "acompte_dates"
+                              : "sold_dates";
+                            this.addDate(defaultKey, "");
+                            this.setState({ status, isDirty: true });
+                            toast.success(
+                              "Une ligne de paiement a été ajoutée automatiquement.",
+                            );
+                          } else {
+                            if (!hasP && status === "Terminé") {
+                              toast.warning(
+                                "Veuillez ajouter au moins une date de paiement pour terminer le contrat.",
                               );
-                            })}
-                          </ul>
-                        );
-                      })()}
+                              return;
+                            }
+                            this.setState({ status, isDirty: true });
+                          }
+                        }}
+                      />
 
                       {/* ZONE 2 : TOOLBAR COMPACTE */}
                       {(() => {
@@ -2868,6 +2832,7 @@ class EditContract extends React.Component {
                                     {row.isEditing ? (
                                       <Flatpickr
                                         className="form-control"
+                                        placeholder="JJ/MM/AAAA"
                                         value={
                                           row.date
                                             ? moment(row.date).toDate()
@@ -2902,7 +2867,7 @@ class EditContract extends React.Component {
                                       moment(row.date).format("DD/MM/YYYY")
                                     ) : (
                                       <span className="text-muted">
-                                        Non définie
+                                        JJ/MM/AAAA
                                       </span>
                                     )}
                                   </td>
@@ -2971,9 +2936,7 @@ class EditContract extends React.Component {
                                     {row.isEditing ? (
                                       <Input
                                         type="select"
-                                        value={
-                                          row.method || "Virement bancaire"
-                                        }
+                                        value={row.method || "-"}
                                         onChange={(e) =>
                                           this.updateDate(
                                             row.type === "acompte"
@@ -2986,6 +2949,7 @@ class EditContract extends React.Component {
                                         }
                                         style={{ minWidth: 200 }}
                                       >
+                                        <option value="-">-</option>
                                         <option value="Virement bancaire">
                                           Virement bancaire
                                         </option>

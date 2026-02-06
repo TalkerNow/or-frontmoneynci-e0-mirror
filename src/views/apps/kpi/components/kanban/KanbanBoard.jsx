@@ -20,7 +20,6 @@ import {
   reorderKanbans,
 } from "../../../../../redux/actions/kanban";
 import "./kanban.scss";
-import getBadgeColor from "../../../../../helpers/getBadgeColor";
 
 class KanbanBoard extends React.Component {
   constructor(props) {

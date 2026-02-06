@@ -157,6 +157,129 @@
     }
   }
 
+  // Table tasks hover effects
+  .table-tasks {
+    font-size: 0.9rem;
+    
+    thead th {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #6c757d;
+      font-weight: 600;
+      padding-top: 0.75rem;
+      padding-bottom: 0.75rem;
+      background-color: #fff;
+      border-top: none;
+      border-bottom: 1px solid #dee2e6;
+    }
+
+    tbody td {
+      padding-top: 0.5rem;
+      padding-bottom: 0.5rem;
+      vertical-align: middle;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .client-link {
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .task-desc {
+      color: $gray-600 !important;
+      font-weight: 400;
+      font-size: 0.85rem;
+    }
+
+    // Prevent wrapping for specific columns and set min-widths
+    th, td {
+      &:nth-child(2) { min-width: 130px; } // Client
+      &:nth-child(3) { min-width: 80px; } // Prestation
+      &:nth-child(4) { min-width: 100px; } // Type
+      &:nth-child(5) { min-width: 200px; } // Tâche
+      &:nth-child(6) { 
+        min-width: 90px; 
+        white-space: nowrap; 
+      } // Échéance
+      &:nth-child(7) { 
+        min-width: 80px; 
+        white-space: nowrap; 
+      } // Actions
+    }
+
+    // Completed rows styling
+    .completed-row {
+      background-color: #f8f9fa !important;
+      opacity: 0.7;
+      
+      td {
+        color: $gray-500 !important;
+        
+        .client-link, .task-desc, .text-dark {
+          color: $gray-500 !important;
+          text-decoration: line-through !important;
+        }
+
+        .badge, .chip {
+          filter: grayscale(1);
+          opacity: 0.6;
+        }
+      }
+
+      &:hover {
+        background-color: #f1f1f1 !important;
+        .client-link {
+          text-decoration: line-through !important; // Keep line-through even on hover
+        }
+      }
+    }
+
+    tbody tr {
+      transition: all 0.15s ease;
+      &:hover {
+        background-color: rgba($primary, 0.04) !important;
+        
+        .client-link:not(.completed-row .client-link) {
+           text-decoration: underline !important;
+        }
+      }
+    }
+  }
+
+  // Ensure the scrollbar area handles the table correctly
+  .todo-task-list {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    
+    .table-responsive {
+      margin: 0;
+      border: none;
+      overflow: visible !important;
+    }
+
+    table {
+      min-width: 1000px; // Increased slightly to accommodate all columns comfortably
+      table-layout: auto;
+    }
+
+    th, td {
+      white-space: normal;
+      
+      // Force NO-WRAP on specific columns
+      &:nth-child(1), // Checkbox
+      &:nth-child(6), // Échéance
+      &:nth-child(7) { // Actions
+        white-space: nowrap !important;
+      }
+
+      // Min widths
+      &:nth-child(2) { min-width: 180px; } // Client
+      &:nth-child(3) { min-width: 120px; } // Prestation
+      &:nth-child(5) { min-width: 300px; } // Tâche
+    }
+  }
+
   // Right content area common css starts
   .content-right {
     position: relative;

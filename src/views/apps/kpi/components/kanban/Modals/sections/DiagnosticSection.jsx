@@ -1,5 +1,5 @@
 import React from "react";
-import { Badge, Button } from "reactstrap";
+import { Button } from "reactstrap";
 import { FileText, User, Check, Clock, Target } from "react-feather";
 import { calculateComplexityScore } from "../../../inbox/utils";
 
