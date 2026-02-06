@@ -40,6 +40,16 @@ const ActionsSection = ({
   // Local state for prospect creation result
   const [localClientId, setLocalClientId] = useState(null);
 
+  useEffect(() => {
+    setLocalClientId(null);
+    setActiveView("HOME");
+    setNewCallReport("");
+    setNewTaskText("");
+    setTaskDateTime("");
+    setShowCreateModal(false);
+    setShowKanbanModal(false);
+  }, [clientId, prospectId, type]);
+
   // Effective Client ID (prop or locally created)
   const effectiveClientId = clientId || localClientId;
 

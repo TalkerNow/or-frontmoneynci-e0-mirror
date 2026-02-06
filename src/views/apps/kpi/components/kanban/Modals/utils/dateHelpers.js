@@ -3,7 +3,7 @@
  */
 
 export const formatDateTimeLabel = (date, hour) => {
-  if (!date) return "Date/heure (optionnel)";
+  if (!date) return "Choisir une date";
   const time = hour || "00:00";
   const dt = new Date(`${date}T${time}`);
   const dateLabel = new Intl.DateTimeFormat("fr-FR", {

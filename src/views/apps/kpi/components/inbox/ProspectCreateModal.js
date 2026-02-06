@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import SweetAlert from "react-bootstrap-sweetalert";
+import { toast } from "react-toastify";
 
 const ProspectCreateModal = ({
   isOpen,
@@ -133,11 +134,7 @@ const ProspectCreateModal = ({
           }
         } catch (linkError) {
           console.error("Failed to link user to source item:", linkError);
-          // Si la liaison échoue mais le prospect est créé, on affiche quand même le succès
-          setModalState("success");
-          setStatusMessage(
-            `✅ Prospect créé avec succès !\n\nID: ${newUserId}\nNom: ${fullName || "—"}\n\nNote: La liaison automatique a échoué.`,
-          );
+          toast.success("Prospect créé avec succès");
 
           // Réinitialiser le formulaire et notifier
           setProspectForm({
@@ -147,34 +144,24 @@ const ProspectCreateModal = ({
             phone: "",
           });
 
-          // Fermer après 3 secondes
-          setTimeout(() => {
-            if (onSuccess) onSuccess(newUserId);
-            onClose();
-            setModalState("form");
-            setStatusMessage("");
-            setCreatedUserId(null);
-          }, 3000);
-          return;
-        }
-
-        // Show success si tout s'est bien passé
-        setModalState("success");
-        setStatusMessage(
-          `✅ Prospect créé avec succès !\n\nID: ${newUserId}\nNom: ${fullName || "—"}\n\nVous pouvez maintenant ajouter des actions.`,
-        );
-
-        // Réinitialiser le formulaire et notifier
-        setProspectForm({ firstName: "", lastName: "", email: "", phone: "" });
-
-        // Fermer après 3 secondes
-        setTimeout(() => {
           if (onSuccess) onSuccess(newUserId);
           onClose();
           setModalState("form");
           setStatusMessage("");
           setCreatedUserId(null);
-        }, 3000);
+          return;
+        }
+
+        toast.success("Prospect créé avec succès");
+
+        // Réinitialiser le formulaire et notifier
+        setProspectForm({ firstName: "", lastName: "", email: "", phone: "" });
+
+        if (onSuccess) onSuccess(newUserId);
+        onClose();
+        setModalState("form");
+        setStatusMessage("");
+        setCreatedUserId(null);
       } else {
         throw new Error("Aucune donnée utilisateur reçue du serveur.");
       }

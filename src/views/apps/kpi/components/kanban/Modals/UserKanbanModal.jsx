@@ -253,11 +253,6 @@ class UserKanbanModal extends React.Component {
     return formatDateTimeLabel(editFormData.date, editFormData.hour);
   };
 
-  isMorning = () => {
-    const now = new Date();
-    return now.getHours() < 13;
-  };
-
   setSuggestedTime = (hour) => {
     const tomorrowDate = getNextEligibleDate();
     this.setState((prevState) => ({
@@ -266,7 +261,6 @@ class UserKanbanModal extends React.Component {
         date: tomorrowDate,
         hour: hour,
       },
-      dateSource: "suggested",
     }));
   };
 
@@ -746,10 +740,23 @@ class UserKanbanModal extends React.Component {
       onDelete,
     } = this.props;
 
-    const { isEditing, editFormData, dateSource } = this.state;
+    const { isEditing, editFormData, dateSource, includeDateTime } = this.state;
 
     // Utiliser displayCard si disponible, sinon selectedCard
     const currentCard = this.state.displayCard || selectedCard;
+    const currentKanbanId = String(currentCard?.kanban_id ?? "");
+    const editKanbanId = String(editFormData.kanban_id ?? "");
+    const currentDescription = currentCard?.description || "";
+    const editDescription = editFormData.description || "";
+    const currentDate = currentCard?.date || "";
+    const currentHour = currentCard?.hour || "";
+    const editDate = includeDateTime ? editFormData.date || "" : "";
+    const editHour = includeDateTime ? editFormData.hour || "" : "";
+    const hasChanges =
+      editKanbanId !== currentKanbanId ||
+      editDescription !== currentDescription ||
+      editDate !== currentDate ||
+      editHour !== currentHour;
 
     const diagnostic = userDetails
       ? this.getLatestDiagnostic(userDetails)
@@ -850,13 +857,12 @@ class UserKanbanModal extends React.Component {
                     onFormChange={this.handleEditFormChange}
                     onDateTimeClick={this.handleDateTimeClick}
                     formatDateTimeLabel={this.formatDateTimeLabel}
-                    formatSuggestedDate={this.formatSuggestedDate}
                     onSetSuggestedTime={this.setSuggestedTime}
+                    formatSuggestedDate={this.formatSuggestedDate}
                     dateTimeInputRef={this.dateTimeInputRef}
                     onDateTimeChange={this.handleDateTimeChange}
                     includeDateTime={this.state.includeDateTime}
                     onToggleIncludeDateTime={this.handleToggleIncludeDateTime}
-                    dateSource={dateSource}
                   />
                 ) : (
                   <DisplayModeSection
@@ -1140,10 +1146,7 @@ class UserKanbanModal extends React.Component {
                   onClick={this.handleSaveEdit}
                   className="d-flex align-items-center"
                   disabled={
-                    editFormData.kanban_id === currentCard.kanban_id &&
-                    editFormData.date === currentCard.date &&
-                    editFormData.hour === currentCard.hour &&
-                    editFormData.description === currentCard.description
+                    !hasChanges || (includeDateTime && !editFormData.date)
                   }
                 >
                   <Check size={14} className="mr-50" />

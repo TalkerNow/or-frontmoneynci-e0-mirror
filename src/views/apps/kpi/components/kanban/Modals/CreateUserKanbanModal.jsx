@@ -11,9 +11,8 @@ import {
   Label,
   Input,
   Spinner,
-  Badge,
 } from "reactstrap";
-import { Calendar, Clock, FileText, CheckCircle } from "react-feather";
+import { Calendar, Clock, FileText } from "react-feather";
 import { toast } from "react-toastify";
 
 const CreateUserKanbanModal = ({ isOpen, onClose, onSuccess, userId }) => {
@@ -31,7 +30,6 @@ const CreateUserKanbanModal = ({ isOpen, onClose, onSuccess, userId }) => {
     status: "scheduled",
   });
   const [includeDateTime, setIncludeDateTime] = useState(false);
-  const [dateSource, setDateSource] = useState(null); // 'manual' ou 'suggested'
 
   // Fetch kanbans on mount
   useEffect(() => {
@@ -129,6 +127,7 @@ const CreateUserKanbanModal = ({ isOpen, onClose, onSuccess, userId }) => {
         onSuccess();
       }
       onClose();
+      history.push("/kpi/opportunities");
     } catch (error) {
       console.error("Error creating user kanban:", error);
       toast.error(
@@ -149,7 +148,6 @@ const CreateUserKanbanModal = ({ isOpen, onClose, onSuccess, userId }) => {
       date: date || prev.date,
       hour: time || prev.hour,
     }));
-    setDateSource("manual");
   };
 
   const handleIncludeDateToggle = () => {
@@ -157,7 +155,6 @@ const CreateUserKanbanModal = ({ isOpen, onClose, onSuccess, userId }) => {
       const next = !prev;
       if (!next) {
         setFormData((cur) => ({ ...cur, date: "", hour: "" }));
-        setDateSource(null);
       }
       return next;
     });
@@ -175,7 +172,7 @@ const CreateUserKanbanModal = ({ isOpen, onClose, onSuccess, userId }) => {
   };
 
   const formatDateTimeLabel = () => {
-    if (!formData.date) return "Choisir date et heure";
+    if (!formData.date) return "Choisir une date";
     const time = formData.hour || "00:00";
     const dt = new Date(`${formData.date}T${time}`);
     const dateLabel = new Intl.DateTimeFormat("fr-FR", {
@@ -187,19 +184,10 @@ const CreateUserKanbanModal = ({ isOpen, onClose, onSuccess, userId }) => {
     return `${dateLabel}  •  ${time}`;
   };
 
-  const isMorning = () => {
-    const now = new Date();
-    return now.getHours() < 13;
-  };
-
   const setSuggestedTime = (hour) => {
     const now = new Date();
     const tomorrow = new Date(now);
-
-    // Si c'est vendredi (5), ajouter 3 jours pour aller au lundi
-    // Sinon, ajouter 1 jour
     const daysToAdd = now.getDay() === 5 ? 3 : 1;
-
     tomorrow.setDate(tomorrow.getDate() + daysToAdd);
     const tomorrowDate = tomorrow.toISOString().split("T")[0];
     setFormData((prev) => ({
@@ -207,7 +195,6 @@ const CreateUserKanbanModal = ({ isOpen, onClose, onSuccess, userId }) => {
       date: tomorrowDate,
       hour: hour,
     }));
-    setDateSource("suggested");
   };
 
   const formatSuggestedDate = (hour) => {
@@ -310,27 +297,11 @@ const CreateUserKanbanModal = ({ isOpen, onClose, onSuccess, userId }) => {
                 <div
                   className={`date-time-section mt-1 ${includeDateTime ? "is-open" : "is-closed"}`}
                 >
-                  {dateSource && (
-                    <div className="text-center mb-50">
-                      <Badge
-                        color={
-                          dateSource === "suggested"
-                            ? "light-success"
-                            : "light-primary"
-                        }
-                        className="font-small-2"
-                      >
-                        {dateSource === "suggested"
-                          ? "✓ Suggestion"
-                          : "📅 Manuel"}
-                      </Badge>
-                    </div>
-                  )}
                   <div
                     className="d-flex align-items-stretch"
-                    style={{ gap: "12px" }}
+                    style={{ gap: "8px", flexWrap: "wrap" }}
                   >
-                    <div style={{ flex: 1 }}>
+                    <div style={{ flex: 1, minWidth: "200px" }}>
                       <Button
                         color="primary"
                         outline
@@ -372,52 +343,34 @@ const CreateUserKanbanModal = ({ isOpen, onClose, onSuccess, userId }) => {
                         tabIndex={-1}
                       />
                     </div>
-                    <div style={{ flex: 1 }}>
-                      {isMorning() ? (
-                        <Button
-                          color="info"
-                          outline
-                          type="button"
-                          onClick={() => setSuggestedTime("16:30")}
-                          disabled={!includeDateTime}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: "0.75rem",
-                            whiteSpace: "normal",
-                            lineHeight: "1.2",
-                            padding: "0.5rem",
-                          }}
-                        >
-                          {formatSuggestedDate("16:30")}
-                        </Button>
-                      ) : (
-                        <Button
-                          color="info"
-                          outline
-                          type="button"
-                          onClick={() => setSuggestedTime("10:30")}
-                          disabled={!includeDateTime}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: "0.75rem",
-                            whiteSpace: "normal",
-                            lineHeight: "1.2",
-                            padding: "0.5rem",
-                          }}
-                        >
-                          {formatSuggestedDate("10:30")}
-                        </Button>
-                      )}
-                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-outline-primary btn-sm"
+                      onClick={() => setSuggestedTime("10:30")}
+                      disabled={!includeDateTime}
+                      style={{ minWidth: "160px" }}
+                    >
+                      {formatSuggestedDate("10:30")}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline-primary btn-sm"
+                      onClick={() => setSuggestedTime("16:00")}
+                      disabled={!includeDateTime}
+                      style={{ minWidth: "160px" }}
+                    >
+                      {formatSuggestedDate("16:00")}
+                    </button>
                   </div>
+                  {includeDateTime && formData.date && (
+                    <div
+                      className="mt-50 text-muted"
+                      style={{ fontSize: "0.75rem" }}
+                    >
+                      Date sélectionnée :{" "}
+                      <strong>{formatDateTimeLabel()}</strong>
+                    </div>
+                  )}
                 </div>
               </FormGroup>
 
