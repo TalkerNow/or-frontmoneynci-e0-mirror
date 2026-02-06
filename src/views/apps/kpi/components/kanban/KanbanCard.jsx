@@ -43,32 +43,26 @@ class KanbanCard extends React.Component {
       chatbot: {
         label: "Chatbot",
         color: "primary",
-        icon: "💬",
       },
       diagnostic: {
         label: "Diag",
         color: "warning",
-        icon: "📊",
       },
       simulator: {
         label: "Simu",
         color: "info",
-        icon: "🧮",
       },
       email: {
         label: "Email",
         color: "success",
-        icon: "📧",
       },
       phone: {
         label: "Tel",
         color: "danger",
-        icon: "📞",
       },
       default: {
         label: "Direct",
         color: "secondary",
-        icon: "👤",
       },
     };
 
@@ -85,10 +79,8 @@ class KanbanCard extends React.Component {
           borderRadius: "8px",
           display: "inline-flex",
           alignItems: "center",
-          gap: "4px",
         }}
       >
-        <span>{config.icon}</span>
         <span>{config.label}</span>
       </Badge>
     );
@@ -206,6 +198,8 @@ class KanbanCard extends React.Component {
       date,
       hour,
       channel_origin,
+      description,
+      phone,
     } = card;
     const overdue = this.isOverdue(date, hour);
     const { Alert } = this.state;
@@ -325,6 +319,15 @@ class KanbanCard extends React.Component {
               {name}
             </h5>
 
+            {description && description.trim() && (
+              <div
+                className="text-muted"
+                style={{ fontSize: "0.75rem", marginBottom: "6px" }}
+              >
+                {description.trim().slice(0, 60)}...
+              </div>
+            )}
+
             <div className="d-flex justify-content-between align-items-center">
               {isLoadingData ? (
                 <div
@@ -343,38 +346,61 @@ class KanbanCard extends React.Component {
               )}
             </div>
 
-            {date && hour && (
-              <div className="mt-75 d-flex align-items-center">
-                <Clock
-                  size={13}
-                  className={`mr-50 ${overdue ? "text-danger" : "text-muted"}`}
-                />
-                {(() => {
-                  const badge = this.getRelativeDateBadge(date);
-                  return badge ? (
-                    <Badge
-                      color={badge.color}
-                      className="font-small-2"
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "6px",
-                      }}
-                    >
-                      {overdue && "⚠️ "}
-                      {badge.label} • {hour}
-                    </Badge>
-                  ) : (
-                    <span
-                      className={`font-small-2 ${overdue ? "text-danger font-weight-bold" : "text-muted"}`}
-                    >
-                      {overdue && "⚠️ "}
-                      {this.formatDateTime(date, hour)}
-                    </span>
-                  );
-                })()}
+            {phone && (
+              <div
+                className="text-muted"
+                style={{ fontSize: "0.75rem", marginTop: "4px" }}
+              >
+                {phone}
               </div>
             )}
+
+            {(date && hour) || channel_origin ? (
+              <div className="mt-75 d-flex align-items-center justify-content-between">
+                {date && hour ? (
+                  <div className="d-flex align-items-center">
+                    <Clock
+                      size={13}
+                      className={`mr-50 ${overdue ? "text-danger" : "text-muted"}`}
+                    />
+                    {(() => {
+                      const badge = this.getRelativeDateBadge(date);
+                      return badge ? (
+                        <Badge
+                          color={badge.color}
+                          className="font-small-2"
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            fontSize: "0.7rem",
+                            padding: "0.2rem 0.4rem",
+                          }}
+                        >
+                          {overdue && "⚠️ "}
+                          {badge.label} • {hour}
+                        </Badge>
+                      ) : (
+                        <span
+                          className={`font-small-2 ${overdue ? "text-danger font-weight-bold" : "text-muted"}`}
+                          style={{ fontSize: "0.7rem" }}
+                        >
+                          {overdue && "⚠️ "}
+                          {this.formatDateTime(date, hour)}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                ) : (
+                  <span />
+                )}
+                {channel_origin && (
+                  <div className="d-flex justify-content-end">
+                    {this.getChannelBadge(channel_origin)}
+                  </div>
+                )}
+              </div>
+            ) : null}
 
             {deadline && (
               <div className="mt-50 d-flex align-items-center">
@@ -382,12 +408,6 @@ class KanbanCard extends React.Component {
                 <span className="text-danger font-small-2 font-weight-bold">
                   {deadline}
                 </span>
-              </div>
-            )}
-
-            {channel_origin && (
-              <div className="mt-75 d-flex justify-content-end">
-                {this.getChannelBadge(channel_origin)}
               </div>
             )}
           </CardBody>

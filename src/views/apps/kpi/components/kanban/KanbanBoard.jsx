@@ -31,6 +31,7 @@ class KanbanBoard extends React.Component {
       isCreatingColumn: false,
       newColumnTitle: "",
       newColumnColor: "#60a5fa",
+      searchQuery: "",
       selectedCard: null,
       isModalOpen: false,
       userDetails: null,
@@ -112,6 +113,12 @@ class KanbanBoard extends React.Component {
               totalAmount,
               allServices,
               documents: user.documents || [],
+              phone:
+                user.mobile_number ||
+                user.phone ||
+                user.tel ||
+                user.phone_number ||
+                "",
               channel_origin: channel_origin,
             };
           })
@@ -176,6 +183,12 @@ class KanbanBoard extends React.Component {
             totalAmount,
             allServices,
             documents: user.documents || [],
+            phone:
+              user.mobile_number ||
+              user.phone ||
+              user.tel ||
+              user.phone_number ||
+              "",
             channel_origin: channel_origin,
           },
         },
@@ -188,13 +201,22 @@ class KanbanBoard extends React.Component {
 
   getCardsForColumn = (columnId) => {
     const { userKanbans } = this.props;
+    const { searchQuery } = this.state;
     const { usersData } = this.state;
 
     if (!userKanbans || userKanbans.length === 0) return [];
 
     // Filtrer les userKanbans par kanban_id et mapper au format attendu par KanbanCard
+    const normalizedQuery = (searchQuery || "").trim().toLowerCase();
+
     return userKanbans
       .filter((userKanban) => userKanban.kanban_id === columnId)
+      .slice()
+      .sort((a, b) => {
+        const aDate = new Date(a.created_at || a.date || 0).getTime();
+        const bDate = new Date(b.created_at || b.date || 0).getTime();
+        return aDate - bDate;
+      })
       .map((userKanban) => {
         // Extraire la date au format YYYY-MM-DD depuis l'ISO string
         let formattedDate = userKanban.date;
@@ -212,6 +234,7 @@ class KanbanBoard extends React.Component {
         const userData = usersData[userKanban.user_id] || {
           totalAmount: 0,
           allServices: "",
+          phone: "",
           channel_origin: null,
         };
 
@@ -228,7 +251,22 @@ class KanbanBoard extends React.Component {
           user_id: userKanban.user_id,
           kanban_id: userKanban.kanban_id,
           channel_origin: userData.channel_origin,
+          phone: userData.phone,
         };
+      })
+      .filter((card) => {
+        if (!normalizedQuery) return true;
+        const haystack = [
+          card.name,
+          card.type,
+          card.description,
+          card.phone,
+          card.channel_origin,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(normalizedQuery);
       });
   };
 
@@ -446,7 +484,8 @@ class KanbanBoard extends React.Component {
 
   render() {
     const { kanbans, loading } = this.props;
-    const { isCreatingColumn, newColumnTitle, newColumnColor } = this.state;
+    const { isCreatingColumn, newColumnTitle, newColumnColor, searchQuery } =
+      this.state;
 
     if (loading) {
       return (
@@ -480,6 +519,14 @@ class KanbanBoard extends React.Component {
         onDragEnd={this.handleDragEnd}
       >
         <div className="kanban-board-wrapper">
+          <div className="mb-1">
+            <Input
+              type="text"
+              placeholder="Rechercher une carte (nom, téléphone, source, description...)"
+              value={searchQuery}
+              onChange={(e) => this.setState({ searchQuery: e.target.value })}
+            />
+          </div>
           <Droppable
             droppableId="all-columns"
             direction="horizontal"

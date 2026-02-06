@@ -19,27 +19,30 @@
   background: #fff;
 }
 
-/* Pulse to draw attention to the open button when the card is hidden */
-.profile-toggle-pulse {
-  position: relative;
-}
-.profile-toggle-pulse::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 26px;
-  height: 26px;
+/* Button to re-open the collapsed profile card */
+.profile-expand-btn {
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  border: 2px solid rgba(115, 103, 240, 0.6);
-  transform: translate(-50%, -50%);
-  animation: profile-pulse 1.6s ease-out infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #7367f0;
+  background: rgba(115, 103, 240, 0.08);
+  border: 1.5px solid rgba(115, 103, 240, 0.4);
+  outline: none;
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
-
-@keyframes profile-pulse {
-  0% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
-  70% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
-  100% { opacity: 0; }
+.profile-expand-btn:hover {
+  background: rgba(115, 103, 240, 0.18);
+  border-color: #7367f0;
+}
+.profile-expand-btn:active {
+  background: rgba(115, 103, 240, 0.28);
 }
 
 .collapsed-info {
@@ -71,6 +74,7 @@
   padding-left: 0 !important;
   padding-right: 0 !important;
   overflow: hidden;
+  pointer-events: none;
   /* Slightly longer close for a pleasant finish */
   transition: flex-basis 0.26s cubic-bezier(0.22, 1, 0.36, 1),
               max-width 0.26s cubic-bezier(0.22, 1, 0.36, 1),
