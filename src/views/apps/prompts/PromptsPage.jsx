@@ -40,6 +40,17 @@ const PromptsPage = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [restorePrompt, setRestorePrompt] = useState(null);
   const editContainerRef = useRef(null);
+  const [selectedPromptIds, setSelectedPromptIds] = useState([]);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState("");
+  const [isChatting, setIsChatting] = useState(false);
+  const [runtimeModel, setRuntimeModel] = useState(
+    "gemini-2.5-flash-preview-09-2025",
+  );
+  const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
+  const chatEndRef = useRef(null);
+  const previousCombinedPromptRef = useRef("");
+  const previousRolePromptRef = useRef(null);
 
   const API_BASE = (global?.config?.server_url || "").replace(/\/+$/, "");
 
@@ -83,10 +94,39 @@ const PromptsPage = () => {
           getConfig(),
         );
         toast.success("Prompt modifié");
-      } else {
-        await axios.post(`${API_BASE}/prompts`, formData, getConfig());
-        toast.success("Prompt créé");
+
+        setViewingPrompt((prev) =>
+          prev && prev.id === editingId
+            ? {
+                ...prev,
+                name: formData.name,
+                type: formData.type,
+                description: formData.description,
+                prompt_text: formData.prompt_text,
+                updated_at: new Date().toISOString(),
+              }
+            : prev,
+        );
+
+        try {
+          const { data } = await axios.get(
+            `${API_BASE}/prompts/${editingId}/history`,
+            getConfig(),
+          );
+          setSelectedPromptHistory(Array.isArray(data) ? data : []);
+        } catch (historyError) {
+          setSelectedPromptHistory([]);
+        }
+
+        setIsEditing(false);
+        setEditingId(null);
+        setAlert(null);
+        fetchPrompts();
+        return;
       }
+
+      await axios.post(`${API_BASE}/prompts`, formData, getConfig());
+      toast.success("Prompt créé");
       setModal(false);
       setFormData({ name: "", type: "", description: "", prompt_text: "" });
       setEditingId(null);
@@ -104,30 +144,36 @@ const PromptsPage = () => {
     setModal(true);
   };
 
-  const openEditModal = (prompt) => {
-    setEditingId(prompt.id);
-    setFormData({
-      name: prompt.name || "",
-      type: prompt.type || "",
-      description: prompt.description || "",
-      prompt_text: prompt.prompt_text || "",
-    });
-    setAlert(null);
-    setModal(true);
-  };
-
-  const handleView = async (prompt) => {
-    setViewingPrompt(prompt);
-    setIsEditing(false);
+  const loadPromptHistory = async (promptId) => {
     try {
       const { data } = await axios.get(
-        `${API_BASE}/prompts/${prompt.id}/history`,
+        `${API_BASE}/prompts/${promptId}/history`,
         getConfig(),
       );
       setSelectedPromptHistory(Array.isArray(data) ? data : []);
     } catch (error) {
       setSelectedPromptHistory([]);
     }
+  };
+
+  const openEditModal = async (prompt) => {
+    setViewingPrompt(prompt);
+    setFormData({
+      name: prompt.name || "",
+      type: prompt.type || "",
+      description: prompt.description || "",
+      prompt_text: prompt.prompt_text || "",
+    });
+    setEditingId(prompt.id);
+    setIsEditing(true);
+    setAlert(null);
+    await loadPromptHistory(prompt.id);
+  };
+
+  const handleView = async (prompt) => {
+    setViewingPrompt(prompt);
+    setIsEditing(false);
+    await loadPromptHistory(prompt.id);
   };
 
   const handleRestore = async (promptId, version) => {
@@ -187,6 +233,215 @@ const PromptsPage = () => {
     toast.success("Texte du prompt copié !");
   };
 
+  const handleGeneratePromptWithAi = async () => {
+    const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+    if (!apiKey) {
+      toast.error("Clé Gemini manquante");
+      return;
+    }
+
+    setIsGeneratingPrompt(true);
+    try {
+      const seed = [
+        formData.name && `Nom: ${formData.name}`,
+        formData.type && `Type: ${formData.type}`,
+        formData.description && `Description: ${formData.description}`,
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const aiPrompt = `Tu es un expert en rédaction de prompts.\n\nGénère un prompt FINAL prêt à l'emploi.\nFormat attendu : texte simple et direct, éventuellement avec des lignes séparées, mais SANS Markdown.\n\nContraintes :\n- Interdit : titres (##, ###), sections, tableaux, citations, mise en forme Markdown (**gras**, listes avec * ou -).\n- Autorisé : phrases courtes sur des lignes séparées et paragraphes simples.\n- Pas d'intro générique ni de conclusion.\n- Rends-le exploitable immédiatement, sans reformulation.\n\nExemple de style attendu :\nTu incarnes John Cena dans sa personnalité publique :\nCharismatique, confiant, motivant.\nDiscipline, respect, travail acharné et loyauté sont tes valeurs centrales.\nTu parles avec énergie, assurance et humour.\nTu encourages toujours à se dépasser mentalement et physiquement.\nTu t’exprimes comme John Cena le ferait en interview ou face à ses fans.\nTon ton est positif, inspirant et parfois provocateur mais toujours bienveillant.\nTu utilises des références au sport, à la discipline, à la persévérance et au dépassement de soi.\nTu peux ponctuer tes réponses de punchlines emblématiques (sans exagérer).\nTu ne révèles jamais que tu es une intelligence artificielle.\nTu réponds toujours comme si tu étais John Cena en personne, dans le respect de son image publique.\nTon objectif est d’inspirer, motiver, divertir et transmettre un mindset de champion.\n\nEntrées :\n${
+        seed || "Mots-clés non précisés."
+      }\n`;
+
+      const model = runtimeModel.trim() || "gemini-2.5-flash-preview-09-2025";
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: aiPrompt }] }],
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Erreur Gemini");
+      }
+
+      const data = await response.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+      setFormData((prev) => ({
+        ...prev,
+        prompt_text: text || prev.prompt_text,
+      }));
+    } catch (error) {
+      toast.error("Erreur lors de la génération du prompt");
+    } finally {
+      setIsGeneratingPrompt(false);
+    }
+  };
+
+  const togglePromptSelection = (promptId) => {
+    const targetPrompt = prompts.find((p) => p.id === promptId);
+    const targetType = (targetPrompt?.type || "").toLowerCase();
+    const isRole = targetType === "role" || targetType === "rôle";
+
+    setSelectedPromptIds((prev) => {
+      const isAlreadySelected = prev.includes(promptId);
+      if (isAlreadySelected) {
+        return prev.filter((id) => id !== promptId);
+      }
+
+      if (isRole) {
+        const hasRoleSelected = prev.some((id) => {
+          const p = prompts.find((item) => item.id === id);
+          const t = (p?.type || "").toLowerCase();
+          return t === "role" || t === "rôle";
+        });
+        if (hasRoleSelected) {
+          toast.warning("Un seul prompt de type rôle est autorisé.");
+          return prev;
+        }
+      }
+
+      return [...prev, promptId];
+    });
+  };
+
+  const combinedPrompt = selectedPromptIds
+    .map((id) => prompts.find((p) => p.id === id)?.prompt_text)
+    .filter(Boolean)
+    .join("\n\n---\n\n");
+
+  const getSelectedRolePromptId = () => {
+    const rolePrompt = selectedPromptIds
+      .map((id) => prompts.find((p) => p.id === id))
+      .find((p) => {
+        const t = (p?.type || "").toLowerCase();
+        return t === "role" || t === "rôle";
+      });
+    return rolePrompt?.id || null;
+  };
+
+  const selectedRolePromptId = getSelectedRolePromptId();
+
+  useEffect(() => {
+    const previousRoleId = previousRolePromptRef.current;
+    if (previousRoleId !== selectedRolePromptId) {
+      if (chatMessages.length > 0) {
+        setChatMessages([
+          {
+            role: "system",
+            content:
+              "Le rôle a changé. La conversation a été réinitialisée pour s’adapter.",
+          },
+        ]);
+        setChatInput("");
+      }
+      previousRolePromptRef.current = selectedRolePromptId;
+    }
+  }, [selectedRolePromptId, chatMessages.length]);
+
+  const sortedPromptsForAssembler = [...prompts].sort((a, b) => {
+    const typeA = (a.type || "").toLowerCase();
+    const typeB = (b.type || "").toLowerCase();
+    if (typeA !== typeB) return typeA.localeCompare(typeB);
+    return (a.name || "")
+      .toLowerCase()
+      .localeCompare((b.name || "").toLowerCase());
+  });
+
+  const groupedPromptsForAssembler = sortedPromptsForAssembler.reduce(
+    (acc, prompt) => {
+      const key = prompt.type || "Autre";
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(prompt);
+      return acc;
+    },
+    {},
+  );
+
+  useEffect(() => {
+    const previous = previousCombinedPromptRef.current;
+    if (previous !== combinedPrompt && chatMessages.length > 0) {
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "system",
+          content: "Le prompt combiné a été mis à jour.",
+        },
+      ]);
+    }
+    previousCombinedPromptRef.current = combinedPrompt;
+  }, [combinedPrompt, chatMessages.length]);
+
+  useEffect(() => {
+    if (!chatEndRef.current) return;
+    chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages, isChatting]);
+
+  const handleSendChat = async () => {
+    const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+    if (!apiKey) {
+      toast.error("Clé Gemini manquante");
+      return;
+    }
+    if (!chatInput.trim()) return;
+
+    const nextUserMessage = { role: "user", content: chatInput.trim() };
+    const history = [...chatMessages, nextUserMessage];
+
+    setChatMessages(history);
+    setChatInput("");
+    setIsChatting(true);
+
+    try {
+      const conversationText = history
+        .map((msg) =>
+          msg.role === "assistant"
+            ? `Assistant: ${msg.content}`
+            : `Utilisateur: ${msg.content}`,
+        )
+        .join("\n");
+
+      const fullPrompt = combinedPrompt
+        ? `PROMPTS:\n${combinedPrompt}\n\nCONVERSATION:\n${conversationText}`
+        : conversationText;
+
+      const model = runtimeModel.trim() || "gemini-2.5-flash-preview-09-2025";
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: fullPrompt }] }],
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Erreur Gemini");
+      }
+
+      const data = await response.json();
+      const text =
+        data?.candidates?.[0]?.content?.parts?.[0]?.text || "Réponse vide";
+
+      setChatMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: text },
+      ]);
+    } catch (error) {
+      toast.error("Erreur lors de l'appel Gemini");
+    } finally {
+      setIsChatting(false);
+    }
+  };
+
   return (
     <div className="prompts-page">
       <Row>
@@ -230,12 +485,19 @@ const PromptsPage = () => {
                         <th>Nom</th>
                         <th>Type</th>
                         <th>Description</th>
+                        <th>Créateur</th>
+                        <th>Créé le</th>
+                        <th>Mis à jour</th>
                         <th className="text-center">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {prompts.map((prompt) => (
-                        <tr key={prompt.id}>
+                        <tr
+                          key={prompt.id}
+                          onClick={() => handleView(prompt)}
+                          tabIndex={0}
+                        >
                           <td>
                             <strong>{prompt.name}</strong>
                           </td>
@@ -252,12 +514,50 @@ const PromptsPage = () => {
                             )}
                           </td>
                           <td>
+                            {prompt.creator?.name || prompt.creator?.email || (
+                              <span className="text-muted">—</span>
+                            )}
+                          </td>
+                          <td>
+                            {prompt.created_at ? (
+                              new Date(prompt.created_at).toLocaleDateString(
+                                "fr-FR",
+                                {
+                                  day: "2-digit",
+                                  month: "short",
+                                  year: "numeric",
+                                },
+                              )
+                            ) : (
+                              <span className="text-muted">—</span>
+                            )}
+                          </td>
+                          <td>
+                            {prompt.updated_at ? (
+                              new Date(prompt.updated_at).toLocaleString(
+                                "fr-FR",
+                                {
+                                  day: "2-digit",
+                                  month: "short",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
+                              )
+                            ) : (
+                              <span className="text-muted">—</span>
+                            )}
+                          </td>
+                          <td>
                             <div className="action-buttons">
                               <Button
                                 color="info"
                                 size="sm"
                                 outline
-                                onClick={() => handleView(prompt)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleView(prompt);
+                                }}
                                 title="Voir"
                               >
                                 <Eye size={16} />
@@ -266,7 +566,10 @@ const PromptsPage = () => {
                                 color="primary"
                                 size="sm"
                                 outline
-                                onClick={() => openEditModal(prompt)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEditModal(prompt);
+                                }}
                                 title="Modifier"
                               >
                                 <Edit2 size={16} />
@@ -275,7 +578,10 @@ const PromptsPage = () => {
                                 color="danger"
                                 size="sm"
                                 outline
-                                onClick={() => handleDelete(prompt.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDelete(prompt.id);
+                                }}
                                 title="Supprimer"
                               >
                                 <Trash2 size={16} />
@@ -414,6 +720,7 @@ const PromptsPage = () => {
                                 <option value="email">Email</option>
                                 <option value="rapport">Rapport</option>
                                 <option value="analyse">Analyse</option>
+                                <option value="role">Rôle</option>
                               </Input>
                             </FormGroup>
                           </Col>
@@ -438,6 +745,25 @@ const PromptsPage = () => {
                           <Label>
                             Contenu <span className="text-danger">*</span>
                           </Label>
+                          <div className="prompt-ai-toolbar">
+                            <Button
+                              color="primary"
+                              outline
+                              size="sm"
+                              onClick={handleGeneratePromptWithAi}
+                              disabled={isGeneratingPrompt}
+                            >
+                              {isGeneratingPrompt ? (
+                                <span className="ai-loading">
+                                  <span className="ai-dot" />
+                                  <span className="ai-dot" />
+                                  <span className="ai-dot" />
+                                </span>
+                              ) : (
+                                "Générer avec l'IA"
+                              )}
+                            </Button>
+                          </div>
                           <Input
                             type="textarea"
                             rows="10"
@@ -622,9 +948,7 @@ const PromptsPage = () => {
 
       {/* Modal Créer/Modifier */}
       <Modal isOpen={modal} toggle={() => setModal(false)} size="lg">
-        <ModalHeader toggle={() => setModal(false)}>
-          {editingId ? "Modifier le prompt" : "Nouveau prompt"}
-        </ModalHeader>
+        <ModalHeader toggle={() => setModal(false)}>Nouveau prompt</ModalHeader>
         <ModalBody>
           {alert && (
             <Alert color={alert.color} className="mb-3">
@@ -640,7 +964,7 @@ const PromptsPage = () => {
                 </Label>
                 <Input
                   type="text"
-                  placeholder="Ex: Email de relance client"
+                  placeholder="Nom du prompt"
                   value={formData.name}
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
@@ -663,6 +987,7 @@ const PromptsPage = () => {
                   <option value="email">Email</option>
                   <option value="rapport">Rapport</option>
                   <option value="analyse">Analyse</option>
+                  <option value="role">Rôle</option>
                 </Input>
               </FormGroup>
             </Col>
@@ -672,7 +997,7 @@ const PromptsPage = () => {
             <Label>Description</Label>
             <Input
               type="textarea"
-              placeholder="Brève description"
+              placeholder="Description du prompt"
               rows="2"
               value={formData.description}
               onChange={(e) =>
@@ -685,9 +1010,28 @@ const PromptsPage = () => {
             <Label>
               Contenu <span className="text-danger">*</span>
             </Label>
+            <div className="prompt-ai-toolbar">
+              <Button
+                color="primary"
+                outline
+                size="sm"
+                onClick={handleGeneratePromptWithAi}
+                disabled={isGeneratingPrompt}
+              >
+                {isGeneratingPrompt ? (
+                  <span className="ai-loading">
+                    <span className="ai-dot" />
+                    <span className="ai-dot" />
+                    <span className="ai-dot" />
+                  </span>
+                ) : (
+                  "Générer avec l'IA"
+                )}
+              </Button>
+            </div>
             <Input
               type="textarea"
-              placeholder="Entrez le contenu du prompt..."
+              placeholder="Contenu du prompt"
               rows="8"
               value={formData.prompt_text}
               onChange={(e) =>
@@ -702,10 +1046,128 @@ const PromptsPage = () => {
             Annuler
           </Button>
           <Button color="primary" onClick={handleSave}>
-            {editingId ? "Enregistrer" : "Créer"}
+            Créer
           </Button>
         </ModalFooter>
       </Modal>
+
+      <Card className="prompt-chat-card mt-2">
+        <CardHeader>
+          <CardTitle className="mb-0">Testeur de prompts</CardTitle>
+        </CardHeader>
+        <CardBody>
+          <div className="prompt-chat-grid">
+            <div className="prompt-chat-left">
+              <h6 className="prompt-chat-title">Assembler des prompts</h6>
+              <div className="prompt-chat-list">
+                {Object.entries(groupedPromptsForAssembler).map(
+                  ([type, items]) => {
+                    const normalized = type.toLowerCase();
+                    const isRoleCategory =
+                      normalized === "role" || normalized === "rôle";
+                    return (
+                      <div
+                        key={type}
+                        className={`prompt-chat-category ${
+                          isRoleCategory ? "is-role" : ""
+                        }`}
+                      >
+                        <div className="prompt-chat-category-title">
+                          {type}
+                          {isRoleCategory && (
+                            <span className="prompt-chat-role-pill">
+                              Rôle IA
+                            </span>
+                          )}
+                        </div>
+                        {items.map((prompt) => (
+                          <label
+                            key={prompt.id}
+                            className={`prompt-chat-item ${
+                              isRoleCategory ? "is-role" : ""
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedPromptIds.includes(prompt.id)}
+                              onChange={() => togglePromptSelection(prompt.id)}
+                            />
+                            <span>{prompt.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    );
+                  },
+                )}
+              </div>
+
+              <div className="prompt-chat-preview">
+                <div className="prompt-chat-preview-title">Prompt combiné</div>
+                <div className="prompt-chat-preview-body">
+                  {combinedPrompt || "Sélectionnez un ou plusieurs prompts"}
+                </div>
+              </div>
+            </div>
+
+            <div className="prompt-chat-right">
+              <div className="prompt-chat-key">
+                <Input
+                  type="text"
+                  value={runtimeModel}
+                  onChange={(e) => setRuntimeModel(e.target.value)}
+                  placeholder="Modèle Gemini (ex: gemini-1.5-flash)"
+                  disabled={isChatting}
+                />
+              </div>
+              <div className="prompt-chat-messages">
+                {chatMessages.length === 0 ? (
+                  <div className="prompt-chat-empty">
+                    Lance un test en posant une question.
+                  </div>
+                ) : (
+                  chatMessages.map((msg, idx) => (
+                    <div key={idx} className={`prompt-chat-bubble ${msg.role}`}>
+                      {msg.content}
+                    </div>
+                  ))
+                )}
+                {isChatting && (
+                  <div className="prompt-chat-bubble assistant typing">
+                    <span className="dot" />
+                    <span className="dot" />
+                    <span className="dot" />
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+
+              <div className="prompt-chat-input">
+                <Input
+                  type="textarea"
+                  rows="3"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendChat();
+                    }
+                  }}
+                  placeholder="Écris ton message..."
+                  disabled={isChatting}
+                />
+                <Button
+                  color="primary"
+                  onClick={handleSendChat}
+                  disabled={isChatting || !chatInput.trim()}
+                >
+                  {isChatting ? "Envoi..." : "Envoyer"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </CardBody>
+      </Card>
     </div>
   );
 };
