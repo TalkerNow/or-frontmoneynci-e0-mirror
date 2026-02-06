@@ -1,5 +1,5 @@
 import React from "react";
-import { Card, CardBody, Row, Col, Nav, NavItem, NavLink, TabContent, TabPane, Button, UncontrolledTooltip } from "reactstrap";
+import { Card, CardBody, Row, Col, Nav, NavItem, NavLink, TabContent, TabPane, Button } from "reactstrap";
 import classnames from "classnames";
 import { Info, Folder, CheckSquare, MessageCircle, ArrowLeft, Circle, Activity } from "react-feather";
 import UserDetails from "../../profile/UserDetails";
@@ -153,11 +153,20 @@ class UserEdit extends React.Component {
         <Col lg="8" md="8" sm="12" className={classnames('profile-right', { expanded: this.state.isCollapsed })}>
           <Nav tabs className="border-0 d-flex align-items-center gap-3 mb-1" ref={el => (this.navRef = el)}>
             {this.state.isCollapsed && (
-              <NavItem>
-                <NavLink onClick={() => this.setState({ isCollapsed: false })} className='p-0' aria-label='Afficher la fiche'>
-                  <Circle id={`memberOpenToggle-${id}`} className='text-primary profile-toggle-pulse' size={20} />
-                </NavLink>
-                <UncontrolledTooltip placement='top' target={`memberOpenToggle-${id}`}>Afficher la fiche</UncontrolledTooltip>
+              <NavItem className="d-flex align-items-center mr-50">
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className="profile-expand-btn"
+                  title="Afficher la fiche"
+                  aria-label="Afficher la fiche"
+                  onClick={() => this.setState({ isCollapsed: false })}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") this.setState({ isCollapsed: false });
+                  }}
+                >
+                  <Circle size={16} />
+                </div>
               </NavItem>
             )}
             <NavItem>
@@ -195,11 +204,7 @@ class UserEdit extends React.Component {
           </Nav>
           <TabContent activeTab={this.state.activeTab}>
             <TabPane tabId='notes'>
-            <Card className='mb-0 h-100'>
-              <CardBody className='d-flex flex-column'>
-                <NotesTab data={this.state.rowData} perso={this.state.rowData} id={id} />
-                </CardBody>
-              </Card>
+              <NotesTab data={this.state.rowData} perso={this.state.rowData} id={id} />
             </TabPane>
           <TabPane tabId='documents'>
             <DocumentsHub id={id} name={this.state.rowData.name} alignOffset={this.state.docsOffset} labelId={`documents-label-member-${id}`} />
