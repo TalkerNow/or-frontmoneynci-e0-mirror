@@ -199,6 +199,7 @@ class KanbanCard extends React.Component {
       hour,
       channel_origin,
       description,
+      phone,
     } = card;
     const overdue = this.isOverdue(date, hour);
     const { Alert } = this.state;
@@ -344,6 +345,15 @@ class KanbanCard extends React.Component {
                 </h4>
               )}
             </div>
+
+            {phone && (
+              <div
+                className="text-muted"
+                style={{ fontSize: "0.75rem", marginTop: "4px" }}
+              >
+                {phone}
+              </div>
+            )}
 
             {(date && hour) || channel_origin ? (
               <div className="mt-75 d-flex align-items-center justify-content-between">
