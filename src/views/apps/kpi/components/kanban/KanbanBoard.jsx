@@ -195,6 +195,12 @@ class KanbanBoard extends React.Component {
     // Filtrer les userKanbans par kanban_id et mapper au format attendu par KanbanCard
     return userKanbans
       .filter((userKanban) => userKanban.kanban_id === columnId)
+      .slice()
+      .sort((a, b) => {
+        const aDate = new Date(a.created_at || a.date || 0).getTime();
+        const bDate = new Date(b.created_at || b.date || 0).getTime();
+        return aDate - bDate;
+      })
       .map((userKanban) => {
         // Extraire la date au format YYYY-MM-DD depuis l'ISO string
         let formattedDate = userKanban.date;

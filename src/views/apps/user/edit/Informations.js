@@ -19,7 +19,15 @@ import {
   ModalFooter,
 } from "reactstrap";
 import ReactCountryFlag from "react-country-flag";
-import { User, Home, Briefcase, Heart, Plus, Minus, AlertTriangle } from "react-feather";
+import {
+  User,
+  Home,
+  Briefcase,
+  Heart,
+  Plus,
+  Minus,
+  AlertTriangle,
+} from "react-feather";
 import "flatpickr/dist/themes/light.css";
 import "../../../../assets/scss/plugins/forms/flatpickr/flatpickr.scss";
 import InputMaskDate from "./InputMaskDate";
@@ -116,7 +124,7 @@ class UserAccountTab extends React.Component {
     }
     try {
       const { data } = await axios.get(
-        `https://geo.api.gouv.fr/communes?codePostal=${zip}&fields=nom&format=json`
+        `https://geo.api.gouv.fr/communes?codePostal=${zip}&fields=nom&format=json`,
       );
       const options = (data || []).map((c) => c.nom);
       this.setState({ [key]: options });
@@ -153,7 +161,7 @@ class UserAccountTab extends React.Component {
 
     // On cherche l'indicatif le plus long qui matche
     const sortedCodes = [...countryCodes].sort(
-      (a, b) => b.dial_code.length - a.dial_code.length
+      (a, b) => b.dial_code.length - a.dial_code.length,
     );
 
     for (const c of sortedCodes) {
@@ -182,7 +190,7 @@ class UserAccountTab extends React.Component {
 
     if (p.startsWith("+")) {
       const sortedCodes = [...countryCodes].sort(
-        (a, b) => b.dial_code.length - a.dial_code.length
+        (a, b) => b.dial_code.length - a.dial_code.length,
       );
       for (const c of sortedCodes) {
         if (p.startsWith(c.dial_code)) {
@@ -196,23 +204,36 @@ class UserAccountTab extends React.Component {
   };
   updateUsername = (e) => {
     this.markDirty();
-    if (e.first_name != null && e.last_name != null) {
-      this.setState({ first_name: e.first_name });
-      this.setState({ last_name: e.last_name });
-      this.setState({ username: e.first_name + " " + e.last_name });
-    } else if (e.first_name != null && e.last_name == null) {
-      this.setState({
-        username: e.first_name + " " + this.state.last_name,
-      });
-      this.setState({ first_name: e.first_name });
-    } else if (e.first_name == null && e.last_name != null) {
-      this.setState({
-        username: this.state.first_name + " " + e.last_name,
-      });
-      this.setState({ last_name: e.last_name });
-    } else return;
+    const normalizeNullable = (value) => {
+      if (value === null || value === undefined) return null;
+      const trimmed = String(value).trim();
+      return trimmed ? trimmed : null;
+    };
+    const firstName =
+      e.first_name !== undefined
+        ? normalizeNullable(e.first_name)
+        : normalizeNullable(this.state.first_name);
+    const lastName =
+      e.last_name !== undefined
+        ? normalizeNullable(e.last_name)
+        : normalizeNullable(this.state.last_name);
+    const fullName = [firstName, lastName].filter(Boolean).join(" ") || null;
+
+    this.setState({
+      first_name: firstName,
+      last_name: lastName,
+      username: fullName,
+    });
+  };
+  normalizeNullable = (value) => {
+    if (value === null || value === undefined) return null;
+    const trimmed = String(value).trim();
+    return trimmed ? trimmed : null;
   };
   updateUsersInformation = (information) => {
+    const normalizedUsername = this.normalizeNullable(information.username);
+    const normalizedFirstName = this.normalizeNullable(information.first_name);
+    const normalizedLastName = this.normalizeNullable(information.last_name);
     const Config = {
       headers: {
         Authorization: "Bearer " + localStorage.getItem("token"),
@@ -222,7 +243,7 @@ class UserAccountTab extends React.Component {
       .put(
         global.config.server_url + "/users/" + this.props.id,
         {
-          name: information.username,
+          name: normalizedUsername,
           email: information.email,
           role: information.role
             ? information.role
@@ -243,7 +264,7 @@ class UserAccountTab extends React.Component {
           parent_id: information.parent_id,
           business_introducer_id: information.business_introducer_id,
         },
-        Config
+        Config,
       )
       .then((response) => {
         axios
@@ -255,8 +276,8 @@ class UserAccountTab extends React.Component {
                 : this.props.data.civility
                   ? this.props.data.civility
                   : "",
-              first_name: information.first_name,
-              last_name: information.last_name,
+              first_name: normalizedFirstName,
+              last_name: normalizedLastName,
               birth_date: information.dob,
               birth_place: information.birth_place,
               maiden_name: information.maiden_name,
@@ -291,7 +312,7 @@ class UserAccountTab extends React.Component {
               business_introducer_id: information.business_introducer_id,
               notes: information.notes,
             },
-            Config
+            Config,
           )
           .then((response) => {
             toast.info("Modifications enregistrées");
@@ -364,7 +385,7 @@ class UserAccountTab extends React.Component {
       society_zip_code: "",
       society_city: "",
       society_country: "",
-      modalSocietyDelete: false
+      modalSocietyDelete: false,
     });
     this.markDirty();
   };
@@ -575,20 +596,20 @@ class UserAccountTab extends React.Component {
                           placeholder="Numéro de Téléphone"
                           value={this.formatPhonePretty(
                             this.state.contact_number ??
-                            this.ifExist("mobile_number") ??
-                            this.ifExist("office_number")
+                              this.ifExist("mobile_number") ??
+                              this.ifExist("office_number"),
                           )}
                           onChange={(e) =>
                             this.setState({
                               contact_number: this.normalizePhone(
-                                e.target.value
+                                e.target.value,
                               ),
                             })
                           }
                           onBlur={(e) =>
                             this.setState({
                               contact_number: this.normalizePhone(
-                                e.target.value
+                                e.target.value,
                               ),
                             })
                           }
@@ -971,7 +992,7 @@ class UserAccountTab extends React.Component {
                           <option key={member.id} value={member.id}>
                             {member.first_name + " " + member.last_name}
                           </option>
-                        ))
+                        )),
                       )}
                   </CustomInput>
                 </FormGroup>
@@ -1279,7 +1300,7 @@ class UserAccountTab extends React.Component {
                           <option key={member.id} value={member.id}>
                             {member.first_name + " " + member.last_name}
                           </option>
-                        ))
+                        )),
                       )}
                   </CustomInput>
                 </FormGroup>
@@ -1341,14 +1362,21 @@ class UserAccountTab extends React.Component {
             toggle={this.toggleSocietyModal}
             className="modal-dialog-centered"
           >
-            <ModalHeader toggle={this.toggleSocietyModal} className="bg-danger text-white">
+            <ModalHeader
+              toggle={this.toggleSocietyModal}
+              className="bg-danger text-white"
+            >
               Confirmation de suppression
             </ModalHeader>
             <ModalBody className="text-center p-3">
               <AlertTriangle size={50} className="text-danger mb-2" />
               <h4>Êtes-vous sûr ?</h4>
               <p>
-                En décochant cette option, <strong>toutes les données relatives à la société seront effacées</strong> définitivement lors de la sauvegarde.
+                En décochant cette option,{" "}
+                <strong>
+                  toutes les données relatives à la société seront effacées
+                </strong>{" "}
+                définitivement lors de la sauvegarde.
               </p>
             </ModalBody>
             <ModalFooter>
@@ -1360,7 +1388,6 @@ class UserAccountTab extends React.Component {
               </Button>
             </ModalFooter>
           </Modal>
-
         </Col>
       </Row>
     );

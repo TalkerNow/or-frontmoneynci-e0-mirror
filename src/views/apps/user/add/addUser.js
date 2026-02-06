@@ -153,7 +153,7 @@ class AddUser extends React.Component {
 
     // On cherche l'indicatif le plus long qui matche
     const sortedCodes = [...countryCodes].sort(
-      (a, b) => b.dial_code.length - a.dial_code.length
+      (a, b) => b.dial_code.length - a.dial_code.length,
     );
 
     for (const c of sortedCodes) {
@@ -182,7 +182,7 @@ class AddUser extends React.Component {
 
     if (p.startsWith("+")) {
       const sortedCodes = [...countryCodes].sort(
-        (a, b) => b.dial_code.length - a.dial_code.length
+        (a, b) => b.dial_code.length - a.dial_code.length,
       );
       for (const c of sortedCodes) {
         if (p.startsWith(c.dial_code)) {
@@ -209,7 +209,7 @@ class AddUser extends React.Component {
     }
     try {
       const { data } = await axios.get(
-        `https://geo.api.gouv.fr/communes?codePostal=${zip}&fields=nom&format=json`
+        `https://geo.api.gouv.fr/communes?codePostal=${zip}&fields=nom&format=json`,
       );
       const options = (data || []).map((c) => c.nom);
 
@@ -235,10 +235,7 @@ class AddUser extends React.Component {
       data: { ...prev.data, [`${which}_zip_code`]: zip },
     }));
     if (this.zipTimeout) clearTimeout(this.zipTimeout);
-    this.zipTimeout = setTimeout(
-      () => this.fetchCitiesByZip(zip, which),
-      300
-    );
+    this.zipTimeout = setTimeout(() => this.fetchCitiesByZip(zip, which), 300);
   };
   handleCopyCompanyToggle = (checked) => {
     this.setState((prev) => {
@@ -255,6 +252,11 @@ class AddUser extends React.Component {
   };
   handleAlert = (value) => {
     this.setState({ Alert: value });
+  };
+  normalizeNullable = (value) => {
+    if (value === null || value === undefined) return null;
+    const trimmed = String(value).trim();
+    return trimmed ? trimmed : null;
   };
   sendForm = (data, type) => {
     if (data.civility === "") {
@@ -273,11 +275,15 @@ class AddUser extends React.Component {
     const locationState = this.props.location?.state;
 
     waiterShow();
+    const firstName = this.normalizeNullable(data.first_name);
+    const lastName = this.normalizeNullable(data.last_name);
+    const fullName = [firstName, lastName].filter(Boolean).join(" ") || null;
+
     axios
       .post(global.config.server_url + "/register", {
         email: emailForRegistration,
         password: data.password,
-        name: data.first_name + " " + data.last_name,
+        name: fullName,
         role: data.role,
         parent_id: data.parent_id,
         business_introducer_id: data.business_introducer_id,
@@ -288,9 +294,9 @@ class AddUser extends React.Component {
             .post(global.config.server_url + "/personal_information", {
               id: result.data.user.id,
               user_id: 10,
-              last_name: data.last_name,
+              last_name: lastName,
               maiden_name: data.maiden_name,
-              first_name: data.first_name,
+              first_name: firstName,
               society_related: data.society_related,
               civility: data.civility,
               martial_status: data.martial_status,
@@ -327,13 +333,13 @@ class AddUser extends React.Component {
               const originId = locationState?.originConversationId;
               if (originId) {
                 const hiddenIds = JSON.parse(
-                  localStorage.getItem("MOCK_HIDDEN_CONV_IDS") || "[]"
+                  localStorage.getItem("MOCK_HIDDEN_CONV_IDS") || "[]",
                 );
                 if (!hiddenIds.includes(originId)) {
                   hiddenIds.push(originId);
                   localStorage.setItem(
                     "MOCK_HIDDEN_CONV_IDS",
-                    JSON.stringify(hiddenIds)
+                    JSON.stringify(hiddenIds),
                   );
                 }
                 toast.success("Client créé avec succès !");
@@ -347,11 +353,11 @@ class AddUser extends React.Component {
                 let href_string = window.location.href;
                 if (href_string.includes("member")) {
                   history.push(
-                    "/app/member/edit/" + response.data.user_id + "/2"
+                    "/app/member/edit/" + response.data.user_id + "/2",
                   );
                 } else {
                   history.push(
-                    "/app/user/edit/" + response.data.user_id + "/2"
+                    "/app/user/edit/" + response.data.user_id + "/2",
                   );
                 }
               }
@@ -361,7 +367,7 @@ class AddUser extends React.Component {
               axios
                 .delete(
                   global.config.server_url + "/users/" + result.data.user.id,
-                  Config
+                  Config,
                 )
                 .then((response) => {
                   toast.error("API injoignable.");
@@ -372,7 +378,7 @@ class AddUser extends React.Component {
           axios
             .delete(
               global.config.server_url + "/users/" + result.data.user.id,
-              Config
+              Config,
             )
             .then((response) => {
               toast.error("Création annulé: l'utilisateur existe déjà.");
@@ -400,7 +406,7 @@ class AddUser extends React.Component {
       const birthday_valid = moment(
         this.state.data.birth_date,
         "YYYY-MM-DD",
-        true
+        true,
       ).isValid();
       if (!birthday_valid) {
         toast.error("Le format de la date de naissance est invalide");
@@ -423,7 +429,7 @@ class AddUser extends React.Component {
         global.config.server_url +
           "/duplicated_email?email=" +
           this.state.data.email,
-        Config
+        Config,
       )
       .then((response) => {
         if (response.data === "duplicated") {
@@ -626,7 +632,7 @@ class AddUser extends React.Component {
                         placeholder="Téléphone"
                         id="phone"
                         value={this.formatPhonePretty(
-                          this.state.data.mobile_number || ""
+                          this.state.data.mobile_number || "",
                         )}
                         onChange={(e) => {
                           const val = this.normalizePhone(e.target.value);
