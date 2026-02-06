@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, FormGroup, Label, Spinner, Badge } from "reactstrap";
+import { Button, FormGroup, Label, Spinner } from "reactstrap";
 import { FileText, Plus, X, Check } from "react-feather";
 import ContractButton from "../../Buttons/Contract";
 import CreateContractButton from "../components/CreateContractButton";

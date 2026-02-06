@@ -1,6 +1,6 @@
 import React from "react";
-import { Card, CardHeader, CardBody, Button, Input } from "reactstrap";
-import { Plus, Edit2, Check, X, Droplet, Move, Trash2 } from "react-feather";
+import { Card, CardHeader, CardBody, Input } from "reactstrap";
+import { Edit2, Check, X, Droplet, Move, Trash2 } from "react-feather";
 import { Droppable, Draggable } from "react-beautiful-dnd";
 import SweetAlert from "react-bootstrap-sweetalert";
 import KanbanCard from "./KanbanCard";
@@ -107,7 +107,6 @@ class KanbanColumn extends React.Component {
       column,
       title,
       cards,
-      onAddCard,
       onStarClick,
       onDeleteClick,
       onCardClick,

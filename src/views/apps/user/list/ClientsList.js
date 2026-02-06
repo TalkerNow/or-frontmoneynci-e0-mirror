@@ -1,6 +1,14 @@
 import React from "react";
-import { UserPlus, Trash2, User, Users, Target, Clock } from "react-feather";
-import { Button, Card, CardBody, Input, Row, Col, Nav, NavItem, NavLink, Badge } from "reactstrap";
+import { UserPlus, Trash2 } from "react-feather";
+import {
+  Button,
+  Card,
+  CardBody,
+  Input,
+  Row,
+  Col,
+  Badge,
+} from "reactstrap";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { ContextLayout } from "../../../../utility/context/Layout";
@@ -115,7 +123,12 @@ class ClientsList extends React.Component {
           colKey === "actions"
         )
           return;
-        history.push("/app/user/edit/" + params.data.id + "/2");
+
+        if (params.data.role === "old_client") {
+          history.push("/app/olduser/edit/" + params.data.id + "/2");
+        } else {
+          history.push("/app/user/edit/" + params.data.id + "/2");
+        }
       },
       getRowClass: () => "client-row",
       suppressRowClickSelection: true,
@@ -479,25 +492,48 @@ class ClientsList extends React.Component {
 
     this.setState({ isConsultant, myFilterId });
 
-    // Récupère clients + prospects (depuis members) + documents en parallèle
+    // Récupère clients + prospects (depuis members) + anciens clients + documents en parallèle
     try {
-      const [clientsRes, membersRes, docsRes] = await Promise.all([
-        axios.get(global.config.server_url + "/users?kind=client", Config),
-        axios.get(global.config.server_url + "/users?kind=member", Config),
-        axios.get(global.config.server_url + "/documents", Config),
-      ]);
+      const [clientsRes, membersRes, oldClientsRes, docsRes] =
+        await Promise.all([
+          axios.get(global.config.server_url + "/users?kind=client", Config),
+          axios.get(global.config.server_url + "/users?kind=member", Config),
+          axios.get(global.config.server_url + "/users?kind=oldclient", Config),
+          axios.get(global.config.server_url + "/documents", Config),
+        ]);
 
       // Filtrer les Prospects depuis la liste des membres
       const prospects = (membersRes.data || []).filter(
         (user) => (user.role || "").toLowerCase() === "prospect",
       );
 
-      // Fusionner clients + prospects
-      const allRowData = [...(clientsRes.data || []), ...prospects];
+      // Normaliser les anciens clients
+      const oldClients = (oldClientsRes.data || []).map((oc) => ({
+        ...oc,
+        id: oc.clcleunik,
+        // Mapping
+        first_name: oc.cl_prenom,
+        last_name: oc.cl_nom,
+        email: oc.cl_mail,
+        mobile_number: oc.cl_tel_port,
+        telephone: oc.cl_tel_fixe,
+        created_at: oc.cl_date,
+        // Force le rôle pour distinction
+        role: "old_client",
+        // Mapping Consultant
+        parent: { name: oc.expert_name },
+      }));
+
+      // Fusionner
+      const allRowData = [
+        ...(clientsRes.data || []),
+        ...prospects,
+        ...oldClients,
+      ];
       const documents = docsRes.data || [];
       const servicesByUserId = this.buildServicesMapFromDocuments(documents);
 
-      // Trier uniquement par date de création décroissante (plus récent en premier)
+      // Trier uniquement par date de création décroissante
       const sortedData = allRowData.sort((a, b) => {
         return new Date(b.created_at) - new Date(a.created_at);
       });
@@ -529,30 +565,91 @@ class ClientsList extends React.Component {
     }
   }
 
-  // Toggle entre les onglets (Clients, Prospects) - recliquer désactive le filtre
+  // Toggle entre les onglets
   toggleTab = (tab) => {
-    const { allRowData, activeTab } = this.state;
+    const { allRowData, myFilterId } = this.state;
 
-    // Si on clique sur le même filtre, on revient à "all" (tous)
-    const newTab = tab === activeTab ? "all" : tab;
+    // Si on reclique sur le même, on ne fait rien (ou on remet All ?)
+    // Ici logique demandée : un onglet actif à la fois.
+
+    // CAS SPECIAL : "Mes Clients" (tab = 'mine')
+    // CAS SPECIAL : "Tous" (tab = 'all')
 
     let filteredData = allRowData || [];
 
-    if (newTab === "client") {
-      filteredData = (allRowData || []).filter(
-        (user) => (user.role || "").toLowerCase() !== "prospect",
+    if (tab === "mine") {
+      // Filtre "Mes clients"
+      if (myFilterId) {
+        filteredData = filteredData.filter((user) => {
+          const role = (user.role || "").toLowerCase();
+          // Exclure les prospects/anciens si "Mes Clients" ne concerne que les actifs ?
+          // Le screenshot montre "Clients", "AnciensClients", "Prospects".
+          // "Mes Clients" est probablement un sous-ensemble de "Clients" (actifs).
+          if (role === "prospect" || role === "old_client") return false;
+          return this.checkIsMyClient(user, myFilterId);
+        });
+      } else {
+        // Fallback si pas d'ID
+        filteredData = filteredData.filter((u) => {
+          const r = (u.role || "").toLowerCase();
+          return r !== "prospect" && r !== "old_client";
+        });
+      }
+    } else if (tab === "client") {
+      // "Tous les CLIENTS ACTIFS" (exclut prospects et anciens) ?
+      // Le screenshot montre "Tous", "Mes Clients" ...
+      // "Tous" peut vouloir dire VRAIMENT TOUS (clients + anciens + prospects) OU "Tous les Clients"
+      // Généralement "Tous" = Tout le monde.
+      // Mais il y a un onglet "Mes Clients".
+      // Si l'onglet est "Tous", on affiche tout ?
+      // Voyons les titres : [Tous] [Mes Clients] [Anciens Clients] [Prospects]
+      // Donc "Tous" = Tout le monde.
+      // "Mes Clients" = Clients actifs liés à moi.
+      // "Anciens Clients" = old_clients.
+      // "Prospects" = prospects.
+      // ATTENTION : L'onglet s'appelle "client" dans le code précédent pour "Clients" (vs Prospects).
+      // Je vais renommer les clés pour être clair : 'all', 'mine', 'old_client', 'prospect'.
+    }
+
+    if (tab === "all") {
+      filteredData = allRowData;
+    } else if (tab === "mine") {
+      // logic above
+    } else if (tab === "old_client") {
+      filteredData = filteredData.filter(
+        (u) => (u.role || "").toLowerCase() === "old_client",
       );
-    } else if (newTab === "prospect") {
-      filteredData = (allRowData || []).filter(
-        (user) => (user.role || "").toLowerCase() === "prospect",
+    } else if (tab === "prospect") {
+      filteredData = filteredData.filter(
+        (u) => (u.role || "").toLowerCase() === "prospect",
       );
     }
 
-    this.setState({ activeTab: newTab, rowData: filteredData }, () => {
+    this.setState({ activeTab: tab, rowData: filteredData }, () => {
       if (this.gridApi) {
         this.gridApi.onFilterChanged();
       }
     });
+  };
+
+  checkIsMyClient = (row, myId) => {
+    if (!myId) return true;
+    const target = String(myId);
+    const candidates = [
+      row?.created_by_id,
+      row?.created_by,
+      row?.creator_id,
+      row?.owner_id,
+      row?.ownerId,
+      row?.parent_id,
+      row?.parent?.id,
+      row?.parent?.user_id,
+      row?.technician_id,
+      row?.user_owner_id,
+    ];
+    return candidates.some(
+      (v) => v !== undefined && v !== null && String(v) === target,
+    );
   };
 
   sizeToFit = () => {
@@ -724,9 +821,29 @@ class ClientsList extends React.Component {
     const Config = {
       headers: { Authorization: "Bearer " + localStorage.getItem("token") },
     };
-    axios.delete(global.config.server_url + "/users/" + id, Config).then(() => {
-      var SelectedData = this.gridApi.getSelectedRows();
-      this.gridApi.updateRowData({ remove: SelectedData });
+
+    // Check if user is old client
+    const user = (this.state.allRowData || []).find((u) => u.id === id);
+    const isOld = user?.role === "old_client";
+    const url = isOld
+      ? global.config.server_url + "/users/" + id + "?old=true"
+      : global.config.server_url + "/users/" + id;
+
+    axios.delete(url, Config).then(() => {
+      // Si ag-grid est utilisé
+      if (this.gridApi) {
+        // On peut utiliser updateRowData ou simplement re-filtrer le state local
+        // Ici on vire de rowData local
+        this.setState(
+          (prev) => ({
+            allRowData: prev.allRowData.filter((u) => u.id !== id),
+            rowData: prev.rowData.filter((u) => u.id !== id),
+          }),
+          () => {
+            this.gridApi.setRowData(this.state.rowData);
+          },
+        );
+      }
     });
   }
 
@@ -871,106 +988,93 @@ class ClientsList extends React.Component {
                   className="ag-grid-actions d-flex justify-content-between flex-wrap align-items-center mb-1"
                   style={{ gap: "0.75rem" }}
                 >
-                  {/* === GAUCHE : Filtres + Recherche === */}
-                  <div className="d-flex align-items-center" style={{ gap: "0.75rem", flex: 1, minWidth: 0 }}>
-                    {/* Filtre par type (Clients / Prospects) - recliquer désactive */}
-                    <Nav pills className="flex-nowrap" style={{ marginBottom: 0, flexShrink: 0 }}>
-                      <NavItem>
-                        <NavLink
-                          className={activeTab === "client" ? "active" : ""}
-                          onClick={() => this.toggleTab("client")}
-                          style={{
-                            cursor: "pointer",
-                            padding: "0.5rem 1rem",
-                            ...(activeTab === "client"
-                              ? {
-                                  backgroundColor: "transparent",
-                                  border: "1px solid #7367f0",
-                                  color: "#7367f0",
-                                }
-                              : {}),
-                          }}
-                        >
-                          <Users size={15} className="mr-50" />
-                          <span className="align-middle">Clients</span>
-                        </NavLink>
-                      </NavItem>
-                      <NavItem>
-                        <NavLink
-                          className={activeTab === "prospect" ? "active" : ""}
-                          onClick={() => this.toggleTab("prospect")}
-                          style={{
-                            cursor: "pointer",
-                            padding: "0.5rem 1rem",
-                            ...(activeTab === "prospect"
-                              ? {
-                                  backgroundColor: "transparent",
-                                  border: "1px solid #7367f0",
-                                  color: "#7367f0",
-                                }
-                              : {}),
-                          }}
-                        >
-                          <Target size={15} className="mr-50" />
-                          <span className="align-middle">Prospects</span>
-                        </NavLink>
-                      </NavItem>
-                    </Nav>
-
-                    {/* Séparateur vertical */}
+                  {/* === GAUCHE : Onglets (Tous, Mes Clients, Anciens, Prospects) === */}
+                  <div
+                    className="d-flex align-items-center"
+                    style={{
+                      gap: "1.5rem",
+                      flex: 1,
+                      minWidth: 0,
+                      overflowX: "auto",
+                    }}
+                  >
+                    {/* Onglet TOUS */}
                     <div
+                      className={`cursor-pointer ${activeTab === "all" ? "text-primary font-weight-bold" : "text-secondary"}`}
                       style={{
-                        width: "1px",
-                        height: "24px",
-                        backgroundColor: "#d8d6de",
-                        flexShrink: 0,
+                        borderBottom:
+                          activeTab === "all"
+                            ? "2px solid #7367f0"
+                            : "2px solid transparent",
+                        paddingBottom: "5px",
+                        whiteSpace: "nowrap",
                       }}
-                    />
+                      onClick={() => this.toggleTab("all")}
+                    >
+                      Tous
+                    </div>
 
-                    {/* Barre de recherche - prend tout l'espace disponible */}
+                    {/* Onglet MES CLIENTS */}
+                    <div
+                      className={`cursor-pointer ${activeTab === "mine" ? "text-primary font-weight-bold" : "text-secondary"}`}
+                      style={{
+                        borderBottom:
+                          activeTab === "mine"
+                            ? "2px solid #7367f0"
+                            : "2px solid transparent",
+                        paddingBottom: "5px",
+                        whiteSpace: "nowrap",
+                      }}
+                      onClick={() => this.toggleTab("mine")}
+                    >
+                      Mes Clients
+                    </div>
+
+                    {/* Onglet ANCIENS CLIENTS */}
+                    <div
+                      className={`cursor-pointer ${activeTab === "old_client" ? "text-primary font-weight-bold" : "text-secondary"}`}
+                      style={{
+                        borderBottom:
+                          activeTab === "old_client"
+                            ? "2px solid #7367f0"
+                            : "2px solid transparent",
+                        paddingBottom: "5px",
+                        whiteSpace: "nowrap",
+                      }}
+                      onClick={() => this.toggleTab("old_client")}
+                    >
+                      Anciens Clients
+                    </div>
+
+                    {/* Onglet PROSPECTS */}
+                    <div
+                      className={`cursor-pointer ${activeTab === "prospect" ? "text-primary font-weight-bold" : "text-secondary"}`}
+                      style={{
+                        borderBottom:
+                          activeTab === "prospect"
+                            ? "2px solid #7367f0"
+                            : "2px solid transparent",
+                        paddingBottom: "5px",
+                        whiteSpace: "nowrap",
+                      }}
+                      onClick={() => this.toggleTab("prospect")}
+                    >
+                      Prospects
+                    </div>
+                  </div>
+
+                  {/* === DROITE : Recherche + Création === */}
+                  <div
+                    className="d-flex align-items-center flex-wrap"
+                    style={{ gap: "0.5rem" }}
+                  >
+                    {/* Barre de recherche */}
                     <Input
                       type="text"
                       placeholder="Rechercher..."
                       onChange={(e) => this.updateSearchQuery(e.target.value)}
                       value={this.state.searchVal}
-                      style={{ flex: 1, minWidth: "150px" }}
-                    />
-                  </div>
-
-                  {/* === DROITE : Actions === */}
-                  <div className="d-flex align-items-center flex-wrap" style={{ gap: "0.5rem" }}>
-                    {/* Boutons de filtrage */}
-                    {!this.state.isConsultant && (
-                      <Button
-                        outline
-                        color="primary"
-                        style={{ whiteSpace: "nowrap" }}
-                        onClick={this.toggleMyClients}
-                      >
-                        <User size={15} className="mr-50" />
-                        {this.state.myFilterId === null
-                          ? "Mes clients"
-                          : "Tous les clients"}
-                      </Button>
-                    )}
-
-                    <Button
-                      outline
-                      color="primary"
-                      style={{ whiteSpace: "nowrap" }}
-                      onClick={() => history.push("/app/user/oldclientslist")}
-                    >
-                      <Clock size={15} className="mr-50" />
-                      Anciens Clients
-                    </Button>
-
-                    {/* Séparateur vertical */}
-                    <div
-                      style={{
-                        width: "1px",
-                        height: "24px",
-                        backgroundColor: "#d8d6de",
-                      }}
+                      style={{ width: "200px" }}
                     />
 
                     {/* Bouton d'action principal */}
@@ -980,6 +1084,7 @@ class ClientsList extends React.Component {
                       title="Créer un compte"
                     >
                       <UserPlus size={18} />
+                      <span className="ml-1 d-none d-sm-inline">Nouveau</span>
                     </Button>
                   </div>
                 </div>
@@ -1017,7 +1122,6 @@ class ClientsList extends React.Component {
                     </ContextLayout.Consumer>
                   ) : null}
                 </div>
-
               </CardBody>
             </Card>
           </Col>
