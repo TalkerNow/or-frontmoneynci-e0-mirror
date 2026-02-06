@@ -775,7 +775,7 @@
   margin-right: 2px;
   /* Premium shape with smoother arrow */
   clip-path: polygon(0% 0%, 96% 0%, 100% 50%, 96% 100%, 0% 100%, 4% 50%);
-  cursor: pointer;
+  cursor: default; /* Not clickable by default - readOnly mode */
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-size: 0.85rem;
   display: flex;
@@ -786,9 +786,15 @@
   letter-spacing: 0.5px;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.5);
 
+  /* Hover effect for all items (visual feedback) */
   &:hover {
     filter: brightness(0.95);
     z-index: 5;
+  }
+
+  /* Only show pointer cursor when clickable */
+  &.cursor-pointer {
+    cursor: pointer;
   }
 
   @media (max-width: 576px) {

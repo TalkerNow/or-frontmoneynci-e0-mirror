@@ -21,6 +21,7 @@ import {
   DropdownToggle,
   DropdownMenu,
   DropdownItem,
+  UncontrolledTooltip,
 } from "reactstrap";
 import Chip from "../../../../src/components/@vuexy/chips/ChipComponent";
 import LabeledCheckboxMaterialUi from "labeled-checkbox-material-ui";
@@ -35,6 +36,7 @@ import {
   Check,
   Plus,
   ChevronDown,
+  AlertTriangle,
 } from "react-feather";
 import "../../../assets/scss/pages/contract.scss";
 import "flatpickr/dist/themes/light.css";
@@ -2659,7 +2661,122 @@ class EditContract extends React.Component {
                                   padding: "0.5rem",
                                 }}
                               >
-                                Montant
+                                {(() => {
+                                  const totalTTC =
+                                    this.state.formValues["TOTALTTC"] || 0;
+                                  const fp1 = this.state.formValues["fp1"] || 0;
+                                  const fp2 = this.state.formValues["fp2"] || 0;
+                                  const acompteDates =
+                                    this.state.acompte_dates || [];
+                                  const soldDates = this.state.sold_dates || [];
+
+                                  // Calculate actual payment amounts (same logic as tbody)
+                                  const amountAcompte = (totalTTC * fp1) / 100;
+                                  const amountTotalSolde =
+                                    acompteDates.length > 0
+                                      ? (totalTTC * fp2) / 100
+                                      : totalTTC;
+
+                                  // Smart logic for Acompte amounts
+                                  const fixedAcomptes = acompteDates.filter(
+                                    (d) =>
+                                      d &&
+                                      typeof d === "object" &&
+                                      d.amount !== undefined,
+                                  );
+                                  const sumFixedAcomptes = fixedAcomptes.reduce(
+                                    (acc, d) => acc + parseFloat(d.amount || 0),
+                                    0,
+                                  );
+                                  const unFixedAcomptesCount =
+                                    acompteDates.length - fixedAcomptes.length;
+                                  const amountPerAcompte =
+                                    unFixedAcomptesCount > 0
+                                      ? (amountAcompte - sumFixedAcomptes) /
+                                        unFixedAcomptesCount
+                                      : 0;
+
+                                  // Smart logic for Solde amounts
+                                  const fixedSoldes = soldDates.filter(
+                                    (d) =>
+                                      d &&
+                                      typeof d === "object" &&
+                                      d.amount !== undefined,
+                                  );
+                                  const sumFixedSoldes = fixedSoldes.reduce(
+                                    (acc, d) => acc + parseFloat(d.amount || 0),
+                                    0,
+                                  );
+                                  const unFixedSoldesCount =
+                                    soldDates.length - fixedSoldes.length;
+                                  const amountPerSolde =
+                                    unFixedSoldesCount > 0
+                                      ? (amountTotalSolde - sumFixedSoldes) /
+                                        unFixedSoldesCount
+                                      : 0;
+
+                                  // Calculate total of all payments
+                                  let totalPayments = 0;
+                                  acompteDates.forEach((d) => {
+                                    if (d === null || d === undefined) return;
+                                    const amount =
+                                      d &&
+                                      typeof d === "object" &&
+                                      d.amount !== undefined
+                                        ? parseFloat(d.amount)
+                                        : amountPerAcompte;
+                                    totalPayments += amount;
+                                  });
+                                  soldDates.forEach((d) => {
+                                    if (d === null || d === undefined) return;
+                                    const amount =
+                                      d &&
+                                      typeof d === "object" &&
+                                      d.amount !== undefined
+                                        ? parseFloat(d.amount)
+                                        : amountPerSolde;
+                                    totalPayments += amount;
+                                  });
+
+                                  // Only show mismatch if there are payment lines
+                                  const hasPaymentLines =
+                                    acompteDates.length > 0 ||
+                                    soldDates.length > 0;
+                                  const isMismatch =
+                                    hasPaymentLines &&
+                                    Math.abs(totalPayments - totalTTC) > 0.01;
+                                  const formatMoney = (val) =>
+                                    new Intl.NumberFormat("fr-FR", {
+                                      style: "currency",
+                                      currency: "EUR",
+                                      minimumFractionDigits: 0,
+                                      maximumFractionDigits: 0,
+                                    }).format(val);
+                                  return (
+                                    <div className="d-flex align-items-center justify-content-end">
+                                      {isMismatch && (
+                                        <>
+                                          <AlertTriangle
+                                            size={16}
+                                            className="text-warning mr-1"
+                                            style={{ cursor: "pointer" }}
+                                            id="montantMismatchWarning"
+                                          />
+                                          <UncontrolledTooltip
+                                            placement="top"
+                                            target="montantMismatchWarning"
+                                          >
+                                            Le total des paiements (
+                                            {formatMoney(totalPayments)})
+                                            diffère du contrat (
+                                            {formatMoney(totalTTC)}).
+                                          </UncontrolledTooltip>
+                                        </>
+                                      )}
+                                      <span>Montant</span>
+                                    </div>
+                                  );
+                                })()}
                               </th>
                               <th
                                 className="text-center"

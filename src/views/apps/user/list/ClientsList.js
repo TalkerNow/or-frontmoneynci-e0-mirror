@@ -1,14 +1,6 @@
 import React from "react";
 import { UserPlus, Trash2 } from "react-feather";
-import {
-  Button,
-  Card,
-  CardBody,
-  Input,
-  Row,
-  Col,
-  Badge,
-} from "reactstrap";
+import { Button, Card, CardBody, Input, Row, Col, Badge } from "reactstrap";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { ContextLayout } from "../../../../utility/context/Layout";
@@ -983,18 +975,55 @@ class ClientsList extends React.Component {
                 className="h-100 d-flex flex-column"
                 style={{ paddingBottom: "0.5rem" }}
               >
+                {/* Titre de la page */}
+                <div className="mb-1">
+                  <h2 style={{ fontWeight: 600, marginBottom: "0.25rem" }}>
+                    Contacts
+                  </h2>
+                  <p className="text-muted mb-0">
+                    Base de données clients et prospects.
+                  </p>
+                </div>
+
                 {/* HEADER: Barre d'outils */}
                 <div
-                  className="ag-grid-actions d-flex justify-content-between flex-wrap align-items-center mb-1"
-                  style={{ gap: "0.75rem" }}
+                  className="mb-1"
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "1.5rem",
+                  }}
                 >
-                  {/* === GAUCHE : Onglets (Tous, Mes Clients, Anciens, Prospects) === */}
+                  {/* === HAUT : Recherche + Création === */}
+                  <div
+                    className="d-flex align-items-center"
+                    style={{ gap: "0.75rem" }}
+                  >
+                    {/* Barre de recherche */}
+                    <Input
+                      type="text"
+                      placeholder="Rechercher..."
+                      onChange={(e) => this.updateSearchQuery(e.target.value)}
+                      value={this.state.searchVal}
+                      style={{ flex: 1 }}
+                    />
+
+                    {/* Bouton d'action principal */}
+                    <Button
+                      color="success"
+                      onClick={() => history.push("/app/user/createUser")}
+                      title="Créer un compte"
+                    >
+                      <UserPlus size={18} />
+                      <span className="ml-1 d-none d-sm-inline">Nouveau</span>
+                    </Button>
+                  </div>
+
+                  {/* === BAS : Onglets (Tous, Mes Clients, Anciens, Prospects) === */}
                   <div
                     className="d-flex align-items-center"
                     style={{
-                      gap: "1.5rem",
-                      flex: 1,
-                      minWidth: 0,
+                      gap: "2.5rem",
                       overflowX: "auto",
                     }}
                   >
@@ -1061,31 +1090,6 @@ class ClientsList extends React.Component {
                     >
                       Prospects
                     </div>
-                  </div>
-
-                  {/* === DROITE : Recherche + Création === */}
-                  <div
-                    className="d-flex align-items-center flex-wrap"
-                    style={{ gap: "0.5rem" }}
-                  >
-                    {/* Barre de recherche */}
-                    <Input
-                      type="text"
-                      placeholder="Rechercher..."
-                      onChange={(e) => this.updateSearchQuery(e.target.value)}
-                      value={this.state.searchVal}
-                      style={{ width: "200px" }}
-                    />
-
-                    {/* Bouton d'action principal */}
-                    <Button
-                      color="success"
-                      onClick={() => history.push("/app/user/createUser")}
-                      title="Créer un compte"
-                    >
-                      <UserPlus size={18} />
-                      <span className="ml-1 d-none d-sm-inline">Nouveau</span>
-                    </Button>
                   </div>
                 </div>
 
