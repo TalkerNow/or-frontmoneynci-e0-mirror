@@ -18,6 +18,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
     isSaving,
     isEditingNotes,
     setIsEditingNotes,
+    handleCancelNotesEdit,
     isUploading,
     handleUpload,
     selectedTags,
@@ -79,6 +80,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         isSaving={isSaving}
         isEditingNotes={isEditingNotes}
         setIsEditingNotes={setIsEditingNotes}
+        handleCancelNotesEdit={handleCancelNotesEdit}
         notePrompts={notePrompts}
         selectedNotePromptId={selectedNotePromptId}
         setSelectedNotePromptId={setSelectedNotePromptId}

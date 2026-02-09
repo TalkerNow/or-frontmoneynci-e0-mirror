@@ -15,7 +15,8 @@ import {
   Power,
   Menu,
   Download,
-  MessageSquare,
+  Cpu,
+  
 } from "react-feather";
 import axios from "axios";
 import * as XLSX from "xlsx";
@@ -379,7 +380,7 @@ class Sidebar extends Component {
               : (window.location.href = "/app/prompts");
           }}
         >
-          <MessageSquare size={14} className="mr-50" />
+          <Cpu size={14} className="mr-50" />
           <span className="align-middle">Prompts</span>
         </a>
 

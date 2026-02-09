@@ -465,6 +465,11 @@ export const useNotesLogic = (id, perso) => {
     if (!isEditingNotes) setIsEditingNotes(true);
   };
 
+  const handleCancelNotesEdit = useCallback(() => {
+    setNotes(originalNotes);
+    setIsEditingNotes(false);
+  }, [originalNotes]);
+
   const saveNotes = useCallback(async () => {
     const Config = {
       headers: { Authorization: "Bearer " + localStorage.getItem("token") },
@@ -1397,6 +1402,7 @@ export const useNotesLogic = (id, perso) => {
     isSaving,
     isEditingNotes,
     setIsEditingNotes,
+    handleCancelNotesEdit,
     isUploading,
     handleUpload,
     selectedTags,

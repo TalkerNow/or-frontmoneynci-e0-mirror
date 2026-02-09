@@ -147,6 +147,31 @@
   flex-wrap: wrap;
   align-items: center;
 }
+
+.notes-prompt-select {
+  cursor: pointer;
+  transition: box-shadow 180ms ease, border-color 180ms ease,
+    transform 180ms ease;
+}
+
+.notes-prompt-select:hover {
+  border-color: #a5b4fc;
+  box-shadow: 0 6px 18px rgba(99, 102, 241, 0.18);
+  transform: translateY(-1px);
+}
+
+.notes-prompt-select:focus {
+  border-color: #7367f0;
+  box-shadow: 0 0 0 0.2rem rgba(115, 103, 240, 0.2);
+}
+
+.notes-prompt-select:disabled {
+  cursor: not-allowed;
+  background-color: #f1f5f9;
+  color: #9ca3af;
+  box-shadow: none;
+  transform: none;
+}
 .notes-action-btn {
   border-radius: 9px !important;
   min-width: 160px;
@@ -154,6 +179,7 @@
   font-size: 0.95rem;
   transition: transform 160ms ease, box-shadow 160ms ease;
   box-shadow: 0 4px 16px rgba(115, 103, 240, 0.2);
+  cursor: pointer;
 }
 .notes-action-btn:not(:disabled):hover {
   transform: translateY(-2px);
@@ -162,6 +188,11 @@
 .notes-action-btn:active {
   transform: translateY(0);
   box-shadow: 0 4px 12px rgba(115, 103, 240, 0.2);
+}
+.notes-action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
 }
 .notes-upload-actions .btn {
   background: #e5e7eb;

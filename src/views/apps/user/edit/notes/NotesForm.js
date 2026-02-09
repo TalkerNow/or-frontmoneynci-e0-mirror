@@ -9,6 +9,7 @@ const NotesForm = ({
   isSaving,
   isEditingNotes,
   setIsEditingNotes,
+  handleCancelNotesEdit,
   notePrompts,
   selectedNotePromptId,
   setSelectedNotePromptId,
@@ -21,51 +22,19 @@ const NotesForm = ({
     <Card className="notes-card notes-card--compact">
       <CardBody>
         <Form className="notes-form" onSubmit={handleSubmit}>
-          <h5 className="notes-card-title">Notes</h5>
-          <div
-            className="notes-form-actions notes-action-row"
-            style={{ marginBottom: "0.75rem" }}
-          >
-            <Input
-              type="select"
-              value={selectedNotePromptId}
-              onChange={(e) => setSelectedNotePromptId(e.target.value)}
-              disabled={isGeneratingNotes}
-            >
-              <option value="">Choisir un prompt</option>
-              {(notePrompts || []).map((prompt) => (
-                <option key={prompt.id} value={prompt.id}>
-                  {prompt.name || `Prompt #${prompt.id}`}
-                </option>
-              ))}
-            </Input>
-            <Button
-              className="notes-action-btn"
-              color="primary"
-              type="button"
-              onClick={handleGenerateNotesWithPrompt}
-              disabled={!selectedNotePromptId || isGeneratingNotes}
-            >
-              {isGeneratingNotes ? "Génération…" : "Générer avec mon prompt"}
-            </Button>
-            {previousNotesSnapshot && (
+          <div className="d-flex align-items-center justify-content-between mb-50">
+            <h5 className="notes-card-title mb-0">Notes</h5>
+            {selectedNotePromptId && (
               <Button
                 className="notes-action-btn"
-                color="warning"
+                color="primary"
+                outline
+                size="sm"
                 type="button"
-                onClick={handleRestorePreviousNotes}
+                onClick={handleGenerateNotesWithPrompt}
+                disabled={isGeneratingNotes}
               >
-                Restaurer les notes précédentes
-              </Button>
-            )}
-            {!isEditingNotes && (
-              <Button
-                className="notes-action-btn"
-                color="secondary"
-                type="button"
-                onClick={() => setIsEditingNotes(true)}
-              >
-                Modifier
+                {isGeneratingNotes ? "Génération…" : "Générer avec l'IA"}
               </Button>
             )}
           </div>
@@ -81,18 +50,71 @@ const NotesForm = ({
               if (!isEditingNotes) setIsEditingNotes(true);
             }}
           />
-          {isEditingNotes && (
-            <div className="notes-form-actions notes-action-row">
-              <Button
-                className="notes-action-btn"
-                color={hasChanged ? "primary" : "secondary"}
-                type="submit"
-                disabled={!hasChanged || isSaving}
+          <div
+            className="notes-form-actions notes-action-row d-flex align-items-center flex-wrap"
+            style={{ marginTop: "0.75rem", gap: "0.5rem" }}
+          >
+            <div className="w-100">
+              <Input
+                type="select"
+                className="notes-prompt-select"
+                value={selectedNotePromptId}
+                onChange={(e) => setSelectedNotePromptId(e.target.value)}
+                disabled={isGeneratingNotes}
               >
-                {isSaving ? "Enregistrement…" : "Enregistrer"}
-              </Button>
+                <option value="">Choisir un prompt (optionnel)</option>
+                {(notePrompts || []).map((prompt) => (
+                  <option key={prompt.id} value={prompt.id}>
+                    {prompt.name || `Prompt #${prompt.id}`}
+                  </option>
+                ))}
+              </Input>
             </div>
-          )}
+            <div
+              className="d-flex align-items-center"
+              style={{ gap: "0.5rem", flexWrap: "wrap" }}
+            >
+              {isEditingNotes ? (
+                <>
+                  <Button
+                    className="notes-action-btn"
+                    color="secondary"
+                    type="button"
+                    onClick={handleCancelNotesEdit}
+                  >
+                    Annuler
+                  </Button>
+                  <Button
+                    className="notes-action-btn"
+                    color={hasChanged ? "primary" : "secondary"}
+                    type="submit"
+                    disabled={!hasChanged || isSaving}
+                  >
+                    {isSaving ? "Enregistrement…" : "Enregistrer"}
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  className="notes-action-btn"
+                  color="secondary"
+                  type="button"
+                  onClick={() => setIsEditingNotes(true)}
+                >
+                  Modifier
+                </Button>
+              )}
+              {previousNotesSnapshot && (
+                <Button
+                  className="notes-action-btn"
+                  color="warning"
+                  type="button"
+                  onClick={handleRestorePreviousNotes}
+                >
+                  Restaurer les notes précédentes
+                </Button>
+              )}
+            </div>
+          </div>
         </Form>
       </CardBody>
     </Card>

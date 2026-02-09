@@ -45,14 +45,13 @@ const PromptsPage = () => {
   const [selectedPromptHistory, setSelectedPromptHistory] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const [restorePrompt, setRestorePrompt] = useState(null);
+  const [deletePrompt, setDeletePrompt] = useState(null);
   const editContainerRef = useRef(null);
   const [selectedPromptIds, setSelectedPromptIds] = useState([]);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [isChatting, setIsChatting] = useState(false);
-  const [runtimeModel, setRuntimeModel] = useState(
-    "gemini-2.5-flash-preview-09-2025",
-  );
+  const [runtimeModel] = useState("gemini-2.5-flash-preview-09-2025");
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
   const [aiEditInstruction, setAiEditInstruction] = useState("");
   const chatEndRef = useRef(null);
@@ -222,15 +221,20 @@ const PromptsPage = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Supprimer ce prompt ?")) return;
+  const handleDelete = (prompt) => {
+    setDeletePrompt(prompt);
+  };
+
+  const confirmDeletePrompt = async () => {
+    if (!deletePrompt?.id) return;
 
     try {
-      await axios.delete(`${API_BASE}/prompts/${id}`, getConfig());
+      await axios.delete(`${API_BASE}/prompts/${deletePrompt.id}`, getConfig());
       toast.success("Supprimé");
-      if (viewingPrompt?.id === id) {
+      if (viewingPrompt?.id === deletePrompt.id) {
         setViewingPrompt(null);
       }
+      setDeletePrompt(null);
       fetchPrompts();
     } catch (error) {
       toast.error("Erreur suppression");
@@ -592,7 +596,7 @@ const PromptsPage = () => {
                                 outline
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleDelete(prompt.id);
+                                  handleDelete(prompt);
                                 }}
                                 title="Supprimer"
                               >
@@ -754,29 +758,8 @@ const PromptsPage = () => {
 
                         <FormGroup>
                           <Label>
-                            Contenu <span className="text-danger">*</span>
+                            Prompt <span className="text-danger">*</span>
                           </Label>
-                          <div className="prompt-ai-toolbar">
-                            <Button
-                              color="primary"
-                              outline
-                              size="sm"
-                              onClick={handleGeneratePromptWithAi}
-                              disabled={isGeneratingPrompt}
-                            >
-                              {isGeneratingPrompt ? (
-                                <span className="ai-loading">
-                                  <span className="ai-dot" />
-                                  <span className="ai-dot" />
-                                  <span className="ai-dot" />
-                                </span>
-                              ) : isImproveMode ? (
-                                "Améliorer avec l'IA"
-                              ) : (
-                                "Générer avec l'IA"
-                              )}
-                            </Button>
-                          </div>
                           {isImproveMode && (
                             <FormGroup className="mt-1">
                               <Label>
@@ -806,6 +789,28 @@ const PromptsPage = () => {
                             }
                             style={{ fontFamily: "monospace" }}
                           />
+                          <div className="d-flex justify-content-end mt-1">
+                            <Button
+                              className="prompt-ai-btn"
+                              color="primary"
+                              outline
+                              size="sm"
+                              onClick={handleGeneratePromptWithAi}
+                              disabled={isGeneratingPrompt}
+                            >
+                              {isGeneratingPrompt ? (
+                                <span className="ai-loading">
+                                  <span className="ai-dot" />
+                                  <span className="ai-dot" />
+                                  <span className="ai-dot" />
+                                </span>
+                              ) : isImproveMode ? (
+                                "Améliorer avec l'IA"
+                              ) : (
+                                "Générer avec l'IA"
+                              )}
+                            </Button>
+                          </div>
                         </FormGroup>
 
                         {alert && (
@@ -977,6 +982,28 @@ const PromptsPage = () => {
               </ModalFooter>
             </Modal>
           )}
+
+          {/* Modale de confirmation suppression */}
+          {deletePrompt && (
+            <Modal isOpen={true} toggle={() => setDeletePrompt(null)}>
+              <ModalHeader toggle={() => setDeletePrompt(null)}>
+                Êtes-vous sûr ?
+              </ModalHeader>
+              <ModalBody>
+                Vous êtes sur le point de supprimer le prompt
+                {deletePrompt.name ? ` « ${deletePrompt.name} »` : ""}. Cette
+                action est irréversible.
+              </ModalBody>
+              <ModalFooter>
+                <Button color="secondary" onClick={() => setDeletePrompt(null)}>
+                  Annuler
+                </Button>
+                <Button color="danger" onClick={confirmDeletePrompt}>
+                  Supprimer
+                </Button>
+              </ModalFooter>
+            </Modal>
+          )}
         </Col>
       </Row>
 
@@ -1041,10 +1068,21 @@ const PromptsPage = () => {
 
           <FormGroup>
             <Label>
-              Contenu <span className="text-danger">*</span>
+              Prompt <span className="text-danger">*</span>
             </Label>
-            <div className="prompt-ai-toolbar">
+            <Input
+              type="textarea"
+              placeholder="Contenu du prompt"
+              rows="8"
+              value={formData.prompt_text}
+              onChange={(e) =>
+                setFormData({ ...formData, prompt_text: e.target.value })
+              }
+              style={{ fontFamily: "monospace" }}
+            />
+            <div className="d-flex justify-content-end mt-1">
               <Button
+                className="prompt-ai-btn"
                 color="primary"
                 outline
                 size="sm"
@@ -1062,16 +1100,6 @@ const PromptsPage = () => {
                 )}
               </Button>
             </div>
-            <Input
-              type="textarea"
-              placeholder="Contenu du prompt"
-              rows="8"
-              value={formData.prompt_text}
-              onChange={(e) =>
-                setFormData({ ...formData, prompt_text: e.target.value })
-              }
-              style={{ fontFamily: "monospace" }}
-            />
           </FormGroup>
         </ModalBody>
         <ModalFooter>
@@ -1135,9 +1163,9 @@ const PromptsPage = () => {
                 <Input
                   type="text"
                   value={runtimeModel}
-                  onChange={(e) => setRuntimeModel(e.target.value)}
-                  placeholder="Modèle Gemini (ex: gemini-1.5-flash)"
-                  disabled={isChatting}
+                  placeholder="Modèle IA sélectionné"
+                  readOnly
+                  disabled
                 />
               </div>
               <div className="prompt-chat-messages">
