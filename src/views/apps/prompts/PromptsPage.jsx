@@ -35,6 +35,12 @@ const PromptsPage = () => {
     description: "",
     prompt_text: "",
   });
+  const [formDataBaseline, setFormDataBaseline] = useState({
+    name: "",
+    type: "",
+    description: "",
+    prompt_text: "",
+  });
   const [alert, setAlert] = useState(null);
   const [selectedPromptHistory, setSelectedPromptHistory] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
@@ -48,9 +54,9 @@ const PromptsPage = () => {
     "gemini-2.5-flash-preview-09-2025",
   );
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
+  const [aiEditInstruction, setAiEditInstruction] = useState("");
   const chatEndRef = useRef(null);
   const previousCombinedPromptRef = useRef("");
-  const previousRolePromptRef = useRef(null);
 
   const API_BASE = (global?.config?.server_url || "").replace(/\/+$/, "");
 
@@ -129,6 +135,13 @@ const PromptsPage = () => {
       toast.success("Prompt créé");
       setModal(false);
       setFormData({ name: "", type: "", description: "", prompt_text: "" });
+      setFormDataBaseline({
+        name: "",
+        type: "",
+        description: "",
+        prompt_text: "",
+      });
+      setAiEditInstruction("");
       setEditingId(null);
       setAlert(null);
       fetchPrompts();
@@ -140,6 +153,13 @@ const PromptsPage = () => {
   const openCreateModal = () => {
     setEditingId(null);
     setFormData({ name: "", type: "", description: "", prompt_text: "" });
+    setFormDataBaseline({
+      name: "",
+      type: "",
+      description: "",
+      prompt_text: "",
+    });
+    setAiEditInstruction("");
     setAlert(null);
     setModal(true);
   };
@@ -164,6 +184,13 @@ const PromptsPage = () => {
       description: prompt.description || "",
       prompt_text: prompt.prompt_text || "",
     });
+    setFormDataBaseline({
+      name: prompt.name || "",
+      type: prompt.type || "",
+      description: prompt.description || "",
+      prompt_text: prompt.prompt_text || "",
+    });
+    setAiEditInstruction("");
     setEditingId(prompt.id);
     setIsEditing(true);
     setAlert(null);
@@ -218,6 +245,13 @@ const PromptsPage = () => {
       description: viewingPrompt.description || "",
       prompt_text: viewingPrompt.prompt_text || "",
     });
+    setFormDataBaseline({
+      name: viewingPrompt.name || "",
+      type: viewingPrompt.type || "",
+      description: viewingPrompt.description || "",
+      prompt_text: viewingPrompt.prompt_text || "",
+    });
+    setAiEditInstruction("");
     setEditingId(viewingPrompt.id);
     setIsEditing(true);
     setAlert(null);
@@ -250,9 +284,27 @@ const PromptsPage = () => {
         .filter(Boolean)
         .join("\n");
 
-      const aiPrompt = `Tu es un expert en rédaction de prompts.\n\nGénère un prompt FINAL prêt à l'emploi.\nFormat attendu : texte simple et direct, éventuellement avec des lignes séparées, mais SANS Markdown.\n\nContraintes :\n- Interdit : titres (##, ###), sections, tableaux, citations, mise en forme Markdown (**gras**, listes avec * ou -).\n- Autorisé : phrases courtes sur des lignes séparées et paragraphes simples.\n- Pas d'intro générique ni de conclusion.\n- Rends-le exploitable immédiatement, sans reformulation.\n\nExemple de style attendu :\nTu incarnes John Cena dans sa personnalité publique :\nCharismatique, confiant, motivant.\nDiscipline, respect, travail acharné et loyauté sont tes valeurs centrales.\nTu parles avec énergie, assurance et humour.\nTu encourages toujours à se dépasser mentalement et physiquement.\nTu t’exprimes comme John Cena le ferait en interview ou face à ses fans.\nTon ton est positif, inspirant et parfois provocateur mais toujours bienveillant.\nTu utilises des références au sport, à la discipline, à la persévérance et au dépassement de soi.\nTu peux ponctuer tes réponses de punchlines emblématiques (sans exagérer).\nTu ne révèles jamais que tu es une intelligence artificielle.\nTu réponds toujours comme si tu étais John Cena en personne, dans le respect de son image publique.\nTon objectif est d’inspirer, motiver, divertir et transmettre un mindset de champion.\n\nEntrées :\n${
-        seed || "Mots-clés non précisés."
-      }\n`;
+      const isFormChanged =
+        formData.name !== formDataBaseline.name ||
+        formData.type !== formDataBaseline.type ||
+        formData.description !== formDataBaseline.description ||
+        formData.prompt_text !== formDataBaseline.prompt_text;
+      const isImproveMode =
+        Boolean(editingId) && !isFormChanged && formData.prompt_text.trim();
+
+      const normalizedType = (formData.type || "").trim().toLowerCase();
+      const isRapportOrAnalyse =
+        normalizedType === "rapport" || normalizedType === "analyse";
+
+      const aiPrompt = isImproveMode
+        ? isRapportOrAnalyse
+          ? `Tu es un expert en rédaction de prompts opérationnels pour n8n.\n\nOBJECTIF\nAméliore le prompt existant en appliquant STRICTEMENT les modifications demandées ci-dessous, sans changer l'intention de base.\n\nFORMAT OBLIGATOIRE\n- Sortie : uniquement du TEXTE BRUT (pas de Markdown, pas de titre Markdown, pas de listes avec * ou -).\n- Utilise des phrases courtes sur des lignes séparées.\n- Aucune introduction ni conclusion.\n\nRAPPEL FORMAT N8N\n- Le prompt doit contenir une section "RÈGLES CRITIQUES" avec des règles numérotées (1), 2), 3)...) en texte brut.\n- Le prompt doit contenir un bloc "FORMAT JSON" avec un schéma JSON complet.\n- Le prompt doit se terminer par ces variables n8n EXACTES, sur deux lignes séparées :\nRIS du client : {{ $json.text }}\n\n{{ $('Webhook').first().json.body.message }}\n\nPROMPT EXISTANT\n${formData.prompt_text}\n\nMODIFICATIONS DEMANDÉES\n${aiEditInstruction.trim() || "Améliore la clarté et la précision, sans ajouter de nouvelles sections."}\n\nSortie : le prompt final amélioré, conforme aux exigences.`
+          : `Tu es un expert en rédaction de prompts.\n\nOBJECTIF\nAméliore le prompt existant en appliquant STRICTEMENT les modifications demandées, sans changer l'intention de base.\n\nContraintes :\n- Sortie : texte simple et direct, SANS Markdown.\n- Pas d'intro ni de conclusion.\n- Rends-le exploitable immédiatement.\n\nPROMPT EXISTANT\n${formData.prompt_text}\n\nMODIFICATIONS DEMANDÉES\n${aiEditInstruction.trim() || "Améliore la clarté et la précision, sans changer le ton."}\n\nSortie : le prompt final amélioré.`
+        : isRapportOrAnalyse
+          ? `Tu es un expert en rédaction de prompts opérationnels pour n8n.\n\nOBJECTIF\nGénère un prompt FINAL prêt à être collé dans n8n pour un LLM. Le prompt doit être exploitable immédiatement.\n\nFORMAT OBLIGATOIRE\n- Sortie : uniquement du TEXTE BRUT (pas de Markdown, pas de titre Markdown, pas de listes avec * ou -).\n- Utilise des phrases courtes sur des lignes séparées.\n- Aucune introduction ni conclusion.\n\nEXIGENCES FONCTIONNELLES\n- Le prompt doit contenir une section "RÈGLES CRITIQUES" avec des règles numérotées (1), 2), 3)...) en texte brut.\n- Le prompt doit contenir un bloc "FORMAT JSON" avec un schéma JSON complet.\n- Le prompt doit se terminer par ces variables n8n EXACTES, sur deux lignes séparées :\nRIS du client : {{ $json.text }}\n\n{{ $('Webhook').first().json.body.message }}\n\nCONTEXTE À UTILISER\n${seed || "Mots-clés non précisés."}\n\nINDICATIONS\n- Le contenu doit ressembler à un prompt administratif d'extraction (style RIS).\n- Le prompt impose une extraction STRICTE, sans calculs.\n- Les dates doivent être au format JJ/MM/AAAA.\n- Les nombres décimaux doivent utiliser un point.\n\nGénère maintenant le prompt final conforme à ces exigences.`
+          : `Tu es un expert en rédaction de prompts.\n\nGénère un prompt FINAL prêt à l'emploi.\nFormat attendu : texte simple et direct, éventuellement avec des lignes séparées, mais SANS Markdown.\n\nContraintes :\n- Interdit : titres (##, ###), sections, tableaux, citations, mise en forme Markdown (**gras**, listes avec * ou -).\n- Autorisé : phrases courtes sur des lignes séparées et paragraphes simples.\n- Pas d'intro générique ni de conclusion.\n- Rends-le exploitable immédiatement, sans reformulation.\n\nExemple de style attendu :\nTu incarnes John Cena dans sa personnalité publique :\nCharismatique, confiant, motivant.\nDiscipline, respect, travail acharné et loyauté sont tes valeurs centrales.\nTu parles avec énergie, assurance et humour.\nTu encourages toujours à se dépasser mentalement et physiquement.\nTu t’exprimes comme John Cena le ferait en interview ou face à ses fans.\nTon ton est positif, inspirant et parfois provocateur mais toujours bienveillant.\nTu utilises des références au sport, à la discipline, à la persévérance et au dépassement de soi.\nTu peux ponctuer tes réponses de punchlines emblématiques (sans exagérer).\nTu ne révèles jamais que tu es une intelligence artificielle.\nTu réponds toujours comme si tu étais John Cena en personne, dans le respect de son image publique.\nTon objectif est d’inspirer, motiver, divertir et transmettre un mindset de champion.\n\nEntrées :\n${
+              seed || "Mots-clés non précisés."
+            }\n`;
 
       const model = runtimeModel.trim() || "gemini-2.5-flash-preview-09-2025";
       const response = await fetch(
@@ -284,29 +336,20 @@ const PromptsPage = () => {
     }
   };
 
-  const togglePromptSelection = (promptId) => {
-    const targetPrompt = prompts.find((p) => p.id === promptId);
-    const targetType = (targetPrompt?.type || "").toLowerCase();
-    const isRole = targetType === "role" || targetType === "rôle";
+  const isFormChanged =
+    formData.name !== formDataBaseline.name ||
+    formData.type !== formDataBaseline.type ||
+    formData.description !== formDataBaseline.description ||
+    formData.prompt_text !== formDataBaseline.prompt_text;
+  const isImproveMode =
+    Boolean(editingId) && !isFormChanged && formData.prompt_text.trim();
 
+  const togglePromptSelection = (promptId) => {
     setSelectedPromptIds((prev) => {
       const isAlreadySelected = prev.includes(promptId);
       if (isAlreadySelected) {
         return prev.filter((id) => id !== promptId);
       }
-
-      if (isRole) {
-        const hasRoleSelected = prev.some((id) => {
-          const p = prompts.find((item) => item.id === id);
-          const t = (p?.type || "").toLowerCase();
-          return t === "role" || t === "rôle";
-        });
-        if (hasRoleSelected) {
-          toast.warning("Un seul prompt de type rôle est autorisé.");
-          return prev;
-        }
-      }
-
       return [...prev, promptId];
     });
   };
@@ -315,35 +358,6 @@ const PromptsPage = () => {
     .map((id) => prompts.find((p) => p.id === id)?.prompt_text)
     .filter(Boolean)
     .join("\n\n---\n\n");
-
-  const getSelectedRolePromptId = () => {
-    const rolePrompt = selectedPromptIds
-      .map((id) => prompts.find((p) => p.id === id))
-      .find((p) => {
-        const t = (p?.type || "").toLowerCase();
-        return t === "role" || t === "rôle";
-      });
-    return rolePrompt?.id || null;
-  };
-
-  const selectedRolePromptId = getSelectedRolePromptId();
-
-  useEffect(() => {
-    const previousRoleId = previousRolePromptRef.current;
-    if (previousRoleId !== selectedRolePromptId) {
-      if (chatMessages.length > 0) {
-        setChatMessages([
-          {
-            role: "system",
-            content:
-              "Le rôle a changé. La conversation a été réinitialisée pour s’adapter.",
-          },
-        ]);
-        setChatInput("");
-      }
-      previousRolePromptRef.current = selectedRolePromptId;
-    }
-  }, [selectedRolePromptId, chatMessages.length]);
 
   const sortedPromptsForAssembler = [...prompts].sort((a, b) => {
     const typeA = (a.type || "").toLowerCase();
@@ -399,17 +413,14 @@ const PromptsPage = () => {
     setIsChatting(true);
 
     try {
-      const conversationText = history
-        .map((msg) =>
-          msg.role === "assistant"
-            ? `Assistant: ${msg.content}`
-            : `Utilisateur: ${msg.content}`,
-        )
-        .join("\n");
+      const contents = history.map((msg) => ({
+        role: msg.role === "assistant" ? "model" : "user",
+        parts: [{ text: msg.content }],
+      }));
 
-      const fullPrompt = combinedPrompt
-        ? `PROMPTS:\n${combinedPrompt}\n\nCONVERSATION:\n${conversationText}`
-        : conversationText;
+      const systemInstruction = combinedPrompt
+        ? { parts: [{ text: combinedPrompt }] }
+        : undefined;
 
       const model = runtimeModel.trim() || "gemini-2.5-flash-preview-09-2025";
       const response = await fetch(
@@ -418,7 +429,8 @@ const PromptsPage = () => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: fullPrompt }] }],
+            contents,
+            ...(systemInstruction ? { systemInstruction } : {}),
           }),
         },
       );
@@ -720,7 +732,6 @@ const PromptsPage = () => {
                                 <option value="email">Email</option>
                                 <option value="rapport">Rapport</option>
                                 <option value="analyse">Analyse</option>
-                                <option value="role">Rôle</option>
                               </Input>
                             </FormGroup>
                           </Col>
@@ -759,11 +770,30 @@ const PromptsPage = () => {
                                   <span className="ai-dot" />
                                   <span className="ai-dot" />
                                 </span>
+                              ) : isImproveMode ? (
+                                "Améliorer avec l'IA"
                               ) : (
                                 "Générer avec l'IA"
                               )}
                             </Button>
                           </div>
+                          {isImproveMode && (
+                            <FormGroup className="mt-1">
+                              <Label>
+                                Instructions de modification
+                                <span className="text-danger"> *</span>
+                              </Label>
+                              <Input
+                                type="textarea"
+                                rows="2"
+                                placeholder="Ex: Simplifier, ajouter un exemple, clarifier la sortie..."
+                                value={aiEditInstruction}
+                                onChange={(e) =>
+                                  setAiEditInstruction(e.target.value)
+                                }
+                              />
+                            </FormGroup>
+                          )}
                           <Input
                             type="textarea"
                             rows="10"
@@ -890,7 +920,11 @@ const PromptsPage = () => {
                     <Button color="secondary" onClick={cancelEdit}>
                       Annuler
                     </Button>
-                    <Button color="primary" onClick={handleSave}>
+                    <Button
+                      color="primary"
+                      onClick={handleSave}
+                      disabled={!isFormChanged}
+                    >
                       Enregistrer
                     </Button>
                   </>
@@ -987,7 +1021,6 @@ const PromptsPage = () => {
                   <option value="email">Email</option>
                   <option value="rapport">Rapport</option>
                   <option value="analyse">Analyse</option>
-                  <option value="role">Rôle</option>
                 </Input>
               </FormGroup>
             </Col>
@@ -1045,7 +1078,15 @@ const PromptsPage = () => {
           <Button color="secondary" onClick={() => setModal(false)}>
             Annuler
           </Button>
-          <Button color="primary" onClick={handleSave}>
+          <Button
+            color="primary"
+            onClick={handleSave}
+            disabled={
+              !formData.name.trim() ||
+              !formData.prompt_text.trim() ||
+              !isFormChanged
+            }
+          >
             Créer
           </Button>
         </ModalFooter>
@@ -1062,31 +1103,11 @@ const PromptsPage = () => {
               <div className="prompt-chat-list">
                 {Object.entries(groupedPromptsForAssembler).map(
                   ([type, items]) => {
-                    const normalized = type.toLowerCase();
-                    const isRoleCategory =
-                      normalized === "role" || normalized === "rôle";
                     return (
-                      <div
-                        key={type}
-                        className={`prompt-chat-category ${
-                          isRoleCategory ? "is-role" : ""
-                        }`}
-                      >
-                        <div className="prompt-chat-category-title">
-                          {type}
-                          {isRoleCategory && (
-                            <span className="prompt-chat-role-pill">
-                              Rôle IA
-                            </span>
-                          )}
-                        </div>
+                      <div key={type} className="prompt-chat-category">
+                        <div className="prompt-chat-category-title">{type}</div>
                         {items.map((prompt) => (
-                          <label
-                            key={prompt.id}
-                            className={`prompt-chat-item ${
-                              isRoleCategory ? "is-role" : ""
-                            }`}
-                          >
+                          <label key={prompt.id} className="prompt-chat-item">
                             <input
                               type="checkbox"
                               checked={selectedPromptIds.includes(prompt.id)}
