@@ -16,6 +16,9 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
     handleSubmit,
     hasChanged,
     isSaving,
+    isEditingNotes,
+    setIsEditingNotes,
+    handleCancelNotesEdit,
     isUploading,
     handleUpload,
     selectedTags,
@@ -58,6 +61,13 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
     isLoadingDocs,
     fetchUserDocuments,
     selectDocumentFromList,
+    notePrompts,
+    selectedNotePromptId,
+    setSelectedNotePromptId,
+    isGeneratingNotes,
+    handleGenerateNotesWithPrompt,
+    previousNotesSnapshot,
+    handleRestorePreviousNotes,
   } = useNotesLogic(id, perso);
 
   return (
@@ -68,6 +78,16 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         handleSubmit={handleSubmit}
         hasChanged={hasChanged}
         isSaving={isSaving}
+        isEditingNotes={isEditingNotes}
+        setIsEditingNotes={setIsEditingNotes}
+        handleCancelNotesEdit={handleCancelNotesEdit}
+        notePrompts={notePrompts}
+        selectedNotePromptId={selectedNotePromptId}
+        setSelectedNotePromptId={setSelectedNotePromptId}
+        isGeneratingNotes={isGeneratingNotes}
+        handleGenerateNotesWithPrompt={handleGenerateNotesWithPrompt}
+        previousNotesSnapshot={previousNotesSnapshot}
+        handleRestorePreviousNotes={handleRestorePreviousNotes}
       />
 
       <UploadSection

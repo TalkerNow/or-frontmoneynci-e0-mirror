@@ -25,6 +25,11 @@ export const useNotesLogic = (id, perso) => {
   const [reportType, setReportType] = useState("pre");
   const [deleteConfirmTarget, setDeleteConfirmTarget] = useState(null);
   const [fileToSend, setFileToSend] = useState(null);
+  const [notePrompts, setNotePrompts] = useState([]);
+  const [selectedNotePromptId, setSelectedNotePromptId] = useState("");
+  const [isGeneratingNotes, setIsGeneratingNotes] = useState(false);
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [previousNotesSnapshot, setPreviousNotesSnapshot] = useState("");
   // Load n8nMessage from sessionStorage on mount (specific to client id)
   const [n8nMessage, setN8nMessage] = useState(() => {
     try {
@@ -94,7 +99,7 @@ export const useNotesLogic = (id, perso) => {
       };
       const response = await axios.get(
         `${global.config.server_url}/files?user_id=${id}`,
-        Config
+        Config,
       );
       const files = Array.isArray(response.data) ? response.data : [];
       setUserDocuments(files);
@@ -118,7 +123,7 @@ export const useNotesLogic = (id, perso) => {
         };
         const response = await axios.get(
           `${global.config.server_url}/downloadFile?file_id=${file.id}`,
-          Config
+          Config,
         );
         const blob = response.data;
         const fileObj = new File([blob], file.filename, {
@@ -136,7 +141,7 @@ export const useNotesLogic = (id, perso) => {
           };
           sessionStorage.setItem(
             `notes_file_to_send_${id}`,
-            JSON.stringify(fileData)
+            JSON.stringify(fileData),
           );
         };
         reader.readAsDataURL(blob);
@@ -147,7 +152,7 @@ export const useNotesLogic = (id, perso) => {
         toast.error("Impossible de charger le document sélectionné");
       }
     },
-    [id]
+    [id],
   );
 
   const clientNames = useMemo(() => extractClientNames(perso), [perso]);
@@ -159,6 +164,8 @@ export const useNotesLogic = (id, perso) => {
     const incoming = persoNotes ?? "";
     setNotes(incoming);
     setOriginalNotes(incoming);
+    setIsEditingNotes(false);
+    setPreviousNotesSnapshot("");
   }, [id, persoNotes]);
 
   // Persist selected tags to localStorage
@@ -166,12 +173,58 @@ export const useNotesLogic = (id, perso) => {
     try {
       localStorage.setItem(
         "notes_selected_analysis_tags",
-        JSON.stringify(selectedTags)
+        JSON.stringify(selectedTags),
       );
     } catch (e) {
       console.error("Failed to save selected tags:", e);
     }
   }, [selectedTags]);
+
+  useEffect(() => {
+    if (!id) return;
+    try {
+      const stored = sessionStorage.getItem(`notes_selected_prompt_${id}`);
+      setSelectedNotePromptId(stored || "");
+    } catch (e) {
+      console.error("Failed to load selected note prompt:", e);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    try {
+      sessionStorage.setItem(
+        `notes_selected_prompt_${id}`,
+        selectedNotePromptId,
+      );
+    } catch (e) {
+      console.error("Failed to save selected note prompt:", e);
+    }
+  }, [selectedNotePromptId, id]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchPrompts = async () => {
+      try {
+        const Config = {
+          headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+        };
+        const response = await axios.get(
+          `${global.config.server_url}/prompts`,
+          Config,
+        );
+        const list = Array.isArray(response.data) ? response.data : [];
+        if (isMounted) setNotePrompts(list);
+      } catch (e) {
+        console.error("Erreur chargement prompts notes:", e);
+        if (isMounted) setNotePrompts([]);
+      }
+    };
+    fetchPrompts();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Persist n8nMessage to sessionStorage (specific to client id)
   useEffect(() => {
@@ -188,7 +241,9 @@ export const useNotesLogic = (id, perso) => {
     if (!id) return;
     const restoreFile = async () => {
       try {
-        const storedFileData = sessionStorage.getItem(`notes_file_to_send_${id}`);
+        const storedFileData = sessionStorage.getItem(
+          `notes_file_to_send_${id}`,
+        );
         if (storedFileData) {
           const { name, type, dataUrl } = JSON.parse(storedFileData);
           // Convert base64 data URL back to File object
@@ -220,19 +275,91 @@ export const useNotesLogic = (id, perso) => {
         const file = new File([blob], name, { type });
         setFileToSend(file);
       } catch (e) {
-        console.error("Failed to load file from careerAnalysisFileReady event:", e);
+        console.error(
+          "Failed to load file from careerAnalysisFileReady event:",
+          e,
+        );
       }
     };
 
-    window.addEventListener("careerAnalysisFileReady", handleCareerAnalysisFile);
+    window.addEventListener(
+      "careerAnalysisFileReady",
+      handleCareerAnalysisFile,
+    );
     return () => {
-      window.removeEventListener("careerAnalysisFileReady", handleCareerAnalysisFile);
+      window.removeEventListener(
+        "careerAnalysisFileReady",
+        handleCareerAnalysisFile,
+      );
     };
   }, [id]);
 
   const handleTagsChange = (selectedOptions) => {
     setSelectedTags(selectedOptions || []);
   };
+
+  const handleGenerateNotesWithPrompt = useCallback(async () => {
+    const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+    if (!apiKey) {
+      toast.error("Clé Gemini manquante");
+      return;
+    }
+
+    const selectedPrompt = notePrompts.find(
+      (p) => String(p.id) === String(selectedNotePromptId),
+    );
+    if (!selectedPrompt?.prompt_text) {
+      toast.error("Sélectionnez un prompt pour générer les notes");
+      return;
+    }
+
+    setPreviousNotesSnapshot(notes || "");
+    setIsGeneratingNotes(true);
+    try {
+      const model = "gemini-2.5-flash-preview-09-2025";
+      const userSeed = notes?.trim()
+        ? `Contexte (notes existantes) :\n${notes.trim()}`
+        : "Génère des notes client exploitables et concises.";
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: userSeed }] }],
+            systemInstruction: {
+              parts: [{ text: selectedPrompt.prompt_text }],
+            },
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Erreur Gemini");
+      }
+
+      const data = await response.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+      if (text) {
+        setNotes(text);
+        setIsEditingNotes(true);
+      } else {
+        toast.error("Réponse vide");
+      }
+    } catch (error) {
+      toast.error("Erreur lors de la génération des notes");
+    } finally {
+      setIsGeneratingNotes(false);
+    }
+  }, [notePrompts, notes, selectedNotePromptId]);
+
+  const handleRestorePreviousNotes = useCallback(() => {
+    if (!previousNotesSnapshot) return;
+    setNotes(previousNotesSnapshot);
+    setIsEditingNotes(true);
+  }, [previousNotesSnapshot]);
 
   // Charger les documents générés depuis l'API (au lieu du localStorage)
   useEffect(() => {
@@ -246,7 +373,7 @@ export const useNotesLogic = (id, perso) => {
 
         const response = await axios.get(
           `${global.config.server_url}/files?user_id=${id}`,
-          Config
+          Config,
         );
 
         const files = Array.isArray(response.data) ? response.data : [];
@@ -296,7 +423,7 @@ export const useNotesLogic = (id, perso) => {
       const year = Number(payload.year) || 2024;
       const pointsValue =
         Number(
-          payload.pointsYear != null ? payload.pointsYear : payload.pointsTotal
+          payload.pointsYear != null ? payload.pointsYear : payload.pointsTotal,
         ) || 0;
       setManualCareerRows((prev) => {
         const safeRows = Array.isArray(prev) ? [...prev] : [];
@@ -324,7 +451,9 @@ export const useNotesLogic = (id, perso) => {
         }
         return safeRows;
       });
-      toast.success(`Points ${eventType === "ARRCO_POINTS_SAVE" ? "ARRCO" : "IRCANTEC"} mis à jour`,);
+      toast.success(
+        `Points ${eventType === "ARRCO_POINTS_SAVE" ? "ARRCO" : "IRCANTEC"} mis à jour`,
+      );
     };
     window.addEventListener("message", handleComplementaryPointsMessage);
     return () =>
@@ -333,7 +462,13 @@ export const useNotesLogic = (id, perso) => {
 
   const handleNotesChange = (e) => {
     setNotes(e.target.value);
+    if (!isEditingNotes) setIsEditingNotes(true);
   };
+
+  const handleCancelNotesEdit = useCallback(() => {
+    setNotes(originalNotes);
+    setIsEditingNotes(false);
+  }, [originalNotes]);
 
   const saveNotes = useCallback(async () => {
     const Config = {
@@ -344,10 +479,11 @@ export const useNotesLogic = (id, perso) => {
       await axios.put(
         `${global.config.server_url}/personal_information/${id}`,
         { notes },
-        Config
+        Config,
       );
       toast.info("Modifications enregistrées");
       setOriginalNotes(notes);
+      setIsEditingNotes(false);
     } catch (error) {
       toast.error("Impossible d’enregistrer les notes");
     } finally {
@@ -381,7 +517,7 @@ export const useNotesLogic = (id, perso) => {
           };
           sessionStorage.setItem(
             `notes_file_to_send_${id}`,
-            JSON.stringify(fileData)
+            JSON.stringify(fileData),
           );
         };
         reader.readAsDataURL(file);
@@ -394,7 +530,7 @@ export const useNotesLogic = (id, perso) => {
         const formData = new FormData();
         formData.set("user_id", id);
         acceptedFiles.forEach((file, index) =>
-          formData.append(`photoUpload${index}`, file)
+          formData.append(`photoUpload${index}`, file),
         );
 
         const Config = {
@@ -427,7 +563,7 @@ export const useNotesLogic = (id, perso) => {
             return next;
           });
           toast.success(
-            files.length > 1 ? "Documents importés" : "Relevé importé"
+            files.length > 1 ? "Documents importés" : "Relevé importé",
           );
         }
       } catch {
@@ -436,7 +572,7 @@ export const useNotesLogic = (id, perso) => {
         setIsUploading(false);
       }
     },
-    [id]
+    [id],
   );
 
   // Clear fileToSend from state and sessionStorage
@@ -485,7 +621,7 @@ export const useNotesLogic = (id, perso) => {
         String(childrenCountVal).trim() === ""
       ) {
         toast.error(
-          "Le nombre d'enfants est manquant. Veuillez le renseigner dans les informations du client."
+          "Le nombre d'enfants est manquant. Veuillez le renseigner dans les informations du client.",
         );
         return;
       }
@@ -498,7 +634,7 @@ export const useNotesLogic = (id, perso) => {
         String(birthDateVal).trim() === ""
       ) {
         toast.error(
-          "La date de naissance est manquante. Veuillez la renseigner dans les informations du client."
+          "La date de naissance est manquante. Veuillez la renseigner dans les informations du client.",
         );
         return;
       }
@@ -540,7 +676,8 @@ export const useNotesLogic = (id, perso) => {
           selectedTags.length > 0
             ? `Thématiques d'analyse : ${selectedTags.map((t) => t.label).join(", ")}\n\n`
             : "";
-        const finalMessage = `${tagsPrefix}${currentMessage || ""}\n\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDate}`.trim();
+        const finalMessage =
+          `${tagsPrefix}${currentMessage || ""}\n\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDate}`.trim();
         n8nFormData.append("message", finalMessage);
 
         // Ajout du contenu HTML précédent si disponible (pour les rapports spécifiques)
@@ -553,7 +690,9 @@ export const useNotesLogic = (id, perso) => {
           n8nFormData.append("client_id", id);
         }
 
-        toast.info(`Analyse en cours (${normalizedType === "custom" ? "Spécifique" : "Standard"})…`);
+        toast.info(
+          `Analyse en cours (${normalizedType === "custom" ? "Spécifique" : "Standard"})…`,
+        );
 
         const n8nResponse = await axios.post(webhookUrl, n8nFormData, {
           headers: {
@@ -620,13 +759,13 @@ export const useNotesLogic = (id, perso) => {
           const uploadRes = await axios.post(
             `${global.config.server_url}/uploadFiles`,
             uploadForm,
-            {...uploadConfig, cancelToken: cancelRef.current.token},
+            { ...uploadConfig, cancelToken: cancelRef.current.token },
           );
           if (uploadRes?.data?.files?.[0]?.url) {
             reportUrl = uploadRes.data.files[0].url;
           } else {
             throw new Error(
-              "Pas d'URL de fichier renvoyée lors de la sauvegarde"
+              "Pas d'URL de fichier renvoyée lors de la sauvegarde",
             );
           }
         } catch (err) {
@@ -659,7 +798,7 @@ export const useNotesLogic = (id, perso) => {
         cancelRef.current = null;
       }
     },
-    [clientNames.displayName, fileToSend, id, n8nMessage, perso, selectedTags]
+    [clientNames.displayName, fileToSend, id, n8nMessage, perso, selectedTags],
   );
 
   const handleSaveDoc = useCallback(
@@ -689,7 +828,7 @@ export const useNotesLogic = (id, perso) => {
         const uploadRes = await axios.post(
           `${global.config.server_url}/uploadFiles`,
           uploadForm,
-          uploadConfig
+          uploadConfig,
         );
 
         if (uploadRes?.data?.files?.[0]?.url) {
@@ -704,7 +843,7 @@ export const useNotesLogic = (id, perso) => {
               next[idx] = {
                 ...next[idx],
                 url: newUrl,
-                htmlContent: docToSave.htmlContent
+                htmlContent: docToSave.htmlContent,
               };
               return next;
             }
@@ -729,7 +868,7 @@ export const useNotesLogic = (id, perso) => {
         toast.error("Erreur lors de l'enregistrement");
       }
     },
-    [id, viewingDoc]
+    [id, viewingDoc],
   );
 
   const handleOpenDoc = useCallback((doc) => {
@@ -756,7 +895,7 @@ export const useNotesLogic = (id, perso) => {
         const response = await axios.post(
           `${global.config.server_url}/fetch-html`,
           { url: viewingDoc.url },
-          Config
+          Config,
         );
         if (response.data && response.data.html) {
           htmlToSend = response.data.html;
@@ -776,7 +915,7 @@ export const useNotesLogic = (id, perso) => {
 
   const handleDeleteDoc = useCallback((docId) => {
     setGeneratedDocs((prev) =>
-      Array.isArray(prev) ? prev.filter((doc) => doc && doc.id !== docId) : []
+      Array.isArray(prev) ? prev.filter((doc) => doc && doc.id !== docId) : [],
     );
   }, []);
 
@@ -784,13 +923,13 @@ export const useNotesLogic = (id, perso) => {
     (docId) => {
       setUploadedDocs((prev) => {
         const next = (Array.isArray(prev) ? prev : []).filter(
-          (doc) => doc && doc.id !== docId
+          (doc) => doc && doc.id !== docId,
         );
         persistUploadedDocs(id, next);
         return next;
       });
     },
-    [id]
+    [id],
   );
 
   const handleRenameDoc = useCallback(
@@ -818,7 +957,7 @@ export const useNotesLogic = (id, perso) => {
         return prev;
       });
     },
-    [id]
+    [id],
   );
 
   const requestDeleteGenerated = useCallback((doc) => {
@@ -940,7 +1079,7 @@ export const useNotesLogic = (id, perso) => {
         const response = await axios.post(
           `${global.config.server_url}/fetch-html`,
           { url: viewingDoc.url },
-          Config
+          Config,
         );
 
         if (!response.data?.html) {
@@ -1016,7 +1155,7 @@ export const useNotesLogic = (id, perso) => {
       } catch (error) {
         console.error("Erreur téléchargement PDF backend:", error);
         toast.error(
-          "Erreur lors du téléchargement du PDF. Veuillez régénérer le document."
+          "Erreur lors du téléchargement du PDF. Veuillez régénérer le document.",
         );
         return;
       }
@@ -1024,7 +1163,7 @@ export const useNotesLogic = (id, perso) => {
 
     // CAS 3 : Ni htmlContent ni URL
     toast.error(
-      "Ce document ne peut pas être téléchargé. Veuillez le régénérer."
+      "Ce document ne peut pas être téléchargé. Veuillez le régénérer.",
     );
   }, [viewingDoc]);
 
@@ -1042,7 +1181,7 @@ export const useNotesLogic = (id, perso) => {
         const response = await axios.post(
           `${global.config.server_url}/fetch-html`,
           { url: viewingDoc.url },
-          Config
+          Config,
         );
         if (response.data && response.data.html) {
           content = response.data.html;
@@ -1065,7 +1204,7 @@ export const useNotesLogic = (id, perso) => {
     // Ajouter contenteditable="false" sur le body s'il existe
     nonEditableContent = nonEditableContent.replace(
       /<body([^>]*)>/i,
-      '<body$1 contenteditable="false">'
+      '<body$1 contenteditable="false">',
     );
 
     // Ajouter des styles et scripts pour bloquer l'édition
@@ -1181,7 +1320,7 @@ export const useNotesLogic = (id, perso) => {
         const response = await axios.post(
           `${global.config.server_url}/fetch-html`,
           { url: reportDoc.url },
-          Config
+          Config,
         );
         if (response.data && response.data.html) {
           htmlContent = response.data.html;
@@ -1189,7 +1328,7 @@ export const useNotesLogic = (id, perso) => {
       } catch (err) {
         console.warn(
           "Impossible de récupérer le HTML pour le signalement:",
-          err
+          err,
         );
       }
     }
@@ -1218,7 +1357,7 @@ export const useNotesLogic = (id, perso) => {
       console.error("Erreur envoi webhook signalement", error);
       if (toast.dismiss) toast.dismiss(toastId);
       toast.error(
-        "Erreur technique lors de l'envoi (vérifiez la console pour CORS)"
+        "Erreur technique lors de l'envoi (vérifiez la console pour CORS)",
       );
     }
 
@@ -1261,6 +1400,9 @@ export const useNotesLogic = (id, perso) => {
     handleSubmit,
     hasChanged,
     isSaving,
+    isEditingNotes,
+    setIsEditingNotes,
+    handleCancelNotesEdit,
     isUploading,
     handleUpload,
     selectedTags,
@@ -1304,5 +1446,12 @@ export const useNotesLogic = (id, perso) => {
     isLoadingDocs,
     fetchUserDocuments,
     selectDocumentFromList,
+    notePrompts,
+    selectedNotePromptId,
+    setSelectedNotePromptId,
+    isGeneratingNotes,
+    handleGenerateNotesWithPrompt,
+    previousNotesSnapshot,
+    handleRestorePreviousNotes,
   };
 };
