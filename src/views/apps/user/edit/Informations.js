@@ -515,7 +515,6 @@ class UserAccountTab extends React.Component {
                         onChange={(e) =>
                           this.updateUsername({
                             first_name: e.target.value,
-                            last_name: null,
                           })
                         }
                         id="firstname"
@@ -532,7 +531,6 @@ class UserAccountTab extends React.Component {
                         onChange={(e) =>
                           this.updateUsername({
                             last_name: e.target.value,
-                            first_name: null,
                           })
                         }
                         id="name"

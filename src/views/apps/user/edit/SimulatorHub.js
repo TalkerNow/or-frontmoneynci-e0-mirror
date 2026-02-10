@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Nav,
   NavItem,
@@ -18,6 +18,9 @@ import {
 import classnames from "classnames";
 import ButtonRadioSwitch from "../../../../components/reactstrap/buttons/ButtonRadioSwitch";
 import pdfIcon from "../../../../assets/img/icons/pdf.png";
+import CnavSimulator from "./CnavSimulator";
+import ArrcoSimulator from "./ArrcoSimulator";
+import IrcantecSimulator from "./IrcantecSimulator";
 
 // UI-only component: no calculation or API logic here per specs
 
@@ -80,9 +83,6 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
     16: { from: "", to: "" },
   });
   // Both navs use alignOffset to align under Simulateur
-  const arrcoIframeRef = useRef(null);
-  const ircantecIframeRef = useRef(null);
-  // (refs to Nav/innerNav removed to avoid function-component ref warnings)
 
   // const clientFullName = useMemo(() => {
   //   const pick = (val) => (typeof val === 'string' && val.trim().length ? val.trim() : '')
@@ -183,14 +183,6 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
   });
   const [isRciDashboardOpen, setIsRciDashboardOpen] = useState(true);
 
-  // Safe public URL (avoid ReferenceError when process is undefined)
-  const publicUrl =
-    typeof process !== "undefined" &&
-    process &&
-    process.env &&
-    process.env.PUBLIC_URL
-      ? process.env.PUBLIC_URL
-      : "";
 
   // Defensive snapshots for possibly corrupted localStorage values
   const salaireDefautRowSafe =
@@ -218,18 +210,20 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
         String(Math.max(0, Number(alignOffset) || 0)) + "px";
   }, [alignOffset]);
 
-  const hideSimulatorSaveButtons = useCallback(() => {
-    [arrcoIframeRef.current, ircantecIframeRef.current].forEach((iframe) => {
-      if (!iframe) return;
-      try {
-        const doc = iframe.contentDocument || iframe.contentWindow?.document;
-        if (!doc) return;
-        const buttons = doc.querySelectorAll(".points-save-btn");
-        buttons.forEach((btn) => {
-          btn.style.display = "none";
-        });
-      } catch (e) {}
-    });
+  const handleArrcoSave = useCallback((payload) => {
+    fetch('/user/update', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ arrcoPoints: payload })
+    }).catch(err => console.warn('ARRCO save failed', err));
+  }, []);
+
+  const handleIrcantecSave = useCallback((payload) => {
+    fetch('/user/update', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ircantecPoints: payload })
+    }).catch(err => console.warn('IRCANTEC save failed', err));
   }, []);
 
   // HYDRATE: load persisted amounts on mount
@@ -1525,17 +1519,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
             <TabPane tabId="base">
               <Card className="mb-1">
                 <CardBody>
-                  <iframe
-                    title="cnav-simulator"
-                    src={`${publicUrl}/cnav-simulator.html`}
-                    style={{
-                      width: "100%",
-                      height: "1800px",
-                      border: "0",
-                      borderRadius: "8px",
-                      background: "transparent",
-                    }}
-                  />
+                  <CnavSimulator />
                 </CardBody>
               </Card>
             </TabPane>
@@ -1543,19 +1527,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
             <TabPane tabId="arrco">
               <Card className="mb-1">
                 <CardBody>
-                  <iframe
-                    title="arrco-agirc-simulator"
-                    src={`${publicUrl}/arrco-simulator.html`}
-                    ref={arrcoIframeRef}
-                    onLoad={hideSimulatorSaveButtons}
-                    style={{
-                      width: "100%",
-                      height: "1150px",
-                      border: "0",
-                      borderRadius: "8px",
-                      background: "transparent",
-                    }}
-                  />
+                  <ArrcoSimulator onSave={handleArrcoSave} />
                 </CardBody>
               </Card>
             </TabPane>
@@ -1563,19 +1535,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
             <TabPane tabId="ircantec">
               <Card className="mb-1">
                 <CardBody>
-                  <iframe
-                    title="ircantec-simulator"
-                    src={`${publicUrl}/ircantec-simulator.html`}
-                    ref={ircantecIframeRef}
-                    onLoad={hideSimulatorSaveButtons}
-                    style={{
-                      width: "100%",
-                      height: "1150px",
-                      border: "0",
-                      borderRadius: "8px",
-                      background: "transparent",
-                    }}
-                  />
+                  <IrcantecSimulator onSave={handleIrcantecSave} />
                 </CardBody>
               </Card>
             </TabPane>
