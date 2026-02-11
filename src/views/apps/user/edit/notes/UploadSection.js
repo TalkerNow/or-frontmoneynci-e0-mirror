@@ -4,6 +4,7 @@ import { Folder, FileText, ChevronDown, X } from "react-feather";
 import Select from "react-select";
 import { QUICK_TAGS_OPTIONS } from "./utils";
 import UploadCard from "../components/UploadCard";
+import { toast } from "react-toastify";
 
 const FOLDERS = [
   { id: 1, name: "Contrat / Procuration", color: "#007bff" },
@@ -34,9 +35,16 @@ const UploadSection = ({
   handleGenerateDoc,
   promptSystem,
   setPromptSystem,
+  rapportPrompts,
+  selectedRapportPromptId,
+  setSelectedRapportPromptId,
+  promptModifications,
+  setPromptModifications,
 }) => {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState(null);
+  const [promptView, setPromptView] = useState("content"); // "content" ou "modifications"
+  const [isApplyingPromptAI, setIsApplyingPromptAI] = useState(false);
   const pickerRef = useRef(null);
 
   // Close picker on outside click
@@ -72,6 +80,77 @@ const UploadSection = ({
       return userDocuments.filter((f) => !f.dossier || f.dossier === 0);
     }
     return userDocuments.filter((f) => f.dossier === folderId);
+  };
+
+  const handleApplyPromptModifications = async () => {
+    const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+    if (!apiKey) {
+      toast.error("Clé Gemini manquante");
+      return;
+    }
+
+    if (!promptSystem?.trim()) {
+      toast.error("Sélectionnez un prompt avant de modifier");
+      return;
+    }
+
+    if (!promptModifications?.trim()) {
+      toast.error("Ajoutez des informations supplémentaires à appliquer");
+      return;
+    }
+
+    setIsApplyingPromptAI(true);
+    try {
+      const model = "gemini-2.5-flash-preview-09-2025";
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  {
+                    text: `PROMPT ACTUEL :\n${promptSystem}\n\nINSTRUCTIONS UTILISATEUR :\n${promptModifications}\n\nCONSIGNES :\n- Mets à jour le prompt en appliquant les instructions.\n- Ajoute, modifie ou réécris uniquement ce qui est demandé.\n- Ne supprime pas de sections critiques si ce n'est pas demandé.\n- Réponds uniquement avec le prompt final, sans commentaire.`,
+                  },
+                ],
+              },
+            ],
+            systemInstruction: {
+              parts: [
+                {
+                  text: "Tu es un éditeur de prompt. Tu dois produire une version finale propre et prête à l'emploi.",
+                },
+              ],
+            },
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Erreur Gemini");
+      }
+
+      const data = await response.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      const trimmedText = text.trim();
+
+      if (!trimmedText) {
+        toast.error("Réponse vide : le prompt n'a pas été modifié");
+        return;
+      }
+
+      setPromptSystem(trimmedText);
+      setPromptModifications("");
+      setPromptView("content");
+      toast.success("Prompt mis à jour (non sauvegardé)");
+    } catch (error) {
+      toast.error("Erreur lors de la modification du prompt");
+    } finally {
+      setIsApplyingPromptAI(false);
+    }
   };
 
   return (
@@ -430,54 +509,292 @@ const UploadSection = ({
         <div className="mb-75">
           <label
             className="mb-0 font-small-3"
-            htmlFor="n8nMessage"
+            htmlFor="promptSelector"
             style={{ fontWeight: 600, color: "#64748b" }}
           >
-            Message d'accompagnement (optionnel)
+            Prompt système (sélectionner un prompt de type rapport)
           </label>
-          <Input
-            type="textarea"
-            id="n8nMessage"
-            rows="8"
-            placeholder="Ajouter une instruction ou un commentaire pour l'analyse..."
-            value={n8nMessage}
-            onChange={(e) => setN8nMessage(e.target.value)}
-            style={{
-              minHeight: window.innerWidth < 576 ? "120px" : "200px",
-              fontSize: window.innerWidth < 576 ? "0.85rem" : "1rem",
-              backgroundColor: isGenerating ? "#fff" : undefined,
-              color: isGenerating ? "#334155" : undefined,
-              opacity: isGenerating ? 0.9 : 1,
+          <Select
+            id="promptSelector"
+            value={
+              selectedRapportPromptId
+                ? rapportPrompts
+                    .filter((p) => p.id === parseInt(selectedRapportPromptId))
+                    .map((p) => ({ value: p.id, label: p.name }))[0] || null
+                : null
+            }
+            onChange={(option) => {
+              if (option) {
+                setSelectedRapportPromptId(option.value.toString());
+                const selectedPrompt = rapportPrompts.find(
+                  (p) => p.id === parseInt(option.value),
+                );
+                if (selectedPrompt) {
+                  setPromptSystem(selectedPrompt.prompt_text || "");
+                }
+              } else {
+                setSelectedRapportPromptId("");
+                setPromptSystem("");
+              }
             }}
-            disabled={isGenerating}
+            options={rapportPrompts.map((p) => ({
+              value: p.id,
+              label: p.name,
+            }))}
+            isClearable
+            placeholder="Choisir un prompt..."
+            isDisabled={isGenerating}
+            styles={{
+              control: (base, state) => ({
+                ...base,
+                minHeight: "40px",
+                borderColor: state.isFocused ? "#7367f0" : "#d1d5db",
+                boxShadow: state.isFocused
+                  ? "0 0 0 1px #7367f0"
+                  : base.boxShadow,
+                backgroundColor: isGenerating ? "#fff" : base.backgroundColor,
+                opacity: isGenerating ? 0.9 : 1,
+                "&:hover": { borderColor: "#7367f0" },
+              }),
+              option: (base, state) => ({
+                ...base,
+                padding: "8px 10px",
+                fontSize: "0.875rem",
+                fontWeight: state.isSelected ? 500 : 400,
+                backgroundColor: state.isSelected
+                  ? "#7367f0"
+                  : state.isFocused
+                    ? "#f5f5ff"
+                    : "transparent",
+                color: state.isSelected ? "#fff" : "#374151",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+                "&:active": { backgroundColor: "#7367f0", color: "#fff" },
+              }),
+              dropdownIndicator: (base) => ({
+                ...base,
+                color: "#94a3b8",
+                padding: "6px 10px",
+                "&:hover": { color: "#7367f0" },
+              }),
+              clearIndicator: (base) => ({
+                ...base,
+                color: "#94a3b8",
+                padding: "6px",
+                "&:hover": { color: "#ef4444" },
+              }),
+              indicatorSeparator: () => ({ display: "none" }),
+            }}
           />
         </div>
 
-        <div className="mb-75">
-          <label
-            className="mb-0 font-small-3"
-            htmlFor="promptSystem"
-            style={{ fontWeight: 600, color: "#64748b" }}
-          >
-            Prompt système (utilisé par l'agent IA)
-          </label>
-          <Input
-            type="textarea"
-            id="promptSystem"
-            rows="10"
-            placeholder="Collez ici le prompt système..."
-            value={promptSystem}
-            onChange={(e) => setPromptSystem(e.target.value)}
-            style={{
-              minHeight: window.innerWidth < 576 ? "160px" : "240px",
-              fontSize: window.innerWidth < 576 ? "0.85rem" : "1rem",
-              backgroundColor: isGenerating ? "#fff" : undefined,
-              color: isGenerating ? "#334155" : undefined,
-              opacity: isGenerating ? 0.9 : 1,
-            }}
-            disabled={isGenerating}
-          />
-        </div>
+        {/* PROMPT EDITOR WITH TABS */}
+        {promptSystem && (
+          <div className="mb-75">
+            <div
+              style={{
+                display: "flex",
+                gap: "8px",
+                marginBottom: "12px",
+                borderBottom: "2px solid #e2e8f0",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setPromptView("content")}
+                style={{
+                  padding: "10px 16px",
+                  background: "none",
+                  border: "none",
+                  borderBottom:
+                    promptView === "content" ? "3px solid #7367f0" : "none",
+                  color: promptView === "content" ? "#7367f0" : "#94a3b8",
+                  fontSize: "0.95rem",
+                  fontWeight: promptView === "content" ? 600 : 500,
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                  marginBottom: "-2px",
+                }}
+                onMouseEnter={(e) => {
+                  if (promptView !== "content")
+                    e.target.style.color = "#64748b";
+                }}
+                onMouseLeave={(e) => {
+                  if (promptView !== "content")
+                    e.target.style.color = "#94a3b8";
+                }}
+              >
+                📋 Contenu du prompt
+              </button>
+              <button
+                type="button"
+                onClick={() => setPromptView("modifications")}
+                style={{
+                  padding: "10px 16px",
+                  background: "none",
+                  border: "none",
+                  borderBottom:
+                    promptView === "modifications"
+                      ? "3px solid #7367f0"
+                      : "none",
+                  color: promptView === "modifications" ? "#7367f0" : "#94a3b8",
+                  fontSize: "0.95rem",
+                  fontWeight: promptView === "modifications" ? 600 : 500,
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                  marginBottom: "-2px",
+                }}
+                onMouseEnter={(e) => {
+                  if (promptView !== "modifications")
+                    e.target.style.color = "#64748b";
+                }}
+                onMouseLeave={(e) => {
+                  if (promptView !== "modifications")
+                    e.target.style.color = "#94a3b8";
+                }}
+              >
+                📝 Informations supplémentaires
+                {promptModifications && (
+                  <span
+                    style={{
+                      marginLeft: "4px",
+                      color: "#059669",
+                      fontSize: "0.8rem",
+                    }}
+                  >
+                    ●
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Content Tab */}
+            {promptView === "content" && (
+              <div style={{ animation: "fadeIn 0.2s ease" }}>
+                <div
+                  style={{
+                    minHeight: "200px",
+                    maxHeight: "280px",
+                    overflowY: "auto",
+                    padding: "16px",
+                    backgroundColor: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "6px",
+                    fontSize: window.innerWidth < 576 ? "0.85rem" : "0.95rem",
+                    color: "#334155",
+                    lineHeight: "1.6",
+                    whiteSpace: "pre-wrap",
+                    wordWrap: "break-word",
+                    fontFamily: "monospace",
+                  }}
+                >
+                  {promptSystem}
+                </div>
+                <p
+                  style={{
+                    fontSize: "0.75rem",
+                    color: "#94a3b8",
+                    marginTop: "8px",
+                    margin: "8px 0 0 0",
+                  }}
+                >
+                  Affichage en lecture seule du prompt sélectionné
+                </p>
+              </div>
+            )}
+
+            {/* Modifications Tab */}
+            {promptView === "modifications" && (
+              <div style={{ animation: "fadeIn 0.2s ease" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "10px",
+                    alignItems: "center",
+                    marginBottom: "10px",
+                  }}
+                >
+                  <Button
+                    color="primary"
+                    outline
+                    onClick={handleApplyPromptModifications}
+                    disabled={
+                      isGenerating ||
+                      isApplyingPromptAI ||
+                      !promptModifications?.trim()
+                    }
+                    style={{
+                      fontSize: "0.85rem",
+                      padding: "6px 12px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                  >
+                    {isApplyingPromptAI ? (
+                      <span
+                        className="spinner-border spinner-border-sm"
+                        role="status"
+                        aria-hidden="true"
+                        style={{ width: "0.9rem", height: "0.9rem" }}
+                      />
+                    ) : (
+                      "✨"
+                    )}
+                    Apporter des modifications
+                  </Button>
+                  <span style={{ fontSize: "0.75rem", color: "#94a3b8" }}>
+                    Cette action met à jour le prompt affiché, sans sauvegarde
+                    en base
+                  </span>
+                </div>
+                <Input
+                  type="textarea"
+                  id="promptModifications"
+                  rows="8"
+                  placeholder="Ajoutez ici des informations supplémentaires, des contextes ou des précisions pour enrichir l'analyse..."
+                  value={promptModifications}
+                  onChange={(e) => setPromptModifications(e.target.value)}
+                  style={{
+                    minHeight: "200px",
+                    fontSize: window.innerWidth < 576 ? "0.85rem" : "1rem",
+                    backgroundColor: isGenerating ? "#fff" : "#ffffff",
+                    color: isGenerating ? "#334155" : "#334155",
+                    opacity: isGenerating ? 0.9 : 1,
+                    borderColor: promptModifications ? "#d4d4e6" : "#e2e8f0",
+                    borderWidth: "1px",
+                  }}
+                  disabled={isGenerating || isApplyingPromptAI}
+                />
+                <p
+                  style={{
+                    fontSize: "0.75rem",
+                    color: "#94a3b8",
+                    marginTop: "8px",
+                  }}
+                >
+                  Ces informations seront combinées au prompt lors de l'envoi de
+                  l'analyse
+                </p>
+              </div>
+            )}
+
+            {/* Fade-in animation */}
+            <style>{`
+              @keyframes fadeIn {
+                from {
+                  opacity: 0;
+                  transform: translateY(-4px);
+                }
+                to {
+                  opacity: 1;
+                  transform: translateY(0);
+                }
+              }
+            `}</style>
+          </div>
+        )}
 
         <div className="notes-action-row mt-1">
           <Button
@@ -486,7 +803,14 @@ const UploadSection = ({
             }`}
             color="link"
             onClick={() => handleGenerateDoc("pre")}
-            disabled={isGenerating && reportType === "pre"}
+            disabled={
+              (isGenerating && reportType === "pre") || !promptSystem?.trim()
+            }
+            style={{
+              cursor: !promptSystem?.trim() ? "not-allowed" : "pointer",
+              opacity: !promptSystem?.trim() ? 0.5 : 1,
+              pointerEvents: !promptSystem?.trim() ? "none" : "auto",
+            }}
           >
             Rapport consultation
           </Button>

@@ -30,135 +30,10 @@ export const useNotesLogic = (id, perso) => {
   const [isGeneratingNotes, setIsGeneratingNotes] = useState(false);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [previousNotesSnapshot, setPreviousNotesSnapshot] = useState("");
-  const [promptSystem, setPromptSystem] =
-    useState(`Tu es "Le Clerc", expert administratif spécialisé dans la lecture de Relevés de Carrière (RIS) français.
-Ta mission est d'extraire STRICTEMENT des données factuelles du texte fourni pour remplir un JSON technique, stable et **idempotent**.
-
-RÈGLES CRITIQUES :
-
-1) NE CALCULE RIEN. Tu recopies uniquement ce qui est écrit dans le PDF.
-   - Si une information est absente, mettre **null**, **0**, ou **[]** selon le type.
-   - Pour certains champs critiques, mettre une **valeur par défaut** si absent (ex: "age_depart_souhaite": 64).
-
-2) FORMAT STRICT :
-   - DATES : JJ/MM/AAAA
-   - NOMBRES DÉCIMAUX : utiliser un POINT (ex: 6619.9), jamais de virgule
-   - TRIMESTRES : toujours entier
-   - POINTS : int ou float selon le PDF
-   - REVENUS : **toujours tableau de nombres**, jamais string concaténée avec , ou ;.
-
-3) TRIMESTRES :
-   - Distinguer clairement : “Tous régimes” vs “L'Assurance retraite”
-   - Ne jamais inclure des trimestres assimilés dans employeurs_principaux.
-
-4) POINTS OFFICIELS :
-   - AGIRC-ARRCO : points_total, valeur_point, date_valeur_point
-   - CIPAV : points_base, valeur_point_base, points_complementaire, valeur_point_complementaire + leurs dates
-   - IRCANTEC : points_total, valeur_point, date_valeur_point
-   - Si absent : 0 ou null selon le type
-
-5) REVENUS ET RÉGIMES PAR ANNÉE :
-   - Extraire depuis la section “Détail de votre carrière” (tableau annuel).
-   - Stocker toujours les revenus dans un tableau de nombres pour chaque année.
-   - Stocker les régimes par année dans regimes_concernes exactement comme écrit dans le PDF.
-   - Ignorer les phrases indicatives ou estimatives (“En 2025 il faut avoir perçu…”).
-
-6) EMPLOYEURS :
-   - employeurs_principaux doit contenir uniquement les noms d’employeurs ou organismes.
-   - Les périodes assimilées (maladie, maternité, chômage, accident) ne doivent jamais figurer dans ce champ.
-   - Ces périodes vont dans carriere_synthese.trimestres_assimiles.
-
-7) SORTIE JSON :
-   - STRICTEMENT conforme au format fourni.
-   - Remplir tous les champs même si null, 0 ou [].
-   - Jamais de texte, explication ou commentaire dans la sortie.
-
----
-
-FORMAT JSON À RESPECTER STRICTEMENT :
-
-{
-  "profil": {
-    "nom": "String",
-    "date_naissance": "JJ/MM/AAAA",
-    "nombre_enfants": 0,
-    "statut_marital": "Marié/Célibataire/Divorcé/Veuf",
-    "numero_ss": null,
-    "user_id": 0
-  },
-  "parametres_actuels": {
-    "en_activite": false,
-    "date_releve": "JJ/MM/AAAA",
-    "age_depart_souhaite": 64
-  },
-  "carriere_synthese": {
-    "trimestres_valides_total": 0,
-    "trimestres_requis_taux_plein": 0,
-    "trimestres_cotises_stricts": 0,
-    "trimestres_assimiles": {
-      "chomage": 0,
-      "maladie": 0,
-      "service_national": 0,
-      "maternite": 0,
-      "invalidite": 0
-    }
-  },
-  "droits_synthese": {
-    "assurance_retraite": {
-      "trimestres_total": 0
-    },
-    "agirc_arrco": {
-      "points_total": 0,
-      "valeur_point": 0,
-      "date_valeur_point": null
-    },
-    "cipav": {
-      "trimestres_total": 0,
-      "points_base": 0,
-      "valeur_point_base": 0,
-      "date_valeur_point_base": null,
-      "points_complementaire": 0,
-      "valeur_point_complementaire": 0,
-      "date_valeur_point_complementaire": null
-    },
-    "ircantec": {
-      "points_total": 0,
-      "valeur_point": 0,
-      "date_valeur_point": null
-    }
-  },
-  "detail_annuel": [
-    {
-      "annee": 0,
-      "trimestres_retenus": 0,
-      "nature": "Cotisé / Assimilé / Mixte",
-      "revenus": [0.0],
-      "employeurs_principaux": "String",
-      "regimes_concernes": "String"
-    }
-  ],
-  "alertes_detection": {
-    "trimestres_avant_20_ans": 0,
-    "periodes_etranger_detectees": false,
-    "periodes_chomage_fin_carriere": false
-  }
-}
-
-RIS du client : {{ $json.text }}
-
-INSTRUCTIONS FINALES :
-
-- Toujours renvoyer un JSON valide.
-- Toujours remplir tous les champs, même si null, 0 ou [].
-- Revenus multiples → tableau de nombres.
-- Employeurs → uniquement noms d’employeurs.
-- Trimestres assimilés → carriere_synthese.trimestres_assimiles.
-- Décimaux → utiliser le point.
-- Dates → JJ/MM/AAAA.
-- Valeurs par défaut : age_depart_souhaite = 64 si absent.
-- Ne pas fusionner plusieurs revenus en une string.
-
-SORTIE : uniquement le JSON strict, rien d’autre.`);
+  const [promptSystem, setPromptSystem] = useState("");
+  const [rapportPrompts, setRapportPrompts] = useState([]);
+  const [selectedRapportPromptId, setSelectedRapportPromptId] = useState("");
+  const [promptModifications, setPromptModifications] = useState("");
   // Load n8nMessage from sessionStorage on mount (specific to client id)
   const [n8nMessage, setN8nMessage] = useState(() => {
     try {
@@ -350,6 +225,32 @@ SORTIE : uniquement le JSON strict, rien d’autre.`);
       }
     };
     fetchPrompts();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Fetch prompts of type "rapport" for report generation
+  useEffect(() => {
+    let isMounted = true;
+    const fetchRapportPrompts = async () => {
+      try {
+        const Config = {
+          headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+        };
+        const response = await axios.get(
+          `${global.config.server_url}/prompts`,
+          Config,
+        );
+        const list = Array.isArray(response.data) ? response.data : [];
+        const rapportList = list.filter((p) => p.type === "rapport");
+        if (isMounted) setRapportPrompts(rapportList);
+      } catch (e) {
+        console.error("Failed to fetch rapport prompts:", e);
+        if (isMounted) setRapportPrompts([]);
+      }
+    };
+    fetchRapportPrompts();
     return () => {
       isMounted = false;
     };
@@ -808,7 +709,12 @@ SORTIE : uniquement le JSON strict, rien d’autre.`);
         const finalMessage =
           `${tagsPrefix}${currentMessage || ""}\n\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDate}`.trim();
         n8nFormData.append("message", finalMessage);
-        n8nFormData.append("prompt_system", promptSystem || "");
+
+        // Combine prompt system with modifications if any
+        const finalPrompt = promptModifications?.trim()
+          ? `${promptSystem}\n\n---\nModifications supplémentaires :\n${promptModifications}`
+          : promptSystem;
+        n8nFormData.append("prompt_system", finalPrompt || "");
 
         // Ajout du contenu HTML précédent si disponible (pour les rapports spécifiques)
         if (previousHtml) {
@@ -928,7 +834,16 @@ SORTIE : uniquement le JSON strict, rien d’autre.`);
         cancelRef.current = null;
       }
     },
-    [clientNames.displayName, fileToSend, id, n8nMessage, perso, selectedTags],
+    [
+      clientNames.displayName,
+      fileToSend,
+      id,
+      n8nMessage,
+      perso,
+      selectedTags,
+      promptSystem,
+      promptModifications,
+    ],
   );
 
   const handleSaveDoc = useCallback(
@@ -1585,5 +1500,10 @@ SORTIE : uniquement le JSON strict, rien d’autre.`);
     handleRestorePreviousNotes,
     promptSystem,
     setPromptSystem,
+    rapportPrompts,
+    selectedRapportPromptId,
+    setSelectedRapportPromptId,
+    promptModifications,
+    setPromptModifications,
   };
 };

@@ -70,6 +70,11 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
     handleRestorePreviousNotes,
     promptSystem,
     setPromptSystem,
+    rapportPrompts,
+    selectedRapportPromptId,
+    setSelectedRapportPromptId,
+    promptModifications,
+    setPromptModifications,
   } = useNotesLogic(id, perso);
 
   return (
@@ -111,6 +116,11 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         handleGenerateDoc={handleGenerateDoc}
         promptSystem={promptSystem}
         setPromptSystem={setPromptSystem}
+        rapportPrompts={rapportPrompts}
+        selectedRapportPromptId={selectedRapportPromptId}
+        setSelectedRapportPromptId={setSelectedRapportPromptId}
+        promptModifications={promptModifications}
+        setPromptModifications={setPromptModifications}
       />
 
       <GeneratedDocsSection
