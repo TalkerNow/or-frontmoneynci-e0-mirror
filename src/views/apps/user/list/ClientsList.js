@@ -75,6 +75,7 @@ const ALLOWED_EMAILS = [
   "jfc@eor.fr",
   "martin.six@phocus1.com",
   "sebastien@eor.fr",
+  "idrissa.fall@epitech.eu",
 ];
 
 class ClientsList extends React.Component {

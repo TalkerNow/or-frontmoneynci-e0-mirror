@@ -3,7 +3,9 @@
  */
 
 // IDs of users authorized to see the "Simulateur" tab
-export const AUTHORIZED_SIMULATOR_IDS = [262, 4, 135, 1201, 1250, 1322, 1271];
+export const AUTHORIZED_SIMULATOR_IDS = [
+  262, 4, 135, 1201, 1250, 1322, 1271, 1494,
+];
 
 /**
  * Check if the current logged-in user can access the Simulator

@@ -32,6 +32,8 @@ const UploadSection = ({
   setN8nMessage,
   reportType,
   handleGenerateDoc,
+  promptSystem,
+  setPromptSystem,
 }) => {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState(null);
@@ -162,10 +164,7 @@ const UploadSection = ({
                           className="doc-picker-folder-item"
                           onClick={() => setSelectedFolder(folder.id)}
                         >
-                          <Folder
-                            size={15}
-                            style={{ color: folder.color }}
-                          />
+                          <Folder size={15} style={{ color: folder.color }} />
                           <span className="doc-picker-folder-name">
                             {folder.name}
                           </span>
@@ -323,7 +322,9 @@ const UploadSection = ({
             value={selectedTags}
             onChange={handleTagsChange}
             placeholder="Cliquez pour s&eacute;lectionner..."
-            noOptionsMessage={() => "Toutes les th&eacute;matiques sont s&eacute;lectionn&eacute;es"}
+            noOptionsMessage={() =>
+              "Toutes les th&eacute;matiques sont s&eacute;lectionn&eacute;es"
+            }
             isDisabled={isGenerating}
             styles={{
               control: (base, state) => ({
@@ -443,6 +444,32 @@ const UploadSection = ({
             onChange={(e) => setN8nMessage(e.target.value)}
             style={{
               minHeight: window.innerWidth < 576 ? "120px" : "200px",
+              fontSize: window.innerWidth < 576 ? "0.85rem" : "1rem",
+              backgroundColor: isGenerating ? "#fff" : undefined,
+              color: isGenerating ? "#334155" : undefined,
+              opacity: isGenerating ? 0.9 : 1,
+            }}
+            disabled={isGenerating}
+          />
+        </div>
+
+        <div className="mb-75">
+          <label
+            className="mb-0 font-small-3"
+            htmlFor="promptSystem"
+            style={{ fontWeight: 600, color: "#64748b" }}
+          >
+            Prompt système (utilisé par l'agent IA)
+          </label>
+          <Input
+            type="textarea"
+            id="promptSystem"
+            rows="10"
+            placeholder="Collez ici le prompt système..."
+            value={promptSystem}
+            onChange={(e) => setPromptSystem(e.target.value)}
+            style={{
+              minHeight: window.innerWidth < 576 ? "160px" : "240px",
               fontSize: window.innerWidth < 576 ? "0.85rem" : "1rem",
               backgroundColor: isGenerating ? "#fff" : undefined,
               color: isGenerating ? "#334155" : undefined,

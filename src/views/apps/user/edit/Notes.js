@@ -68,6 +68,8 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
     handleGenerateNotesWithPrompt,
     previousNotesSnapshot,
     handleRestorePreviousNotes,
+    promptSystem,
+    setPromptSystem,
   } = useNotesLogic(id, perso);
 
   return (
@@ -107,6 +109,8 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         setN8nMessage={setN8nMessage}
         reportType={reportType}
         handleGenerateDoc={handleGenerateDoc}
+        promptSystem={promptSystem}
+        setPromptSystem={setPromptSystem}
       />
 
       <GeneratedDocsSection
