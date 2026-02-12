@@ -375,13 +375,7 @@ class FilterSidebar extends React.Component {
                 <label className="text-bold-600 font-small-3 mb-50">
                   Type de tâche
                 </label>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(3, 1fr)",
-                    gap: "0.5rem",
-                  }}
-                >
+                <div className="task-type-grid">
                   {[
                     {
                       value: "relance_caisse",

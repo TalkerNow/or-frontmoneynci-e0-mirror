@@ -110,21 +110,25 @@ class TaskList extends React.Component {
     now.setHours(0, 0, 0, 0); // Reset time to midnight for comparison
 
     const urgentTodos = todosArr.filter((todo) => {
+      if (todo.isCompleted) return false;
       if (!todo.end_date) return false;
       const endDate = new Date(todo.end_date);
       endDate.setHours(0, 0, 0, 0);
-      return endDate < now && !todo.isCompleted;
+      return endDate < now;
     });
 
     const normalTodos = todosArr.filter((todo) => {
+      if (todo.isCompleted) return false;
       if (!todo.end_date) return true;
       const endDate = new Date(todo.end_date);
       endDate.setHours(0, 0, 0, 0);
-      return endDate >= now || todo.isCompleted;
+      return endDate >= now;
     });
 
-    // Combine urgent and normal todos for the table, keeping urgent first
-    const displayTodos = [...urgentTodos, ...normalTodos];
+    const completedTodos = todosArr.filter((todo) => todo.isCompleted);
+
+    // Combine for display: Urgent first, then Normal Pending, then Completed at the bottom
+    const displayTodos = [...urgentTodos, ...normalTodos, ...completedTodos];
 
     return (
       <div className="w-100 h-100 d-flex flex-column">
@@ -212,7 +216,7 @@ class TaskList extends React.Component {
           }}
           style={{ height: "100%" }}
         >
-          <Table responsive hover className="table-tasks m-0">
+          <Table hover className="table-tasks m-0">
             <thead>
               <tr>
                 <th style={{ width: "40px" }} className="pl-3">
