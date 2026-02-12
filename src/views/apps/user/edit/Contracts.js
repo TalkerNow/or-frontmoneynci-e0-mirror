@@ -8,7 +8,6 @@ import {
   Card,
   CardBody,
   Spinner,
-  Badge,
   UncontrolledTooltip,
 } from "reactstrap";
 import {
@@ -19,13 +18,11 @@ import {
   AlertCircle,
   Clock,
   FileText,
-  DollarSign,
   TrendingUp,
   Download,
 } from "react-feather";
 import { history } from "../../../../history";
 import axios from "axios";
-import { ContextLayout } from "../../../../utility/context/Layout";
 import "../../../../assets/scss/pages/users.scss";
 import "../../../../assets/scss/pages/contract.scss";
 import Moment from "react-moment";
@@ -33,6 +30,7 @@ import moment from "moment";
 import SweetAlert from "react-bootstrap-sweetalert";
 import Chip from "../../../../../src/components/@vuexy/chips/ChipComponent";
 import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 import { toast } from "react-toastify";
 
 const chipColors = {
@@ -207,147 +205,195 @@ class Contracts extends React.Component {
     }
   };
 
-  // Direct PDF download
+  // Direct PDF download via hidden iframe (full visual contract)
   downloadContract = async (contractId) => {
     this.setState({ downloadingContractId: contractId });
-
-    const Config = {
-      headers: { Authorization: "Bearer " + localStorage.getItem("token") },
-    };
+    toast.info("Génération du PDF en cours...");
 
     try {
-      // Fetch complete contract data
-      const response = await axios.get(
-        global.config.server_url + "/get_contract/" + contractId,
-        Config,
-      );
+      // 1. Create hidden iframe
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.left = "-9999px";
+      iframe.style.top = "-9999px";
+      iframe.style.width = "1200px";
+      iframe.style.height = "3000px";
+      iframe.style.opacity = "0";
+      iframe.style.pointerEvents = "none";
+      iframe.src = window.location.origin + "/pages/contract/" + contractId;
+      document.body.appendChild(iframe);
 
-      const contract = response.data.data;
-      if (!contract) {
-        throw new Error("Contrat introuvable");
-      }
+      // 2. Wait for contract pages to render inside iframe
+      const pages = await new Promise((resolve, reject) => {
+        const startTime = Date.now();
+        const maxWait = 20000; // 20s timeout
 
-      // Parse values
-      const values = contract.values ? JSON.parse(contract.values) : {};
-      const firstName = contract.first_name || "";
-      const lastName = contract.last_name || "";
+        const checkInterval = setInterval(() => {
+          try {
+            const iframeDoc =
+              iframe.contentDocument || iframe.contentWindow.document;
+            const contractPages =
+              iframeDoc.getElementsByClassName("contract-page");
+            const elapsed = Date.now() - startTime;
 
-      // Get services list
-      const services = (contract.subscribe_services || "")
-        .replaceAll('"', "")
-        .trim()
-        .split("/")
-        .filter((s) => s && s.trim() !== "");
-
-      // Create PDF
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      let y = 20;
-
-      // Header
-      pdf.setFontSize(18);
-      pdf.setTextColor(115, 103, 240); // Primary purple
-      pdf.text("Contrat - EOR Consultants", pageWidth / 2, y, {
-        align: "center",
+            if (
+              contractPages.length >= 3 ||
+              (contractPages.length > 0 && elapsed > 12000)
+            ) {
+              clearInterval(checkInterval);
+              // Extra buffer for styles to settle
+              setTimeout(() => resolve(contractPages), 800);
+            } else if (elapsed > maxWait) {
+              clearInterval(checkInterval);
+              reject(
+                new Error(
+                  "Timeout: les pages du contrat n'ont pas pu se charger.",
+                ),
+              );
+            }
+          } catch (e) {
+            // Cross-origin or iframe not ready yet — keep waiting
+            const elapsed = Date.now() - startTime;
+            if (elapsed > maxWait) {
+              clearInterval(checkInterval);
+              reject(new Error("Erreur d'accès à l'iframe."));
+            }
+          }
+        }, 500);
       });
-      y += 15;
 
-      // Client info
-      pdf.setFontSize(14);
-      pdf.setTextColor(0, 0, 0);
-      pdf.text(`Client: ${firstName} ${lastName}`, 20, y);
-      y += 10;
+      // 3. Capture each page with html2canvas → PDF
+      const pdf = new jsPDF("p", "mm", "a4");
 
-      // Contract date
-      pdf.setFontSize(11);
-      pdf.setTextColor(100, 100, 100);
-      if (contract.created_at) {
-        const createdDate = new Date(contract.created_at).toLocaleDateString(
-          "fr-FR",
-          {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
+      for (let i = 0; i < pages.length; i++) {
+        if (i > 0) pdf.addPage();
+
+        const canvas = await html2canvas(pages[i], {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          windowWidth: 1200,
+          onclone: (clonedDoc) => {
+            const inputs = clonedDoc.querySelectorAll(".contract-page input");
+            inputs.forEach((input) => {
+              const span = clonedDoc.createElement("span");
+              span.innerText = input.value;
+              span.style.fontSize = "15px";
+              span.style.color = "#575757";
+              span.style.fontWeight = "500";
+              span.style.fontFamily = "inherit";
+              span.style.background = "transparent";
+              span.style.border = "none";
+              span.style.padding = "0";
+              span.style.margin = "0";
+              span.style.display = "inline-block";
+              span.style.textAlign = input.style.textAlign || "left";
+              span.style.width = input.style.width || "auto";
+              span.style.verticalAlign = "baseline";
+              if (input.parentNode) {
+                input.parentNode.replaceChild(span, input);
+              }
+            });
           },
-        );
-        pdf.text(`Date de création: ${createdDate}`, 20, y);
-        y += 8;
-      }
-
-      // Status
-      pdf.text(`Statut: ${contract.document_state || "Non défini"}`, 20, y);
-      y += 12;
-
-      // Services
-      if (services.length > 0) {
-        pdf.setFontSize(12);
-        pdf.setTextColor(0, 0, 0);
-        pdf.text("Prestations:", 20, y);
-        y += 8;
-
-        pdf.setFontSize(10);
-        services.forEach((service) => {
-          pdf.text(`• ${service.trim()}`, 25, y);
-          y += 6;
         });
-        y += 5;
+
+        const imgData = canvas.toDataURL("image/jpeg", 0.9);
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
       }
 
-      // Financial summary
-      pdf.setFontSize(12);
-      pdf.setTextColor(0, 0, 0);
-      pdf.text("Résumé financier:", 20, y);
-      y += 8;
+      // 4. Build filename from contract form values (same logic as EditContract.print)
+      // Fetch full contract data for name & values
+      const Config = {
+        headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+      };
+      let firstName = "";
+      let lastName = "";
+      let formValues = {};
 
-      pdf.setFontSize(10);
-      const totalTTC = values.TOTALTTC || contract.advanced_payment || 0;
-      const acompte = values.FINAL75 || contract.pre_payment || 0;
-      const solde = values.FINAL25 || contract.end_payment || 0;
-      const tva = values.TVAP || 20;
+      try {
+        const contractRes = await axios.get(
+          global.config.server_url + "/get_contract/" + contractId,
+          Config,
+        );
+        const contractData = contractRes.data.data || {};
+        firstName = contractData.first_name || "";
+        lastName = contractData.last_name || "";
+        formValues = contractData.values ? JSON.parse(contractData.values) : {};
+      } catch (e) {
+        console.warn("Error fetching contract details for filename", e);
+      }
 
-      pdf.text(`Total TTC: ${Number(totalTTC).toFixed(2)} €`, 25, y);
-      y += 6;
-      pdf.text(
-        `Acompte (${values.fp1 || 75}%): ${Number(acompte).toFixed(2)} €`,
-        25,
-        y,
-      );
-      y += 6;
-      pdf.text(
-        `Solde (${values.fp2 || 25}%): ${Number(solde).toFixed(2)} €`,
-        25,
-        y,
-      );
-      y += 6;
-      pdf.text(`TVA: ${tva}%`, 25, y);
-      y += 12;
+      const selectedServices = [];
+      for (let i = 1; i <= 7; i++) {
+        if (formValues[`c${i}`]) {
+          let title = formValues[`title${i}`] || "";
+          title = title.replace(/\s*\(.*?\)/g, "").trim();
+          if (title) selectedServices.push(title);
+        }
+      }
 
-      // Footer
-      pdf.setFontSize(8);
-      pdf.setTextColor(150, 150, 150);
-      pdf.text(
-        "Document généré automatiquement - EOR Consultants",
-        pageWidth / 2,
-        280,
-        { align: "center" },
-      );
+      // Audit renaming logic (same as EditContract.print)
+      const upperServices = selectedServices.map((s) => s.toUpperCase());
+      const isAudit =
+        upperServices.some((s) => s.includes("AUDIT RETRAITE PARTICULIER")) ||
+        upperServices.some((s) =>
+          s.includes("AUDIT BILAN RETRAITE PARTICULIER"),
+        ) ||
+        upperServices.some((s) => s.includes("AUDIT RETRAITE ENTREPRISE")) ||
+        upperServices.some((s) =>
+          s.includes("AUDIT BILAN RETRAITE ENTREPRISE"),
+        );
 
-      // Generate filename
+      let fileName = "Contrat - EOR Consultants";
       let serviceString = "Dossier";
-      if (services.length === 1) {
-        serviceString = services[0].trim();
-      } else if (services.length === 2) {
-        serviceString = `${services[0].trim()} + ${services[1].trim()}`;
-      } else if (services.length > 2) {
-        serviceString = `${services[0].trim()} et autres`;
+      if (isAudit) {
+        const filteredServices = selectedServices.filter(
+          (s) => !s.toUpperCase().includes("LIQUIDATION"),
+        );
+        const mappedServices = filteredServices.map((s) => {
+          const up = s.toUpperCase();
+          if (
+            up.includes("AUDIT RETRAITE PARTICULIER") ||
+            up.includes("AUDIT BILAN RETRAITE PARTICULIER") ||
+            up.includes("AUDIT BILANRETRAITE PARTICULIER")
+          )
+            return "AUDIT BILAN RETRAITE";
+          if (
+            up.includes("AUDIT RETRAITE ENTREPRISE") ||
+            up.includes("AUDIT BILAN RETRAITE ENTREPRISE")
+          )
+            return "AUDIT BILAN RETRAITE ENTREPRISE";
+          return s;
+        });
+        if (mappedServices.length === 1) serviceString = mappedServices[0];
+        else if (mappedServices.length === 2)
+          serviceString = `${mappedServices[0]} + ${mappedServices[1]}`;
+        else if (mappedServices.length > 2)
+          serviceString = `${mappedServices[0]} et autres`;
+      } else {
+        if (selectedServices.length === 1) serviceString = selectedServices[0];
+        else if (selectedServices.length === 2)
+          serviceString = `${selectedServices[0]} + ${selectedServices[1]}`;
+        else if (selectedServices.length > 2)
+          serviceString = `${selectedServices[0]} et autres`;
       }
-      const fileName = `${serviceString} ${firstName} ${lastName} - EOR Consultants.pdf`;
 
-      pdf.save(fileName);
+      fileName = `${serviceString} ${firstName} ${lastName} - EOR Consultants`;
+
+      pdf.save(`${fileName}.pdf`);
       toast.success("Contrat téléchargé avec succès !");
+
+      // 5. Clean up iframe
+      document.body.removeChild(iframe);
     } catch (error) {
       console.error("Erreur lors du téléchargement:", error);
       toast.error("Erreur lors du téléchargement du contrat");
+      // Clean up any leftover iframe
+      const leftoverIframe = document.querySelector('iframe[style*="-9999px"]');
+      if (leftoverIframe) document.body.removeChild(leftoverIframe);
     } finally {
       this.setState({ downloadingContractId: null });
     }
@@ -619,15 +665,16 @@ class Contracts extends React.Component {
                   color="flat-primary"
                   size="md"
                   style={{ backgroundColor: "rgba(115, 103, 240, 0.05)" }}
-                  onClick={() =>
-                    history.push(
-                      "/pages/contract/" + contract.id + "?download=true",
-                    )
-                  }
+                  onClick={() => this.downloadContract(contract.id)}
+                  disabled={this.state.downloadingContractId === contract.id}
                   id={`download-btn-${contract.id}`}
                   title="Télécharger le contrat"
                 >
-                  <Download size={20} />
+                  {this.state.downloadingContractId === contract.id ? (
+                    <Spinner size="sm" style={{ width: 20, height: 20 }} />
+                  ) : (
+                    <Download size={20} />
+                  )}
                 </Button.Ripple>
                 <UncontrolledTooltip
                   placement="top"
