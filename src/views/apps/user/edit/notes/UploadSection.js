@@ -44,6 +44,7 @@ const UploadSection = ({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [promptView, setPromptView] = useState("content"); // "content" ou "modifications"
+  const [basePromptSystem, setBasePromptSystem] = useState("");
   const [isApplyingPromptAI, setIsApplyingPromptAI] = useState(false);
   const pickerRef = useRef(null);
 
@@ -99,9 +100,10 @@ const UploadSection = ({
       return;
     }
 
+    const sourcePrompt = basePromptSystem || promptSystem;
     setIsApplyingPromptAI(true);
     try {
-      const model = "gemini-2.5-flash-preview-09-2025";
+      const model = "gemini-2.5-pro";
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
         {
@@ -113,7 +115,7 @@ const UploadSection = ({
                 role: "user",
                 parts: [
                   {
-                    text: `PROMPT ACTUEL :\n${promptSystem}\n\nINSTRUCTIONS UTILISATEUR :\n${promptModifications}\n\nCONSIGNES :\n- Mets à jour le prompt en appliquant les instructions.\n- Ajoute, modifie ou réécris uniquement ce qui est demandé.\n- Ne supprime pas de sections critiques si ce n'est pas demandé.\n- Réponds uniquement avec le prompt final, sans commentaire.`,
+                    text: `PROMPT ACTUEL :\n${sourcePrompt}\n\nINSTRUCTIONS UTILISATEUR :\n${promptModifications}\n\nCONSIGNES :\n- Mets à jour le prompt en appliquant les instructions.\n- Ajoute, modifie ou réécris uniquement ce qui est demandé.\n- Ne supprime pas de sections critiques si ce n'est pas demandé.\n- Ne supprime pas la phrase d'identité/role initiale si elle existe.\n- Ne mentionne PAS de rôle, de persona ou d'instructions système dans la réponse.\n- Réponds uniquement avec le prompt final, sans commentaire.`,
                   },
                 ],
               },
@@ -121,7 +123,7 @@ const UploadSection = ({
             systemInstruction: {
               parts: [
                 {
-                  text: "Tu es un éditeur de prompt. Tu dois produire une version finale propre et prête à l'emploi.",
+                  text: "Tu es un éditeur de prompt. Tu dois produire une version finale propre et prête à l'emploi. Ne réintroduis jamais ce rôle dans le prompt final.",
                 },
               ],
             },
@@ -135,7 +137,105 @@ const UploadSection = ({
 
       const data = await response.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-      const trimmedText = text.trim();
+      let trimmedText = text.trim();
+
+      const isRoleLine = (line) => {
+        const normalized = (line || "").trim().toLowerCase();
+        if (!normalized) return false;
+        if (
+          normalized.startsWith("tu n'es") ||
+          normalized.startsWith("tu n’est") ||
+          normalized.startsWith("tu n'est") ||
+          normalized.startsWith("vous n'etes") ||
+          normalized.startsWith("vous n'êtes") ||
+          normalized.startsWith("vous n’êtes")
+        ) {
+          return false;
+        }
+        if (/^(tu|vous)\s+(es|est|etes|êtes)\b/.test(normalized)) return true;
+        if (/^(tu|vous)\s+agis(sez)?\s+en\s+tant\s+que\b/.test(normalized)) {
+          return true;
+        }
+        if (/^(ton|votre)\s+r[oô]le\b/.test(normalized)) return true;
+        if (normalized.includes("rôle") || normalized.includes("role")) {
+          return normalized.startsWith("tu ") || normalized.startsWith("vous ");
+        }
+        return false;
+      };
+
+      const baseLines = (basePromptSystem || promptSystem || "")
+        .trim()
+        .split("\n");
+      const baseRoleLine = baseLines.find((line) => isRoleLine(line)) || "";
+
+      const roleFromMods = (promptModifications || "")
+        .split("\n")
+        .map((line) => line.trim())
+        .find((line) => isRoleLine(line));
+
+      const extractRoleRemainder = (line) => {
+        if (!line) return "";
+        const normalized = line.trim();
+        const lowered = normalized.toLowerCase();
+        const prefixMatch = lowered.match(/^(tu|vous)\s+(es|est|etes|êtes)\s+/);
+        if (!prefixMatch) return normalized;
+        return normalized.slice(prefixMatch[0].length).trim();
+      };
+
+      const isAdditiveRole = (line) => {
+        const normalized = (line || "").trim().toLowerCase();
+        return (
+          normalized.includes("également") ||
+          normalized.includes("egalement") ||
+          normalized.includes("aussi") ||
+          normalized.includes("en plus")
+        );
+      };
+
+      const cleanedLines = trimmedText.split("\n").filter((line) => {
+        const normalized = line.trim().toLowerCase();
+        return (
+          !normalized.includes("éditeur de prompt") &&
+          !normalized.includes("editeur de prompt")
+        );
+      });
+      trimmedText = cleanedLines.join("\n").trim();
+
+      const outputLines = trimmedText.split("\n");
+      const outputFirstLine = outputLines.find((line) => line.trim()) || "";
+      const outputHasRoleLine = isRoleLine(outputFirstLine);
+      let desiredRoleLine =
+        roleFromMods ||
+        (outputHasRoleLine ? outputFirstLine : "") ||
+        baseRoleLine;
+
+      if (baseRoleLine && roleFromMods && isAdditiveRole(roleFromMods)) {
+        const baseRemainder = extractRoleRemainder(baseRoleLine);
+        const modRemainder = extractRoleRemainder(roleFromMods);
+        if (
+          modRemainder &&
+          !baseRemainder.toLowerCase().includes(modRemainder.toLowerCase())
+        ) {
+          desiredRoleLine =
+            `Tu es ${baseRemainder}, également ${modRemainder}`.trim();
+        } else {
+          desiredRoleLine = baseRoleLine;
+        }
+      }
+
+      if (desiredRoleLine) {
+        const withoutLeadingRole = outputLines
+          .filter(
+            (line, index) =>
+              !(
+                index === outputLines.findIndex((l) => l.trim()) &&
+                isRoleLine(line)
+              ),
+          )
+          .join("\n")
+          .trim();
+        trimmedText = `${desiredRoleLine}\n${withoutLeadingRole}`.trim();
+      }
 
       if (!trimmedText) {
         toast.error("Réponse vide : le prompt n'a pas été modifié");
@@ -143,6 +243,7 @@ const UploadSection = ({
       }
 
       setPromptSystem(trimmedText);
+      setBasePromptSystem(trimmedText);
       setPromptModifications("");
       setPromptView("content");
       toast.success("Prompt mis à jour (non sauvegardé)");
@@ -530,11 +631,14 @@ const UploadSection = ({
                   (p) => p.id === parseInt(option.value),
                 );
                 if (selectedPrompt) {
-                  setPromptSystem(selectedPrompt.prompt_text || "");
+                  const promptText = selectedPrompt.prompt_text || "";
+                  setPromptSystem(promptText);
+                  setBasePromptSystem(promptText);
                 }
               } else {
                 setSelectedRapportPromptId("");
                 setPromptSystem("");
+                setBasePromptSystem("");
               }
             }}
             options={rapportPrompts.map((p) => ({
@@ -673,6 +777,35 @@ const UploadSection = ({
               <div style={{ animation: "fadeIn 0.2s ease" }}>
                 <div
                   style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "8px",
+                    gap: "8px",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <span style={{ fontSize: "0.75rem", color: "#94a3b8" }}>
+                    Affichage en lecture seule du prompt sélectionné
+                  </span>
+                  <Button
+                    color="secondary"
+                    outline
+                    size="sm"
+                    onClick={() => {
+                      if (basePromptSystem) {
+                        setPromptSystem(basePromptSystem);
+                        setPromptModifications("");
+                        toast.info("Prompt réinitialisé à la version de base");
+                      }
+                    }}
+                    disabled={!basePromptSystem || isGenerating}
+                  >
+                    Réinitialiser le prompt
+                  </Button>
+                </div>
+                <div
+                  style={{
                     minHeight: "200px",
                     maxHeight: "280px",
                     overflowY: "auto",
@@ -690,16 +823,6 @@ const UploadSection = ({
                 >
                   {promptSystem}
                 </div>
-                <p
-                  style={{
-                    fontSize: "0.75rem",
-                    color: "#94a3b8",
-                    marginTop: "8px",
-                    margin: "8px 0 0 0",
-                  }}
-                >
-                  Affichage en lecture seule du prompt sélectionné
-                </p>
               </div>
             )}
 
@@ -740,7 +863,7 @@ const UploadSection = ({
                         style={{ width: "0.9rem", height: "0.9rem" }}
                       />
                     ) : (
-                      "✨"
+                      ""
                     )}
                     Apporter des modifications
                   </Button>
