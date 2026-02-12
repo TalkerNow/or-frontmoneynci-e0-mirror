@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Loader, MessageSquare, EyeOff } from "lucide-react";
+import { Loader, MessageSquare, EyeOff, Search } from "lucide-react";
 import {
   getTypeIcon,
   formatPhoneNumber,
@@ -16,19 +16,42 @@ const InboxList = ({
   onMarkAsUnread,
 }) => {
   const [hoveredItemId, setHoveredItemId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Logique de filtrage
+  const filteredItems = visibleInboxItems.filter((item) => {
+    if (!searchTerm) return true;
+    const lowerTerm = searchTerm.toLowerCase();
+    const name = item.name ? item.name.toLowerCase() : "";
+    const email = item.email ? item.email.toLowerCase() : "";
+    const phone = item.phone ? item.phone.toString() : "";
+    const summary =
+      item.summary && item.summary[0] ? item.summary[0].toLowerCase() : "";
+
+    return (
+      name.includes(lowerTerm) ||
+      email.includes(lowerTerm) ||
+      phone.includes(lowerTerm) ||
+      summary.includes(lowerTerm)
+    );
+  });
 
   return (
-    <div
-      className="inbox-left-panel"
-      style={{
-        width: "380px",
-        flexShrink: 0,
-        borderRight: "1px solid #e5e7eb",
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-      }}
-    >
+    <div className="inbox-left-panel">
+      {/* Search Bar */}
+      <div style={{ padding: "16px", borderBottom: "1px solid #f3f4f6" }}>
+        <div className="inbox-search-container">
+          <Search size={16} color="#9ca3af" style={{ marginRight: "8px" }} />
+          <input
+            type="text"
+            className="inbox-search-input"
+            placeholder="Rechercher nom, email, tél..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
+
       <div
         style={{
           padding: "16px",
@@ -40,7 +63,9 @@ const InboxList = ({
         }}
       >
         <h3 style={{ fontWeight: 600, color: "#374151", margin: 0 }}>
-          Non lus ({unreadCount})
+          {searchTerm
+            ? `Résultats (${filteredItems.length})`
+            : `Non lus (${unreadCount})`}
         </h3>
       </div>
       <div style={{ overflowY: "auto", flex: 1 }}>
@@ -59,7 +84,7 @@ const InboxList = ({
             <Loader size={32} className="animate-spin" />
             <p>Chargement des conversations...</p>
           </div>
-        ) : visibleInboxItems.length === 0 ? (
+        ) : filteredItems.length === 0 ? (
           <div
             style={{
               display: "flex",
@@ -72,33 +97,57 @@ const InboxList = ({
               textAlign: "center",
             }}
           >
-            <MessageSquare
-              size={48}
-              style={{ marginBottom: "16px", color: "#d1d5db" }}
-            />
-            <p
-              style={{
-                fontWeight: 500,
-                fontSize: "16px",
-                color: "#6b7280",
-                marginBottom: "8px",
-              }}
-            >
-              Aucune conversation
-            </p>
-            <p
-              style={{
-                fontSize: "14px",
-                color: "#9ca3af",
-                maxWidth: "250px",
-              }}
-            >
-              Les conversations avec vos clients apparaîtront ici
-              automatiquement.
-            </p>
+            {searchTerm ? (
+              <>
+                <Search
+                  size={48}
+                  style={{ marginBottom: "16px", color: "#d1d5db" }}
+                />
+                <p
+                  style={{
+                    fontWeight: 500,
+                    fontSize: "16px",
+                    color: "#6b7280",
+                    marginBottom: "8px",
+                  }}
+                >
+                  Aucun résultat
+                </p>
+                <p style={{ fontSize: "14px", color: "#9ca3af" }}>
+                  Aucune conversation ne correspond à "{searchTerm}"
+                </p>
+              </>
+            ) : (
+              <>
+                <MessageSquare
+                  size={48}
+                  style={{ marginBottom: "16px", color: "#d1d5db" }}
+                />
+                <p
+                  style={{
+                    fontWeight: 500,
+                    fontSize: "16px",
+                    color: "#6b7280",
+                    marginBottom: "8px",
+                  }}
+                >
+                  Aucune conversation
+                </p>
+                <p
+                  style={{
+                    fontSize: "14px",
+                    color: "#9ca3af",
+                    maxWidth: "250px",
+                  }}
+                >
+                  Les conversations avec vos clients apparaîtront ici
+                  automatiquement.
+                </p>
+              </>
+            )}
           </div>
         ) : (
-          visibleInboxItems.map((item, index) => (
+          filteredItems.map((item, index) => (
             <div
               key={`${item.id}-${index}`}
               onClick={() => onSelect(item)}
