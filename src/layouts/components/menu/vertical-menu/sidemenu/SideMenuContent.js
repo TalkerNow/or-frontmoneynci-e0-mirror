@@ -81,6 +81,10 @@ class SideMenuContent extends React.Component {
   state = {
     crmBadge: 0, // NEW: badge pour KPI/CRM
     inboxBadge: 0, // NEW: badge pour Inbox (chat)
+    chatbotBadge: 0,
+    diagnosticBadge: 0,
+    callBadge: 0,
+    emailBadge: 0,
     tasksBadge: 0, // NEW: badge pour Tâches urgentes
     contractsBadge: 0, // NEW: badge pour Contrats terminés impayés
     flag: true,
@@ -179,6 +183,265 @@ class SideMenuContent extends React.Component {
     });
   };
 
+  fetchInboxCount = async () => {
+    try {
+      const Config = {
+        headers: {
+          Authorization: "Bearer " + localStorage.getItem("token"),
+        },
+      };
+
+      // --- Helpers ---
+      const normalizePhone = (p) => {
+        if (!p) return "";
+        return String(p).replace(/\D/g, "").replace(/^33/, "0");
+      };
+
+      const extractPhone = (item) => {
+        return (
+          item.phone ||
+          item.telephone ||
+          item.attributes?.TELEPHONE ||
+          item.user?.phone ||
+          item.user?.telephone ||
+          (item.user && item.user.username) ||
+          ""
+        );
+      };
+
+      // 1. Fetch user-kanbans
+      let kanbanUserIds = new Set();
+      let opportunitiesCount = 0;
+      try {
+        const resKanban = await axios.get(
+          global.config.server_url + "/user-kanbans",
+          Config,
+        );
+        const userKanbans = Array.isArray(resKanban.data) ? resKanban.data : [];
+        kanbanUserIds = new Set(
+          userKanbans.map((uk) => uk.user_id).filter((id) => id != null),
+        );
+        opportunitiesCount = userKanbans.length;
+      } catch (err) {
+        console.error("Error fetching user-kanbans", err);
+      }
+
+      // 2. Fetch Conversations (Chatbot)
+      let allConvs = [];
+      try {
+        let p = 1;
+        let maxPage = 1;
+        do {
+          const res = await axios.get(
+            global.config.server_url + "/conversation-archives",
+            { ...Config, params: { page: p } },
+          );
+          const payload = res.data || {};
+          const data = Array.isArray(payload.data)
+            ? payload.data
+            : Array.isArray(payload)
+              ? payload
+              : [];
+          allConvs = allConvs.concat(data);
+          maxPage = payload.last_page || payload.meta?.last_page || 1;
+          if (Array.isArray(payload)) maxPage = 1;
+          p++;
+        } while (p <= maxPage && p <= 50);
+      } catch (e) {
+        console.error("Error fetching convs", e);
+      }
+
+      // 3. Fetch Diagnostics
+      let allDiags = [];
+      try {
+        let p = 1;
+        let maxPage = 1;
+        do {
+          const res = await axios.get(
+            global.config.server_url + "/v1/simulator-difficulty-results",
+            { ...Config, params: { page: p } },
+          );
+          const payload = res.data || {};
+          const data = Array.isArray(payload.data)
+            ? payload.data
+            : Array.isArray(payload)
+              ? payload
+              : [];
+          allDiags = allDiags.concat(data);
+          maxPage = payload.last_page || payload.meta?.last_page || 1;
+          if (Array.isArray(payload)) maxPage = 1;
+          p++;
+        } while (p <= maxPage && p <= 50);
+      } catch (e) {
+        console.error("Error fetching diags", e);
+      }
+
+      // 4. Fetch KPIs (Emails / Calls)
+      let allKpis = [];
+      try {
+        let p = 1;
+        let maxPage = 1;
+        do {
+          const res = await axios.get(global.config.server_url + "/kpis", {
+            ...Config,
+            params: { page: p },
+          });
+          const payload = res.data || {};
+          const data = Array.isArray(payload.data)
+            ? payload.data
+            : Array.isArray(payload)
+              ? payload
+              : [];
+          allKpis = allKpis.concat(data);
+
+          const metaMax =
+            payload?.last_page ||
+            payload?.meta?.last_page ||
+            payload?.meta?.pagination?.total_pages ||
+            1;
+          maxPage = metaMax;
+          if (Array.isArray(payload)) maxPage = 1;
+          p++;
+        } while (p <= maxPage && p <= 50);
+      } catch (e) {
+        console.error("Error fetching kpis", e);
+      }
+
+      // Filter KPIs for relevant Emails/Calls
+      const relevantKpis = allKpis
+        .filter((kpi) => {
+          const obj = (kpi.objet || kpi.object || "").toString().toLowerCase();
+          const act = (kpi.action || "").toString().toLowerCase();
+          return (
+            obj.includes("email") ||
+            obj.includes("appel") ||
+            act.includes("email") ||
+            act.includes("appel") ||
+            act === "email reçu" ||
+            act === "email recu"
+          );
+        })
+        .map((kpi) => {
+          const obj = (kpi.objet || kpi.object || "").toString().toLowerCase();
+          const act = (kpi.action || "").toString().toLowerCase();
+          const isEmail =
+            obj.includes("email") ||
+            act.includes("email") ||
+            act.includes("email reçu") ||
+            act.includes("email recu");
+
+          return {
+            ...kpi,
+            _source: isEmail ? "email" : "call",
+          };
+        });
+
+      // LocalStorage reads
+      let readIds = new Set();
+      try {
+        const stored = localStorage.getItem("inbox_read_ids");
+        if (stored) readIds = new Set(JSON.parse(stored));
+      } catch (e) {}
+      let manualUnreadIds = new Set();
+      try {
+        const stored = localStorage.getItem("inbox_manual_unread_ids");
+        if (stored) manualUnreadIds = new Set(JSON.parse(stored));
+      } catch (e) {}
+
+      // Prepare items for deduplication
+      const convsMapped = allConvs.map((c) => ({ ...c, _source: "chatbot" }));
+      const diagsMapped = allDiags.map((d) => ({
+        ...d,
+        _source: "diagnostic",
+      }));
+
+      const allRawItems = [...convsMapped, ...diagsMapped, ...relevantKpis];
+
+      // Deduplicate by phone (Keep most recent)
+      const phoneMap = new Map();
+      const uniqueItems = [];
+
+      allRawItems.forEach((item) => {
+        const phone = normalizePhone(extractPhone(item));
+        if (!phone) {
+          uniqueItems.push(item);
+          return;
+        }
+        const existing = phoneMap.get(phone);
+        if (!existing) {
+          phoneMap.set(phone, item);
+        } else {
+          const existingDate = new Date(
+            existing.created_at || existing.kpi_date || 0,
+          );
+          const newDate = new Date(item.created_at || item.kpi_date || 0);
+          if (newDate > existingDate) {
+            phoneMap.set(phone, item);
+          }
+        }
+      });
+      // Push unique items
+      phoneMap.forEach((item) => uniqueItems.push(item));
+
+      // Also add items without phone (kept in uniqueItems)
+      // Wait, in my loop above "if (!phone) { uniqueItems.push(item); return; }" handles items with no phone.
+      // So uniqueItems contains items-without-phone.
+      // phoneMap contains items-with-phone (deduplicated).
+      // I need to merge them.
+      // Corrected logic:
+      // uniqueItems ALREADY has items without phone.
+      // I need to push map values to it.
+
+      // Filter valid
+      let validItems = uniqueItems.filter((c) => {
+        // Standard filters
+        if (c.invisible || c.invisible === 1) return false;
+        if (c.status === "DISQUALIFIED") return false;
+        if (c.user?.role === "Client") return false;
+
+        // Kanban filter
+        if (c.user_id && kanbanUserIds.has(c.user_id)) return false;
+
+        return true;
+      });
+
+      // Count
+      let chatbotCount = 0;
+      let diagnosticCount = 0;
+      let callCount = 0;
+      let emailCount = 0;
+      let totalUnread = 0;
+
+      validItems.forEach((c) => {
+        const status = c.status || c.action || "new";
+        const isUnread =
+          (status === "new" || manualUnreadIds.has(c.id)) && !readIds.has(c.id);
+
+        if (isUnread) {
+          totalUnread++;
+          // Type determination
+          let type = c._source || c.type;
+
+          if (type === "chatbot") chatbotCount++;
+          else if (type === "diagnostic") diagnosticCount++;
+          else if (type === "call") callCount++;
+          else if (type === "email") emailCount++;
+        }
+      });
+
+      this.setState({
+        inboxBadge: totalUnread,
+        chatbotBadge: chatbotCount,
+        diagnosticBadge: diagnosticCount,
+        callBadge: callCount,
+        emailBadge: emailCount,
+        opportunitiesBadge: opportunitiesCount,
+      });
+    } catch (err) {
+      console.error("Error fetching inbox count loop", err);
+    }
+  };
+
   componentDidMount() {
     this.initRender(this.parentArr[0] ? this.parentArr[0] : []);
 
@@ -188,7 +451,11 @@ class SideMenuContent extends React.Component {
       },
     };
 
-    // --- Fetch KPI Urgent Count ---
+    // Initial fetch
+    this.fetchInboxCount();
+
+    // Poll every 1 seconds
+    this.inboxInterval = setInterval(this.fetchInboxCount, 1000);
     axios
       .get(global.config.server_url + "/suivi-avancement/all", Config)
       .then((res) => {
@@ -197,7 +464,7 @@ class SideMenuContent extends React.Component {
         const today = new Date(
           now.getFullYear(),
           now.getMonth(),
-          now.getDate()
+          now.getDate(),
         );
 
         let urgentCount = 0;
@@ -249,29 +516,6 @@ class SideMenuContent extends React.Component {
         console.error("Error fetching urgent count for sidebar", err),
       );
 
-    // --- Fetch Inbox Unread Count ---
-    axios
-      .get(global.config.server_url + "/conversation-archives", Config)
-      .then((res) => {
-        const payload = res.data;
-        const convs = Array.isArray(payload?.data) ? payload.data : [];
-
-        // Load read IDs from localStorage
-        let readIds = new Set();
-        try {
-          const stored = localStorage.getItem("inbox_read_ids");
-          if (stored) readIds = new Set(JSON.parse(stored));
-        } catch (e) {
-          console.error("Error parsing inbox_read_ids", e);
-        }
-
-        const unreadCount = convs.filter(
-          (c) => c.status === "new" && !readIds.has(c.id)
-        ).length;
-        this.setState({ inboxBadge: unreadCount });
-      })
-      .catch((err) => console.error("Error fetching inbox count", err));
-
     // --- Fetch Urgent Tasks Count ---
     axios
       .get(global.config.server_url + "/tasks?filter=all", Config)
@@ -315,6 +559,10 @@ class SideMenuContent extends React.Component {
       .catch((err) =>
         console.error("❌ Error fetching unpaid contracts count", err),
       );
+  }
+
+  componentWillUnmount() {
+    if (this.inboxInterval) clearInterval(this.inboxInterval);
   }
 
   componentDidUpdate(prevProps, prevState) {
@@ -488,9 +736,13 @@ class SideMenuContent extends React.Component {
               </div>
             ) : null}
 
-            {/* ✅ Badge CRM Urgent */}
-            {item.id === "kpi" && this.state.crmBadge > 0 ? (
-              <div className="menu-badge">
+            {/* ✅ Badge CRM Urgent (Sum of Inbox + Suivi + Opportunities) */}
+            {item.id === "kpi" &&
+            this.state.crmBadge +
+              this.state.inboxBadge +
+              (this.state.opportunitiesBadge || 0) >
+              0 ? (
+              <div className="menu-badge" style={{ marginLeft: "auto" }}>
                 <span
                   style={{
                     display: "inline-flex",
@@ -507,24 +759,10 @@ class SideMenuContent extends React.Component {
                     marginRight: 4,
                   }}
                 >
-                  {this.state.crmBadge}
+                  {this.state.crmBadge +
+                    this.state.inboxBadge +
+                    (this.state.opportunitiesBadge || 0)}
                 </span>
-              </div>
-            ) : null}
-
-            {/* ✅ Badge Boîte de réception (Red dot when unread) */}
-            {item.id === "crm-inbox" && this.state.inboxBadge > 0 ? (
-              <div className="menu-badge">
-                <span
-                  style={{
-                    display: "inline-block",
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    backgroundColor: "#ea5455",
-                    marginRight: 4,
-                  }}
-                />
               </div>
             ) : null}
 
@@ -556,6 +794,11 @@ class SideMenuContent extends React.Component {
               deviceWidth={this.props.deviceWidth}
               crmBadge={this.state.crmBadge}
               inboxBadge={this.state.inboxBadge}
+              chatbotBadge={this.state.chatbotBadge}
+              diagnosticBadge={this.state.diagnosticBadge}
+              callBadge={this.state.callBadge}
+              emailBadge={this.state.emailBadge}
+              opportunitiesBadge={this.state.opportunitiesBadge}
             />
           ) : (
             ""
