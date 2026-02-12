@@ -1423,6 +1423,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
           .hypo-col-form, .hypo-col-table { width: 100%; max-width: 100%; }
         }
 
+
       `}</style>
       </>
 
@@ -1527,7 +1528,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
             <TabPane tabId="arrco">
               <Card className="mb-1">
                 <CardBody>
-                  <ArrcoSimulator onSave={handleArrcoSave} />
+                  <ArrcoSimulator onSave={handleArrcoSave} user={user} />
                 </CardBody>
               </Card>
             </TabPane>

@@ -1,37 +1,23 @@
 import React, { useState, useCallback, useMemo } from "react";
-import { Collapse } from "reactstrap";
-import classnames from "classnames";
+import { toast } from "react-toastify";
+import { fetchRISAnalysis } from "./risService";
 import { arrcoPlafond, arrcoTaux, arrcoTauxDisplay } from "./simulatorData";
 
 const YEARS_START = 1963;
-const YEARS_END = 2025;
+const YEARS_END = 2026;
 
-const chevronSvg = (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="6 9 12 15 18 9" />
-  </svg>
-);
-
-export default function ArrcoSimulator({ onSave }) {
+export default function ArrcoSimulator({ user }) {
   const [isCadre, setIsCadre] = useState(false);
-  const [pointsDate, setPointsDate] = useState("");
-  const [pointsTotal, setPointsTotal] = useState("");
-  const [points2024, setPoints2024] = useState("");
   const [salaries, setSalaries] = useState({});
   const [computed, setComputed] = useState({});
-  const [risValues, setRisValues] = useState({});
-  const [isPointsOpen, setIsPointsOpen] = useState(true);
-  const [isCalcOpen, setIsCalcOpen] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = React.useRef(null);
 
   const sortedYears = useMemo(() => {
     const years = [];
     for (let y = YEARS_START; y <= YEARS_END; y++) years.push(y);
     return years.sort((a, b) => b - a);
   }, []);
-
-  const isSaveEnabled = useMemo(() => {
-    return !!pointsDate && (!!pointsTotal.trim() || !!points2024.trim());
-  }, [pointsDate, pointsTotal, points2024]);
 
   const computeNonCadre = useCallback((annuelBrut, year, x) => {
     const plafondAnnuel = arrcoPlafond[x][2];
@@ -148,28 +134,134 @@ export default function ArrcoSimulator({ onSave }) {
 
   const handleStatusChange = useCallback((cadre) => {
     setIsCadre(cadre);
-    setSalaries({});
-    setComputed({});
-    setRisValues({});
-  }, []);
+    setSalaries(prev => {
+      const newComputed = {};
+      Object.entries(prev).forEach(([yearStr, value]) => {
+        const year = parseInt(yearStr, 10);
+        let annuelBrut = parseFloat(value);
+        if (isNaN(annuelBrut)) return;
+        if (year < 2002) annuelBrut = annuelBrut / 6.55957;
+        const x = arrcoPlafond.findIndex(p => p[0] === year);
+        if (x < 0) return;
+        newComputed[year] = cadre
+          ? computeCadre(annuelBrut, year, x)
+          : computeNonCadre(annuelBrut, year, x);
+      });
+      setComputed(newComputed);
+      return prev;
+    });
+  }, [computeNonCadre, computeCadre]);
 
   const handleReset = useCallback(() => {
     setSalaries({});
     setComputed({});
   }, []);
 
-  const handleSave = useCallback(() => {
-    if (!onSave) return;
-    onSave({
-      year: 2024,
-      pointDate: pointsDate || null,
-      pointsTotal: parseFloat(pointsTotal || "0"),
-      pointsYear: parseFloat(points2024 || "0"),
+  const handlePrefill = useCallback((overrideData = null) => {
+    let sourceData = user;
+    if (overrideData && overrideData.debug_carriere_detaillee_regex) {
+      sourceData = overrideData;
+    }
+    if (!sourceData) return;
+
+    // Build set of Agirc-Arrco years from detail_annuel (accurate regime info)
+    const detailAnnuel = sourceData.detail_annuel;
+    const arrcoYears = new Set();
+    if (Array.isArray(detailAnnuel)) {
+      detailAnnuel.forEach(entry => {
+        const regimes = (entry.regimes_concernes || "").toLowerCase();
+        if (regimes.includes("agirc-arrco")) arrcoYears.add(entry.annee);
+      });
+    }
+
+    // Use debug_carriere_detaillee_regex for clean revenue amounts
+    const careerData = sourceData.debug_carriere_detaillee_regex;
+    if (!careerData || !Array.isArray(careerData) || careerData.length === 0) return;
+
+    const newSalaries = {};
+    const newComputed = {};
+
+    careerData.forEach(entry => {
+      const annee = entry.annee;
+      if (!annee || !arrcoYears.has(annee)) return;
+
+      let montant = entry.revenu_brut;
+      if (!montant && entry.revenus) {
+        const clean = entry.revenus.replace(/[^0-9.,]/g, "").replace(",", ".");
+        montant = parseFloat(clean);
+      }
+      if (!montant) return;
+
+      newSalaries[annee] = String(montant);
+
+      let annuelBrut = parseFloat(String(montant));
+      if (annee < 2002) annuelBrut = annuelBrut / 6.55957;
+
+      const x = arrcoPlafond.findIndex(p => p[0] === annee);
+      if (x < 0) return;
+
+      newComputed[annee] = isCadre
+        ? computeCadre(annuelBrut, annee, x)
+        : computeNonCadre(annuelBrut, annee, x);
     });
-  }, [onSave, pointsDate, pointsTotal, points2024]);
+
+    setSalaries(newSalaries);
+    setComputed(newComputed);
+  }, [user, isCadre, computeCadre, computeNonCadre]);
+
+  const handleImportRIS = useCallback(() => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+      fileInputRef.current.click();
+    }
+  }, []);
+
+  const handleImportOrPrefill = useCallback(() => {
+    if (user?.debug_carriere_detaillee_regex?.length) {
+      handlePrefill();
+    } else {
+      handleImportRIS();
+    }
+  }, [user, handlePrefill, handleImportRIS]);
+
+  const handleFileChange = useCallback(async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const childrenCount = user?.profil?.children_number ?? user?.children_number ?? "";
+      const birthDateVal = user?.profil?.date_naissance ?? user?.birth_date ?? "";
+      const msg = `Analyse RIS pour Agirc-Arrco Simulator.\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDateVal}`;
+
+      toast.info("Analyse du RIS en cours...");
+
+      const payload = await fetchRISAnalysis(file, msg, user?.id);
+
+      if (!payload || !payload.debug_carriere_detaillee_regex) {
+        toast.warn("Le retour de l'analyse ne contient pas de données de carrière utilisables.");
+        console.warn("Webhook response:", payload);
+      }
+
+      handlePrefill(payload);
+      toast.success("Données importées avec succès !");
+    } catch (err) {
+      console.error("Erreur import RIS:", err);
+      toast.error("Erreur lors de l'analyse du fichier.");
+    } finally {
+      setIsImporting(false);
+    }
+  }, [user, handlePrefill]);
 
   return (
     <>
+      <input
+        type="file"
+        ref={fileInputRef}
+        style={{ display: "none" }}
+        accept=".pdf"
+        onChange={handleFileChange}
+      />
       <style>{`
         .arrco-simulator { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif; color:#4b4b4b; }
         .arrco-simulator .sim-title { font-weight: 800; text-transform: uppercase; letter-spacing: .02em; margin: 6px 0 8px; font-size: 20px; color:#1f2d3d; }
@@ -177,16 +269,6 @@ export default function ArrcoSimulator({ onSave }) {
         .arrco-simulator .collapsible-header { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; border:0; background:transparent; cursor:pointer; border-radius:16px; font-size:18px; font-weight:700; color:#1f2d3d; }
         .arrco-simulator .collapsible-header .chevron { transition: transform .25s ease; color:#6b7280; }
         .arrco-simulator .collapsible-header.open .chevron { transform: rotate(180deg); }
-        .arrco-simulator .points-collapsible { margin: 0 0 16px; }
-        .arrco-simulator .points-header-row { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding-right:16px; }
-        .arrco-simulator .points-header-row .collapsible-header { flex:1 1 auto; width:auto; padding-right:0; }
-        .arrco-simulator .points-save-btn { border-radius:999px; padding:6px 14px; border:1px solid #7367f0; background:#7367f0; color:#fff; font-weight:600; cursor:pointer; box-shadow:0 6px 18px rgba(115,103,240,0.25); display:inline-flex; align-items:center; gap:8px; }
-        .arrco-simulator .points-save-btn:disabled { opacity:0.65; cursor:not-allowed; }
-        .arrco-simulator .points-section { display:flex; flex-direction:column; gap:15px; margin-top:0.75rem; }
-        .arrco-simulator .points-row { display:flex; align-items:center; justify-content:flex-start; margin-bottom:15px; gap:10px; flex-wrap:wrap; }
-        .arrco-simulator .points-label { display:inline-block; min-width:220px; margin-right:10px; font-size:14px; font-weight:600; color:#1f2d3d; }
-        .arrco-simulator .points-row input[type="date"],
-        .arrco-simulator .points-row input[type="number"] { width:130px; padding:4px; font-size:14px; }
         .arrco-simulator .controls { margin-bottom:8px; font-size:14px; }
         .arrco-simulator .controls input[type="radio"] { accent-color: #7367f0; }
         .arrco-simulator .controls input[type="radio"] + label { font-weight: 400; }
@@ -201,96 +283,19 @@ export default function ArrcoSimulator({ onSave }) {
         .arrco-simulator input[type="number"],
         .arrco-simulator input[type="date"] { width:100%; box-sizing:border-box; padding:6px 8px; border:1px solid #ddd; border-radius:6px; outline:none; display:block; }
         .arrco-simulator .salary-input { width:110px; max-width:110px; }
-        .arrco-simulator .ris-input { width:110px; max-width:110px; }
         .arrco-simulator button.action-btn { border-radius:8px; padding:6px 12px; border:1px solid #7367f0; color:#fff; background:#7367f0; cursor:pointer; }
         .arrco-simulator .container-inner { padding:12px; }
-        @media (max-width: 640px) {
-          .arrco-simulator .points-row { flex-direction:column; align-items:flex-start; }
-          .arrco-simulator .points-row input[type="date"],
-          .arrco-simulator .points-row input[type="number"] { width:100%; }
-          .arrco-simulator .points-label { min-width:0; }
-        }
       `}</style>
       <div className="arrco-simulator">
-        {/* Section 1: Points acquis */}
-        <div className="collapsible points-collapsible">
-          <div className="points-header-row">
-            <button
-              type="button"
-              className={classnames("collapsible-header", { open: isPointsOpen })}
-              onClick={() => setIsPointsOpen(prev => !prev)}
-              aria-expanded={isPointsOpen}
-            >
-              <span className="sim-title" style={{ margin: 0 }}>POINTS RELEV&Eacute; DE CARRI&Egrave;RE ARRCO AGIRC</span>
-              <span className="chevron" aria-hidden="true">{chevronSvg}</span>
-            </button>
-            <button
-              type="button"
-              className="points-save-btn"
-              style={{ marginLeft: "auto" }}
-              disabled={!isSaveEnabled}
-              onClick={handleSave}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 5v14" />
-                <polyline points="19 12 12 19 5 12" />
-              </svg>
-              Enregistrer
-            </button>
-          </div>
-          <Collapse isOpen={isPointsOpen}>
-            <div style={{ padding: 16 }}>
-              <div className="points-section">
-                <div className="points-row">
-                  <label className="points-label" htmlFor="arrco-points-date">Nombre de points acquis au</label>
-                  <input
-                    type="date"
-                    id="arrco-points-date"
-                    value={pointsDate}
-                    onChange={e => setPointsDate(e.target.value)}
-                  />
-                  <input
-                    type="number"
-                    id="arrco-points-total"
-                    placeholder="Points"
-                    inputMode="decimal"
-                    value={pointsTotal}
-                    onChange={e => setPointsTotal(e.target.value)}
-                  />
-                </div>
-                <div className="points-row">
-                  <label className="points-label" htmlFor="arrco-points-2024">Points acquis ann&eacute;e 2024</label>
-                  <input
-                    type="number"
-                    id="arrco-points-2024"
-                    placeholder="Points"
-                    inputMode="decimal"
-                    value={points2024}
-                    onChange={e => setPoints2024(e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-          </Collapse>
-        </div>
-
-        {/* Section 2: Calcul nombre de points */}
         <div className="container-inner">
           <div className="collapsible">
-            <button
-              type="button"
-              className={classnames("collapsible-header", { open: isCalcOpen })}
-              onClick={() => setIsCalcOpen(prev => !prev)}
-              aria-expanded={isCalcOpen}
-            >
+            <div className="collapsible-header open">
               <span className="sim-title" style={{ margin: 0 }}>CALCUL NOMBRE DE POINTS &Agrave; PARTIR D&rsquo;UN SALAIRE</span>
-              <span className="chevron" aria-hidden="true">{chevronSvg}</span>
-            </button>
-            <Collapse isOpen={isCalcOpen}>
-              <div style={{ padding: 16 }}>
-                <div className="controls">
-                  <b style={{ fontWeight: 600, fontSize: 14 }}>Veuillez s&eacute;lectionner votre statut :</b><br /><br />
-                  <div className="divider">
+            </div>
+            <div style={{ padding: 16 }}>
+                <div className="controls" style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <b style={{ fontWeight: 600, fontSize: 14 }}>Statut :</b>
                     <input
                       type="radio"
                       id="arrco-non-cadre"
@@ -299,8 +304,6 @@ export default function ArrcoSimulator({ onSave }) {
                       onChange={() => handleStatusChange(false)}
                     />
                     <label htmlFor="arrco-non-cadre">Non-Cadre</label>
-                  </div>
-                  <div className="divider">
                     <input
                       type="radio"
                       id="arrco-cadre"
@@ -310,7 +313,16 @@ export default function ArrcoSimulator({ onSave }) {
                     />
                     <label htmlFor="arrco-cadre">Cadre</label>
                   </div>
-                  <div className="divider">
+                  <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                    <button
+                      type="button"
+                      className="action-btn"
+                      style={{ background: isImporting ? "#6c757d" : "#28c76f", borderColor: isImporting ? "#6c757d" : "#28c76f" }}
+                      onClick={handleImportOrPrefill}
+                      disabled={isImporting}
+                    >
+                      {isImporting ? "Analyse..." : "Importer les donn\u00e9es"}
+                    </button>
                     <button type="button" className="action-btn" onClick={handleReset}>R&eacute;initialiser</button>
                   </div>
                 </div>
@@ -326,7 +338,6 @@ export default function ArrcoSimulator({ onSave }) {
                       <th>TRANCHE A</th>
                       <th>TRANCHE B</th>
                       <th>TOTAL</th>
-                      <th>Points import&eacute;s RIS</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -372,23 +383,12 @@ export default function ArrcoSimulator({ onSave }) {
                           <td>{comp ? comp.trancheA : ""}</td>
                           <td>{comp ? comp.trancheB : ""}</td>
                           <td>{comp ? comp.total : ""}</td>
-                          <td>
-                            <input
-                              type="number"
-                              placeholder="Points"
-                              inputMode="decimal"
-                              className="ris-input"
-                              value={risValues[year] || ""}
-                              onChange={e => setRisValues(prev => ({ ...prev, [year]: e.target.value }))}
-                            />
-                          </td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
               </div>
-            </Collapse>
           </div>
         </div>
       </div>
