@@ -414,13 +414,18 @@ class SideMenuContent extends React.Component {
 
       validItems.forEach((c) => {
         const status = c.status || c.action || "new";
+
+        // Determine type first to use in composite ID
+        let type = c._source || c.type;
+
+        const compositeId = `${type}-${c.id}`;
+
         const isUnread =
-          (status === "new" || manualUnreadIds.has(c.id)) && !readIds.has(c.id);
+          (status === "new" || manualUnreadIds.has(compositeId)) &&
+          !readIds.has(compositeId);
 
         if (isUnread) {
           totalUnread++;
-          // Type determination
-          let type = c._source || c.type;
 
           if (type === "chatbot") chatbotCount++;
           else if (type === "diagnostic") diagnosticCount++;

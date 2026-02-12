@@ -184,8 +184,8 @@ const InboxList = ({
                     fontWeight: 500,
                     color:
                       (item.status === "new" ||
-                        manualUnreadIds.has(item.id)) &&
-                      !readIds.has(item.id)
+                        manualUnreadIds.has(`${item.type}-${item.id}`)) &&
+                      !readIds.has(`${item.type}-${item.id}`)
                         ? "#111827"
                         : "#4b5563",
                     whiteSpace: "nowrap",
@@ -242,8 +242,8 @@ const InboxList = ({
                   height: "24px", // Fixed height to prevent layout jump
                 }}
               >
-                {(item.status === "new" || manualUnreadIds.has(item.id)) &&
-                !readIds.has(item.id) ? (
+                {(item.status === "new" || manualUnreadIds.has(`${item.type}-${item.id}`)) &&
+                !readIds.has(`${item.type}-${item.id}`) ? (
                   <span
                     style={{
                       display: "inline-block",
