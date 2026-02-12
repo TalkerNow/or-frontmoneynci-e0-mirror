@@ -345,8 +345,8 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
           typeof parsed.projectionAge === "string"
             ? parsed.projectionAge
             : typeof parsed.projectionAge === "number"
-            ? String(parsed.projectionAge)
-            : prev.projectionAge,
+              ? String(parsed.projectionAge)
+              : prev.projectionAge,
         projectionAgeAmount:
           typeof parsed.projectionAgeAmount === "string"
             ? parsed.projectionAgeAmount
@@ -556,9 +556,9 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                         ? row.value
                         : ""
                       : new Intl.NumberFormat("fr-FR", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        }).format(num);
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      }).format(num);
                     setSalaireJusquaDepartRows((prev) =>
                       (Array.isArray(prev) ? prev : []).map((r) =>
                         r && r.id === row.id
@@ -596,12 +596,12 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
               onMouseDown={(e) => {
                 try {
                   e.currentTarget.showPicker && e.currentTarget.showPicker();
-                } catch {}
+                } catch { }
               }}
               onFocus={(e) => {
                 try {
                   e.currentTarget.showPicker && e.currentTarget.showPicker();
-                } catch {}
+                } catch { }
               }}
               onChange={(e) => {
                 const v = e.currentTarget.value || "";
@@ -621,12 +621,12 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
               onMouseDown={(e) => {
                 try {
                   e.currentTarget.showPicker && e.currentTarget.showPicker();
-                } catch {}
+                } catch { }
               }}
               onFocus={(e) => {
                 try {
                   e.currentTarget.showPicker && e.currentTarget.showPicker();
-                } catch {}
+                } catch { }
               }}
               onChange={(e) => {
                 const v = e.currentTarget.value || "";
@@ -1519,7 +1519,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
             <TabPane tabId="base">
               <Card className="mb-1">
                 <CardBody>
-                  <CnavSimulator />
+                  <CnavSimulator user={user} />
                 </CardBody>
               </Card>
             </TabPane>
@@ -1595,7 +1595,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                 onClick={(e) => {
                                   try {
                                     e.currentTarget.showPicker();
-                                  } catch (err) {}
+                                  } catch (err) { }
                                 }}
                                 onChange={(e) =>
                                   handleRciDashboardChange(
@@ -1839,7 +1839,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                               style={{ marginTop: 8, maxWidth: 480 }}
                             >
                               {Array.isArray(vplrEntries) &&
-                              vplrEntries.length ? (
+                                vplrEntries.length ? (
                                 <div className="vplr-entries">
                                   {vplrEntries.map((row) => (
                                     <div
@@ -1900,8 +1900,8 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                           setVplrEntries((prev) =>
                                             Array.isArray(prev)
                                               ? prev.filter(
-                                                  (r) => r && r.id !== row.id
-                                                )
+                                                (r) => r && r.id !== row.id
+                                              )
                                               : []
                                           )
                                         }
@@ -2066,17 +2066,17 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                         ? salaireDefautRowSafe.value
                                         : ""
                                       : new Intl.NumberFormat("fr-FR", {
-                                          minimumFractionDigits: 2,
-                                          maximumFractionDigits: 2,
-                                        }).format(num);
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                      }).format(num);
                                     setSalaireDefautRow((prev) => ({
                                       ...(prev && typeof prev === "object"
                                         ? prev
                                         : {
-                                            id: "def",
-                                            value: "",
-                                            fixed: false,
-                                          }),
+                                          id: "def",
+                                          value: "",
+                                          fixed: false,
+                                        }),
                                       value: formatted,
                                       fixed: true,
                                     }));
@@ -2114,19 +2114,19 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                               className="hypo-date-input"
                               value={normalizeDate(
                                 salaireDefautRowSafe &&
-                                  salaireDefautRowSafe.from
+                                salaireDefautRowSafe.from
                               )}
                               onMouseDown={(e) => {
                                 try {
                                   e.currentTarget.showPicker &&
                                     e.currentTarget.showPicker();
-                                } catch {}
+                                } catch { }
                               }}
                               onFocus={(e) => {
                                 try {
                                   e.currentTarget.showPicker &&
                                     e.currentTarget.showPicker();
-                                } catch {}
+                                } catch { }
                               }}
                               onChange={(e) => {
                                 const v = e.currentTarget.value || "";
@@ -2150,13 +2150,13 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                 try {
                                   e.currentTarget.showPicker &&
                                     e.currentTarget.showPicker();
-                                } catch {}
+                                } catch { }
                               }}
                               onFocus={(e) => {
                                 try {
                                   e.currentTarget.showPicker &&
                                     e.currentTarget.showPicker();
-                                } catch {}
+                                } catch { }
                               }}
                               onChange={(e) => {
                                 const v = e.currentTarget.value || "";
@@ -2283,13 +2283,13 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                   try {
                                     e.currentTarget.showPicker &&
                                       e.currentTarget.showPicker();
-                                  } catch {}
+                                  } catch { }
                                 }}
                                 onFocus={(e) => {
                                   try {
                                     e.currentTarget.showPicker &&
                                       e.currentTarget.showPicker();
-                                  } catch {}
+                                  } catch { }
                                 }}
                                 onChange={(e) =>
                                   setChomageStartDate(
@@ -2504,19 +2504,19 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                   className="hypo-date-input"
                                   value={normalizeDate(
                                     clAvantDates[String(age)] &&
-                                      clAvantDates[String(age)].from
+                                    clAvantDates[String(age)].from
                                   )}
                                   onMouseDown={(e) => {
                                     try {
                                       e.currentTarget.showPicker &&
                                         e.currentTarget.showPicker();
-                                    } catch {}
+                                    } catch { }
                                   }}
                                   onFocus={(e) => {
                                     try {
                                       e.currentTarget.showPicker &&
                                         e.currentTarget.showPicker();
-                                    } catch {}
+                                    } catch { }
                                   }}
                                   onChange={(e) => {
                                     const v = e.currentTarget.value || "";
@@ -2538,19 +2538,19 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                   className="hypo-date-input"
                                   value={normalizeDate(
                                     clAvantDates[String(age)] &&
-                                      clAvantDates[String(age)].to
+                                    clAvantDates[String(age)].to
                                   )}
                                   onMouseDown={(e) => {
                                     try {
                                       e.currentTarget.showPicker &&
                                         e.currentTarget.showPicker();
-                                    } catch {}
+                                    } catch { }
                                   }}
                                   onFocus={(e) => {
                                     try {
                                       e.currentTarget.showPicker &&
                                         e.currentTarget.showPicker();
-                                    } catch {}
+                                    } catch { }
                                   }}
                                   onChange={(e) => {
                                     const v = e.currentTarget.value || "";
@@ -2633,13 +2633,13 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                     try {
                                       e.currentTarget.showPicker &&
                                         e.currentTarget.showPicker();
-                                    } catch {}
+                                    } catch { }
                                   }}
                                   onFocus={(e) => {
                                     try {
                                       e.currentTarget.showPicker &&
                                         e.currentTarget.showPicker();
-                                    } catch {}
+                                    } catch { }
                                   }}
                                   onKeyDown={(e) => {
                                     if (e.key === "Enter") {
@@ -2934,10 +2934,10 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                               parts[0] +
                                               (parts.length > 1
                                                 ? "," +
-                                                  parts
-                                                    .slice(1)
-                                                    .join("")
-                                                    .replace(/,/g, "")
+                                                parts
+                                                  .slice(1)
+                                                  .join("")
+                                                  .replace(/,/g, "")
                                                 : "");
                                           }
                                           const dob = getBirthDate();
@@ -2961,11 +2961,11 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                             prev.map((r) =>
                                               r && r.id === row.id
                                                 ? {
-                                                    ...r,
-                                                    age: next,
-                                                    date: nextDate,
-                                                    fixedAge: true,
-                                                  }
+                                                  ...r,
+                                                  age: next,
+                                                  date: nextDate,
+                                                  fixedAge: true,
+                                                }
                                                 : r
                                             )
                                           );
@@ -2987,10 +2987,10 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                                 prev.map((r) =>
                                                   r && r.id === row.id
                                                     ? {
-                                                        ...r,
-                                                        age: String(clamped),
-                                                        fixedAge: true,
-                                                      }
+                                                      ...r,
+                                                      age: String(clamped),
+                                                      fixedAge: true,
+                                                    }
                                                     : r
                                                 )
                                               );
@@ -3051,13 +3051,13 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                       try {
                                         e.currentTarget.showPicker &&
                                           e.currentTarget.showPicker();
-                                      } catch {}
+                                      } catch { }
                                     }}
                                     onFocus={(e) => {
                                       try {
                                         e.currentTarget.showPicker &&
                                           e.currentTarget.showPicker();
-                                      } catch {}
+                                      } catch { }
                                     }}
                                     onChange={(e) => {
                                       const val = e.target.value;
@@ -3175,13 +3175,13 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                     try {
                                       e.currentTarget.showPicker &&
                                         e.currentTarget.showPicker();
-                                    } catch {}
+                                    } catch { }
                                   }}
                                   onFocus={(e) => {
                                     try {
                                       e.currentTarget.showPicker &&
                                         e.currentTarget.showPicker();
-                                    } catch {}
+                                    } catch { }
                                   }}
                                   onChange={(e) => {
                                     const val = e.target.value;
@@ -3199,8 +3199,8 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                                 : null;
                                             const newAge =
                                               years != null &&
-                                              years >= 0 &&
-                                              !r.fixedAge
+                                                years >= 0 &&
+                                                !r.fixedAge
                                                 ? String(years)
                                                 : r.age || "";
                                             return {
@@ -3230,8 +3230,8 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                       : "";
                                   const current =
                                     row &&
-                                    row.age != null &&
-                                    String(row.age).trim() !== ""
+                                      row.age != null &&
+                                      String(row.age).trim() !== ""
                                       ? String(row.age)
                                       : computed;
                                   return (
@@ -3269,10 +3269,10 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                             parts[0] +
                                             (parts.length > 1
                                               ? "," +
-                                                parts
-                                                  .slice(1)
-                                                  .join("")
-                                                  .replace(/,/g, "")
+                                              parts
+                                                .slice(1)
+                                                .join("")
+                                                .replace(/,/g, "")
                                               : "");
                                           setFreeDates((prev) =>
                                             (Array.isArray(prev)
@@ -3306,9 +3306,8 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                           );
                                         }}
                                         placeholder="Ex: 62"
-                                        aria-label={`Âge calculé pour la date libre ${
-                                          idx + 1
-                                        }`}
+                                        aria-label={`Âge calculé pour la date libre ${idx + 1
+                                          }`}
                                       />
                                       <span>ans</span>
                                     </div>
@@ -3472,7 +3471,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                               : []
                                           )
                                         );
-                                      } catch {}
+                                      } catch { }
                                     }
                                   }}
                                   placeholder="Nom du bilan"
@@ -3522,7 +3521,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                               : []
                                           )
                                         );
-                                      } catch {}
+                                      } catch { }
                                     }
                                   }}
                                   placeholder="—"

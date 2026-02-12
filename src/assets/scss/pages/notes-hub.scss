@@ -282,6 +282,11 @@
 
 .manual-entry-card {
   margin-top: 1rem;
+  width: 100%;
+  max-width: 100%;
+}
+.manual-entry-card .card-body {
+  padding: 1rem 0.75rem;
 }
 .manual-entry-actions {
   display: flex;
@@ -305,13 +310,28 @@
 .manual-table-wrap {
   width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.manual-table-wrap::-webkit-scrollbar {
+  height: 6px;
+}
+.manual-table-wrap::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+.manual-table-wrap::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+.manual-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 .manual-table {
   width: 100%;
   border-collapse: collapse;
   background: #fff;
-  table-layout: fixed;
-  min-width: 2000px;
+  table-layout: auto;
+  min-width: 900px;
 }
 .manual-table thead th {
   background: var(--bs-primary, #7367f0);
@@ -331,26 +351,33 @@
   text-align: center;
 }
 .col-micro {
-  width: 40px;
+  width: 4%;
+  min-width: 36px;
 }
 .col-year {
-  width: 55px;
+  width: 5.5%;
+  min-width: 50px;
 }
 .col-small {
-  width: 75px;
+  width: 8%;
+  min-width: 60px;
 }
 .col-medium {
-  width: 48px;
+  width: 7%;
+  min-width: 48px;
 }
 .col-ircantec {
-  width: 70px;
+  width: 8%;
+  min-width: 60px;
 }
 .col-large {
-  width: 190px;
+  width: 16%;
+  min-width: 140px;
 }
 .manual-table th.actions-col,
 .manual-table td.actions-col {
-  width: 80px;
+  width: 5%;
+  min-width: 50px;
   text-align: center;
 }
 .manual-table .hidden-tc {
@@ -414,6 +441,31 @@
 .manual-actions {
   display: inline-flex;
   gap: 6px;
+}
+
+/* ===== Manual Table Responsive ===== */
+@media (max-width: 1200px) {
+  .manual-table {
+    min-width: 850px;
+  }
+}
+@media (max-width: 768px) {
+  .manual-entry-card .card-body {
+    padding: 0.75rem 0.5rem;
+  }
+  .manual-table thead th {
+    font-size: 10px;
+    padding: 3px 2px;
+  }
+  .manual-table td {
+    padding: 3px 2px;
+  }
+  .manual-input,
+  .manual-num,
+  .manual-num-left {
+    font-size: 12px;
+    padding: 2px 3px;
+  }
 }
 
 .notes-empty-doc-card {
