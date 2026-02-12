@@ -32,41 +32,81 @@ const getContractTypeCode = (source) => {
 
 const STEP_DEFINITION = {
   credit_impot: {
-    // Indexes of interest:
-    // ...
-    //   "Signature du contrat", // 1
-    //   "Activation compte Urssaf", // 2
-    //   "5 jours ouvrés d'attente", // 3
-    //   "Création devis", // 4
+    totalSteps: 8,
     dateSteps: [1, 2, 3, 4, 5, 6, 7],
+    labels: [
+      "Signature du contrat",
+      "Activation compte Urssaf",
+      "5 jours ouvrés d'attente",
+      "Création devis",
+      "Transformer devis en facture",
+      "Paiement automatique Unipro",
+      "Paiement du contrat",
+      "Avancement du dossier",
+    ],
   },
-  // We only need credit_impot for "urgent" check
+  ch_simu_actu_rac: {
+    totalSteps: 5,
+    dateSteps: [1, 2, 3, 4],
+    labels: [
+      "Étape 1",
+      "Prise de RDV",
+      "Facturation",
+      "Paiement du contrat",
+      "Avancement du dossier",
+    ],
+  },
 };
 
 function buildStepsForSuivi(suiviRow) {
-  // Simplified version focusing on what's needed for "Urgent" check
   const profileKey = getContractTypeCode({
     unipro: suiviRow.unipro,
     subscribe_services: suiviRow.subscribe_services,
   });
-  if (profileKey !== "credit_impot") return { profileKey, steps: [] };
+  const config = STEP_DEFINITION[profileKey];
+  if (!config) return { profileKey, steps: [] };
 
-  const config = STEP_DEFINITION.credit_impot;
   const steps = [];
-  const startIndex = 1;
-
-  for (let i = startIndex; i <= 8; i++) {
+  for (let i = 1; i <= config.totalSteps; i++) {
+    const label = config.labels[i - 1] || `Étape ${i}`;
     const dateField = `step${i}_completed_at`;
     const dateVal = suiviRow[dateField] || null;
     const hasDate = !!dateVal;
     steps.push({
       index: i,
+      label,
       date: dateVal,
       completed: hasDate && config.dateSteps.includes(i),
     });
   }
   return { profileKey, steps };
 }
+
+function getLastAndNextSteps(steps = []) {
+  if (!steps || steps.length === 0) return { last: null, next: null };
+  const sorted = [...steps].sort((a, b) => a.index - b.index);
+  const completed = sorted.filter((s) => s.completed);
+  const last = completed.length ? completed[completed.length - 1] : null;
+  let next = null;
+  if (!last) {
+    next = sorted[0] || null;
+  } else {
+    next = sorted.find((s) => s.index > last.index) || null;
+  }
+  return { last, next };
+}
+
+const parseDateOnly = (dateStr) => {
+  if (!dateStr) return null;
+  let part = String(dateStr);
+  if (part.includes("T")) part = part.split("T")[0];
+  else if (part.includes(" ")) part = part.split(" ")[0];
+  const [y, m, d] = part.split("-");
+  if (y && m && d) {
+    return new Date(Number(y), Number(m) - 1, Number(d)).getTime();
+  }
+  return null;
+};
 
 class SideMenuContent extends React.Component {
   constructor(props) {
@@ -476,41 +516,43 @@ class SideMenuContent extends React.Component {
 
         suivis.forEach((s) => {
           // Check contract state
-          const contract = s.contract || s; // fallback if needed
-          // Assuming 'document_state' is on the contract object or s itself if flattened
-          // KpiPage: s.contract.document_state
+          const contract = s.contract || s;
           const isTerminated =
             contract && contract.document_state === "Terminé";
           if (isTerminated) return;
 
           const { profileKey, steps } = buildStepsForSuivi(s);
+          const { last, next } = getLastAndNextSteps(steps);
 
+          // 1. Check 5 days (Credit Impot)
           if (profileKey === "credit_impot") {
-            const step3 = steps.find((st) => st.index === 3); // "5 jours ouvrés d'attente"
-            const step4 = steps.find((st) => st.index === 4); // "Création devis"
-
-            // Step 3 has date AND Step 4 NOT completed
+            const step3 = steps.find((st) => st.index === 3);
+            const step4 = steps.find((st) => st.index === 4);
             if (step3 && step3.date && (!step4 || !step4.completed)) {
-              // Check date logic
-              const raw = String(step3.date);
-              let datePart = raw;
-              if (raw.includes("T")) datePart = raw.split("T")[0];
-              else if (raw.includes(" ")) datePart = raw.split(" ")[0];
-
-              const [y, m, d] = datePart.split("-");
-              if (y && m && d) {
-                const d3 = new Date(Number(y), Number(m) - 1, Number(d));
-                const d3Only = new Date(
-                  d3.getFullYear(),
-                  d3.getMonth(),
-                  d3.getDate(),
-                );
-
-                // If date of step 3 <= today => URGENT
-                if (d3Only.getTime() <= today.getTime()) {
-                  urgentCount++;
-                }
+              const d3Time = parseDateOnly(step3.date);
+              if (d3Time && d3Time <= today.getTime()) {
+                urgentCount++;
+                return;
               }
+            }
+          }
+
+          // 2. Check Facturation Urgent (CH / Simu / etc)
+          if (
+            next &&
+            next.label === "Facturation" &&
+            last &&
+            last.label === "Prise de RDV"
+          ) {
+            if (last.date) {
+              const rdvTime = parseDateOnly(last.date);
+              if (rdvTime && rdvTime <= today.getTime()) {
+                urgentCount++;
+                return;
+              }
+            } else {
+              urgentCount++;
+              return;
             }
           }
         });
