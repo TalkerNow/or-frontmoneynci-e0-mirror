@@ -38,6 +38,7 @@ import DocumentsHub from "./DocumentsHub";
 import CourriersHub from "./CourriersHub";
 import SimulatorHub from "./SimulatorHub";
 import { history } from "../../../../history";
+import ProspectChatView from "./ProspectChatView";
 import Contracts from "./Contracts";
 import SuiviAvancementBox from "./SuiviAvancementBox";
 
@@ -135,7 +136,10 @@ class UserEdit extends React.Component {
     };
     const { id } = this.props.match.params;
     const response = await axios.get(
-      global.config.server_url + "/users/" + id,
+      global.config.server_url +
+        "/users/" +
+        id +
+        "?include=documents,conversationArchives,simulatorDifficultyResults",
       Config,
     );
     this.setState({ rowData: response.data });
@@ -364,6 +368,7 @@ class UserEdit extends React.Component {
         </Row>
       );
     }
+
     return (
       <Row className="align-items-start user-edit-row flex-nowrap">
         <Col
@@ -387,14 +392,16 @@ class UserEdit extends React.Component {
             />
 
             {/* 👇 Ta box de suivi d'avancement, dans un fichier séparé */}
-            <SuiviAvancementBox
-              clientId={id}
-              onContractUpdate={() => {
-                if (this.contractsRef.current) {
-                  this.contractsRef.current.fetchData();
-                }
-              }}
-            />
+            {String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
+              <SuiviAvancementBox
+                clientId={id}
+                onContractUpdate={() => {
+                  if (this.contractsRef.current) {
+                    this.contractsRef.current.fetchData();
+                  }
+                }}
+              />
+            )}
           </div>
         </Col>
         <Col

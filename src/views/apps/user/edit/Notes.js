@@ -8,6 +8,7 @@ import ManualCareerTable from "./notes/ManualCareerTable";
 import DocumentViewerModal from "./notes/DocumentViewerModal";
 import ReportErrorModal from "./notes/ReportErrorModal";
 import DeleteConfirmModal from "./notes/DeleteConfirmModal";
+import ProspectChatView from "./ProspectChatView";
 
 const NotesTab = ({ id, perso = {}, onReportError }) => {
   const {
@@ -90,38 +91,48 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         handleRestorePreviousNotes={handleRestorePreviousNotes}
       />
 
-      <UploadSection
-        fileToSend={fileToSend}
-        clearFileToSend={clearFileToSend}
-        isUploading={isUploading}
-        onUpload={handleUpload}
-        isGenerating={isGenerating}
-        onCancelGeneration={handleCancelGeneration}
-        userDocuments={userDocuments}
-        isLoadingDocs={isLoadingDocs}
-        onFetchDocuments={fetchUserDocuments}
-        onSelectDocument={selectDocumentFromList}
-        selectedTags={selectedTags}
-        handleTagsChange={handleTagsChange}
-        n8nMessage={n8nMessage}
-        setN8nMessage={setN8nMessage}
-        reportType={reportType}
-        handleGenerateDoc={handleGenerateDoc}
-      />
+      {String(perso.role).toLowerCase() === "prospect" && (
+        <div className="mt-1">
+          <ProspectChatView user={perso} />
+        </div>
+      )}
 
-      <GeneratedDocsSection
-        generatedDocs={generatedDocs}
-        handleOpenDoc={handleOpenDoc}
-        requestDeleteGenerated={requestDeleteGenerated}
-        handleRenameDoc={handleRenameDoc}
-      />
+      {String(perso.role).toLowerCase() !== "prospect" && (
+        <>
+          <UploadSection
+            fileToSend={fileToSend}
+            clearFileToSend={clearFileToSend}
+            isUploading={isUploading}
+            onUpload={handleUpload}
+            isGenerating={isGenerating}
+            onCancelGeneration={handleCancelGeneration}
+            userDocuments={userDocuments}
+            isLoadingDocs={isLoadingDocs}
+            onFetchDocuments={fetchUserDocuments}
+            onSelectDocument={selectDocumentFromList}
+            selectedTags={selectedTags}
+            handleTagsChange={handleTagsChange}
+            n8nMessage={n8nMessage}
+            setN8nMessage={setN8nMessage}
+            reportType={reportType}
+            handleGenerateDoc={handleGenerateDoc}
+          />
 
-      <ManualCareerTable
-        manualCareerRows={manualCareerRows}
-        setManualCareerRows={setManualCareerRows}
-        handleManualAddLine={handleManualAddLine}
-        handleManualImport={handleManualImport}
-      />
+          <GeneratedDocsSection
+            generatedDocs={generatedDocs}
+            handleOpenDoc={handleOpenDoc}
+            requestDeleteGenerated={requestDeleteGenerated}
+            handleRenameDoc={handleRenameDoc}
+          />
+
+          <ManualCareerTable
+            manualCareerRows={manualCareerRows}
+            setManualCareerRows={setManualCareerRows}
+            handleManualAddLine={handleManualAddLine}
+            handleManualImport={handleManualImport}
+          />
+        </>
+      )}
 
       <DeleteConfirmModal
         target={deleteConfirmTarget}
