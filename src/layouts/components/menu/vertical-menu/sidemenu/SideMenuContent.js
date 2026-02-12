@@ -358,6 +358,13 @@ class SideMenuContent extends React.Component {
             active:
               item.type === "item" &&
               (this.props.activeItemState === item.navLink ||
+                (item.filterBase &&
+                  this.props.activeItemState === item.filterBase) ||
+                (item.navLink &&
+                  item.navLink.includes(":") &&
+                  this.props.activeItemState.startsWith(
+                    item.navLink.split(":")[0],
+                  )) ||
                 (item.parentOf &&
                   item.parentOf.includes(this.props.activeItemState))),
             disabled: item.disabled,
