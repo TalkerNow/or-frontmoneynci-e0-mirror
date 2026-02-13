@@ -872,34 +872,102 @@ const UploadSection = ({
                     en base
                   </span>
                 </div>
-                <Input
-                  type="textarea"
-                  id="promptModifications"
-                  rows="8"
-                  placeholder="Ajoutez ici des informations supplémentaires, des contextes ou des précisions pour enrichir l'analyse..."
-                  value={promptModifications}
-                  onChange={(e) => setPromptModifications(e.target.value)}
+                <div
                   style={{
-                    minHeight: "200px",
-                    fontSize: window.innerWidth < 576 ? "0.85rem" : "1rem",
-                    backgroundColor: isGenerating ? "#fff" : "#ffffff",
-                    color: isGenerating ? "#334155" : "#334155",
-                    opacity: isGenerating ? 0.9 : 1,
-                    borderColor: promptModifications ? "#d4d4e6" : "#e2e8f0",
-                    borderWidth: "1px",
-                  }}
-                  disabled={isGenerating || isApplyingPromptAI}
-                />
-                <p
-                  style={{
-                    fontSize: "0.75rem",
-                    color: "#94a3b8",
-                    marginTop: "8px",
+                    display: "flex",
+                    gap: "12px",
+                    flexDirection: window.innerWidth < 992 ? "column" : "row",
                   }}
                 >
-                  Ces informations seront combinées au prompt lors de l'envoi de
-                  l'analyse
-                </p>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <label
+                      className="mb-0 font-small-3"
+                      htmlFor="promptModifications"
+                      style={{
+                        fontWeight: 600,
+                        color: "#64748b",
+                        display: "block",
+                        minHeight: "20px",
+                        marginBottom: "6px",
+                      }}
+                    >
+                      Mise &agrave; jour du prompt
+                    </label>
+                    <Input
+                      type="textarea"
+                      id="promptModifications"
+                      rows="8"
+                      placeholder="Ajoutez ici des informations supplémentaires, des contextes ou des précisions pour enrichir l'analyse..."
+                      value={promptModifications}
+                      onChange={(e) => setPromptModifications(e.target.value)}
+                      style={{
+                        minHeight: "200px",
+                        fontSize: window.innerWidth < 576 ? "0.85rem" : "1rem",
+                        backgroundColor: isGenerating ? "#fff" : "#ffffff",
+                        color: isGenerating ? "#334155" : "#334155",
+                        opacity: isGenerating ? 0.9 : 1,
+                        borderColor: promptModifications
+                          ? "#d4d4e6"
+                          : "#e2e8f0",
+                        borderWidth: "1px",
+                      }}
+                      disabled={isGenerating || isApplyingPromptAI}
+                    />
+                    <p
+                      style={{
+                        fontSize: "0.75rem",
+                        color: "#94a3b8",
+                        marginTop: "8px",
+                      }}
+                    >
+                      Ces informations seront combinées au prompt lors de
+                      l'envoi de l'analyse
+                    </p>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <label
+                      className="mb-0 font-small-3"
+                      htmlFor="scenarioMessage"
+                      style={{
+                        fontWeight: 600,
+                        color: "#64748b",
+                        display: "block",
+                        minHeight: "20px",
+                        marginBottom: "6px",
+                      }}
+                    >
+                      Sc&eacute;narios
+                    </label>
+                    <Input
+                      type="textarea"
+                      id="scenarioMessage"
+                      rows="8"
+                      placeholder="Décrivez les scénarios ou contraintes à appliquer pour la génération HTML..."
+                      value={n8nMessage}
+                      onChange={(e) => setN8nMessage(e.target.value)}
+                      style={{
+                        minHeight: "200px",
+                        fontSize: window.innerWidth < 576 ? "0.85rem" : "1rem",
+                        backgroundColor: isGenerating ? "#fff" : "#ffffff",
+                        color: isGenerating ? "#334155" : "#334155",
+                        opacity: isGenerating ? 0.9 : 1,
+                        borderColor: n8nMessage ? "#d4d4e6" : "#e2e8f0",
+                        borderWidth: "1px",
+                      }}
+                      disabled={isGenerating || isApplyingPromptAI}
+                    />
+                    <p
+                      style={{
+                        fontSize: "0.75rem",
+                        color: "#94a3b8",
+                        marginTop: "8px",
+                      }}
+                    >
+                      Ce contenu est transmis dans le champ message du webhook
+                      pour piloter les sc&eacute;narios HTML
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
 
