@@ -1,5 +1,5 @@
-import React from "react";
-import { Card, CardBody, Button } from "reactstrap";
+import React, { useState, useCallback } from "react";
+import { Card, CardBody, Button, Modal, ModalHeader, ModalBody, ModalFooter } from "reactstrap";
 import { sanitizeSalaryInput } from "./utils";
 
 const ManualCareerTable = ({
@@ -7,7 +7,19 @@ const ManualCareerTable = ({
     setManualCareerRows,
     handleManualAddLine,
     handleManualImport,
+    isImportingRIS,
 }) => {
+    const [showCadreModal, setShowCadreModal] = useState(false);
+
+    const handleImportClick = useCallback(() => {
+        setShowCadreModal(true);
+    }, []);
+
+    const handleCadreConfirm = useCallback((isCadre) => {
+        setShowCadreModal(false);
+        handleManualImport({ isCadre });
+    }, [handleManualImport]);
+
     return (
         <Card className="notes-card manual-entry-card mt-2">
             <CardBody>
@@ -40,7 +52,7 @@ const ManualCareerTable = ({
                                     <th className="col-medium">ARRCO</th>
                                     <th className="col-ircantec">IRCANTEC</th>
                                     <th className="col-medium">RCI</th>
-                                    <th className="col-medium">PER</th>
+                                    <th className="col-medium">CIPAV</th>
                                     <th className="col-small">Tranche A</th>
                                     <th className="col-small">Tranche B</th>
                                     <th className="actions-col">Actions</th>
@@ -274,16 +286,16 @@ const ManualCareerTable = ({
                                                 type="text"
                                                 inputMode="decimal"
                                                 className="manual-num"
-                                                value={row.perPoints ?? ""}
+                                                value={row.cipavPoints ?? ""}
                                                 onChange={(e) => {
                                                     const val = sanitizeSalaryInput(e.target.value);
                                                     setManualCareerRows((prev) =>
                                                         prev.map((r) =>
-                                                            r.id === row.id ? { ...r, perPoints: val } : r
+                                                            r.id === row.id ? { ...r, cipavPoints: val } : r
                                                         )
                                                     );
                                                 }}
-                                                aria-label="PER"
+                                                aria-label="CIPAV"
                                                 placeholder="Points"
                                             />
                                         </td>
@@ -365,12 +377,35 @@ const ManualCareerTable = ({
                     <Button
                         color="primary"
                         className="notes-action-btn manual-import-btn"
-                        onClick={handleManualImport}
+                        onClick={handleImportClick}
+                        disabled={isImportingRIS}
                     >
-                        Importer les données
+                        {isImportingRIS ? "Import RIS en cours…" : "Importer les données"}
                     </Button>
                 </div>
             </CardBody>
+
+            <Modal isOpen={showCadreModal} toggle={() => setShowCadreModal(false)} centered>
+                <ModalHeader toggle={() => setShowCadreModal(false)}>
+                    Statut professionnel
+                </ModalHeader>
+                <ModalBody>
+                    <p style={{ marginBottom: 0 }}>
+                        Pour le calcul des points ARRCO / AGIRC-ARRCO, veuillez indiquer le statut du client :
+                    </p>
+                </ModalBody>
+                <ModalFooter>
+                    <Button color="secondary" onClick={() => setShowCadreModal(false)}>
+                        Annuler
+                    </Button>
+                    <Button color="primary" onClick={() => handleCadreConfirm(false)}>
+                        Non-Cadre
+                    </Button>
+                    <Button color="info" onClick={() => handleCadreConfirm(true)}>
+                        Cadre
+                    </Button>
+                </ModalFooter>
+            </Modal>
         </Card>
     );
 };

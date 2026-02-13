@@ -21,6 +21,7 @@ import pdfIcon from "../../../../assets/img/icons/pdf.png";
 import CnavSimulator from "./CnavSimulator";
 import ArrcoSimulator from "./ArrcoSimulator";
 import IrcantecSimulator from "./IrcantecSimulator";
+import RciSimulator from "./RciSimulator";
 
 // UI-only component: no calculation or API logic here per specs
 
@@ -162,26 +163,6 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
       rachat: "",
     },
   ]);
-  const [rciDashboardValues, setRciDashboardValues] = useState(() => {
-    try {
-      const savedValues = localStorage.getItem("rci_dashboard_values");
-      if (savedValues) {
-        return JSON.parse(savedValues);
-      }
-    } catch (e) {
-      console.error("Failed to load saved RCI values", e);
-    }
-    // Default values if nothing in localStorage
-    return {
-      capitalDate: "",
-      capitalAmount: "",
-      projectionAge: "62",
-      projectionAgeAmount: "",
-      projection64Amount: "",
-      projection67Amount: "",
-    };
-  });
-  const [isRciDashboardOpen, setIsRciDashboardOpen] = useState(true);
 
 
   // Defensive snapshots for possibly corrupted localStorage values
@@ -329,52 +310,6 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
       /* noop */
     }
   }, []);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("rci_dashboard_values");
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (!parsed || typeof parsed !== "object") return;
-      setRciDashboardValues((prev) => ({
-        ...prev,
-        capitalDate: normalizeDate(parsed.capitalDate) || "",
-        capitalAmount:
-          typeof parsed.capitalAmount === "string" ? parsed.capitalAmount : "",
-        projectionAge:
-          typeof parsed.projectionAge === "string"
-            ? parsed.projectionAge
-            : typeof parsed.projectionAge === "number"
-            ? String(parsed.projectionAge)
-            : prev.projectionAge,
-        projectionAgeAmount:
-          typeof parsed.projectionAgeAmount === "string"
-            ? parsed.projectionAgeAmount
-            : "",
-        projection64Amount:
-          typeof parsed.projection64Amount === "string"
-            ? parsed.projection64Amount
-            : "",
-        projection67Amount:
-          typeof parsed.projection67Amount === "string"
-            ? parsed.projection67Amount
-            : "",
-      }));
-    } catch {
-      /* noop */
-    }
-  }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        "rci_dashboard_values",
-        JSON.stringify(rciDashboardValues)
-      );
-    } catch {
-      /* noop */
-    }
-  }, [rciDashboardValues]);
 
   // Compatibility rules between hypotheses toggles
   useEffect(() => {
@@ -556,9 +491,9 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                         ? row.value
                         : ""
                       : new Intl.NumberFormat("fr-FR", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        }).format(num);
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      }).format(num);
                     setSalaireJusquaDepartRows((prev) =>
                       (Array.isArray(prev) ? prev : []).map((r) =>
                         r && r.id === row.id
@@ -596,12 +531,12 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
               onMouseDown={(e) => {
                 try {
                   e.currentTarget.showPicker && e.currentTarget.showPicker();
-                } catch {}
+                } catch { }
               }}
               onFocus={(e) => {
                 try {
                   e.currentTarget.showPicker && e.currentTarget.showPicker();
-                } catch {}
+                } catch { }
               }}
               onChange={(e) => {
                 const v = e.currentTarget.value || "";
@@ -621,12 +556,12 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
               onMouseDown={(e) => {
                 try {
                   e.currentTarget.showPicker && e.currentTarget.showPicker();
-                } catch {}
+                } catch { }
               }}
               onFocus={(e) => {
                 try {
                   e.currentTarget.showPicker && e.currentTarget.showPicker();
-                } catch {}
+                } catch { }
               }}
               onChange={(e) => {
                 const v = e.currentTarget.value || "";
@@ -712,62 +647,6 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
       return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : "";
     } catch {
       return "";
-    }
-  };
-
-  const handleRciDashboardChange = (field, value) => {
-    let newValue = value;
-
-    // Enforce limits for amount fields
-    if (
-      [
-        "capitalAmount",
-        "projectionAgeAmount",
-        "projection64Amount",
-        "projection67Amount",
-      ].includes(field)
-    ) {
-      // Remove existing spaces to parse the number
-      const cleanValue = newValue.replace(/\s/g, "");
-
-      // Allow empty string to let user clear the input
-      if (cleanValue === "") {
-        setRciDashboardValues((prev) => ({ ...prev, [field]: "" }));
-        return;
-      }
-
-      // Check if it's a valid number (allow digits only for now to avoid complexity with decimals if not needed, or standard float)
-      // Using regex to allow only digits is safer for "text" inputs mimicking numbers
-      if (!/^\d*$/.test(cleanValue)) {
-        return; // Ignore non-numeric input
-      }
-
-      let numValue = parseInt(cleanValue, 10);
-
-      if (!isNaN(numValue)) {
-        if (numValue < 0) numValue = 0;
-        if (numValue > 9999999) numValue = 9999999;
-
-        // Format with spaces
-        newValue = numValue.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-      }
-    }
-
-    setRciDashboardValues((prev) => ({ ...prev, [field]: newValue }));
-  };
-
-  // Auto-save RCI dashboard values to localStorage on every change
-  useEffect(() => {
-    localStorage.setItem(
-      "rci_dashboard_values",
-      JSON.stringify(rciDashboardValues)
-    );
-  }, [rciDashboardValues]);
-
-  // Handle Enter key (blur on Enter for better UX)
-  const handleRciKeyDown = (e) => {
-    if (e.key === "Enter") {
-      e.target.blur(); // Remove focus when Enter is pressed
     }
   };
 
@@ -1155,33 +1034,6 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
           .regime-table td { font-size: 12px; padding: 8px; }
         }
 
-        /* RCI Specific Styles to match IRCANTEC */
-        .sim-title { font-weight: 800; text-transform: uppercase; letter-spacing: .02em; margin: 6px 0 8px; font-size: 20px; color: #1f2d3d; }
-        .points-section { display: flex; flex-direction: column; gap: 15px; margin-top: 0.75rem; padding: 0 16px 16px; }
-        .points-row { display: flex; align-items: center; justify-content: flex-start; margin-bottom: 15px; gap: 10px; flex-wrap: wrap; }
-        
-        /* Fixed width for the left column (labels) */
-        .points-label { display: inline-block; width: 100%; min-width: 0; margin-right: 0; font-size: 14px; font-weight: 600; color: #1f2d3d; text-transform: none; }
-        @media (min-width: 769px) {
-          .points-label { width: 350px; min-width: 350px; }
-        }
-        
-        /* Special case for the date row where the "label" is a wrapper containing text + input */
-        .rci-date-wrapper { width: 350px; min-width: 350px; display: flex; align-items: center; gap: 10px; }
-        .rci-date-wrapper .points-label { width: auto; min-width: auto; margin-right: 0; }
-
-        /* Special case for "Projection rente capital à [Age] ans" */
-        .rci-age-wrapper { width: 350px; min-width: 350px; display: flex; align-items: center; }
-        .rci-age-wrapper .points-label { width: auto; min-width: auto; margin-right: 10px; }
-
-        .points-input { width: 150px; padding: 6px 8px; border: 1px solid #ddd; border-radius: 6px; outline: none; display: block; background-color: #fff; color: #1f2d3d; }
-
-        @media (max-width: 768px) {
-          .points-row { flex-direction: column; align-items: flex-start; gap: 6px; }
-          .points-label, .rci-date-wrapper, .rci-age-wrapper { width: 100%; min-width: 0; }
-          .points-input { width: 100% !important; }
-          .rci-date-wrapper, .rci-age-wrapper { justify-content: space-between; }
-        }
       `}</style>
 
         <style>{`
@@ -1350,71 +1202,6 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
         .manual-header-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
         .manual-entry-actions { display: flex; justify-content: flex-end; }
 
-        /* RCI Tab - Ircantec Clone Styles */
-        .points-collapsible { margin: 0 12px 16px; }
-        .collapsible { 
-          border:1px solid #ddd; 
-          border-radius:16px; 
-          background:#fff; 
-          box-shadow:0 12px 30px rgba(15,23,42,0.08); 
-        }
-        .collapsible-header { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; border:0; background:transparent; cursor:pointer; border-radius:16px; font-size:18px; font-weight:700; color:#1f2d3d; }
-        .collapsible-header .chevron { transition: transform .25s ease; color:#6b7280; }
-        .collapsible-header.open .chevron { transform: rotate(180deg); }
-        
-        .points-suffix { font-size: 14px; color: #6b7280; font-weight: 500; text-transform: lowercase; }
-        
-        .rci-card-height { min-height: 1150px; }
-        
-        /* RCI Responsive Styles */
-        @media (max-width: 768px) {
-          .rci-card-height { min-height: auto !important; }
-          .points-row { 
-            flex-direction: column !important; 
-            align-items: flex-start !important; 
-            gap: 8px !important;
-          }
-          .points-row > div[style*="minWidth"],
-          .rci-date-wrapper,
-          .rci-age-wrapper {
-            min-width: 100% !important;
-            width: 100% !important;
-            flex-direction: column !important;
-            align-items: flex-start !important;
-          }
-          .rci-age-wrapper .points-label {
-            margin-right: 0 !important;
-            margin-bottom: 4px !important;
-            width: 100% !important;
-          }
-          .points-label {
-            min-width: auto !important;
-            width: 100% !important;
-            margin-right: 0 !important;
-            margin-bottom: 4px !important;
-          }
-          .points-input {
-            width: 100% !important;
-            max-width: 100% !important;
-          }
-          .points-section {
-            padding: 12px !important;
-          }
-          .collapsible-header {
-            font-size: 16px !important;
-            padding: 10px 12px !important;
-          }
-          .sim-title {
-            font-size: 16px !important;
-          }
-        }
-        
-        @media (max-width: 640px) {
-          .points-row { flex-direction:column; align-items:flex-start; }
-          .points-row .points-input { width:100%; }
-          .points-label { min-width:0; }
-        }
-
         .hypo-flex-container { display: flex; flex-direction: column; gap: 24px; align-items: flex-start; width: 100%; }
         .hypo-col-form { width: 100%; max-width: 100%; } /* Prend toute la largeur disponible */
         .hypo-col-table { width: 100%; min-width: 0; }
@@ -1422,6 +1209,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
         @media (max-width: 992px) {
           .hypo-col-form, .hypo-col-table { width: 100%; max-width: 100%; }
         }
+
 
       `}</style>
       </>
@@ -1519,7 +1307,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
             <TabPane tabId="base">
               <Card className="mb-1">
                 <CardBody>
-                  <CnavSimulator />
+                  <CnavSimulator user={user} />
                 </CardBody>
               </Card>
             </TabPane>
@@ -1527,7 +1315,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
             <TabPane tabId="arrco">
               <Card className="mb-1">
                 <CardBody>
-                  <ArrcoSimulator onSave={handleArrcoSave} />
+                  <ArrcoSimulator onSave={handleArrcoSave} user={user} />
                 </CardBody>
               </Card>
             </TabPane>
@@ -1535,204 +1323,15 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
             <TabPane tabId="ircantec">
               <Card className="mb-1">
                 <CardBody>
-                  <IrcantecSimulator onSave={handleIrcantecSave} />
+                  <IrcantecSimulator onSave={handleIrcantecSave} user={user} />
                 </CardBody>
               </Card>
             </TabPane>
 
             <TabPane tabId="rci">
-              <Card className="mb-1 rci-card-height">
+              <Card className="mb-1">
                 <CardBody>
-                  <div className="points-collapsible">
-                    <div className="collapsible">
-                      <button
-                        type="button"
-                        className={classnames("collapsible-header", {
-                          open: isRciDashboardOpen,
-                        })}
-                        onClick={() => setIsRciDashboardOpen((prev) => !prev)}
-                        aria-expanded={isRciDashboardOpen}
-                        aria-controls="rci-dashboard-panel"
-                      >
-                        <span className="sim-title" style={{ margin: 0 }}>
-                          TABLEAU DE BORD
-                        </span>
-                        <span className="chevron" aria-hidden="true">
-                          <svg
-                            width="18"
-                            height="18"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                          </svg>
-                        </span>
-                      </button>
-                      <Collapse isOpen={isRciDashboardOpen}>
-                        <div
-                          id="rci-dashboard-panel"
-                          className="points-section"
-                        >
-                          <div className="points-row">
-                            <div className="rci-date-wrapper">
-                              <label
-                                className="points-label"
-                                htmlFor="rci-capital-date"
-                              >
-                                Capital acquis au
-                              </label>
-                              <input
-                                type="date"
-                                id="rci-capital-date"
-                                className="points-input"
-                                value={normalizeDate(
-                                  rciDashboardValues.capitalDate
-                                )}
-                                onClick={(e) => {
-                                  try {
-                                    e.currentTarget.showPicker();
-                                  } catch (err) {}
-                                }}
-                                onChange={(e) =>
-                                  handleRciDashboardChange(
-                                    "capitalDate",
-                                    normalizeDate(e.target.value)
-                                  )
-                                }
-                                onKeyDown={handleRciKeyDown}
-                                style={{ width: "130px" }}
-                              />
-                            </div>
-                            <input
-                              type="text"
-                              id="rci-capital-amount"
-                              className="points-input"
-                              placeholder="Montant (€)"
-                              inputMode="numeric"
-                              value={rciDashboardValues.capitalAmount}
-                              style={{ width: "150px" }}
-                              onChange={(e) =>
-                                handleRciDashboardChange(
-                                  "capitalAmount",
-                                  e.target.value
-                                )
-                              }
-                              onKeyDown={handleRciKeyDown}
-                            />
-                          </div>
-
-                          <div className="points-row">
-                            <div className="rci-age-wrapper">
-                              <label
-                                className="points-label"
-                                htmlFor="rci-projection-age-amount"
-                              >
-                                Projection rente capital à
-                              </label>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: "6px",
-                                }}
-                              >
-                                <input
-                                  type="number"
-                                  id="rci-projection-age-input"
-                                  className="points-input"
-                                  style={{ width: "60px", textAlign: "center" }}
-                                  aria-label="Âge de projection"
-                                  min="0"
-                                  max="99"
-                                  step="1"
-                                  inputMode="numeric"
-                                  value={rciDashboardValues.projectionAge}
-                                  onChange={(e) =>
-                                    handleRciDashboardChange(
-                                      "projectionAge",
-                                      e.target.value
-                                    )
-                                  }
-                                  onKeyDown={handleRciKeyDown}
-                                />
-                                <span className="points-suffix">ans</span>
-                              </div>
-                            </div>
-                            <input
-                              type="text"
-                              id="rci-projection-age-amount"
-                              className="points-input"
-                              placeholder="Montant rente (€)"
-                              inputMode="numeric"
-                              value={rciDashboardValues.projectionAgeAmount}
-                              style={{ width: "150px" }}
-                              onChange={(e) =>
-                                handleRciDashboardChange(
-                                  "projectionAgeAmount",
-                                  e.target.value
-                                )
-                              }
-                              onKeyDown={handleRciKeyDown}
-                            />
-                          </div>
-
-                          <div className="points-row">
-                            <label
-                              className="points-label"
-                              htmlFor="rci-projection-64"
-                            >
-                              Projection rente capital à 64 ans
-                            </label>
-                            <input
-                              type="text"
-                              id="rci-projection-64"
-                              className="points-input"
-                              placeholder="Montant rente (€)"
-                              inputMode="numeric"
-                              value={rciDashboardValues.projection64Amount}
-                              style={{ width: "150px" }}
-                              onChange={(e) =>
-                                handleRciDashboardChange(
-                                  "projection64Amount",
-                                  e.target.value
-                                )
-                              }
-                              onKeyDown={handleRciKeyDown}
-                            />
-                          </div>
-
-                          <div className="points-row">
-                            <label
-                              className="points-label"
-                              htmlFor="rci-projection-67"
-                            >
-                              Projection rente capital à 67 ans
-                            </label>
-                            <input
-                              type="text"
-                              id="rci-projection-67"
-                              className="points-input"
-                              placeholder="Montant rente (€)"
-                              inputMode="numeric"
-                              value={rciDashboardValues.projection67Amount}
-                              style={{ width: "150px" }}
-                              onChange={(e) =>
-                                handleRciDashboardChange(
-                                  "projection67Amount",
-                                  e.target.value
-                                )
-                              }
-                              onKeyDown={handleRciKeyDown}
-                            />
-                          </div>
-                        </div>
-                      </Collapse>
-                    </div>
-                  </div>
+                  <RciSimulator user={user} />
                 </CardBody>
               </Card>
             </TabPane>
@@ -1839,7 +1438,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                               style={{ marginTop: 8, maxWidth: 480 }}
                             >
                               {Array.isArray(vplrEntries) &&
-                              vplrEntries.length ? (
+                                vplrEntries.length ? (
                                 <div className="vplr-entries">
                                   {vplrEntries.map((row) => (
                                     <div
@@ -1900,8 +1499,8 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                           setVplrEntries((prev) =>
                                             Array.isArray(prev)
                                               ? prev.filter(
-                                                  (r) => r && r.id !== row.id
-                                                )
+                                                (r) => r && r.id !== row.id
+                                              )
                                               : []
                                           )
                                         }
@@ -2066,17 +1665,17 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                         ? salaireDefautRowSafe.value
                                         : ""
                                       : new Intl.NumberFormat("fr-FR", {
-                                          minimumFractionDigits: 2,
-                                          maximumFractionDigits: 2,
-                                        }).format(num);
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                      }).format(num);
                                     setSalaireDefautRow((prev) => ({
                                       ...(prev && typeof prev === "object"
                                         ? prev
                                         : {
-                                            id: "def",
-                                            value: "",
-                                            fixed: false,
-                                          }),
+                                          id: "def",
+                                          value: "",
+                                          fixed: false,
+                                        }),
                                       value: formatted,
                                       fixed: true,
                                     }));
@@ -2114,19 +1713,19 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                               className="hypo-date-input"
                               value={normalizeDate(
                                 salaireDefautRowSafe &&
-                                  salaireDefautRowSafe.from
+                                salaireDefautRowSafe.from
                               )}
                               onMouseDown={(e) => {
                                 try {
                                   e.currentTarget.showPicker &&
                                     e.currentTarget.showPicker();
-                                } catch {}
+                                } catch { }
                               }}
                               onFocus={(e) => {
                                 try {
                                   e.currentTarget.showPicker &&
                                     e.currentTarget.showPicker();
-                                } catch {}
+                                } catch { }
                               }}
                               onChange={(e) => {
                                 const v = e.currentTarget.value || "";
@@ -2150,13 +1749,13 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                 try {
                                   e.currentTarget.showPicker &&
                                     e.currentTarget.showPicker();
-                                } catch {}
+                                } catch { }
                               }}
                               onFocus={(e) => {
                                 try {
                                   e.currentTarget.showPicker &&
                                     e.currentTarget.showPicker();
-                                } catch {}
+                                } catch { }
                               }}
                               onChange={(e) => {
                                 const v = e.currentTarget.value || "";
@@ -2283,13 +1882,13 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                   try {
                                     e.currentTarget.showPicker &&
                                       e.currentTarget.showPicker();
-                                  } catch {}
+                                  } catch { }
                                 }}
                                 onFocus={(e) => {
                                   try {
                                     e.currentTarget.showPicker &&
                                       e.currentTarget.showPicker();
-                                  } catch {}
+                                  } catch { }
                                 }}
                                 onChange={(e) =>
                                   setChomageStartDate(
@@ -2504,19 +2103,19 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                   className="hypo-date-input"
                                   value={normalizeDate(
                                     clAvantDates[String(age)] &&
-                                      clAvantDates[String(age)].from
+                                    clAvantDates[String(age)].from
                                   )}
                                   onMouseDown={(e) => {
                                     try {
                                       e.currentTarget.showPicker &&
                                         e.currentTarget.showPicker();
-                                    } catch {}
+                                    } catch { }
                                   }}
                                   onFocus={(e) => {
                                     try {
                                       e.currentTarget.showPicker &&
                                         e.currentTarget.showPicker();
-                                    } catch {}
+                                    } catch { }
                                   }}
                                   onChange={(e) => {
                                     const v = e.currentTarget.value || "";
@@ -2538,19 +2137,19 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                   className="hypo-date-input"
                                   value={normalizeDate(
                                     clAvantDates[String(age)] &&
-                                      clAvantDates[String(age)].to
+                                    clAvantDates[String(age)].to
                                   )}
                                   onMouseDown={(e) => {
                                     try {
                                       e.currentTarget.showPicker &&
                                         e.currentTarget.showPicker();
-                                    } catch {}
+                                    } catch { }
                                   }}
                                   onFocus={(e) => {
                                     try {
                                       e.currentTarget.showPicker &&
                                         e.currentTarget.showPicker();
-                                    } catch {}
+                                    } catch { }
                                   }}
                                   onChange={(e) => {
                                     const v = e.currentTarget.value || "";
@@ -2633,13 +2232,13 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                     try {
                                       e.currentTarget.showPicker &&
                                         e.currentTarget.showPicker();
-                                    } catch {}
+                                    } catch { }
                                   }}
                                   onFocus={(e) => {
                                     try {
                                       e.currentTarget.showPicker &&
                                         e.currentTarget.showPicker();
-                                    } catch {}
+                                    } catch { }
                                   }}
                                   onKeyDown={(e) => {
                                     if (e.key === "Enter") {
@@ -2934,10 +2533,10 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                               parts[0] +
                                               (parts.length > 1
                                                 ? "," +
-                                                  parts
-                                                    .slice(1)
-                                                    .join("")
-                                                    .replace(/,/g, "")
+                                                parts
+                                                  .slice(1)
+                                                  .join("")
+                                                  .replace(/,/g, "")
                                                 : "");
                                           }
                                           const dob = getBirthDate();
@@ -2961,11 +2560,11 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                             prev.map((r) =>
                                               r && r.id === row.id
                                                 ? {
-                                                    ...r,
-                                                    age: next,
-                                                    date: nextDate,
-                                                    fixedAge: true,
-                                                  }
+                                                  ...r,
+                                                  age: next,
+                                                  date: nextDate,
+                                                  fixedAge: true,
+                                                }
                                                 : r
                                             )
                                           );
@@ -2987,10 +2586,10 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                                 prev.map((r) =>
                                                   r && r.id === row.id
                                                     ? {
-                                                        ...r,
-                                                        age: String(clamped),
-                                                        fixedAge: true,
-                                                      }
+                                                      ...r,
+                                                      age: String(clamped),
+                                                      fixedAge: true,
+                                                    }
                                                     : r
                                                 )
                                               );
@@ -3051,13 +2650,13 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                       try {
                                         e.currentTarget.showPicker &&
                                           e.currentTarget.showPicker();
-                                      } catch {}
+                                      } catch { }
                                     }}
                                     onFocus={(e) => {
                                       try {
                                         e.currentTarget.showPicker &&
                                           e.currentTarget.showPicker();
-                                      } catch {}
+                                      } catch { }
                                     }}
                                     onChange={(e) => {
                                       const val = e.target.value;
@@ -3175,13 +2774,13 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                     try {
                                       e.currentTarget.showPicker &&
                                         e.currentTarget.showPicker();
-                                    } catch {}
+                                    } catch { }
                                   }}
                                   onFocus={(e) => {
                                     try {
                                       e.currentTarget.showPicker &&
                                         e.currentTarget.showPicker();
-                                    } catch {}
+                                    } catch { }
                                   }}
                                   onChange={(e) => {
                                     const val = e.target.value;
@@ -3199,8 +2798,8 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                                 : null;
                                             const newAge =
                                               years != null &&
-                                              years >= 0 &&
-                                              !r.fixedAge
+                                                years >= 0 &&
+                                                !r.fixedAge
                                                 ? String(years)
                                                 : r.age || "";
                                             return {
@@ -3230,8 +2829,8 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                       : "";
                                   const current =
                                     row &&
-                                    row.age != null &&
-                                    String(row.age).trim() !== ""
+                                      row.age != null &&
+                                      String(row.age).trim() !== ""
                                       ? String(row.age)
                                       : computed;
                                   return (
@@ -3269,10 +2868,10 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                             parts[0] +
                                             (parts.length > 1
                                               ? "," +
-                                                parts
-                                                  .slice(1)
-                                                  .join("")
-                                                  .replace(/,/g, "")
+                                              parts
+                                                .slice(1)
+                                                .join("")
+                                                .replace(/,/g, "")
                                               : "");
                                           setFreeDates((prev) =>
                                             (Array.isArray(prev)
@@ -3306,9 +2905,8 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                           );
                                         }}
                                         placeholder="Ex: 62"
-                                        aria-label={`Âge calculé pour la date libre ${
-                                          idx + 1
-                                        }`}
+                                        aria-label={`Âge calculé pour la date libre ${idx + 1
+                                          }`}
                                       />
                                       <span>ans</span>
                                     </div>
@@ -3472,7 +3070,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                               : []
                                           )
                                         );
-                                      } catch {}
+                                      } catch { }
                                     }
                                   }}
                                   placeholder="Nom du bilan"
@@ -3522,7 +3120,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                               : []
                                           )
                                         );
-                                      } catch {}
+                                      } catch { }
                                     }
                                   }}
                                   placeholder="—"

@@ -5,6 +5,7 @@ package-lock.json
 live-front-moneynci.zip
 local_front-moneynci.zip
 build/
+.claude
 
 .env.local
 .env.prod

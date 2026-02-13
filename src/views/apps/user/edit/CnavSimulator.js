@@ -1,22 +1,32 @@
-import React, { useState, useCallback, useMemo } from "react";
-import { Collapse } from "reactstrap";
-import classnames from "classnames";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { coeffRevalo, plafondSS, getRetirementAge, getTrimTauxPlein } from "./simulatorData";
+import { fetchRISAnalysis } from "./risService";
+// We need to import convertRISToManualRows if we want to use its potentially shared logic, 
+// OR we can just use the raw data if handlePrefill parses it. 
+// The user said "exactement comme le fait Importer les données". 
+// In useNotesLogic, it calls convertRISToManualRows AND THEN setManualCareerRows.
+// But CnavSimulator uses `user.debug_carriere_detaillee_regex` format.
+// convertRISToManualRows TAKES `debug_carriere_detaillee_regex` from the RIS data.
+// So the webhook returns the RIS data object which HAS `debug_carriere_detaillee_regex`.
+// We just need that array.
+import { toast } from "react-toastify";
 
 const YEARS_START = 1963;
-const YEARS_END = 2024;
+const YEARS_END = 2026;
 
-const chevronSvg = (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="6 9 12 15 18 9" />
-  </svg>
-);
+/** Formate un nombre avec des espaces comme séparateur de milliers (ex: 10000.50 → "10 000.50") */
+const formatNumber = (num) => {
+  const parts = num.toFixed(2).split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  return parts.join('.');
+};
 
-export default function CnavSimulator() {
-  const [isOpen, setIsOpen] = useState(true);
+export default function CnavSimulator({ user }) {
   const [birthDate, setBirthDate] = useState("");
   const [showBirthInfo, setShowBirthInfo] = useState(false);
   const [birthInfo, setBirthInfo] = useState(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = React.useRef(null);
 
   // Salaries: { [year]: { sr: string, ss: string } }
   const [salaries, setSalaries] = useState({});
@@ -34,8 +44,10 @@ export default function CnavSimulator() {
   const [totalTrimestresAssimiles, setTotalTrimestresAssimiles] = useState(0);
   const [trimestresParSalaire, setTrimestresParSalaire] = useState(0);
 
-  // Enfant
-  const [enfantTrimestres, setEnfantTrimestres] = useState(0);
+  // Enfant — auto-rempli depuis le profil
+  const [nombreEnfants, setNombreEnfants] = useState(0);
+  const [genre, setGenre] = useState("femme"); // "femme" | "homme"
+  const [statut, setStatut] = useState("prive"); // "prive" | "fonctionnaire"
   const [enfantHandicap, setEnfantHandicap] = useState(false);
 
   // Best years
@@ -51,8 +63,36 @@ export default function CnavSimulator() {
 
   const currentYear = useMemo(() => new Date().getFullYear(), []);
 
-  const enfantMax = enfantHandicap ? 16 : 8;
-  const enfantDisplay = Math.min(Math.max(0, enfantTrimestres), enfantMax);
+  // Calcul automatique des trimestres enfant
+  const trimestresEnfant = useMemo(() => {
+    if (nombreEnfants <= 0) return 0;
+    let parEnfant = 0;
+    if (genre === "femme") {
+      if (statut === "fonctionnaire") {
+        parEnfant = 4; // bonification fonctionnaire
+      } else {
+        parEnfant = 8; // 4 maternité + 4 éducation (régime général)
+      }
+    }
+    // Homme : 0 trimestres par défaut (maternité = mère uniquement)
+    const base = nombreEnfants * parEnfant;
+    const handicapBonus = enfantHandicap ? nombreEnfants * 8 : 0;
+    return base + handicapBonus;
+  }, [nombreEnfants, genre, statut, enfantHandicap]);
+
+  // Total trimestres cotisés (somme des trimestres calculés par salaire)
+  const totalTrimestresCotises = useMemo(() => {
+    let total = 0;
+    for (const year in computed) {
+      if (computed[year] && computed[year].trimestres) {
+        total += computed[year].trimestres;
+      }
+    }
+    return total;
+  }, [computed]);
+
+  // Total général de tous les trimestres
+  const totalTrimestresGlobal = totalTrimestresCotises + totalTrimestresAssimiles + trimestresEnfant;
 
   const handleAfficher = useCallback(() => {
     if (!birthDate) return;
@@ -101,14 +141,27 @@ export default function CnavSimulator() {
     const coeff = coeffRevalo[year] || 1;
     const passEuro = plafondSS[year] || 0;
 
-    let salaireRevaloriser = year <= 2001
-      ? (salaireAnnuel * coeff) / 6.556957
-      : salaireAnnuel * coeff;
-
+    // 1. Plafonner au PASS de l'année AVANT de revaloriser
     const isCapped = !isDeplafonner || year >= 2005;
-    if (isCapped) salaireRevaloriser = Math.min(salaireRevaloriser, passEuro);
+    let salairePlafonne = salaireAnnuel;
+    if (isCapped && passEuro > 0) {
+      if (year <= 2001) {
+        const passFrancs = passEuro * 6.556957;
+        salairePlafonne = Math.min(salaireAnnuel, passFrancs);
+      } else {
+        salairePlafonne = Math.min(salaireAnnuel, passEuro);
+      }
+    }
 
-    const seuilTrimestre = passEuro / 4 || 0;
+    // 2. Puis revaloriser le salaire plafonné
+    let salaireRevaloriser = year <= 2001
+      ? (salairePlafonne * coeff) / 6.556957
+      : salairePlafonne * coeff;
+
+    // Trimestres : comparer le salaire réel au seuil dans la même devise
+    const seuilTrimestre = year <= 2001
+      ? (passEuro * 6.556957) / 4
+      : passEuro / 4;
     const trimestre = Math.min(4, Math.max(0, Math.floor(salaireAnnuel / (seuilTrimestre || Infinity))));
     setTrimestresParSalaire(trimestre);
 
@@ -116,7 +169,7 @@ export default function CnavSimulator() {
       ...prev,
       [year]: {
         revalorise: salaireRevaloriser,
-        revaloriseStr: salaireRevaloriser.toFixed(2) + (isDeplafonner ? " \u20AC" : ""),
+        revaloriseStr: formatNumber(salaireRevaloriser) + (isDeplafonner ? " \u20AC" : ""),
         trimestres: trimestre,
       },
     }));
@@ -135,33 +188,56 @@ export default function CnavSimulator() {
   }, [trimestresParSalaire]);
 
   const handleSimulationFinale = useCallback(() => {
-    let salRev = [];
-    let totalTrimestre = 0;
-    for (const year in computed) {
-      const c = computed[year];
-      if (c && c.revalorise > 0) salRev.push(c.revalorise);
-      if (c) totalTrimestre += c.trimestres || 0;
-    }
-    salRev.sort((a, b) => a - b);
-    const best = salRev.slice(-25);
+    const entries = [];
+    const updatedSalaries = { ...salaries };
 
-    const bestDisplay = [];
-    for (let j = 0; j < 25; j++) {
-      const val = best[best.length - 1 - j] || 0;
-      bestDisplay.push({
-        year: currentYear - j,
-        value: val,
-        display: val ? val.toFixed(2) + " \u20AC" : "0",
-      });
+    for (const year in salaries) {
+      const sal = salaries[year];
+      if (!sal || !sal.sr) continue;
+      const salaireReel = parseFloat(String(sal.sr).replace(/\s/g, "").replace(",", "."));
+      if (isNaN(salaireReel) || salaireReel <= 0) continue;
+
+      const yearNum = Number(year);
+      const passEuro = plafondSS[yearNum] || 0;
+
+      // Calculer le salaire SS (plafonné au PASS de l'année)
+      let salaireSS = salaireReel;
+      if (passEuro > 0) {
+        if (yearNum <= 2001) {
+          const passFrancs = passEuro * 6.556957;
+          salaireSS = Math.min(salaireReel, passFrancs);
+        } else {
+          salaireSS = Math.min(salaireReel, passEuro);
+        }
+      }
+
+      // Remplir la colonne Salaire SS (dans la devise d'origine)
+      updatedSalaries[year] = { ...updatedSalaries[year], ss: String(Math.round(salaireSS * 100) / 100) };
+
+      // Pour les 25 meilleures : salaire SS en euros
+      const salaireSS_euro = yearNum <= 2001 ? salaireSS / 6.556957 : salaireSS;
+      entries.push({ year: yearNum, value: salaireSS_euro });
     }
 
-    const total = best.reduce((s, v) => s + v, 0);
+    setSalaries(updatedSalaries);
+
+    // Trier par valeur décroissante et garder les 25 meilleures
+    entries.sort((a, b) => b.value - a.value);
+    const best = entries.slice(0, 25);
+
+    const bestDisplay = best.map(e => ({
+      year: e.year,
+      value: e.value,
+      display: formatNumber(e.value) + " \u20AC",
+    }));
+
+    const total = best.reduce((s, e) => s + e.value, 0);
     const moyenne = best.length ? total / best.length : 0;
 
     setBestYears(bestDisplay);
     setTotalBestYears(total);
     setMoyenneAnnuelle(moyenne);
-  }, [computed, currentYear]);
+  }, [salaries]);
 
   const handleReset = useCallback(() => {
     setSalaries({});
@@ -178,7 +254,198 @@ export default function CnavSimulator() {
       chomageNonIndemnise: 0,
       maladieAccident: 0,
     });
+    setNombreEnfants(0);
+    setGenre("femme");
+    setStatut("prive");
+    setEnfantHandicap(false);
   }, []);
+
+  // TRIGGER FILE INPUT
+  const handleImportRIS = useCallback(() => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+      fileInputRef.current.click();
+    }
+  }, []);
+
+  // UNIFIED: pre-fill from user data if available, otherwise open file picker
+  const handleImportOrPrefill = useCallback(() => {
+    if (user?.debug_carriere_detaillee_regex?.length) {
+      handlePrefill();
+    } else {
+      handleImportRIS();
+    }
+  }, [user, handleImportRIS]);
+
+  // CALL WEBHOOK
+  const handleFileChange = useCallback(async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const childrenCount = user?.profil?.children_number ?? user?.children_number ?? "";
+      const birthDateVal = user?.profil?.date_naissance ?? user?.birth_date ?? "";
+      const msg = `Analyse RIS pour CNAV Simulator.\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDateVal}`;
+
+      toast.info("Analyse du RIS en cours...");
+
+      const payload = await fetchRISAnalysis(file, msg, user?.id);
+
+      if (!payload || !payload.debug_carriere_detaillee_regex) {
+        toast.warn("Le retour de l'analyse ne contient pas de données de carrière utilisables.");
+        console.warn("Webhook response:", payload);
+      }
+
+      handlePrefill(payload);
+      toast.success("Données importées avec succès !");
+
+    } catch (err) {
+      console.error("Erreur import RIS:", err);
+      toast.error("Erreur lors de l'analyse du fichier.");
+    } finally {
+      setIsImporting(false);
+    }
+  }, [user]);
+
+  const handlePrefill = useCallback((overrideData = null) => {
+    // Si overrideData est fourni (retour webhook), on l'utilise. Sinon on prend user.
+    // Attention: overrideData peut être l'event click si appelé via onClick sans params
+
+    // Check if overrideData is a real data object or an event
+    let sourceData = user;
+
+    if (overrideData && overrideData.debug_carriere_detaillee_regex) {
+      sourceData = overrideData;
+    }
+
+    if (!sourceData) return;
+
+    // 1. Date de naissance — toujours depuis user (le webhook ne renvoie pas le profil)
+    if (user?.profil?.date_naissance) {
+      const parts = user.profil.date_naissance.split('/');
+      if (parts.length === 3) {
+        setBirthDate(`${parts[2]}-${parts[1]}-${parts[0]}`);
+      }
+    } else if (user?.birth_date || user?.birthDate) {
+      const bd = user.birth_date || user.birthDate;
+      try {
+        const d = new Date(bd);
+        if (!isNaN(d.getTime())) {
+          setBirthDate(d.toISOString().split('T')[0]);
+        }
+      } catch (e) { }
+    }
+
+    // 2. Nombre d'enfants et genre — depuis le profil user
+    const childCount = parseInt(user?.profil?.children_number ?? user?.children_number ?? 0, 10);
+    if (childCount > 0) setNombreEnfants(childCount);
+
+    const civility = user?.profil?.civility ?? user?.civility ?? "";
+    if (civility === "Monsieur") {
+      setGenre("homme");
+    } else if (civility === "Madame" || civility === "Mlle") {
+      setGenre("femme");
+    }
+
+    // 3. Salaires
+    const careerData = sourceData.debug_carriere_detaillee_regex;
+
+    if (careerData && Array.isArray(careerData)) {
+      const newSalaries = {};
+
+      careerData.forEach(entry => {
+        const annee = entry.annee;
+        if (!annee) return;
+
+        const regimes = entry.regimes_concernes || "";
+        const regimesLower = regimes.toLowerCase();
+
+        const hasBaseAlignee =
+          regimesLower.includes("assurance retraite") ||
+          regimesLower.includes("ssi") ||
+          regimesLower.includes("msa") ||
+          regimesLower.includes("agirc-arrco");
+
+        const isPureCipav = regimesLower.includes("cipav") && !hasBaseAlignee;
+        const isPureLib = (regimesLower.includes("profession libérale") || regimesLower.includes("profession liberale")) && !hasBaseAlignee;
+
+        if (isPureCipav || isPureLib) {
+          return;
+        }
+
+        let montant = entry.revenu_brut;
+        if (!montant && entry.revenus) {
+          const clean = entry.revenus.replace(/[^0-9.,]/g, "").replace(',', '.');
+          montant = parseFloat(clean);
+        }
+
+        if (montant) {
+          newSalaries[annee] = { sr: String(montant), ss: "" };
+
+          let salaireAnnuel = parseFloat(String(montant));
+          const coeff = coeffRevalo[annee] || 1;
+          const passEuro = plafondSS[annee] || 0;
+
+          // Plafonner au PASS de l'année AVANT de revaloriser
+          let salairePlafonne = salaireAnnuel;
+          if (passEuro > 0) {
+            if (annee <= 2001) {
+              const passFrancs = passEuro * 6.556957;
+              salairePlafonne = Math.min(salaireAnnuel, passFrancs);
+            } else {
+              salairePlafonne = Math.min(salaireAnnuel, passEuro);
+            }
+          }
+
+          let salaireRevaloriser = annee <= 2001 ? (salairePlafonne * coeff) / 6.556957 : salairePlafonne * coeff;
+          const seuilTrimestre = annee <= 2001 ? (passEuro * 6.556957) / 4 : passEuro / 4;
+          const trimestre = Math.min(4, Math.max(0, Math.floor(salaireAnnuel / (seuilTrimestre || Infinity))));
+
+          setComputed(prev => ({
+            ...prev,
+            [annee]: {
+              revalorise: salaireRevaloriser,
+              revaloriseStr: formatNumber(salaireRevaloriser),
+              trimestres: trimestre
+            }
+          }));
+        }
+      });
+
+      setSalaries(prev => ({ ...prev, ...newSalaries }));
+    }
+  }, [user]);
+
+  // Auto-prefill depuis l'import ManualCareerTable (event temps réel + sessionStorage au montage)
+  useEffect(() => {
+    const clientId = user?.id;
+    if (!clientId) return;
+
+    const onRisImport = (event) => {
+      const { clientId: evtId, risData } = event.detail || {};
+      if (String(evtId) !== String(clientId) || !risData) return;
+      handlePrefill(risData);
+    };
+
+    window.addEventListener("risImportComplete", onRisImport);
+
+    // Vérifier sessionStorage au montage (si l'import a eu lieu avant que ce composant soit monté)
+    try {
+      const stored = sessionStorage.getItem(`ris_import_data_${clientId}`);
+      if (stored) {
+        const { risData, timestamp } = JSON.parse(stored);
+        // Ignorer si plus vieux que 5 minutes
+        if (risData && Date.now() - timestamp < 5 * 60 * 1000) {
+          handlePrefill(risData);
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    return () => window.removeEventListener("risImportComplete", onRisImport);
+  }, [user?.id, handlePrefill]);
 
   const defaultBestYears = useMemo(() => {
     if (bestYears.length) return bestYears;
@@ -191,12 +458,17 @@ export default function CnavSimulator() {
 
   return (
     <>
+      <input
+        type="file"
+        ref={fileInputRef}
+        style={{ display: "none" }}
+        accept=".pdf"
+        onChange={handleFileChange}
+      />
       <style>{`
         .cnav-simulator { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif; color:#4b4b4b; }
         .cnav-simulator .collapsible { border:1px solid #ddd; border-radius:16px; background:#fff; box-shadow:0 12px 30px rgba(15,23,42,0.08); }
-        .cnav-simulator .collapsible-header { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; border:0; background:transparent; cursor:pointer; border-radius:16px; font-size:18px; font-weight:700; color:#1f2d3d; }
-        .cnav-simulator .collapsible-header .chevron { transition: transform .25s ease; color:#6b7280; }
-        .cnav-simulator .collapsible-header.open .chevron { transform: rotate(180deg); }
+        .cnav-simulator .collapsible-header { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; border:0; background:transparent; border-radius:16px; font-size:18px; font-weight:700; color:#1f2d3d; }
         .cnav-simulator .sim-title { font-weight: 800; text-transform: none; letter-spacing: .01em; margin: 6px 0 12px; font-size: 20px; color:#1f2d3d; }
         .cnav-simulator label { font-size:14px; }
         .cnav-simulator label[for="cnav_birth_date"] { display: inline-block; margin: 8px 0; }
@@ -228,18 +500,10 @@ export default function CnavSimulator() {
       `}</style>
       <div className="cnav-simulator">
         <div className="collapsible">
-          <button
-            type="button"
-            className={classnames("collapsible-header", { open: isOpen })}
-            onClick={() => setIsOpen(prev => !prev)}
-            aria-expanded={isOpen}
-          >
+          <div className="collapsible-header open">
             <span className="sim-title" style={{ margin: 0 }}>SIMULATEUR PENSION S&Eacute;CURIT&Eacute; SOCIALE CNAV</span>
-            <span className="chevron" aria-hidden="true">{chevronSvg}</span>
-          </button>
-
-          <Collapse isOpen={isOpen}>
-            <div style={{ padding: 16 }}>
+          </div>
+          <div style={{ padding: 16 }}>
               {/* Date de naissance */}
               <div style={{ display: "flex", alignItems: "center", gap: ".5rem", margin: "8px 0" }}>
                 <label htmlFor="cnav_birth_date">Quelle est votre date de naissance ? </label>
@@ -250,7 +514,18 @@ export default function CnavSimulator() {
                   onChange={e => setBirthDate(e.target.value)}
                 />
                 <button type="button" className="action-btn" onClick={handleAfficher}>OK</button>
-                <button type="button" className="action-btn" onClick={handleReset}>R&eacute;initialiser</button>
+                <div style={{ marginLeft: "auto", display: "flex", gap: "8px" }}>
+                  <button
+                    type="button"
+                    className="action-btn"
+                    style={{ background: isImporting ? "#6c757d" : "#28c76f", borderColor: isImporting ? "#6c757d" : "#28c76f" }}
+                    onClick={handleImportOrPrefill}
+                    disabled={isImporting}
+                  >
+                    {isImporting ? "Analyse..." : "Importer les données"}
+                  </button>
+                  <button type="button" className="action-btn" onClick={handleReset}>R&eacute;initialiser</button>
+                </div>
               </div>
 
               {/* Titres */}
@@ -357,18 +632,20 @@ export default function CnavSimulator() {
                             <td>{coeffRevalo[year] || ""}</td>
                             <td>{comp ? comp.revaloriseStr : "0"}</td>
                             <td>
-                              <label className="checkbox-label">
-                                <input
-                                  type="checkbox"
-                                  checked={isDeplaf}
-                                  onChange={e => {
-                                    const checked = e.target.checked;
-                                    setDeplafonner(prev => ({ ...prev, [year]: checked }));
-                                    const currentSr = (salaries[year] || {}).sr || "";
-                                    if (currentSr) handleSimulateur(currentSr, year, checked);
-                                  }}
-                                />
-                              </label>
+                              {year < 2005 ? (
+                                <label className="checkbox-label">
+                                  <input
+                                    type="checkbox"
+                                    checked={isDeplaf}
+                                    onChange={e => {
+                                      const checked = e.target.checked;
+                                      setDeplafonner(prev => ({ ...prev, [year]: checked }));
+                                      const currentSr = (salaries[year] || {}).sr || "";
+                                      if (currentSr) handleSimulateur(currentSr, year, checked);
+                                    }}
+                                  />
+                                </label>
+                              ) : null}
                             </td>
                             <td>{comp ? String(comp.trimestres) : "0"}</td>
                             <td></td>
@@ -438,7 +715,7 @@ export default function CnavSimulator() {
                           <td>Invalidit&eacute;s</td>
                           <td><span>0</span></td>
                           <td>
-                            <button type="button" className="action-btn" onClick={() => {}}>
+                            <button type="button" className="action-btn" onClick={() => { }}>
                               Ajouter
                             </button>
                           </td>
@@ -452,48 +729,99 @@ export default function CnavSimulator() {
                   <table className="child-table">
                     <thead>
                       <tr>
-                        <th>Trimestres enfant</th>
-                        <th>Nombre de trimestres</th>
+                        <th>Enfants</th>
+                        <th>Genre</th>
+                        <th>Statut</th>
                         <th>Handicap</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr>
-                        <td>Enfant(s)</td>
                         <td>
                           <input
                             type="number"
-                            value={enfantTrimestres}
+                            value={nombreEnfants}
                             min="0"
-                            max={enfantMax}
                             step="1"
                             onChange={e => {
                               let v = parseInt(e.target.value, 10);
                               if (isNaN(v) || v < 0) v = 0;
-                              if (v > enfantMax) v = enfantMax;
-                              setEnfantTrimestres(v);
+                              setNombreEnfants(v);
                             }}
                           />
+                        </td>
+                        <td>
+                          <select
+                            value={genre}
+                            onChange={e => setGenre(e.target.value)}
+                            style={{ padding: "6px 8px", border: "1px solid #ddd", borderRadius: 6 }}
+                          >
+                            <option value="femme">Femme</option>
+                            <option value="homme">Homme</option>
+                          </select>
+                        </td>
+                        <td>
+                          <select
+                            value={statut}
+                            onChange={e => setStatut(e.target.value)}
+                            style={{ padding: "6px 8px", border: "1px solid #ddd", borderRadius: 6 }}
+                          >
+                            <option value="prive">Salari&eacute; priv&eacute;</option>
+                            <option value="fonctionnaire">Fonctionnaire</option>
+                          </select>
                         </td>
                         <td>
                           <label className="checkbox-label">
                             <input
                               type="checkbox"
                               checked={enfantHandicap}
-                              onChange={e => {
-                                const checked = e.target.checked;
-                                setEnfantHandicap(checked);
-                                const newMax = checked ? 16 : 8;
-                                if (enfantTrimestres > newMax) setEnfantTrimestres(newMax);
-                              }}
+                              onChange={e => setEnfantHandicap(e.target.checked)}
                             />
-                            {" "}En situation de handicap
+                            {" "}Handicap
                           </label>
                         </td>
                       </tr>
                     </tbody>
                   </table>
-                  <p>Trimestres enfant pris en compte: <span>{enfantDisplay}</span></p>
+                  <p>Trimestres enfant: <span style={{ fontWeight: 600, color: "#7367f0" }}>{trimestresEnfant}</span>
+                    <span style={{ color: "#808080", fontSize: 12, marginLeft: 8 }}>
+                      ({genre === "femme"
+                        ? statut === "fonctionnaire"
+                          ? `${nombreEnfants} × 4 trim.`
+                          : `${nombreEnfants} × 8 trim. (4 maternit\u00E9 + 4 \u00E9ducation)`
+                        : "0 (maternit\u00E9 = m\u00E8re uniquement)"
+                      }
+                      {enfantHandicap && nombreEnfants > 0 ? ` + ${nombreEnfants} × 8 trim. handicap` : ""})
+                    </span>
+                  </p>
+
+                  {/* Totaux trimestres */}
+                  <table style={{ width: "100%", borderCollapse: "collapse", margin: "8px 0 12px" }}>
+                    <thead>
+                      <tr>
+                        <th style={{ background: "#7367f0", color: "#fff", border: "1px solid #ddd", padding: 8, textAlign: "center" }}>Type</th>
+                        <th style={{ background: "#7367f0", color: "#fff", border: "1px solid #ddd", padding: 8, textAlign: "center" }}>Nombre</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style={{ border: "1px solid #ddd", padding: 8 }}>Trimestres cotis&eacute;s</td>
+                        <td style={{ border: "1px solid #ddd", padding: 8, textAlign: "center", fontWeight: 600 }}>{totalTrimestresCotises}</td>
+                      </tr>
+                      <tr>
+                        <td style={{ border: "1px solid #ddd", padding: 8 }}>Trimestres assimil&eacute;s</td>
+                        <td style={{ border: "1px solid #ddd", padding: 8, textAlign: "center" }}>{totalTrimestresAssimiles}</td>
+                      </tr>
+                      <tr>
+                        <td style={{ border: "1px solid #ddd", padding: 8 }}>Trimestres enfant</td>
+                        <td style={{ border: "1px solid #ddd", padding: 8, textAlign: "center" }}>{trimestresEnfant}</td>
+                      </tr>
+                      <tr style={{ background: "#f0eeff" }}>
+                        <td style={{ border: "1px solid #ddd", padding: 8, fontWeight: 700 }}>Total trimestres</td>
+                        <td style={{ border: "1px solid #ddd", padding: 8, textAlign: "center", fontWeight: 700, color: "#7367f0" }}>{totalTrimestresGlobal}</td>
+                      </tr>
+                    </tbody>
+                  </table>
 
                   {/* 25 meilleures annees */}
                   <table className="best-years-table">
@@ -519,11 +847,11 @@ export default function CnavSimulator() {
 
                   <table>
                     <thead><tr><th>Total des meilleures ann&eacute;es revaloris&eacute;es</th></tr></thead>
-                    <tbody><tr><td>{totalBestYears.toFixed(2)} &euro;</td></tr></tbody>
+                    <tbody><tr><td>{formatNumber(totalBestYears)} &euro;</td></tr></tbody>
                   </table>
                   <table>
                     <thead><tr><th>MOYENNE ANNUELLE</th></tr></thead>
-                    <tbody><tr><td>{moyenneAnnuelle.toFixed(2)} &euro;</td></tr></tbody>
+                    <tbody><tr><td>{formatNumber(moyenneAnnuelle)} &euro;</td></tr></tbody>
                   </table>
 
                   <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap" }}>
@@ -540,7 +868,6 @@ export default function CnavSimulator() {
                 </div>
               </div>
             </div>
-          </Collapse>
         </div>
       </div>
     </>

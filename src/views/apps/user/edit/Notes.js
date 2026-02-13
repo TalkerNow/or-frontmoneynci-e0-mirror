@@ -54,6 +54,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
     setManualCareerRows,
     handleManualAddLine,
     handleManualImport,
+    isImportingRIS,
     fileToSend,
     clearFileToSend,
     handleSaveDoc,
@@ -126,6 +127,7 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
             setManualCareerRows={setManualCareerRows}
             handleManualAddLine={handleManualAddLine}
             handleManualImport={handleManualImport}
+            isImportingRIS={isImportingRIS}
           />
         </>
       )}

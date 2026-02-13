@@ -11,7 +11,9 @@ import {
   persistDocs,
   persistUploadedDocs,
   extractClientNames,
+  convertRISToManualRows,
 } from "./utils";
+import { fetchRISAnalysis } from "../risService";
 
 export const useNotesLogic = (id, perso) => {
   const [notes, setNotes] = useState(perso?.notes ?? "");
@@ -67,7 +69,7 @@ export const useNotesLogic = (id, perso) => {
       arrcoPoints: "",
       ircantecPoints: "",
       rciPoints: "",
-      perPoints: "",
+      cipavPoints: "",
       ta: "",
       tb: "",
       tc: "",
@@ -76,6 +78,7 @@ export const useNotesLogic = (id, perso) => {
     },
   ]);
 
+  const [isImportingRIS, setIsImportingRIS] = useState(false);
   const [userDocuments, setUserDocuments] = useState([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
 
@@ -441,7 +444,7 @@ export const useNotesLogic = (id, perso) => {
             arrcoPoints: pointsValue,
             ircantecPoints: "",
             rciPoints: "",
-            perPoints: "",
+            cipavPoints: "",
             ta: "",
             tb: "",
             tc: "",
@@ -736,9 +739,8 @@ export const useNotesLogic = (id, perso) => {
         // Si c'est du HTML, il sera affiché tel quel. Si c'est du texte, il sera affiché brut.
 
         // On crée un fichier HTML pour display
-        const fileName = `Rapport_${
-          normalizedType === "custom" ? "Specifique" : "Standard"
-        }_${new Date().getTime()}.html`;
+        const fileName = `Rapport_${normalizedType === "custom" ? "Specifique" : "Standard"
+          }_${new Date().getTime()}.html`;
         const fileBlob = new Blob([contentString], {
           type: "text/html;charset=utf-8",
         });
@@ -1380,7 +1382,7 @@ export const useNotesLogic = (id, perso) => {
         arrcoPoints: "",
         ircantecPoints: "",
         rciPoints: "",
-        perPoints: "",
+        cipavPoints: "",
         ta: "",
         tb: "",
         tc: "",
@@ -1390,9 +1392,72 @@ export const useNotesLogic = (id, perso) => {
     ]);
   }, []);
 
-  const handleManualImport = useCallback(() => {
-    toast.info("Import manuel à venir");
-  }, []);
+  const handleManualImport = useCallback(async (options = {}) => {
+    const { isCadre = false } = options;
+
+    if (!fileToSend) {
+      toast.error("Merci d'importer d'abord un RIS (PDF)");
+      return;
+    }
+
+    const childrenCount = perso?.children_number;
+    if (childrenCount === undefined || childrenCount === null || String(childrenCount).trim() === "") {
+      toast.error("Le nombre d'enfants est manquant. Veuillez le renseigner dans les informations du client.");
+      return;
+    }
+
+    const birthDate = perso?.birth_date;
+    if (!birthDate || String(birthDate).trim() === "") {
+      toast.error("La date de naissance est manquante. Veuillez la renseigner dans les informations du client.");
+      return;
+    }
+
+    setIsImportingRIS(true);
+    try {
+      const tagsPrefix =
+        selectedTags.length > 0
+          ? `Thématiques d'analyse : ${selectedTags.map((t) => t.label).join(", ")}\n\n`
+          : "";
+      const finalMessage =
+        `${tagsPrefix}${n8nMessage || ""}\n\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDate}`.trim();
+
+      toast.info("Import des données RIS en cours…");
+
+      const risData = await fetchRISAnalysis(fileToSend, finalMessage, id);
+      const rows = convertRISToManualRows(risData, { isCadre });
+
+      if (!rows.length) {
+        toast.warn("Aucune donnée de carrière trouvée dans la réponse");
+        return;
+      }
+
+      setManualCareerRows(rows);
+
+      // Stocker les données RIS pour auto-remplir les simulateurs
+      try {
+        sessionStorage.setItem(
+          `ris_import_data_${id}`,
+          JSON.stringify({ risData, isCadre, timestamp: Date.now() })
+        );
+      } catch (e) {
+        console.warn("Failed to store RIS data in sessionStorage:", e);
+      }
+
+      // Notifier les simulateurs déjà montés
+      window.dispatchEvent(
+        new CustomEvent("risImportComplete", {
+          detail: { clientId: id, risData, isCadre },
+        })
+      );
+
+      toast.success(`${rows.length} année(s) importée(s) depuis le RIS`);
+    } catch (err) {
+      console.error("Erreur import RIS:", err);
+      toast.error("Erreur lors de l'import RIS");
+    } finally {
+      setIsImportingRIS(false);
+    }
+  }, [fileToSend, perso, selectedTags, n8nMessage, id]);
 
   return {
     notes,
@@ -1438,6 +1503,7 @@ export const useNotesLogic = (id, perso) => {
     setManualCareerRows,
     handleManualAddLine,
     handleManualImport,
+    isImportingRIS,
     fileToSend,
     clearFileToSend,
     handleSaveDoc,

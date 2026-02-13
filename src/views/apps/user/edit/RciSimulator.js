@@ -1,12 +1,13 @@
 import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { toast } from "react-toastify";
 import { fetchRISAnalysis } from "./risService";
-import { ircantecPlafonds, ircantecValeursPoint, ircantecTauxDisplay } from "./simulatorData";
+import { plafondSS, rciPrixAchat, rciTauxDisplay } from "./simulatorData";
 
-const YEARS_START = 1963;
+const YEARS_START = 1971;
 const YEARS_END = 2026;
+const TAUX_CONVERSION_FRF_EUR = 6.55957;
 
-export default function IrcantecSimulator({ user }) {
+export default function RciSimulator({ user }) {
   const [salaries, setSalaries] = useState({});
   const [computed, setComputed] = useState({});
   const [isImporting, setIsImporting] = useState(false);
@@ -19,9 +20,9 @@ export default function IrcantecSimulator({ user }) {
   }, []);
 
   const handleSimulateur = useCallback((salaireBrut, year) => {
-    const salaire = parseFloat(String(salaireBrut).replace(/\s/g, "").replace(",", "."));
-    const display = ircantecTauxDisplay[year];
-    if (!ircantecPlafonds[year] || !ircantecValeursPoint[year] || !display || isNaN(salaire)) {
+    let salaire = parseFloat(String(salaireBrut).replace(/\s/g, "").replace(",", "."));
+    const display = rciTauxDisplay[year];
+    if (!plafondSS[year] || !rciPrixAchat[year] || !display || isNaN(salaire)) {
       setComputed(prev => {
         const next = { ...prev };
         delete next[year];
@@ -30,15 +31,20 @@ export default function IrcantecSimulator({ user }) {
       return;
     }
 
-    const plafondAnnuel = ircantecPlafonds[year];
-    const valeurPoint = ircantecValeursPoint[year];
+    // Conversion Francs -> Euros pour les annees avant 2002
+    if (year < 2002) salaire = salaire / TAUX_CONVERSION_FRF_EUR;
+
+    const pass = plafondSS[year];
+    const prixAchat = rciPrixAchat[year];
     const tauxA = parseFloat((display.tauxA || "").replace(",", ".").replace("%", "")) / 100;
     const tauxB = parseFloat((display.tauxB || "").replace(",", ".").replace("%", "")) / 100;
 
-    const cotisA = Math.min(salaire, plafondAnnuel) * tauxA;
-    const cotisB = Math.max(0, Math.min(salaire, 8 * plafondAnnuel) - plafondAnnuel) * tauxB;
-    const pointsA = cotisA / valeurPoint;
-    const pointsB = cotisB / valeurPoint;
+    // Tranche 1 : 0 a 1 PASS
+    const cotisA = Math.min(Math.max(salaire, 0), pass) * tauxA;
+    // Tranche 2 : 1 PASS a 4 PASS (soit max 3 * PASS au-dessus du plafond)
+    const cotisB = Math.min(Math.max(salaire - pass, 0), 3 * pass) * tauxB;
+    const pointsA = cotisA / prixAchat;
+    const pointsB = cotisB / prixAchat;
     const totalPoints = pointsA + pointsB;
 
     setComputed(prev => ({
@@ -72,12 +78,11 @@ export default function IrcantecSimulator({ user }) {
     detailAnnuel.forEach(entry => {
       const annee = entry.annee;
       const regimes = (entry.regimes_concernes || "").toLowerCase();
-      if (!regimes.includes("ircantec")) return;
+      if (!regimes.includes("rci")) return;
 
-      // Parse individual revenue amounts from detail_annuel
-      // Split by currency marker (€, FRF, EUR) to reliably isolate each amount
       const revenusStr = entry.revenus || "";
-      const amounts = revenusStr.split(/€|FRF|EUR/i).map(s => {
+      // Split par +, €, FRF, EUR pour isoler chaque montant
+      const amounts = revenusStr.split(/[+]|\u20AC|FRF|EUR/i).map(s => {
         const digits = s.replace(/[^\d]/g, "");
         return digits ? parseInt(digits, 10) : NaN;
       }).filter(n => !isNaN(n) && n > 0);
@@ -85,13 +90,13 @@ export default function IrcantecSimulator({ user }) {
       if (amounts.length === 0) return;
 
       let montant;
-      if (regimes.includes("agirc-arrco") && amounts.length > 1) {
-        // Mixed year (Agirc-Arrco + Ircantec): exclude the largest amount
-        // (main Agirc-Arrco salary) to isolate Ircantec revenue
-        const maxAmount = Math.max(...amounts);
-        montant = amounts.reduce((sum, a) => sum + a, 0) - maxAmount;
+      // Quand plusieurs régimes et montants, associer RCI à sa position
+      const regimesList = (entry.regimes_concernes || "").split(/,\s*/);
+      const rciIndex = regimesList.findIndex(r => r.toLowerCase().includes("rci"));
+
+      if (amounts.length > 1 && regimesList.length > 1 && rciIndex >= 0 && rciIndex < amounts.length) {
+        montant = amounts[rciIndex];
       } else {
-        // Ircantec-only year: use the full total
         montant = amounts.reduce((sum, a) => sum + a, 0);
       }
 
@@ -99,19 +104,22 @@ export default function IrcantecSimulator({ user }) {
 
       newSalaries[annee] = String(montant);
 
-      const salaire = parseFloat(String(montant));
-      const display = ircantecTauxDisplay[annee];
-      if (!ircantecPlafonds[annee] || !ircantecValeursPoint[annee] || !display || isNaN(salaire)) return;
+      let salaire = parseFloat(String(montant));
+      const display = rciTauxDisplay[annee];
+      if (!plafondSS[annee] || !rciPrixAchat[annee] || !display || isNaN(salaire)) return;
 
-      const plafondAnnuel = ircantecPlafonds[annee];
-      const valeurPoint = ircantecValeursPoint[annee];
+      // Conversion Francs -> Euros pour les annees avant 2002
+      if (annee < 2002) salaire = salaire / TAUX_CONVERSION_FRF_EUR;
+
+      const pass = plafondSS[annee];
+      const prixAchat = rciPrixAchat[annee];
       const tauxA = parseFloat((display.tauxA || "").replace(",", ".").replace("%", "")) / 100;
       const tauxB = parseFloat((display.tauxB || "").replace(",", ".").replace("%", "")) / 100;
 
-      const cotisA = Math.min(salaire, plafondAnnuel) * tauxA;
-      const cotisB = Math.max(0, Math.min(salaire, 8 * plafondAnnuel) - plafondAnnuel) * tauxB;
-      const pointsA = cotisA / valeurPoint;
-      const pointsB = cotisB / valeurPoint;
+      const cotisA = Math.min(Math.max(salaire, 0), pass) * tauxA;
+      const cotisB = Math.min(Math.max(salaire - pass, 0), 3 * pass) * tauxB;
+      const pointsA = cotisA / prixAchat;
+      const pointsB = cotisB / prixAchat;
       const totalPoints = pointsA + pointsB;
 
       newComputed[annee] = {
@@ -125,7 +133,7 @@ export default function IrcantecSimulator({ user }) {
     setComputed(newComputed);
   }, [user]);
 
-  // Auto-prefill depuis l'import ManualCareerTable (event temps réel + sessionStorage au montage)
+  // Auto-prefill depuis l'import ManualCareerTable (event temps reel + sessionStorage au montage)
   useEffect(() => {
     const clientId = user?.id;
     if (!clientId) return;
@@ -176,19 +184,19 @@ export default function IrcantecSimulator({ user }) {
     try {
       const childrenCount = user?.profil?.children_number ?? user?.children_number ?? "";
       const birthDateVal = user?.profil?.date_naissance ?? user?.birth_date ?? "";
-      const msg = `Analyse RIS pour Ircantec Simulator.\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDateVal}`;
+      const msg = `Analyse RIS pour RCI Simulator.\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDateVal}`;
 
       toast.info("Analyse du RIS en cours...");
 
       const payload = await fetchRISAnalysis(file, msg, user?.id);
 
       if (!payload || !payload.debug_carriere_detaillee_regex) {
-        toast.warn("Le retour de l'analyse ne contient pas de données de carrière utilisables.");
+        toast.warn("Le retour de l'analyse ne contient pas de donn\u00e9es de carri\u00e8re utilisables.");
         console.warn("Webhook response:", payload);
       }
 
       handlePrefill(payload);
-      toast.success("Données importées avec succès !");
+      toast.success("Donn\u00e9es import\u00e9es avec succ\u00e8s !");
     } catch (err) {
       console.error("Erreur import RIS:", err);
       toast.error("Erreur lors de l'analyse du fichier.");
@@ -207,27 +215,27 @@ export default function IrcantecSimulator({ user }) {
         onChange={handleFileChange}
       />
       <style>{`
-        .ircantec-simulator { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif; color:#4b4b4b; }
-        .ircantec-simulator .sim-title { font-weight: 800; text-transform: uppercase; letter-spacing: .02em; margin: 6px 0 8px; font-size: 20px; color:#1f2d3d; }
-        .ircantec-simulator .collapsible { border:1px solid #ddd; border-radius:16px; background:#fff; box-shadow:0 12px 30px rgba(15,23,42,0.08); }
-        .ircantec-simulator .collapsible-header { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; border:0; background:transparent; border-radius:16px; font-size:18px; font-weight:700; color:#1f2d3d; }
-        .ircantec-simulator table { width:auto; max-width:100%; border-collapse:collapse; font-size:13px; }
-        .ircantec-simulator tbody tr:nth-child(even) { background-color:#f7f7fb; }
-        .ircantec-simulator tbody tr:nth-child(odd) { background-color:#fff; }
-        .ircantec-simulator td { border:1px solid #ddd; padding:8px; vertical-align:middle; text-align:center; white-space:nowrap; }
-        .ircantec-simulator th { background-color:#7367f0; color:#fff; border:1px solid #ddd; padding:8px; text-align:center; white-space:nowrap; width:1%; }
-        .ircantec-simulator input[type="text"],
-        .ircantec-simulator input[type="number"],
-        .ircantec-simulator input[type="date"] { width:100%; box-sizing:border-box; padding:6px 8px; border:1px solid #ddd; border-radius:6px; outline:none; display:block; background-color:#fff; color:#1f2d3d; }
-        .ircantec-simulator .salary-input { width:110px; max-width:110px; }
-        .ircantec-simulator button.action-btn { border-radius:8px; padding:6px 12px; border:1px solid #7367f0; color:#fff; background:#7367f0; cursor:pointer; }
-        .ircantec-simulator .container-inner { padding:12px; }
+        .rci-simulator { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif; color:#4b4b4b; }
+        .rci-simulator .sim-title { font-weight: 800; text-transform: uppercase; letter-spacing: .02em; margin: 6px 0 8px; font-size: 20px; color:#1f2d3d; }
+        .rci-simulator .collapsible { border:1px solid #ddd; border-radius:16px; background:#fff; box-shadow:0 12px 30px rgba(15,23,42,0.08); }
+        .rci-simulator .collapsible-header { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; border:0; background:transparent; border-radius:16px; font-size:18px; font-weight:700; color:#1f2d3d; }
+        .rci-simulator table { width:auto; max-width:100%; border-collapse:collapse; font-size:13px; }
+        .rci-simulator tbody tr:nth-child(even) { background-color:#f7f7fb; }
+        .rci-simulator tbody tr:nth-child(odd) { background-color:#fff; }
+        .rci-simulator td { border:1px solid #ddd; padding:8px; vertical-align:middle; text-align:center; white-space:nowrap; }
+        .rci-simulator th { background-color:#7367f0; color:#fff; border:1px solid #ddd; padding:8px; text-align:center; white-space:nowrap; width:1%; }
+        .rci-simulator input[type="text"],
+        .rci-simulator input[type="number"],
+        .rci-simulator input[type="date"] { width:100%; box-sizing:border-box; padding:6px 8px; border:1px solid #ddd; border-radius:6px; outline:none; display:block; background-color:#fff; color:#1f2d3d; }
+        .rci-simulator .salary-input { width:110px; max-width:110px; }
+        .rci-simulator button.action-btn { border-radius:8px; padding:6px 12px; border:1px solid #7367f0; color:#fff; background:#7367f0; cursor:pointer; }
+        .rci-simulator .container-inner { padding:12px; }
       `}</style>
-      <div className="ircantec-simulator">
+      <div className="rci-simulator">
         <div className="container-inner">
           <div className="collapsible">
             <div className="collapsible-header open">
-              <span className="sim-title" style={{ margin: 0 }}>CALCUL NOMBRE DE POINTS &Agrave; PARTIR D&rsquo;UN SALAIRE</span>
+              <span className="sim-title" style={{ margin: 0 }}>CALCUL NOMBRE DE POINTS &Agrave; PARTIR D&rsquo;UN REVENU</span>
             </div>
             <div style={{ padding: 16 }}>
                 <div style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
@@ -246,19 +254,18 @@ export default function IrcantecSimulator({ user }) {
                   <thead>
                     <tr>
                       <th>Ann&eacute;e</th>
-                      <th>Salaire (F/&euro;)</th>
-                      <th>Taux service Tranche A</th>
-                      <th>Taux service Tranche B</th>
-                      <th>Salaire r&eacute;f&eacute;rence (F/&euro;)</th>
-                      <th>TRANCHE A</th>
-                      <th>TRANCHE B</th>
+                      <th>Revenu (&euro;)</th>
+                      <th>Taux Tranche 1</th>
+                      <th>Taux Tranche 2</th>
+                      <th>Prix d&rsquo;achat du point (&euro;)</th>
+                      <th>TRANCHE 1</th>
+                      <th>TRANCHE 2</th>
                       <th>TOTAL</th>
                     </tr>
                   </thead>
                   <tbody>
                     {sortedYears.map(year => {
-                      const isFranc = year <= 2001;
-                      const display = ircantecTauxDisplay[year] || {};
+                      const display = rciTauxDisplay[year] || {};
                       const comp = computed[year];
                       return (
                         <tr key={year}>
@@ -267,7 +274,7 @@ export default function IrcantecSimulator({ user }) {
                             <input
                               type="text"
                               className="salary-input"
-                              placeholder={isFranc ? "en Franc" : "en \u20ACuro"}
+                              placeholder={year >= 2002 ? "en Euro" : "en Francs"}
                               value={salaries[year] || ""}
                               onChange={e => {
                                 const val = e.target.value;
