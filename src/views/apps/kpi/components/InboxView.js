@@ -214,17 +214,18 @@ const InboxView = ({
 
   const unreadCount = visibleInboxItems.filter(
     (item) =>
-      (item.status === "new" || manualUnreadIds.has(item.id)) &&
-      !readIds.has(item.id),
+      (item.status === "new" ||
+        manualUnreadIds.has(`${item.type}-${item.id}`)) &&
+      !readIds.has(`${item.type}-${item.id}`),
   ).length;
 
   // Handlers
   const handleSelect = (item) => {
     setSelectedItem(item);
-    setReadIds((prev) => new Set(prev).add(item.id));
+    setReadIds((prev) => new Set(prev).add(`${item.type}-${item.id}`));
     setManualUnreadIds((prev) => {
       const next = new Set(prev);
-      next.delete(item.id);
+      next.delete(`${item.type}-${item.id}`);
       return next;
     });
     if (onSelect) onSelect(item.id);
@@ -237,10 +238,12 @@ const InboxView = ({
     if (!target?.id) return;
     setReadIds((prev) => {
       const newSet = new Set(prev);
-      newSet.delete(target.id);
+      newSet.delete(`${target.type}-${target.id}`);
       return newSet;
     });
-    setManualUnreadIds((prev) => new Set(prev).add(target.id));
+    setManualUnreadIds((prev) =>
+      new Set(prev).add(`${target.type}-${target.id}`),
+    );
 
     // Toast notification could be moved to a utility or separate component
     const toast = document.createElement("div");

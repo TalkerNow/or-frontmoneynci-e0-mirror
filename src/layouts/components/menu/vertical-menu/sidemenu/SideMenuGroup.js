@@ -122,8 +122,21 @@ class SideMenuGroup extends React.Component {
                   >
                     <CustomAnchorTag
                       className={classnames({
-                        "d-flex justify-content-between":
-                          child.type === "collapse",
+                        "d-flex align-items-center":
+                          child.type === "collapse" ||
+                          child.badge ||
+                          (child.id === "crm-inbox-chatbot" &&
+                            this.props.chatbotBadge > 0) ||
+                          (child.id === "crm-inbox-diagnostic" &&
+                            this.props.diagnosticBadge > 0) ||
+                          (child.id === "crm-inbox-call" &&
+                            this.props.callBadge > 0) ||
+                          (child.id === "crm-inbox-email" &&
+                            this.props.emailBadge > 0) ||
+                          (child.id === "crm-suivi" &&
+                            this.props.crmBadge > 0) ||
+                          (child.id === "crm-opportunities" &&
+                            this.props.opportunitiesBadge > 0),
                       })}
                       to={
                         child.navLink &&
@@ -147,7 +160,7 @@ class SideMenuGroup extends React.Component {
                       }}
                       target={child.newTab ? "_blank" : undefined}
                     >
-                      <div className="menu-text">
+                      <div className="menu-text flex-grow-1">
                         {child.icon}
                         <span className="menu-item menu-title">
                           <FormattedMessage id={child.title} />
@@ -164,17 +177,52 @@ class SideMenuGroup extends React.Component {
                       ) : (
                         ""
                       )}
-                      {child.id === "crm-inbox" && this.props.inboxBadge > 0 ? (
-                        <span
-                          style={{
-                            display: "inline-block",
-                            width: 8,
-                            height: 8,
-                            borderRadius: "50%",
-                            backgroundColor: "#ea5455",
-                            marginRight: 8,
-                          }}
-                        />
+
+                      {/* Chatbot Badge */}
+                      {child.id === "crm-inbox-chatbot" &&
+                      this.props.chatbotBadge > 0 ? (
+                        <Badge color="danger" className="mr-2" pill>
+                          {this.props.chatbotBadge}
+                        </Badge>
+                      ) : null}
+
+                      {/* Diagnostic Badge */}
+                      {child.id === "crm-inbox-diagnostic" &&
+                      this.props.diagnosticBadge > 0 ? (
+                        <Badge color="danger" className="mr-2" pill>
+                          {this.props.diagnosticBadge}
+                        </Badge>
+                      ) : null}
+
+                      {/* Call Badge */}
+                      {child.id === "crm-inbox-call" &&
+                      this.props.callBadge > 0 ? (
+                        <Badge color="danger" className="mr-2" pill>
+                          {this.props.callBadge}
+                        </Badge>
+                      ) : null}
+
+                      {/* Email Badge */}
+                      {child.id === "crm-inbox-email" &&
+                      this.props.emailBadge > 0 ? (
+                        <Badge color="danger" className="mr-2" pill>
+                          {this.props.emailBadge}
+                        </Badge>
+                      ) : null}
+
+                      {/* Suivi Badge */}
+                      {child.id === "crm-suivi" && this.props.crmBadge > 0 ? (
+                        <Badge color="danger" className="mr-2 ml-auto" pill>
+                          {this.props.crmBadge}
+                        </Badge>
+                      ) : null}
+
+                      {/* Opportunities Badge */}
+                      {child.id === "crm-opportunities" &&
+                      this.props.opportunitiesBadge > 0 ? (
+                        <Badge color="danger" className="mr-2 ml-auto" pill>
+                          {this.props.opportunitiesBadge}
+                        </Badge>
                       ) : null}
                       {child.type === "collapse" ? (
                         <ChevronRight className="menu-toggle-icon" size={13} />

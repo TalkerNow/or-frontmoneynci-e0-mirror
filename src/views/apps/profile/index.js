@@ -37,7 +37,6 @@ import {
   Lock,
   Activity,
   Circle,
-  Settings,
 } from "react-feather";
 import SimulatorHub from "../user/edit/SimulatorHub";
 import DocumentsHub from "../user/edit/DocumentsHub";

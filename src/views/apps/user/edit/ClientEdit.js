@@ -135,7 +135,10 @@ class UserEdit extends React.Component {
     };
     const { id } = this.props.match.params;
     const response = await axios.get(
-      global.config.server_url + "/users/" + id,
+      global.config.server_url +
+        "/users/" +
+        id +
+        "?include=documents,conversationArchives,simulatorDifficultyResults",
       Config,
     );
     this.setState({ rowData: response.data });
@@ -364,6 +367,7 @@ class UserEdit extends React.Component {
         </Row>
       );
     }
+
     return (
       <Row className="align-items-start user-edit-row flex-nowrap">
         <Col
@@ -387,14 +391,16 @@ class UserEdit extends React.Component {
             />
 
             {/* 👇 Ta box de suivi d'avancement, dans un fichier séparé */}
-            <SuiviAvancementBox
-              clientId={id}
-              onContractUpdate={() => {
-                if (this.contractsRef.current) {
-                  this.contractsRef.current.fetchData();
-                }
-              }}
-            />
+            {String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
+              <SuiviAvancementBox
+                clientId={id}
+                onContractUpdate={() => {
+                  if (this.contractsRef.current) {
+                    this.contractsRef.current.fetchData();
+                  }
+                }}
+              />
+            )}
           </div>
         </Col>
         <Col
@@ -451,94 +457,107 @@ class UserEdit extends React.Component {
                   <Info className="text-primary mr-50" size={16} /> Infos
                 </NavLink>
               </NavItem>
-              <NavItem>
-                <NavLink
-                  className={classnames({
-                    active: this.state.activeTab === "contrats",
-                  })}
-                  onClick={() => this.toggle("contrats")}
-                >
-                  <FileText className="text-primary mr-50" size={16} /> Contrats
-                </NavLink>
-              </NavItem>
-              <NavItem>
-                <NavLink
-                  id={`documents-link-client-${id}`}
-                  className={classnames({
-                    active: this.state.activeTab === "documents",
-                  })}
-                  onClick={() => this.toggle("documents")}
-                >
-                  <Folder className="text-primary mr-50" size={16} />
-                  <span id={`documents-label-client-${id}`}> Documents</span>
-                </NavLink>
-              </NavItem>
-              <NavItem>
-                <NavLink
-                  className={classnames("d-flex align-items-center", {
-                    active: this.state.activeTab === "tasks",
-                  })}
-                  onClick={() => this.toggle("tasks")}
-                >
-                  <CheckSquare className="text-primary mr-50" size={16} />
-                  Tâches
-                  {this.state.taskCount > 0 && (
-                    <span
-                      className={`badge badge-${this.state.hasUrgentTask ? "danger" : "primary"} ml-50`}
-                      style={{
-                        fontSize: "0.65rem",
-                        minWidth: "18px",
-                        height: "18px",
-                        padding: "0",
-                        lineHeight: "18px",
-                        textAlign: "center",
-                        borderRadius: "50%",
-                      }}
+
+              {String(this.state.rowData?.role).toLowerCase() !==
+                "prospect" && (
+                <>
+                  <NavItem>
+                    <NavLink
+                      className={classnames({
+                        active: this.state.activeTab === "contrats",
+                      })}
+                      onClick={() => this.toggle("contrats")}
                     >
-                      {this.state.taskCount}
-                    </span>
+                      <FileText className="text-primary mr-50" size={16} />{" "}
+                      Contrats
+                    </NavLink>
+                  </NavItem>
+                  <NavItem>
+                    <NavLink
+                      id={`documents-link-client-${id}`}
+                      className={classnames({
+                        active: this.state.activeTab === "documents",
+                      })}
+                      onClick={() => this.toggle("documents")}
+                    >
+                      <Folder className="text-primary mr-50" size={16} />
+                      <span id={`documents-label-client-${id}`}>
+                        {" "}
+                        Documents
+                      </span>
+                    </NavLink>
+                  </NavItem>
+                  <NavItem>
+                    <NavLink
+                      className={classnames("d-flex align-items-center", {
+                        active: this.state.activeTab === "tasks",
+                      })}
+                      onClick={() => this.toggle("tasks")}
+                    >
+                      <CheckSquare className="text-primary mr-50" size={16} />
+                      Tâches
+                      {this.state.taskCount > 0 && (
+                        <span
+                          className={`badge badge-${this.state.hasUrgentTask ? "danger" : "primary"} ml-50`}
+                          style={{
+                            fontSize: "0.65rem",
+                            minWidth: "18px",
+                            height: "18px",
+                            padding: "0",
+                            lineHeight: "18px",
+                            textAlign: "center",
+                            borderRadius: "50%",
+                          }}
+                        >
+                          {this.state.taskCount}
+                        </span>
+                      )}
+                    </NavLink>
+                  </NavItem>
+                  <NavItem>
+                    <NavLink
+                      className={classnames({
+                        active: this.state.activeTab === "courriers",
+                      })}
+                      onClick={() => this.toggle("courriers")}
+                    >
+                      <Mail className="text-primary mr-50" size={16} />
+                      <span id={`courriers-label-client-${id}`}>
+                        {" "}
+                        Courriers
+                      </span>
+                    </NavLink>
+                  </NavItem>
+                  <NavItem>
+                    <NavLink
+                      className={classnames("d-flex align-items-center", {
+                        active: this.state.activeTab === "commentaires",
+                      })}
+                      onClick={() => this.toggle("commentaires")}
+                    >
+                      <MessageCircle className="text-primary mr-50" size={16} />
+                      Commentaires
+                      {hasComments && <span className="comment-dot" />}
+                    </NavLink>
+                  </NavItem>
+                  {canAccessSimulator() && (
+                    <NavItem>
+                      <NavLink
+                        id={`simulateur-link-client-${id}`}
+                        className={classnames({
+                          active: this.state.activeTab === "simulateur",
+                        })}
+                        onClick={() => this.toggle("simulateur")}
+                      >
+                        <Activity className="text-primary mr-50" size={16} />
+                        <span id={`simulateur-label-client-${id}`}>
+                          {" "}
+                          Simulateur
+                        </span>
+                      </NavLink>
+                    </NavItem>
                   )}
-                </NavLink>
-              </NavItem>
-              <NavItem>
-                <NavLink
-                  className={classnames({
-                    active: this.state.activeTab === "courriers",
-                  })}
-                  onClick={() => this.toggle("courriers")}
-                >
-                  <Mail className="text-primary mr-50" size={16} />
-                  <span id={`courriers-label-client-${id}`}> Courriers</span>
-                </NavLink>
-              </NavItem>
-              <NavItem>
-                <NavLink
-                  className={classnames("d-flex align-items-center", {
-                    active: this.state.activeTab === "commentaires",
-                  })}
-                  onClick={() => this.toggle("commentaires")}
-                >
-                  <MessageCircle className="text-primary mr-50" size={16} />
-                  Commentaires
-                  {hasComments && <span className="comment-dot" />}
-                </NavLink>
-              </NavItem>
-              {canAccessSimulator() && (
-                <NavItem>
-                  <NavLink
-                    id={`simulateur-link-client-${id}`}
-                    className={classnames({
-                      active: this.state.activeTab === "simulateur",
-                    })}
-                    onClick={() => this.toggle("simulateur")}
-                  >
-                    <Activity className="text-primary mr-50" size={16} />
-                    <span id={`simulateur-label-client-${id}`}>
-                      {" "}
-                      Simulateur
-                    </span>
-                  </NavLink>
-                </NavItem>
+                </>
               )}
             </Nav>
           </div>
@@ -551,59 +570,64 @@ class UserEdit extends React.Component {
                 id={id}
               />
             </TabPane>
-            <TabPane tabId="contrats">
-              <Contracts id={id} ref={this.contractsRef} />
-            </TabPane>
-            <TabPane tabId="documents">
-              <DocumentsHub
-                ref={this.documentsHubRef}
-                id={id}
-                name={this.state.rowData.name}
-                parent_id={this.state.rowData.parent_id}
-                alignOffset={this.state.docsOffset}
-                labelId={`documents-label-client-${id}`}
-              />
-            </TabPane>
-            <TabPane tabId="tasks">
-              <ClientTasks
-                {...this.props}
-                match={{
-                  params: {
-                    id: id,
-                    filter: "all",
-                  },
-                  path: this.props.match.path,
-                  url: this.props.match.url,
-                }}
-                embedded={true}
-              />
-            </TabPane>
-            <TabPane tabId="courriers">
-              <CourriersHub
-                id={id}
-                alignOffset={this.state.courriersOffset}
-                labelId={`courriers-label-client-${id}`}
-              />
-            </TabPane>
-            <TabPane tabId="commentaires">
-              <Card className="mb-1">
-                <CardBody>
-                  <CommentsTab
-                    data={this.state.rowData}
-                    perso={this.state.rowData}
-                    members={this.state.members}
+
+            {String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
+              <>
+                <TabPane tabId="contrats">
+                  <Contracts id={id} ref={this.contractsRef} />
+                </TabPane>
+                <TabPane tabId="documents">
+                  <DocumentsHub
+                    ref={this.documentsHubRef}
                     id={id}
+                    name={this.state.rowData.name}
+                    parent_id={this.state.rowData.parent_id}
+                    alignOffset={this.state.docsOffset}
+                    labelId={`documents-label-client-${id}`}
                   />
-                </CardBody>
-              </Card>
-            </TabPane>
-            <TabPane tabId="simulateur">
-              <SimulatorHub
-                id={id}
-                alignOffset={this.state.simuOffset}
-                user={this.state.rowData}
-              />
-            </TabPane>
+                </TabPane>
+                <TabPane tabId="tasks">
+                  <ClientTasks
+                    {...this.props}
+                    match={{
+                      params: {
+                        id: id,
+                        filter: "all",
+                      },
+                      path: this.props.match.path,
+                      url: this.props.match.url,
+                    }}
+                    embedded={true}
+                  />
+                </TabPane>
+                <TabPane tabId="courriers">
+                  <CourriersHub
+                    id={id}
+                    alignOffset={this.state.courriersOffset}
+                    labelId={`courriers-label-client-${id}`}
+                  />
+                </TabPane>
+                <TabPane tabId="commentaires">
+                  <Card className="mb-1">
+                    <CardBody>
+                      <CommentsTab
+                        data={this.state.rowData}
+                        perso={this.state.rowData}
+                        members={this.state.members}
+                        id={id}
+                      />
+                    </CardBody>
+                  </Card>
+                </TabPane>
+                <TabPane tabId="simulateur">
+                  <SimulatorHub
+                    id={id}
+                    alignOffset={this.state.simuOffset}
+                    user={this.state.rowData}
+                  />
+                </TabPane>
+              </>
+            )}
           </TabContent>
         </Col>
       </Row>

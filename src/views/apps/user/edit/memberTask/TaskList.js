@@ -59,6 +59,15 @@ class TaskList extends React.Component {
     const { todos, handleUpdateTask, value } = this.state;
     let routerFilter = this.props.routerProps.match.params.filter;
     let todosArr = value.length ? this.props.app.todo.filteredTodos : todos;
+
+    // Trier les tâches pour mettre les complétées tout en bas
+    if (todosArr && todosArr.length > 0) {
+      todosArr = [...todosArr].sort((a, b) => {
+        if (a.isCompleted && !b.isCompleted) return 1;
+        if (!a.isCompleted && b.isCompleted) return -1;
+        return 0;
+      });
+    }
     let renderTodos =
       todosArr && todosArr.length > 0 ? (
         todosArr.map((todo, i) => {

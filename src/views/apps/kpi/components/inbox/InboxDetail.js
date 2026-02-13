@@ -137,7 +137,7 @@ const InboxDetail = ({
       >
         {/* Header */}
         <div
-          className="responsive-padding"
+          className="responsive-padding pb-0"
           style={{ borderBottom: "1px solid #f3f4f6" }}
         >
           <div
@@ -389,7 +389,7 @@ const InboxDetail = ({
         </div>
 
         <div
-          className="responsive-padding"
+          className="responsive-padding pt-0"
           style={{ flex: 1, overflowY: "auto" }}
         >
           {selectedItem.type === "diagnostic" ? (
@@ -1042,110 +1042,182 @@ const InboxDetail = ({
               </div>
             </div>
           ) : (
-            <div
-              style={{
-                backgroundColor:
-                  selectedItem.type === "call" || selectedItem.type === "email"
-                    ? "#f9fafb"
-                    : "#eff6ff",
-                borderRadius: "12px",
-                padding: "20px",
-                marginBottom: "24px",
-                border:
-                  selectedItem.type === "call" || selectedItem.type === "email"
-                    ? "1px solid #e5e7eb"
-                    : "1px solid #dbeafe",
-              }}
-            >
+            <div>
               <h3
+                className="mb-2 d-flex align-items-center"
                 style={{
-                  fontSize: "14px",
-                  fontWeight: "bold",
-                  color:
-                    selectedItem.type === "call" ||
-                    selectedItem.type === "email"
-                      ? "#374151"
-                      : "#1e40af",
-                  marginBottom: "12px",
+                  fontSize: "13px",
+                  fontWeight: "800",
+                  color: "#1e40af",
                   textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
+                  fontFamily: "'Montserrat', sans-serif",
                 }}
               >
-                {selectedItem.type === "call" ||
-                selectedItem.type === "email" ? (
-                  <>
-                    <ClipboardList size={16} /> Détails de l'échange
-                  </>
-                ) : (
-                  <>
-                    <MessageSquare size={16} /> Résumé (Synthèse)
-                  </>
-                )}
+                <MessageSquare size={16} className="mr-50" />
+                {selectedItem.type === "call" || selectedItem.type === "email"
+                  ? "DÉTAILS DE L'ÉCHANGE"
+                  : "SYNTHÈSE DE LA CONVERSATION"}
               </h3>
-              <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                {selectedItem.summary?.map((point, idx) => (
-                  <li
-                    key={idx}
-                    style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: "8px",
-                      color: "#374151",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    <span
-                      style={{
-                        marginTop: "6px",
-                        width: "6px",
-                        height: "6px",
-                        backgroundColor:
-                          selectedItem.type === "call" ||
-                          selectedItem.type === "email"
-                            ? "#9ca3af"
-                            : "#60a5fa",
-                        borderRadius: "50%",
-                        flexShrink: 0,
-                      }}
-                    ></span>
-                    <span>{point}</span>
-                  </li>
-                ))}
-              </ul>
 
-              {/* View Full Conversation Button - Only for chatbot sessions */}
-              {selectedItem.type === "chatbot" && (
+              <div className="row">
+                {/* Résumé (Left) */}
                 <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "flex-end",
-                    marginTop: "12px",
-                  }}
+                  className={
+                    selectedItem.type === "chatbot" ? "col-lg-5 mb-2" : "col-12"
+                  }
                 >
-                  <button
-                    onClick={() => setShowConversationModal(true)}
+                  <div
                     style={{
                       backgroundColor: "#f0f9ff",
-                      border: "1px solid #bae6fd",
-                      color: "#0369a1",
-                      fontSize: "12px",
-                      fontWeight: 500,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      padding: "8px 14px",
-                      borderRadius: "6px",
-                      transition: "all 0.2s ease",
+                      padding: "16px",
+                      borderRadius: "12px",
+                      fontSize: "13px",
+                      borderLeft: "4px solid #3b82f6",
+                      height: "100%",
+                      fontFamily: "'Montserrat', sans-serif",
                     }}
                   >
-                    <Eye size={14} /> Voir la conversation
-                  </button>
+                    <div
+                      className="font-weight-bold mb-1"
+                      style={{
+                        color: "#1e40af",
+                        fontSize: "14px",
+                        fontFamily: "'Montserrat', sans-serif",
+                      }}
+                    >
+                      {selectedItem.type === "call"
+                        ? "📞 Détails de l'appel"
+                        : selectedItem.type === "email"
+                          ? "✉️ Détails du mail"
+                          : "📝 Synthèse IA"}
+                    </div>
+                    <div
+                      style={{
+                        color: "#374151",
+                        lineHeight: "1.6",
+                        fontFamily: "'Montserrat', sans-serif",
+                      }}
+                    >
+                      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                        {selectedItem.summary?.map((point, idx) => (
+                          <li
+                            key={idx}
+                            style={{
+                              display: "flex",
+                              alignItems: "flex-start",
+                              gap: "8px",
+                              marginBottom: "8px",
+                            }}
+                          >
+                            <span
+                              style={{
+                                marginTop: "6px",
+                                width: "6px",
+                                height: "6px",
+                                backgroundColor: "#60a5fa",
+                                borderRadius: "50%",
+                                flexShrink: 0,
+                              }}
+                            ></span>
+                            <span>{point}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
                 </div>
-              )}
+
+                {/* Historique (Right) - Only for Chatbot */}
+                {selectedItem.type === "chatbot" && (
+                  <div className="col-lg-7 mb-2">
+                    <div
+                      className="font-weight-bold mb-1"
+                      style={{
+                        color: "#6b7280",
+                        fontSize: "13px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        fontFamily: "'Montserrat', sans-serif",
+                      }}
+                    >
+                      <span>💬 Historique des échanges</span>
+                      <span className="small text-muted font-weight-normal">
+                        {selectedItem.raw?.messages?.length || 0} messages
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        maxHeight: "350px",
+                        overflowY: "auto",
+                        backgroundColor: "#f8fafc",
+                        padding: "15px",
+                        borderRadius: "12px",
+                        border: "1px solid #e2e8f0",
+                      }}
+                    >
+                      {selectedItem.raw?.messages &&
+                      selectedItem.raw.messages.length > 0 ? (
+                        selectedItem.raw.messages
+                          .filter((msg) => msg.role !== "system")
+                          .map((msg, idx) => {
+                            const isBot = msg.role !== "user";
+                            return (
+                              <div
+                                key={idx}
+                                style={{
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  alignItems: isBot ? "flex-end" : "flex-start",
+                                  marginBottom: "12px",
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    maxWidth: "85%",
+                                    padding: "8px 12px",
+                                    borderRadius: isBot
+                                      ? "14px 14px 4px 14px"
+                                      : "14px 14px 14px 4px",
+                                    backgroundColor: isBot ? "#3b82f6" : "#fff",
+                                    color: isBot ? "#fff" : "#1f2937",
+                                    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                                    border: isBot
+                                      ? "none"
+                                      : "1px solid #e2e8f0",
+                                    fontSize: "12.5px",
+                                  }}
+                                >
+                                  <p
+                                    style={{
+                                      margin: 0,
+                                      lineHeight: 1.5,
+                                      whiteSpace: "pre-wrap",
+                                    }}
+                                  >
+                                    {msg.content}
+                                  </p>
+                                </div>
+                                <span
+                                  style={{
+                                    fontSize: "10px",
+                                    color: "#94a3b8",
+                                    marginTop: "4px",
+                                  }}
+                                >
+                                  {isBot ? "Assistant EOR" : "Prospect"}
+                                </span>
+                              </div>
+                            );
+                          })
+                      ) : (
+                        <div className="text-center text-muted py-2 small">
+                          Aucun message dans l'historique.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

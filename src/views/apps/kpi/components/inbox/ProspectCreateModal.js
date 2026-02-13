@@ -315,7 +315,7 @@ const ProspectCreateModal = ({
                         marginBottom: "4px",
                       }}
                     >
-                      Prénom *
+                      Prénom
                     </label>
                     <input
                       type="text"
@@ -340,7 +340,7 @@ const ProspectCreateModal = ({
                         marginBottom: "4px",
                       }}
                     >
-                      Nom *
+                      Nom
                     </label>
                     <input
                       type="text"
