@@ -5,6 +5,8 @@ import {
   ircantecValeursPoint,
   coeffRevalo,
   plafondSS,
+  rciPrixAchat,
+  rciTauxDisplay,
 } from "../simulatorData";
 
 // eslint-disable-next-line no-unused-vars
@@ -452,6 +454,30 @@ function computeIrcantecSimulator(salaireBrut, annee) {
   return TOTAL / valeurPoint;
 }
 
+// RCI: réplique exacte de RciSimulator.handleSimulateur (lignes 22-58)
+// Conversion francs→EUR interne pour pre-2002
+function computeRciSimulator(montantRaw, annee) {
+  if (!montantRaw || montantRaw <= 0) return null;
+
+  let salaire = montantRaw;
+  if (annee < 2002) salaire = montantRaw / 6.55957;
+
+  const pass = plafondSS[annee];
+  const prixAchat = rciPrixAchat[annee];
+  const display = rciTauxDisplay[annee];
+  if (!pass || !prixAchat || !display) return null;
+
+  const tauxA = parseFloat((display.tauxA || "").replace(",", ".").replace("%", "")) / 100;
+  const tauxB = parseFloat((display.tauxB || "").replace(",", ".").replace("%", "")) / 100;
+  if (isNaN(tauxA) || isNaN(tauxB)) return null;
+
+  const cotisA = Math.min(Math.max(salaire, 0), pass) * tauxA;
+  const cotisB = Math.min(Math.max(salaire - pass, 0), 3 * pass) * tauxB;
+  const pointsA = cotisA / prixAchat;
+  const pointsB = cotisB / prixAchat;
+  return pointsA + pointsB;
+}
+
 export function convertRISToManualRows(risData, { isCadre = false } = {}) {
   const data = Array.isArray(risData) ? risData[0] : risData;
   if (!data) return [];
@@ -459,14 +485,16 @@ export function convertRISToManualRows(risData, { isCadre = false } = {}) {
   const careerData = data.debug_carriere_detaillee_regex || [];
   const detailAnnuel = data.detail_annuel || data.carriere_detaillee || [];
 
-  // Construire les sets de régimes depuis detail_annuel (comme ARRCO/IRCANTEC simulateurs)
+  // Construire les sets de régimes depuis detail_annuel (comme ARRCO/IRCANTEC/RCI simulateurs)
   const arrcoYears = new Set();
   const ircantecYears = new Set();
+  const rciYears = new Set();
   if (Array.isArray(detailAnnuel)) {
     detailAnnuel.forEach((entry) => {
       const regimes = (entry.regimes_concernes || "").toLowerCase();
       if (regimes.includes("agirc-arrco")) arrcoYears.add(String(entry.annee));
       if (regimes.includes("ircantec")) ircantecYears.add(String(entry.annee));
+      if (regimes.includes("rci")) rciYears.add(String(entry.annee));
     });
   }
 
@@ -546,6 +574,12 @@ export function convertRISToManualRows(risData, { isCadre = false } = {}) {
       ircantecCalc = computeIrcantecSimulator(montant, annee);
     }
 
+    // --- RCI (logique exacte du simulateur) ---
+    let rciCalc = null;
+    if (rciYears.has(anneeStr)) {
+      rciCalc = computeRciSimulator(montant, annee);
+    }
+
     // --- Trimestres ---
     let trimBase = cnavResult ? cnavResult.trimestres : 0;
     let trimAR = 0;
@@ -580,7 +614,7 @@ export function convertRISToManualRows(risData, { isCadre = false } = {}) {
       cnavPoints: cnavDisplay,
       arrcoPoints: arrcoCalc !== null ? fmtPoints(arrcoCalc) : "",
       ircantecPoints: ircantecCalc !== null ? fmtPoints(ircantecCalc) : "",
-      rciPoints: "",
+      rciPoints: rciCalc !== null ? fmtPoints(rciCalc) : "",
       cipavPoints: "",
       ta,
       tb,
@@ -590,10 +624,11 @@ export function convertRISToManualRows(risData, { isCadre = false } = {}) {
     });
   });
 
-  // --- RCI / CIPAV: pas de calcul par année, on utilise les totaux agrégés ---
+  // --- RCI / CIPAV: fallback agrégé si aucun calcul par année ---
   if (rows.length > 0) {
     const lastRow = rows[rows.length - 1];
-    if (aggRci !== null) {
+    const hasRciByYear = rows.some((r) => r.rciPoints !== "");
+    if (!hasRciByYear && aggRci !== null) {
       lastRow.rciPoints = fmtPoints(aggRci);
     }
     if (aggCipav !== null) {
