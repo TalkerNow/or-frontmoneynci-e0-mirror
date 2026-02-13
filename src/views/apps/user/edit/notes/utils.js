@@ -327,19 +327,155 @@ function computeCnavRevalorise(salaireEUR, year) {
   return capped * coeff;
 }
 
-export function convertRISToManualRows(risData) {
+// --- Fonctions de calcul exactes des simulateurs ---
+
+// CNAV: réplique exacte de CnavSimulator.handlePrefill (lignes 386-412)
+// Travaille en devise d'origine (francs pre-2002), cap au PASS avant revalorisation
+function computeCnavSimulator(montantRaw, annee) {
+  if (!montantRaw || montantRaw <= 0) return null;
+  const coeff = coeffRevalo[annee] || 1;
+  const passEuro = plafondSS[annee] || 0;
+  if (!passEuro) return null;
+
+  let salairePlafonne = montantRaw;
+  if (annee <= 2001) {
+    const passFrancs = passEuro * 6.556957;
+    salairePlafonne = Math.min(montantRaw, passFrancs);
+  } else {
+    salairePlafonne = Math.min(montantRaw, passEuro);
+  }
+
+  const salaireRevaloriser = annee <= 2001
+    ? (salairePlafonne * coeff) / 6.556957
+    : salairePlafonne * coeff;
+
+  const seuilTrimestre = annee <= 2001
+    ? (passEuro * 6.556957) / 4
+    : passEuro / 4;
+  const trimestres = Math.min(4, Math.max(0, Math.floor(montantRaw / (seuilTrimestre || Infinity))));
+
+  return { revalorise: salaireRevaloriser, trimestres };
+}
+
+// ARRCO: réplique exacte de ArrcoSimulator.computeNonCadre/computeCadre (lignes 22-112)
+// Conversion francs→EUR interne pour pre-2002, supporte cadre et non-cadre
+function computeArrcoSimulator(montantRaw, annee, isCadre) {
+  if (!montantRaw || montantRaw <= 0) return null;
+
+  let salaire = montantRaw;
+  if (annee < 2002) salaire = montantRaw / 6.55957;
+
+  const x = arrcoPlafond.findIndex((p) => p[0] === annee);
+  if (x < 0 || !arrcoTaux[x]) return null;
+
+  const plafondAnnuel = arrcoPlafond[x][2];
+
+  if (isCadre) {
+    if (annee < 2019) {
+      const tauxArrco = arrcoTaux[x][1];
+      const tauxAgirc = arrcoTaux[x][3];
+      const valeurPtArrco = arrcoTaux[x][6];
+      const valeurPtAgirc = arrcoTaux[x][8];
+      if (!valeurPtArrco || !valeurPtAgirc) return null;
+
+      const cotisA = Math.min(salaire, plafondAnnuel) * tauxArrco;
+      const pointsA = cotisA / valeurPtArrco;
+      let pointsB = 0;
+      if (salaire > plafondAnnuel) {
+        const cotisB = (salaire - plafondAnnuel) * tauxAgirc;
+        pointsB = cotisB / valeurPtAgirc;
+      }
+      return pointsA + (pointsB * 0.347791548);
+    } else {
+      const tauxTA = arrcoTaux[x][1];
+      const tauxTB = arrcoTaux[x][3];
+      const valeurAchatPoint = arrcoTaux[x][8];
+      if (!valeurAchatPoint) return null;
+
+      const cotisTA = Math.min(salaire, plafondAnnuel) * tauxTA;
+      const pointsTA = cotisTA / valeurAchatPoint;
+      let pointsTB = 0;
+      if (salaire > plafondAnnuel) {
+        const cotisB = (salaire - plafondAnnuel) * tauxTB;
+        pointsTB = cotisB / valeurAchatPoint;
+      }
+      return pointsTA + pointsTB;
+    }
+  } else {
+    if (annee < 2019) {
+      const tauxTA = arrcoTaux[x][1];
+      const tauxTB = arrcoTaux[x][2];
+      const valeurT1 = arrcoTaux[x][6];
+      const valeurAchatArrco = arrcoTaux[x][8];
+      if (!valeurT1 || !valeurAchatArrco) return null;
+
+      const trancheA = Math.min(Math.max(salaire, 0), plafondAnnuel);
+      const cotisTA = trancheA * tauxTA;
+      let cotisationTB = 0;
+      if (salaire > plafondAnnuel) {
+        const excedent = salaire - plafondAnnuel;
+        const trancheB = Math.min(excedent, 2 * plafondAnnuel);
+        cotisationTB = trancheB * tauxTB;
+      }
+      const totalCotisations = cotisationTB * 0.347791548;
+      return (totalCotisations / valeurAchatArrco) + (cotisTA / valeurT1);
+    } else {
+      const tauxTA = arrcoTaux[x][1];
+      const tauxTB = arrcoTaux[x][3];
+      const valeurAchatPoint = arrcoTaux[x][8];
+      if (!valeurAchatPoint) return null;
+
+      const cotisTA = Math.min(salaire, plafondAnnuel) * tauxTA;
+      const pointsTA = cotisTA / valeurAchatPoint;
+      let pointsTB = 0;
+      if (salaire > plafondAnnuel) {
+        const cotisB = (salaire - plafondAnnuel) * tauxTB;
+        pointsTB = cotisB / valeurAchatPoint;
+      }
+      return pointsTA + pointsTB;
+    }
+  }
+}
+
+// IRCANTEC: réplique exacte de IrcantecSimulator.handleSimulateur (lignes 21-49)
+// Plafond haut fixe à 375936 (comme le simulateur)
+function computeIrcantecSimulator(salaireBrut, annee) {
+  if (!salaireBrut || salaireBrut <= 0) return null;
+  const plafondAnnuel = ircantecPlafonds[annee];
+  const valeurPoint = ircantecValeursPoint[annee];
+  if (!plafondAnnuel || !valeurPoint) return null;
+
+  const TRA = Math.min(salaireBrut, plafondAnnuel) * 0.07;
+  const trancheB = Math.max(0, salaireBrut - plafondAnnuel);
+  const TRB = Math.min(trancheB, 375936 - plafondAnnuel) * 0.195;
+  const TOTAL = TRA + TRB;
+  return TOTAL / valeurPoint;
+}
+
+export function convertRISToManualRows(risData, { isCadre = false } = {}) {
   const data = Array.isArray(risData) ? risData[0] : risData;
   if (!data) return [];
 
-  const regexByYear = new Map(
-    (data.debug_carriere_detaillee_regex || []).map((r) => [
-      parseInt(r.annee, 10),
-      r,
-    ])
-  );
+  const careerData = data.debug_carriere_detaillee_regex || [];
+  const detailAnnuel = data.detail_annuel || data.carriere_detaillee || [];
 
-  const detailAnnuel =
-    data.detail_annuel || data.carriere_detaillee || [];
+  // Construire les sets de régimes depuis detail_annuel (comme ARRCO/IRCANTEC simulateurs)
+  const arrcoYears = new Set();
+  const ircantecYears = new Set();
+  if (Array.isArray(detailAnnuel)) {
+    detailAnnuel.forEach((entry) => {
+      const regimes = (entry.regimes_concernes || "").toLowerCase();
+      if (regimes.includes("agirc-arrco")) arrcoYears.add(String(entry.annee));
+      if (regimes.includes("ircantec")) ircantecYears.add(String(entry.annee));
+    });
+  }
+
+  // Map detail_annuel par année pour les trimestres AR
+  const detailByYear = new Map();
+  detailAnnuel.forEach((entry) => {
+    const annee = String(entry.annee);
+    if (annee) detailByYear.set(annee, entry);
+  });
 
   // --- Extract aggregate points for RCI / CIPAV (pas de calcul par année dispo) ---
   const pts = data.points_officiels || {};
@@ -361,84 +497,84 @@ export function convertRISToManualRows(risData) {
 
   const rows = [];
 
-  for (let idx = 0; idx < detailAnnuel.length; idx++) {
-    const entry = detailAnnuel[idx];
+  // Parcourir debug_carriere_detaillee_regex (comme CnavSimulator.handlePrefill)
+  careerData.forEach((entry, idx) => {
     const annee = parseInt(entry.annee, 10);
-    if (!annee) continue;
+    if (!annee) return;
+    const anneeStr = String(annee);
 
-    const regexRow = regexByYear.get(annee);
+    // Filtrage CNAV (réplique CnavSimulator.handlePrefill lignes 362-375)
+    const regimes = (entry.regimes_concernes || "").toLowerCase();
+    const hasBaseAlignee =
+      regimes.includes("assurance retraite") ||
+      regimes.includes("ssi") ||
+      regimes.includes("msa") ||
+      regimes.includes("agirc-arrco");
+    const isPureCipav = regimes.includes("cipav") && !hasBaseAlignee;
+    const isPureLib =
+      (regimes.includes("profession libérale") ||
+        regimes.includes("profession liberale")) &&
+      !hasBaseAlignee;
 
-    // --- Revenue ---
-    let brutNominal = null;
-    let isFRF = annee < 2002;
+    if (isPureCipav || isPureLib) return;
 
-    if (regexRow && Number.isFinite(+regexRow.revenu_brut)) {
-      brutNominal = +regexRow.revenu_brut;
-      if ((regexRow.revenus || "").toUpperCase().includes("FRF")) isFRF = true;
-      if ((regexRow.revenus || "").toUpperCase().includes("EUR")) isFRF = false;
-    } else {
-      const parsed = parseRevenusString(entry.revenus);
-      brutNominal = parsed.total;
-      if (parsed.isFRF) isFRF = true;
+    // Extraire le montant brut (en devise d'origine)
+    let montant = entry.revenu_brut;
+    if (!montant && entry.revenus) {
+      const clean = entry.revenus.replace(/[^0-9.,]/g, "").replace(",", ".");
+      montant = parseFloat(clean);
+    }
+    if (!montant) return;
+    montant = parseFloat(String(montant));
+
+    // Conversion EUR pour affichage
+    const brutEUR = annee <= 2001 ? montant / FRF_TO_EUR : montant;
+
+    // --- CNAV (logique exacte du simulateur) ---
+    const cnavResult = computeCnavSimulator(montant, annee);
+    const cnavDisplay = cnavResult ? fmtPoints(cnavResult.revalorise) : "";
+
+    // --- ARRCO (logique exacte du simulateur, avec cadre/non-cadre) ---
+    let arrcoCalc = null;
+    if (arrcoYears.has(anneeStr)) {
+      arrcoCalc = computeArrcoSimulator(montant, annee, isCadre);
     }
 
-    let brutEUR = brutNominal;
-    if (isFRF && brutNominal !== null) {
-      brutEUR = brutNominal / FRF_TO_EUR;
+    // --- IRCANTEC (logique exacte du simulateur) ---
+    let ircantecCalc = null;
+    if (ircantecYears.has(anneeStr)) {
+      ircantecCalc = computeIrcantecSimulator(montant, annee);
+    }
+
+    // --- Trimestres ---
+    let trimBase = cnavResult ? cnavResult.trimestres : 0;
+    let trimAR = 0;
+    const detailEntry = detailByYear.get(anneeStr);
+    if (detailEntry) {
+      const nature = (detailEntry.nature || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+      if (nature === "assimile") {
+        trimAR = parseInt(detailEntry.trimestres_retenus, 10) || 0;
+        trimBase = 0;
+      }
     }
 
     // --- PASS & Tranches ---
     const passNominal = PASS_HISTORIQUE[annee];
     let ta = "";
     let tb = "";
-    if (brutEUR !== null && passNominal) {
+    if (passNominal) {
       const passEUR = annee < 2002 ? passNominal / FRF_TO_EUR : passNominal;
       ta = formatEUR(Math.min(brutEUR, passEUR));
       tb = formatEUR(Math.max(0, brutEUR - passEUR));
     }
 
-    // --- Trimestres ---
-    const trimTotal = parseInt(entry.trimestres_retenus, 10) || 0;
-    const nature = (entry.nature || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    let trimBase = trimTotal;
-    let trimAR = 0;
-    if (nature === "assimile") {
-      trimBase = 0;
-      trimAR = trimTotal;
-    }
-
-    // --- Régimes concernés pour cette année ---
-    const regimes = (entry.regimes_concernes || "").toLowerCase();
-    const hasCnav = regimes.includes("assurance retraite");
-    const hasArrco = regimes.includes("agirc-arrco");
-    const hasIrcantec = regimes.includes("ircantec");
-
-    // --- Points par régime (calculés uniquement si le régime est concerné) ---
-
-    // CNAV: salaire revalorisé pour le SAM
-    let cnavDisplay = "";
-    if (hasCnav) {
-      const cnavRevalo = brutEUR !== null ? computeCnavRevalorise(brutEUR, annee) : null;
-      cnavDisplay = cnavRevalo !== null ? fmtPoints(cnavRevalo) : ta;
-    }
-
-    // ARRCO: points calculés à partir du salaire EUR (formule non-cadre)
-    let arrcoCalc = null;
-    if (hasArrco) {
-      arrcoCalc = brutEUR !== null ? computeArrcoPoints(brutEUR, annee) : null;
-    }
-
-    // IRCANTEC: points calculés à partir du salaire nominal (tables en FRF pre-2002, EUR post-2002)
-    let ircantecCalc = null;
-    if (hasIrcantec) {
-      const ircantecSalaire = brutNominal !== null ? brutNominal : null;
-      ircantecCalc = ircantecSalaire !== null ? computeIrcantecPoints(ircantecSalaire, annee) : null;
-    }
-
     rows.push({
       id: Date.now() + idx,
       annee: String(annee),
-      revenu: brutEUR !== null ? formatEUR(brutEUR) : "",
+      revenu: formatEUR(brutEUR),
       trimBase: String(trimBase),
       trimAR: String(trimAR),
       cnavPoints: cnavDisplay,
@@ -452,7 +588,7 @@ export function convertRISToManualRows(risData) {
       errY: false,
       errR: false,
     });
-  }
+  });
 
   // --- RCI / CIPAV: pas de calcul par année, on utilise les totaux agrégés ---
   if (rows.length > 0) {

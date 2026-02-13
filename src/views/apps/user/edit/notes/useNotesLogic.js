@@ -1392,7 +1392,9 @@ export const useNotesLogic = (id, perso) => {
     ]);
   }, []);
 
-  const handleManualImport = useCallback(async () => {
+  const handleManualImport = useCallback(async (options = {}) => {
+    const { isCadre = false } = options;
+
     if (!fileToSend) {
       toast.error("Merci d'importer d'abord un RIS (PDF)");
       return;
@@ -1422,7 +1424,7 @@ export const useNotesLogic = (id, perso) => {
       toast.info("Import des données RIS en cours…");
 
       const risData = await fetchRISAnalysis(fileToSend, finalMessage, id);
-      const rows = convertRISToManualRows(risData);
+      const rows = convertRISToManualRows(risData, { isCadre });
 
       if (!rows.length) {
         toast.warn("Aucune donnée de carrière trouvée dans la réponse");
@@ -1430,6 +1432,24 @@ export const useNotesLogic = (id, perso) => {
       }
 
       setManualCareerRows(rows);
+
+      // Stocker les données RIS pour auto-remplir les simulateurs
+      try {
+        sessionStorage.setItem(
+          `ris_import_data_${id}`,
+          JSON.stringify({ risData, isCadre, timestamp: Date.now() })
+        );
+      } catch (e) {
+        console.warn("Failed to store RIS data in sessionStorage:", e);
+      }
+
+      // Notifier les simulateurs déjà montés
+      window.dispatchEvent(
+        new CustomEvent("risImportComplete", {
+          detail: { clientId: id, risData, isCadre },
+        })
+      );
+
       toast.success(`${rows.length} année(s) importée(s) depuis le RIS`);
     } catch (err) {
       console.error("Erreur import RIS:", err);

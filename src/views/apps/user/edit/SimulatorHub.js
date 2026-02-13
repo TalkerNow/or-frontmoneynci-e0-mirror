@@ -1536,7 +1536,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
             <TabPane tabId="ircantec">
               <Card className="mb-1">
                 <CardBody>
-                  <IrcantecSimulator onSave={handleIrcantecSave} />
+                  <IrcantecSimulator onSave={handleIrcantecSave} user={user} />
                 </CardBody>
               </Card>
             </TabPane>

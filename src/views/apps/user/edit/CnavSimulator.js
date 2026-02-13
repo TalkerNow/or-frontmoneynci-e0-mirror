@@ -1,7 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
-import { Collapse } from "reactstrap";
-import classnames from "classnames";
-import { collapseToast } from "react-toastify";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { coeffRevalo, plafondSS, getRetirementAge, getTrimTauxPlein } from "./simulatorData";
 import { fetchRISAnalysis } from "./risService";
 // We need to import convertRISToManualRows if we want to use its potentially shared logic, 
@@ -24,14 +21,7 @@ const formatNumber = (num) => {
   return parts.join('.');
 };
 
-const chevronSvg = (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="6 9 12 15 18 9" />
-  </svg>
-);
-
 export default function CnavSimulator({ user }) {
-  const [isOpen, setIsOpen] = useState(true);
   const [birthDate, setBirthDate] = useState("");
   const [showBirthInfo, setShowBirthInfo] = useState(false);
   const [birthInfo, setBirthInfo] = useState(null);
@@ -427,6 +417,36 @@ export default function CnavSimulator({ user }) {
     }
   }, [user]);
 
+  // Auto-prefill depuis l'import ManualCareerTable (event temps réel + sessionStorage au montage)
+  useEffect(() => {
+    const clientId = user?.id;
+    if (!clientId) return;
+
+    const onRisImport = (event) => {
+      const { clientId: evtId, risData } = event.detail || {};
+      if (String(evtId) !== String(clientId) || !risData) return;
+      handlePrefill(risData);
+    };
+
+    window.addEventListener("risImportComplete", onRisImport);
+
+    // Vérifier sessionStorage au montage (si l'import a eu lieu avant que ce composant soit monté)
+    try {
+      const stored = sessionStorage.getItem(`ris_import_data_${clientId}`);
+      if (stored) {
+        const { risData, timestamp } = JSON.parse(stored);
+        // Ignorer si plus vieux que 5 minutes
+        if (risData && Date.now() - timestamp < 5 * 60 * 1000) {
+          handlePrefill(risData);
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    return () => window.removeEventListener("risImportComplete", onRisImport);
+  }, [user?.id, handlePrefill]);
+
   const defaultBestYears = useMemo(() => {
     if (bestYears.length) return bestYears;
     return Array.from({ length: 25 }, (_, i) => ({
@@ -448,9 +468,7 @@ export default function CnavSimulator({ user }) {
       <style>{`
         .cnav-simulator { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif; color:#4b4b4b; }
         .cnav-simulator .collapsible { border:1px solid #ddd; border-radius:16px; background:#fff; box-shadow:0 12px 30px rgba(15,23,42,0.08); }
-        .cnav-simulator .collapsible-header { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; border:0; background:transparent; cursor:pointer; border-radius:16px; font-size:18px; font-weight:700; color:#1f2d3d; }
-        .cnav-simulator .collapsible-header .chevron { transition: transform .25s ease; color:#6b7280; }
-        .cnav-simulator .collapsible-header.open .chevron { transform: rotate(180deg); }
+        .cnav-simulator .collapsible-header { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; border:0; background:transparent; border-radius:16px; font-size:18px; font-weight:700; color:#1f2d3d; }
         .cnav-simulator .sim-title { font-weight: 800; text-transform: none; letter-spacing: .01em; margin: 6px 0 12px; font-size: 20px; color:#1f2d3d; }
         .cnav-simulator label { font-size:14px; }
         .cnav-simulator label[for="cnav_birth_date"] { display: inline-block; margin: 8px 0; }
@@ -482,18 +500,10 @@ export default function CnavSimulator({ user }) {
       `}</style>
       <div className="cnav-simulator">
         <div className="collapsible">
-          <button
-            type="button"
-            className={classnames("collapsible-header", { open: isOpen })}
-            onClick={() => setIsOpen(prev => !prev)}
-            aria-expanded={isOpen}
-          >
+          <div className="collapsible-header open">
             <span className="sim-title" style={{ margin: 0 }}>SIMULATEUR PENSION S&Eacute;CURIT&Eacute; SOCIALE CNAV</span>
-            <span className="chevron" aria-hidden="true">{chevronSvg}</span>
-          </button>
-
-          <Collapse isOpen={isOpen}>
-            <div style={{ padding: 16 }}>
+          </div>
+          <div style={{ padding: 16 }}>
               {/* Date de naissance */}
               <div style={{ display: "flex", alignItems: "center", gap: ".5rem", margin: "8px 0" }}>
                 <label htmlFor="cnav_birth_date">Quelle est votre date de naissance ? </label>
@@ -858,7 +868,6 @@ export default function CnavSimulator({ user }) {
                 </div>
               </div>
             </div>
-          </Collapse>
         </div>
       </div>
     </>

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { toast } from "react-toastify";
 import { fetchRISAnalysis } from "./risService";
 import { arrcoPlafond, arrcoTaux, arrcoTauxDisplay } from "./simulatorData";
@@ -208,6 +208,36 @@ export default function ArrcoSimulator({ user }) {
     setSalaries(newSalaries);
     setComputed(newComputed);
   }, [user, isCadre, computeCadre, computeNonCadre]);
+
+  // Auto-prefill depuis l'import ManualCareerTable (event temps réel + sessionStorage au montage)
+  useEffect(() => {
+    const clientId = user?.id;
+    if (!clientId) return;
+
+    const onRisImport = (event) => {
+      const { clientId: evtId, risData, isCadre: evtCadre } = event.detail || {};
+      if (String(evtId) !== String(clientId) || !risData) return;
+      if (evtCadre !== undefined) setIsCadre(evtCadre);
+      handlePrefill(risData);
+    };
+
+    window.addEventListener("risImportComplete", onRisImport);
+
+    try {
+      const stored = sessionStorage.getItem(`ris_import_data_${clientId}`);
+      if (stored) {
+        const { risData, isCadre: storedCadre, timestamp } = JSON.parse(stored);
+        if (risData && Date.now() - timestamp < 5 * 60 * 1000) {
+          if (storedCadre !== undefined) setIsCadre(storedCadre);
+          handlePrefill(risData);
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    return () => window.removeEventListener("risImportComplete", onRisImport);
+  }, [user?.id, handlePrefill]);
 
   const handleImportRIS = useCallback(() => {
     if (fileInputRef.current) {
