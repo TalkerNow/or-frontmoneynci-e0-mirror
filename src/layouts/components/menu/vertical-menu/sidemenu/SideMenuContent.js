@@ -499,8 +499,6 @@ class SideMenuContent extends React.Component {
     // Initial fetch
     this.fetchInboxCount();
 
-    // Poll every 1 seconds
-    this.inboxInterval = setInterval(this.fetchInboxCount, 1000);
     axios
       .get(global.config.server_url + "/suivi-avancement/all", Config)
       .then((res) => {
@@ -608,9 +606,7 @@ class SideMenuContent extends React.Component {
       );
   }
 
-  componentWillUnmount() {
-    if (this.inboxInterval) clearInterval(this.inboxInterval);
-  }
+  componentWillUnmount() {}
 
   componentDidUpdate(prevProps, prevState) {
     if (prevProps.activePath !== this.props.activePath) {
