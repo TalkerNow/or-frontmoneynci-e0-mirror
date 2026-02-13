@@ -181,7 +181,7 @@ const items = {
 };
 
 // Admin keeps the current order (⚠️ sans "oldUsers")
-const adminOrder = ["dashboard", "kpi", "users", "tasks", "contracts"];
+const adminOrder = ["dashboard", "users", "kpi", "tasks", "contracts"];
 
 // Consultant order (⚠️ sans "oldUsers")
 const consultantOrder = ["users", "dashboard", "tasks", "contracts"];
