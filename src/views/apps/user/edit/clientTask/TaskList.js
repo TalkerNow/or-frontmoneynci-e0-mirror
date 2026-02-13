@@ -59,24 +59,24 @@ class TaskList extends React.Component {
   // Calcule le style de fond selon le retard (pour mode embedded)
   getOverdueStyle = (todo) => {
     if (todo.isCompleted || !todo.end_date) return {};
-    
+
     const now = new Date();
     now.setHours(0, 0, 0, 0);
     const endDate = new Date(todo.end_date);
     endDate.setHours(0, 0, 0, 0);
-    
+
     if (endDate >= now) return {};
-    
+
     // Calcul du nombre de jours de retard
     const diffDays = Math.floor((now - endDate) / (1000 * 60 * 60 * 24));
-    
+
     // Plus le retard est grand, plus c'est rouge
     if (diffDays >= 14) {
-      return { backgroundColor: '#fee2e2', borderLeft: '3px solid #dc2626' }; // Rouge foncé
+      return { backgroundColor: "#fee2e2", borderLeft: "3px solid #dc2626" }; // Rouge foncé
     } else if (diffDays >= 7) {
-      return { backgroundColor: '#fef2f2', borderLeft: '3px solid #ef4444' }; // Rouge moyen
+      return { backgroundColor: "#fef2f2", borderLeft: "3px solid #ef4444" }; // Rouge moyen
     } else {
-      return { backgroundColor: '#fef9f9', borderLeft: '3px solid #f87171' }; // Rouge léger
+      return { backgroundColor: "#fef9f9", borderLeft: "3px solid #f87171" }; // Rouge léger
     }
   };
 
@@ -84,31 +84,36 @@ class TaskList extends React.Component {
     const { todos, handleUpdateTask } = this.state;
     const { embedded, addTask } = this.props;
 
-    let todosArr = (this.props.searchQuery && this.props.searchQuery.length) 
-      ? this.props.app.todo.filteredTodos 
-      : todos;
+    let todosArr =
+      this.props.searchQuery && this.props.searchQuery.length
+        ? this.props.app.todo.filteredTodos
+        : todos;
 
     // Séparer les tâches urgentes (date dépassée) et les autres
     const now = new Date();
     now.setHours(0, 0, 0, 0);
 
     const urgentTodos = todosArr.filter((todo) => {
+      if (todo.isCompleted) return false;
       if (!todo.end_date) return false;
       const endDate = new Date(todo.end_date);
       endDate.setHours(0, 0, 0, 0);
-      return endDate < now && !todo.isCompleted;
+      return endDate < now;
     });
 
     const normalTodos = todosArr.filter((todo) => {
+      if (todo.isCompleted) return false;
       if (!todo.end_date) return true;
       const endDate = new Date(todo.end_date);
       endDate.setHours(0, 0, 0, 0);
-      return endDate >= now || todo.isCompleted;
+      return endDate >= now;
     });
+
+    const completedTodos = todosArr.filter((todo) => todo.isCompleted);
 
     const renderTodoItem = (todo, i, useColorCode = false) => {
       const overdueStyle = useColorCode ? this.getOverdueStyle(todo) : {};
-      
+
       return (
         <li
           className={`todo-item ${todo.isCompleted ? "completed" : ""} py-2 px-3 border-bottom`}
@@ -159,11 +164,13 @@ class TaskList extends React.Component {
 
             <div className="d-flex align-items-center">
               {todo.end_date && (
-                <div className={`mr-2 font-small-3 ${
-                  new Date() > new Date(todo.end_date) && !todo.isCompleted 
-                    ? "text-danger font-weight-bold" 
-                    : "text-muted"
-                }`}>
+                <div
+                  className={`mr-2 font-small-3 ${
+                    new Date() > new Date(todo.end_date) && !todo.isCompleted
+                      ? "text-danger font-weight-bold"
+                      : "text-muted"
+                  }`}
+                >
                   {dateConvert(todo.end_date)}
                 </div>
               )}
@@ -205,8 +212,9 @@ class TaskList extends React.Component {
 
     // MODE EMBEDDED : liste simple avec code couleur
     if (embedded) {
-      // Trier par date (les plus urgentes en premier)
       const sortedTodos = [...todosArr].sort((a, b) => {
+        if (a.isCompleted && !b.isCompleted) return 1;
+        if (!a.isCompleted && b.isCompleted) return -1;
         if (!a.end_date) return 1;
         if (!b.end_date) return -1;
         return new Date(a.end_date) - new Date(b.end_date);
@@ -236,12 +244,13 @@ class TaskList extends React.Component {
                 >
                   <ul className="todo-task-list-wrapper list-unstyled p-0 m-0 w-100">
                     {/* Header avec bouton Nouvelle */}
-                    <li 
+                    <li
                       className="px-3 py-2 bg-white border-bottom d-flex justify-content-between align-items-center"
                       style={{ position: 'sticky', top: 0, zIndex: 2 }}
                     >
                       <span className="font-weight-bold text-dark">
-                        {sortedTodos.length} tâche{sortedTodos.length > 1 ? 's' : ''}
+                        {sortedTodos.length} tâche
+                        {sortedTodos.length > 1 ? "s" : ""}
                       </span>
                       <Button
                         color="primary"
@@ -304,7 +313,7 @@ class TaskList extends React.Component {
                           position: 'sticky',
                           top: 0,
                           zIndex: 1,
-                          borderLeft: '3px solid #ea5455'
+                          borderLeft: "3px solid #ea5455",
                         }}
                       >
                         <div className="d-flex align-items-center">
@@ -366,16 +375,65 @@ class TaskList extends React.Component {
                           </div>
                         </li>
                       )}
-                      {normalTodos.map((todo, i) => renderTodoItem(todo, `normal-${i}`, false))}
+                      {normalTodos.map((todo, i) =>
+                        renderTodoItem(todo, `normal-${i}`, false),
+                      )}
+                    </>
+                  )}
+
+                  {/* Section Tâches terminées */}
+                  {completedTodos.length > 0 && (
+                    <>
+                      <li
+                        className="px-3 py-2 bg-light border-bottom"
+                        style={{
+                          position: "sticky",
+                          top: 0,
+                          zIndex: 1,
+                          borderLeft: "3px solid #acacac",
+                          marginTop: "0.5rem",
+                        }}
+                      >
+                        <div className="d-flex align-items-center">
+                          <div
+                            className="rounded-circle d-flex align-items-center justify-content-center mr-1"
+                            style={{
+                              width: "24px",
+                              height: "24px",
+                              background: "#f8f8f8",
+                              border: "1px solid #acacac",
+                            }}
+                          >
+                            <Check size={12} color="#acacac" />
+                          </div>
+                          <span
+                            className="font-weight-bold text-muted"
+                            style={{ fontSize: "0.9rem" }}
+                          >
+                            Tâches terminées
+                          </span>
+                          <span
+                            className="badge badge-light-secondary ml-1"
+                            style={{ fontSize: "0.7rem" }}
+                          >
+                            {completedTodos.length}
+                          </span>
+                        </div>
+                      </li>
+                      {completedTodos.map((todo, i) =>
+                        renderTodoItem(todo, `completed-${i}`, false),
+                      )}
                     </>
                   )}
 
                   {/* Message si aucune tâche */}
-                  {urgentTodos.length === 0 && normalTodos.length === 0 && (
-                    <p className="p-1 text-center mt-2 font-medium-3 text-bold-500">
-                      Pas de tâches trouvées.
-                    </p>
-                  )}
+                  {urgentTodos.length === 0 &&
+                    normalTodos.length === 0 &&
+                    completedTodos.length === 0 && (
+                      <p className="p-1 text-center mt-2 font-medium-3 text-bold-500">
+                        Pas de tâches trouvées.
+                      </p>
+                    )}
                 </ul>
               </PerfectScrollbar>
             </div>

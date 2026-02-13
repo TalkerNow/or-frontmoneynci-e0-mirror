@@ -255,7 +255,10 @@ const CreateUserKanbanModal = ({ isOpen, onClose, onSuccess, userId }) => {
                       value="create_new"
                       style={{ color: "#7367f0", fontWeight: "bold" }}
                     >
-                      ➕ Créer une colonne Kanban
+                      <span role="img" aria-label="plus">
+                        ➕
+                      </span>{" "}
+                      Créer une colonne Kanban
                     </option>
                   )}
                 </Input>

@@ -170,7 +170,7 @@ class FilterSidebar extends React.Component {
       >
         <ModalHeader toggle={() => this.props.addTask("close")}>
           <div className="d-flex align-items-center justify-content-between w-100 pr-3">
-            <h4 className="mb-0 font-weight-bold">
+            <h4 className="mb-0">
               {isEditing ? "Modifier la tâche" : "Nouvelle tâche"}
             </h4>
 
@@ -263,7 +263,7 @@ class FilterSidebar extends React.Component {
                           return (
                             <div
                               className="d-flex flex-wrap mt-50"
-                              style={{ gap: "0.25rem" }}
+                              style={{ gap: "0.5rem" }}
                             >
                               {services.map((service) => (
                                 <span
@@ -375,13 +375,7 @@ class FilterSidebar extends React.Component {
                 <label className="text-bold-600 font-small-3 mb-50">
                   Type de tâche
                 </label>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(3, 1fr)",
-                    gap: "0.5rem",
-                  }}
-                >
+                <div className="task-type-grid">
                   {[
                     {
                       value: "relance_caisse",
@@ -435,12 +429,17 @@ class FilterSidebar extends React.Component {
                         }}
                         className={`badge ${isSelected ? `badge-${type.color}` : "badge-light"}`}
                         style={{
-                          padding: "0.45rem 0.3rem",
+                          padding: "0.6rem 0.5rem",
                           cursor: "pointer",
                           fontSize: "0.75rem",
                           fontWeight: isSelected ? "600" : "400",
                           textAlign: "center",
                           transition: "all 0.2s",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          borderRadius: "4px",
+                          border: isSelected ? "none" : "1px solid #ebebeb",
                         }}
                       >
                         {type.label}
@@ -455,7 +454,7 @@ class FilterSidebar extends React.Component {
           {/* Boutons d'action */}
           {(this.state.role == "admin" || this.state.role == "Expert") && (
             <Row className="mt-2">
-              <Col md="6">
+              <Col md="6" className="mb-1 mb-md-0">
                 <Button
                   color="light"
                   outline
