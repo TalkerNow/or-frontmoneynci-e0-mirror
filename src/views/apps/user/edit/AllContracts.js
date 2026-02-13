@@ -170,9 +170,7 @@ class AllContracts extends React.Component {
               className="d-flex align-items-center cursor-pointer contract-name-cell"
               onClick={() => history.push("/pages/contract/" + params.data.id)}
             >
-              <span style={{ fontWeight: 700, color: "#283046" }}>
-                {formattedName}
-              </span>
+              <span style={{ color: "#283046" }}>{formattedName}</span>
             </div>
           );
         },
@@ -234,7 +232,7 @@ class AllContracts extends React.Component {
           const totalAmount = params.data.advanced_payment || 0;
           return (
             <div className="d-flex align-items-center">
-              <span style={{ fontWeight: 600 }}>{totalAmount} €</span>
+              <span>{totalAmount} €</span>
             </div>
           );
         },
@@ -251,16 +249,14 @@ class AllContracts extends React.Component {
           if (isFullyPaid || totalRemaining === 0) {
             return (
               <div className="d-flex align-items-center">
-                <span style={{ color: "#28c76f", fontWeight: 600 }}>0 €</span>
+                <span style={{ color: "#28c76f" }}>0 €</span>
               </div>
             );
           }
 
           return (
             <div className="d-flex align-items-center">
-              <span style={{ color: "#ea5455", fontWeight: 600 }}>
-                {totalRemaining} €
-              </span>
+              <span style={{ color: "#ea5455" }}>{totalRemaining} €</span>
             </div>
           );
         },
@@ -721,7 +717,7 @@ class AllContracts extends React.Component {
                               history.push("/pages/contract/" + contract.id)
                             }
                           >
-                            <td style={{ fontWeight: 700 }}>
+                            <td>
                               {(contract.comment || "").replace(
                                 /^(Contrat|Contract) de\s+/i,
                                 "",
@@ -741,15 +737,13 @@ class AllContracts extends React.Component {
                             <td
                               className={
                                 isAcompteProblem
-                                  ? "text-danger font-weight-bold"
+                                  ? "text-danger"
                                   : "text-success"
                               }
                             >
                               {totalPaid} €
                             </td>
-                            <td className="text-danger font-weight-bold">
-                              {totalRemaining} €
-                            </td>
+                            <td className="text-danger">{totalRemaining} €</td>
                             <td>
                               <div className="actions cursor-pointer">
                                 <Trash2

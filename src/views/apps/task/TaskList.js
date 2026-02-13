@@ -264,14 +264,11 @@ class TaskList extends React.Component {
                     </td>
 
                     {/* 2. Client */}
-                    <td
-                      className="font-weight-bold"
-                      title={todo.task_customer?.name}
-                    >
+                    <td title={todo.task_customer?.name}>
                       {todo.task_customer?.id ? (
                         <Link
                           to={`/app/user/edit/${todo.task_customer.id}/2`}
-                          className="font-weight-bold text-dark client-link"
+                          className="text-dark client-link"
                           style={{ textDecoration: "none" }}
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -334,7 +331,7 @@ class TaskList extends React.Component {
                     <td>
                       <div className="d-flex flex-column">
                         <span
-                          className="text-dark mb-0 font-weight-bold"
+                          className="text-dark mb-0"
                           style={{ fontSize: "0.9rem" }}
                           title={todo.title}
                         >
@@ -358,7 +355,7 @@ class TaskList extends React.Component {
 
                     {/* 6. Échéance */}
                     <td
-                      className={`${todo.end_date && new Date() > new Date(todo.end_date) && !todo.isCompleted ? "text-danger font-weight-bold" : ""}`}
+                      className={`${todo.end_date && new Date() > new Date(todo.end_date) && !todo.isCompleted ? "text-danger" : ""}`}
                     >
                       {todo.end_date ? dateConvert(todo.end_date) : "-"}
                     </td>

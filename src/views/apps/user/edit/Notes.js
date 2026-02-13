@@ -73,6 +73,8 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
 
   return (
     <div className="notes-page">
+      <ProspectChatView user={perso} />
+
       <NotesForm
         notes={notes}
         handleNotesChange={handleNotesChange}
@@ -90,12 +92,6 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
         previousNotesSnapshot={previousNotesSnapshot}
         handleRestorePreviousNotes={handleRestorePreviousNotes}
       />
-
-      {String(perso.role).toLowerCase() === "prospect" && (
-        <div className="mt-1">
-          <ProspectChatView user={perso} />
-        </div>
-      )}
 
       {String(perso.role).toLowerCase() !== "prospect" && (
         <>

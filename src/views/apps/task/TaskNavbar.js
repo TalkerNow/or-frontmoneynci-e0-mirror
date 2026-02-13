@@ -41,9 +41,7 @@ const TaskNavbar = (props) => {
   return (
     <div className="task-navbar d-flex flex-wrap justify-content-between align-items-center bg-white px-2 py-1 mb-0 w-100 border-bottom">
       <div className="d-flex align-items-center flex-wrap">
-        <h3 className="mb-0 mr-2 text-primary d-none d-md-block font-weight-bold">
-          Tâches
-        </h3>
+        <h3 className="mb-0 mr-2 text-primary d-none d-md-block">Tâches</h3>
 
         {/* Filtres principaux */}
         <div className="filter-pills d-flex mr-2">

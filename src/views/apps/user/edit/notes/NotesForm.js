@@ -45,10 +45,6 @@ const NotesForm = ({
             className="notes-textarea"
             value={notes}
             onChange={handleNotesChange}
-            readOnly={!isEditingNotes}
-            onClick={() => {
-              if (!isEditingNotes) setIsEditingNotes(true);
-            }}
           />
           <div
             className="notes-form-actions notes-action-row d-flex align-items-center flex-wrap"

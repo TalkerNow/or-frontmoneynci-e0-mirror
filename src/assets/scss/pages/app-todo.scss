@@ -183,7 +183,7 @@
 
     .client-link {
       font-size: 0.9rem;
-      font-weight: 600;
+      font-weight: 400;
     }
 
     .task-desc {
@@ -208,30 +208,36 @@
       } // Actions
     }
 
-    // Completed rows styling
+    // Completed rows styling — highly visible
     .completed-row {
-      background-color: #f8f9fa !important;
-      opacity: 0.7;
+      background-color: rgba(40, 199, 111, 0.18) !important;
+      border-left: 5px solid #28c76f !important;
       
       td {
-        color: $gray-500 !important;
+        color: #4a4a4a !important;
         
-        .client-link, .task-desc, .text-dark {
-          color: $gray-500 !important;
-          text-decoration: line-through !important;
+        .client-link, .text-dark, span {
+          color: #4a4a4a !important;
         }
 
-        .badge, .chip {
-          filter: grayscale(1);
-          opacity: 0.6;
+        .task-desc {
+          color: #8a8f96 !important;
+          font-style: italic;
+        }
+
+        // Don't strike-through badges/chips text
+        .badge span, .chip span, .badge, .chip {
+          text-decoration: none !important;
+          filter: grayscale(0.8) opacity(0.4);
         }
       }
 
+      td:first-child {
+        position: relative;
+      }
+
       &:hover {
-        background-color: #f1f1f1 !important;
-        .client-link {
-          text-decoration: line-through !important; // Keep line-through even on hover
-        }
+        background-color: rgba(40, 199, 111, 0.25) !important;
       }
     }
 
@@ -360,20 +366,6 @@
     }
   }
 
-  // Modal Grid Responsive
-  .task-type-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.5rem;
-
-    @media (max-width: 576px) {
-      grid-template-columns: repeat(2, 1fr);
-    }
-    
-    @media (max-width: 400px) {
-      grid-template-columns: 1fr;
-    }
-  }
 
   // Right content area common css starts
   .content-right {
@@ -561,5 +553,22 @@
 @media (max-width: 349.98px) {
   .todo-application .content-area-wrapper .sidebar .todo-sidebar {
     width: 230px;
+  }
+}
+
+// Modal Grid Responsive
+.task-type-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+
+  @media (max-width: 576px) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+
+  @media (max-width: 400px) {
+    grid-template-columns: 1fr;
   }
 }
