@@ -14,7 +14,7 @@ import {
   TrendingUp,
   Star,
   Loader,
-  Eye,
+  // Eye,
   EyeOff,
   Trash2,
   MessageSquare,
@@ -1140,7 +1140,12 @@ const InboxDetail = ({
                         fontFamily: "'Montserrat', sans-serif",
                       }}
                     >
-                      <span>💬 Historique des échanges</span>
+                      <span>
+                        <span role="img" aria-label="speech balloon">
+                          💬
+                        </span>{" "}
+                        Historique des échanges
+                      </span>
                       <span className="small text-muted font-weight-normal">
                         {selectedItem.raw?.messages?.length || 0} messages
                       </span>

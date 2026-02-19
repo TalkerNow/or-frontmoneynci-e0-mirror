@@ -877,7 +877,10 @@ class UserKanbanModal extends React.Component {
                           padding: "0.25rem 0.5rem",
                         }}
                       >
-                        🔒 Non éditable
+                        <span role="img" aria-label="locked">
+                          🔒
+                        </span>{" "}
+                        Non éditable
                       </Badge>
                     </div>
                   )}
@@ -938,7 +941,9 @@ class UserKanbanModal extends React.Component {
                             padding: "0.25rem 0.5rem",
                           }}
                         >
-                          🔒 Non éditable
+                          <span role="img" aria-label="locked">
+                            🔒
+                          </span>
                         </Badge>
                       </div>
                     )}
@@ -982,7 +987,10 @@ class UserKanbanModal extends React.Component {
                               padding: "0.25rem 0.5rem",
                             }}
                           >
-                            🔒 Non éditable
+                            <span role="img" aria-label="locked">
+                              🔒
+                            </span>{" "}
+                            Non éditable
                           </Badge>
                         </div>
                       )}
@@ -1012,7 +1020,10 @@ class UserKanbanModal extends React.Component {
                               className="font-weight-bold mb-50"
                               style={{ color: "#1e40af", fontSize: "0.75rem" }}
                             >
-                              📝 Résumé
+                              <span role="img" aria-label="memo">
+                                📝
+                              </span>{" "}
+                              Résumé
                             </div>
                             <div style={{ color: "#374151" }}>
                               {userDetails.conversation_archives[0].summary}
@@ -1032,7 +1043,10 @@ class UserKanbanModal extends React.Component {
                                   fontSize: "0.75rem",
                                 }}
                               >
-                                💬 Historique
+                                <span role="img" aria-label="speech balloon">
+                                  💬
+                                </span>{" "}
+                                Historique
                               </div>
                               <div
                                 style={{
@@ -1098,7 +1112,15 @@ class UserKanbanModal extends React.Component {
                                             paddingRight: isBot ? "4px" : "0",
                                           }}
                                         >
-                                          {isBot ? "🤖" : "👤"}
+                                          {isBot ? (
+                                            <span role="img" aria-label="robot">
+                                              🤖
+                                            </span>
+                                          ) : (
+                                            <span role="img" aria-label="user">
+                                              👤
+                                            </span>
+                                          )}
                                         </span>
                                       </div>
                                     );

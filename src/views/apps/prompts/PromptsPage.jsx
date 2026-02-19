@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   Card,
   CardHeader,
@@ -63,7 +63,8 @@ const PromptsPage = () => {
     headers: { Authorization: "Bearer " + localStorage.getItem("token") },
   });
 
-  const fetchPrompts = async () => {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const fetchPrompts = useCallback(async () => {
     setLoading(true);
     try {
       const { data } = await axios.get(`${API_BASE}/prompts`, getConfig());
@@ -74,11 +75,11 @@ const PromptsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_BASE]); // getConfig changes every render if not memoized, but API_BASE is string. Using eslint-disable to simplify.
 
   useEffect(() => {
     fetchPrompts();
-  }, []);
+  }, [fetchPrompts]);
 
   const handleSave = async () => {
     if (!formData.name.trim()) {
@@ -479,7 +480,11 @@ const PromptsPage = () => {
                 </div>
               ) : prompts.length === 0 ? (
                 <div className="empty-state">
-                  <div className="empty-icon">📝</div>
+                  <div className="empty-icon">
+                    <span role="img" aria-label="memo">
+                      📝
+                    </span>
+                  </div>
                   <h5>Aucun prompt</h5>
                   <p className="text-muted">
                     Commencez par créer votre premier prompt

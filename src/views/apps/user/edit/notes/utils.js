@@ -222,7 +222,7 @@ const formatEUR = (num) =>
     maximumFractionDigits: 2,
   }).format(num);
 
-function parseRevenusString(str) {
+export function parseRevenusString(str) {
   if (!str) return { total: null, isFRF: false };
   const parts = str
     .toString()
@@ -236,7 +236,7 @@ function parseRevenusString(str) {
 
   for (const part of parts) {
     if (part.toUpperCase().includes("FRF")) isFRF = true;
-    const clean = part.replace(/\s/g, "").replace(",", ".").replace(/[^0-9.\-]/g, "");
+    const clean = part.replace(/\s/g, "").replace(",", ".").replace(/[^0-9.-]/g, "");
     const v = parseFloat(clean);
     if (Number.isFinite(v) && v > 0) {
       total += v;
@@ -265,7 +265,7 @@ function fmtPoints(val) {
 }
 
 // --- ARRCO: Calcul nombre de points à partir d'un salaire (non-cadre par défaut) ---
-function computeArrcoPoints(salaireEUR, year) {
+export function computeArrcoPoints(salaireEUR, year) {
   if (!salaireEUR || salaireEUR <= 0) return null;
   const x = arrcoPlafond.findIndex((p) => p[0] === year);
   if (x < 0 || !arrcoTaux[x]) return null;
@@ -306,7 +306,7 @@ function computeArrcoPoints(salaireEUR, year) {
 }
 
 // --- IRCANTEC: Calcul nombre de points à partir d'un salaire ---
-function computeIrcantecPoints(salaireNominal, year) {
+export function computeIrcantecPoints(salaireNominal, year) {
   const plafond = ircantecPlafonds[year];
   const valeur = ircantecValeursPoint[year];
   if (!plafond || !valeur || !salaireNominal || salaireNominal <= 0) return null;
@@ -319,7 +319,7 @@ function computeIrcantecPoints(salaireNominal, year) {
 }
 
 // --- CNAV: Salaire revalorisé pour le SAM ---
-function computeCnavRevalorise(salaireEUR, year) {
+export function computeCnavRevalorise(salaireEUR, year) {
   if (!salaireEUR || salaireEUR <= 0) return null;
   const coeff = coeffRevalo[year];
   const pass = plafondSS[year];
@@ -387,7 +387,7 @@ function computeArrcoSimulator(montantRaw, annee, isCadre) {
         const cotisB = (salaire - plafondAnnuel) * tauxAgirc;
         pointsB = cotisB / valeurPtAgirc;
       }
-      return pointsA + (pointsB * 0.347791548);
+      return pointsA + pointsB * 0.347791548;
     } else {
       const tauxTA = arrcoTaux[x][1];
       const tauxTB = arrcoTaux[x][3];
@@ -420,7 +420,7 @@ function computeArrcoSimulator(montantRaw, annee, isCadre) {
         cotisationTB = trancheB * tauxTB;
       }
       const totalCotisations = cotisationTB * 0.347791548;
-      return (totalCotisations / valeurAchatArrco) + (cotisTA / valeurT1);
+      return totalCotisations / valeurAchatArrco + cotisTA / valeurT1;
     } else {
       const tauxTA = arrcoTaux[x][1];
       const tauxTB = arrcoTaux[x][3];

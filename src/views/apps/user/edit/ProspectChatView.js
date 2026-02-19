@@ -636,7 +636,10 @@ const ProspectChatView = ({ user }) => {
                     fontFamily: "'Montserrat', sans-serif",
                   }}
                 >
-                  📝 Synthèse IA
+                  <span role="img" aria-label="memo">
+                    📝
+                  </span>{" "}
+                  Synthèse IA
                 </div>
                 <div
                   style={{
@@ -687,7 +690,12 @@ const ProspectChatView = ({ user }) => {
                     fontFamily: "'Montserrat', sans-serif",
                   }}
                 >
-                  <span>💬 Historique des échanges</span>
+                  <span>
+                    <span role="img" aria-label="speech balloon">
+                      💬
+                    </span>{" "}
+                    Historique des échanges
+                  </span>
                   <span className="small text-muted font-weight-normal">
                     {chatbotArchive.messages.length} messages
                   </span>

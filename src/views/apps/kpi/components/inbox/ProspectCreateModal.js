@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import SweetAlert from "react-bootstrap-sweetalert";
+// import SweetAlert from "react-bootstrap-sweetalert";
 import { toast } from "react-toastify";
 
 const ProspectCreateModal = ({
@@ -30,16 +30,8 @@ const ProspectCreateModal = ({
     }));
   }, [prospectData]);
 
-  // Alert States
-  const [successAlertVisible, setSuccessAlertVisible] = useState(false);
-  const [successAlertMessage, setSuccessAlertMessage] = useState("");
-  const [warningAlertVisible, setWarningAlertVisible] = useState(false);
-  const [warningAlertMessage, setWarningAlertMessage] = useState("");
-  const [errorAlertVisible, setErrorAlertVisible] = useState(false);
-  const [errorAlertMessage, setErrorAlertMessage] = useState("");
-
   /* State to hold new user ID for callback */
-  const [createdUserId, setCreatedUserId] = useState(null);
+  // const [createdUserId, setCreatedUserId] = useState(null);
 
   // Modal content state: 'form' | 'loading' | 'success' | 'error'
   const [modalState, setModalState] = useState("form");
@@ -91,7 +83,7 @@ const ProspectCreateModal = ({
 
       if (registerResponse.data && registerResponse.data.user) {
         const newUserId = registerResponse.data.user.id;
-        setCreatedUserId(newUserId);
+        // setCreatedUserId(newUserId);
 
         // 2. Add Personal Info
         const infoPayload = {
@@ -148,7 +140,7 @@ const ProspectCreateModal = ({
           onClose();
           setModalState("form");
           setStatusMessage("");
-          setCreatedUserId(null);
+          // setCreatedUserId(null);
           return;
         }
 
@@ -161,7 +153,7 @@ const ProspectCreateModal = ({
         onClose();
         setModalState("form");
         setStatusMessage("");
-        setCreatedUserId(null);
+        // setCreatedUserId(null);
       } else {
         throw new Error("Aucune donnée utilisateur reçue du serveur.");
       }
@@ -265,10 +257,18 @@ const ProspectCreateModal = ({
                 </div>
               )}
               {modalState === "success" && (
-                <div style={{ fontSize: "48px", marginBottom: "16px" }}>✅</div>
+                <div style={{ fontSize: "48px", marginBottom: "16px" }}>
+                  <span role="img" aria-label="success">
+                    ✅
+                  </span>
+                </div>
               )}
               {modalState === "error" && (
-                <div style={{ fontSize: "48px", marginBottom: "16px" }}>❌</div>
+                <div style={{ fontSize: "48px", marginBottom: "16px" }}>
+                  <span role="img" aria-label="error">
+                    ❌
+                  </span>
+                </div>
               )}
               <p
                 style={{
@@ -453,76 +453,6 @@ const ProspectCreateModal = ({
           )}
         </div>
       </div>
-
-      <SweetAlert
-        success
-        title="Succès !"
-        show={successAlertVisible}
-        confirmBtnText="OK"
-        confirmBtnBsStyle="success"
-        onConfirm={() => {
-          console.log("✅ Prospect créé avec succès - ID:", createdUserId);
-          setSuccessAlertVisible(false);
-          // Réinitialiser le formulaire
-          setProspectForm({
-            firstName: "",
-            lastName: "",
-            email: "",
-            phone: "",
-          });
-          setCreatedUserId(null);
-          // Notifier le parent pour recharger les données
-          if (onSuccess) {
-            onSuccess(createdUserId);
-          }
-        }}
-      >
-        <p className="sweet-alert-text" style={{ whiteSpace: "pre-line" }}>
-          {successAlertMessage}
-        </p>
-      </SweetAlert>
-
-      <SweetAlert
-        warning
-        title="Attention"
-        show={warningAlertVisible}
-        confirmBtnText="OK"
-        confirmBtnBsStyle="warning"
-        onConfirm={() => {
-          console.log(
-            "⚠️ Prospect créé avec avertissement - ID:",
-            createdUserId,
-          );
-          setWarningAlertVisible(false);
-          // Réinitialiser le formulaire
-          setProspectForm({
-            firstName: "",
-            lastName: "",
-            email: "",
-            phone: "",
-          });
-          setCreatedUserId(null);
-          // Notifier le parent
-          if (onSuccess) {
-            onSuccess(createdUserId);
-          }
-        }}
-      >
-        <p className="sweet-alert-text" style={{ whiteSpace: "pre-line" }}>
-          {warningAlertMessage}
-        </p>
-      </SweetAlert>
-
-      <SweetAlert
-        error
-        title="Erreur"
-        show={errorAlertVisible}
-        confirmBtnText="OK"
-        confirmBtnBsStyle="danger"
-        onConfirm={() => setErrorAlertVisible(false)}
-      >
-        <p className="sweet-alert-text">{errorAlertMessage}</p>
-      </SweetAlert>
     </>
   );
 };

@@ -615,7 +615,7 @@ class SideMenuContent extends React.Component {
       }
 
       this.initRender(
-        this.parentArr[0] ? this.parentArr[this.parentArr.length - 1] : []
+        this.parentArr[0] ? this.parentArr[this.parentArr.length - 1] : [],
       );
     }
   }
@@ -642,7 +642,7 @@ class SideMenuContent extends React.Component {
             "has-sub": item.type === "collapse",
             open: this.state.activeGroups.includes(item.id),
             "sidebar-group-active": this.state.currentActiveGroup.includes(
-              item.id
+              item.id,
             ),
             hover: this.props.hoverIndex === item.id,
             // ✅ active UNIQUEMENT pour les items (pas les parents)
@@ -775,36 +775,6 @@ class SideMenuContent extends React.Component {
                   }}
                 >
                   {this.state.tasksBadge}
-                </span>
-              </div>
-            ) : null}
-
-            {/* ✅ Badge CRM Urgent (Sum of Inbox + Suivi + Opportunities) */}
-            {item.id === "kpi" &&
-            this.state.crmBadge +
-              this.state.inboxBadge +
-              (this.state.opportunitiesBadge || 0) >
-              0 ? (
-              <div className="menu-badge" style={{ marginLeft: "auto" }}>
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 22,
-                    height: 22,
-                    borderRadius: "50%",
-                    backgroundColor: "#ea5455",
-                    color: "#fff",
-                    fontSize: 10,
-                    fontWeight: 600,
-                    lineHeight: 1,
-                    marginRight: 4,
-                  }}
-                >
-                  {this.state.crmBadge +
-                    this.state.inboxBadge +
-                    (this.state.opportunitiesBadge || 0)}
                 </span>
               </div>
             ) : null}

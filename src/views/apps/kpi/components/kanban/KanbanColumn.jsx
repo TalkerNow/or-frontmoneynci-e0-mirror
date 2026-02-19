@@ -145,7 +145,10 @@ class KanbanColumn extends React.Component {
           <p
             style={{ color: "#dc3545", fontWeight: "bold", marginTop: "15px" }}
           >
-            ⚠️ Attention:
+            <span role="img" aria-label="warning">
+              ⚠️
+            </span>{" "}
+            Attention:
           </p>
           <p style={{ color: "#666", marginTop: "8px" }}>
             Cette action supprimera aussi les{" "}

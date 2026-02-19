@@ -19,10 +19,17 @@ export default function IrcantecSimulator({ user }) {
   }, []);
 
   const handleSimulateur = useCallback((salaireBrut, year) => {
-    const salaire = parseFloat(String(salaireBrut).replace(/\s/g, "").replace(",", "."));
+    const salaire = parseFloat(
+      String(salaireBrut).replace(/\s/g, "").replace(",", "."),
+    );
     const display = ircantecTauxDisplay[year];
-    if (!ircantecPlafonds[year] || !ircantecValeursPoint[year] || !display || isNaN(salaire)) {
-      setComputed(prev => {
+    if (
+      !ircantecPlafonds[year] ||
+      !ircantecValeursPoint[year] ||
+      !display ||
+      isNaN(salaire)
+    ) {
+      setComputed((prev) => {
         const next = { ...prev };
         delete next[year];
         return next;
@@ -41,7 +48,7 @@ export default function IrcantecSimulator({ user }) {
     const pointsB = cotisB / valeurPoint;
     const totalPoints = pointsA + pointsB;
 
-    setComputed(prev => ({
+    setComputed((prev) => ({
       ...prev,
       [year]: {
         tra: pointsA.toFixed(5) + " points",
@@ -56,74 +63,96 @@ export default function IrcantecSimulator({ user }) {
     setComputed({});
   }, []);
 
-  const handlePrefill = useCallback((overrideData = null) => {
-    let sourceData = user;
-    if (overrideData && (overrideData.detail_annuel || overrideData.debug_carriere_detaillee_regex)) {
-      sourceData = overrideData;
-    }
-    if (!sourceData) return;
-
-    const detailAnnuel = sourceData.detail_annuel;
-    if (!Array.isArray(detailAnnuel) || detailAnnuel.length === 0) return;
-
-    const newSalaries = {};
-    const newComputed = {};
-
-    detailAnnuel.forEach(entry => {
-      const annee = entry.annee;
-      const regimes = (entry.regimes_concernes || "").toLowerCase();
-      if (!regimes.includes("ircantec")) return;
-
-      // Parse individual revenue amounts from detail_annuel
-      // Split by currency marker (€, FRF, EUR) to reliably isolate each amount
-      const revenusStr = entry.revenus || "";
-      const amounts = revenusStr.split(/€|FRF|EUR/i).map(s => {
-        const digits = s.replace(/[^\d]/g, "");
-        return digits ? parseInt(digits, 10) : NaN;
-      }).filter(n => !isNaN(n) && n > 0);
-
-      if (amounts.length === 0) return;
-
-      let montant;
-      if (regimes.includes("agirc-arrco") && amounts.length > 1) {
-        // Mixed year (Agirc-Arrco + Ircantec): exclude the largest amount
-        // (main Agirc-Arrco salary) to isolate Ircantec revenue
-        const maxAmount = Math.max(...amounts);
-        montant = amounts.reduce((sum, a) => sum + a, 0) - maxAmount;
-      } else {
-        // Ircantec-only year: use the full total
-        montant = amounts.reduce((sum, a) => sum + a, 0);
+  const handlePrefill = useCallback(
+    (overrideData = null) => {
+      let sourceData = user;
+      if (
+        overrideData &&
+        (overrideData.detail_annuel ||
+          overrideData.debug_carriere_detaillee_regex)
+      ) {
+        sourceData = overrideData;
       }
+      if (!sourceData) return;
 
-      if (!montant || montant <= 0) return;
+      const detailAnnuel = sourceData.detail_annuel;
+      if (!Array.isArray(detailAnnuel) || detailAnnuel.length === 0) return;
 
-      newSalaries[annee] = String(montant);
+      const newSalaries = {};
+      const newComputed = {};
 
-      const salaire = parseFloat(String(montant));
-      const display = ircantecTauxDisplay[annee];
-      if (!ircantecPlafonds[annee] || !ircantecValeursPoint[annee] || !display || isNaN(salaire)) return;
+      detailAnnuel.forEach((entry) => {
+        const annee = entry.annee;
+        const regimes = (entry.regimes_concernes || "").toLowerCase();
+        if (!regimes.includes("ircantec")) return;
 
-      const plafondAnnuel = ircantecPlafonds[annee];
-      const valeurPoint = ircantecValeursPoint[annee];
-      const tauxA = parseFloat((display.tauxA || "").replace(",", ".").replace("%", "")) / 100;
-      const tauxB = parseFloat((display.tauxB || "").replace(",", ".").replace("%", "")) / 100;
+        // Parse individual revenue amounts from detail_annuel
+        // Split by currency marker (€, FRF, EUR) to reliably isolate each amount
+        const revenusStr = entry.revenus || "";
+        const amounts = revenusStr
+          .split(/€|FRF|EUR/i)
+          .map((s) => {
+            const digits = s.replace(/[^\d]/g, "");
+            return digits ? parseInt(digits, 10) : NaN;
+          })
+          .filter((n) => !isNaN(n) && n > 0);
 
-      const cotisA = Math.min(salaire, plafondAnnuel) * tauxA;
-      const cotisB = Math.max(0, Math.min(salaire, 8 * plafondAnnuel) - plafondAnnuel) * tauxB;
-      const pointsA = cotisA / valeurPoint;
-      const pointsB = cotisB / valeurPoint;
-      const totalPoints = pointsA + pointsB;
+        if (amounts.length === 0) return;
 
-      newComputed[annee] = {
-        tra: pointsA.toFixed(5) + " points",
-        trb: pointsB.toFixed(5) + " points",
-        total: totalPoints.toFixed(5) + " points",
-      };
-    });
+        let montant;
+        if (regimes.includes("agirc-arrco") && amounts.length > 1) {
+          // Mixed year (Agirc-Arrco + Ircantec): exclude the largest amount
+          // (main Agirc-Arrco salary) to isolate Ircantec revenue
+          const maxAmount = Math.max(...amounts);
+          montant = amounts.reduce((sum, a) => sum + a, 0) - maxAmount;
+        } else {
+          // Ircantec-only year: use the full total
+          montant = amounts.reduce((sum, a) => sum + a, 0);
+        }
 
-    setSalaries(newSalaries);
-    setComputed(newComputed);
-  }, [user]);
+        if (!montant || montant <= 0) return;
+
+        newSalaries[annee] = String(montant);
+
+        const salaire = parseFloat(String(montant));
+        const display = ircantecTauxDisplay[annee];
+        if (
+          !ircantecPlafonds[annee] ||
+          !ircantecValeursPoint[annee] ||
+          !display ||
+          isNaN(salaire)
+        )
+          return;
+
+        const plafondAnnuel = ircantecPlafonds[annee];
+        const valeurPoint = ircantecValeursPoint[annee];
+        const tauxA =
+          parseFloat((display.tauxA || "").replace(",", ".").replace("%", "")) /
+          100;
+        const tauxB =
+          parseFloat((display.tauxB || "").replace(",", ".").replace("%", "")) /
+          100;
+
+        const cotisA = Math.min(salaire, plafondAnnuel) * tauxA;
+        const cotisB =
+          Math.max(0, Math.min(salaire, 8 * plafondAnnuel) - plafondAnnuel) *
+          tauxB;
+        const pointsA = cotisA / valeurPoint;
+        const pointsB = cotisB / valeurPoint;
+        const totalPoints = pointsA + pointsB;
+
+        newComputed[annee] = {
+          tra: pointsA.toFixed(5) + " points",
+          trb: pointsB.toFixed(5) + " points",
+          total: totalPoints.toFixed(5) + " points",
+        };
+      });
+
+      setSalaries(newSalaries);
+      setComputed(newComputed);
+    },
+    [user],
+  );
 
   // Auto-prefill depuis l'import ManualCareerTable (event temps réel + sessionStorage au montage)
   useEffect(() => {
@@ -151,7 +180,7 @@ export default function IrcantecSimulator({ user }) {
     }
 
     return () => window.removeEventListener("risImportComplete", onRisImport);
-  }, [user?.id, handlePrefill]);
+  }, [user, handlePrefill]);
 
   const handleImportRIS = useCallback(() => {
     if (fileInputRef.current) {
@@ -168,34 +197,41 @@ export default function IrcantecSimulator({ user }) {
     }
   }, [user, handlePrefill, handleImportRIS]);
 
-  const handleFileChange = useCallback(async (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
+  const handleFileChange = useCallback(
+    async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
 
-    setIsImporting(true);
-    try {
-      const childrenCount = user?.profil?.children_number ?? user?.children_number ?? "";
-      const birthDateVal = user?.profil?.date_naissance ?? user?.birth_date ?? "";
-      const msg = `Analyse RIS pour Ircantec Simulator.\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDateVal}`;
+      setIsImporting(true);
+      try {
+        const childrenCount =
+          user?.profil?.children_number ?? user?.children_number ?? "";
+        const birthDateVal =
+          user?.profil?.date_naissance ?? user?.birth_date ?? "";
+        const msg = `Analyse RIS pour Ircantec Simulator.\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDateVal}`;
 
-      toast.info("Analyse du RIS en cours...");
+        toast.info("Analyse du RIS en cours...");
 
-      const payload = await fetchRISAnalysis(file, msg, user?.id);
+        const payload = await fetchRISAnalysis(file, msg, user?.id);
 
-      if (!payload || !payload.debug_carriere_detaillee_regex) {
-        toast.warn("Le retour de l'analyse ne contient pas de données de carrière utilisables.");
-        console.warn("Webhook response:", payload);
+        if (!payload || !payload.debug_carriere_detaillee_regex) {
+          toast.warn(
+            "Le retour de l'analyse ne contient pas de données de carrière utilisables.",
+          );
+          console.warn("Webhook response:", payload);
+        }
+
+        handlePrefill(payload);
+        toast.success("Données importées avec succès !");
+      } catch (err) {
+        console.error("Erreur import RIS:", err);
+        toast.error("Erreur lors de l'analyse du fichier.");
+      } finally {
+        setIsImporting(false);
       }
-
-      handlePrefill(payload);
-      toast.success("Données importées avec succès !");
-    } catch (err) {
-      console.error("Erreur import RIS:", err);
-      toast.error("Erreur lors de l'analyse du fichier.");
-    } finally {
-      setIsImporting(false);
-    }
-  }, [user, handlePrefill]);
+    },
+    [user, handlePrefill],
+  );
 
   return (
     <>
@@ -227,67 +263,85 @@ export default function IrcantecSimulator({ user }) {
         <div className="container-inner">
           <div className="collapsible">
             <div className="collapsible-header open">
-              <span className="sim-title" style={{ margin: 0 }}>CALCUL NOMBRE DE POINTS &Agrave; PARTIR D&rsquo;UN SALAIRE</span>
+              <span className="sim-title" style={{ margin: 0 }}>
+                CALCUL NOMBRE DE POINTS &Agrave; PARTIR D&rsquo;UN SALAIRE
+              </span>
             </div>
             <div style={{ padding: 16 }}>
-                <div style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
-                  <button
-                    type="button"
-                    className="action-btn"
-                    style={{ background: isImporting ? "#6c757d" : "#28c76f", borderColor: isImporting ? "#6c757d" : "#28c76f" }}
-                    onClick={handleImportOrPrefill}
-                    disabled={isImporting}
-                  >
-                    {isImporting ? "Analyse..." : "Importer les donn\u00e9es"}
-                  </button>
-                  <button type="button" className="action-btn" onClick={handleReset}>R&eacute;initialiser</button>
-                </div>
-                <table className="tableizer-table">
-                  <thead>
-                    <tr>
-                      <th>Ann&eacute;e</th>
-                      <th>Salaire (F/&euro;)</th>
-                      <th>Taux service Tranche A</th>
-                      <th>Taux service Tranche B</th>
-                      <th>Salaire r&eacute;f&eacute;rence (F/&euro;)</th>
-                      <th>TRANCHE A</th>
-                      <th>TRANCHE B</th>
-                      <th>TOTAL</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedYears.map(year => {
-                      const isFranc = year <= 2001;
-                      const display = ircantecTauxDisplay[year] || {};
-                      const comp = computed[year];
-                      return (
-                        <tr key={year}>
-                          <td>{year}</td>
-                          <td>
-                            <input
-                              type="text"
-                              className="salary-input"
-                              placeholder={isFranc ? "en Franc" : "en \u20ACuro"}
-                              value={salaries[year] || ""}
-                              onChange={e => {
-                                const val = e.target.value;
-                                setSalaries(prev => ({ ...prev, [year]: val }));
-                                handleSimulateur(val, year);
-                              }}
-                            />
-                          </td>
-                          <td>{display.tauxA || ""}</td>
-                          <td>{display.tauxB || ""}</td>
-                          <td>{display.ref || ""}</td>
-                          <td>{comp ? comp.tra : ""}</td>
-                          <td>{comp ? comp.trb : ""}</td>
-                          <td>{comp ? comp.total : ""}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <div
+                style={{
+                  marginBottom: 8,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <button
+                  type="button"
+                  className="action-btn"
+                  style={{
+                    background: isImporting ? "#6c757d" : "#28c76f",
+                    borderColor: isImporting ? "#6c757d" : "#28c76f",
+                  }}
+                  onClick={handleImportOrPrefill}
+                  disabled={isImporting}
+                >
+                  {isImporting ? "Analyse..." : "Importer les donn\u00e9es"}
+                </button>
+                <button
+                  type="button"
+                  className="action-btn"
+                  onClick={handleReset}
+                >
+                  R&eacute;initialiser
+                </button>
               </div>
+              <table className="tableizer-table">
+                <thead>
+                  <tr>
+                    <th>Ann&eacute;e</th>
+                    <th>Salaire (F/&euro;)</th>
+                    <th>Taux service Tranche A</th>
+                    <th>Taux service Tranche B</th>
+                    <th>Salaire r&eacute;f&eacute;rence (F/&euro;)</th>
+                    <th>TRANCHE A</th>
+                    <th>TRANCHE B</th>
+                    <th>TOTAL</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedYears.map((year) => {
+                    const isFranc = year <= 2001;
+                    const display = ircantecTauxDisplay[year] || {};
+                    const comp = computed[year];
+                    return (
+                      <tr key={year}>
+                        <td>{year}</td>
+                        <td>
+                          <input
+                            type="text"
+                            className="salary-input"
+                            placeholder={isFranc ? "en Franc" : "en \u20ACuro"}
+                            value={salaries[year] || ""}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setSalaries((prev) => ({ ...prev, [year]: val }));
+                              handleSimulateur(val, year);
+                            }}
+                          />
+                        </td>
+                        <td>{display.tauxA || ""}</td>
+                        <td>{display.tauxB || ""}</td>
+                        <td>{display.ref || ""}</td>
+                        <td>{comp ? comp.tra : ""}</td>
+                        <td>{comp ? comp.trb : ""}</td>
+                        <td>{comp ? comp.total : ""}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>

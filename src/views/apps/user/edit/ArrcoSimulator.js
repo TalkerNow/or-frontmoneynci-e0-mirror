@@ -37,7 +37,8 @@ export default function ArrcoSimulator({ user }) {
         cotisationTB = trancheB * tauxTB;
       }
       const totalCotisations = cotisationTB * 0.347791548;
-      const totalPoints = (totalCotisations / valeurAchatArrco) + (cotisationTA / valeurT1);
+      const totalPoints =
+        totalCotisations / valeurAchatArrco + cotisationTA / valeurT1;
 
       return {
         trancheA: (cotisationTA / valeurT1).toFixed(2) + " pts (A)",
@@ -82,7 +83,7 @@ export default function ArrcoSimulator({ user }) {
         const cotisB = (annuelBrut - plafondAnnuel) * tauxAgirc;
         pointsB = cotisB / valeurPtAgirc;
       }
-      const totalPoints = pointsA + (pointsB * 0.347791548);
+      const totalPoints = pointsA + pointsB * 0.347791548;
 
       return {
         trancheA: pointsA.toFixed(2) + " points",
@@ -111,103 +112,117 @@ export default function ArrcoSimulator({ user }) {
     }
   }, []);
 
-  const handleSalaryChange = useCallback((year, value, cadre) => {
-    setSalaries(prev => ({ ...prev, [year]: value }));
+  const handleSalaryChange = useCallback(
+    (year, value, cadre) => {
+      setSalaries((prev) => ({ ...prev, [year]: value }));
 
-    let annuelBrut = parseFloat(value);
-    if (isNaN(annuelBrut)) {
-      setComputed(prev => {
-        const next = { ...prev };
-        delete next[year];
-        return next;
+      let annuelBrut = parseFloat(value);
+      if (isNaN(annuelBrut)) {
+        setComputed((prev) => {
+          const next = { ...prev };
+          delete next[year];
+          return next;
+        });
+        return;
+      }
+      if (year < 2002) annuelBrut = annuelBrut / 6.55957;
+
+      const x = arrcoPlafond.findIndex((p) => p[0] === year);
+      if (x < 0) return;
+
+      const result = cadre
+        ? computeCadre(annuelBrut, year, x)
+        : computeNonCadre(annuelBrut, year, x);
+      setComputed((prev) => ({ ...prev, [year]: result }));
+    },
+    [computeNonCadre, computeCadre],
+  );
+
+  const handleStatusChange = useCallback(
+    (cadre) => {
+      setIsCadre(cadre);
+      setSalaries((prev) => {
+        const newComputed = {};
+        Object.entries(prev).forEach(([yearStr, value]) => {
+          const year = parseInt(yearStr, 10);
+          let annuelBrut = parseFloat(value);
+          if (isNaN(annuelBrut)) return;
+          if (year < 2002) annuelBrut = annuelBrut / 6.55957;
+          const x = arrcoPlafond.findIndex((p) => p[0] === year);
+          if (x < 0) return;
+          newComputed[year] = cadre
+            ? computeCadre(annuelBrut, year, x)
+            : computeNonCadre(annuelBrut, year, x);
+        });
+        setComputed(newComputed);
+        return prev;
       });
-      return;
-    }
-    if (year < 2002) annuelBrut = annuelBrut / 6.55957;
-
-    const x = arrcoPlafond.findIndex(p => p[0] === year);
-    if (x < 0) return;
-
-    const result = cadre ? computeCadre(annuelBrut, year, x) : computeNonCadre(annuelBrut, year, x);
-    setComputed(prev => ({ ...prev, [year]: result }));
-  }, [computeNonCadre, computeCadre]);
-
-  const handleStatusChange = useCallback((cadre) => {
-    setIsCadre(cadre);
-    setSalaries(prev => {
-      const newComputed = {};
-      Object.entries(prev).forEach(([yearStr, value]) => {
-        const year = parseInt(yearStr, 10);
-        let annuelBrut = parseFloat(value);
-        if (isNaN(annuelBrut)) return;
-        if (year < 2002) annuelBrut = annuelBrut / 6.55957;
-        const x = arrcoPlafond.findIndex(p => p[0] === year);
-        if (x < 0) return;
-        newComputed[year] = cadre
-          ? computeCadre(annuelBrut, year, x)
-          : computeNonCadre(annuelBrut, year, x);
-      });
-      setComputed(newComputed);
-      return prev;
-    });
-  }, [computeNonCadre, computeCadre]);
+    },
+    [computeNonCadre, computeCadre],
+  );
 
   const handleReset = useCallback(() => {
     setSalaries({});
     setComputed({});
   }, []);
 
-  const handlePrefill = useCallback((overrideData = null) => {
-    let sourceData = user;
-    if (overrideData && overrideData.debug_carriere_detaillee_regex) {
-      sourceData = overrideData;
-    }
-    if (!sourceData) return;
-
-    // Build set of Agirc-Arrco years from detail_annuel (accurate regime info)
-    const detailAnnuel = sourceData.detail_annuel;
-    const arrcoYears = new Set();
-    if (Array.isArray(detailAnnuel)) {
-      detailAnnuel.forEach(entry => {
-        const regimes = (entry.regimes_concernes || "").toLowerCase();
-        if (regimes.includes("agirc-arrco")) arrcoYears.add(entry.annee);
-      });
-    }
-
-    // Use debug_carriere_detaillee_regex for clean revenue amounts
-    const careerData = sourceData.debug_carriere_detaillee_regex;
-    if (!careerData || !Array.isArray(careerData) || careerData.length === 0) return;
-
-    const newSalaries = {};
-    const newComputed = {};
-
-    careerData.forEach(entry => {
-      const annee = entry.annee;
-      if (!annee || !arrcoYears.has(annee)) return;
-
-      let montant = entry.revenu_brut;
-      if (!montant && entry.revenus) {
-        const clean = entry.revenus.replace(/[^0-9.,]/g, "").replace(",", ".");
-        montant = parseFloat(clean);
+  const handlePrefill = useCallback(
+    (overrideData = null) => {
+      let sourceData = user;
+      if (overrideData && overrideData.debug_carriere_detaillee_regex) {
+        sourceData = overrideData;
       }
-      if (!montant) return;
+      if (!sourceData) return;
 
-      newSalaries[annee] = String(montant);
+      // Build set of Agirc-Arrco years from detail_annuel (accurate regime info)
+      const detailAnnuel = sourceData.detail_annuel;
+      const arrcoYears = new Set();
+      if (Array.isArray(detailAnnuel)) {
+        detailAnnuel.forEach((entry) => {
+          const regimes = (entry.regimes_concernes || "").toLowerCase();
+          if (regimes.includes("agirc-arrco")) arrcoYears.add(entry.annee);
+        });
+      }
 
-      let annuelBrut = parseFloat(String(montant));
-      if (annee < 2002) annuelBrut = annuelBrut / 6.55957;
+      // Use debug_carriere_detaillee_regex for clean revenue amounts
+      const careerData = sourceData.debug_carriere_detaillee_regex;
+      if (!careerData || !Array.isArray(careerData) || careerData.length === 0)
+        return;
 
-      const x = arrcoPlafond.findIndex(p => p[0] === annee);
-      if (x < 0) return;
+      const newSalaries = {};
+      const newComputed = {};
 
-      newComputed[annee] = isCadre
-        ? computeCadre(annuelBrut, annee, x)
-        : computeNonCadre(annuelBrut, annee, x);
-    });
+      careerData.forEach((entry) => {
+        const annee = entry.annee;
+        if (!annee || !arrcoYears.has(annee)) return;
 
-    setSalaries(newSalaries);
-    setComputed(newComputed);
-  }, [user, isCadre, computeCadre, computeNonCadre]);
+        let montant = entry.revenu_brut;
+        if (!montant && entry.revenus) {
+          const clean = entry.revenus
+            .replace(/[^0-9.,]/g, "")
+            .replace(",", ".");
+          montant = parseFloat(clean);
+        }
+        if (!montant) return;
+
+        newSalaries[annee] = String(montant);
+
+        let annuelBrut = parseFloat(String(montant));
+        if (annee < 2002) annuelBrut = annuelBrut / 6.55957;
+
+        const x = arrcoPlafond.findIndex((p) => p[0] === annee);
+        if (x < 0) return;
+
+        newComputed[annee] = isCadre
+          ? computeCadre(annuelBrut, annee, x)
+          : computeNonCadre(annuelBrut, annee, x);
+      });
+
+      setSalaries(newSalaries);
+      setComputed(newComputed);
+    },
+    [user, isCadre, computeCadre, computeNonCadre],
+  );
 
   // Auto-prefill depuis l'import ManualCareerTable (event temps réel + sessionStorage au montage)
   useEffect(() => {
@@ -215,7 +230,11 @@ export default function ArrcoSimulator({ user }) {
     if (!clientId) return;
 
     const onRisImport = (event) => {
-      const { clientId: evtId, risData, isCadre: evtCadre } = event.detail || {};
+      const {
+        clientId: evtId,
+        risData,
+        isCadre: evtCadre,
+      } = event.detail || {};
       if (String(evtId) !== String(clientId) || !risData) return;
       if (evtCadre !== undefined) setIsCadre(evtCadre);
       handlePrefill(risData);
@@ -237,7 +256,7 @@ export default function ArrcoSimulator({ user }) {
     }
 
     return () => window.removeEventListener("risImportComplete", onRisImport);
-  }, [user?.id, handlePrefill]);
+  }, [user, handlePrefill]);
 
   const handleImportRIS = useCallback(() => {
     if (fileInputRef.current) {
@@ -254,34 +273,41 @@ export default function ArrcoSimulator({ user }) {
     }
   }, [user, handlePrefill, handleImportRIS]);
 
-  const handleFileChange = useCallback(async (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
+  const handleFileChange = useCallback(
+    async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
 
-    setIsImporting(true);
-    try {
-      const childrenCount = user?.profil?.children_number ?? user?.children_number ?? "";
-      const birthDateVal = user?.profil?.date_naissance ?? user?.birth_date ?? "";
-      const msg = `Analyse RIS pour Agirc-Arrco Simulator.\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDateVal}`;
+      setIsImporting(true);
+      try {
+        const childrenCount =
+          user?.profil?.children_number ?? user?.children_number ?? "";
+        const birthDateVal =
+          user?.profil?.date_naissance ?? user?.birth_date ?? "";
+        const msg = `Analyse RIS pour Agirc-Arrco Simulator.\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDateVal}`;
 
-      toast.info("Analyse du RIS en cours...");
+        toast.info("Analyse du RIS en cours...");
 
-      const payload = await fetchRISAnalysis(file, msg, user?.id);
+        const payload = await fetchRISAnalysis(file, msg, user?.id);
 
-      if (!payload || !payload.debug_carriere_detaillee_regex) {
-        toast.warn("Le retour de l'analyse ne contient pas de données de carrière utilisables.");
-        console.warn("Webhook response:", payload);
+        if (!payload || !payload.debug_carriere_detaillee_regex) {
+          toast.warn(
+            "Le retour de l'analyse ne contient pas de données de carrière utilisables.",
+          );
+          console.warn("Webhook response:", payload);
+        }
+
+        handlePrefill(payload);
+        toast.success("Données importées avec succès !");
+      } catch (err) {
+        console.error("Erreur import RIS:", err);
+        toast.error("Erreur lors de l'analyse du fichier.");
+      } finally {
+        setIsImporting(false);
       }
-
-      handlePrefill(payload);
-      toast.success("Données importées avec succès !");
-    } catch (err) {
-      console.error("Erreur import RIS:", err);
-      toast.error("Erreur lors de l'analyse du fichier.");
-    } finally {
-      setIsImporting(false);
-    }
-  }, [user, handlePrefill]);
+    },
+    [user, handlePrefill],
+  );
 
   return (
     <>
@@ -320,105 +346,107 @@ export default function ArrcoSimulator({ user }) {
         <div className="container-inner">
           <div className="collapsible">
             <div className="collapsible-header open">
-              <span className="sim-title" style={{ margin: 0 }}>CALCUL NOMBRE DE POINTS &Agrave; PARTIR D&rsquo;UN SALAIRE</span>
+              <span className="sim-title" style={{ margin: 0 }}>
+                CALCUL NOMBRE DE POINTS &Agrave; PARTIR D&rsquo;UN SALAIRE
+              </span>
             </div>
             <div style={{ padding: 16 }}>
-                <div className="controls" style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 12 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <b style={{ fontWeight: 600, fontSize: 14 }}>Statut :</b>
-                    <input
-                      type="radio"
-                      id="arrco-non-cadre"
-                      name="arrco-cadreStatus"
-                      checked={!isCadre}
-                      onChange={() => handleStatusChange(false)}
-                    />
-                    <label htmlFor="arrco-non-cadre">Non-Cadre</label>
-                    <input
-                      type="radio"
-                      id="arrco-cadre"
-                      name="arrco-cadreStatus"
-                      checked={isCadre}
-                      onChange={() => handleStatusChange(true)}
-                    />
-                    <label htmlFor="arrco-cadre">Cadre</label>
-                  </div>
-                  <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-                    <button
-                      type="button"
-                      className="action-btn"
-                      style={{ background: isImporting ? "#6c757d" : "#28c76f", borderColor: isImporting ? "#6c757d" : "#28c76f" }}
-                      onClick={handleImportOrPrefill}
-                      disabled={isImporting}
-                    >
-                      {isImporting ? "Analyse..." : "Importer les donn\u00e9es"}
-                    </button>
-                    <button type="button" className="action-btn" onClick={handleReset}>R&eacute;initialiser</button>
-                  </div>
+              <div
+                className="controls"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 16,
+                  flexWrap: "wrap",
+                  marginBottom: 12,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <b style={{ fontWeight: 600, fontSize: 14 }}>Statut :</b>
+                  <input
+                    type="radio"
+                    id="arrco-non-cadre"
+                    name="arrco-cadreStatus"
+                    checked={!isCadre}
+                    onChange={() => handleStatusChange(false)}
+                  />
+                  <label htmlFor="arrco-non-cadre">Non-Cadre</label>
+                  <input
+                    type="radio"
+                    id="arrco-cadre"
+                    name="arrco-cadreStatus"
+                    checked={isCadre}
+                    onChange={() => handleStatusChange(true)}
+                  />
+                  <label htmlFor="arrco-cadre">Cadre</label>
                 </div>
-
-                <table className="tableizer-table">
-                  <thead>
-                    <tr>
-                      <th>Ann&eacute;e</th>
-                      <th>Salaire (F/&euro;)</th>
-                      <th>Taux service Tranche A</th>
-                      <th>Taux service Tranche B</th>
-                      <th>Salaire r&eacute;f&eacute;rence (F/&euro;)</th>
-                      <th>TRANCHE A</th>
-                      <th>TRANCHE B</th>
-                      <th>TOTAL</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedYears.map(year => {
-                      const isFranc = year <= 2001;
-                      const display = arrcoTauxDisplay[year] || {};
-                      const comp = computed[year];
-                      return (
-                        <tr key={year}>
-                          <td>{year}</td>
-                          <td>
-                            <input
-                              type="text"
-                              className="salary-input"
-                              placeholder={isFranc ? "en Franc" : "en \u20ACuro"}
-                              value={salaries[year] || ""}
-                              onChange={e => {
-                                const val = e.target.value;
-                                setSalaries(prev => ({ ...prev, [year]: val }));
-                                // Recalculate inline
-                                let annuelBrut = parseFloat(val);
-                                if (isNaN(annuelBrut)) {
-                                  setComputed(prev => {
-                                    const next = { ...prev };
-                                    delete next[year];
-                                    return next;
-                                  });
-                                  return;
-                                }
-                                if (year < 2002) annuelBrut = annuelBrut / 6.55957;
-                                const x = arrcoPlafond.findIndex(p => p[0] === year);
-                                if (x < 0) return;
-                                const result = isCadre
-                                  ? computeCadre(annuelBrut, year, x)
-                                  : computeNonCadre(annuelBrut, year, x);
-                                setComputed(prev => ({ ...prev, [year]: result }));
-                              }}
-                            />
-                          </td>
-                          <td>{display.tauxA || ""}</td>
-                          <td>{display.tauxB || ""}</td>
-                          <td>{display.ref || ""}</td>
-                          <td>{comp ? comp.trancheA : ""}</td>
-                          <td>{comp ? comp.trancheB : ""}</td>
-                          <td>{comp ? comp.total : ""}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                  <button
+                    type="button"
+                    className="action-btn"
+                    style={{
+                      background: isImporting ? "#6c757d" : "#28c76f",
+                      borderColor: isImporting ? "#6c757d" : "#28c76f",
+                    }}
+                    onClick={handleImportOrPrefill}
+                    disabled={isImporting}
+                  >
+                    {isImporting ? "Analyse..." : "Importer les donn\u00e9es"}
+                  </button>
+                  <button
+                    type="button"
+                    className="action-btn"
+                    onClick={handleReset}
+                  >
+                    R&eacute;initialiser
+                  </button>
+                </div>
               </div>
+
+              <table className="tableizer-table">
+                <thead>
+                  <tr>
+                    <th>Ann&eacute;e</th>
+                    <th>Salaire (F/&euro;)</th>
+                    <th>Taux service Tranche A</th>
+                    <th>Taux service Tranche B</th>
+                    <th>Salaire r&eacute;f&eacute;rence (F/&euro;)</th>
+                    <th>TRANCHE A</th>
+                    <th>TRANCHE B</th>
+                    <th>TOTAL</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedYears.map((year) => {
+                    const isFranc = year <= 2001;
+                    const display = arrcoTauxDisplay[year] || {};
+                    const comp = computed[year];
+                    return (
+                      <tr key={year}>
+                        <td>{year}</td>
+                        <td>
+                          <input
+                            type="text"
+                            className="salary-input"
+                            placeholder={isFranc ? "en Franc" : "en \u20ACuro"}
+                            value={salaries[year] || ""}
+                            onChange={(e) =>
+                              handleSalaryChange(year, e.target.value, isCadre)
+                            }
+                          />
+                        </td>
+                        <td>{display.tauxA || ""}</td>
+                        <td>{display.tauxB || ""}</td>
+                        <td>{display.ref || ""}</td>
+                        <td>{comp ? comp.trancheA : ""}</td>
+                        <td>{comp ? comp.trancheB : ""}</td>
+                        <td>{comp ? comp.total : ""}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>

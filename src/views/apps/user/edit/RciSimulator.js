@@ -23,7 +23,7 @@ export default function RciSimulator({ user }) {
     let salaire = parseFloat(String(salaireBrut).replace(/\s/g, "").replace(",", "."));
     const display = rciTauxDisplay[year];
     if (!plafondSS[year] || !rciPrixAchat[year] || !display || isNaN(salaire)) {
-      setComputed(prev => {
+      setComputed((prev) => {
         const next = { ...prev };
         delete next[year];
         return next;
@@ -47,7 +47,7 @@ export default function RciSimulator({ user }) {
     const pointsB = cotisB / prixAchat;
     const totalPoints = pointsA + pointsB;
 
-    setComputed(prev => ({
+    setComputed((prev) => ({
       ...prev,
       [year]: {
         tra: pointsA.toFixed(5) + " points",
@@ -62,76 +62,103 @@ export default function RciSimulator({ user }) {
     setComputed({});
   }, []);
 
-  const handlePrefill = useCallback((overrideData = null) => {
-    let sourceData = user;
-    if (overrideData && (overrideData.detail_annuel || overrideData.debug_carriere_detaillee_regex)) {
-      sourceData = overrideData;
-    }
-    if (!sourceData) return;
-
-    const detailAnnuel = sourceData.detail_annuel;
-    if (!Array.isArray(detailAnnuel) || detailAnnuel.length === 0) return;
-
-    const newSalaries = {};
-    const newComputed = {};
-
-    detailAnnuel.forEach(entry => {
-      const annee = entry.annee;
-      const regimes = (entry.regimes_concernes || "").toLowerCase();
-      if (!regimes.includes("rci")) return;
-
-      const revenusStr = entry.revenus || "";
-      // Split par +, €, FRF, EUR pour isoler chaque montant
-      const amounts = revenusStr.split(/[+]|\u20AC|FRF|EUR/i).map(s => {
-        const digits = s.replace(/[^\d]/g, "");
-        return digits ? parseInt(digits, 10) : NaN;
-      }).filter(n => !isNaN(n) && n > 0);
-
-      if (amounts.length === 0) return;
-
-      let montant;
-      // Quand plusieurs régimes et montants, associer RCI à sa position
-      const regimesList = (entry.regimes_concernes || "").split(/,\s*/);
-      const rciIndex = regimesList.findIndex(r => r.toLowerCase().includes("rci"));
-
-      if (amounts.length > 1 && regimesList.length > 1 && rciIndex >= 0 && rciIndex < amounts.length) {
-        montant = amounts[rciIndex];
-      } else {
-        montant = amounts.reduce((sum, a) => sum + a, 0);
+  const handlePrefill = useCallback(
+    (overrideData = null) => {
+      let sourceData = user;
+      if (
+        overrideData &&
+        (overrideData.detail_annuel ||
+          overrideData.debug_carriere_detaillee_regex)
+      ) {
+        sourceData = overrideData;
       }
+      if (!sourceData) return;
 
-      if (!montant || montant <= 0) return;
+      const detailAnnuel = sourceData.detail_annuel;
+      if (!Array.isArray(detailAnnuel) || detailAnnuel.length === 0) return;
 
-      newSalaries[annee] = String(montant);
+      const newSalaries = {};
+      const newComputed = {};
 
-      let salaire = parseFloat(String(montant));
-      const display = rciTauxDisplay[annee];
-      if (!plafondSS[annee] || !rciPrixAchat[annee] || !display || isNaN(salaire)) return;
+      detailAnnuel.forEach((entry) => {
+        const annee = entry.annee;
+        const regimes = (entry.regimes_concernes || "").toLowerCase();
+        if (!regimes.includes("rci")) return;
 
-      // Conversion Francs -> Euros pour les annees avant 2002
-      if (annee < 2002) salaire = salaire / TAUX_CONVERSION_FRF_EUR;
+        const revenusStr = entry.revenus || "";
+        // Split par +, €, FRF, EUR pour isoler chaque montant
+        const amounts = revenusStr
+          .split(/[+]|\u20AC|FRF|EUR/i)
+          .map((s) => {
+            const digits = s.replace(/[^\d]/g, "");
+            return digits ? parseInt(digits, 10) : NaN;
+          })
+          .filter((n) => !isNaN(n) && n > 0);
 
-      const pass = plafondSS[annee];
-      const prixAchat = rciPrixAchat[annee];
-      const tauxA = parseFloat((display.tauxA || "").replace(",", ".").replace("%", "")) / 100;
-      const tauxB = parseFloat((display.tauxB || "").replace(",", ".").replace("%", "")) / 100;
+        if (amounts.length === 0) return;
 
-      const cotisA = Math.min(Math.max(salaire, 0), pass) * tauxA;
-      const cotisB = Math.min(Math.max(salaire - pass, 0), 3 * pass) * tauxB;
-      const pointsA = cotisA / prixAchat;
-      const pointsB = cotisB / prixAchat;
-      const totalPoints = pointsA + pointsB;
+        let montant;
+        // Quand plusieurs régimes et montants, associer RCI à sa position
+        const regimesList = (entry.regimes_concernes || "").split(/,\s*/);
+        const rciIndex = regimesList.findIndex((r) =>
+          r.toLowerCase().includes("rci"),
+        );
 
-      newComputed[annee] = {
-        tra: pointsA.toFixed(5) + " points",
-        trb: pointsB.toFixed(5) + " points",
-        total: totalPoints.toFixed(5) + " points",
-      };
-    });
+        if (
+          amounts.length > 1 &&
+          regimesList.length > 1 &&
+          rciIndex >= 0 &&
+          rciIndex < amounts.length
+        ) {
+          montant = amounts[rciIndex];
+        } else {
+          montant = amounts.reduce((sum, a) => sum + a, 0);
+        }
 
-    setSalaries(newSalaries);
-    setComputed(newComputed);
-  }, [user]);
+        if (!montant || montant <= 0) return;
+
+        newSalaries[annee] = String(montant);
+
+        let salaire = parseFloat(String(montant));
+        const display = rciTauxDisplay[annee];
+        if (
+          !plafondSS[annee] ||
+          !rciPrixAchat[annee] ||
+          !display ||
+          isNaN(salaire)
+        )
+          return;
+
+        // Conversion Francs -> Euros pour les annees avant 2002
+        if (annee < 2002) salaire = salaire / TAUX_CONVERSION_FRF_EUR;
+
+        const pass = plafondSS[annee];
+        const prixAchat = rciPrixAchat[annee];
+        const tauxA =
+          parseFloat((display.tauxA || "").replace(",", ".").replace("%", "")) /
+          100;
+        const tauxB =
+          parseFloat((display.tauxB || "").replace(",", ".").replace("%", "")) /
+          100;
+
+        const cotisA = Math.min(Math.max(salaire, 0), pass) * tauxA;
+        const cotisB = Math.min(Math.max(salaire - pass, 0), 3 * pass) * tauxB;
+        const pointsA = cotisA / prixAchat;
+        const pointsB = cotisB / prixAchat;
+        const totalPoints = pointsA + pointsB;
+
+        newComputed[annee] = {
+          tra: pointsA.toFixed(5) + " points",
+          trb: pointsB.toFixed(5) + " points",
+          total: totalPoints.toFixed(5) + " points",
+        };
+      });
+
+      setSalaries(newSalaries);
+      setComputed(newComputed);
+    },
+    [user],
+  );
 
   // Auto-prefill depuis l'import ManualCareerTable (event temps reel + sessionStorage au montage)
   useEffect(() => {
@@ -159,7 +186,7 @@ export default function RciSimulator({ user }) {
     }
 
     return () => window.removeEventListener("risImportComplete", onRisImport);
-  }, [user?.id, handlePrefill]);
+  }, [user, handlePrefill]);
 
   const handleImportRIS = useCallback(() => {
     if (fileInputRef.current) {
@@ -176,34 +203,41 @@ export default function RciSimulator({ user }) {
     }
   }, [user, handlePrefill, handleImportRIS]);
 
-  const handleFileChange = useCallback(async (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
+  const handleFileChange = useCallback(
+    async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
 
-    setIsImporting(true);
-    try {
-      const childrenCount = user?.profil?.children_number ?? user?.children_number ?? "";
-      const birthDateVal = user?.profil?.date_naissance ?? user?.birth_date ?? "";
-      const msg = `Analyse RIS pour RCI Simulator.\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDateVal}`;
+      setIsImporting(true);
+      try {
+        const childrenCount =
+          user?.profil?.children_number ?? user?.children_number ?? "";
+        const birthDateVal =
+          user?.profil?.date_naissance ?? user?.birth_date ?? "";
+        const msg = `Analyse RIS pour RCI Simulator.\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDateVal}`;
 
-      toast.info("Analyse du RIS en cours...");
+        toast.info("Analyse du RIS en cours...");
 
-      const payload = await fetchRISAnalysis(file, msg, user?.id);
+        const payload = await fetchRISAnalysis(file, msg, user?.id);
 
-      if (!payload || !payload.debug_carriere_detaillee_regex) {
-        toast.warn("Le retour de l'analyse ne contient pas de donn\u00e9es de carri\u00e8re utilisables.");
-        console.warn("Webhook response:", payload);
+        if (!payload || !payload.debug_carriere_detaillee_regex) {
+          toast.warn(
+            "Le retour de l'analyse ne contient pas de donn\u00e9es de carri\u00e8re utilisables.",
+          );
+          console.warn("Webhook response:", payload);
+        }
+
+        handlePrefill(payload);
+        toast.success("Donn\u00e9es import\u00e9es avec succ\u00e8s !");
+      } catch (err) {
+        console.error("Erreur import RIS:", err);
+        toast.error("Erreur lors de l'analyse du fichier.");
+      } finally {
+        setIsImporting(false);
       }
-
-      handlePrefill(payload);
-      toast.success("Donn\u00e9es import\u00e9es avec succ\u00e8s !");
-    } catch (err) {
-      console.error("Erreur import RIS:", err);
-      toast.error("Erreur lors de l'analyse du fichier.");
-    } finally {
-      setIsImporting(false);
-    }
-  }, [user, handlePrefill]);
+    },
+    [user, handlePrefill],
+  );
 
   return (
     <>
@@ -235,66 +269,84 @@ export default function RciSimulator({ user }) {
         <div className="container-inner">
           <div className="collapsible">
             <div className="collapsible-header open">
-              <span className="sim-title" style={{ margin: 0 }}>CALCUL NOMBRE DE POINTS &Agrave; PARTIR D&rsquo;UN REVENU</span>
+              <span className="sim-title" style={{ margin: 0 }}>
+                CALCUL NOMBRE DE POINTS &Agrave; PARTIR D&rsquo;UN REVENU
+              </span>
             </div>
             <div style={{ padding: 16 }}>
-                <div style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
-                  <button
-                    type="button"
-                    className="action-btn"
-                    style={{ background: isImporting ? "#6c757d" : "#28c76f", borderColor: isImporting ? "#6c757d" : "#28c76f" }}
-                    onClick={handleImportOrPrefill}
-                    disabled={isImporting}
-                  >
-                    {isImporting ? "Analyse..." : "Importer les donn\u00e9es"}
-                  </button>
-                  <button type="button" className="action-btn" onClick={handleReset}>R&eacute;initialiser</button>
-                </div>
-                <table className="tableizer-table">
-                  <thead>
-                    <tr>
-                      <th>Ann&eacute;e</th>
-                      <th>Revenu (&euro;)</th>
-                      <th>Taux Tranche 1</th>
-                      <th>Taux Tranche 2</th>
-                      <th>Prix d&rsquo;achat du point (&euro;)</th>
-                      <th>TRANCHE 1</th>
-                      <th>TRANCHE 2</th>
-                      <th>TOTAL</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedYears.map(year => {
-                      const display = rciTauxDisplay[year] || {};
-                      const comp = computed[year];
-                      return (
-                        <tr key={year}>
-                          <td>{year}</td>
-                          <td>
-                            <input
-                              type="text"
-                              className="salary-input"
-                              placeholder={year >= 2002 ? "en Euro" : "en Francs"}
-                              value={salaries[year] || ""}
-                              onChange={e => {
-                                const val = e.target.value;
-                                setSalaries(prev => ({ ...prev, [year]: val }));
-                                handleSimulateur(val, year);
-                              }}
-                            />
-                          </td>
-                          <td>{display.tauxA || ""}</td>
-                          <td>{display.tauxB || ""}</td>
-                          <td>{display.ref || ""}</td>
-                          <td>{comp ? comp.tra : ""}</td>
-                          <td>{comp ? comp.trb : ""}</td>
-                          <td>{comp ? comp.total : ""}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <div
+                style={{
+                  marginBottom: 8,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <button
+                  type="button"
+                  className="action-btn"
+                  style={{
+                    background: isImporting ? "#6c757d" : "#28c76f",
+                    borderColor: isImporting ? "#6c757d" : "#28c76f",
+                  }}
+                  onClick={handleImportOrPrefill}
+                  disabled={isImporting}
+                >
+                  {isImporting ? "Analyse..." : "Importer les donn\u00e9es"}
+                </button>
+                <button
+                  type="button"
+                  className="action-btn"
+                  onClick={handleReset}
+                >
+                  R&eacute;initialiser
+                </button>
               </div>
+              <table className="tableizer-table">
+                <thead>
+                  <tr>
+                    <th>Ann&eacute;e</th>
+                    <th>Revenu (&euro;)</th>
+                    <th>Taux Tranche 1</th>
+                    <th>Taux Tranche 2</th>
+                    <th>Prix d&rsquo;achat du point (&euro;)</th>
+                    <th>TRANCHE 1</th>
+                    <th>TRANCHE 2</th>
+                    <th>TOTAL</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedYears.map((year) => {
+                    const display = rciTauxDisplay[year] || {};
+                    const comp = computed[year];
+                    return (
+                      <tr key={year}>
+                        <td>{year}</td>
+                        <td>
+                          <input
+                            type="text"
+                            className="salary-input"
+                            placeholder={year >= 2002 ? "en Euro" : "en Francs"}
+                            value={salaries[year] || ""}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setSalaries((prev) => ({ ...prev, [year]: val }));
+                              handleSimulateur(val, year);
+                            }}
+                          />
+                        </td>
+                        <td>{display.tauxA || ""}</td>
+                        <td>{display.tauxB || ""}</td>
+                        <td>{display.ref || ""}</td>
+                        <td>{comp ? comp.tra : ""}</td>
+                        <td>{comp ? comp.trb : ""}</td>
+                        <td>{comp ? comp.total : ""}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>

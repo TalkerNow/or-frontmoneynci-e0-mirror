@@ -282,28 +282,50 @@ const BADGE_CLASS_BY_TYPE = {
 // Définition des steps par type
 const STEP_DEFINITION = {
   credit_impot: {
-    totalSteps: 8,
-    dateSteps: [1, 2, 3, 4, 5, 6, 7],
+    totalSteps: 9, // Augmenté de 8 à 9 pour ajouter "Envoi du contrat" au début
+    dateSteps: [1, 2, 3, 4, 5, 6, 7, 8], // Les étapes visuelles 1 à 8 ont une date
+    columnMap: {
+      1: 8, // Visual Step 1 (Envoi) -> DB step8 (inutilisé avant)
+      2: 1, // Visual Step 2 (Signature) -> DB step1
+      3: 2, // Visual Step 3 (Activation Urssaf) -> DB step2
+      4: 3, // Visual Step 4 (5 jours) -> DB step3
+      5: 4, // Visual Step 5 (Création devis) -> DB step4
+      6: 5, // Visual Step 6 (Transfo devis) -> DB step5
+      7: 6, // Visual Step 7 (Paiement Unipro) -> DB step6
+      8: 7, // Visual Step 8 (Paiement contrat) -> DB step7
+      9: null, // Visual Step 9 (Avancement) -> Calculé
+    },
     labels: [
-      "Signature du contrat", // 1
-      "Activation compte Urssaf", // 2
-      "5 jours ouvrés d'attente", // 3
-      "Création devis", // 4
-      "Transformer devis en facture", // 5
-      "Paiement automatique Unipro", // 6
-      "Paiement du contrat", // 7
-      "Avancement du dossier", // 8
+      "Envoi du contrat", // Visual Step 1
+      "Signature du contrat", // Visual Step 2
+      "Activation compte Urssaf", // Visual Step 3
+      "5 jours ouvrés d'attente", // Visual Step 4
+      "Création devis", // Visual Step 5
+      "Transformer devis en facture", // Visual Step 6
+      "Paiement automatique Unipro", // Visual Step 7
+      "Paiement du contrat", // Visual Step 8
+      "Avancement du dossier", // Visual Step 9
     ],
   },
   ar_tfd: {
-    totalSteps: 5,
-    dateSteps: [1, 2, 3, 4],
+    totalSteps: 6,
+    dateSteps: [1, 2, 3, 4, 5], // Les étapes visuelles 1, 2, 3, 4, 5 ont une date
+    // Mapping : Etape Visuelle -> Colonne DB
+    columnMap: {
+      1: 6, // Envoi du contrat -> step6_completed_at
+      2: 1, // Signature du contrat -> step1_completed_at
+      3: 2, // Création devis -> step2_completed_at
+      4: 3, // Transformer devis en facture -> step3_completed_at
+      5: 4, // Paiement du contrat -> step4_completed_at
+      6: null, // Avancement du dossier -> pas de date spécifique (calculé)
+    },
     labels: [
-      "Signature du contrat", // 1
-      "Création devis", // 2
-      "Transformer devis en facture", // 3
-      "Paiement du contrat", // 4
-      "Avancement du dossier", // 5 (sans date)
+      "Envoi du contrat", // Visuel 1 (DB step6)
+      "Signature du contrat", // Visuel 2 (DB step1)
+      "Création devis", // Visuel 3 (DB step2)
+      "Transformer devis en facture", // Visuel 4 (DB step3)
+      "Paiement du contrat", // Visuel 5 (DB step4)
+      "Avancement du dossier", // Visuel 6
     ],
   },
 
@@ -419,12 +441,25 @@ const getCurrentStepNumber = (typeCode, suivi) => {
 
     const hasDate = stepDef.dateSteps.includes(stepNumber);
     if (hasDate) {
-      const col = `step${stepNumber}_completed_at`;
+      // 💡 Support du mapping de colonnes (pour AR/TFD notamment)
+      let dbStepNumber = stepNumber;
+      if (stepDef.columnMap && stepDef.columnMap[stepNumber]) {
+        dbStepNumber = stepDef.columnMap[stepNumber];
+      }
+      const col = `step${dbStepNumber}_completed_at`;
       return !!suivi[col];
     }
 
     if (!stepDef.dateSteps.length) return false;
-    return stepDef.dateSteps.every((num) => !!suivi[`step${num}_completed_at`]);
+
+    // Pour l'étape finale "Avancement du dossier", on vérifie toutes les dates requises
+    return stepDef.dateSteps.every((num) => {
+      let dbNum = num;
+      if (stepDef.columnMap && stepDef.columnMap[num]) {
+        dbNum = stepDef.columnMap[num];
+      }
+      return !!suivi[`step${dbNum}_completed_at`];
+    });
   };
 
   let current = null;
@@ -450,6 +485,8 @@ const getCurrentStepNumber = (typeCode, suivi) => {
 };
 
 const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
+  console.log("--- SuiviAvancementBox Render ---");
+
   const [loading, setLoading] = useState(false);
   const [suivis, setSuivis] = useState([]);
   const [contracts, setContracts] = useState([]);
@@ -703,9 +740,16 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
     }));
     setError(null);
 
-    const column = `step${stepNumber}_completed_at`;
+    // 💡 Récupération du mapping si existant
+    const stepDef = STEP_DEFINITION[typeCode];
+    let dbStepNumber = stepNumber;
+    if (stepDef && stepDef.columnMap && stepDef.columnMap[stepNumber]) {
+      dbStepNumber = stepDef.columnMap[stepNumber];
+    }
+
+    const column = `step${dbStepNumber}_completed_at`;
     const hasExistingDate = !!suivi[column];
-    const url = `${global.config.server_url}/suivi-avancement/${svId}/steps/${stepNumber}`;
+    const url = `${global.config.server_url}/suivi-avancement/${svId}/steps/${dbStepNumber}`;
 
     try {
       if (hasExistingDate) {
@@ -714,8 +758,8 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
         await axios.post(url, { date: dateToSend }, getConfig());
       }
 
-      // Cas spécial : crédit d'impot, step 2 -> auto step 3 = +5 jours ouvrés
-      if (typeCode === "credit_impot" && stepNumber === 2) {
+      // Cas spécial : crédit d'impot, step 3 (Ex-Step 2 Activation) -> auto step 4 (Ex-Step 3 5 jours) = +5 jours ouvrés
+      if (typeCode === "credit_impot" && stepNumber === 3) {
         const d3 = addBusinessDays(raw, 5);
         if (d3) {
           const date3ToSend = fromDateInputValue(d3);
@@ -729,7 +773,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
               await axios.post(step3Url, { date: date3ToSend }, getConfig());
             }
           } catch (e) {
-            console.error("Erreur mise à jour auto step3", e);
+            console.error("Erreur mise à jour auto step3 (5 jours)", e);
           }
         }
       }
@@ -739,6 +783,10 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
       cancelEditing(svId, stepNumber);
     } catch (e) {
       console.error(e);
+      if (e.response) {
+        console.error("Server Error Data:", e.response.data);
+        console.error("Server Error Status:", e.response.status);
+      }
       setError("Erreur lors de la mise à jour de la date.");
     } finally {
       setSaving((prev) => ({
@@ -790,7 +838,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
     }
   };
 
-  const validateStep7Date = async (suivi, dateInput) => {
+  const validateStep7Date = async (suivi, dateInput, visualStep = 8) => {
     const svId = suivi.id;
     if (!dateInput) return;
     const dateToSend = fromDateInputValue(dateInput); // "YYYY-MM-DD 00:00:00"
@@ -798,7 +846,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
 
     setSaving((prev) => ({
       ...prev,
-      [svId]: { ...(prev[svId] || {}), 7: true },
+      [svId]: { ...(prev[svId] || {}), [visualStep]: true },
     }));
     setError(null);
 
@@ -813,7 +861,6 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
         await axios.post(url, { date: dateToSend }, getConfig());
       }
 
-      // 2) Mise à jour du contrat (sold_dates) dans la table documents
       // 2) Mise à jour du contrat (sold_dates) dans la table documents
       if (suivi.facture_id) {
         const soldDates = JSON.stringify([dateToSend]);
@@ -841,7 +888,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
 
       const refreshedSuivis = await fetchSuivis();
       setSuivis(refreshedSuivis);
-      cancelEditing(svId, 7);
+      cancelEditing(svId, visualStep);
     } catch (e) {
       console.error("Erreur validation step7 (paiement du contrat)", e);
       setError(
@@ -850,7 +897,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
     } finally {
       setSaving((prev) => ({
         ...prev,
-        [svId]: { ...(prev[svId] || {}), 7: false },
+        [svId]: { ...(prev[svId] || {}), [visualStep]: false },
       }));
     }
   };
@@ -893,7 +940,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
   };
 
   // Validation step 4 (Création devis) avec une date donnée (input YYYY-MM-DD)
-  const validateStep4Date = async (suivi, dateInput) => {
+  const validateStep4Date = async (suivi, dateInput, visualStep = 5) => {
     const svId = suivi.id;
     if (!dateInput) return;
     const dateToSend = fromDateInputValue(dateInput);
@@ -901,7 +948,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
 
     setSaving((prev) => ({
       ...prev,
-      [svId]: { ...(prev[svId] || {}), 4: true },
+      [svId]: { ...(prev[svId] || {}), [visualStep]: true },
     }));
     setError(null);
 
@@ -916,22 +963,22 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
       }
       const refreshedSuivis = await fetchSuivis();
       setSuivis(refreshedSuivis);
-      cancelEditing(svId, 4);
+      cancelEditing(svId, visualStep);
     } catch (e) {
       console.error("Erreur validation step4", e);
       setError(
-        "Erreur lors de la validation de la date pour l'étape 4 (Création devis)."
+        "Erreur lors de la validation de la date pour l'étape 4 (Création devis).",
       );
     } finally {
       setSaving((prev) => ({
         ...prev,
-        [svId]: { ...(prev[svId] || {}), 4: false },
+        [svId]: { ...(prev[svId] || {}), [visualStep]: false },
       }));
     }
   };
 
   // Validation step 6 (date step 5 + 2 jours)
-  const validateStep6Date = async (suivi, dateInput) => {
+  const validateStep6Date = async (suivi, dateInput, visualStep = 7) => {
     const svId = suivi.id;
     if (!dateInput) return;
     const dateToSend = fromDateInputValue(dateInput);
@@ -939,7 +986,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
 
     setSaving((prev) => ({
       ...prev,
-      [svId]: { ...(prev[svId] || {}), 6: true },
+      [svId]: { ...(prev[svId] || {}), [visualStep]: true },
     }));
     setError(null);
 
@@ -954,16 +1001,16 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
       }
       const refreshedSuivis = await fetchSuivis();
       setSuivis(refreshedSuivis);
-      cancelEditing(svId, 6);
+      cancelEditing(svId, visualStep);
     } catch (e) {
       console.error("Erreur validation step6", e);
       setError(
-        "Erreur lors de la validation de la date pour l'étape 6 (crédit d'impot)."
+        "Erreur lors de la validation de la date pour l'étape 6 (Transformer devis).",
       );
     } finally {
       setSaving((prev) => ({
         ...prev,
-        [svId]: { ...(prev[svId] || {}), 6: false },
+        [svId]: { ...(prev[svId] || {}), [visualStep]: false },
       }));
     }
   };
@@ -1094,7 +1141,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
         await axios.put(
           `${global.config.server_url}/documents/${suivi.facture_id}`,
           payload,
-          getConfig()
+          getConfig(),
         );
       }
 
@@ -1104,10 +1151,10 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
     } catch (e) {
       console.error(
         "Erreur validation step4 (paiement contrat CH/SIMU/ACTU/RAC)",
-        e
+        e,
       );
       setError(
-        "Erreur lors de la validation de la date de paiement (CH/SIMU/ACTU/RAC)."
+        "Erreur lors de la validation de la date de paiement (CH/SIMU/ACTU/RAC).",
       );
     } finally {
       setSaving((prev) => ({
@@ -1117,19 +1164,21 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
     }
   };
 
-  // Step 4 (AR/TFD) : Paiement du contrat via sold_dates
+  // Step 5 (AR/TFD - Visual) : Paiement du contrat via sold_dates (DB Step 4)
   const validateStep4PaymentArTfd = async (suivi, dateInput) => {
     const svId = suivi.id;
     if (!dateInput) return;
     const dateToSend = fromDateInputValue(dateInput);
     if (!dateToSend) return;
 
+    // On utilise l'index VISUEL (5) pour l'état de saving/editing local
     setSaving((prev) => ({
       ...prev,
-      [svId]: { ...(prev[svId] || {}), 4: true },
+      [svId]: { ...(prev[svId] || {}), 5: true },
     }));
     setError(null);
 
+    // DB : c'est bien step4
     const hasExistingDate = !!suivi.step4_completed_at;
     const url = `${global.config.server_url}/suivi-avancement/${svId}/steps/4`;
 
@@ -1142,7 +1191,6 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
       }
 
       // 2) mise à jour du contrat (sold_dates) dans documents
-      // 2) mise à jour du contrat (sold_dates) dans documents
       if (suivi.facture_id) {
         const soldDates = JSON.stringify([dateToSend]);
         const contract = contracts.find((c) => c.id === suivi.facture_id);
@@ -1151,7 +1199,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
           status_payment: 2, // Soldé dans tous les cas
         };
 
-        // Si c'est une CH, on passe en Terminé
+        // Si c'est une CH, on passe en Terminé (pas le cas ici car AR/TFD, mais on garde la logique au cas où)
         if (
           contract &&
           contract.subscribe_services &&
@@ -1163,20 +1211,20 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
         await axios.put(
           `${global.config.server_url}/documents/${suivi.facture_id}`,
           payload,
-          getConfig()
+          getConfig(),
         );
       }
 
       const refreshedSuivis = await fetchSuivis();
       setSuivis(refreshedSuivis);
-      cancelEditing(svId, 4);
+      cancelEditing(svId, 5); // Index visuel
     } catch (e) {
       console.error("Erreur validation step4 (paiement contrat AR/TFD)", e);
       setError("Erreur lors de la validation de la date de paiement (AR/TFD).");
     } finally {
       setSaving((prev) => ({
         ...prev,
-        [svId]: { ...(prev[svId] || {}), 4: false },
+        [svId]: { ...(prev[svId] || {}), 5: false },
       }));
     }
   };
@@ -1387,8 +1435,17 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                               const hasDate =
                                 stepDef.dateSteps.includes(stepNumber);
 
+                              // 💡 Mapping colonne DB
+                              let dbStepNumber = stepNumber;
+                              if (
+                                stepDef.columnMap &&
+                                stepDef.columnMap[stepNumber]
+                              ) {
+                                dbStepNumber = stepDef.columnMap[stepNumber];
+                              }
+
                               const column = hasDate
-                                ? `step${stepNumber}_completed_at`
+                                ? `step${dbStepNumber}_completed_at`
                                 : null;
                               const dbRaw =
                                 column && s[column] ? s[column] : null;
@@ -1401,25 +1458,30 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                 stepDef.labels[stepNumber - 1] ||
                                 `Étape ${stepNumber}`;
                               const isCreditImpot = typeCode === "credit_impot";
-                              const isStep1Signature =
-                                (isCreditImpot || typeCode === "ar_tfd") &&
+                              const isStep1Signature = stepNumber === 2; // Signature est maintenant Step 2 pour AR/TFD, Credit Impot et CH/SIMU
+
+                              const isEnvoiStep =
+                                (typeCode === "ar_tfd" || isCreditImpot) &&
                                 stepNumber === 1;
-                              const isCreditImpotStep2 =
-                                isCreditImpot && stepNumber === 2;
-                              // const isCreditImpotStep3 =
-                              //   isCreditImpot && stepNumber === 3;
-                              const isCreditImpotStep4 =
-                                isCreditImpot && stepNumber === 4;
-                              const isCreditImpotStep5 =
-                                isCreditImpot && stepNumber === 5;
-                              const isCreditImpotStep6 =
-                                isCreditImpot && stepNumber === 6;
-                              const isCreditImpotStep7 =
-                                isCreditImpot && stepNumber === 7;
-                              const isCreditImpotStep8 =
-                                isCreditImpot && stepNumber === 8;
+                              // const isArTfdEnvoi =
+                              //   isEnvoiStep && typeCode === "ar_tfd"; // Gardé pour compatibilité si utilisé ailleurs
+
+                              const isCreditImpotStep3 = // Ex-Step 2 (Activation Urssaf)
+                                isCreditImpot && stepNumber === 3;
+                              // const isCreditImpotStep3 = // Ex-Step 3 (5 jours) -> Maintenat Step 4
                               const isFiveDaysWaitStep =
-                                typeCode === "credit_impot" && stepNumber === 3;
+                                typeCode === "credit_impot" && stepNumber === 4;
+
+                              const isCreditImpotStep5 = // Ex-Step 4 (Devis)
+                                isCreditImpot && stepNumber === 5;
+                              const isCreditImpotStep6 = // Ex-Step 5 (Transfo)
+                                isCreditImpot && stepNumber === 6;
+                              const isCreditImpotStep7 = // Ex-Step 6 (Paiement Unipro)
+                                isCreditImpot && stepNumber === 7;
+                              const isCreditImpotStep8 = // Ex-Step 7 (Paiement Contrat)
+                                isCreditImpot && stepNumber === 8;
+                              const isCreditImpotStep9 = // Ex-Step 8 (Avancement)
+                                isCreditImpot && stepNumber === 9;
 
                               if (
                                 typeCode === "ch_simu_actu_rac" &&
@@ -1437,13 +1499,15 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                               const isChSimuStep5 =
                                 typeCode === "ch_simu_actu_rac" &&
                                 stepNumber === 5;
-                              const isArTfdStep5 =
-                                typeCode === "ar_tfd" && stepNumber === 5;
+
                               const isChSimuStep4 =
                                 typeCode === "ch_simu_actu_rac" &&
                                 stepNumber === 4;
-                              const isArTfdStep4 =
-                                typeCode === "ar_tfd" && stepNumber === 4;
+                              const isArTfdStep5 =
+                                typeCode === "ar_tfd" && stepNumber === 5; // Paiement du contrat (visuel 5, DB step4)
+
+                              const isArTfdStep6 =
+                                typeCode === "ar_tfd" && stepNumber === 6; // Avancement (visuel 6)
 
                               const isEditing =
                                 editing[s.id]?.[stepNumber] === true;
@@ -1480,9 +1544,12 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                               const step3Input = s.step3_completed_at
                                 ? toDateInputValue(s.step3_completed_at)
                                 : null;
-                              const step4Validated = !!s.step4_completed_at;
+                              // const step4Validated = !!s.step4_completed_at;
 
-                              if (isCreditImpotStep4) {
+                              // Step 5 (Ex-Step 4) : Devis (Crédit d'impôt)
+                              // Se base sur step 4 (Ex-Step 3) "5 jours" (DB Step 3) qui dérive de step 3 (Ex-Step 2) "Activation" (DB Step 2)
+                              // ...
+                              if (isCreditImpotStep5) {
                                 if (isEditing) {
                                   step4CandidateInput =
                                     editingValueInput || dbInput || step3Input;
@@ -1493,11 +1560,12 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                 displayDateInput = step4CandidateInput || null;
                               }
 
-                              // Step 5 : date manuelle
+                              // Step 6 (Ex-Step 5) : Transfo Devis
+                              // Manuelle
                               let step5CandidateInput = null;
                               const step5Validated = !!s.step5_completed_at;
 
-                              if (isCreditImpotStep5) {
+                              if (isCreditImpotStep6) {
                                 if (isEditing) {
                                   step5CandidateInput =
                                     editingValueInput || dbInput || "";
@@ -1507,7 +1575,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                 displayDateInput = step5CandidateInput || null;
                               }
 
-                              // Step 6 : date step5 + 2 jours
+                              // Step 7 (Ex-Step 6) : Paiement Unipro (Auto +2j)
                               let step6CandidateInput = null;
                               const step5Input = s.step5_completed_at
                                 ? toDateInputValue(s.step5_completed_at)
@@ -1517,7 +1585,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                 : null;
                               const step6Validated = !!s.step6_completed_at;
 
-                              if (isCreditImpotStep6) {
+                              if (isCreditImpotStep7) {
                                 if (isEditing) {
                                   step6CandidateInput =
                                     editingValueInput ||
@@ -1556,30 +1624,29 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                   step4ChSimuCandidateInput || null;
                               }
 
-                              // Step 4 AR/TFD : Paiement du contrat (via sold_dates)
-                              let step4ArTfdCandidateInput = null;
-                              const step4ArTfdValidated =
-                                !!s.step4_completed_at;
+                              // Step 5 AR/TFD (Visual) : Paiement du contrat (via sold_dates) -> DB Step 4
+                              let step5ArTfdCandidateInput = null;
+                              // const step5ArTfdValidated = !!s.step4_completed_at; // car mappé vers 4
 
-                              if (isArTfdStep4) {
+                              if (isArTfdStep5) {
                                 if (isEditing) {
-                                  step4ArTfdCandidateInput =
+                                  step5ArTfdCandidateInput =
                                     editingValueInput ||
                                     dbInput ||
                                     soldFirstInput;
                                 } else {
-                                  step4ArTfdCandidateInput =
+                                  step5ArTfdCandidateInput =
                                     dbInput || soldFirstInput || null;
                                 }
                                 displayDateInput =
-                                  step4ArTfdCandidateInput || null;
+                                  step5ArTfdCandidateInput || null;
                               }
 
-                              // Step 7 : Paiement du contrat (crédit d'impôt) via sold_dates
+                              // Step 8 (Ex-Step 7) : Paiement du contrat (crédit d'impôt) via sold_dates
                               let step7CandidateInput = null;
                               const step7Validated = !!s.step7_completed_at;
 
-                              if (isCreditImpotStep7) {
+                              if (isCreditImpotStep8) {
                                 if (isEditing) {
                                   step7CandidateInput =
                                     editingValueInput ||
@@ -1597,14 +1664,18 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                               let displayValue = "-";
                               let isCompleted = false;
 
-                              if (isCreditImpotStep8) {
-                                // Crédit d'impôt : Avancement du dossier = steps 1..7 remplies
+                              if (isCreditImpotStep9) {
+                                // Crédit d'impôt : Avancement du dossier = steps 1..8 remplies
                                 const allDone =
                                   STEP_DEFINITION.credit_impot.dateSteps
-                                    .filter((num) => num <= 7)
-                                    .every(
-                                      (num) => !!s[`step${num}_completed_at`],
-                                    );
+                                    .filter((num) => num <= 8)
+                                    .every((num) => {
+                                      const dbNum =
+                                        STEP_DEFINITION.credit_impot.columnMap[
+                                          num
+                                        ];
+                                      return !!s[`step${dbNum}_completed_at`];
+                                    });
 
                                 if (isContractFinished) {
                                   // ✅ Contrat terminé → priorité max
@@ -1616,11 +1687,16 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                     : "Dossier en attente";
                                   isCompleted = allDone;
                                 }
-                              } else if (isArTfdStep5) {
-                                // AR/TFD : Avancement du dossier = toutes les steps avec date (1..4)
+                              } else if (isArTfdStep6) {
+                                // AR/TFD : Avancement du dossier (Visual 6) = toutes les steps avec date (1..5)
+                                // Le stepDef.dateSteps contient déjà les mappings corrects
                                 const allDone =
                                   STEP_DEFINITION.ar_tfd.dateSteps.every(
-                                    (num) => !!s[`step${num}_completed_at`],
+                                    (num) => {
+                                      const dbNum =
+                                        STEP_DEFINITION.ar_tfd.columnMap[num];
+                                      return !!s[`step${dbNum}_completed_at`];
+                                    },
                                   );
 
                                 if (isContractFinished) {
@@ -1632,6 +1708,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                     : "Dossier en attente";
                                   isCompleted = allDone;
                                 }
+                                isCompleted = allDone; // Bug fix: ensure isCompleted is set correctly
                               } else if (isChSimuStep5) {
                                 // CH/SIMU/ACTU/RAC : Avancement du dossier
                                 const allDone = !!s.step4_completed_at;
@@ -1663,23 +1740,25 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                 }
                               }
                               const isArTfdGenericEditable =
-                                typeCode === "ar_tfd" && stepNumber !== 4;
+                                typeCode === "ar_tfd" && stepNumber !== 4; // Not exactly sure what this was doing before
 
                               const canEditDate =
                                 hasDate &&
-                                (isStep1Signature ||
-                                  isCreditImpotStep2 ||
+                                (isStep1Signature || // Signature (Step 2 pour AR/TFD, Step 1 pour autres)
+                                  isEnvoiStep || // Envoi (Step 1 pour AR/TFD et Credit Impot)
+                                  isCreditImpotStep3 || // Activation Urssaf (Ex-Step 2)
                                   isChSimuStep2 ||
                                   isArTfdGenericEditable);
                               const isEditingGeneric =
                                 isEditing &&
                                 (isStep1Signature ||
-                                  isCreditImpotStep2 ||
+                                  isEnvoiStep ||
+                                  isCreditImpotStep3 ||
                                   isChSimuStep2 ||
                                   isArTfdGenericEditable);
                               const isAvancementStep =
-                                isCreditImpotStep8 ||
-                                isArTfdStep5 ||
+                                isCreditImpotStep9 ||
+                                isArTfdStep6 ||
                                 isChSimuStep5;
                               let isCurrent = currentStepNumber === stepNumber;
 
@@ -2237,8 +2316,8 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                             </Button>
                                           )}
 
-                                        {/* Étape 4 - Création devis */}
-                                        {isCreditImpotStep4 && (
+                                        {/* Étape 5 (Ex-Step 4) - Création devis */}
+                                        {isCreditImpotStep5 && (
                                           <>
                                             {isEditing ? (
                                               <>
@@ -2255,7 +2334,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                                         ...prev,
                                                         [s.id]: {
                                                           ...(prev[s.id] || {}),
-                                                          4: newValue,
+                                                          5: newValue, // Index 5
                                                         },
                                                       }),
                                                     );
@@ -2266,7 +2345,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                                 <Button
                                                   color="primary"
                                                   disabled={
-                                                    saving[s.id]?.[4] === true
+                                                    saving[s.id]?.[5] === true
                                                   }
                                                   className="mr-25"
                                                   onClick={() =>
@@ -2275,12 +2354,13 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                                       (editingValues[s.id] &&
                                                         editingValues[
                                                           s.id
-                                                        ][4]) ||
+                                                        ][5]) ||
                                                         step4CandidateInput,
+                                                      5, // Visual Step 5
                                                     )
                                                   }
                                                 >
-                                                  {saving[s.id]?.[4]
+                                                  {saving[s.id]?.[5]
                                                     ? "Validation..."
                                                     : "Valider"}
                                                 </Button>
@@ -2289,7 +2369,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                                   size="sm"
                                                   className="p-0 d-flex align-items-center"
                                                   onClick={() =>
-                                                    cancelEditing(s.id, 4)
+                                                    cancelEditing(s.id, 5)
                                                   }
                                                   title="Annuler"
                                                 >
@@ -2298,29 +2378,30 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                               </>
                                             ) : (
                                               <>
-                                                {!step4Validated &&
+                                                {!step5Validated &&
                                                   step4CandidateInput && (
                                                     <Button
                                                       color="primary"
                                                       className="mr-25"
                                                       disabled={
-                                                        saving[s.id]?.[4] ===
+                                                        saving[s.id]?.[5] ===
                                                         true
                                                       }
                                                       onClick={() =>
                                                         validateStep4Date(
                                                           s,
                                                           step4CandidateInput,
+                                                          5, // Visual Step 5
                                                         )
                                                       }
                                                     >
-                                                      {saving[s.id]?.[4]
+                                                      {saving[s.id]?.[5]
                                                         ? "Validation..."
                                                         : "Valider"}
                                                     </Button>
                                                   )}
 
-                                                {step4Validated && (
+                                                {step5Validated && (
                                                   <>
                                                     <Button
                                                       color="link"
@@ -2329,10 +2410,10 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                                       onClick={() =>
                                                         startEditing(
                                                           s.id,
-                                                          4,
+                                                          5,
                                                           step4CandidateInput ||
-                                                            s.step4_completed_at ||
-                                                            s.step3_completed_at,
+                                                            s.step5_completed_at ||
+                                                            s.step4_completed_at,
                                                         )
                                                       }
                                                       title="Modifier la date"
@@ -2345,152 +2426,15 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                             )}
                                           </>
                                         )}
-                                        {isArTfdStep4 && (
+                                        {isArTfdStep5 && (
                                           <>
                                             {isEditing ? (
                                               <>
                                                 <Input
                                                   type="date"
                                                   value={
-                                                    step4ArTfdCandidateInput ||
+                                                    step5ArTfdCandidateInput ||
                                                     ""
-                                                  }
-                                                  onChange={(e) => {
-                                                    const newValue =
-                                                      e.target.value;
-                                                    setEditingValues(
-                                                      (prev) => ({
-                                                        ...prev,
-                                                        [s.id]: {
-                                                          ...(prev[s.id] || {}),
-                                                          4: newValue,
-                                                        },
-                                                      }),
-                                                    );
-                                                  }}
-                                                  className="mr-50"
-                                                  style={{ maxWidth: 190 }}
-                                                />
-                                                <Button
-                                                  color="primary"
-                                                  disabled={
-                                                    saving[s.id]?.[4] === true
-                                                  }
-                                                  className="mr-25"
-                                                  onClick={() =>
-                                                    validateStep4PaymentArTfd(
-                                                      s,
-                                                      (editingValues[s.id] &&
-                                                        editingValues[
-                                                          s.id
-                                                        ][4]) ||
-                                                        step4ArTfdCandidateInput,
-                                                    )
-                                                  }
-                                                >
-                                                  {saving[s.id]?.[4]
-                                                    ? "Validation..."
-                                                    : "Valider"}
-                                                </Button>
-                                                <Button
-                                                  color="link"
-                                                  size="sm"
-                                                  className="p-0 d-flex align-items-center"
-                                                  onClick={() =>
-                                                    cancelEditing(s.id, 4)
-                                                  }
-                                                  title="Annuler"
-                                                >
-                                                  <X size={16} />
-                                                </Button>
-                                              </>
-                                            ) : (
-                                              <>
-                                                {/* Valider seulement si étape actuelle */}
-                                                {!step4ArTfdValidated &&
-                                                  step4ArTfdCandidateInput &&
-                                                  isCurrent && (
-                                                    <Button
-                                                      color="primary"
-                                                      className="mr-25"
-                                                      disabled={
-                                                        saving[s.id]?.[4] ===
-                                                        true
-                                                      }
-                                                      onClick={() =>
-                                                        validateStep4PaymentArTfd(
-                                                          s,
-                                                          step4ArTfdCandidateInput,
-                                                        )
-                                                      }
-                                                    >
-                                                      {saving[s.id]?.[4]
-                                                        ? "Validation..."
-                                                        : "Valider"}
-                                                    </Button>
-                                                  )}
-
-                                                {/* Ajouter seulement si étape actuelle */}
-                                                {!step4ArTfdValidated &&
-                                                  !step4ArTfdCandidateInput &&
-                                                  isCurrent && (
-                                                    <Button
-                                                      color="link"
-                                                      size="sm"
-                                                      className="p-0 d-flex align-items-center"
-                                                      onClick={() =>
-                                                        startEditing(
-                                                          s.id,
-                                                          4,
-                                                          "",
-                                                        )
-                                                      }
-                                                      title="Ajouter une date"
-                                                    >
-                                                      <PlusCircle
-                                                        size={14}
-                                                        className="mr-25"
-                                                      />
-                                                      <span>
-                                                        Ajouter une date
-                                                      </span>
-                                                    </Button>
-                                                  )}
-
-                                                {/* Modifier toujours possible */}
-                                                {step4ArTfdValidated && (
-                                                  <>
-                                                    <Button
-                                                      color="link"
-                                                      size="sm"
-                                                      className="p-0"
-                                                      onClick={() =>
-                                                        startEditing(
-                                                          s.id,
-                                                          4,
-                                                          step4ArTfdCandidateInput ||
-                                                            s.step4_completed_at ||
-                                                            soldFirstInput,
-                                                        )
-                                                      }
-                                                      title="Modifier la date"
-                                                    >
-                                                      <Edit size={14} />
-                                                    </Button>
-                                                  </>
-                                                )}
-                                              </>
-                                            )}
-                                          </>
-                                        )}
-                                        {isCreditImpotStep5 && (
-                                          <>
-                                            {isEditing ? (
-                                              <>
-                                                <Input
-                                                  type="date"
-                                                  value={
-                                                    step5CandidateInput || ""
                                                   }
                                                   onChange={(e) => {
                                                     const newValue =
@@ -2515,10 +2459,13 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                                   }
                                                   className="mr-25"
                                                   onClick={() =>
-                                                    saveManualStepDate(
+                                                    validateStep4PaymentArTfd(
                                                       s,
-                                                      5,
-                                                      typeCode,
+                                                      (editingValues[s.id] &&
+                                                        editingValues[
+                                                          s.id
+                                                        ][5]) ||
+                                                        step5ArTfdCandidateInput,
                                                     )
                                                   }
                                                 >
@@ -2540,7 +2487,33 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                               </>
                                             ) : (
                                               <>
-                                                {!step5Validated &&
+                                                {/* Valider seulement si étape actuelle */}
+                                                {!s.step4_completed_at &&
+                                                  step5ArTfdCandidateInput &&
+                                                  isCurrent && (
+                                                    <Button
+                                                      color="primary"
+                                                      className="mr-25"
+                                                      disabled={
+                                                        saving[s.id]?.[5] ===
+                                                        true
+                                                      }
+                                                      onClick={() =>
+                                                        validateStep4PaymentArTfd(
+                                                          s,
+                                                          step5ArTfdCandidateInput,
+                                                        )
+                                                      }
+                                                    >
+                                                      {saving[s.id]?.[5]
+                                                        ? "Validation..."
+                                                        : "Valider"}
+                                                    </Button>
+                                                  )}
+
+                                                {/* Ajouter seulement si étape actuelle */}
+                                                {!s.step4_completed_at &&
+                                                  !step5ArTfdCandidateInput &&
                                                   isCurrent && (
                                                     <Button
                                                       color="link"
@@ -2550,9 +2523,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                                         startEditing(
                                                           s.id,
                                                           5,
-                                                          step5CandidateInput ||
-                                                            s.step5_completed_at ||
-                                                            "",
+                                                          "",
                                                         )
                                                       }
                                                       title="Ajouter une date"
@@ -2567,7 +2538,8 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                                     </Button>
                                                   )}
 
-                                                {step5Validated && (
+                                                {/* Modifier toujours possible */}
+                                                {!!s.step4_completed_at && (
                                                   <>
                                                     <Button
                                                       color="link"
@@ -2577,8 +2549,9 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                                         startEditing(
                                                           s.id,
                                                           5,
-                                                          step5CandidateInput ||
-                                                            s.step5_completed_at,
+                                                          step5ArTfdCandidateInput ||
+                                                            s.step4_completed_at ||
+                                                            soldFirstInput,
                                                         )
                                                       }
                                                       title="Modifier la date"
@@ -2591,7 +2564,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                             )}
                                           </>
                                         )}
-                                        {/* Étape 6 - date step5 + 2 jours */}
+                                        {/* Étape 6 (Ex-Step 5) - Transfo Devis */}
                                         {isCreditImpotStep6 && (
                                           <>
                                             {isEditing ? (
@@ -2599,7 +2572,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                                 <Input
                                                   type="date"
                                                   value={
-                                                    step6CandidateInput || ""
+                                                    step5CandidateInput || ""
                                                   }
                                                   onChange={(e) => {
                                                     const newValue =
@@ -2609,7 +2582,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                                         ...prev,
                                                         [s.id]: {
                                                           ...(prev[s.id] || {}),
-                                                          6: newValue,
+                                                          6: newValue, // Index 6
                                                         },
                                                       }),
                                                     );
@@ -2624,13 +2597,10 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                                   }
                                                   className="mr-25"
                                                   onClick={() =>
-                                                    validateStep6Date(
+                                                    saveManualStepDate(
                                                       s,
-                                                      (editingValues[s.id] &&
-                                                        editingValues[
-                                                          s.id
-                                                        ][6]) ||
-                                                        step6CandidateInput,
+                                                      6, // Visual Step 6
+                                                      typeCode,
                                                     )
                                                   }
                                                 >
@@ -2653,24 +2623,29 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                             ) : (
                                               <>
                                                 {!step6Validated &&
-                                                  step6CandidateInput && (
+                                                  isCurrent && (
                                                     <Button
-                                                      color="primary"
-                                                      className="mr-25"
-                                                      disabled={
-                                                        saving[s.id]?.[6] ===
-                                                        true
-                                                      }
+                                                      color="link"
+                                                      size="sm"
+                                                      className="p-0 d-flex align-items-center"
                                                       onClick={() =>
-                                                        validateStep6Date(
-                                                          s,
-                                                          step6CandidateInput,
+                                                        startEditing(
+                                                          s.id,
+                                                          6,
+                                                          step5CandidateInput ||
+                                                            s.step5_completed_at ||
+                                                            "",
                                                         )
                                                       }
+                                                      title="Ajouter une date"
                                                     >
-                                                      {saving[s.id]?.[6]
-                                                        ? "Validation..."
-                                                        : "Valider"}
+                                                      <PlusCircle
+                                                        size={14}
+                                                        className="mr-25"
+                                                      />
+                                                      <span>
+                                                        Ajouter une date
+                                                      </span>
                                                     </Button>
                                                   )}
 
@@ -2684,10 +2659,8 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                                         startEditing(
                                                           s.id,
                                                           6,
-                                                          step6CandidateInput ||
-                                                            s.step6_completed_at ||
-                                                            autoFromStep5 ||
-                                                            null,
+                                                          step5CandidateInput ||
+                                                            s.step5_completed_at,
                                                         )
                                                       }
                                                       title="Modifier la date"
@@ -2700,7 +2673,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                             )}
                                           </>
                                         )}
-                                        {/* Étape 7 - Paiement du contrat (crédit d'impôt, sold_dates) */}
+                                        {/* Étape 7 (Ex-Step 6) - Paiement Unipro */}
                                         {isCreditImpotStep7 && (
                                           <>
                                             {isEditing ? (
@@ -2708,7 +2681,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                                 <Input
                                                   type="date"
                                                   value={
-                                                    step7CandidateInput || ""
+                                                    step6CandidateInput || ""
                                                   }
                                                   onChange={(e) => {
                                                     const newValue =
@@ -2718,7 +2691,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                                         ...prev,
                                                         [s.id]: {
                                                           ...(prev[s.id] || {}),
-                                                          7: newValue,
+                                                          7: newValue, // Index 7
                                                         },
                                                       }),
                                                     );
@@ -2733,13 +2706,14 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                                   }
                                                   className="mr-25"
                                                   onClick={() =>
-                                                    validateStep7Date(
+                                                    validateStep6Date(
                                                       s,
                                                       (editingValues[s.id] &&
                                                         editingValues[
                                                           s.id
                                                         ][7]) ||
-                                                        step7CandidateInput,
+                                                        step6CandidateInput,
+                                                      7, // Visual Step 7
                                                     )
                                                   }
                                                 >
@@ -2761,10 +2735,8 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                               </>
                                             ) : (
                                               <>
-                                                {/* Valider seulement si étape actuelle */}
                                                 {!step7Validated &&
-                                                  step7CandidateInput &&
-                                                  isCurrent && (
+                                                  step6CandidateInput && (
                                                     <Button
                                                       color="primary"
                                                       className="mr-25"
@@ -2773,13 +2745,126 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                                         true
                                                       }
                                                       onClick={() =>
-                                                        validateStep7Date(
+                                                        validateStep6Date(
                                                           s,
-                                                          step7CandidateInput,
+                                                          step6CandidateInput,
+                                                          7, // Visual Step 7
                                                         )
                                                       }
                                                     >
                                                       {saving[s.id]?.[7]
+                                                        ? "Validation..."
+                                                        : "Valider"}
+                                                    </Button>
+                                                  )}
+
+                                                {step7Validated && (
+                                                  <>
+                                                    <Button
+                                                      color="link"
+                                                      size="sm"
+                                                      className="p-0"
+                                                      onClick={() =>
+                                                        startEditing(
+                                                          s.id,
+                                                          7,
+                                                          step6CandidateInput ||
+                                                            s.step6_completed_at ||
+                                                            autoFromStep5,
+                                                        )
+                                                      }
+                                                      title="Modifier la date"
+                                                    >
+                                                      <Edit size={14} />
+                                                    </Button>
+                                                  </>
+                                                )}
+                                              </>
+                                            )}
+                                          </>
+                                        )}
+                                        {/* Étape 8 (Ex-Step 7) - Paiement du contrat (crédit d'impôt, sold_dates) */}
+                                        {isCreditImpotStep8 && (
+                                          <>
+                                            {isEditing ? (
+                                              <>
+                                                <Input
+                                                  type="date"
+                                                  value={
+                                                    step7CandidateInput || ""
+                                                  }
+                                                  onChange={(e) => {
+                                                    const newValue =
+                                                      e.target.value;
+                                                    setEditingValues(
+                                                      (prev) => ({
+                                                        ...prev,
+                                                        [s.id]: {
+                                                          ...(prev[s.id] || {}),
+                                                          8: newValue, // Index 8
+                                                        },
+                                                      }),
+                                                    );
+                                                  }}
+                                                  className="mr-50"
+                                                  style={{ maxWidth: 190 }}
+                                                />
+                                                <Button
+                                                  color="primary"
+                                                  disabled={
+                                                    saving[s.id]?.[8] === true
+                                                  }
+                                                  className="mr-25"
+                                                  onClick={() =>
+                                                    validateStep7Date(
+                                                      s,
+                                                      (editingValues[s.id] &&
+                                                        editingValues[
+                                                          s.id
+                                                        ][8]) ||
+                                                        step7CandidateInput,
+                                                      8, // Visual Step 8
+                                                    )
+                                                  }
+                                                >
+                                                  {saving[s.id]?.[8]
+                                                    ? "Validation..."
+                                                    : "Valider"}
+                                                </Button>
+                                                <Button
+                                                  color="link"
+                                                  size="sm"
+                                                  className="p-0 d-flex align-items-center"
+                                                  onClick={() =>
+                                                    cancelEditing(s.id, 8)
+                                                  }
+                                                  title="Annuler"
+                                                >
+                                                  <X size={16} />
+                                                </Button>
+                                              </>
+                                            ) : (
+                                              <>
+                                                {/* Valider seulement si étape actuelle */}
+                                                {!step7Validated &&
+                                                  step7CandidateInput &&
+                                                  isCurrent && (
+                                                    <Button
+                                                      color="primary"
+                                                      className="mr-25"
+                                                      disabled={
+                                                        saving[s.id]?.[8] ===
+                                                        true
+                                                      }
+                                                      onClick={() =>
+                                                        validateStep7Date(
+                                                          s,
+                                                          step7CandidateInput,
+                                                          8, // Visual Step 8
+                                                        )
+                                                      }
+                                                    >
+                                                      {saving[s.id]?.[8]
                                                         ? "Validation..."
                                                         : "Valider"}
                                                     </Button>
@@ -2796,7 +2881,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                                       onClick={() =>
                                                         startEditing(
                                                           s.id,
-                                                          7,
+                                                          8,
                                                           "",
                                                         )
                                                       }
@@ -2822,7 +2907,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                                       onClick={() =>
                                                         startEditing(
                                                           s.id,
-                                                          7,
+                                                          8,
                                                           step7CandidateInput ||
                                                             s.step7_completed_at ||
                                                             soldFirstInput,
