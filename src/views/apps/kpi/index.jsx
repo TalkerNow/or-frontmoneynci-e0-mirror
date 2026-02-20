@@ -514,7 +514,6 @@ const todoDot = {
 
 const todoMainText = {
   fontSize: 16,
-  fontWeight: 600,
   color: "#212529",
   lineHeight: 1.2,
 };
@@ -528,7 +527,7 @@ const todoSubText = {
 function renderTodoCell(next, badge = null) {
   if (!next) {
     return (
-      <span className="text-success" style={{ fontSize: 14, fontWeight: 600 }}>
+      <span className="text-success" style={{ fontSize: 14 }}>
         Dossier terminé
       </span>
     );
@@ -639,6 +638,9 @@ export default function KpiPage() {
   const [suivis, setSuivis] = useState([]);
   const [loadingSuivis, setLoadingSuivis] = useState(false);
   const [suivisError, setSuivisError] = useState("");
+
+  // Contrats (documents) pour les alertes paiement
+  const [contractsMap, setContractsMap] = useState({});
 
   // Conversations
   const [conversations, setConversations] = useState([]);
@@ -767,6 +769,20 @@ export default function KpiPage() {
       );
     } finally {
       setLoadingSuivis(false);
+    }
+  }
+
+  async function fetchContracts() {
+    try {
+      const res = await API.get("/documents");
+      const list = Array.isArray(res.data) ? res.data : [];
+      const map = {};
+      list.forEach((doc) => {
+        if (doc.id) map[doc.id] = doc;
+      });
+      setContractsMap(map);
+    } catch (e) {
+      console.error("fetchContracts error:", e);
     }
   }
 
@@ -1055,6 +1071,7 @@ export default function KpiPage() {
     fetchAllKpis();
     fetchAdminEmailFromApi();
     fetchSuivis();
+    fetchContracts();
     fetchMembers();
     fetchClients();
     fetchConversationArchives();
@@ -1145,6 +1162,7 @@ export default function KpiPage() {
       after5days: [], // 5 jours atteints / dépassés
       processing: [], // Paiement du contrat -> Avancement du dossier
       completed: [], // Contrats terminés
+      paymentAlerts: [], // 🔴 Paiements à lancer (échéances atteintes)
     };
 
     if (!Array.isArray(sortedSuivis)) return res;
@@ -1152,6 +1170,18 @@ export default function KpiPage() {
     // "Aujourd'hui" tronqué à minuit pour comparer les dates proprement
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // Helper : parse une date YYYY-MM-DD en timestamp minuit
+    const parseDateToTime = (dateStr) => {
+      if (!dateStr) return null;
+      let part = String(dateStr);
+      if (part.includes("T")) part = part.split("T")[0];
+      else if (part.includes(" ")) part = part.split(" ")[0];
+      const [y, m, d] = part.split("-");
+      if (y && m && d)
+        return new Date(Number(y), Number(m) - 1, Number(d)).getTime();
+      return null;
+    };
 
     sortedSuivis.forEach((s) => {
       const { profileKey, steps } = buildStepsForSuivi(s);
@@ -1248,6 +1278,90 @@ export default function KpiPage() {
         }
       }
 
+      // 🔴 Alerte Paiement : 2ème+ paiement en attente dont la date est atteinte
+      let paymentAlertLabel = null;
+      let paymentAlertAmount = null;
+      if (!isContractFinished) {
+        const docId = s.facture_id || s.document_id || s.contract_id;
+        const doc = docId ? contractsMap[docId] : null;
+        if (doc) {
+          // Parse acompte_dates et sold_dates
+          let acompteDates = [];
+          try {
+            acompteDates = Array.isArray(doc.acompte_dates)
+              ? doc.acompte_dates
+              : doc.acompte_dates
+                ? JSON.parse(doc.acompte_dates)
+                : [];
+          } catch (e) {
+            acompteDates = [];
+          }
+
+          let soldDates = [];
+          try {
+            soldDates = Array.isArray(doc.sold_dates)
+              ? doc.sold_dates
+              : doc.sold_dates
+                ? JSON.parse(doc.sold_dates)
+                : [];
+          } catch (e) {
+            soldDates = [];
+          }
+
+          // Construire la liste complète des paiements dans l'ordre
+          // Chaque entrée : { type, date, is_paid, method }
+          const allPayments = [
+            ...acompteDates.map((p) => ({ ...p, _type: "ACOMPTE" })),
+            ...soldDates.map((p) => ({ ...p, _type: "SOLDE" })),
+          ];
+
+          // Il faut > 1 paiement au total
+          if (allPayments.length > 1) {
+            // On cherche à partir de l'index 1 (2ème paiement)
+            for (let i = 1; i < allPayments.length; i++) {
+              const payment = allPayments[i];
+              const isPaid = payment.is_paid === true || payment.is_paid === 1;
+              if (isPaid) continue;
+
+              const paymentTime = parseDateToTime(payment.date);
+              if (paymentTime && paymentTime <= today.getTime()) {
+                // Paiement en attente dont la date est arrivée
+                const position = i + 1; // Position humaine (1-based)
+                paymentAlertLabel = `Lancement du ${position}${position === 1 ? "er" : "ème"} paiement`;
+
+                // Calculer le montant approximatif
+                const totalTTC = parseFloat(doc.advanced_payment) || 0;
+                const fp1 = doc.values ? JSON.parse(doc.values).fp1 || 50 : 50;
+                if (payment._type === "ACOMPTE") {
+                  paymentAlertAmount = Math.round(
+                    (totalTTC * fp1) / 100 / acompteDates.length,
+                  );
+                } else {
+                  paymentAlertAmount = Math.round(
+                    (totalTTC * (100 - fp1)) / 100 / (soldDates.length || 1),
+                  );
+                }
+                break; // On s'arrête au premier paiement en attente trouvé
+              }
+            }
+          }
+        }
+      }
+
+      // Si alerte paiement détectée, priorité sur les autres buckets (sauf completed)
+      if (paymentAlertLabel && !isContractFinished) {
+        res.paymentAlerts.push({
+          s,
+          steps,
+          last,
+          next,
+          isRdvToday,
+          paymentAlertLabel,
+          paymentAlertAmount,
+        });
+        return;
+      }
+
       const bucket = isContractFinished
         ? "completed"
         : isFacturationUrgent
@@ -1264,7 +1378,7 @@ export default function KpiPage() {
     });
 
     return res;
-  }, [sortedSuivis]);
+  }, [sortedSuivis, contractsMap]);
   const [selectedSuivi, setSelectedSuivi] = useState(null);
 
   // Initial select first item if available and none selected
@@ -1648,10 +1762,7 @@ export default function KpiPage() {
                               groupedSuivis.facturation.length > 0 && (
                                 <>
                                   <tr className="table-danger">
-                                    <td
-                                      colSpan="5"
-                                      style={{ fontSize: 14, fontWeight: 600 }}
-                                    >
+                                    <td colSpan="5" style={{ fontSize: 14 }}>
                                       Facturation - Urgent
                                     </td>
                                   </tr>
@@ -1702,9 +1813,148 @@ export default function KpiPage() {
                                           <td>
                                             {last ? (
                                               <div style={{ fontSize: 14 }}>
-                                                <div>
-                                                  <strong>{last.label}</strong>
+                                                <div>{last.label}</div>
+                                                {last.date && (
+                                                  <div className="text-muted">
+                                                    {formatDate(last.date)}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            ) : (
+                                              <span
+                                                className="text-muted"
+                                                style={{ fontSize: 14 }}
+                                              >
+                                                Aucune étape validée
+                                              </span>
+                                            )}
+                                          </td>
+
+                                          {/* Type de contrat */}
+                                          <td
+                                            style={{
+                                              whiteSpace: "nowrap",
+                                              width: 160,
+                                            }}
+                                          >
+                                            {renderProductBadgeFromSuivi(s)}
+                                          </td>
+
+                                          {/* Contrat (flèche) */}
+                                          <td
+                                            style={{
+                                              width: 60,
+                                              textAlign: "center",
+                                            }}
+                                          >
+                                            {contractId ? (
+                                              <Button
+                                                color="link"
+                                                className="p-0"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  history.push(
+                                                    `/pages/contract/${contractId}`,
+                                                  );
+                                                }}
+                                                title="Voir le contrat"
+                                              >
+                                                <ArrowRight size={18} />
+                                              </Button>
+                                            ) : null}
+                                          </td>
+                                        </tr>
+                                      );
+                                    },
+                                  )}
+                                </>
+                              )}
+
+                            {/* 0.2) Paiements à lancer - only show if no filter active */}
+                            {noFilterActive &&
+                              groupedSuivis.paymentAlerts.length > 0 && (
+                                <>
+                                  <tr className="table-danger">
+                                    <td colSpan="5" style={{ fontSize: 14 }}>
+                                      Paiements à lancer (Échéances atteintes)
+                                    </td>
+                                  </tr>
+
+                                  {groupedSuivis.paymentAlerts.map(
+                                    ({
+                                      s,
+                                      steps,
+                                      last,
+                                      next,
+                                      paymentAlertLabel,
+                                      paymentAlertAmount,
+                                    }) => {
+                                      const clientLabel =
+                                        getClientDisplayNameFromSuivi(
+                                          s,
+                                          clientsById,
+                                        );
+                                      const contractId =
+                                        s.facture_id ||
+                                        s.document_id ||
+                                        s.contract_id;
+                                      const clientId = s.client_id;
+
+                                      return (
+                                        <tr
+                                          key={`payment-${
+                                            s.suivi_id || s.id || ""
+                                          }-${
+                                            s.document_id || s.facture_id || ""
+                                          }`}
+                                          onClick={() => {
+                                            if (clientId) {
+                                              history.push(
+                                                `/app/user/edit/${clientId}/2`,
+                                              );
+                                            }
+                                          }}
+                                          style={{ cursor: "pointer" }}
+                                        >
+                                          {/* Client */}
+                                          <td>{clientLabel}</td>
+
+                                          {/* À faire - Label dynamique du paiement */}
+                                          <td>
+                                            <div style={todoBadgeWrapper}>
+                                              <span
+                                                style={{
+                                                  ...todoDot,
+                                                  backgroundColor: "#dc3545",
+                                                }}
+                                              />
+                                              <div>
+                                                <div style={todoMainText}>
+                                                  {paymentAlertLabel}
                                                 </div>
+                                                {paymentAlertAmount > 0 && (
+                                                  <div style={todoSubText}>
+                                                    {new Intl.NumberFormat(
+                                                      "fr-FR",
+                                                      {
+                                                        style: "currency",
+                                                        currency: "EUR",
+                                                        minimumFractionDigits: 0,
+                                                      },
+                                                    ).format(
+                                                      paymentAlertAmount,
+                                                    )}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            </div>
+                                          </td>
+
+                                          {/* Dernière étape validée */}
+                                          <td>
+                                            {last ? (
+                                              <div style={{ fontSize: 14 }}>
+                                                <div>{last.label}</div>
                                                 {last.date && (
                                                   <div className="text-muted">
                                                     {formatDate(last.date)}
@@ -1766,10 +2016,7 @@ export default function KpiPage() {
                               groupedSuivis.after5days.length > 0 && (
                                 <>
                                   <tr className="table-warning">
-                                    <td
-                                      colSpan="5"
-                                      style={{ fontSize: 14, fontWeight: 600 }}
-                                    >
+                                    <td colSpan="5" style={{ fontSize: 14 }}>
                                       5 jours ouvrés atteints / dépassés (à
                                       traiter en priorité)
                                     </td>
@@ -1814,9 +2061,7 @@ export default function KpiPage() {
                                           <td>
                                             {last ? (
                                               <div style={{ fontSize: 14 }}>
-                                                <div>
-                                                  <strong>{last.label}</strong>
-                                                </div>
+                                                <div>{last.label}</div>
                                                 {last.date && (
                                                   <div className="text-muted">
                                                     {formatDate(last.date)}
@@ -1890,7 +2135,6 @@ export default function KpiPage() {
                                       borderBottom: "1px solid #dee2e6",
                                       background: "#f8f9fa",
                                       fontSize: 13,
-                                      fontWeight: 600,
                                       color: "#6c757d",
                                       textTransform: "uppercase",
                                       letterSpacing: "0.04em",
@@ -1906,10 +2150,7 @@ export default function KpiPage() {
                               groupedSuivis.suivi.length > 0 && (
                                 <>
                                   <tr className="table-info">
-                                    <td
-                                      colSpan="5"
-                                      style={{ fontSize: 14, fontWeight: 600 }}
-                                    >
+                                    <td colSpan="5" style={{ fontSize: 14 }}>
                                       Dossiers à suivre
                                     </td>
                                   </tr>
@@ -1948,9 +2189,7 @@ export default function KpiPage() {
                                           <td>
                                             {last ? (
                                               <div style={{ fontSize: 14 }}>
-                                                <div>
-                                                  <strong>{last.label}</strong>
-                                                </div>
+                                                <div>{last.label}</div>
                                                 {last.date && (
                                                   <div className="text-muted">
                                                     {formatDate(last.date)}
@@ -2048,9 +2287,7 @@ export default function KpiPage() {
                                       <td>
                                         {last ? (
                                           <div style={{ fontSize: 14 }}>
-                                            <div>
-                                              <strong>{last.label}</strong>
-                                            </div>
+                                            <div>{last.label}</div>
                                             {last.date && (
                                               <div className="text-muted">
                                                 {formatDate(last.date)}
@@ -2117,10 +2354,7 @@ export default function KpiPage() {
                               groupedSuivis.processing.length > 0 && (
                                 <>
                                   <tr className="table-secondary">
-                                    <td
-                                      colSpan="5"
-                                      style={{ fontSize: 14, fontWeight: 600 }}
-                                    >
+                                    <td colSpan="5" style={{ fontSize: 14 }}>
                                       Dossiers en cours de traitement
                                     </td>
                                   </tr>
@@ -2159,9 +2393,7 @@ export default function KpiPage() {
                                           <td>
                                             {last ? (
                                               <div style={{ fontSize: 14 }}>
-                                                <div>
-                                                  <strong>{last.label}</strong>
-                                                </div>
+                                                <div>{last.label}</div>
                                                 {last.date && (
                                                   <div className="text-muted">
                                                     {formatDate(last.date)}
@@ -2228,10 +2460,7 @@ export default function KpiPage() {
                               groupedSuivis.completed.length > 0 && (
                                 <>
                                   <tr className="table-secondary">
-                                    <td
-                                      colSpan="5"
-                                      style={{ fontSize: 14, fontWeight: 600 }}
-                                    >
+                                    <td colSpan="5" style={{ fontSize: 14 }}>
                                       Contrats terminés
                                     </td>
                                   </tr>
@@ -2272,7 +2501,6 @@ export default function KpiPage() {
                                               className="text-success"
                                               style={{
                                                 fontSize: 14,
-                                                fontWeight: 600,
                                               }}
                                             >
                                               Dossier terminé
@@ -2282,9 +2510,7 @@ export default function KpiPage() {
                                           <td>
                                             {last ? (
                                               <div style={{ fontSize: 14 }}>
-                                                <div>
-                                                  <strong>{last.label}</strong>
-                                                </div>
+                                                <div>{last.label}</div>
                                                 {last.date && (
                                                   <div className="text-muted">
                                                     {formatDate(last.date)}
