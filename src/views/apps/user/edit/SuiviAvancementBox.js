@@ -485,8 +485,6 @@ const getCurrentStepNumber = (typeCode, suivi) => {
 };
 
 const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
-  console.log("--- SuiviAvancementBox Render ---");
-
   const [loading, setLoading] = useState(false);
   const [suivis, setSuivis] = useState([]);
   const [contracts, setContracts] = useState([]);
