@@ -501,61 +501,161 @@ class SideMenuContent extends React.Component {
 
     axios
       .get(global.config.server_url + "/suivi-avancement/all", Config)
-      .then((res) => {
-        const suivis = Array.isArray(res.data) ? res.data : [];
-        const now = new Date();
-        const today = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate(),
-        );
+      .then((resSuivis) => {
+        const suivis = Array.isArray(resSuivis.data) ? resSuivis.data : [];
 
-        let urgentCount = 0;
+        // Also fetch documents for payment alerts
+        axios
+          .get(global.config.server_url + "/documents", Config)
+          .then((resDocs) => {
+            const docs = Array.isArray(resDocs.data) ? resDocs.data : [];
+            const docsMap = {};
+            docs.forEach((d) => {
+              if (d.id) docsMap[d.id] = d;
+            });
 
-        suivis.forEach((s) => {
-          // Check contract state
-          const contract = s.contract || s;
-          const isTerminated =
-            contract && contract.document_state === "Terminé";
-          if (isTerminated) return;
+            const now = new Date();
+            const today = new Date(
+              now.getFullYear(),
+              now.getMonth(),
+              now.getDate(),
+            );
 
-          const { profileKey, steps } = buildStepsForSuivi(s);
-          const { last, next } = getLastAndNextSteps(steps);
+            let urgentCount = 0;
 
-          // 1. Check 5 days (Credit Impot)
-          if (profileKey === "credit_impot") {
-            const step3 = steps.find((st) => st.index === 3);
-            const step4 = steps.find((st) => st.index === 4);
-            if (step3 && step3.date && (!step4 || !step4.completed)) {
-              const d3Time = parseDateOnly(step3.date);
-              if (d3Time && d3Time <= today.getTime()) {
-                urgentCount++;
-                return;
+            suivis.forEach((s) => {
+              // Check contract state
+              const contract = s.contract || s;
+              const isTerminated =
+                contract && contract.document_state === "Terminé";
+              if (isTerminated) return;
+
+              const { profileKey, steps } = buildStepsForSuivi(s);
+              const { last, next } = getLastAndNextSteps(steps);
+
+              // 1. Check 5 days (Credit Impot)
+              if (profileKey === "credit_impot") {
+                const step3 = steps.find((st) => st.index === 3);
+                const step4 = steps.find((st) => st.index === 4);
+                if (step3 && step3.date && (!step4 || !step4.completed)) {
+                  const d3Time = parseDateOnly(step3.date);
+                  if (d3Time && d3Time <= today.getTime()) {
+                    urgentCount++;
+                    return;
+                  }
+                }
               }
-            }
-          }
 
-          // 2. Check Facturation Urgent (CH / Simu / etc)
-          if (
-            next &&
-            next.label === "Facturation" &&
-            last &&
-            last.label === "Prise de RDV"
-          ) {
-            if (last.date) {
-              const rdvTime = parseDateOnly(last.date);
-              if (rdvTime && rdvTime <= today.getTime()) {
-                urgentCount++;
-                return;
+              // 2. Check Facturation Urgent (CH / Simu / etc)
+              if (
+                next &&
+                next.label === "Facturation" &&
+                last &&
+                last.label === "Prise de RDV"
+              ) {
+                if (last.date) {
+                  const rdvTime = parseDateOnly(last.date);
+                  if (rdvTime && rdvTime <= today.getTime()) {
+                    urgentCount++;
+                    return;
+                  }
+                } else {
+                  urgentCount++;
+                  return;
+                }
               }
-            } else {
-              urgentCount++;
-              return;
-            }
-          }
-        });
 
-        this.setState({ crmBadge: urgentCount });
+              // 3. Check Payment Alerts (2nd+ payment due & unpaid)
+              const docId = s.facture_id || s.document_id || s.contract_id;
+              const doc = docId ? docsMap[docId] : null;
+              if (doc) {
+                let acompteDates = [];
+                try {
+                  acompteDates = Array.isArray(doc.acompte_dates)
+                    ? doc.acompte_dates
+                    : doc.acompte_dates
+                      ? JSON.parse(doc.acompte_dates)
+                      : [];
+                } catch (e) {
+                  acompteDates = [];
+                }
+
+                let soldDates = [];
+                try {
+                  soldDates = Array.isArray(doc.sold_dates)
+                    ? doc.sold_dates
+                    : doc.sold_dates
+                      ? JSON.parse(doc.sold_dates)
+                      : [];
+                } catch (e) {
+                  soldDates = [];
+                }
+
+                const allPayments = [...acompteDates, ...soldDates];
+                if (allPayments.length > 1) {
+                  for (let i = 1; i < allPayments.length; i++) {
+                    const payment = allPayments[i];
+                    const isPaid =
+                      payment.is_paid === true || payment.is_paid === 1;
+                    if (isPaid) continue;
+                    const payTime = parseDateOnly(payment.date);
+                    if (payTime && payTime <= today.getTime()) {
+                      urgentCount++;
+                      break;
+                    }
+                  }
+                }
+              }
+            });
+
+            this.setState({ crmBadge: urgentCount });
+          })
+          .catch((err) => {
+            console.error("Error fetching documents for payment alerts", err);
+            // Still set badge from suivi-only logic
+            const now = new Date();
+            const today = new Date(
+              now.getFullYear(),
+              now.getMonth(),
+              now.getDate(),
+            );
+            let urgentCount = 0;
+            suivis.forEach((s) => {
+              const contract = s.contract || s;
+              if (contract && contract.document_state === "Terminé") return;
+              const { profileKey, steps } = buildStepsForSuivi(s);
+              const { last, next } = getLastAndNextSteps(steps);
+              if (profileKey === "credit_impot") {
+                const step3 = steps.find((st) => st.index === 3);
+                const step4 = steps.find((st) => st.index === 4);
+                if (step3 && step3.date && (!step4 || !step4.completed)) {
+                  const d3Time = parseDateOnly(step3.date);
+                  if (d3Time && d3Time <= today.getTime()) {
+                    urgentCount++;
+                    return;
+                  }
+                }
+              }
+              if (
+                next &&
+                next.label === "Facturation" &&
+                last &&
+                last.label === "Prise de RDV"
+              ) {
+                if (last.date) {
+                  const rdvTime = parseDateOnly(last.date);
+                  if (rdvTime && rdvTime <= today.getTime()) {
+                    urgentCount++;
+                    return;
+                  }
+                } else {
+                  urgentCount++;
+                  return;
+                }
+              }
+            });
+            this.setState({ crmBadge: urgentCount });
+          });
       })
       .catch((err) =>
         console.error("Error fetching urgent count for sidebar", err),
