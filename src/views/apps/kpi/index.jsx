@@ -514,6 +514,7 @@ const todoDot = {
 
 const todoMainText = {
   fontSize: 16,
+  fontWeight: 600,
   color: "#212529",
   lineHeight: 1.2,
 };
@@ -527,7 +528,7 @@ const todoSubText = {
 function renderTodoCell(next, badge = null) {
   if (!next) {
     return (
-      <span className="text-success" style={{ fontSize: 14 }}>
+      <span className="text-success" style={{ fontSize: 14, fontWeight: 600 }}>
         Dossier terminé
       </span>
     );
@@ -1762,7 +1763,10 @@ export default function KpiPage() {
                               groupedSuivis.facturation.length > 0 && (
                                 <>
                                   <tr className="table-danger">
-                                    <td colSpan="5" style={{ fontSize: 14 }}>
+                                    <td
+                                      colSpan="5"
+                                      style={{ fontSize: 14, fontWeight: 600 }}
+                                    >
                                       Facturation - Urgent
                                     </td>
                                   </tr>
@@ -1813,7 +1817,9 @@ export default function KpiPage() {
                                           <td>
                                             {last ? (
                                               <div style={{ fontSize: 14 }}>
-                                                <div>{last.label}</div>
+                                                <div>
+                                                  <strong>{last.label}</strong>
+                                                </div>
                                                 {last.date && (
                                                   <div className="text-muted">
                                                     {formatDate(last.date)}
@@ -1875,7 +1881,10 @@ export default function KpiPage() {
                               groupedSuivis.paymentAlerts.length > 0 && (
                                 <>
                                   <tr className="table-danger">
-                                    <td colSpan="5" style={{ fontSize: 14 }}>
+                                    <td
+                                      colSpan="5"
+                                      style={{ fontSize: 14, fontWeight: 600 }}
+                                    >
                                       Paiements à lancer (Échéances atteintes)
                                     </td>
                                   </tr>
@@ -1954,7 +1963,9 @@ export default function KpiPage() {
                                           <td>
                                             {last ? (
                                               <div style={{ fontSize: 14 }}>
-                                                <div>{last.label}</div>
+                                                <div>
+                                                  <strong>{last.label}</strong>
+                                                </div>
                                                 {last.date && (
                                                   <div className="text-muted">
                                                     {formatDate(last.date)}
@@ -2016,7 +2027,10 @@ export default function KpiPage() {
                               groupedSuivis.after5days.length > 0 && (
                                 <>
                                   <tr className="table-warning">
-                                    <td colSpan="5" style={{ fontSize: 14 }}>
+                                    <td
+                                      colSpan="5"
+                                      style={{ fontSize: 14, fontWeight: 600 }}
+                                    >
                                       5 jours ouvrés atteints / dépassés (à
                                       traiter en priorité)
                                     </td>
@@ -2061,7 +2075,9 @@ export default function KpiPage() {
                                           <td>
                                             {last ? (
                                               <div style={{ fontSize: 14 }}>
-                                                <div>{last.label}</div>
+                                                <div>
+                                                  <strong>{last.label}</strong>
+                                                </div>
                                                 {last.date && (
                                                   <div className="text-muted">
                                                     {formatDate(last.date)}
@@ -2135,6 +2151,7 @@ export default function KpiPage() {
                                       borderBottom: "1px solid #dee2e6",
                                       background: "#f8f9fa",
                                       fontSize: 13,
+                                      fontWeight: 600,
                                       color: "#6c757d",
                                       textTransform: "uppercase",
                                       letterSpacing: "0.04em",
@@ -2150,7 +2167,10 @@ export default function KpiPage() {
                               groupedSuivis.suivi.length > 0 && (
                                 <>
                                   <tr className="table-info">
-                                    <td colSpan="5" style={{ fontSize: 14 }}>
+                                    <td
+                                      colSpan="5"
+                                      style={{ fontSize: 14, fontWeight: 600 }}
+                                    >
                                       Dossiers à suivre
                                     </td>
                                   </tr>
@@ -2189,7 +2209,9 @@ export default function KpiPage() {
                                           <td>
                                             {last ? (
                                               <div style={{ fontSize: 14 }}>
-                                                <div>{last.label}</div>
+                                                <div>
+                                                  <strong>{last.label}</strong>
+                                                </div>
                                                 {last.date && (
                                                   <div className="text-muted">
                                                     {formatDate(last.date)}
@@ -2287,7 +2309,9 @@ export default function KpiPage() {
                                       <td>
                                         {last ? (
                                           <div style={{ fontSize: 14 }}>
-                                            <div>{last.label}</div>
+                                            <div>
+                                              <strong>{last.label}</strong>
+                                            </div>
                                             {last.date && (
                                               <div className="text-muted">
                                                 {formatDate(last.date)}
@@ -2354,7 +2378,10 @@ export default function KpiPage() {
                               groupedSuivis.processing.length > 0 && (
                                 <>
                                   <tr className="table-secondary">
-                                    <td colSpan="5" style={{ fontSize: 14 }}>
+                                    <td
+                                      colSpan="5"
+                                      style={{ fontSize: 14, fontWeight: 600 }}
+                                    >
                                       Dossiers en cours de traitement
                                     </td>
                                   </tr>
@@ -2393,7 +2420,9 @@ export default function KpiPage() {
                                           <td>
                                             {last ? (
                                               <div style={{ fontSize: 14 }}>
-                                                <div>{last.label}</div>
+                                                <div>
+                                                  <strong>{last.label}</strong>
+                                                </div>
                                                 {last.date && (
                                                   <div className="text-muted">
                                                     {formatDate(last.date)}
@@ -2460,7 +2489,10 @@ export default function KpiPage() {
                               groupedSuivis.completed.length > 0 && (
                                 <>
                                   <tr className="table-secondary">
-                                    <td colSpan="5" style={{ fontSize: 14 }}>
+                                    <td
+                                      colSpan="5"
+                                      style={{ fontSize: 14, fontWeight: 600 }}
+                                    >
                                       Contrats terminés
                                     </td>
                                   </tr>
@@ -2501,6 +2533,7 @@ export default function KpiPage() {
                                               className="text-success"
                                               style={{
                                                 fontSize: 14,
+                                                fontWeight: 600,
                                               }}
                                             >
                                               Dossier terminé
@@ -2510,7 +2543,9 @@ export default function KpiPage() {
                                           <td>
                                             {last ? (
                                               <div style={{ fontSize: 14 }}>
-                                                <div>{last.label}</div>
+                                                <div>
+                                                  <strong>{last.label}</strong>
+                                                </div>
                                                 {last.date && (
                                                   <div className="text-muted">
                                                     {formatDate(last.date)}
