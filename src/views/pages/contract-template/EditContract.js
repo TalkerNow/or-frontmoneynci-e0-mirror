@@ -1207,6 +1207,7 @@ class EditContract extends React.Component {
 
       if (redirect) {
         // 🔁 4) retour sur la fiche user
+        toast.success("Contrat enregistré avec succès");
         history.push("/app/user/edit/" + userid + "/8");
       } else {
         this.setState({ isDirty: false });
@@ -2342,25 +2343,68 @@ class EditContract extends React.Component {
 
                         // Recalculate totals for display
                         const amountAcompte = (totalTTC * fp1) / 100;
-                        const amountTotalSolde = (totalTTC * fp2) / 100;
-                        let totalPercu = 0;
                         const acompteDates = this.state.acompte_dates || [];
-                        const amountPerAcompte =
-                          acompteDates.length > 0
-                            ? amountAcompte / acompteDates.length
-                            : amountAcompte;
-                        acompteDates.forEach((d) => {
-                          if (d && typeof d === "object" && d.is_paid)
-                            totalPercu += amountPerAcompte;
-                        });
                         const soldDates = this.state.sold_dates || [];
-                        const amountPerSolde =
-                          soldDates.length > 0
-                            ? amountTotalSolde / soldDates.length
-                            : amountTotalSolde;
+                        const amountTotalSolde =
+                          acompteDates.length > 0
+                            ? (totalTTC * fp2) / 100
+                            : totalTTC;
+                        let totalPercu = 0;
+
+                        // Smart logic for Acompte (matching payment table logic)
+                        const fixedAcomptes = acompteDates.filter(
+                          (d) =>
+                            d &&
+                            typeof d === "object" &&
+                            d.amount !== undefined,
+                        );
+                        const sumFixedAcomptes = fixedAcomptes.reduce(
+                          (acc, d) => acc + parseFloat(d.amount || 0),
+                          0,
+                        );
+                        const unFixedAcomptesCount =
+                          acompteDates.length - fixedAcomptes.length;
+                        let amountPerAcompte = 0;
+                        if (unFixedAcomptesCount > 0) {
+                          amountPerAcompte =
+                            (amountAcompte - sumFixedAcomptes) /
+                            unFixedAcomptesCount;
+                        }
+
+                        acompteDates.forEach((d) => {
+                          if (d && typeof d === "object" && d.is_paid) {
+                            if (d.amount !== undefined)
+                              totalPercu += parseFloat(d.amount);
+                            else totalPercu += amountPerAcompte;
+                          }
+                        });
+
+                        // Smart logic for Solde (matching payment table logic)
+                        const fixedSoldes = soldDates.filter(
+                          (d) =>
+                            d &&
+                            typeof d === "object" &&
+                            d.amount !== undefined,
+                        );
+                        const sumFixedSoldes = fixedSoldes.reduce(
+                          (acc, d) => acc + parseFloat(d.amount || 0),
+                          0,
+                        );
+                        const unFixedSoldesCount =
+                          soldDates.length - fixedSoldes.length;
+                        let amountPerSolde = 0;
+                        if (unFixedSoldesCount > 0) {
+                          amountPerSolde =
+                            (amountTotalSolde - sumFixedSoldes) /
+                            unFixedSoldesCount;
+                        }
+
                         soldDates.forEach((d) => {
-                          if (d && typeof d === "object" && d.is_paid)
-                            totalPercu += amountPerSolde;
+                          if (d && typeof d === "object" && d.is_paid) {
+                            if (d.amount !== undefined)
+                              totalPercu += parseFloat(d.amount);
+                            else totalPercu += amountPerSolde;
+                          }
                         });
                         const reste = totalTTC - totalPercu;
                         const formatMoney = (val) =>
