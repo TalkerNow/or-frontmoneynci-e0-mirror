@@ -1167,6 +1167,7 @@ export default function KpiPage() {
       processing: [], // Paiement du contrat -> Avancement du dossier
       completed: [], // Contrats terminés
       paymentAlerts: [], // 🔴 Paiements à lancer (échéances atteintes)
+      relance: [], // 🟠 Contrats envoyés > 7 jours sans signature
     };
 
     if (!Array.isArray(sortedSuivis)) return res;
@@ -1326,6 +1327,44 @@ export default function KpiPage() {
           isRdvToday,
           paymentAlertLabel,
           paymentAlertAmount,
+        });
+        return;
+      }
+
+      // 🟠 Relance contrat : envoi fait > 7 jours, signature non faite
+      let isRelance = false;
+      let relanceEnvoiDate = null;
+      if (!isContractFinished) {
+        const profileKey = getStepProfileKeyFromSuivi(s);
+        // "Envoi du contrat" → step8 for credit_impot, step6 for ar_tfd
+        if (profileKey === "credit_impot") {
+          relanceEnvoiDate = s.step8_completed_at;
+        } else if (profileKey === "ar_tfd") {
+          relanceEnvoiDate = s.step6_completed_at;
+        }
+        const signatureDate = s.step1_completed_at; // "Signature du contrat"
+
+        if (relanceEnvoiDate && !signatureDate) {
+          const envoiTime = parseDateToTime(relanceEnvoiDate);
+          if (envoiTime) {
+            const sevenDaysLater = new Date(envoiTime);
+            sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
+            if (sevenDaysLater.getTime() <= today.getTime()) {
+              isRelance = true;
+            }
+          }
+        }
+      }
+
+      // Relance prioritaire sur les buckets normaux (sauf completed/payment)
+      if (isRelance) {
+        res.relance.push({
+          s,
+          steps,
+          last,
+          next,
+          isRdvToday,
+          relanceEnvoiDate,
         });
         return;
       }
@@ -2097,10 +2136,139 @@ export default function KpiPage() {
                                 </>
                               )}
 
+                            {/* 0.3) Dossiers à relancer (Contrats envoyés > 7 jours) */}
+                            {noFilterActive &&
+                              groupedSuivis.relance.length > 0 && (
+                                <>
+                                  <tr className="table-warning">
+                                    <td
+                                      colSpan="5"
+                                      style={{ fontSize: 14, fontWeight: 600 }}
+                                    >
+                                      Dossiers à relancer (Contrats envoyés &gt;
+                                      7 jours)
+                                    </td>
+                                  </tr>
+
+                                  {groupedSuivis.relance.map(
+                                    ({
+                                      s,
+                                      steps,
+                                      last,
+                                      next,
+                                      isRdvToday,
+                                      relanceEnvoiDate,
+                                    }) => {
+                                      const clientLabel =
+                                        getClientDisplayNameFromSuivi(
+                                          s,
+                                          clientsById,
+                                        );
+                                      const contractId =
+                                        s.facture_id ||
+                                        s.document_id ||
+                                        s.contract_id;
+                                      const clientId = s.client_id;
+
+                                      return (
+                                        <tr
+                                          key={`relance-${
+                                            s.suivi_id || s.id || ""
+                                          }-${
+                                            s.document_id || s.facture_id || ""
+                                          }`}
+                                          onClick={() => {
+                                            if (clientId) {
+                                              history.push(
+                                                `/app/user/edit/${clientId}/2`,
+                                              );
+                                            }
+                                          }}
+                                          style={{ cursor: "pointer" }}
+                                        >
+                                          {/* Client */}
+                                          <td>{clientLabel}</td>
+
+                                          {/* À faire */}
+                                          <td>
+                                            {renderTodoCell(
+                                              {
+                                                label: "Relance contrat",
+                                                isDatedStep: true,
+                                                date: null,
+                                              },
+                                              `Envoyé le ${formatDate(relanceEnvoiDate)}`,
+                                            )}
+                                          </td>
+
+                                          {/* Dernière étape validée */}
+                                          <td>
+                                            {last ? (
+                                              <div style={{ fontSize: 14 }}>
+                                                <div>
+                                                  <strong>{last.label}</strong>
+                                                </div>
+                                                {last.date && (
+                                                  <div className="text-muted">
+                                                    {formatDate(last.date)}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            ) : (
+                                              <span
+                                                className="text-muted"
+                                                style={{ fontSize: 14 }}
+                                              >
+                                                Aucune étape validée
+                                              </span>
+                                            )}
+                                          </td>
+
+                                          {/* Type de contrat */}
+                                          <td
+                                            style={{
+                                              whiteSpace: "nowrap",
+                                              width: 160,
+                                            }}
+                                          >
+                                            {renderProductBadgeFromSuivi(s)}
+                                          </td>
+
+                                          {/* Contrat (flèche) */}
+                                          <td
+                                            style={{
+                                              width: 60,
+                                              textAlign: "center",
+                                            }}
+                                          >
+                                            {contractId ? (
+                                              <Button
+                                                color="link"
+                                                className="p-0"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  history.push(
+                                                    `/pages/contract/${contractId}`,
+                                                  );
+                                                }}
+                                                title="Voir le contrat"
+                                              >
+                                                <ArrowRight size={18} />
+                                              </Button>
+                                            ) : null}
+                                          </td>
+                                        </tr>
+                                      );
+                                    },
+                                  )}
+                                </>
+                              )}
+
                             {/* Séparateur "Dossiers à suivre" si on a des sections urgentes au-dessus */}
                             {(groupedSuivis.creationDevis.length > 0 ||
                               groupedSuivis.facturation.length > 0 ||
-                              groupedSuivis.paymentAlerts.length > 0) &&
+                              groupedSuivis.paymentAlerts.length > 0 ||
+                              groupedSuivis.relance.length > 0) &&
                               groupedSuivis.active.length > 0 && (
                                 <tr className="table-info">
                                   <td
@@ -2453,6 +2621,7 @@ export default function KpiPage() {
                               groupedSuivis.creationDevis.length === 0 &&
                               groupedSuivis.facturation.length === 0 &&
                               groupedSuivis.paymentAlerts.length === 0 &&
+                              groupedSuivis.relance.length === 0 &&
                               (!showProcessing ||
                                 groupedSuivis.processing.length === 0) &&
                               (!showCompleted ||
