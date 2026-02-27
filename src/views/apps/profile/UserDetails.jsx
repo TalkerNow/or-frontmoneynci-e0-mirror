@@ -339,11 +339,17 @@ export default function UserDetails({
                         <option value="" disabled>
                           Choisir...
                         </option>
-                        {members.map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.first_name} {m.last_name}
-                          </option>
-                        ))}
+                        {members
+                          .filter(
+                            (m) =>
+                              m.role?.toLowerCase() === "consultant" ||
+                              m.role?.toLowerCase() === "admin",
+                          )
+                          .map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.first_name} {m.last_name}
+                            </option>
+                          ))}
                       </select>
                       <Button.Ripple
                         color="danger"

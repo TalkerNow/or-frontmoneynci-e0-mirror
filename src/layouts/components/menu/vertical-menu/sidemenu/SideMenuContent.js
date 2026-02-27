@@ -502,7 +502,9 @@ class SideMenuContent extends React.Component {
     axios
       .get(global.config.server_url + "/suivi-avancement/all", Config)
       .then((resSuivis) => {
-        const suivis = Array.isArray(resSuivis.data) ? resSuivis.data : [];
+        const suivis = Array.isArray(resSuivis.data)
+          ? resSuivis.data.filter((s) => s.client_id)
+          : [];
 
         // Also fetch documents for payment alerts
         axios
@@ -530,20 +532,13 @@ class SideMenuContent extends React.Component {
                 contract && contract.document_state === "Terminé";
               if (isTerminated) return;
 
-              const { profileKey, steps } = buildStepsForSuivi(s);
+              const { steps } = buildStepsForSuivi(s);
               const { last, next } = getLastAndNextSteps(steps);
 
-              // 1. Check 5 days (Credit Impot)
-              if (profileKey === "credit_impot") {
-                const step3 = steps.find((st) => st.index === 3);
-                const step4 = steps.find((st) => st.index === 4);
-                if (step3 && step3.date && (!step4 || !step4.completed)) {
-                  const d3Time = parseDateOnly(step3.date);
-                  if (d3Time && d3Time <= today.getTime()) {
-                    urgentCount++;
-                    return;
-                  }
-                }
+              // 1. Check Création devis (tous profils)
+              if (next && next.label === "Création devis") {
+                urgentCount++;
+                return;
               }
 
               // 2. Check Facturation Urgent (CH / Simu / etc)
@@ -623,18 +618,11 @@ class SideMenuContent extends React.Component {
             suivis.forEach((s) => {
               const contract = s.contract || s;
               if (contract && contract.document_state === "Terminé") return;
-              const { profileKey, steps } = buildStepsForSuivi(s);
+              const { steps } = buildStepsForSuivi(s);
               const { last, next } = getLastAndNextSteps(steps);
-              if (profileKey === "credit_impot") {
-                const step3 = steps.find((st) => st.index === 3);
-                const step4 = steps.find((st) => st.index === 4);
-                if (step3 && step3.date && (!step4 || !step4.completed)) {
-                  const d3Time = parseDateOnly(step3.date);
-                  if (d3Time && d3Time <= today.getTime()) {
-                    urgentCount++;
-                    return;
-                  }
-                }
+              if (next && next.label === "Création devis") {
+                urgentCount++;
+                return;
               }
               if (
                 next &&
@@ -875,6 +863,32 @@ class SideMenuContent extends React.Component {
                   }}
                 >
                   {this.state.tasksBadge}
+                </span>
+              </div>
+            ) : null}
+
+            {/* ✅ Badge CRM (Suivi Admin) */}
+            {item.id === "kpi" && this.state.crmBadge > 0 ? (
+              <div
+                className="menu-badge"
+                style={{ marginLeft: "auto", marginRight: 10 }}
+              >
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 22,
+                    height: 22,
+                    borderRadius: "50%",
+                    backgroundColor: "#ea5455",
+                    color: "#fff",
+                    fontSize: 10,
+                    fontWeight: 600,
+                    lineHeight: 1,
+                  }}
+                >
+                  {this.state.crmBadge}
                 </span>
               </div>
             ) : null}
