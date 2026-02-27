@@ -969,28 +969,33 @@ class UserAccountTab extends React.Component {
                   <CustomInput
                     type="select"
                     name="business_introducer"
-                    value={
-                      this.state.business_introducer_id != null
-                        ? this.state.business_introducer_id
-                        : this.ifDataExist("business_introducer_id")
-                    }
+                    value={this.state.business_introducer_id || ""}
                     id="business_introducer"
                     onChange={(e) => {
-                      this.setState({ business_introducer_id: e.target.value });
+                      this.setState({
+                        business_introducer_id:
+                          e.target.value === "" ? null : e.target.value,
+                      });
                       this.markDirty();
                     }}
                   >
                     {this.props.members &&
                       [
-                        <option key="none" value={null}>
+                        <option key="none" value="">
                           Aucun
                         </option>,
                       ].concat(
-                        this.props.members.map((member, index) => (
-                          <option key={member.id} value={member.id}>
-                            {member.first_name + " " + member.last_name}
-                          </option>
-                        )),
+                        this.props.members
+                          .filter(
+                            (m) =>
+                              m.role?.toLowerCase() === "consultant" ||
+                              m.role?.toLowerCase() === "admin",
+                          )
+                          .map((member, index) => (
+                            <option key={member.id} value={member.id}>
+                              {member.first_name + " " + member.last_name}
+                            </option>
+                          )),
                       )}
                   </CustomInput>
                 </FormGroup>
@@ -1277,28 +1282,33 @@ class UserAccountTab extends React.Component {
                   <CustomInput
                     type="select"
                     name="member"
-                    value={
-                      this.state.parent_id != null
-                        ? this.state.parent_id
-                        : this.ifDataExist("parent_id")
-                    }
+                    value={this.state.parent_id || ""}
                     id="member"
                     onChange={(e) => {
-                      this.setState({ parent_id: e.target.value });
+                      this.setState({
+                        parent_id:
+                          e.target.value === "" ? null : e.target.value,
+                      });
                       this.markDirty();
                     }}
                   >
                     {this.props.members &&
                       [
-                        <option key="none" value={null}>
+                        <option key="none" value="">
                           Aucun
                         </option>,
                       ].concat(
-                        this.props.members.map((member, index) => (
-                          <option key={member.id} value={member.id}>
-                            {member.first_name + " " + member.last_name}
-                          </option>
-                        )),
+                        this.props.members
+                          .filter(
+                            (m) =>
+                              m.role?.toLowerCase() === "consultant" ||
+                              m.role?.toLowerCase() === "admin",
+                          )
+                          .map((member, index) => (
+                            <option key={member.id} value={member.id}>
+                              {member.first_name + " " + member.last_name}
+                            </option>
+                          )),
                       )}
                   </CustomInput>
                 </FormGroup>
