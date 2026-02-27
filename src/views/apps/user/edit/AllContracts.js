@@ -59,7 +59,8 @@ class AllContracts extends React.Component {
     const fp2 = values.fp2 || 0;
 
     const amountAcompte = (totalTTC * fp1) / 100;
-    const amountTotalSolde = (totalTTC * fp2) / 100;
+    const amountTotalSolde =
+      acompteDates.length > 0 ? (totalTTC * fp2) / 100 : totalTTC;
 
     let totalPaid = 0;
     let acomptePaid = 0;
