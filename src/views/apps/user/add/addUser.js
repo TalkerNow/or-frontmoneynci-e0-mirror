@@ -1267,11 +1267,17 @@ class AddUser extends React.Component {
                   }
                 >
                   <option value="">Aucun</option>
-                  {this.state.members.map((member, index) => (
-                    <option key={index} value={member.id}>
-                      {member.first_name + " " + member.last_name}
-                    </option>
-                  ))}
+                  {this.state.members
+                    .filter(
+                      (m) =>
+                        m.role?.toLowerCase() === "consultant" ||
+                        m.role?.toLowerCase() === "admin",
+                    )
+                    .map((member, index) => (
+                      <option key={index} value={member.id}>
+                        {member.first_name + " " + member.last_name}
+                      </option>
+                    ))}
                 </CustomInput>
               </FormGroup>
             </Col>
