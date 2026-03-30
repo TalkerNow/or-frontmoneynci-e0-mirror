@@ -190,9 +190,17 @@
     white-space: nowrap;
 
     a {
-      display: block;
-      text-overflow: ellipsis;
+      display: flex;
+      align-items: center;
       overflow: hidden;
+
+      .menu-title {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
     }
 
     &.disabled {
