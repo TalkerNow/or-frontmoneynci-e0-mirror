@@ -197,9 +197,9 @@
       .menu-title {
         flex: 1;
         min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
         white-space: nowrap;
+        overflow: visible; // Allows text to continue slightly rather than truncating immediately
+        font-size: 0.95rem; // Slightly smaller to help fit 
       }
     }
 

@@ -115,17 +115,15 @@
     }
     li {
       .menu-text {
-        width: 200px; // ✅ Largeur augmentée pour "Boîte de réception"
+        flex-grow: 1;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        &:last-child {
-          width: 210px;
-        }
+        padding-right: 4px; /* small space before the badge */
       }
       &.has-sub {
         ul.menu-content {
-          padding: 7px 7px 7px 12px; // ✅ Indentation à gauche pour les sous-menus
+          padding: 7px 4px 7px 8px; // Reduced left/right padding to give more room to text
           margin: 0;
           transition: height 0.25s ease;
           // ✅ Distinction visuelle des sous-menus
@@ -133,7 +131,7 @@
           border-radius: 6px;
           margin-top: 8px;
           margin-bottom: 8px;
-          margin-left: 8px; // Décalage à droite
+          margin-left: 4px; // Décalage à droite réduit
           border-left: 2px solid rgba($primary, 0.3); // Ligne verticale subtile
         }
       }
