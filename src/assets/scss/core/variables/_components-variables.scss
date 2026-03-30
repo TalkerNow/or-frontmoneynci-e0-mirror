@@ -75,13 +75,13 @@ $menu-third-level-padding: 10px 15px 10px 20px;
 $menu-forth-level-padding: 10px 15px 10px 30px;
 
 // vertical menu
-$menu-expanded-width: 260px;
+$menu-expanded-width: 300px;
 $menu-collapsed-width: 80px;
 
 //  ------------------------------
 //    Sidebar
 //  -------------------------------
-$sidebar-width: 260px;
+$sidebar-width: 300px;
 $chat-sidebar-width: 400px;
 //  -------------------------------
 //    Avatar
@@ -114,7 +114,9 @@ $progress-size-sm: 0.143rem;
 
 // $input-height, $input-height-lg, $input-height-sm are in variables
 $font-size-xs: 0.75rem;
-$font-size-xl: ($font-size-base + 0.5);
+$font-size-xl: (
+  $font-size-base + 0.5
+);
 $line-height-xl: 1.7;
 $line-height-xs: 1.5;
 $input-padding-y-xl: 0.5rem !default;
@@ -129,14 +131,11 @@ $input-border-radius-xl: $border-radius-xl;
 $input-border-radius-xs: $border-radius-xs;
 
 $input-height-xl: (
-  ($font-size-xl * $line-height-xl) + ($input-padding-y-xl * 2)
-) !default;
+  ($font-size-xl * $line-height-xl) + ($input-padding-y-xl * 2)) !default;
 $input-height-xs: (
-  ($font-size-xs * $line-height-xs) + ($input-padding-y-xs * 2)
-) !default;
+  ($font-size-xs * $line-height-xs) + ($input-padding-y-xs * 2)) !default;
 $input-height-sm: (
-  ($font-size-sm * $line-height-sm) + ($input-padding-y-sm * 2)
-) !default;
+  ($font-size-sm * $line-height-sm) + ($input-padding-y-sm * 2)) !default;
 
 //  Custom VueSax Checkbox
 $vs-checkbox-radio-border-width: 2px;
