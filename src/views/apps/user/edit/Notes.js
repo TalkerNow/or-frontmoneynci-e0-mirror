@@ -1,4 +1,5 @@
 import React from "react";
+import { Row, Col } from "reactstrap";
 import "../../../../assets/scss/pages/notes-hub.scss";
 import { useNotesLogic } from "./notes/useNotesLogic";
 import NotesForm from "./notes/NotesForm";
@@ -10,7 +11,7 @@ import ReportErrorModal from "./notes/ReportErrorModal";
 import DeleteConfirmModal from "./notes/DeleteConfirmModal";
 import ProspectChatView from "./ProspectChatView";
 
-const NotesTab = ({ id, perso = {}, onReportError }) => {
+const NotesTab = ({ id, perso = {}, onReportError, commentsSlot }) => {
   const {
     notes,
     handleNotesChange,
@@ -76,23 +77,32 @@ const NotesTab = ({ id, perso = {}, onReportError }) => {
     <div className="notes-page">
       <ProspectChatView user={perso} />
 
-      <NotesForm
-        notes={notes}
-        handleNotesChange={handleNotesChange}
-        handleSubmit={handleSubmit}
-        hasChanged={hasChanged}
-        isSaving={isSaving}
-        isEditingNotes={isEditingNotes}
-        setIsEditingNotes={setIsEditingNotes}
-        handleCancelNotesEdit={handleCancelNotesEdit}
-        notePrompts={notePrompts}
-        selectedNotePromptId={selectedNotePromptId}
-        setSelectedNotePromptId={setSelectedNotePromptId}
-        isGeneratingNotes={isGeneratingNotes}
-        handleGenerateNotesWithPrompt={handleGenerateNotesWithPrompt}
-        previousNotesSnapshot={previousNotesSnapshot}
-        handleRestorePreviousNotes={handleRestorePreviousNotes}
-      />
+      <Row className="match-height">
+        <Col md={commentsSlot ? "6" : "12"} sm="12" className="d-flex">
+          <NotesForm
+            notes={notes}
+            handleNotesChange={handleNotesChange}
+            handleSubmit={handleSubmit}
+            hasChanged={hasChanged}
+            isSaving={isSaving}
+            isEditingNotes={isEditingNotes}
+            setIsEditingNotes={setIsEditingNotes}
+            handleCancelNotesEdit={handleCancelNotesEdit}
+            notePrompts={notePrompts}
+            selectedNotePromptId={selectedNotePromptId}
+            setSelectedNotePromptId={setSelectedNotePromptId}
+            isGeneratingNotes={isGeneratingNotes}
+            handleGenerateNotesWithPrompt={handleGenerateNotesWithPrompt}
+            previousNotesSnapshot={previousNotesSnapshot}
+            handleRestorePreviousNotes={handleRestorePreviousNotes}
+          />
+        </Col>
+        {commentsSlot && (
+          <Col md="6" sm="12" className="d-flex">
+            {commentsSlot}
+          </Col>
+        )}
+      </Row>
 
       {String(perso.role).toLowerCase() !== "prospect" && (
         <>

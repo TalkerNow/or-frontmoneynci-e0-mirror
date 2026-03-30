@@ -20,7 +20,6 @@ import {
   Info,
   Folder,
   CheckSquare,
-  MessageCircle,
   ArrowLeft,
   Circle,
   Activity,
@@ -291,8 +290,6 @@ class UserEdit extends React.Component {
 
   render() {
     const id = this.props.match.params.id;
-    const hasComments =
-      this.state.rowData?.comments && this.state.rowData.comments.trim() !== "";
     if (this.state.showFullForm) {
       return (
         <Row>
@@ -528,18 +525,7 @@ class UserEdit extends React.Component {
                       </span>
                     </NavLink>
                   </NavItem>
-                  <NavItem>
-                    <NavLink
-                      className={classnames("d-flex align-items-center", {
-                        active: this.state.activeTab === "commentaires",
-                      })}
-                      onClick={() => this.toggle("commentaires")}
-                    >
-                      <MessageCircle className="text-primary mr-50" size={16} />
-                      Commentaires
-                      {hasComments && <span className="comment-dot" />}
-                    </NavLink>
-                  </NavItem>
+
                   {canAccessSimulator() && (
                     <NavItem>
                       <NavLink
@@ -568,6 +554,16 @@ class UserEdit extends React.Component {
                 perso={this.state.rowData}
                 members={this.state.members}
                 id={id}
+                commentsSlot={
+                  String(this.state.rowData?.role).toLowerCase() !== "prospect" ? (
+                    <CommentsTab
+                      data={this.state.rowData}
+                      perso={this.state.rowData}
+                      members={this.state.members}
+                      id={id}
+                    />
+                  ) : null
+                }
               />
             </TabPane>
 
@@ -607,18 +603,7 @@ class UserEdit extends React.Component {
                     labelId={`courriers-label-client-${id}`}
                   />
                 </TabPane>
-                <TabPane tabId="commentaires">
-                  <Card className="mb-1">
-                    <CardBody>
-                      <CommentsTab
-                        data={this.state.rowData}
-                        perso={this.state.rowData}
-                        members={this.state.members}
-                        id={id}
-                      />
-                    </CardBody>
-                  </Card>
-                </TabPane>
+
                 <TabPane tabId="simulateur">
                   <SimulatorHub
                     id={id}

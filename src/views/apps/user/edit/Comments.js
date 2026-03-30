@@ -1,9 +1,8 @@
 import React from "react";
-import { Row, Col, Button, Form, Input, Label, FormGroup } from "reactstrap";
+import { Card, CardBody, Form, Input, Button } from "reactstrap";
 
 import axios from "axios";
 import { toast } from "react-toastify";
-//import {history} from "../../../../history";
 
 class CommentsTab extends React.Component {
   state = {
@@ -38,33 +37,38 @@ class CommentsTab extends React.Component {
   updateInfo = (e) => {
     e.preventDefault();
     this.updateComments(this.state);
-    // history.push("/app/user/conslist");
   };
 
   render() {
     return (
-      <Form onSubmit={this.updateInfo}>
-        <Row className="mt-1">
-          <Col md="12" sm="12">
-            <FormGroup>
-              <Label for="child_nbr">Notes</Label>
-              <Input
-                type="textarea"
-                rows="9"
-                placeholder="Commentaires"
-                defaultValue={this.ifExist("comments")}
-                onChange={(e) => this.setState({ comments: e.target.value })}
-              />
-            </FormGroup>
-          </Col>
-          <Col className="d-flex justify-content-end flex-wrap" sm="12">
-            <Button.Ripple className="mr-1" color="primary" type="submit">
-              Enregistrer
-            </Button.Ripple>
-            {/*<Button.Ripple color="flat-warning">Reset</Button.Ripple>*/}
-          </Col>
-        </Row>
-      </Form>
+      <Card className="notes-card notes-card--compact">
+        <CardBody>
+          <Form className="notes-form" onSubmit={this.updateInfo}>
+            <div className="d-flex align-items-center justify-content-between mb-50">
+              <h5 className="notes-card-title mb-0">Notes interne consultant</h5>
+            </div>
+            <Input
+              type="textarea"
+              className="notes-textarea"
+              placeholder="Commentaires"
+              defaultValue={this.ifExist("comments")}
+              onChange={(e) => this.setState({ comments: e.target.value })}
+            />
+            <div
+              className="notes-form-actions notes-action-row d-flex align-items-center justify-content-end"
+              style={{ marginTop: "0.75rem", gap: "0.5rem" }}
+            >
+              <Button
+                className="notes-action-btn"
+                color="primary"
+                type="submit"
+              >
+                Enregistrer
+              </Button>
+            </div>
+          </Form>
+        </CardBody>
+      </Card>
     );
   }
 }
