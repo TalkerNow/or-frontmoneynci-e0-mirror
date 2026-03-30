@@ -1,4 +1,5 @@
 node_modules/
+start.bat
 .idea/
 .test
 package-lock.json
