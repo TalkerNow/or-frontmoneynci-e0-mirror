@@ -201,11 +201,39 @@
   }
 }
 /* Layout desktop par défaut */
-.user-edit-row { flex-wrap: nowrap !important; }
+.user-edit-row { flex-wrap: nowrap !important; align-items: stretch !important; }
 .user-edit-row .profile-right {
   flex: 1 1 0 !important;
   max-width: none !important;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.user-edit-row .profile-right .tab-content {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+.user-edit-row .profile-right .tab-content .tab-pane.active {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+.user-edit-row .profile-right .tab-content .tab-pane.active .notes-page {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+.user-edit-row .profile-right .tab-content .tab-pane.active .notes-page > .row {
+  flex: 1 1 auto;
+}
+.user-edit-row .profile-right .tab-content .tab-pane.active .notes-page > .row > [class*="col"] {
+  display: flex;
+}
+.user-edit-row .profile-right .tab-content .tab-pane.active .notes-page > .row .notes-card {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Responsive: empile la fiche client et le contenu dès 993px */

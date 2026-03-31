@@ -3,15 +3,15 @@ import { Row, Col } from "reactstrap";
 import "../../../../assets/scss/pages/notes-hub.scss";
 import { useNotesLogic } from "./notes/useNotesLogic";
 import NotesForm from "./notes/NotesForm";
-import UploadSection from "./notes/UploadSection";
-import GeneratedDocsSection from "./notes/GeneratedDocsSection";
-import ManualCareerTable from "./notes/ManualCareerTable";
+// import UploadSection from "./notes/UploadSection";
+// import SimulatorIntegration from "./notes/SimulatorIntegration";
 import DocumentViewerModal from "./notes/DocumentViewerModal";
 import ReportErrorModal from "./notes/ReportErrorModal";
 import DeleteConfirmModal from "./notes/DeleteConfirmModal";
 import ProspectChatView from "./ProspectChatView";
 
 const NotesTab = ({ id, perso = {}, onReportError, commentsSlot }) => {
+
   const {
     notes,
     handleNotesChange,
@@ -21,19 +21,7 @@ const NotesTab = ({ id, perso = {}, onReportError, commentsSlot }) => {
     isEditingNotes,
     setIsEditingNotes,
     handleCancelNotesEdit,
-    isUploading,
-    handleUpload,
-    selectedTags,
-    handleTagsChange,
-    n8nMessage,
-    setN8nMessage,
-    reportType,
-    handleGenerateDoc,
     isGenerating,
-    generatedDocs,
-    handleOpenDoc,
-    requestDeleteGenerated,
-    handleRenameDoc,
     deleteConfirmTarget,
     setDeleteConfirmTarget,
     confirmDelete,
@@ -51,19 +39,7 @@ const NotesTab = ({ id, perso = {}, onReportError, commentsSlot }) => {
     reportDescription,
     setReportDescription,
     handleConfirmReport,
-    manualCareerRows,
-    setManualCareerRows,
-    handleManualAddLine,
-    handleManualImport,
-    isImportingRIS,
-    fileToSend,
-    clearFileToSend,
     handleSaveDoc,
-    handleCancelGeneration,
-    userDocuments,
-    isLoadingDocs,
-    fetchUserDocuments,
-    selectDocumentFromList,
     notePrompts,
     selectedNotePromptId,
     setSelectedNotePromptId,
@@ -104,43 +80,6 @@ const NotesTab = ({ id, perso = {}, onReportError, commentsSlot }) => {
         )}
       </Row>
 
-      {String(perso.role).toLowerCase() !== "prospect" && (
-        <>
-          <UploadSection
-            fileToSend={fileToSend}
-            clearFileToSend={clearFileToSend}
-            isUploading={isUploading}
-            onUpload={handleUpload}
-            isGenerating={isGenerating}
-            onCancelGeneration={handleCancelGeneration}
-            userDocuments={userDocuments}
-            isLoadingDocs={isLoadingDocs}
-            onFetchDocuments={fetchUserDocuments}
-            onSelectDocument={selectDocumentFromList}
-            selectedTags={selectedTags}
-            handleTagsChange={handleTagsChange}
-            n8nMessage={n8nMessage}
-            setN8nMessage={setN8nMessage}
-            reportType={reportType}
-            handleGenerateDoc={handleGenerateDoc}
-          />
-
-          <GeneratedDocsSection
-            generatedDocs={generatedDocs}
-            handleOpenDoc={handleOpenDoc}
-            requestDeleteGenerated={requestDeleteGenerated}
-            handleRenameDoc={handleRenameDoc}
-          />
-
-          <ManualCareerTable
-            manualCareerRows={manualCareerRows}
-            setManualCareerRows={setManualCareerRows}
-            handleManualAddLine={handleManualAddLine}
-            handleManualImport={handleManualImport}
-            isImportingRIS={isImportingRIS}
-          />
-        </>
-      )}
 
       <DeleteConfirmModal
         target={deleteConfirmTarget}
