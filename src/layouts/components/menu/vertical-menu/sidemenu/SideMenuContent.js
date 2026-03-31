@@ -119,14 +119,14 @@ class SideMenuContent extends React.Component {
     };
   }
   state = {
-    crmBadge: 0, // NEW: badge pour KPI/CRM
-    inboxBadge: 0, // NEW: badge pour Inbox (chat)
+    crmBadge: 0,
+    inboxBadge: 0,
     chatbotBadge: 0,
     diagnosticBadge: 0,
     callBadge: 0,
     emailBadge: 0,
-    tasksBadge: 0, // NEW: badge pour Tâches urgentes
-    contractsBadge: 0, // NEW: badge pour Contrats terminés impayés
+    tasksBadge: 0,
+    contractsBadge: 0,
     flag: true,
     isHovered: false,
     activeGroups: [],
@@ -799,6 +799,13 @@ class SideMenuContent extends React.Component {
                 ? "justify-content-between"
                 : "justify-content-start"
             }`}
+            style={
+              (item.id === "kpi" && this.state.crmBadge > 0) ||
+              (item.id === "tasks" && this.state.tasksBadge > 0) ||
+              (item.id === "contracts" && this.state.contractsBadge > 0)
+                ? { paddingRight: "44px" }
+                : undefined
+            }
             onMouseEnter={() => {
               this.props.handleSidebarMouseEnter(item.id);
             }}
@@ -821,76 +828,80 @@ class SideMenuContent extends React.Component {
 
             {/* ✅ Badge Contrats terminés impayés */}
             {item.id === "contracts" && this.state.contractsBadge > 0 ? (
-              <div className="menu-badge">
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 22,
-                    height: 22,
-                    borderRadius: "50%",
-                    backgroundColor: "#ea5455",
-                    color: "#fff",
-                    fontSize: 10,
-                    fontWeight: 600,
-                    lineHeight: 1,
-                    marginRight: 4,
-                  }}
-                >
-                  {this.state.contractsBadge}
-                </span>
-              </div>
+              <span
+                style={{
+                  position: "absolute",
+                  right: 10,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minWidth: 22,
+                  height: 22,
+                  borderRadius: 11,
+                  backgroundColor: "#ea5455",
+                  color: "#fff",
+                  fontSize: 10,
+                  fontWeight: 600,
+                  lineHeight: 1,
+                  padding: "0 5px",
+                }}
+              >
+                {this.state.contractsBadge}
+              </span>
             ) : null}
 
             {/* ✅ Badge Tâches Urgentes */}
             {item.id === "tasks" && this.state.tasksBadge > 0 ? (
-              <div className="menu-badge">
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 22,
-                    height: 22,
-                    borderRadius: "50%",
-                    backgroundColor: "#ea5455",
-                    color: "#fff",
-                    fontSize: 10,
-                    fontWeight: 600,
-                    lineHeight: 1,
-                    marginRight: 4,
-                  }}
-                >
+              <span
+                style={{
+                  position: "absolute",
+                  right: 10,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minWidth: 22,
+                  height: 22,
+                  borderRadius: 11,
+                  backgroundColor: "#ea5455",
+                  color: "#fff",
+                  fontSize: 10,
+                  fontWeight: 600,
+                  lineHeight: 1,
+                  padding: "0 5px",
+                }}
+              >
                   {this.state.tasksBadge}
-                </span>
-              </div>
+              </span>
             ) : null}
 
             {/* ✅ Badge CRM (Suivi Admin) */}
             {item.id === "kpi" && this.state.crmBadge > 0 ? (
-              <div
-                className="menu-badge"
-                style={{ marginLeft: "auto", marginRight: 10 }}
+              <span
+                style={{
+                  position: "absolute",
+                  right: 10,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minWidth: 22,
+                  height: 22,
+                  borderRadius: 11,
+                  backgroundColor: "#ea5455",
+                  color: "#fff",
+                  fontSize: 10,
+                  fontWeight: 600,
+                  lineHeight: 1,
+                  padding: "0 5px",
+                }}
               >
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 22,
-                    height: 22,
-                    borderRadius: "50%",
-                    backgroundColor: "#ea5455",
-                    color: "#fff",
-                    fontSize: 10,
-                    fontWeight: 600,
-                    lineHeight: 1,
-                  }}
-                >
-                  {this.state.crmBadge}
-                </span>
-              </div>
+                {this.state.crmBadge}
+              </span>
             ) : null}
 
             {item.type === "collapse" ? (

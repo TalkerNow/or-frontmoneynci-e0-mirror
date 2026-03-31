@@ -121,23 +121,7 @@ class SideMenuGroup extends React.Component {
                   }}
                 >
                   <CustomAnchorTag
-                    className={classnames({
-                      "d-flex align-items-center":
-                        child.type === "collapse" ||
-                        child.badge ||
-                        (child.id === "crm-inbox-chatbot" &&
-                          this.props.chatbotBadge > 0) ||
-                        (child.id === "crm-inbox-diagnostic" &&
-                          this.props.diagnosticBadge > 0) ||
-                        (child.id === "crm-inbox-call" &&
-                          this.props.callBadge > 0) ||
-                        (child.id === "crm-inbox-email" &&
-                          this.props.emailBadge > 0) ||
-                        (child.id === "crm-suivi" &&
-                          this.props.crmBadge > 0) ||
-                        (child.id === "crm-opportunities" &&
-                          this.props.opportunitiesBadge > 0),
-                    })}
+                    className="d-flex align-items-center"
                     to={
                       child.navLink &&
                         (child.type === "item" || child.type === "collapse")
@@ -160,7 +144,7 @@ class SideMenuGroup extends React.Component {
                     }}
                     target={child.newTab ? "_blank" : undefined}
                   >
-                    <div className="menu-text flex-grow-1">
+                    <div className="menu-text flex-grow-1 d-flex align-items-center">
                       {child.icon}
                       <span className="menu-item menu-title">
                         <FormattedMessage id={child.title} />
@@ -181,7 +165,7 @@ class SideMenuGroup extends React.Component {
                     {/* Chatbot Badge */}
                     {child.id === "crm-inbox-chatbot" &&
                       this.props.chatbotBadge > 0 ? (
-                      <Badge color="danger" className="mr-2" pill>
+                      <Badge color="danger" className="" style={{ position: "absolute", right: "5px", top: "50%", transform: "translateY(-50%)", margin: 0 }} pill>
                         {this.props.chatbotBadge}
                       </Badge>
                     ) : null}
@@ -189,7 +173,7 @@ class SideMenuGroup extends React.Component {
                     {/* Diagnostic Badge */}
                     {child.id === "crm-inbox-diagnostic" &&
                       this.props.diagnosticBadge > 0 ? (
-                      <Badge color="danger" className="mr-2" pill>
+                      <Badge color="danger" className="" style={{ position: "absolute", right: "5px", top: "50%", transform: "translateY(-50%)", margin: 0 }} pill>
                         {this.props.diagnosticBadge}
                       </Badge>
                     ) : null}
@@ -197,7 +181,7 @@ class SideMenuGroup extends React.Component {
                     {/* Call Badge */}
                     {child.id === "crm-inbox-call" &&
                       this.props.callBadge > 0 ? (
-                      <Badge color="danger" className="mr-2" pill>
+                      <Badge color="danger" className="" style={{ position: "absolute", right: "5px", top: "50%", transform: "translateY(-50%)", margin: 0 }} pill>
                         {this.props.callBadge}
                       </Badge>
                     ) : null}
@@ -205,14 +189,14 @@ class SideMenuGroup extends React.Component {
                     {/* Email Badge */}
                     {child.id === "crm-inbox-email" &&
                       this.props.emailBadge > 0 ? (
-                      <Badge color="danger" className="mr-2" pill>
+                      <Badge color="danger" className="" style={{ position: "absolute", right: "5px", top: "50%", transform: "translateY(-50%)", margin: 0 }} pill>
                         {this.props.emailBadge}
                       </Badge>
                     ) : null}
 
                     {/* Suivi Badge */}
                     {child.id === "crm-suivi" && this.props.crmBadge > 0 ? (
-                      <Badge color="danger" className="mr-2 ml-auto" pill>
+                      <Badge color="danger" className="" style={{ position: "absolute", right: "5px", top: "50%", transform: "translateY(-50%)", margin: 0 }} pill>
                         {this.props.crmBadge}
                       </Badge>
                     ) : null}
@@ -220,7 +204,7 @@ class SideMenuGroup extends React.Component {
                     {/* Opportunities Badge */}
                     {child.id === "crm-opportunities" &&
                       this.props.opportunitiesBadge > 0 ? (
-                      <Badge color="danger" className="mr-2 ml-auto" pill>
+                      <Badge color="danger" className="" style={{ position: "absolute", right: "5px", top: "50%", transform: "translateY(-50%)", margin: 0 }} pill>
                         {this.props.opportunitiesBadge}
                       </Badge>
                     ) : null}

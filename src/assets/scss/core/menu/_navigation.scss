@@ -139,6 +139,13 @@
           position: relative;
           top: -1px;
         }
+      }
+    }
+    ul.menu-content {
+      .nav-item {
+        svg:first-child {
+          margin-right: 0.3rem;
+        }
         svg.menu-toggle-icon {
           position: absolute;
           right: 22px;
@@ -193,13 +200,15 @@
       display: flex;
       align-items: center;
       overflow: hidden;
+      position: relative;
 
       .menu-title {
         flex: 1;
         min-width: 0;
         white-space: nowrap;
-        overflow: visible; // Allows text to continue slightly rather than truncating immediately
-        font-size: 0.95rem; // Slightly smaller to help fit 
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 0.95rem;
       }
     }
 
