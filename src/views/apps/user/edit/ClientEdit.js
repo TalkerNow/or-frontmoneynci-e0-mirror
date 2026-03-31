@@ -623,6 +623,10 @@ class UserEdit extends React.Component {
       </Row>
 
       {this.state.activeTab === "notes" && String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
+        <div id="ris-upload-portal-target" className="mt-2 mb-2 w-100 px-3"></div>
+      )}
+
+      {this.state.activeTab === "notes" && String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
         <div className="bottom-simulator-section mt-1">
           <div className="simu-mode-tabs">
             <button
