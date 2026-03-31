@@ -5,8 +5,7 @@ import { useNotesLogic } from "./notes/useNotesLogic";
 import NotesForm from "./notes/NotesForm";
 import UploadSection from "./notes/UploadSection";
 import GeneratedDocsSection from "./notes/GeneratedDocsSection";
-import SimulatorHub from "./SimulatorHub";
-import { canAccessSimulator } from "../../../../constants/permissions";
+import ManualCareerTable from "./notes/ManualCareerTable";
 import DocumentViewerModal from "./notes/DocumentViewerModal";
 import ReportErrorModal from "./notes/ReportErrorModal";
 import DeleteConfirmModal from "./notes/DeleteConfirmModal";
@@ -133,9 +132,13 @@ const NotesTab = ({ id, perso = {}, onReportError, commentsSlot }) => {
             handleRenameDoc={handleRenameDoc}
           />
 
-          {canAccessSimulator() && (
-            <SimulatorHub id={id} user={perso} />
-          )}
+          <ManualCareerTable
+            manualCareerRows={manualCareerRows}
+            setManualCareerRows={setManualCareerRows}
+            handleManualAddLine={handleManualAddLine}
+            handleManualImport={handleManualImport}
+            isImportingRIS={isImportingRIS}
+          />
         </>
       )}
 
