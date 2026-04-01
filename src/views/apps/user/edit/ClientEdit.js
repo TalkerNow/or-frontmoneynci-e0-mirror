@@ -617,12 +617,16 @@ class UserEdit extends React.Component {
         </Col>
       </Row>
 
-      {this.state.activeTab === "notes" && String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
-        <div id="ris-upload-portal-target" className="mt-2 mb-2 w-100 px-3"></div>
+      {String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
+        <div
+          id="ris-upload-portal-target"
+          className="mt-2 mb-2 w-100 px-3"
+          style={{ display: this.state.activeTab === "notes" ? "block" : "none" }}
+        ></div>
       )}
 
-      {this.state.activeTab === "notes" && String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
-        <div className="bottom-simulator-section mt-1">
+      {String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
+        <div className="bottom-simulator-section mt-1" style={{ display: this.state.activeTab === "notes" ? "block" : "none" }}>
           <div className="simu-mode-tabs">
             <button
               onClick={() => this.setState({ simulatorMode: "production" })}
