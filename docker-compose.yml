@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  frontend:
+    build: .
+    container_name: front-nci-dev
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_OPTIONS=--openssl-legacy-provider
+      - WATCHPACK_POLLING=true
+    ports:
+      - "3000:3000"
+    tty: true
+    stdin_open: true
+    command: npm start

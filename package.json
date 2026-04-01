@@ -6,7 +6,7 @@
   "dependencies": {
     "ag-grid-community": "^22.1.1",
     "ag-grid-react": "^22.1.1",
-    "apexcharts": "^4.0.0",
+    "apexcharts": "3.44.0",
     "availity-reactstrap-validation": "^2.6.1",
     "axios": "^0.19.2",
     "axios-mock-adapter": "~1.17.0",
@@ -40,7 +40,7 @@
     "query-string": "^6.10.1",
     "rc-slider": "^9.1.0",
     "react": "^16.13.0",
-    "react-apexcharts": "^1.9.0",
+    "react-apexcharts": "1.4.1",
     "react-beautiful-dnd": "^12.2.0",
     "react-big-calendar": "^0.24.0",
     "react-bootstrap-sweetalert": "^5.1.9",

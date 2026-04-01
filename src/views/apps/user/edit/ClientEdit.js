@@ -370,7 +370,7 @@ class UserEdit extends React.Component {
 
     return (
       <>
-      <Row className="align-items-start user-edit-row flex-nowrap">
+      <Row className="align-items-stretch user-edit-row flex-nowrap">
         <Col
           xs="12"
           sm="4"
