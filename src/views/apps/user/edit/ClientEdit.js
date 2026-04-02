@@ -409,12 +409,12 @@ class UserEdit extends React.Component {
           sm="8"
           md="8"
           lg="8"
-          className={classnames("profile-right", {
+          className={classnames("profile-right d-flex flex-column", {
             expanded: this.state.isCollapsed,
           })}
         >
           <div
-            className="border-0 d-flex align-items-center gap-3 mb-1 nav-tabs"
+            className="border-0 d-flex align-items-center gap-3 mb-1 nav-tabs flex-shrink-0"
             ref={(el) => (this.navRef = el)}
           >
             <Nav
@@ -546,8 +546,8 @@ class UserEdit extends React.Component {
               )}
             </Nav>
           </div>
-          <TabContent activeTab={this.state.activeTab}>
-            <TabPane tabId="notes">
+          <TabContent activeTab={this.state.activeTab} className="flex-grow-1">
+            <TabPane tabId="notes" className="h-100">
               <NotesTab
                 data={this.state.rowData}
                 perso={this.state.rowData}
@@ -617,13 +617,8 @@ class UserEdit extends React.Component {
         </Col>
       </Row>
 
-      {String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
-        <div
-          id="ris-upload-portal-target"
-          className="mt-2 mb-2 w-100 px-3"
-          style={{ display: this.state.activeTab === "notes" ? "block" : "none" }}
-        ></div>
-      )}
+      {/* Target for the RIS Upload form to span full width when in Notes tab */}
+      <div id="ris-upload-portal-target" className="mt-2 pl-2 pr-2"></div>
 
       {String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
         <div className="bottom-simulator-section mt-1" style={{ display: this.state.activeTab === "notes" ? "block" : "none" }}>
@@ -649,7 +644,7 @@ class UserEdit extends React.Component {
               Admin & Moteur
             </button>
           </div>
-          <SimulatorIntegration user={this.state.rowData} mode={this.state.simulatorMode} />
+          <SimulatorIntegration user={this.state.rowData} mode={this.state.simulatorMode} id={id} />
         </div>
       )}
     </>

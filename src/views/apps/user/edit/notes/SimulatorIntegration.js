@@ -1,6 +1,31 @@
 /* eslint-disable jsx-a11y/accessible-emoji */
-import React, { useState } from "react";
+import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import axios from "axios";
+import { toast } from "react-toastify";
+import Dropzone from "react-dropzone";
+import { Modal, ModalHeader, ModalBody, ModalFooter, Button } from "reactstrap";
+import { DownloadCloud, Eye } from "react-feather";
+import {
+  QUICK_TAGS_OPTIONS,
+  generateDocId,
+  extractClientNames,
+  persistUploadedDocs,
+  loadUploadedDocs,
+} from "./utils";
 const MD_CONTENT = {};
+
+// Map QUICK_TAGS to icons for the analyse panel
+const TAG_ICONS = {
+  fin_carriere: "🔧",
+  rapport_consultation: "📄",
+  preparation_entretien: "🤝",
+  simulation_chomage: "📉",
+  simulation_auto: "💼",
+  racl: "⏩",
+  retraite_progressive: "⚖️",
+  cumul_emploi: "🔄",
+  periode_etranger: "🌍",
+};
 
 
 // ─── DATA ───────────────────────────────────────────────────────────────────
@@ -8,14 +33,14 @@ const MD_CONTENT = {};
 const ACTION_PANELS = {
   analyse: {
     label: "Analyse documents", icon: "🔍", color: "#6C5CE7", order: 1,
-    desc: "Cross-check et rapprochements entre documents — à la demande",
-    actions: [
-      { id: "ris_vs_autre_caisse", label: "Rapprochement RIS relevé autre caisse ou régime", icon: "🏢", requires: ["ris"], desc: "Cohérence trimestres inter-régimes" },
-      { id: "ris_vs_paie", label: "Rapprochement RIS Bulletin de salaire", icon: "💰", requires: ["ris", "fiche_paie"], desc: "Écarts salariaux, recalcul SAM" },
-      { id: "ris_vs_ft", label: "Rapprochement RIS doc France Travail (chômage)", icon: "📄", requires: ["ris", "pole_emploi"], desc: "Trimestres assimilés chômage" },
-      { id: "ris_vs_etranger", label: "Rapprochement RIS carrière documents étranger", icon: "🌍", requires: ["ris", "releve_etranger"], desc: "Totalisation, conventions bilatérales" },
-      { id: "ris_vs_fp", label: "Rapprochement RIS période(s) fonctionnaire", icon: "🏛️", requires: ["ris", "ircantec"], desc: "Fonction publique contractuelle, Ircantec" },
-    ]
+    desc: "Sélectionnez une thématique d'analyse puis exécutez",
+    actions: QUICK_TAGS_OPTIONS.map((tag) => ({
+      id: tag.value,
+      label: tag.label,
+      icon: TAG_ICONS[tag.value] || "🔍",
+      requires: [],
+      desc: "",
+    })),
   },
   carriere: {
     label: "Carrière", icon: "📂", color: "#E17055", order: 2,
@@ -58,6 +83,15 @@ const ACTION_PANELS = {
     ]
   },
 };
+
+// Rapprochement actions (cross-check RIS vs other documents)
+const RAPPROCHEMENT_ACTIONS = [
+  { id: "ris_vs_autre_caisse", label: "Rapprochement RIS relevé autre caisse ou régime", icon: "🏢", requires: ["ris"], desc: "Cohérence trimestres inter-régimes" },
+  { id: "ris_vs_paie", label: "Rapprochement RIS Bulletin de salaire", icon: "💰", requires: ["ris", "fiche_paie"], desc: "Écarts salariaux, recalcul SAM" },
+  { id: "ris_vs_ft", label: "Rapprochement RIS doc France Travail (chômage)", icon: "📄", requires: ["ris", "pole_emploi"], desc: "Trimestres assimilés chômage" },
+  { id: "ris_vs_etranger", label: "Rapprochement RIS carrière documents étranger", icon: "🌍", requires: ["ris", "releve_etranger"], desc: "Totalisation, conventions bilatérales" },
+  { id: "ris_vs_fp", label: "Rapprochement RIS période(s) fonctionnaire", icon: "🏛️", requires: ["ris", "ircantec"], desc: "Fonction publique contractuelle, Ircantec" },
+];
 
 // Auto-results that appear automatically in bilans (not buttons)
 const AUTO_RESULTS = [
@@ -176,14 +210,7 @@ const DOC_TYPES = [
   { id: "releve_etranger", label: "Étranger", icon: "🌍", color: "#A29BFE" },
 ];
 
-const MOCK_DOCS = [
-  { type: "ris", name: "RIS_Smith_2024.pdf", conf: 97 },
-  { type: "agirc_arrco", name: "AGIRC_2024.pdf", conf: 94 },
-  { type: "fiche_paie", name: "Paie_Dec23.pdf", conf: 91 },
-  { type: "fiche_paie", name: "Paie_Nov23.pdf", conf: 93 },
-  { type: "pole_emploi", name: "Attest_PE_2019.pdf", conf: 88 },
-  { type: "releve_etranger", name: "US_SSA_2022.pdf", conf: 72 },
-];
+// MOCK_DOCS removed — real documents are fetched from the backend
 
 // Dispositifs auto-détectés comme potentiellement applicables (basé sur l'analyse du dossier)
 const MOCK_DETECTED_DISPOSITIFS = {
@@ -270,8 +297,8 @@ const ADMIN_SKILL_PROMPTS = [
 
 // ─── COMPONENT ──────────────────────────────────────────────────────────────
 
-export default function SimulatorV6({ mode = "production" }) {
-  const [docsUploaded, setDocsUploaded] = useState(false);
+export default function SimulatorV6({ mode = "production", id, user }) {
+  // ── UI State ──
   const [expandedPanel, setExpandedPanel] = useState("analyse");
   const [selectedAction, setSelectedAction] = useState(null);
   const [inputValues, setInputValues] = useState({});
@@ -281,15 +308,274 @@ export default function SimulatorV6({ mode = "production" }) {
   const [adminSection, setAdminSection] = useState("regles");
   const [expandedRule, setExpandedRule] = useState(null);
   const [expandedParam, setExpandedParam] = useState(null);
-  const [modal, setModal] = useState(null); // { title, content, lines, color }
+  const [modal, setModal] = useState(null);
   const [activatedDispositifs, setActivatedDispositifs] = useState([]);
   const [showAutoResults, setShowAutoResults] = useState(false);
   const [excludedDates, setExcludedDates] = useState([]);
   const [carriereValidee, setCarriereValidee] = useState(false);
   const [navCollapsed, setNavCollapsed] = useState(false);
-  const uploadedTypes = MOCK_DOCS.map((d) => d.type);
-  const checkReq = (req) => req.every((r) => uploadedTypes.includes(r));
-  const getMissing = (req) => req.filter((r) => !uploadedTypes.includes(r));
+
+  // ── Upload & Analysis State (migrated from useNotesLogic) ──
+  const [fileToSend, setFileToSend] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [userDocuments, setUserDocuments] = useState([]);
+  const [isLoadingDocs, setIsLoadingDocs] = useState(false);
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, docId: null, fileName: "" });
+  const [n8nMessage, setN8nMessage] = useState(() => {
+    try {
+      const stored = sessionStorage.getItem(`simu_n8n_message_${id}`);
+      return stored || "";
+    } catch { return ""; }
+  });
+  const cancelRef = useRef(null);
+  // const clientNames = useMemo(() => extractClientNames(user), [user]);
+
+  // Persist n8nMessage to sessionStorage
+  useEffect(() => {
+    if (!id) return;
+    try { sessionStorage.setItem(`simu_n8n_message_${id}`, n8nMessage); }
+    catch (e) { /* noop */ }
+  }, [n8nMessage, id]);
+
+  // Restore fileToSend from sessionStorage on mount
+  useEffect(() => {
+    if (!id) return;
+    const restoreFile = async () => {
+      try {
+        const storedFileData = sessionStorage.getItem(`simu_file_to_send_${id}`);
+        if (storedFileData) {
+          const { name, type, dataUrl } = JSON.parse(storedFileData);
+          const response = await fetch(dataUrl);
+          const blob = await response.blob();
+          setFileToSend(new File([blob], name, { type }));
+        }
+      } catch (e) { /* noop */ }
+    };
+    restoreFile();
+  }, [id]);
+
+  // ── Fetch user documents from server ──
+  const fetchUserDocuments = useCallback(async () => {
+    if (!id) return;
+    setIsLoadingDocs(true);
+    try {
+      const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+      const response = await axios.get(`${global.config.server_url}/files?user_id=${id}`, Config);
+      setUserDocuments(Array.isArray(response.data) ? response.data : []);
+    } catch (err) {
+      console.error("Erreur chargement documents utilisateur:", err);
+      setUserDocuments([]);
+    } finally {
+      setIsLoadingDocs(false);
+    }
+  }, [id]);
+
+  // Fetch documents on mount
+  useEffect(() => { fetchUserDocuments(); }, [fetchUserDocuments]);
+
+  // ── File upload handler (drag & drop or click) ──
+  const handleUpload = useCallback(async (acceptedFiles) => {
+    if (!acceptedFiles || !acceptedFiles.length || !id) return;
+    const file = acceptedFiles[0];
+    setFileToSend(file);
+
+    // Persist to sessionStorage
+    try {
+      const reader = new FileReader();
+      reader.onload = () => {
+        sessionStorage.setItem(`simu_file_to_send_${id}`, JSON.stringify({
+          name: file.name, type: file.type, dataUrl: reader.result,
+        }));
+      };
+      reader.readAsDataURL(file);
+    } catch (e) { /* noop */ }
+
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.set("user_id", id);
+      acceptedFiles.forEach((f, index) => formData.append(`photoUpload${index}`, f));
+      const Config = {
+        headers: {
+          Authorization: "Bearer " + localStorage.getItem("token"),
+          "Content-Type": "multipart/form-data",
+        },
+      };
+      const response = await axios.post(`${global.config.server_url}/uploadFiles`, formData, Config);
+      const files = Array.isArray(response?.data?.files) ? response.data.files : [];
+      if (files.length) {
+        const mapped = files.map((f) => ({
+          id: f.id || generateDocId(),
+          name: f.filename || "Document importé",
+          uploadedAt: f.created_at || new Date().toISOString(),
+          url: f.url || "",
+        }));
+        persistUploadedDocs(id, [...loadUploadedDocs(id), ...mapped]);
+        toast.success(files.length > 1 ? "Documents importés" : "Relevé importé");
+        fetchUserDocuments(); // refresh list
+      }
+    } catch {
+      toast.error("Le téléversement a échoué");
+    } finally {
+      setIsUploading(false);
+    }
+  }, [id, fetchUserDocuments]);
+
+  // ── Clear file ──
+  const clearFileToSend = useCallback(() => {
+    setFileToSend(null);
+    try { sessionStorage.removeItem(`simu_file_to_send_${id}`); } catch { /* noop */ }
+  }, [id]);
+
+  // ── Delete document from server ──
+  const handleDeleteDocument = useCallback((docId, fileName) => {
+    setDeleteModal({ isOpen: true, docId, fileName });
+  }, []);
+
+  const confirmDeleteDocument = useCallback(async () => {
+    const { docId, fileName } = deleteModal;
+    if (!docId) return;
+
+    try {
+      const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+      await axios.delete(`${global.config.server_url}/files/${docId}`, Config);
+      toast.success("Document supprimé avec succès");
+      
+      setUserDocuments((prev) => prev.filter((d) => d.id !== docId));
+      if (fileToSend && fileToSend.name === fileName) {
+        clearFileToSend();
+      }
+    } catch (e) {
+      toast.error("Erreur lors de la suppression du document");
+      console.error("Delete doc error:", e);
+    } finally {
+      setDeleteModal({ isOpen: false, docId: null, fileName: "" });
+    }
+  }, [deleteModal, fileToSend, clearFileToSend]);
+
+  const toggleDeleteModal = useCallback(() => {
+    setDeleteModal(prev => ({ ...prev, isOpen: !prev.isOpen }));
+  }, []);
+
+  // ── Cancel generation ──
+  const handleCancelGeneration = useCallback(() => {
+    if (cancelRef.current) {
+      cancelRef.current.cancel("Opération annulée par l'utilisateur");
+      cancelRef.current = null;
+    }
+    setIsGenerating(false);
+  }, []);
+
+  // ── Report generation (same payload as old UploadSection flow) ──
+  const handleGenerateDoc = useCallback(async () => {
+    if (!fileToSend) {
+      toast.error("Merci d'importer d'abord un RIS (PDF)");
+      return null;
+    }
+    if (!selectedAction) {
+      toast.error("Sélectionnez une thématique d'analyse");
+      return null;
+    }
+
+    // Validation
+    const childrenCountVal = user?.children_number;
+    if (childrenCountVal === undefined || childrenCountVal === null || String(childrenCountVal).trim() === "") {
+      toast.error("Le nombre d'enfants est manquant. Veuillez le renseigner dans les informations du client.");
+      return null;
+    }
+    const birthDateVal = user?.birth_date;
+    if (birthDateVal === undefined || birthDateVal === null || String(birthDateVal).trim() === "") {
+      toast.error("La date de naissance est manquante. Veuillez la renseigner dans les informations du client.");
+      return null;
+    }
+
+    setIsGenerating(true);
+    if (cancelRef.current) cancelRef.current.cancel();
+    cancelRef.current = axios.CancelToken.source();
+
+    try {
+      const n8nFormData = new FormData();
+      n8nFormData.append("file", fileToSend);
+
+      const tagsPrefix = `Thématiques d'analyse : ${selectedAction.label}\n\n`;
+      const childrenCount = user?.children_number ?? "Non renseigné";
+      const birthDate = user?.birth_date ?? "Non renseignée";
+      const finalMessage = `${tagsPrefix}${promptText || ""}\n\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDate}`.trim();
+      n8nFormData.append("message", finalMessage);
+      if (id) n8nFormData.append("client_id", id);
+
+      const webhookUrl = "https://n8n.srv796541.hstgr.cloud/webhook/f012dfc7-8b2c-479f-af1f-20dcd44cda02";
+      toast.info("Analyse en cours (Standard)…");
+
+      // --- APPEL N8N DÉSACTIVÉ ---
+      // const n8nResponse = await axios.post(webhookUrl, n8nFormData, {
+      //   headers: { "Content-Type": "multipart/form-data" },
+      //   cancelToken: cancelRef.current.token,
+      // });
+      //
+      // let reportData = n8nResponse.data;
+      // let contentString = "";
+      // const rootData = Array.isArray(reportData) ? reportData[0] : reportData;
+      // if (typeof rootData === "string") {
+      //   contentString = rootData;
+      // } else if (typeof rootData === "object" && rootData !== null) {
+      //   contentString = rootData.output || rootData.text || JSON.stringify(reportData, null, 2);
+      // } else {
+      //   contentString = String(reportData);
+      // }
+      // contentString = contentString.replace(/^```html/i, "").replace(/^```/i, "").replace(/```$/i, "").trim();
+      //
+      // const fileName = `Rapport_Standard_${new Date().getTime()}.html`;
+      // const fileBlob = new Blob([contentString], { type: "text/html;charset=utf-8" });
+      // const uploadForm = new FormData();
+      // uploadForm.append("user_id", id);
+      // uploadForm.append("photoUpload0", fileBlob, fileName);
+      // const uploadConfig = {
+      //   headers: {
+      //     Authorization: "Bearer " + localStorage.getItem("token"),
+      //     "Content-Type": "multipart/form-data",
+      //   },
+      // };
+      //
+      // let reportUrl = null;
+      // try {
+      //   const uploadRes = await axios.post(
+      //     `${global.config.server_url}/uploadFiles`, uploadForm,
+      //     { ...uploadConfig, cancelToken: cancelRef.current.token },
+      //   );
+      //   if (uploadRes?.data?.files?.[0]?.url) {
+      //     reportUrl = uploadRes.data.files[0].url;
+      //   } else {
+      //     throw new Error("Pas d'URL de fichier renvoyée");
+      //   }
+      // } catch (err) {
+      //   console.error(err);
+      //   toast.error("Impossible de sauvegarder le fichier du rapport");
+      //   return null;
+      // }
+      //
+      // setExecuted({ ...selectedAction, resultUrl: reportUrl });
+      // toast.success("Rapport généré avec succès");
+      // fetchUserDocuments();
+      // return reportUrl;
+      toast.warn("Appel N8N désactivé temporairement");
+      return null;
+    } catch (error) {
+      if (axios.isCancel(error)) return null;
+      console.error(error);
+      toast.error("Erreur lors de la génération du rapport");
+      return null;
+    } finally {
+      setIsGenerating(false);
+      cancelRef.current = null;
+    }
+  }, [fileToSend, selectedAction, user, id, promptText, fetchUserDocuments]);
+
+  // Derive doc availability from real uploaded documents
+  const hasDocuments = userDocuments.length > 0 || !!fileToSend;
+  const checkReq = () => true; // requirements are met if we have a file
+  const getMissing = () => [];
 
   const S = {
     card: { background: "#fff", borderRadius: 11, boxShadow: "0 1px 5px rgba(0,0,0,0.05)" },
@@ -328,36 +614,122 @@ export default function SimulatorV6({ mode = "production" }) {
 
       {mode === "production" && (
         <div style={{ padding: "0 4px" }}>
-{/* Zone documents */}
+{/* Zone documents — real upload */}
               <div style={{ ...S.card, padding: 14, marginBottom: 14 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>📁 Documents</div>
-                {!docsUploaded ? (
-                  <div onClick={() => setDocsUploaded(true)} style={{ border: "2px dashed #6C5CE7", borderRadius: 9, padding: "20px 14px", textAlign: "center", cursor: "pointer", background: "#6C5CE706" }}>
-                    <div style={{ fontSize: 24, marginBottom: 3 }}>📂</div>
-                    <div style={{ fontWeight: 600, color: "#6C5CE7", fontSize: 11 }}>Déposez tous vos documents ici</div>
-                    <div style={{ fontSize: 10, color: "#bbb", marginTop: 4 }}>💡 Cliquez pour simuler</div>
+
+                {/* Dropzone */}
+                <Dropzone disabled={isUploading || isGenerating} onDrop={handleUpload}>
+                  {({ getRootProps, getInputProps, isDragActive }) => (
+                    <div {...getRootProps()} style={{ border: `2px dashed ${isDragActive ? "#6C5CE7" : "#ccc"}`, borderRadius: 9, padding: "16px 14px", textAlign: "center", cursor: isUploading ? "wait" : "pointer", background: isDragActive ? "#6C5CE706" : "#fafafa", transition: "all 0.15s", marginBottom: 10 }}>
+                      <input {...getInputProps()} />
+                      <DownloadCloud size={28} color="#6C5CE7" style={{ marginBottom: 4 }} />
+                      <div style={{ fontWeight: 600, color: "#6C5CE7", fontSize: 11 }}>
+                        {isUploading ? "Import en cours…" : "Déposez tous vos documents ici"}
+                      </div>
+                      <div style={{ fontSize: 10, color: "#bbb", marginTop: 3 }}>Glissez-déposez un fichier ou cliquez pour parcourir</div>
+                    </div>
+                  )}
+                </Dropzone>
+
+                {/* Liste des documents réels */}
+                {isLoadingDocs ? (
+                  <div style={{ fontSize: 10, color: "#888", padding: "6px 0" }}>Chargement des documents…</div>
+                ) : (userDocuments.length > 0 || fileToSend) ? (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                    {userDocuments.map((doc) => {
+                      const ext = (doc.filename || "").split(".").pop().toLowerCase();
+                      
+                      // 🟢 Green for PDF
+                      const color = ext === "pdf" ? "#00B894" : ext === "html" ? "#0984E3" : "#6C5CE7";
+                      const isSelected = fileToSend && fileToSend.name === doc.filename;
+                      
+                      return (
+                        <div key={doc.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 7, background: isSelected ? `${color}18` : `${color}08`, border: `1px solid ${isSelected ? color : `${color}18`}`, fontSize: 11, cursor: "pointer", transition: "all 0.15s" }}
+                          onClick={() => {
+                            if (isSelected) return;
+                            const selectDoc = async () => {
+                              try {
+                                toast.info("Chargement du document…");
+                                const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") }, responseType: "blob" };
+                                const response = await axios.get(`${global.config.server_url}/downloadFile?file_id=${doc.id}`, Config);
+                                const blob = response.data;
+                                setFileToSend(new File([blob], doc.filename, { type: blob.type || "application/pdf" }));
+                                toast.success(`"${doc.filename}" sélectionné`);
+                              } catch { toast.error("Impossible de charger le document"); }
+                            };
+                            selectDoc();
+                          }}
+                          title={isSelected ? "Document sélectionné pour l'analyse" : `Cliquer pour sélectionner "${doc.filename}"`}
+                        >
+                          <span style={{ fontSize: 13 }}>📄</span>
+                          <span style={{ fontWeight: 600, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12 }}>{doc.filename}</span>
+                          <span style={{ fontSize: 9, color, fontWeight: 700 }}>{ext.toUpperCase()}</span>
+                          
+                          <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto", paddingLeft: 4 }}>
+                            {isSelected && (
+                              <button 
+                                onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  const url = URL.createObjectURL(fileToSend);
+                                  window.open(url, '_blank');
+                                }} 
+                                style={{ background: "none", border: "none", color: "#999", cursor: "pointer", padding: "2px", display: "flex", alignItems: "center", justifyContent: "center" }} 
+                                title="Visualiser le document"
+                              >
+                                <Eye size={14} />
+                              </button>
+                            )}
+                            <button 
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                handleDeleteDocument(doc.id, doc.filename); 
+                              }} 
+                              style={{ background: "none", border: "none", color: "#999", cursor: "pointer", padding: "2px", fontSize: 14, lineHeight: 1, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }} 
+                              title="Supprimer le document"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    
+                    {/* Fichier uploadé manuellement (pas encore dans la liste serveur) */}
+                    {fileToSend && !userDocuments.some((d) => d.filename === fileToSend.name) && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 7, background: "#00B89418", border: "1px solid #00B894", fontSize: 11 }}>
+                        <span style={{ fontSize: 13 }}>📄</span>
+                        <span style={{ fontWeight: 600, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12 }}>{fileToSend.name}</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto", paddingLeft: 4 }}>
+                          <button 
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              const url = URL.createObjectURL(fileToSend);
+                              window.open(url, '_blank');
+                            }} 
+                            style={{ background: "none", border: "none", color: "#999", cursor: "pointer", padding: "2px", display: "flex", alignItems: "center", justifyContent: "center" }} 
+                            title="Visualiser"
+                          >
+                            <Eye size={14} />
+                          </button>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); clearFileToSend(); }} 
+                            style={{ background: "none", border: "none", color: "#999", cursor: "pointer", padding: "2px", fontSize: 14, lineHeight: 1, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }} 
+                            title="Retirer"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
-                  <div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                      {MOCK_DOCS.map((doc, i) => {
-                        const dt = DOC_TYPES.find((d) => d.id === doc.type);
-                        return (
-                          <div key={i} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 8px", borderRadius: 6, background: `${dt?.color}08`, border: `1px solid ${dt?.color}18`, fontSize: 10 }}>
-                            <span>{dt?.icon}</span>
-                            <span style={{ fontWeight: 600 }}>{doc.name}</span>
-                            <span style={{ fontSize: 9, color: doc.conf > 85 ? "#00B894" : "#E17055", fontWeight: 700 }}>{doc.conf}%</span>
-                          </div>
-                        );
-                      })}
-                      <button style={{ fontSize: 9, padding: "4px 8px", borderRadius: 6, border: "1px dashed #bbb", background: "transparent", cursor: "pointer", color: "#888" }}>+ Ajouter</button>
-                    </div>
-                  </div>
+                  <div style={{ fontSize: 10, color: "#bbb", textAlign: "center", padding: "4px 0" }}>Aucun document importé</div>
                 )}
               </div>
 
           {/* ── MAIN PANELS ── */}
-          {docsUploaded && (
+          {hasDocuments && (
             <>
               <div className={`simu-workflow-grid${navCollapsed ? " nav-collapsed" : ""}`}>
 
@@ -397,7 +769,7 @@ export default function SimulatorV6({ mode = "production" }) {
                 </div>
 
                 {/* Content area */}
-                <div style={{ ...S.card, padding: 16 }}>
+                <div style={{ ...S.card, padding: 16, ...(expandedPanel === "carriere" ? { maxWidth: 820 } : {}) }}>
                   {(() => {
                     const panel = ACTION_PANELS[expandedPanel];
 
@@ -457,37 +829,37 @@ export default function SimulatorV6({ mode = "production" }) {
                           </div>
 
                           {/* Grand tableau unifié */}
-                          <div className="simu-table-wrap" style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", width: "100%" }}>
-                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10, tableLayout: "auto" }}>
+                          <div className="simu-table-wrap" style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+                            <table style={{ borderCollapse: "collapse", fontSize: 10, tableLayout: "auto" }}>
                               <thead>
                                 <tr>
                                   {/* Année */}
-                                  <th rowSpan={2} style={{ padding: "5px 6px", textAlign: "left", fontWeight: 700, color: "#333", borderBottom: "2px solid #ddd", background: "#f8f8f8", whiteSpace: "nowrap", verticalAlign: "bottom", width: 36 }}>An.</th>
+                                  <th rowSpan={2} style={{ padding: "3px 2px", textAlign: "left", fontWeight: 700, color: "#333", borderBottom: "2px solid #ddd", background: "#f8f8f8", whiteSpace: "nowrap", verticalAlign: "bottom", width: 36 }}>An.</th>
                                   {/* Sal. brut partagé */}
-                                  <th rowSpan={2} style={{ padding: "5px 6px", textAlign: "right", fontWeight: 700, color: "#555", borderBottom: "2px solid #ddd", background: "#f8f8f8", whiteSpace: "nowrap", verticalAlign: "bottom", borderLeft: "1px solid #ddd" }}>Sal. brut<br/><span style={{fontWeight:400,color:"#bbb"}}>/ Rému.</span></th>
+                                  <th rowSpan={2} style={{ padding: "3px 2px", textAlign: "right", fontWeight: 700, color: "#555", borderBottom: "2px solid #ddd", background: "#f8f8f8", whiteSpace: "nowrap", verticalAlign: "bottom", borderLeft: "1px solid #ddd" }}>Sal. brut<br/><span style={{fontWeight:400,color:"#bbb"}}>/ Rému.</span></th>
                                   {/* CNAV */}
-                                  <th colSpan={4} style={{ padding: "4px 6px", textAlign: "center", fontWeight: 700, color: "#6C5CE7", background: "#6C5CE708", borderLeft: "2px solid #6C5CE730", borderBottom: "1px solid #6C5CE720" }}>🏛️ CNAV</th>
+                                  <th colSpan={4} style={{ padding: "3px 2px", textAlign: "center", fontWeight: 700, color: "#6C5CE7", background: "#6C5CE708", borderLeft: "2px solid #6C5CE730", borderBottom: "1px solid #6C5CE720" }}>🏛️ CNAV</th>
                                   {/* AGIRC */}
-                                  <th colSpan={3} style={{ padding: "4px 6px", textAlign: "center", fontWeight: 700, color: "#0984E3", background: "#0984E308", borderLeft: "2px solid #0984E330", borderBottom: "1px solid #0984E320" }}>📊 AGIRC-ARRCO</th>
+                                  <th colSpan={3} style={{ padding: "3px 2px", textAlign: "center", fontWeight: 700, color: "#0984E3", background: "#0984E308", borderLeft: "2px solid #0984E330", borderBottom: "1px solid #0984E320" }}>📊 AGIRC-ARRCO</th>
                                   {/* Ircantec */}
-                                  <th colSpan={1} style={{ padding: "4px 6px", textAlign: "center", fontWeight: 700, color: "#00B894", background: "#00B89408", borderLeft: "2px solid #00B89430", borderBottom: "1px solid #00B89420" }}>🏢 Irc.</th>
+                                  <th colSpan={1} style={{ padding: "3px 2px", textAlign: "center", fontWeight: 700, color: "#00B894", background: "#00B89408", borderLeft: "2px solid #00B89430", borderBottom: "1px solid #00B89420" }}>🏢 Irc.</th>
                                   {/* RCI */}
-                                  <th colSpan={1} style={{ padding: "4px 6px", textAlign: "center", fontWeight: 700, color: "#E17055", background: "#E1705508", borderLeft: "2px solid #E1705530", borderBottom: "1px solid #E1705520" }}>📑 RCI</th>
+                                  <th colSpan={1} style={{ padding: "3px 2px", textAlign: "center", fontWeight: 700, color: "#E17055", background: "#E1705508", borderLeft: "2px solid #E1705530", borderBottom: "1px solid #E1705520" }}>📑 RCI</th>
                                 </tr>
                                 <tr style={{ background: "#fafafa" }}>
                                   {/* CNAV sous-cols */}
-                                  <th style={{ padding: "3px 5px", textAlign: "right", fontWeight: 600, color: "#6C5CE7", borderBottom: "2px solid #6C5CE720", whiteSpace: "nowrap", borderLeft: "2px solid #6C5CE730" }}>Sal. SS</th>
-                                  <th style={{ padding: "3px 5px", textAlign: "right", fontWeight: 600, color: "#6C5CE7", borderBottom: "2px solid #6C5CE720", whiteSpace: "nowrap" }}>Coeff.</th>
-                                  <th style={{ padding: "3px 5px", textAlign: "right", fontWeight: 600, color: "#6C5CE7", borderBottom: "2px solid #6C5CE720", whiteSpace: "nowrap" }}>Revalo.</th>
-                                  <th style={{ padding: "3px 5px", textAlign: "center", fontWeight: 600, color: "#6C5CE7", borderBottom: "2px solid #6C5CE720", whiteSpace: "nowrap" }}>Trim.</th>
+                                  <th style={{ padding: "2px 2px", textAlign: "right", fontWeight: 600, color: "#6C5CE7", borderBottom: "2px solid #6C5CE720", whiteSpace: "nowrap", borderLeft: "2px solid #6C5CE730" }}>Sal. SS</th>
+                                  <th style={{ padding: "2px 2px", textAlign: "right", fontWeight: 600, color: "#6C5CE7", borderBottom: "2px solid #6C5CE720", whiteSpace: "nowrap" }}>Coeff.</th>
+                                  <th style={{ padding: "2px 2px", textAlign: "right", fontWeight: 600, color: "#6C5CE7", borderBottom: "2px solid #6C5CE720", whiteSpace: "nowrap" }}>Revalo.</th>
+                                  <th style={{ padding: "2px 2px", textAlign: "center", fontWeight: 600, color: "#6C5CE7", borderBottom: "2px solid #6C5CE720", whiteSpace: "nowrap" }}>Trim.</th>
                                   {/* AGIRC sous-cols */}
-                                  <th style={{ padding: "3px 5px", textAlign: "right", fontWeight: 600, color: "#0984E3", borderBottom: "2px solid #0984E320", whiteSpace: "nowrap", borderLeft: "2px solid #0984E330" }}>Pts T1</th>
-                                  <th style={{ padding: "3px 5px", textAlign: "right", fontWeight: 600, color: "#0984E3", borderBottom: "2px solid #0984E320", whiteSpace: "nowrap" }}>Pts T2</th>
-                                  <th style={{ padding: "3px 5px", textAlign: "right", fontWeight: 600, color: "#0984E3", borderBottom: "2px solid #0984E320", whiteSpace: "nowrap" }}>Pts∑</th>
+                                  <th style={{ padding: "2px 2px", textAlign: "right", fontWeight: 600, color: "#0984E3", borderBottom: "2px solid #0984E320", whiteSpace: "nowrap", borderLeft: "2px solid #0984E330" }}>Pts T1</th>
+                                  <th style={{ padding: "2px 2px", textAlign: "right", fontWeight: 600, color: "#0984E3", borderBottom: "2px solid #0984E320", whiteSpace: "nowrap" }}>Pts T2</th>
+                                  <th style={{ padding: "2px 2px", textAlign: "right", fontWeight: 600, color: "#0984E3", borderBottom: "2px solid #0984E320", whiteSpace: "nowrap" }}>Pts∑</th>
                                   {/* Ircantec */}
-                                  <th style={{ padding: "3px 5px", textAlign: "right", fontWeight: 600, color: "#00B894", borderBottom: "2px solid #00B89420", whiteSpace: "nowrap", borderLeft: "2px solid #00B89430" }}>Points</th>
+                                  <th style={{ padding: "2px 2px", textAlign: "right", fontWeight: 600, color: "#00B894", borderBottom: "2px solid #00B89420", whiteSpace: "nowrap", borderLeft: "2px solid #00B89430" }}>Points</th>
                                   {/* RCI */}
-                                  <th style={{ padding: "3px 5px", textAlign: "right", fontWeight: 600, color: "#E17055", borderBottom: "2px solid #E1705520", whiteSpace: "nowrap", borderLeft: "2px solid #E1705530" }}>Points</th>
+                                  <th style={{ padding: "2px 2px", textAlign: "right", fontWeight: 600, color: "#E17055", borderBottom: "2px solid #E1705520", whiteSpace: "nowrap", borderLeft: "2px solid #E1705530" }}>Points</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -497,28 +869,28 @@ export default function SimulatorV6({ mode = "production" }) {
                                   const ptSum = ptT1 + ptT2;
                                   return (
                                     <tr key={row.yr} style={{ background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
-                                      <td style={{ padding: "3px 5px", fontWeight: 700, color: "#333", whiteSpace: "nowrap" }}>{row.yr}</td>
+                                      <td style={{ padding: "2px 2px", fontWeight: 700, color: "#333", whiteSpace: "nowrap" }}>{row.yr}</td>
                                       {/* Sal. brut partagé — éditable */}
-                                      <td style={{ padding: "3px 5px", textAlign: "right", borderLeft: "1px solid #eee" }}>
-                                        <input type="number" defaultValue={row.sal} disabled={carriereValidee} style={{ width: 64, textAlign: "right", border: "1px solid #ddd", borderRadius: 3, fontSize: 10, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                      <td style={{ padding: "2px 2px", textAlign: "right", borderLeft: "1px solid #eee" }}>
+                                        <input type="number" defaultValue={row.sal} disabled={carriereValidee} style={{ width: 56, textAlign: "right", border: "1px solid #ddd", borderRadius: 3, fontSize: 10, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff" }} />
                                       </td>
                                       {/* CNAV */}
-                                      <td style={{ padding: "3px 5px", textAlign: "right", color: "#888", borderLeft: "2px solid #6C5CE715" }}>{row.ss.toLocaleString("fr-FR")}</td>
-                                      <td style={{ padding: "3px 5px", textAlign: "right", color: "#0984E3", fontWeight: 600 }}>{row.coeff}</td>
-                                      <td style={{ padding: "3px 5px", textAlign: "right", fontWeight: 700, color: "#6C5CE7" }}>{row.revalo.toLocaleString("fr-FR")}</td>
-                                      <td style={{ padding: "3px 5px", textAlign: "center" }}>
-                                        <input type="number" defaultValue={row.trim} disabled={carriereValidee} style={{ width: 28, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 10, padding: "1px 1px" }} />
+                                      <td style={{ padding: "2px 2px", textAlign: "right", color: "#888", borderLeft: "2px solid #6C5CE715" }}>{row.ss.toLocaleString("fr-FR")}</td>
+                                      <td style={{ padding: "2px 2px", textAlign: "right", color: "#0984E3", fontWeight: 600 }}>{row.coeff}</td>
+                                      <td style={{ padding: "2px 2px", textAlign: "right", fontWeight: 700, color: "#6C5CE7" }}>{row.revalo.toLocaleString("fr-FR")}</td>
+                                      <td style={{ padding: "2px 2px", textAlign: "center" }}>
+                                        <input type="number" defaultValue={row.trim} disabled={carriereValidee} style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 10, padding: "1px 1px" }} />
                                       </td>
                                       {/* AGIRC */}
-                                      <td style={{ padding: "3px 5px", textAlign: "right", color: "#0984E3", fontWeight: 600, borderLeft: "2px solid #0984E315" }}>{i < 15 ? ptT1 : <span style={{ color: "#ddd" }}>—</span>}</td>
-                                      <td style={{ padding: "3px 5px", textAlign: "right", color: "#0984E3", fontWeight: 600 }}>{i < 15 ? ptT2 : <span style={{ color: "#ddd" }}>—</span>}</td>
-                                      <td style={{ padding: "3px 5px", textAlign: "right", fontWeight: 700, color: "#1a1a2e" }}>{i < 15 ? ptSum : <span style={{ color: "#ddd" }}>—</span>}</td>
+                                      <td style={{ padding: "2px 2px", textAlign: "right", color: "#0984E3", fontWeight: 600, borderLeft: "2px solid #0984E315" }}>{i < 15 ? ptT1 : <span style={{ color: "#ddd" }}>—</span>}</td>
+                                      <td style={{ padding: "2px 2px", textAlign: "right", color: "#0984E3", fontWeight: 600 }}>{i < 15 ? ptT2 : <span style={{ color: "#ddd" }}>—</span>}</td>
+                                      <td style={{ padding: "2px 2px", textAlign: "right", fontWeight: 700, color: "#1a1a2e" }}>{i < 15 ? ptSum : <span style={{ color: "#ddd" }}>—</span>}</td>
                                       {/* Ircantec */}
-                                      <td style={{ padding: "3px 5px", textAlign: "right", color: "#00B894", fontWeight: 600, borderLeft: "2px solid #00B89415" }}>
+                                      <td style={{ padding: "2px 2px", textAlign: "right", color: "#00B894", fontWeight: 600, borderLeft: "2px solid #00B89415" }}>
                                         {row.ircPts > 0 ? row.ircPts : <span style={{ color: "#ddd" }}>—</span>}
                                       </td>
                                       {/* RCI */}
-                                      <td style={{ padding: "3px 5px", textAlign: "right", color: "#E17055", fontWeight: 600, borderLeft: "2px solid #E1705515" }}>
+                                      <td style={{ padding: "2px 2px", textAlign: "right", color: "#E17055", fontWeight: 600, borderLeft: "2px solid #E1705515" }}>
                                         {row.rciPts > 0 ? row.rciPts : <span style={{ color: "#ddd" }}>—</span>}
                                       </td>
                                     </tr>
@@ -527,14 +899,14 @@ export default function SimulatorV6({ mode = "production" }) {
                               </tbody>
                               <tfoot>
                                 <tr style={{ background: "#f0f0f0", fontWeight: 700, borderTop: "2px solid #ddd" }}>
-                                  <td style={{ padding: "5px 5px", fontSize: 10, color: "#333" }}>∑</td>
-                                  <td style={{ padding: "5px 5px", borderLeft: "1px solid #eee" }}></td>
-                                  <td colSpan={3} style={{ padding: "5px 5px", textAlign: "right", fontSize: 10, color: "#6C5CE7", borderLeft: "2px solid #6C5CE715" }}>SAM : 38 420 €</td>
-                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#6C5CE7" }}>156</td>
-                                  <td colSpan={2} style={{ padding: "5px 5px", textAlign: "right", fontSize: 10, color: "#0984E3", borderLeft: "2px solid #0984E315" }}>—</td>
-                                  <td style={{ padding: "5px 5px", textAlign: "right", fontSize: 10, color: "#0984E3", fontWeight: 800 }}>28 330</td>
-                                  <td style={{ padding: "5px 5px", textAlign: "right", fontSize: 10, color: "#00B894", borderLeft: "2px solid #00B89415" }}>1 240</td>
-                                  <td style={{ padding: "5px 5px", textAlign: "right", fontSize: 10, color: "#E17055", borderLeft: "2px solid #E1705515" }}>620</td>
+                                  <td style={{ padding: "3px 2px", fontSize: 10, color: "#333" }}>∑</td>
+                                  <td style={{ padding: "3px 2px", borderLeft: "1px solid #eee" }}></td>
+                                  <td colSpan={3} style={{ padding: "3px 2px", textAlign: "right", fontSize: 10, color: "#6C5CE7", borderLeft: "2px solid #6C5CE715" }}>SAM : 38 420 €</td>
+                                  <td style={{ padding: "3px 2px", textAlign: "center", fontSize: 10, color: "#6C5CE7" }}>156</td>
+                                  <td colSpan={2} style={{ padding: "3px 2px", textAlign: "right", fontSize: 10, color: "#0984E3", borderLeft: "2px solid #0984E315" }}>—</td>
+                                  <td style={{ padding: "3px 2px", textAlign: "right", fontSize: 10, color: "#0984E3", fontWeight: 800 }}>28 330</td>
+                                  <td style={{ padding: "3px 2px", textAlign: "right", fontSize: 10, color: "#00B894", borderLeft: "2px solid #00B89415" }}>1 240</td>
+                                  <td style={{ padding: "3px 2px", textAlign: "right", fontSize: 10, color: "#E17055", borderLeft: "2px solid #E1705515" }}>620</td>
                                 </tr>
                               </tfoot>
                             </table>
@@ -789,6 +1161,35 @@ export default function SimulatorV6({ mode = "production" }) {
                         </div>
                         <div style={{ fontSize: 10, color: "#888", marginBottom: 14 }}>{panel.desc}</div>
 
+                        {/* Rapprochement vignettes */}
+                        <div style={{ fontSize: 11, fontWeight: 700, color: "#555", marginBottom: 8 }}>Cross-check et rapprochements entre documents — à la demande</div>
+                        <div className="simu-action-grid" style={{ marginBottom: 18 }}>
+                          {RAPPROCHEMENT_ACTIONS.map((action) => {
+                            const ok = checkReq(action.requires);
+                            const miss = getMissing(action.requires);
+                            const sel = selectedAction?.id === action.id;
+                            return (
+                              <button key={action.id} onClick={() => {
+                                if (ok) {
+                                  setSelectedAction(sel ? null : action);
+                                  setExecuted(null);
+                                  setCommentairesMode(false);
+                                  setPromptText(sel ? "" : `[Prompt calibré pour "${action.label}". Voir Admin → Prompts IA pour le contenu complet.]`);
+                                }
+                              }} style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 11px", borderRadius: 8, border: `2px solid ${sel ? panel.color : ok ? "#e8e8e8" : "#f0f0f0"}`, background: sel ? `${panel.color}10` : ok ? "#fafafa" : "#f8f8f8", cursor: ok ? "pointer" : "not-allowed", textAlign: "left", opacity: ok ? 1 : 0.45 }}>
+                                <span style={{ fontSize: 15, flexShrink: 0 }}>{action.icon}</span>
+                                <div style={{ minWidth: 0 }}>
+                                  <div style={{ fontSize: 11, fontWeight: sel ? 700 : 600, color: sel ? panel.color : ok ? "#333" : "#999" }}>{action.label}</div>
+                                  <div style={{ fontSize: 9, color: "#888" }}>{action.desc}</div>
+                                  {!ok && <div style={{ fontSize: 8, color: "#D63031", marginTop: 1 }}>⚠ Manque : {miss.map((m) => DOC_TYPES.find((d) => d.id === m)?.label).join(", ")}</div>}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Thematic analysis vignettes */}
+                        <div style={{ fontSize: 11, fontWeight: 700, color: "#555", marginBottom: 8 }}>Thématiques d'analyse</div>
                         <div className="simu-action-grid">
                           {panel.actions.map((action) => {
                             const ok = checkReq(action.requires);
@@ -845,19 +1246,34 @@ export default function SimulatorV6({ mode = "production" }) {
                     ✏️ {commentairesMode ? "Fermer" : "Ajouter du contexte"}
                   </button>
                   <button
-                    onClick={() => setExecuted(selectedAction)}
-                    style={{ padding: "8px 18px", borderRadius: 7, border: "none", background: "linear-gradient(135deg, #6C5CE7, #a29bfe)", color: "#fff", fontWeight: 700, fontSize: 11, cursor: "pointer" }}>
-                    ▶ Exécuter
+                    onClick={handleGenerateDoc}
+                    disabled={isGenerating}
+                    style={{ padding: "8px 18px", borderRadius: 7, border: "none", background: isGenerating ? "#a29bfe" : "linear-gradient(135deg, #6C5CE7, #a29bfe)", color: "#fff", fontWeight: 700, fontSize: 11, cursor: isGenerating ? "wait" : "pointer", opacity: isGenerating ? 0.7 : 1 }}>
+                    {isGenerating ? "⏳ Analyse en cours…" : "▶ Exécuter"}
                   </button>
                 </div>
-                {executed && (
+                {executed && executed.resultUrl && (
                   <div style={{ background: "#F8FFF8", borderRadius: 7, padding: 10, marginTop: 10, border: "1px solid #00B89420" }}>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: "#00B894", marginBottom: 4 }}>🤖 Résultat :</div>
-                    <div style={{ fontSize: 11, color: "#555", lineHeight: 1.6 }}>[Résultat structuré de l'analyse]</div>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: "#00B894", marginBottom: 4 }}>✅ Rapport généré :</div>
+                    <div style={{ fontSize: 11, color: "#555", lineHeight: 1.6 }}>
+                      Le rapport « {executed.label} » est disponible dans les documents du client.
+                    </div>
                   </div>
                 )}
               </div>
             </>
+          )}
+
+          {/* Generating overlay */}
+          {isGenerating && (
+            <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(255,255,255,0.85)", zIndex: 9998, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backdropFilter: "blur(2px)" }}>
+              <div className="spinner-border text-primary" style={{ width: "3rem", height: "3rem" }} role="status">
+                <span className="sr-only">Chargement...</span>
+              </div>
+              <h4 className="mt-2 text-primary font-weight-bold">Analyse en cours...</h4>
+              <p className="text-dark font-weight-bold">Merci de ne pas fermer cette page.</p>
+              <button type="button" onClick={handleCancelGeneration} style={{ position: "absolute", top: 15, right: 15, background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: "50%", color: "#dc2626", cursor: "pointer", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", fontWeight: "bold" }} title="Interrompre l'analyse">✕</button>
+            </div>
           )}
         </div>
       )}
@@ -1239,6 +1655,26 @@ export default function SimulatorV6({ mode = "production" }) {
           </button>
         </div>
       </div>
+
+      {/* Modale de suppression */}
+      <Modal
+        isOpen={deleteModal.isOpen}
+        toggle={toggleDeleteModal}
+        centered
+      >
+        <ModalHeader toggle={toggleDeleteModal}>
+          Supprimer le fichier
+        </ModalHeader>
+        <ModalBody>Êtes-vous sûr de vouloir supprimer ce document ?</ModalBody>
+        <ModalFooter>
+          <Button color="primary" onClick={confirmDeleteDocument}>
+            Supprimer
+          </Button>{" "}
+          <Button color="danger" onClick={toggleDeleteModal}>
+            Annuler
+          </Button>
+        </ModalFooter>
+      </Modal>
     </div>
   );
 
