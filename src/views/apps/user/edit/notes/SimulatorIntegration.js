@@ -1194,7 +1194,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                           <span style={{ fontSize: 18 }}>{panel.icon}</span>
                           <span style={{ fontSize: 14, fontWeight: 700, color: panel.color }}>{panel.label}</span>
-                          <span style={{ fontSize: 10, color: "#999" }}>— {panel.actions.length} actions disponibles</span>
+                          <span style={{ fontSize: 10, color: "#999" }}>— {panel.actions.length + RAPPROCHEMENT_ACTIONS.length} actions disponibles</span>
                         </div>
                         <div style={{ fontSize: 10, color: "#888", marginBottom: 14 }}>{panel.desc}</div>
 
