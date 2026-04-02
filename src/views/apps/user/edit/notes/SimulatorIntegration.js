@@ -1008,13 +1008,37 @@ export default function SimulatorV6({ mode = "production", id, user }) {
 
                     // ── DATES & SIMULATIONS: shows auto-generated dates ──
                     if (expandedPanel === "dates") {
+                      const dateComments = {
+                        sim_legal: "64 ans atteints le 08/07/2030 → départ le 01/08/2030",
+                        sim_taux_plein: "172 trim. atteints en 11/2032",
+                        sim_auto_67: "67 ans atteints le 08/07/2033 → départ le 01/08/2033",
+                        sim_date_libre: "Indiquer les dates de simulation souhaitées",
+                      };
                       return (
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                             <span style={{ fontSize: 18 }}>{panel.icon}</span>
                             <span style={{ fontSize: 14, fontWeight: 700, color: panel.color }}>{panel.label}</span>
                           </div>
-                          <div style={{ fontSize: 10, color: "#888", marginBottom: 14 }}>{panel.desc}</div>
+                          <div style={{ fontSize: 10, color: "#888", marginBottom: 12 }}>{panel.desc}</div>
+
+                          {/* Données de calcul */}
+                          <div style={{ background: "#F7F6F3", border: "1px solid #e8e8e8", borderRadius: 9, padding: "10px 14px", marginBottom: 14 }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: "#555", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>📊 Données de calcul</div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 20px", fontSize: 10 }}>
+                              {[
+                                ["SAMB Assurance Retraite / CNAV", "32 586 €", "#1a1a2e"],
+                                ["Points ARRCO-AGIRC au 31/12/25", "28 330 pts", "#0984E3"],
+                                ["Projection jusqu'au départ", "+ 344 pts / an", "#00B894"],
+                                ["Situation jusqu'au départ", "Poursuite d'activité actuelle", "#555"],
+                              ].map(([label, val, color]) => (
+                                <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #eee" }}>
+                                  <span style={{ color: "#888" }}>{label}</span>
+                                  <span style={{ fontWeight: 700, color, fontSize: 10 }}>{val}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
 
                           {/* Auto-generated dates from dispositifs */}
                           {activatedDispositifs.length > 0 && showAutoResults && (
@@ -1048,7 +1072,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
 
                           {/* Standard dates always available */}
                           <div style={{ fontSize: 11, fontWeight: 700, color: "#0984E3", marginBottom: 8 }}>Dates standard :</div>
-                          <div className="simu-action-grid">
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 7 }}>
                             {panel.actions.map((action) => {
                               const ok = checkReq(action.requires);
                               const sel = selectedAction?.id === action.id;
@@ -1067,58 +1091,58 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                     }
                                     setExecuted(null);
                                   }}
-                                  style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 11px", borderRadius: 8, border: `2px solid ${sel ? panel.color : "#e8e8e8"}`, background: sel ? `${panel.color}10` : "#fafafa", cursor: ok ? "pointer" : "not-allowed", textAlign: "left", opacity: isExcluded ? 0.45 : ok ? 1 : 0.45 }}>
-                                  <span style={{ fontSize: 15, flexShrink: 0 }}>{action.icon}</span>
-                                  <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: 11, fontWeight: sel ? 700 : 600, color: sel ? panel.color : "#333", textDecoration: isExcluded ? "line-through" : "none" }}>{action.label}</div>
-                                    <div style={{ fontSize: 9, color: "#888" }}>{isDateLibre && sel ? "→ Saisir dans le Système prompt IA ↓" : action.desc}</div>
+                                  style={{ display: "flex", flexDirection: "column", gap: 4, padding: "10px 11px", borderRadius: 8, border: `2px solid ${sel ? panel.color : "#e8e8e8"}`, background: sel ? `${panel.color}10` : "#fafafa", cursor: ok ? "pointer" : "not-allowed", textAlign: "left", opacity: isExcluded ? 0.45 : ok ? 1 : 0.45 }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                                    <span style={{ fontSize: 15, flexShrink: 0 }}>{action.icon}</span>
+                                    <div style={{ flex: 1, fontSize: 11, fontWeight: sel ? 700 : 600, color: sel ? panel.color : "#333", textDecoration: isExcluded ? "line-through" : "none" }}>{action.label}</div>
+                                    {action.auto && (
+                                      <span
+                                        onClick={(e) => { e.stopPropagation(); setExcludedDates((prev) => prev.includes(action.id) ? prev.filter((x) => x !== action.id) : [...prev, action.id]); }}
+                                        title={isExcluded ? "Réactiver ce calcul" : "Exclure ce calcul"}
+                                        style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: isExcluded ? "#E1705525" : "#0984E312", color: isExcluded ? "#C0392B" : "#0984E3", fontWeight: 700, flexShrink: 0, cursor: "pointer" }}>
+                                        {isExcluded ? "✕ Exclu" : "✓ Calculé"}
+                                      </span>
+                                    )}
                                   </div>
-                                  {action.auto && (
-                                    <span
-                                      onClick={(e) => { e.stopPropagation(); setExcludedDates((prev) => prev.includes(action.id) ? prev.filter((x) => x !== action.id) : [...prev, action.id]); }}
-                                      title={isExcluded ? "Réactiver ce calcul" : "Exclure ce calcul"}
-                                      style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: isExcluded ? "#E1705525" : "#0984E312", color: isExcluded ? "#C0392B" : "#0984E3", fontWeight: 700, marginLeft: "auto", flexShrink: 0, cursor: "pointer", border: `1px solid ${isExcluded ? "#C0392B40" : "transparent"}` }}>
-                                      {isExcluded ? "✕ Exclu" : "✓ Calculé"}
-                                    </span>
+                                  {dateComments[action.id] && (
+                                    <div style={{ fontSize: 9, color: "#aaa", paddingLeft: 22, lineHeight: 1.5 }}>
+                                      {isDateLibre && sel ? "→ Saisir dans le Système prompt IA ↓" : dateComments[action.id]}
+                                    </div>
                                   )}
                                 </button>
                               );
                             })}
                           </div>
 
-                          {/* Pavé brut / net */}
-                          <div style={{ marginTop: 16, padding: "12px 14px", background: "linear-gradient(135deg, #1a1a2e08, #0984E308)", borderRadius: 9, border: "1px solid #0984E320", display: "flex", alignItems: "center", gap: 24 }}>
-                            <div style={{ fontSize: 10, fontWeight: 700, color: "#555", flexShrink: 0 }}>💰 Estimation pension</div>
-                            <div className="simu-estimation-row">
-                              <div style={{ textAlign: "center" }}>
-                                <div style={{ fontSize: 18, fontWeight: 800, color: "#ccc" }}>— €</div>
-                                <div style={{ fontSize: 9, color: "#888", textTransform: "uppercase", letterSpacing: "0.05em" }}>Brut / mois</div>
+                          {/* Résultats automatiques */}
+                          <div style={{ marginTop: 10, padding: "10px 12px", background: "#f8f8f8", borderRadius: 8, border: "1px solid #eee" }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: "#888", marginBottom: 8 }}>🔄 Résultats automatiques :</div>
+                            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                              <div style={{ flex: 1, padding: "8px 10px", borderRadius: 7, background: "#00B89406", border: "1px solid #00B89418" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
+                                  <span style={{ fontSize: 13 }}>📈</span>
+                                  <span style={{ fontSize: 10, fontWeight: 700, color: "#00B894" }}>Surcote</span>
+                                </div>
+                                <div style={{ fontSize: 9, color: "#888" }}>+1,25%/trimestre supplémentaire au-delà du taux plein.</div>
                               </div>
-                              <div style={{ textAlign: "center" }}>
-                                <div style={{ fontSize: 14, fontWeight: 700, color: "#ccc" }}>— %</div>
-                                <div style={{ fontSize: 9, color: "#888", textTransform: "uppercase", letterSpacing: "0.05em" }}>Taux PAS</div>
+                              <div style={{ flex: 1, padding: "8px 10px", borderRadius: 7, background: "#E1705506", border: "1px solid #E1705518" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
+                                  <span style={{ fontSize: 13 }}>👶</span>
+                                  <span style={{ fontSize: 10, fontWeight: 700, color: "#E17055" }}>Majoration enfants</span>
+                                </div>
+                                <div style={{ fontSize: 9, color: "#888" }}>CNAV +10% si ≥3 enfants. AGIRC-ARRCO +10% à +30%.</div>
                               </div>
-                              <div style={{ textAlign: "center" }}>
-                                <div style={{ fontSize: 18, fontWeight: 800, color: "#ccc" }}>— €</div>
-                                <div style={{ fontSize: 9, color: "#888", textTransform: "uppercase", letterSpacing: "0.05em" }}>Net / mois</div>
+                              <div style={{ flex: 1, padding: "8px 10px", borderRadius: 7, background: "#6C5CE706", border: "1px solid #6C5CE718" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
+                                  <span style={{ fontSize: 13 }}>💶</span>
+                                  <span style={{ fontSize: 10, fontWeight: 700, color: "#6C5CE7" }}>Retraite brute / nette</span>
+                                </div>
+                                <div style={{ fontSize: 9, color: "#888" }}>Calcul net après prélèvements sociaux.</div>
                               </div>
                             </div>
-                            <div style={{ fontSize: 9, color: "#bbb", flexShrink: 0, fontStyle: "italic" }}>calculé après simulation · tous régimes</div>
-                          </div>
-
-                          {/* Auto-results strip */}
-                          <div style={{ marginTop: 10, padding: "10px 12px", background: "#f8f8f8", borderRadius: 8, border: "1px solid #eee" }}>
-                            <div style={{ fontSize: 10, fontWeight: 700, color: "#888", marginBottom: 8 }}>🔄 Résultats automatiques (calculés pour chaque simulation) :</div>
-                            <div className="simu-auto-results-strip">
-                              {AUTO_RESULTS.map((ar) => (
-                                <div key={ar.id} style={{ flex: 1, padding: "8px 10px", borderRadius: 7, background: `${ar.color}06`, border: `1px solid ${ar.color}18` }}>
-                                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
-                                    <span style={{ fontSize: 13 }}>{ar.icon}</span>
-                                    <span style={{ fontSize: 10, fontWeight: 700, color: ar.color }}>{ar.label}</span>
-                                  </div>
-                                  <div style={{ fontSize: 9, color: "#888" }}>{ar.desc}</div>
-                                </div>
-                              ))}
+                            <div style={{ fontSize: 9, color: "#bbb", padding: "6px 8px", background: "#fff", borderRadius: 6, border: "1px solid #eee", lineHeight: 1.6 }}>
+                              <span style={{ fontWeight: 600, color: "#aaa" }}>CSG / CRDS (indicatif) : </span>
+                              Taux réduit → 3,8% · Taux médian → 6,6% · Taux normal → 6,6% + CRDS 0,5% + CASA 0,3%
                             </div>
                           </div>
                         </div>
