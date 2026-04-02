@@ -618,7 +618,7 @@ class UserEdit extends React.Component {
       </Row>
 
       {/* Target for the RIS Upload form to span full width when in Notes tab */}
-      <div id="ris-upload-portal-target" className="mt-2 pl-2 pr-2"></div>
+      <div id="ris-upload-portal-target" className="mt-2 pl-2 pr-2" style={{ display: this.state.activeTab === "notes" ? "block" : "none" }}></div>
 
       {String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
         <div className="bottom-simulator-section mt-1" style={{ display: this.state.activeTab === "notes" ? "block" : "none" }}>

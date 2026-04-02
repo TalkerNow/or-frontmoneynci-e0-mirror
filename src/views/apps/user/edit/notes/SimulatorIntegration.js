@@ -322,6 +322,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   const [userDocuments, setUserDocuments] = useState([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, docId: null, fileName: "" });
+  const [localUploadedIds, setLocalUploadedIds] = useState(() => new Set(loadUploadedDocs(id).map((d) => String(d.id))));
   const [n8nMessage, setN8nMessage] = useState(() => {
     try {
       const stored = sessionStorage.getItem(`simu_n8n_message_${id}`);
@@ -412,6 +413,11 @@ export default function SimulatorV6({ mode = "production", id, user }) {
           url: f.url || "",
         }));
         persistUploadedDocs(id, [...loadUploadedDocs(id), ...mapped]);
+        setLocalUploadedIds((prev) => {
+          const next = new Set(prev);
+          mapped.forEach((m) => next.add(String(m.id)));
+          return next;
+        });
         toast.success(files.length > 1 ? "Documents importés" : "Relevé importé");
         fetchUserDocuments(); // refresh list
       }
@@ -443,6 +449,13 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       toast.success("Document supprimé avec succès");
       
       setUserDocuments((prev) => prev.filter((d) => d.id !== docId));
+      const remaining = loadUploadedDocs(id).filter((d) => String(d.id) !== String(docId));
+      persistUploadedDocs(id, remaining);
+      setLocalUploadedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(String(docId));
+        return next;
+      });
       if (fileToSend && fileToSend.name === fileName) {
         clearFileToSend();
       }
@@ -573,7 +586,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   }, [fileToSend, selectedAction, user, id, promptText, fetchUserDocuments]);
 
   // Derive doc availability from real uploaded documents
-  const hasDocuments = userDocuments.length > 0 || !!fileToSend;
+  const hasDocuments = userDocuments.some((d) => localUploadedIds.has(String(d.id))) || !!fileToSend;
   const checkReq = () => true; // requirements are met if we have a file
   const getMissing = () => [];
 
@@ -635,9 +648,9 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                 {/* Liste des documents réels */}
                 {isLoadingDocs ? (
                   <div style={{ fontSize: 10, color: "#888", padding: "6px 0" }}>Chargement des documents…</div>
-                ) : (userDocuments.length > 0 || fileToSend) ? (
+                ) : ((userDocuments.filter((d) => localUploadedIds.has(String(d.id))).length > 0 || fileToSend)) ? (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-                    {userDocuments.map((doc) => {
+                    {userDocuments.filter((d) => localUploadedIds.has(String(d.id))).map((doc) => {
                       const ext = (doc.filename || "").split(".").pop().toLowerCase();
                       
                       // 🟢 Green for PDF
@@ -696,7 +709,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                     })}
                     
                     {/* Fichier uploadé manuellement (pas encore dans la liste serveur) */}
-                    {fileToSend && !userDocuments.some((d) => d.filename === fileToSend.name) && (
+                    {fileToSend && !userDocuments.filter((d) => localUploadedIds.has(String(d.id))).some((d) => d.filename === fileToSend.name) && (
                       <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 7, background: "#00B89418", border: "1px solid #00B894", fontSize: 11 }}>
                         <span style={{ fontSize: 13 }}>📄</span>
                         <span style={{ fontWeight: 600, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12 }}>{fileToSend.name}</span>
