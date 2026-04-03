@@ -210,6 +210,10 @@
   display: flex;
   flex-direction: column;
 }
+.user-edit-row .profile-right.expanded {
+  flex: 0 0 100% !important;
+  max-width: 100% !important;
+}
 .user-edit-row .profile-right .tab-content {
   flex: 1 1 auto;
   display: flex;
