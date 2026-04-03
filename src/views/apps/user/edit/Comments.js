@@ -41,8 +41,8 @@ class CommentsTab extends React.Component {
 
   render() {
     return (
-      <Card className="notes-card notes-card--compact">
-        <CardBody>
+      <Card className="notes-card notes-card--compact h-100">
+        <CardBody className="d-flex flex-column">
           <Form className="notes-form" onSubmit={this.updateInfo}>
             <div className="d-flex align-items-center justify-content-between mb-50">
               <h5 className="notes-card-title mb-0">Notes interne consultant</h5>

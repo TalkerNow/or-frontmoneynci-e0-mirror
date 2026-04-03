@@ -4,13 +4,14 @@ import { Row, Col } from "reactstrap";
 import "../../../../assets/scss/pages/notes-hub.scss";
 import { useNotesLogic } from "./notes/useNotesLogic";
 import NotesForm from "./notes/NotesForm";
-import UploadSection from "./notes/UploadSection";
 import DocumentViewerModal from "./notes/DocumentViewerModal";
 import ReportErrorModal from "./notes/ReportErrorModal";
 import DeleteConfirmModal from "./notes/DeleteConfirmModal";
 import ProspectChatView from "./ProspectChatView";
+import UploadSection from "./notes/UploadSection";
+import GeneratedDocsSection from "./notes/GeneratedDocsSection";
 
-const NotesTab = ({ id, perso = {}, onReportError, commentsSlot, renderUploadOutside }) => {
+const NotesTab = ({ id, perso = {}, commentsSlot, renderUploadOutside }) => {
 
   const {
     notes,
@@ -62,6 +63,10 @@ const NotesTab = ({ id, perso = {}, onReportError, commentsSlot, renderUploadOut
     handleGenerateNotesWithPrompt,
     previousNotesSnapshot,
     handleRestorePreviousNotes,
+    generatedDocs,
+    handleOpenDoc,
+    requestDeleteGenerated,
+    handleRenameDoc,
   } = useNotesLogic(id, perso);
 
   const isProspect = String(perso.role).toLowerCase() === "prospect";
@@ -83,24 +88,32 @@ const NotesTab = ({ id, perso = {}, onReportError, commentsSlot, renderUploadOut
   }, []);
 
   const uploadSectionElement = !isProspect ? (
-    <UploadSection
-      fileToSend={fileToSend}
-      clearFileToSend={clearFileToSend}
-      isUploading={isUploading}
-      onUpload={handleUpload}
-      isGenerating={isGenerating}
-      onCancelGeneration={handleCancelGeneration}
-      userDocuments={userDocuments}
-      isLoadingDocs={isLoadingDocs}
-      onFetchDocuments={fetchUserDocuments}
-      onSelectDocument={selectDocumentFromList}
-      selectedTags={selectedTags}
-      handleTagsChange={handleTagsChange}
-      n8nMessage={n8nMessage}
-      setN8nMessage={setN8nMessage}
-      reportType={reportType}
-      handleGenerateDoc={handleGenerateDoc}
-    />
+    <>
+      <UploadSection
+        fileToSend={fileToSend}
+        clearFileToSend={clearFileToSend}
+        isUploading={isUploading}
+        onUpload={handleUpload}
+        isGenerating={isGenerating}
+        onCancelGeneration={handleCancelGeneration}
+        userDocuments={userDocuments}
+        isLoadingDocs={isLoadingDocs}
+        onFetchDocuments={fetchUserDocuments}
+        onSelectDocument={selectDocumentFromList}
+        selectedTags={selectedTags}
+        handleTagsChange={handleTagsChange}
+        n8nMessage={n8nMessage}
+        setN8nMessage={setN8nMessage}
+        reportType={reportType}
+        handleGenerateDoc={handleGenerateDoc}
+      />
+      <GeneratedDocsSection
+        generatedDocs={generatedDocs}
+        handleOpenDoc={handleOpenDoc}
+        requestDeleteGenerated={requestDeleteGenerated}
+        handleRenameDoc={handleRenameDoc}
+      />
+    </>
   ) : null;
 
   const uploadSectionPortal = portalNode && uploadSectionElement
@@ -109,71 +122,67 @@ const NotesTab = ({ id, perso = {}, onReportError, commentsSlot, renderUploadOut
 
   return (
     <>
-      <div className="notes-page">
-        <ProspectChatView user={perso} />
+      <div className="notes-page h-100">
+      <ProspectChatView user={perso} />
 
-        <Row className="match-height">
-          <Col md={commentsSlot ? "6" : "12"} sm="12" className="d-flex">
-            <NotesForm
-              notes={notes}
-              handleNotesChange={handleNotesChange}
-              handleSubmit={handleSubmit}
-              hasChanged={hasChanged}
-              isSaving={isSaving}
-              isEditingNotes={isEditingNotes}
-              setIsEditingNotes={setIsEditingNotes}
-              handleCancelNotesEdit={handleCancelNotesEdit}
-              notePrompts={notePrompts}
-              selectedNotePromptId={selectedNotePromptId}
-              setSelectedNotePromptId={setSelectedNotePromptId}
-              isGeneratingNotes={isGeneratingNotes}
-              handleGenerateNotesWithPrompt={handleGenerateNotesWithPrompt}
-              previousNotesSnapshot={previousNotesSnapshot}
-              handleRestorePreviousNotes={handleRestorePreviousNotes}
-            />
+      <Row className="match-height flex-grow-1">
+        <Col md={commentsSlot ? "6" : "12"} sm="12" className="d-flex">
+          <NotesForm
+            notes={notes}
+            handleNotesChange={handleNotesChange}
+            handleSubmit={handleSubmit}
+            hasChanged={hasChanged}
+            isSaving={isSaving}
+            isEditingNotes={isEditingNotes}
+            setIsEditingNotes={setIsEditingNotes}
+            handleCancelNotesEdit={handleCancelNotesEdit}
+            notePrompts={notePrompts}
+            selectedNotePromptId={selectedNotePromptId}
+            setSelectedNotePromptId={setSelectedNotePromptId}
+            isGeneratingNotes={isGeneratingNotes}
+            handleGenerateNotesWithPrompt={handleGenerateNotesWithPrompt}
+            previousNotesSnapshot={previousNotesSnapshot}
+            handleRestorePreviousNotes={handleRestorePreviousNotes}
+          />
+        </Col>
+        {commentsSlot && (
+          <Col md="6" sm="12" className="d-flex">
+            {commentsSlot}
           </Col>
-          {commentsSlot && (
-            <Col md="6" sm="12" className="d-flex">
-              {commentsSlot}
-            </Col>
-          )}
-        </Row>
+        )}
+      </Row>
 
-        {/* Si pas de portal dispo, on affiche l'upload ici (dans le flux normal) */}
-        {!renderUploadOutside && !portalNode && uploadSectionElement}
+      <DeleteConfirmModal
+        target={deleteConfirmTarget}
+        onCancel={() => setDeleteConfirmTarget(null)}
+        onConfirm={confirmDelete}
+      />
 
-        <DeleteConfirmModal
-          target={deleteConfirmTarget}
-          onCancel={() => setDeleteConfirmTarget(null)}
-          onConfirm={confirmDelete}
-        />
+      <DocumentViewerModal
+        viewingDoc={viewingDoc}
+        setViewingDoc={setViewingDoc}
+        chatMessage={chatMessage}
+        setChatMessage={setChatMessage}
+        handleDownloadPdf={handleDownloadPdf}
+        handleDownloadHtml={handleDownloadHtml}
+        handleReportDoc={handleReportDoc}
+        handleModalGenerate={handleModalGenerate}
+        isGenerating={isGenerating}
+        handleSaveDoc={handleSaveDoc}
+      />
 
-        <DocumentViewerModal
-          viewingDoc={viewingDoc}
-          setViewingDoc={setViewingDoc}
-          chatMessage={chatMessage}
-          setChatMessage={setChatMessage}
-          handleDownloadPdf={handleDownloadPdf}
-          handleDownloadHtml={handleDownloadHtml}
-          handleReportDoc={handleReportDoc}
-          handleModalGenerate={handleModalGenerate}
-          isGenerating={isGenerating}
-          handleSaveDoc={handleSaveDoc}
-        />
-
-        <ReportErrorModal
-          isOpen={reportModalOpen}
-          toggle={() => setReportModalOpen(!reportModalOpen)}
-          reportDoc={reportDoc}
-          reportDescription={reportDescription}
-          setReportDescription={setReportDescription}
-          handleConfirmReport={handleConfirmReport}
-        />
+      <ReportErrorModal
+        isOpen={reportModalOpen}
+        toggle={() => setReportModalOpen(!reportModalOpen)}
+        reportDoc={reportDoc}
+        reportDescription={reportDescription}
+        setReportDescription={setReportDescription}
+        handleConfirmReport={handleConfirmReport}
+      />
       </div>
 
-      {/* L'uploadSection peut soit être dans le flux si renderUploadOutside et pas de portal, ou portal */}
-      {renderUploadOutside && !portalNode && uploadSectionElement}
-      {uploadSectionPortal}
+      {/* Renders UploadSection here or in the portal target in ClientEdit.js for full-width */}
+      {!portalNode ? uploadSectionElement : uploadSectionPortal}
     </>
   );
 };

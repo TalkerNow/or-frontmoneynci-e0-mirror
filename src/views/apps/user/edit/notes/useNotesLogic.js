@@ -717,7 +717,9 @@ export const useNotesLogic = (id, perso) => {
         if (typeof rootData === "string") {
           contentString = rootData;
         } else if (typeof rootData === "object" && rootData !== null) {
-          if (rootData.output) {
+          if (rootData.html_report) {
+            contentString = rootData.html_report;
+          } else if (rootData.output) {
             contentString = rootData.output;
           } else if (rootData.html_report) {
             contentString = rootData.html_report;
