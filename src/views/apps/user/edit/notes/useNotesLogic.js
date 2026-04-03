@@ -721,13 +721,37 @@ export const useNotesLogic = (id, perso) => {
             contentString = rootData.html_report;
           } else if (rootData.output) {
             contentString = rootData.output;
+          } else if (rootData.html_report) {
+            contentString = rootData.html_report;
           } else if (rootData.text) {
             contentString = rootData.text;
+          } else if (rootData.response && typeof rootData.response === "object" && rootData.response.text) {
+            contentString = rootData.response.text;
+          } else if (rootData.response && typeof rootData.response === "string") {
+            contentString = rootData.response;
           } else {
             contentString = JSON.stringify(reportData, null, 2);
           }
         } else {
           contentString = String(reportData);
+        }
+
+        // Fix n8n 2.x : dé-échapper si le contenu est une string JSON wrappée
+        if (contentString && contentString.length > 2) {
+          var trimmedContent = contentString.trim();
+          if (trimmedContent.charAt(0) === '"' && trimmedContent.charAt(trimmedContent.length - 1) === '"') {
+            try {
+              contentString = JSON.parse(trimmedContent);
+            } catch(e) {
+              // pas une string JSON valide, on garde tel quel
+            }
+          }
+          // Nettoyer les échappements résiduels (\n littéraux, \" etc.)
+          if (typeof contentString === "string" && contentString.indexOf("\\n") !== -1) {
+            contentString = contentString.split("\\n").join("\n");
+            contentString = contentString.split("\\t").join("\t");
+            contentString = contentString.split('\\"').join('"');
+          }
         }
 
         // Nettoyage Markdown éventuel, au cas où
