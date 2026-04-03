@@ -880,6 +880,279 @@
   font-size: 0.82rem;
 }
 
+/* ===== Simulator Responsive ===== */
+
+/* Simulator workflow grid: sidebar + content */
+.simu-workflow-grid {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 14px;
+  margin-bottom: 16px;
+  transition: grid-template-columns 0.2s;
+}
+.simu-workflow-grid.nav-collapsed {
+  grid-template-columns: 36px 1fr;
+}
+
+/* Admin mode sidebar + content */
+.simu-admin-grid {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 14px;
+}
+
+/* CNAV split view */
+.simu-cnav-split {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 12px;
+}
+.simu-cnav-split.full-width {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Action/dispositifs/dates grid */
+.simu-action-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 7px;
+}
+
+/* Livrables 3-col grid */
+.simu-livrables-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+/* Admin parametres 2-col grid */
+.simu-params-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* Admin prompts 2-col grid */
+.simu-prompts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+/* Auto-results strip */
+.simu-auto-results-strip {
+  display: flex;
+  gap: 8px;
+}
+
+/* Estimation pension row */
+.simu-estimation-row {
+  display: flex;
+  gap: 20px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+/* Table wrappers for horizontal scroll */
+.simu-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  position: relative;
+}
+.simu-table-wrap::-webkit-scrollbar {
+  height: 6px;
+}
+.simu-table-wrap::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+.simu-table-wrap::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+.simu-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* ===== Carrière 5 régimes table responsive ===== */
+
+/* Base table inside simu-table-wrap */
+.simu-table-wrap table {
+  min-width: 720px;
+}
+
+/* Scroll hint gradient overlay */
+.simu-table-wrap.has-scroll::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 6px; /* above scrollbar */
+  width: 32px;
+  pointer-events: none;
+  background: linear-gradient(to right, rgba(255,255,255,0), rgba(255,255,255,0.85) 70%);
+  z-index: 2;
+  border-radius: 0 11px 11px 0;
+}
+.simu-table-wrap.scrolled-end::after {
+  display: none;
+}
+
+/* Sticky year column */
+.simu-table-wrap table thead th:first-child,
+.simu-table-wrap table tbody td:first-child,
+.simu-table-wrap table tfoot td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+}
+.simu-table-wrap table thead th:first-child {
+  background: #f8f8f8;
+}
+.simu-table-wrap table tbody tr:nth-child(odd) td:first-child {
+  background: #fff;
+}
+.simu-table-wrap table tbody tr:nth-child(even) td:first-child {
+  background: #fafafa;
+}
+.simu-table-wrap table tfoot td:first-child {
+  background: #f0f0f0;
+}
+
+/* Tablet adjustments */
+@media (max-width: 1200px) {
+  .simu-table-wrap table {
+    font-size: 9px;
+  }
+  .simu-table-wrap table th,
+  .simu-table-wrap table td {
+    padding: 3px 4px;
+  }
+  .simu-table-wrap table input[type="number"] {
+    width: 56px;
+    font-size: 9px;
+    padding: 1px 2px;
+  }
+}
+
+/* Small tablet / large mobile */
+@media (max-width: 992px) {
+  .simu-table-wrap table {
+    min-width: 680px;
+    font-size: 9px;
+  }
+  .simu-table-wrap table th,
+  .simu-table-wrap table td {
+    padding: 2px 3px;
+  }
+  .simu-table-wrap table input[type="number"] {
+    width: 50px;
+    font-size: 9px;
+  }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .simu-table-wrap table {
+    min-width: 620px;
+    font-size: 8.5px;
+  }
+  .simu-table-wrap table thead th {
+    padding: 2px 3px;
+    font-size: 8px;
+  }
+  .simu-table-wrap table td {
+    padding: 2px 2px;
+  }
+  .simu-table-wrap table input[type="number"] {
+    width: 44px;
+    font-size: 8px;
+    padding: 1px 2px;
+  }
+  /* Scroll hint more visible on mobile */
+  .simu-table-wrap.has-scroll::after {
+    width: 24px;
+  }
+}
+
+/* Small mobile */
+@media (max-width: 480px) {
+  .simu-table-wrap table {
+    min-width: 560px;
+    font-size: 8px;
+  }
+  .simu-table-wrap table thead th {
+    font-size: 7.5px;
+    padding: 2px 2px;
+  }
+  .simu-table-wrap table input[type="number"] {
+    width: 38px;
+    font-size: 7.5px;
+  }
+}
+
+/* Bottom simulator mode tabs (Production Client / Admin) */
+.simu-mode-tabs {
+  display: flex;
+  gap: 0;
+  width: 100%;
+}
+.simu-mode-tabs button {
+  flex: 1;
+  padding: 12px 20px;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 13px;
+  transition: all 0.15s ease;
+}
+
+/* Tablet: stack workflow grid */
+@media (max-width: 992px) {
+  .simu-workflow-grid,
+  .simu-workflow-grid.nav-collapsed {
+    grid-template-columns: 1fr;
+  }
+  .simu-admin-grid {
+    grid-template-columns: 1fr;
+  }
+  .simu-cnav-split {
+    grid-template-columns: 1fr;
+  }
+  .simu-params-grid {
+    grid-template-columns: 1fr;
+  }
+  .simu-prompts-grid {
+    grid-template-columns: 1fr;
+  }
+  .simu-auto-results-strip {
+    flex-direction: column;
+  }
+}
+
+/* Mobile: stack all grids to single column */
+@media (max-width: 768px) {
+  .simu-action-grid {
+    grid-template-columns: 1fr;
+  }
+  .simu-livrables-grid {
+    grid-template-columns: 1fr;
+  }
+  .simu-mode-tabs button {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 576px) {
+  .simu-estimation-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+
 /* ===== Upload Section Responsive ===== */
 @media (max-width: 576px) {
   .upload-section-row {

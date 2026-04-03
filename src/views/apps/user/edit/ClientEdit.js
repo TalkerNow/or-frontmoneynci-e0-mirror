@@ -22,9 +22,9 @@ import {
   CheckSquare,
   ArrowLeft,
   Circle,
-  Activity,
   FileText,
   Mail,
+  Activity
 } from "react-feather";
 import UserDetails from "../../profile/UserDetails";
 import AccountTab from "./Informations";
@@ -36,12 +36,14 @@ import axios from "axios";
 import DocumentsHub from "./DocumentsHub";
 import CourriersHub from "./CourriersHub";
 import SimulatorHub from "./SimulatorHub";
+import SimulatorIntegration from "./notes/SimulatorIntegration";
 import { history } from "../../../../history";
 import Contracts from "./Contracts";
-import SuiviAvancementBox from "./SuiviAvancementBox";
+// import SuiviAvancementBox from "./SuiviAvancementBox";
 
 import { canAccessSimulator } from "../../../../constants/permissions";
 import ClientTasks from "./clientTask/Task";
+
 
 class UserEdit extends React.Component {
   state = {
@@ -50,6 +52,7 @@ class UserEdit extends React.Component {
     activeTab: "notes",
     showFullForm: false,
     isCollapsed: false,
+    simulatorMode: "production",
     simuOffset: 0,
     docsOffset: 0,
     courriersOffset: 0,
@@ -366,7 +369,8 @@ class UserEdit extends React.Component {
     }
 
     return (
-      <Row className="align-items-start user-edit-row flex-nowrap">
+      <>
+      <Row className="align-items-stretch user-edit-row flex-nowrap">
         <Col
           xs="12"
           sm="4"
@@ -388,7 +392,7 @@ class UserEdit extends React.Component {
             />
 
             {/* 👇 Ta box de suivi d'avancement, dans un fichier séparé */}
-            {String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
+            {/* {String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
               <SuiviAvancementBox
                 clientId={id}
                 onContractUpdate={() => {
@@ -397,7 +401,7 @@ class UserEdit extends React.Component {
                   }
                 }}
               />
-            )}
+            )} */}
           </div>
         </Col>
         <Col
@@ -417,16 +421,11 @@ class UserEdit extends React.Component {
               tabs
               className="border-0 d-flex align-items-center gap-3 mb-0"
               style={{
-                flexWrap: "nowrap",
-                overflowX: "auto",
-                overflowY: "hidden",
-                scrollbarWidth: "none",
-                msOverflowStyle: "none",
-                WebkitOverflowScrolling: "touch",
+                flexWrap: "wrap",
                 borderBottom: "none",
               }}
             >
-              <style>{`.nav-tabs .nav-link { white-space: nowrap; } .nav-tabs::-webkit-scrollbar { display: none; }`}</style>
+              <style>{`.nav-tabs .nav-link { white-space: nowrap; }`}</style>
               {this.state.isCollapsed && (
                 <NavItem className="d-flex align-items-center mr-50">
                   <div
@@ -614,8 +613,42 @@ class UserEdit extends React.Component {
               </>
             )}
           </TabContent>
+
         </Col>
       </Row>
+
+      {this.state.activeTab === "notes" && String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
+        <div id="ris-upload-portal-target" className="mt-2 mb-2 w-100 px-3"></div>
+      )}
+
+      {this.state.activeTab === "notes" && String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
+        <div className="bottom-simulator-section mt-1">
+          <div className="simu-mode-tabs">
+            <button
+              onClick={() => this.setState({ simulatorMode: "production" })}
+              style={{
+                borderBottom: this.state.simulatorMode === "production" ? "3px solid #6C5CE7" : "3px solid transparent",
+                background: this.state.simulatorMode === "production" ? "#6C5CE708" : "transparent",
+                color: this.state.simulatorMode === "production" ? "#6C5CE7" : "#888",
+              }}
+            >
+              Production Client
+            </button>
+            <button
+              onClick={() => this.setState({ simulatorMode: "admin" })}
+              style={{
+                borderBottom: this.state.simulatorMode === "admin" ? "3px solid #E17055" : "3px solid transparent",
+                background: this.state.simulatorMode === "admin" ? "#E1705508" : "transparent",
+                color: this.state.simulatorMode === "admin" ? "#E17055" : "#888",
+              }}
+            >
+              Admin & Moteur
+            </button>
+          </div>
+          <SimulatorIntegration user={this.state.rowData} mode={this.state.simulatorMode} />
+        </div>
+      )}
+    </>
     );
   }
 }
