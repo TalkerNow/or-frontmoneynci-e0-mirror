@@ -1,5 +1,5 @@
 import mock from "./mock"
-import "./apps/cnav"
+import "./apps/skills"
 import "./apps/dataView"
 import "./tables/aggrid"
 import "./autoComplete/autoComplete"

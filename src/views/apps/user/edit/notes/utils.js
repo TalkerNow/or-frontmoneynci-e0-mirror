@@ -478,6 +478,243 @@ function computeRciSimulator(montantRaw, annee) {
   return pointsA + pointsB;
 }
 
+// --- Conversion de texte brut en HTML lisible ---
+
+function escHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function formatTextBlock(text) {
+  if (!text) return '';
+
+  // Découpe sur □ (séparateur bullet de l'IA)
+  const bullets = text.split('□').map(p => p.trim()).filter(Boolean);
+  if (bullets.length > 2) {
+    return bullets.map(part => {
+      const colonIdx = part.indexOf(' : ');
+      if (colonIdx > 0 && colonIdx < 80) {
+        const key = part.slice(0, colonIdx).trim();
+        const val = part.slice(colonIdx + 3).trim();
+        return `<div class="kv-row"><span class="kv-k">${escHtml(key)}</span><span class="kv-v">${escHtml(val)}</span></div>`;
+      }
+      return `<div class="kv-row"><span class="kv-v">${escHtml(part)}</span></div>`;
+    }).join('');
+  }
+
+  // Pas de bullets, on formate ligne par ligne
+  const lines = text.split('\n');
+  let html = '';
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) { html += '<div style="height:6px"></div>'; continue; }
+
+    // --- Ligne 1 : … --- (sous-titres)
+    const dashMatch = line.match(/^---+\s*(.*?)\s*---+$/);
+    if (dashMatch) {
+      html += `<div class="sub-title">${escHtml(dashMatch[1] || line)}</div>`;
+      continue;
+    }
+
+    // Vérification / ✓ (ligne de validation)
+    if (line.startsWith('✓') || line.startsWith('✗')) {
+      const ok = line.startsWith('✓');
+      html += `<div class="check-row ${ok ? 'check-ok' : 'check-fail'}">${escHtml(line)}</div>`;
+      continue;
+    }
+
+    // Paire Clé : Valeur
+    const colonIdx = line.indexOf(' : ');
+    if (colonIdx > 0 && colonIdx < 80) {
+      const key = line.slice(0, colonIdx).trim();
+      const val = line.slice(colonIdx + 3).trim();
+      html += `<div class="kv-row"><span class="kv-k">${escHtml(key)}</span><span class="kv-v">${escHtml(val)}</span></div>`;
+      continue;
+    }
+
+    html += `<p class="plain-p">${escHtml(line)}</p>`;
+  }
+  return html;
+}
+
+/**
+ * Encapsule du texte brut (retour N8N non-HTML) dans un document HTML stylisé et lisible.
+ * Si le contenu est déjà du HTML valide, il est retourné tel quel.
+ */
+export function wrapPlainTextAsHtml(raw) {
+  if (!raw || typeof raw !== 'string') return raw;
+  const trimmed = raw.trim();
+
+  // Déjà du HTML → on ne touche pas
+  if (
+    trimmed.startsWith('<!DOCTYPE') ||
+    trimmed.startsWith('<html') ||
+    (trimmed.startsWith('<') && /<\/[a-zA-Z]+>/.test(trimmed))
+  ) {
+    return raw;
+  }
+
+  // Détection des sections [Étape N : titre] ou [TITRE]
+  const sectionRe = /\[([^\]]+)\]/g;
+  const parts = [];
+  let lastIdx = 0;
+  let match;
+
+  while ((match = sectionRe.exec(trimmed)) !== null) {
+    if (match.index > lastIdx) {
+      parts.push({ type: 'text', content: trimmed.slice(lastIdx, match.index) });
+    }
+    parts.push({ type: 'section', title: match[1] });
+    lastIdx = sectionRe.lastIndex;
+  }
+  if (lastIdx < trimmed.length) {
+    parts.push({ type: 'text', content: trimmed.slice(lastIdx) });
+  }
+
+  // Regrouper chaque section avec son contenu qui suit
+  const sections = [];
+  let i = 0;
+  while (i < parts.length) {
+    const part = parts[i];
+    if (part.type === 'section') {
+      const nextText = parts[i + 1] && parts[i + 1].type === 'text' ? parts[i + 1].content.trim() : '';
+      sections.push({ title: part.title, content: nextText });
+      i += nextText ? 2 : 1;
+    } else {
+      if (part.content.trim()) {
+        sections.push({ title: null, content: part.content.trim() });
+      }
+      i++;
+    }
+  }
+
+  let bodyHtml = '';
+  for (const sec of sections) {
+    if (sec.title) {
+      bodyHtml += `
+        <div class="section">
+          <div class="section-hd">${escHtml(sec.title)}</div>
+          <div class="section-bd">${formatTextBlock(sec.content)}</div>
+        </div>`;
+    } else {
+      bodyHtml += `<div class="intro-block">${formatTextBlock(sec.content)}</div>`;
+    }
+  }
+
+  if (!bodyHtml.trim()) {
+    bodyHtml = `<pre class="fallback">${escHtml(trimmed)}</pre>`;
+  }
+
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'Segoe UI',system-ui,-apple-system,BlinkMacSystemFont,sans-serif;
+    background:#f0f4f8;
+    padding:24px;
+    color:#1e293b;
+    font-size:13.5px;
+    line-height:1.65;
+  }
+  .doc{
+    max-width:860px;
+    margin:0 auto;
+    background:#fff;
+    border-radius:14px;
+    box-shadow:0 4px 24px rgba(0,32,96,0.10);
+    overflow:hidden;
+  }
+  .doc-hd{
+    background:linear-gradient(135deg,#002060 0%,#1a56db 100%);
+    padding:28px 36px;
+    color:#fff;
+  }
+  .doc-hd h1{font-size:18px;font-weight:700;margin-bottom:4px;letter-spacing:-0.3px}
+  .doc-hd p{font-size:12px;opacity:0.75;margin:0}
+  .doc-body{padding:28px 36px}
+  .section{
+    border:1px solid #e2e8f0;
+    border-radius:10px;
+    overflow:hidden;
+    margin-bottom:18px;
+  }
+  .section-hd{
+    background:#eff6ff;
+    border-bottom:1px solid #bfdbfe;
+    padding:9px 16px;
+    font-weight:700;
+    font-size:11.5px;
+    color:#1d4ed8;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+  }
+  .section-bd{padding:12px 16px}
+  .intro-block{margin-bottom:18px}
+  .kv-row{
+    display:flex;
+    gap:10px;
+    padding:5px 0;
+    border-bottom:1px solid #f8fafc;
+    align-items:flex-start;
+  }
+  .kv-row:last-child{border-bottom:none}
+  .kv-k{
+    font-weight:600;
+    color:#475569;
+    min-width:190px;
+    flex-shrink:0;
+    font-size:12.5px;
+  }
+  .kv-v{color:#1e293b;font-size:13px;flex:1}
+  .sub-title{
+    font-size:11px;
+    font-weight:700;
+    color:#64748b;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    margin:14px 0 8px;
+    padding-bottom:4px;
+    border-bottom:1px solid #e2e8f0;
+  }
+  .check-row{padding:4px 0;font-size:13px}
+  .check-ok{color:#15803d;font-weight:500}
+  .check-fail{color:#b91c1c;font-weight:500}
+  .plain-p{margin:4px 0;font-size:13px;color:#334155}
+  .fallback{
+    white-space:pre-wrap;
+    font-family:'Courier New',monospace;
+    font-size:12px;
+    line-height:1.6;
+    color:#334155;
+    background:#f8fafc;
+    padding:16px;
+    border-radius:8px;
+    border:1px solid #e2e8f0;
+  }
+  div[style="height:6px"]{height:6px}
+</style>
+</head>
+<body>
+<div class="doc">
+  <div class="doc-hd">
+    <h1>Rapport d'Analyse Retraite</h1>
+    <p>Document généré automatiquement — Option Retraite</p>
+  </div>
+  <div class="doc-body">
+    ${bodyHtml}
+  </div>
+</div>
+</body>
+</html>`;
+}
+
 export function convertRISToManualRows(risData, { isCadre = false } = {}) {
   const data = Array.isArray(risData) ? risData[0] : risData;
   if (!data) return [];

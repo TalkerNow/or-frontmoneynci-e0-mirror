@@ -1,8 +1,7 @@
 import mock from "../mock";
 
-// ─── Mock data CNAV ─────────────────────────────────────────────────────────
+// ─── Mock data CNAV ──────────────────────────────────────────────────────────
 // Basé sur Maurice Smith : SAM 38 420 €, 181 trim., taux plein 50%
-// Résultat de référence pour les tests frontend (en attendant le vrai webhook Younes)
 
 const MOCK_CNAV_RESULT = {
   success: true,
@@ -37,12 +36,47 @@ const MOCK_CNAV_RESULT = {
   ],
 };
 
+// ─── Mock data AGIRC-ARRCO ───────────────────────────────────────────────────
+// Basé sur Maurice Smith : 28 330 points, taux plein atteint → pas de coeff solidarité
+
+const MOCK_AGIRC_RESULT = {
+  success: true,
+  report_id: 1002,
+  skill_code: "AGIRC",
+  status: "success",
+  python_output: {
+    pension_mensuelle_brute: 823.40,
+    pension_annuelle_brute: 9880.80,
+    nb_points_total: 28330,
+    coefficient_solidarite: null,   // null = taux plein atteint, pas de malus
+    valeur_service: 1.4386,
+  },
+  alertes: [
+    {
+      code: "A01",
+      niveau: "VERT",
+      message: "Taux plein atteint — pas de coefficient de solidarité appliqué.",
+      bloquant: false,
+    },
+  ],
+};
+
 // ─── Intercepteurs ───────────────────────────────────────────────────────────
 
-// POST webhook n8n skill-execute → résultat CNAV mocké
-mock.onPost(/skill-execute/).reply(() => {
+// POST webhook n8n skill-execute → dispatch selon skill_code
+mock.onPost(/skill-execute/).reply((config) => {
+  let body = {};
+  try { body = JSON.parse(config.data); } catch (e) { /* ignore */ }
+
+  if (body.skill_code === "AGIRC") {
+    return new Promise((resolve) => {
+      setTimeout(() => resolve([200, MOCK_AGIRC_RESULT]), 1800);
+    });
+  }
+
+  // CNAV par défaut
   return new Promise((resolve) => {
-    setTimeout(() => resolve([200, MOCK_CNAV_RESULT]), 1800); // simule latence IA ~1.8s
+    setTimeout(() => resolve([200, MOCK_CNAV_RESULT]), 1800);
   });
 });
 
@@ -62,20 +96,29 @@ mock.onGet(/\/v1\/skills/).reply(200, [
   },
   {
     skill_id: 2,
+    code: "AGIRC",
+    nom: "AGIRC-ARRCO",
+    type: "skill_calcul_regime",
+    description: "Calcul pension complémentaire AGIRC-ARRCO",
+    version: "1.0.0",
+    priority: 2,
+  },
+  {
+    skill_id: 3,
     code: "RACL",
     nom: "RACL",
     type: "skill_dispositif",
     description: "Carrière longue — éligibilité et date de départ anticipé",
     version: "0.1.0",
-    priority: 2,
+    priority: 3,
   },
   {
-    skill_id: 3,
+    skill_id: 4,
     code: "VPLR",
     nom: "VPLR",
     type: "skill_dispositif",
     description: "Rachat de trimestres — simulation coût et impact",
     version: "0.1.0",
-    priority: 3,
+    priority: 4,
   },
 ]);
