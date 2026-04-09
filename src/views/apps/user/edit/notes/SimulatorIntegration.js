@@ -1369,7 +1369,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                   ) : "▶ Calculer CNAV"}
                                 </button>
                               ) : (
-                                availableSkills.map((skill) => {
+                                availableSkills.filter((skill) => skill.code === "CNAV").map((skill) => {
                                   const isActive = skill.code === "CNAV";
                                   const isLoading = isActive && skillLoading;
                                   const canRun = isActive && carriereValidee && !skillLoading;
