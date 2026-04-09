@@ -12,6 +12,7 @@ import {
   persistUploadedDocs,
   extractClientNames,
   convertRISToManualRows,
+  wrapPlainTextAsHtml,
 } from "./utils";
 import { fetchRISAnalysis } from "../risService";
 
@@ -761,8 +762,11 @@ export const useNotesLogic = (id, perso) => {
           .replace(/```$/i, "")
           .trim();
 
+        // Si le contenu n'est pas du HTML, on l'encapsule dans un document HTML lisible et stylisé
+        contentString = wrapPlainTextAsHtml(contentString);
+
         // 2. On utilise STRICTEMENT le contenu reçu, sans rien ajouter autour.
-        // Si c'est du HTML, il sera affiché tel quel. Si c'est du texte, il sera affiché brut.
+        // Si c'est du HTML, il sera affiché tel quel. Si c'est du texte brut, il est converti.
 
         // On crée un fichier HTML pour display
         const fileName = `Rapport_${normalizedType === "custom" ? "Specifique" : "Standard"

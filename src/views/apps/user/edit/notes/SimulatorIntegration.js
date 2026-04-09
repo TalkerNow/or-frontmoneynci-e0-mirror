@@ -12,6 +12,7 @@ import {
   persistUploadedDocs,
   loadUploadedDocs,
 } from "./utils";
+import { executeSkill } from "../risService";
 const MD_CONTENT = {};
 
 // Map QUICK_TAGS to icons for the analyse panel
@@ -274,6 +275,25 @@ const AGIRC_PARAMS = {
   1966:{ta:6.00,tb:14.00,ref:89},1965:{ta:6.00,tb:14.00,ref:82},
 };
 
+const PLAFONDS_SS = {
+  1985: Math.round(106740/6.55957), 1986: Math.round(112200/6.55957),
+  1987: Math.round(116820/6.55957), 1988: Math.round(120360/6.55957),
+  1989: Math.round(125280/6.55957), 1990: Math.round(131040/6.55957),
+  1991: Math.round(137760/6.55957), 1992: Math.round(144120/6.55957),
+  1993: Math.round(149820/6.55957), 1994: Math.round(153120/6.55957),
+  1995: Math.round(155940/6.55957), 1996: Math.round(161220/6.55957),
+  1997: Math.round(164640/6.55957), 1998: Math.round(169080/6.55957),
+  1999: Math.round(173640/6.55957), 2000: Math.round(176400/6.55957),
+  2001: Math.round(179400/6.55957),
+  2002: 28224,  2003: 29184,  2004: 29712,
+  2005: 30192,  2006: 31068,  2007: 32184,  2008: 33276,
+  2009: 34308,  2010: 34620,  2011: 35352,  2012: 36372,
+  2013: 37032,  2014: 37548,  2015: 38040,  2016: 38616,
+  2017: 39228,  2018: 39732,  2019: 40524,  2020: 41136,
+  2021: 41136,  2022: 41136,  2023: 43992,  2024: 46368,
+  2025: 47100,  2026: 48060,
+};
+
 const ADMIN_SKILL_PROMPTS = [
   { id: "sk_prompt1",    label: "PROMPT 1 — Pré-analyse consultant",          icon: "🔍", color: "#6C5CE7", contentKey: "sk_prompt1",    category: "Workflow principal" },
   { id: "sk_prompt2",    label: "PROMPT 2 — Rapport de consultation client",  icon: "📄", color: "#6C5CE7", contentKey: "sk_prompt2",    category: "Workflow principal" },
@@ -314,6 +334,36 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   const [excludedDates, setExcludedDates] = useState([]);
   const [carriereValidee, setCarriereValidee] = useState(false);
   const [navCollapsed, setNavCollapsed] = useState(false);
+  const [cnavplOpen, setCnavplOpen] = useState(false);
+  const [cnavplClosing, setCnavplClosing] = useState(false);
+  const [samOpen, setSamOpen] = useState(false);
+  const [accordeonsVisible, setAccordeonsVisible] = useState(false);
+  const [openAccordeons, setOpenAccordeons] = useState([]);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportText, setReportText] = useState("");
+  const [revaloValues, setRevaloValues] = useState(() => {
+    const init = {};
+    Array.from({ length: 51 }, (_, i) => {
+      const yr = 2025 - i;
+      const sal = Math.round(15000 + i * 1800);
+      const coeff = REVALO_CNAV[yr] || 1;
+      const revalo = Math.round(sal * coeff);
+      const plafond = PLAFONDS_SS[yr] || 48060;
+      init[yr] = yr >= 2005 ? Math.min(revalo, plafond) : revalo;
+    });
+    return init;
+  });
+  const [deplafValues, setDeplafValues] = useState({});
+
+  // ── CNAV Skill State ──
+  const [skillLoading, setSkillLoading] = useState(false);
+  const [skillResult, setSkillResult] = useState(null);
+  const [skillError, setSkillError] = useState(null);
+
+  // ── AGIRC-ARRCO Skill State ──
+  const [agircLoading, setAgircLoading] = useState(false);
+  const [agircResult, setAgircResult] = useState(null);
+  const [agircError, setAgircError] = useState(null);
 
   // ── Upload & Analysis State (migrated from useNotesLogic) ──
   const [fileToSend, setFileToSend] = useState(null);
@@ -601,8 +651,77 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     );
   };
 
+  const getPlafond = (yr) => PLAFONDS_SS[yr] || 48060;
+
+  const toggleCnavpl = () => {
+    if (cnavplOpen) {
+      setCnavplClosing(true);
+      setTimeout(() => { setCnavplOpen(false); setCnavplClosing(false); }, 280);
+    } else {
+      setCnavplOpen(true);
+    }
+  };
+
+  const handleRevaloChange = (yr, val, deplaf) => {
+    const parsed = parseInt(val) || 0;
+    const capped = (yr >= 2005 || !deplaf) ? Math.min(parsed, getPlafond(yr)) : parsed;
+    setRevaloValues(prev => ({ ...prev, [yr]: capped }));
+  };
+
+  const handleDeplafChange = (yr, checked) => {
+    setDeplafValues(prev => ({ ...prev, [yr]: checked }));
+    if (!checked) {
+      setRevaloValues(prev => ({ ...prev, [yr]: Math.min(prev[yr] || 0, getPlafond(yr)) }));
+    }
+  };
+
+  const handleAgircExecute = async () => {
+    if (!carriereValidee) return;
+    setAgircLoading(true);
+    setAgircError(null);
+    setAgircResult(null);
+    try {
+      const result = await executeSkill("AGIRC", id, "");
+      setAgircResult(result);
+    } catch (err) {
+      setAgircError("Erreur lors du calcul AGIRC-ARRCO. Veuillez réessayer.");
+      toast.error("Erreur calcul AGIRC-ARRCO");
+    } finally {
+      setAgircLoading(false);
+    }
+  };
+
+  const handleSkillExecute = async () => {
+    if (!carriereValidee) return;
+    setSkillLoading(true);
+    setSkillError(null);
+    setSkillResult(null);
+    try {
+      const result = await executeSkill("CNAV", id, "");
+      setSkillResult(result);
+    } catch (err) {
+      setSkillError("Erreur lors du calcul CNAV. Veuillez réessayer.");
+      toast.error("Erreur calcul CNAV");
+    } finally {
+      setSkillLoading(false);
+    }
+  };
+
       return (
     <div style={{ marginTop: "24px" }}>
+      <style>{`
+        @keyframes cnavplFadeIn {
+          from { opacity: 0; transform: translateX(8px) scaleX(0.92); }
+          to   { opacity: 1; transform: translateX(0)   scaleX(1); }
+        }
+        @keyframes cnavplFadeOut {
+          from { opacity: 1; transform: translateX(0)   scaleX(1); }
+          to   { opacity: 0; transform: translateX(8px) scaleX(0.92); }
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
       {/* ══ MODAL CONTENU RÉGLEMENTAIRE ══ */}
       {modal && (
         <div onClick={() => setModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
@@ -782,7 +901,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                 </div>
 
                 {/* Content area */}
-                <div style={{ ...S.card, padding: 16, ...(expandedPanel === "carriere" ? { maxWidth: 820 } : {}) }}>
+                <div style={{ ...S.card, padding: 16, ...(expandedPanel === "carriere" && !cnavplOpen ? { maxWidth: 820 } : {}) }}>
                   {(() => {
                     const panel = ACTION_PANELS[expandedPanel];
 
@@ -843,92 +962,284 @@ export default function SimulatorV6({ mode = "production", id, user }) {
 
                           {/* Grand tableau unifié */}
                           <div className="simu-table-wrap" style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
-                            <table style={{ borderCollapse: "collapse", fontSize: 10, tableLayout: "auto" }}>
+                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}>
                               <thead>
                                 <tr>
-                                  {/* Année */}
-                                  <th rowSpan={2} style={{ padding: "3px 2px", textAlign: "left", fontWeight: 700, color: "#333", borderBottom: "2px solid #ddd", background: "#f8f8f8", whiteSpace: "nowrap", verticalAlign: "bottom", width: 36 }}>An.</th>
-                                  {/* Sal. brut partagé */}
-                                  <th rowSpan={2} style={{ padding: "3px 2px", textAlign: "right", fontWeight: 700, color: "#555", borderBottom: "2px solid #ddd", background: "#f8f8f8", whiteSpace: "nowrap", verticalAlign: "bottom", borderLeft: "1px solid #ddd" }}>Sal. brut<br/><span style={{fontWeight:400,color:"#bbb"}}>/ Rému.</span></th>
-                                  {/* CNAV */}
-                                  <th colSpan={4} style={{ padding: "3px 2px", textAlign: "center", fontWeight: 700, color: "#6C5CE7", background: "#6C5CE708", borderLeft: "2px solid #6C5CE730", borderBottom: "1px solid #6C5CE720" }}>🏛️ CNAV</th>
-                                  {/* AGIRC */}
-                                  <th colSpan={3} style={{ padding: "3px 2px", textAlign: "center", fontWeight: 700, color: "#0984E3", background: "#0984E308", borderLeft: "2px solid #0984E330", borderBottom: "1px solid #0984E320" }}>📊 AGIRC-ARRCO</th>
-                                  {/* Ircantec */}
-                                  <th colSpan={1} style={{ padding: "3px 2px", textAlign: "center", fontWeight: 700, color: "#00B894", background: "#00B89408", borderLeft: "2px solid #00B89430", borderBottom: "1px solid #00B89420" }}>🏢 Irc.</th>
-                                  {/* RCI */}
-                                  <th colSpan={1} style={{ padding: "3px 2px", textAlign: "center", fontWeight: 700, color: "#E17055", background: "#E1705508", borderLeft: "2px solid #E1705530", borderBottom: "1px solid #E1705520" }}>📑 RCI</th>
+                                  <th rowSpan={2} style={{ padding: "5px 6px", textAlign: "left", fontWeight: 700, color: "#333", borderBottom: "2px solid #ddd", background: "#f8f8f8", verticalAlign: "bottom", width: 36 }}>An.</th>
+                                  <th rowSpan={2} style={{ padding: "5px 6px", textAlign: "center", fontWeight: 700, color: "#555", borderBottom: "2px solid #ddd", background: "#f8f8f8", borderLeft: "1px solid #ddd", verticalAlign: "bottom" }}>Sal. brut<br/><span style={{ fontWeight: 400, color: "#bbb", fontSize: 9 }}>/Rému.</span></th>
+                                  <th colSpan={8} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#6C5CE7", background: "#6C5CE708", borderLeft: "2px solid #6C5CE730", borderBottom: "1px solid #6C5CE720" }}>🏛️ CNAV</th>
+                                  <th colSpan={3} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#0984E3", background: "#0984E308", borderLeft: "2px solid #0984E330", borderBottom: "1px solid #0984E320" }}>📊 AGIRC-ARRCO</th>
+                                  <th colSpan={1} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#00B894", background: "#00B89408", borderLeft: "2px solid #00B89430", borderBottom: "1px solid #00B89420" }}>🏢 Ircantec</th>
+                                  <th colSpan={1} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#E17055", background: "#E1705508", borderLeft: "2px solid #E1705530", borderBottom: "1px solid #E1705520" }}>📑 RCI</th>
+                                  <th colSpan={cnavplOpen ? 3 : 1} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#9B59B6", background: cnavplOpen ? "#9B59B608" : "#f8f8f8", borderLeft: "2px solid #9B59B630", borderBottom: "1px solid #9B59B620", whiteSpace: "nowrap" }}>
+                                    <button onClick={toggleCnavpl} title="CNAV PL — Libéral" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 10, color: "#9B59B6", padding: 0, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                                      <span style={{ display: "inline-block", transform: cnavplOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s", fontSize: 9 }}>▶</span>
+                                      {cnavplOpen && <span style={{ fontSize: 9, fontWeight: 700 }}>🏥 CNAV PL</span>}
+                                    </button>
+                                  </th>
                                 </tr>
                                 <tr style={{ background: "#fafafa" }}>
-                                  {/* CNAV sous-cols */}
-                                  <th style={{ padding: "2px 2px", textAlign: "right", fontWeight: 600, color: "#6C5CE7", borderBottom: "2px solid #6C5CE720", whiteSpace: "nowrap", borderLeft: "2px solid #6C5CE730" }}>Sal. SS</th>
-                                  <th style={{ padding: "2px 2px", textAlign: "right", fontWeight: 600, color: "#6C5CE7", borderBottom: "2px solid #6C5CE720", whiteSpace: "nowrap" }}>Coeff.</th>
-                                  <th style={{ padding: "2px 2px", textAlign: "right", fontWeight: 600, color: "#6C5CE7", borderBottom: "2px solid #6C5CE720", whiteSpace: "nowrap" }}>Revalo.</th>
-                                  <th style={{ padding: "2px 2px", textAlign: "center", fontWeight: 600, color: "#6C5CE7", borderBottom: "2px solid #6C5CE720", whiteSpace: "nowrap" }}>Trim.</th>
-                                  {/* AGIRC sous-cols */}
-                                  <th style={{ padding: "2px 2px", textAlign: "right", fontWeight: 600, color: "#0984E3", borderBottom: "2px solid #0984E320", whiteSpace: "nowrap", borderLeft: "2px solid #0984E330" }}>Pts T1</th>
-                                  <th style={{ padding: "2px 2px", textAlign: "right", fontWeight: 600, color: "#0984E3", borderBottom: "2px solid #0984E320", whiteSpace: "nowrap" }}>Pts T2</th>
-                                  <th style={{ padding: "2px 2px", textAlign: "right", fontWeight: 600, color: "#0984E3", borderBottom: "2px solid #0984E320", whiteSpace: "nowrap" }}>Pts∑</th>
-                                  {/* Ircantec */}
-                                  <th style={{ padding: "2px 2px", textAlign: "right", fontWeight: 600, color: "#00B894", borderBottom: "2px solid #00B89420", whiteSpace: "nowrap", borderLeft: "2px solid #00B89430" }}>Points</th>
-                                  {/* RCI */}
-                                  <th style={{ padding: "2px 2px", textAlign: "right", fontWeight: 600, color: "#E17055", borderBottom: "2px solid #E1705520", whiteSpace: "nowrap", borderLeft: "2px solid #E1705530" }}>Points</th>
+                                  {[["Sal. SS","r"],["Coeff.","r"],["Revalo.","r"],["Déplaf.","c"],["Trim.","c"],["Ass.","c"],["AR","c"],["Tot.","c"]].map(([h, a], i) => (
+                                    <th key={h} style={{ padding: "3px 5px", textAlign: a === "r" ? "right" : "center", fontWeight: 600, color: "#6C5CE7", borderBottom: "2px solid #6C5CE720", whiteSpace: "nowrap", borderLeft: i === 0 ? "2px solid #6C5CE730" : undefined }}>{h}</th>
+                                  ))}
+                                  <th style={{ padding: "3px 5px", textAlign: "center", fontWeight: 600, color: "#0984E3", borderBottom: "2px solid #0984E320", whiteSpace: "nowrap", borderLeft: "2px solid #0984E330" }}>Pts T1</th>
+                                  <th style={{ padding: "3px 5px", textAlign: "center", fontWeight: 600, color: "#0984E3", borderBottom: "2px solid #0984E320", whiteSpace: "nowrap" }}>Pts T2</th>
+                                  <th style={{ padding: "3px 5px", textAlign: "center", fontWeight: 600, color: "#0984E3", borderBottom: "2px solid #0984E320", whiteSpace: "nowrap" }}>Total</th>
+                                  <th style={{ padding: "3px 5px", textAlign: "center", fontWeight: 600, color: "#00B894", borderBottom: "2px solid #00B89420", borderLeft: "2px solid #00B89430" }}>Points</th>
+                                  <th style={{ padding: "3px 5px", textAlign: "center", fontWeight: 600, color: "#E17055", borderBottom: "2px solid #E1705520", borderLeft: "2px solid #E1705530" }}>Points</th>
+                                  {cnavplOpen ? (
+                                    <>
+                                      {["Revenus", "Rev. CNAV PL", "Points"].map((h, i) => (
+                                        <th key={h} style={{ padding: "3px 5px", textAlign: "center", fontWeight: 600, color: "#9B59B6", borderBottom: "2px solid #9B59B620", borderLeft: i === 0 ? "2px solid #9B59B630" : undefined, whiteSpace: "nowrap", animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>{h}</th>
+                                      ))}
+                                    </>
+                                  ) : (
+                                    <th style={{ padding: "3px 5px", width: 24, borderBottom: "2px solid #9B59B620", borderLeft: "2px solid #9B59B630" }}></th>
+                                  )}
                                 </tr>
                               </thead>
                               <tbody>
                                 {totalRows.map((row, i) => {
-                                  const ptT1 = Math.round(row.agircPts * 0.62);
-                                  const ptT2 = Math.round(row.agircPts * 0.38);
+                                  const ptT1 = i < 20 ? Math.round(row.agircPts * 0.62) : 0;
+                                  const ptT2 = i < 20 ? Math.round(row.agircPts * 0.38) : 0;
                                   const ptSum = ptT1 + ptT2;
+                                  const tot = row.trim + row.ar;
+                                  const revaloVal = revaloValues[row.yr] ?? row.revalo;
+                                  const isPlafonne = revaloVal >= getPlafond(row.yr) && (row.yr >= 2005 || !deplafValues[row.yr]);
                                   return (
                                     <tr key={row.yr} style={{ background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
-                                      <td style={{ padding: "2px 2px", fontWeight: 700, color: "#333", whiteSpace: "nowrap" }}>{row.yr}</td>
-                                      {/* Sal. brut partagé — éditable */}
-                                      <td style={{ padding: "2px 2px", textAlign: "right", borderLeft: "1px solid #eee" }}>
-                                        <input type="number" defaultValue={row.sal} disabled={carriereValidee} style={{ width: 56, textAlign: "right", border: "1px solid #ddd", borderRadius: 3, fontSize: 10, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                      <td style={{ padding: "3px 5px", fontWeight: 700, color: "#333" }}>{row.yr}</td>
+                                      <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "1px solid #eee" }}>
+                                        <input type="number" defaultValue={row.sal} disabled={carriereValidee} style={{ width: 62, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 10, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff" }} />
                                       </td>
-                                      {/* CNAV */}
-                                      <td style={{ padding: "2px 2px", textAlign: "right", color: "#888", borderLeft: "2px solid #6C5CE715" }}>{row.ss.toLocaleString("fr-FR")}</td>
-                                      <td style={{ padding: "2px 2px", textAlign: "right", color: "#0984E3", fontWeight: 600 }}>{row.coeff}</td>
-                                      <td style={{ padding: "2px 2px", textAlign: "right", fontWeight: 700, color: "#6C5CE7" }}>{row.revalo.toLocaleString("fr-FR")}</td>
-                                      <td style={{ padding: "2px 2px", textAlign: "center" }}>
-                                        <input type="number" defaultValue={row.trim} disabled={carriereValidee} style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 10, padding: "1px 1px" }} />
+                                      <td style={{ padding: "3px 5px", textAlign: "right", color: "#888", borderLeft: "2px solid #6C5CE715" }}>{row.ss.toLocaleString("fr-FR")}</td>
+                                      <td style={{ padding: "3px 5px", textAlign: "right", color: "#0984E3", fontWeight: 600 }}>{row.coeff}</td>
+                                      <td style={{ padding: "3px 5px", textAlign: "right", fontWeight: 700, color: "#6C5CE7" }}>
+                                        <input
+                                          type="number"
+                                          value={revaloVal}
+                                          disabled={carriereValidee}
+                                          onChange={(e) => handleRevaloChange(row.yr, e.target.value, deplafValues[row.yr])}
+                                          style={{ width: 68, textAlign: "right", border: `1px solid ${isPlafonne ? "#E17055" : "#6C5CE730"}`, borderRadius: 3, fontSize: 10, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff", color: "#6C5CE7", fontWeight: 700 }}
+                                        />
+                                        <span style={{ fontSize: 7, color: "#bbb", display: "block", textAlign: "right", marginTop: 1 }}>
+                                          ≤ {getPlafond(row.yr).toLocaleString("fr-FR")} €
+                                          {isPlafonne && <span style={{ color: "#E17055" }}> ⚠</span>}
+                                        </span>
                                       </td>
-                                      {/* AGIRC */}
-                                      <td style={{ padding: "2px 2px", textAlign: "right", color: "#0984E3", fontWeight: 600, borderLeft: "2px solid #0984E315" }}>{i < 15 ? ptT1 : <span style={{ color: "#ddd" }}>—</span>}</td>
-                                      <td style={{ padding: "2px 2px", textAlign: "right", color: "#0984E3", fontWeight: 600 }}>{i < 15 ? ptT2 : <span style={{ color: "#ddd" }}>—</span>}</td>
-                                      <td style={{ padding: "2px 2px", textAlign: "right", fontWeight: 700, color: "#1a1a2e" }}>{i < 15 ? ptSum : <span style={{ color: "#ddd" }}>—</span>}</td>
-                                      {/* Ircantec */}
-                                      <td style={{ padding: "2px 2px", textAlign: "right", color: "#00B894", fontWeight: 600, borderLeft: "2px solid #00B89415" }}>
-                                        {row.ircPts > 0 ? row.ircPts : <span style={{ color: "#ddd" }}>—</span>}
+                                      <td style={{ padding: "2px 3px", textAlign: "center", width: 28 }}>
+                                        {row.yr <= 2004 ? (
+                                          <input type="checkbox"
+                                            checked={deplafValues[row.yr] || false}
+                                            disabled={carriereValidee}
+                                            onChange={(e) => handleDeplafChange(row.yr, e.target.checked)}
+                                            title="Déplafonner : salaire enregistré au-dessus du plafond SS"
+                                            style={{ cursor: carriereValidee ? "default" : "pointer", accentColor: "#6C5CE7", width: 12, height: 12 }} />
+                                        ) : (
+                                          <span style={{ fontSize: 9, color: "#ddd" }}>—</span>
+                                        )}
                                       </td>
-                                      {/* RCI */}
-                                      <td style={{ padding: "2px 2px", textAlign: "right", color: "#E17055", fontWeight: 600, borderLeft: "2px solid #E1705515" }}>
-                                        {row.rciPts > 0 ? row.rciPts : <span style={{ color: "#ddd" }}>—</span>}
+                                      <td style={{ padding: "3px 5px", textAlign: "center" }}>
+                                        <input type="number" defaultValue={row.trim} disabled={carriereValidee} style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 10, padding: "1px" }} />
                                       </td>
+                                      <td style={{ padding: "3px 5px", textAlign: "center" }}>
+                                        <input type="number" defaultValue={0} disabled={carriereValidee} title="Trimestres assimilés (maladie, chômage, maternité…)" style={{ width: 26, textAlign: "center", border: "1px solid #6C5CE730", borderRadius: 3, fontSize: 10, padding: "1px", color: "#6C5CE7" }} />
+                                      </td>
+                                      <td style={{ padding: "3px 5px", textAlign: "center" }}>
+                                        <input type="number" defaultValue={row.ar} disabled={carriereValidee} style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 10, padding: "1px" }} />
+                                      </td>
+                                      <td style={{ padding: "3px 5px", textAlign: "center", fontWeight: 700, color: "#6C5CE7" }}>{tot}</td>
+                                      <td style={{ padding: "3px 5px", textAlign: "center", color: "#0984E3", fontWeight: 600, borderLeft: "2px solid #0984E315" }}>{ptT1 || <span style={{ color: "#ddd" }}>—</span>}</td>
+                                      <td style={{ padding: "3px 5px", textAlign: "center", color: "#0984E3", fontWeight: 600 }}>{ptT2 || <span style={{ color: "#ddd" }}>—</span>}</td>
+                                      <td style={{ padding: "3px 5px", textAlign: "center", fontWeight: 800, color: ptSum ? "#1a1a2e" : "#ddd" }}>{ptSum || "—"}</td>
+                                      <td style={{ padding: "3px 5px", textAlign: "center", color: "#00B894", fontWeight: 600, borderLeft: "2px solid #00B89415" }}>{row.ircPts > 0 ? row.ircPts : <span style={{ color: "#ddd" }}>—</span>}</td>
+                                      <td style={{ padding: "3px 5px", textAlign: "center", color: "#E17055", fontWeight: 600, borderLeft: "2px solid #E1705515" }}>{row.rciPts > 0 ? row.rciPts : <span style={{ color: "#ddd" }}>—</span>}</td>
+                                      {cnavplOpen ? (
+                                        <>
+                                          <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #9B59B630", animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>
+                                            <input type="number" defaultValue="" disabled={carriereValidee} placeholder="—" style={{ width: 52, textAlign: "center", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 10, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 600 }} />
+                                          </td>
+                                          <td style={{ padding: "3px 5px", textAlign: "center", animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>
+                                            <input type="number" defaultValue="" disabled={carriereValidee} placeholder="—" style={{ width: 52, textAlign: "center", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 10, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 600 }} />
+                                          </td>
+                                          <td style={{ padding: "3px 5px", textAlign: "center", animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>
+                                            <input type="number" defaultValue="" disabled={carriereValidee} placeholder="—" style={{ width: 40, textAlign: "center", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 10, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 700 }} />
+                                          </td>
+                                        </>
+                                      ) : (
+                                        <td style={{ padding: "3px 5px", width: 24, borderLeft: "2px solid #9B59B630" }}></td>
+                                      )}
                                     </tr>
                                   );
                                 })}
+                                <tr>
+                                  <td colSpan={16} style={{ padding: "4px 8px" }}>
+                                    <button style={{ fontSize: 9, padding: "3px 10px", borderRadius: 5, border: "1px dashed #bbb", background: "transparent", color: "#888", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                                      <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> Ajouter une année (1984…)
+                                    </button>
+                                  </td>
+                                </tr>
                               </tbody>
                               <tfoot>
                                 <tr style={{ background: "#f0f0f0", fontWeight: 700, borderTop: "2px solid #ddd" }}>
-                                  <td style={{ padding: "3px 2px", fontSize: 10, color: "#333" }}>∑</td>
-                                  <td style={{ padding: "3px 2px", borderLeft: "1px solid #eee" }}></td>
-                                  <td colSpan={3} style={{ padding: "3px 2px", textAlign: "right", fontSize: 10, color: "#6C5CE7", borderLeft: "2px solid #6C5CE715" }}>SAM : 38 420 €</td>
-                                  <td style={{ padding: "3px 2px", textAlign: "center", fontSize: 10, color: "#6C5CE7" }}>156</td>
-                                  <td colSpan={2} style={{ padding: "3px 2px", textAlign: "right", fontSize: 10, color: "#0984E3", borderLeft: "2px solid #0984E315" }}>—</td>
-                                  <td style={{ padding: "3px 2px", textAlign: "right", fontSize: 10, color: "#0984E3", fontWeight: 800 }}>28 330</td>
-                                  <td style={{ padding: "3px 2px", textAlign: "right", fontSize: 10, color: "#00B894", borderLeft: "2px solid #00B89415" }}>1 240</td>
-                                  <td style={{ padding: "3px 2px", textAlign: "right", fontSize: 10, color: "#E17055", borderLeft: "2px solid #E1705515" }}>620</td>
+                                  <td style={{ padding: "5px 5px", fontSize: 10, color: "#333" }}>∑</td>
+                                  <td style={{ borderLeft: "1px solid #eee" }}></td>
+                                  <td colSpan={3} style={{ padding: "5px 5px", textAlign: "right", fontSize: 10, color: "#6C5CE7", borderLeft: "2px solid #6C5CE715" }}>
+                                    <button onClick={() => setSamOpen(v => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 10, color: "#6C5CE7", padding: 0 }}>
+                                      <span style={{ fontSize: 8, display: "inline-block", transform: samOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>▶</span>
+                                      SAM : 38 420 €
+                                    </button>
+                                  </td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#6C5CE7" }}>156</td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#6C5CE7" }}>—</td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#6C5CE7" }}>25</td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#6C5CE7", fontWeight: 800 }}>181</td>
+                                  {(() => {
+                                    const totalT1 = totalRows.slice(0, 20).reduce((s, r) => s + Math.round(r.agircPts * 0.62), 0);
+                                    const totalT2 = totalRows.slice(0, 20).reduce((s, r) => s + Math.round(r.agircPts * 0.38), 0);
+                                    return (
+                                      <>
+                                        <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#0984E3", borderLeft: "2px solid #0984E315", fontWeight: 700 }}>{totalT1.toLocaleString("fr-FR")}</td>
+                                        <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#0984E3", fontWeight: 700 }}>{totalT2.toLocaleString("fr-FR")}</td>
+                                        <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#1a1a2e", fontWeight: 800 }}>{(totalT1 + totalT2).toLocaleString("fr-FR")}</td>
+                                      </>
+                                    );
+                                  })()}
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#00B894", borderLeft: "2px solid #00B89415" }}>1 240</td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#E17055", borderLeft: "2px solid #E1705515" }}>620</td>
+                                  {cnavplOpen ? (
+                                    <>
+                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#9B59B6", borderLeft: "2px solid #9B59B630", fontWeight: 700, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>—</td>
+                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#9B59B6", fontWeight: 700, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>—</td>
+                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#9B59B6", fontWeight: 800, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>—</td>
+                                    </>
+                                  ) : (
+                                    <td style={{ padding: "5px 5px", width: 24, borderLeft: "2px solid #9B59B630" }}></td>
+                                  )}
                                 </tr>
+                                {samOpen && (
+                                  <tr>
+                                    <td colSpan={16} style={{ padding: 0, background: "#fff" }}>
+                                      <div style={{ padding: "10px 14px", borderTop: "1px solid #6C5CE720" }}>
+                                        <div style={{ fontSize: 10, fontWeight: 700, color: "#6C5CE7", marginBottom: 8 }}>📊 25 meilleures années retenues — salaires revalorisés</div>
+                                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}>
+                                          <thead>
+                                            <tr style={{ background: "#6C5CE708" }}>
+                                              {["Rang", "Année", "Sal. brut", "Coeff. revalo.", "Sal. CNAV revalorisé"].map(h => (
+                                                <th key={h} style={{ padding: "4px 8px", textAlign: h === "Rang" ? "left" : "right", fontWeight: 700, color: "#6C5CE7", borderBottom: "1px solid #6C5CE720" }}>{h}</th>
+                                              ))}
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {[...totalRows].sort((a, b) => b.revalo - a.revalo).slice(0, 25).map((r, idx) => (
+                                              <tr key={r.yr} style={{ background: idx % 2 === 0 ? "#fff" : "#fafafa" }}>
+                                                <td style={{ padding: "3px 8px", color: "#aaa", fontWeight: 600 }}>#{idx + 1}</td>
+                                                <td style={{ padding: "3px 8px", textAlign: "right", fontWeight: 700 }}>{r.yr}</td>
+                                                <td style={{ padding: "3px 8px", textAlign: "right", color: "#555" }}>{r.sal.toLocaleString("fr-FR")} €</td>
+                                                <td style={{ padding: "3px 8px", textAlign: "right", color: "#0984E3", fontWeight: 600 }}>{r.coeff}</td>
+                                                <td style={{ padding: "3px 8px", textAlign: "right", fontWeight: 700, color: "#6C5CE7" }}>{r.revalo.toLocaleString("fr-FR")} €</td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                          <tfoot>
+                                            <tr style={{ background: "#6C5CE708", borderTop: "2px solid #6C5CE720" }}>
+                                              <td colSpan={4} style={{ padding: "5px 8px", fontWeight: 700, color: "#6C5CE7" }}>SAM — moyenne des 25 meilleures années CNAV revalorisées</td>
+                                              <td style={{ padding: "5px 8px", textAlign: "right", fontWeight: 800, fontSize: 11, color: "#6C5CE7" }}>38 420 €</td>
+                                            </tr>
+                                          </tfoot>
+                                        </table>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
                               </tfoot>
                             </table>
                           </div>
 
+                          {/* Détail par régime */}
+                          <div style={{ marginTop: 12, borderTop: "1px solid #f0f0f0", paddingTop: 10 }}>
+                            <button onClick={() => setAccordeonsVisible(v => !v)}
+                              style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", padding: "2px 0", width: "100%" }}>
+                              <span style={{ fontSize: 9, color: "#bbb", display: "inline-block", transform: accordeonsVisible ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>▶</span>
+                              <span style={{ fontSize: 10, color: "#aaa", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase" }}>Détail par régime</span>
+                              <span style={{ fontSize: 9, color: "#ddd", marginLeft: 4 }}>— CNAV · AGIRC-ARRCO · Ircantec · RCI · CNAV PL · PER</span>
+                            </button>
+                          </div>
+                          {accordeonsVisible && (
+                            <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+                              {[
+                                { id: "cnav_acc",  label: "CNAV — Régime de base",             icon: "🏛️", color: "#6C5CE7" },
+                                { id: "agirc_acc", label: "AGIRC-ARRCO — Complémentaire",      icon: "📊", color: "#0984E3" },
+                                { id: "irc_acc",   label: "IRCANTEC — Agents non titulaires",  icon: "🏢", color: "#00B894" },
+                                { id: "rci_acc",   label: "RCI / SSI — Indépendants",          icon: "📑", color: "#E17055" },
+                                { id: "cnavpl_acc",label: "CNAV PL — Libéral",                 icon: "🏥", color: "#9B59B6", cols: ["Revenus", "Rev. CNAV PL", "Points"] },
+                                { id: "per_acc",   label: "PER — Épargne retraite",             icon: "💼", color: "#D63031" },
+                              ].map((reg) => {
+                                const isOpen = openAccordeons.includes(reg.id);
+                                return (
+                                  <div key={reg.id} style={{ border: `1px solid ${reg.color}25`, borderRadius: 9, overflow: "hidden" }}>
+                                    <button
+                                      onClick={() => setOpenAccordeons(prev => prev.includes(reg.id) ? prev.filter(x => x !== reg.id) : [...prev, reg.id])}
+                                      style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: isOpen ? `${reg.color}06` : "#fafafa", border: "none", cursor: "pointer" }}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                        <span style={{ fontSize: 16 }}>{reg.icon}</span>
+                                        <span style={{ fontSize: 12, fontWeight: 700, color: reg.color }}>{reg.label}</span>
+                                      </div>
+                                      <span style={{ fontSize: 11, color: reg.color, transform: isOpen ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 0.15s" }}>▼</span>
+                                    </button>
+                                    {isOpen && (
+                                      <div style={{ padding: "14px 16px", background: "#fff" }}>
+                                        {reg.cols ? (
+                                          <div style={{ overflowX: "auto" }}>
+                                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}>
+                                              <thead>
+                                                <tr style={{ background: `${reg.color}08` }}>
+                                                  <th style={{ padding: "4px 8px", textAlign: "left", fontWeight: 700, color: reg.color, borderBottom: `1px solid ${reg.color}20` }}>Année</th>
+                                                  {reg.cols.map(c => (
+                                                    <th key={c} style={{ padding: "4px 8px", textAlign: "right", fontWeight: 700, color: reg.color, borderBottom: `1px solid ${reg.color}20`, whiteSpace: "nowrap" }}>{c}</th>
+                                                  ))}
+                                                </tr>
+                                              </thead>
+                                              <tbody>
+                                                {[2024,2023,2022,2021,2020,2019,2018,2017,2016,2015].map((yr, i) => (
+                                                  <tr key={yr} style={{ background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                                                    <td style={{ padding: "4px 8px", fontWeight: 700, color: "#333" }}>{yr}</td>
+                                                    {reg.cols.map(c => (
+                                                      <td key={c} style={{ padding: "4px 8px", textAlign: "right" }}>
+                                                        <input type="number" defaultValue="" disabled={carriereValidee} placeholder="—"
+                                                          style={{ width: 70, textAlign: "right", border: `1px solid ${reg.color}30`, borderRadius: 3, fontSize: 10, padding: "1px 4px", color: reg.color, fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                                      </td>
+                                                    ))}
+                                                  </tr>
+                                                ))}
+                                              </tbody>
+                                            </table>
+                                          </div>
+                                        ) : (
+                                          <div style={{ fontSize: 11, color: "#aaa" }}><em>Données {reg.label} — à compléter / importer depuis le RIS.</em></div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+
                           {/* Boutons bas */}
-                          <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-                            <button disabled={carriereValidee} style={{ flex: 1, minWidth: 160, padding: "8px 0", borderRadius: 7, border: "none", background: carriereValidee ? "#ddd" : "#E17055", color: "#fff", fontWeight: 700, fontSize: 11, cursor: carriereValidee ? "default" : "pointer" }}>▶ Valider & Simuler</button>
-                            <button disabled={carriereValidee} style={{ padding: "8px 14px", borderRadius: 7, border: "1px solid #ddd", background: "#fafafa", color: "#888", fontSize: 11, cursor: carriereValidee ? "default" : "pointer" }}>↺ Réinitialiser</button>
+                          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                            <button
+                              onClick={() => { setCarriereValidee(true); setExpandedPanel("dispositifs"); setSelectedAction(null); setExecuted(null); }}
+                              disabled={carriereValidee}
+                              style={{ flex: 1, padding: "8px 0", borderRadius: 7, border: "none", background: carriereValidee ? "#00B894" : "#E17055", color: "#fff", fontWeight: 700, fontSize: 11, cursor: carriereValidee ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                              {carriereValidee ? "🔒 Données verrouillées" : "▶ Valider & Simuler"}
+                            </button>
+                            <button
+                              onClick={() => setCarriereValidee(false)}
+                              disabled={!carriereValidee}
+                              style={{ padding: "8px 14px", borderRadius: 7, border: "1px solid #ddd", background: "#fafafa", color: carriereValidee ? "#E17055" : "#bbb", fontSize: 11, cursor: carriereValidee ? "pointer" : "default", fontWeight: carriereValidee ? 600 : 400 }}>
+                              ↺ Déverrouiller
+                            </button>
                           </div>
                         </div>
                       );
@@ -1002,6 +1313,154 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               </div>
                             </div>
                           )}
+
+                          {/* ── Calculer CNAV ── */}
+                          <div style={{ marginTop: 18, padding: "12px 14px", background: carriereValidee ? "#f0fdf9" : "#fafafa", borderRadius: 9, border: `1px solid ${carriereValidee ? "#00B89430" : "#e8e8e8"}` }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                              <span style={{ fontSize: 16 }}>🧮</span>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>Calcul pension CNAV</span>
+                              {!carriereValidee && (
+                                <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
+                              )}
+                            </div>
+                            <button
+                              onClick={handleSkillExecute}
+                              disabled={!carriereValidee || skillLoading}
+                              title={!carriereValidee ? "Validez d'abord la carrière" : "Lancer le calcul CNAV"}
+                              style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 7, border: "none", background: carriereValidee && !skillLoading ? "#6C5CE7" : "#ccc", color: "#fff", fontWeight: 700, fontSize: 11, cursor: carriereValidee && !skillLoading ? "pointer" : "not-allowed", transition: "background 0.15s" }}
+                            >
+                              {skillLoading ? (
+                                <>
+                                  <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                                  Calcul en cours…
+                                </>
+                              ) : "▶ Calculer CNAV"}
+                            </button>
+                            {skillError && (
+                              <div style={{ marginTop: 8, fontSize: 10, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
+                                ⚠ {skillError}
+                              </div>
+                            )}
+
+                            {/* ── Résultat CNAV ── */}
+                            {skillResult && skillResult.python_output && (
+                              <div style={{ marginTop: 14 }}>
+                                {/* Arrêt critique */}
+                                {skillResult.arret_critique && (
+                                  <div style={{ marginBottom: 10, padding: "10px 12px", borderRadius: 8, background: "#D6303112", border: "2px solid #D63031" }}>
+                                    <div style={{ fontSize: 11, fontWeight: 700, color: "#D63031", marginBottom: 4 }}>🚫 Arrêt critique</div>
+                                    <div style={{ fontSize: 10, color: "#D63031" }}>{skillResult.arret_critique}</div>
+                                  </div>
+                                )}
+
+                                {/* Chiffres clés */}
+                                <div style={{ background: "#6C5CE708", border: "1px solid #6C5CE720", borderRadius: 8, padding: "10px 14px", marginBottom: 10 }}>
+                                  <div style={{ fontSize: 10, fontWeight: 700, color: "#6C5CE7", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Résultat CNAV</div>
+                                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px" }}>
+                                    {[
+                                      ["Pension mensuelle brute", `${skillResult.python_output.pension_mensuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €`, "#6C5CE7", true],
+                                      ["Pension annuelle brute",  `${skillResult.python_output.pension_annuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 0 })} €`, "#1a1a2e", false],
+                                      ["Taux de liquidation",     `${skillResult.python_output.taux_liquidation} %`, "#0984E3", false],
+                                      ["Coeff. proratisation",    skillResult.python_output.coefficient_proratisation?.toFixed(4), "#E17055", false],
+                                      ["SAM (25 meilleures ann.)", `${skillResult.python_output.sam?.toLocaleString("fr-FR", { minimumFractionDigits: 0 })} €`, "#00B894", false],
+                                    ].map(([label, val, color, big]) => (
+                                      <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #6C5CE710" }}>
+                                        <span style={{ fontSize: 9, color: "#888" }}>{label}</span>
+                                        <span style={{ fontSize: big ? 13 : 10, fontWeight: 700, color }}>{val}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                {/* Alertes */}
+                                {skillResult.alertes && skillResult.alertes.length > 0 && (
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                    <div style={{ fontSize: 10, fontWeight: 700, color: "#555", marginBottom: 2 }}>Alertes</div>
+                                    {skillResult.alertes.map((a) => {
+                                      const color = a.niveau === "ROUGE" ? "#D63031" : a.niveau === "JAUNE" ? "#F9A825" : "#00B894";
+                                      return (
+                                        <div key={a.code} style={{ display: "flex", gap: 8, padding: "7px 10px", borderRadius: 6, background: `${color}10`, border: `1px solid ${color}30` }}>
+                                          <span style={{ fontSize: 10, fontWeight: 700, color, flexShrink: 0, minWidth: 36 }}>{a.code}</span>
+                                          <span style={{ fontSize: 10, color: "#333" }}>{a.message}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          {/* ── Calculer AGIRC-ARRCO ── */}
+                          <div style={{ marginTop: 12, padding: "12px 14px", background: carriereValidee ? "#f0f7ff" : "#fafafa", borderRadius: 9, border: `1px solid ${carriereValidee ? "#0984E330" : "#e8e8e8"}` }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                              <span style={{ fontSize: 16 }}>📊</span>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>Calcul pension AGIRC-ARRCO</span>
+                              {!carriereValidee && (
+                                <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
+                              )}
+                            </div>
+                            <button
+                              onClick={handleAgircExecute}
+                              disabled={!carriereValidee || agircLoading}
+                              title={!carriereValidee ? "Validez d'abord la carrière" : "Lancer le calcul AGIRC-ARRCO"}
+                              style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 7, border: "none", background: carriereValidee && !agircLoading ? "#0984E3" : "#ccc", color: "#fff", fontWeight: 700, fontSize: 11, cursor: carriereValidee && !agircLoading ? "pointer" : "not-allowed", transition: "background 0.15s" }}
+                            >
+                              {agircLoading ? (
+                                <>
+                                  <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                                  Calcul en cours…
+                                </>
+                              ) : "▶ Calculer AGIRC-ARRCO"}
+                            </button>
+                            {agircError && (
+                              <div style={{ marginTop: 8, fontSize: 10, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
+                                ⚠ {agircError}
+                              </div>
+                            )}
+
+                            {/* ── Résultat AGIRC-ARRCO ── */}
+                            {agircResult && agircResult.python_output && (
+                              <div style={{ marginTop: 14 }}>
+                                {agircResult.arret_critique && (
+                                  <div style={{ marginBottom: 10, padding: "10px 12px", borderRadius: 8, background: "#D6303112", border: "2px solid #D63031" }}>
+                                    <div style={{ fontSize: 11, fontWeight: 700, color: "#D63031", marginBottom: 4 }}>🚫 Arrêt critique</div>
+                                    <div style={{ fontSize: 10, color: "#D63031" }}>{agircResult.arret_critique}</div>
+                                  </div>
+                                )}
+                                <div style={{ background: "#0984E308", border: "1px solid #0984E320", borderRadius: 8, padding: "10px 14px", marginBottom: 10 }}>
+                                  <div style={{ fontSize: 10, fontWeight: 700, color: "#0984E3", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Résultat AGIRC-ARRCO</div>
+                                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px" }}>
+                                    {[
+                                      ["Pension mensuelle brute", `${agircResult.python_output.pension_mensuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €`, "#0984E3", true],
+                                      ["Pension annuelle brute",  `${agircResult.python_output.pension_annuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €`, "#1a1a2e", false],
+                                      ["Nb points total",         agircResult.python_output.nb_points_total?.toLocaleString("fr-FR"), "#6C5CE7", false],
+                                      ["Coeff. solidarité",       agircResult.python_output.coefficient_solidarite ? `-${agircResult.python_output.coefficient_solidarite * 100}%` : "Aucun (taux plein)", agircResult.python_output.coefficient_solidarite ? "#E17055" : "#00B894", false],
+                                      ["Valeur de service",       `${agircResult.python_output.valeur_service} €/pt`, "#888", false],
+                                    ].map(([label, val, color, big]) => (
+                                      <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #0984E310" }}>
+                                        <span style={{ fontSize: 9, color: "#888" }}>{label}</span>
+                                        <span style={{ fontSize: big ? 13 : 10, fontWeight: 700, color }}>{val}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                                {agircResult.alertes && agircResult.alertes.length > 0 && (
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                    <div style={{ fontSize: 10, fontWeight: 700, color: "#555", marginBottom: 2 }}>Alertes</div>
+                                    {agircResult.alertes.map((a) => {
+                                      const color = a.niveau === "ROUGE" ? "#D63031" : a.niveau === "JAUNE" ? "#F9A825" : "#00B894";
+                                      return (
+                                        <div key={a.code} style={{ display: "flex", gap: 8, padding: "7px 10px", borderRadius: 6, background: `${color}10`, border: `1px solid ${color}30` }}>
+                                          <span style={{ fontSize: 10, fontWeight: 700, color, flexShrink: 0, minWidth: 36 }}>{a.code}</span>
+                                          <span style={{ fontSize: 10, color: "#333" }}>{a.message}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       );
                     }
@@ -1678,7 +2137,17 @@ export default function SimulatorV6({ mode = "production", id, user }) {
         </div>
       )}
 
-      <div style={{ padding: "12px 20px", textAlign: "center", fontSize: 9, color: "#bbb", borderTop: "1px solid #eee", marginTop: 24 }}>
+      <div style={{ padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "center", gap: 16, borderTop: "1px solid #eee", marginTop: 24, position: "relative" }}>
+        <span style={{ fontSize: 9, color: "#ccc" }}>EOR Simulateur Retraite IA V6 · Mars 2026 · Analyse (5) → Dispositifs (9) → Dates auto → Livrables (3)</span>
+        <button
+          onClick={() => setReportOpen(true)}
+          style={{ fontSize: 9, color: "#bbb", background: "none", border: "1px solid #e8e8e8", borderRadius: 5, padding: "3px 9px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}
+          onMouseOver={e => { e.currentTarget.style.color = "#E17055"; e.currentTarget.style.borderColor = "#E1705560"; }}
+          onMouseOut={e => { e.currentTarget.style.color = "#bbb"; e.currentTarget.style.borderColor = "#e8e8e8"; }}>
+          ⚠ Signaler une erreur
+        </button>
+      </div>
+      <div style={{ padding: "12px 20px", textAlign: "center", fontSize: 9, color: "#bbb", borderTop: "1px solid #eee", marginTop: 0 }}>
         <div style={{ marginTop: 24, textAlign: "right" }}>
           <button 
             onClick={() => {
@@ -1692,6 +2161,43 @@ export default function SimulatorV6({ mode = "production", id, user }) {
           </button>
         </div>
       </div>
+
+      {/* Modal Signaler une erreur */}
+      {reportOpen && (
+        <div onClick={() => setReportOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 12, width: "100%", maxWidth: 480, boxShadow: "0 8px 40px rgba(0,0,0,0.18)", overflow: "hidden" }}>
+            <div style={{ padding: "14px 18px", borderBottom: "1px solid #eee", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#E17055" }}>⚠ Signaler une erreur</div>
+                <div style={{ fontSize: 10, color: "#aaa", marginTop: 2 }}>Un calcul incorrect, un affichage anormal, une donnée manquante…</div>
+              </div>
+              <button onClick={() => setReportOpen(false)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "#bbb" }}>✕</button>
+            </div>
+            <div style={{ padding: "16px 18px" }}>
+              <div style={{ fontSize: 11, color: "#555", marginBottom: 8 }}>Section concernée :</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+                {["Carrière", "Dispositifs", "Dates & Simulations", "Livrables", "Analyse documents", "Autre"].map(s => (
+                  <button key={s} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 5, border: "1px solid #e0e0e0", background: "#fafafa", color: "#555", cursor: "pointer" }}
+                    onMouseOver={e => { e.currentTarget.style.borderColor = "#6C5CE7"; e.currentTarget.style.color = "#6C5CE7"; }}
+                    onMouseOut={e => { e.currentTarget.style.borderColor = "#e0e0e0"; e.currentTarget.style.color = "#555"; }}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+              <div style={{ fontSize: 11, color: "#555", marginBottom: 6 }}>Description :</div>
+              <textarea
+                value={reportText}
+                onChange={e => setReportText(e.target.value)}
+                placeholder="Décrivez l'erreur constatée…"
+                style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #e8e8e8", fontSize: 11, fontFamily: "inherit", resize: "vertical", minHeight: 90, boxSizing: "border-box", outline: "none", lineHeight: 1.6 }} />
+            </div>
+            <div style={{ padding: "12px 18px", borderTop: "1px solid #eee", display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button onClick={() => setReportOpen(false)} style={{ padding: "7px 16px", borderRadius: 7, border: "1px solid #ddd", background: "#fafafa", color: "#888", fontSize: 11, cursor: "pointer" }}>Annuler</button>
+              <button onClick={() => { setReportOpen(false); setReportText(""); }} style={{ padding: "7px 18px", borderRadius: 7, border: "none", background: "#E17055", color: "#fff", fontWeight: 700, fontSize: 11, cursor: "pointer" }}>✉ Envoyer</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modale de suppression */}
       <Modal
