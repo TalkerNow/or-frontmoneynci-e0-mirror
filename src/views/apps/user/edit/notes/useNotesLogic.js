@@ -945,7 +945,15 @@ export const useNotesLogic = (id, perso) => {
     }
   };
 
-  const handleDeleteDoc = useCallback((docId) => {
+  const handleDeleteDoc = useCallback(async (docId) => {
+    try {
+      const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+      await axios.delete(`${global.config.server_url}/files/${docId}`, Config);
+    } catch (e) {
+      console.error("Erreur suppression document:", e);
+      toast.error("Erreur lors de la suppression du document");
+      return;
+    }
     setGeneratedDocs((prev) =>
       Array.isArray(prev) ? prev.filter((doc) => doc && doc.id !== docId) : [],
     );
