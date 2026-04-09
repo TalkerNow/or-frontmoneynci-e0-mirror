@@ -729,9 +729,16 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     try {
       const result = await executeSkill("CNAV", id, "");
       setSkillResult(result);
+      if (result.success === false && result.arret_critique) {
+        toast.error(result.arret_critique.raison || "Calcul CNAV interrompu");
+      }
     } catch (err) {
-      setSkillError("Erreur lors du calcul CNAV. Veuillez réessayer.");
-      toast.error("Erreur calcul CNAV");
+      const msg =
+        err.response?.data?.arret_critique?.raison ||
+        err.message ||
+        "Erreur réseau — veuillez réessayer";
+      setSkillError(msg);
+      toast.error(msg);
     } finally {
       setSkillLoading(false);
     }
@@ -750,6 +757,14 @@ export default function SimulatorV6({ mode = "production", id, user }) {
         }
         @keyframes spin {
           to { transform: rotate(360deg); }
+        }
+        @keyframes cnavReveal {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes cnavShimmer {
+          0%   { background-position: -200% center; }
+          100% { background-position: 200% center; }
         }
       `}</style>
       {/* ══ MODAL CONTENU RÉGLEMENTAIRE ══ */}
@@ -1399,50 +1414,112 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                             )}
 
                             {/* ── Résultat CNAV ── */}
-                            {skillResult && skillResult.python_output && (
-                              <div style={{ marginTop: 14 }}>
-                                {/* Arrêt critique */}
-                                {skillResult.arret_critique && (
-                                  <div style={{ marginBottom: 10, padding: "10px 12px", borderRadius: 8, background: "#D6303112", border: "2px solid #D63031" }}>
-                                    <div style={{ fontSize: 11, fontWeight: 700, color: "#D63031", marginBottom: 4 }}>🚫 Arrêt critique</div>
-                                    <div style={{ fontSize: 10, color: "#D63031" }}>{skillResult.arret_critique}</div>
-                                  </div>
-                                )}
+                            {skillResult && (
+                              <div style={{ marginTop: 14, animation: "cnavReveal 0.35s cubic-bezier(0.16,1,0.3,1) both" }}>
 
-                                {/* Chiffres clés */}
-                                <div style={{ background: "#6C5CE708", border: "1px solid #6C5CE720", borderRadius: 8, padding: "10px 14px", marginBottom: 10 }}>
-                                  <div style={{ fontSize: 10, fontWeight: 700, color: "#6C5CE7", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Résultat CNAV</div>
-                                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px" }}>
-                                    {[
-                                      ["Pension mensuelle brute", `${skillResult.python_output.pension_mensuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €`, "#6C5CE7", true],
-                                      ["Pension annuelle brute",  `${skillResult.python_output.pension_annuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 0 })} €`, "#1a1a2e", false],
-                                      ["Taux de liquidation",     `${skillResult.python_output.taux_liquidation} %`, "#0984E3", false],
-                                      ["Coeff. proratisation",    skillResult.python_output.coefficient_proratisation?.toFixed(4), "#E17055", false],
-                                      ["SAM (25 meilleures ann.)", `${skillResult.python_output.sam?.toLocaleString("fr-FR", { minimumFractionDigits: 0 })} €`, "#00B894", false],
-                                    ].map(([label, val, color, big]) => (
-                                      <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #6C5CE710" }}>
-                                        <span style={{ fontSize: 9, color: "#888" }}>{label}</span>
-                                        <span style={{ fontSize: big ? 13 : 10, fontWeight: 700, color }}>{val}</span>
+                                {/* ── ÉTAT CRITIQUE ── */}
+                                {skillResult.arret_critique ? (
+                                  <div style={{ borderRadius: 8, background: "#D6303108", border: "1px solid #D6303130", overflow: "hidden" }}>
+                                    <div style={{ padding: "11px 14px 10px", borderBottom: "1px solid #D6303120" }}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                                        <span style={{ fontSize: 12 }}>🚫</span>
+                                        <span style={{ fontSize: 10, fontWeight: 700, color: "#D63031", letterSpacing: "0.06em", textTransform: "uppercase" }}>Arrêt critique</span>
                                       </div>
-                                    ))}
-                                  </div>
-                                </div>
-
-                                {/* Alertes */}
-                                {skillResult.alertes && skillResult.alertes.length > 0 && (
-                                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                    <div style={{ fontSize: 10, fontWeight: 700, color: "#555", marginBottom: 2 }}>Alertes</div>
-                                    {skillResult.alertes.map((a) => {
-                                      const color = a.niveau === "ROUGE" ? "#D63031" : a.niveau === "JAUNE" ? "#F9A825" : "#00B894";
-                                      return (
-                                        <div key={a.code} style={{ display: "flex", gap: 8, padding: "7px 10px", borderRadius: 6, background: `${color}10`, border: `1px solid ${color}30` }}>
-                                          <span style={{ fontSize: 10, fontWeight: 700, color, flexShrink: 0, minWidth: 36 }}>{a.code}</span>
-                                          <span style={{ fontSize: 10, color: "#333" }}>{a.message}</span>
+                                      <div style={{ fontSize: 12, color: "#D63031", lineHeight: 1.5 }}>
+                                        {skillResult.arret_critique.raison || skillResult.arret_critique}
+                                      </div>
+                                      {skillResult.arret_critique.action_requise && (
+                                        <div style={{ marginTop: 7, paddingTop: 7, borderTop: "1px solid #D6303118", fontSize: 10, color: "#b71c1c", lineHeight: 1.4 }}>
+                                          <span style={{ fontWeight: 600 }}>Action requise —</span> {skillResult.arret_critique.action_requise}
                                         </div>
-                                      );
-                                    })}
+                                      )}
+                                    </div>
+                                    {skillResult.alertes && skillResult.alertes.length > 0 && (
+                                      <div style={{ padding: "9px 14px 11px", display: "flex", flexDirection: "column", gap: 5 }}>
+                                        {skillResult.alertes.map((a) => {
+                                          const c = a.niveau === "ROUGE" ? "#D63031" : a.niveau === "ORANGE" ? "#E17055" : "#F9A825";
+                                          return (
+                                            <div key={a.code} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                                              <span style={{ fontSize: 9, fontWeight: 700, color: c, flexShrink: 0, minWidth: 32 }}>{a.code}</span>
+                                              <span style={{ fontSize: 10, color: "#555", lineHeight: 1.4 }}>{a.message}</span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
                                   </div>
-                                )}
+
+                                ) : skillResult.python_output ? (
+
+                                  /* ── ÉTAT SUCCESS ── */
+                                  <div style={{ borderRadius: 8, background: "#fff", border: "1px solid #6C5CE722", overflow: "hidden", boxShadow: "0 2px 8px rgba(108,92,231,0.06)" }}>
+
+                                    {/* En-tête */}
+                                    <div style={{ padding: "10px 14px 9px", background: "#6C5CE708", borderBottom: "1px solid #6C5CE715", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                      <span style={{ fontSize: 10, fontWeight: 700, color: "#6C5CE7", textTransform: "uppercase", letterSpacing: "0.07em" }}>Résultat CNAV</span>
+                                      <span style={{ fontSize: 8, fontWeight: 700, color: "#6C5CE7", background: "#6C5CE715", padding: "2px 7px", borderRadius: 3, letterSpacing: "0.08em" }}>CALCUL BRUT</span>
+                                    </div>
+
+                                    {/* Pensions — hero */}
+                                    <div style={{ padding: "12px 14px", borderBottom: "1px solid #f0eeff", display: "flex", flexWrap: "wrap", gap: 10 }}>
+                                      <div style={{ flex: "1 1 120px", background: "#6C5CE710", borderRadius: 7, padding: "10px 12px" }}>
+                                        <div style={{ fontSize: 9, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Mensuelle brute</div>
+                                        <div style={{ fontSize: 22, fontWeight: 700, color: "#6C5CE7", lineHeight: 1, letterSpacing: "-0.01em" }}>
+                                          {skillResult.python_output.pension_mensuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 2 })}
+                                          <span style={{ fontSize: 13, fontWeight: 600, marginLeft: 3 }}>€</span>
+                                        </div>
+                                      </div>
+                                      <div style={{ flex: "1 1 120px", background: "#f8f7ff", borderRadius: 7, padding: "10px 12px" }}>
+                                        <div style={{ fontSize: 9, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Annuelle brute</div>
+                                        <div style={{ fontSize: 16, fontWeight: 700, color: "#1a1a2e", lineHeight: 1, letterSpacing: "-0.01em" }}>
+                                          {skillResult.python_output.pension_annuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 0 })}
+                                          <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 3, color: "#555" }}>€</span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Paramètres */}
+                                    <div style={{ padding: "10px 14px 12px" }}>
+                                      <div style={{ fontSize: 9, fontWeight: 700, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Paramètres de calcul</div>
+                                      <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                                        {[
+                                          ["SAM · 25 meilleures années", `${skillResult.python_output.sam?.toLocaleString("fr-FR", { minimumFractionDigits: 0 })} €`],
+                                          ["Taux de liquidation",         `${skillResult.python_output.taux_liquidation} %`],
+                                          ["Coefficient de proratisation", skillResult.python_output.coefficient_proratisation?.toFixed(4)],
+                                        ].map(([label, val], i) => (
+                                          <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: i < 2 ? "1px solid #f4f3ff" : "none" }}>
+                                            <span style={{ fontSize: 10, color: "#666" }}>{label}</span>
+                                            <span style={{ fontSize: 10, fontWeight: 700, color: "#1a1a2e" }}>{val}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                    {/* Alertes */}
+                                    {skillResult.alertes && skillResult.alertes.length > 0 && (
+                                      <div style={{ padding: "8px 14px 12px", borderTop: "1px solid #f0eeff" }}>
+                                        <div style={{ fontSize: 9, fontWeight: 700, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 7 }}>Alertes</div>
+                                        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                                          {skillResult.alertes.map((a) => {
+                                            const c = a.niveau === "ROUGE" ? "#D63031" : a.niveau === "ORANGE" ? "#E17055" : "#F9A825";
+                                            return (
+                                              <div key={a.code} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "6px 10px", borderRadius: 6, background: `${c}0D`, border: `1px solid ${c}28` }}>
+                                                <span style={{ fontSize: 9, fontWeight: 700, color: c, flexShrink: 0, minWidth: 32 }}>{a.code}</span>
+                                                <span style={{ fontSize: 10, color: "#444", lineHeight: 1.4 }}>{a.message}</span>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Pied */}
+                                    <div style={{ padding: "6px 14px", borderTop: "1px solid #f4f3ff", background: "#faf9ff" }}>
+                                      <span style={{ fontSize: 9, color: "#bbb" }}>Montants bruts avant prélèvements sociaux (CSG/CRDS 9,2 %)</span>
+                                    </div>
+                                  </div>
+
+                                ) : null}
                               </div>
                             )}
                           </div>
