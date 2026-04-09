@@ -315,6 +315,17 @@ const ADMIN_SKILL_PROMPTS = [
   { id: "miss_mincontrib",label: "Minimum contributif",                       icon: "🔒", color: "#bbb",    contentKey: null,            category: "Manquants — à créer", missing: true },
 ];
 
+// ─── HELPERS ────────────────────────────────────────────────────────────────
+
+function _buildDefaultCarriereRows() {
+  return Array.from({ length: 51 }, (_, i) => {
+    const yr = 2025 - i;
+    const ss = PLAFONDS_SS[yr] || 48060;
+    const coeff = REVALO_CNAV[yr] || 1;
+    return { yr, sal: 0, ss, coeff: coeff.toFixed(3), revalo: 0, trim: 0, ar: 0, total: 0, agircPts: 0, ircPts: 0, rciPts: 0 };
+  });
+}
+
 // ─── COMPONENT ──────────────────────────────────────────────────────────────
 
 export default function SimulatorV6({ mode = "production", id, user }) {
@@ -361,6 +372,19 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   const [skillError, setSkillError] = useState(null);
   // ── R5: Skills catalog ──
   const [availableSkills, setAvailableSkills] = useState([]);
+  // ── Career data state (stable, populated from OCR or manual input) ──
+  const [carriereRows, setCarriereRows] = useState(_buildDefaultCarriereRows);
+  const [trimCotState, setTrimCotState] = useState(() => {
+    const init = {};
+    Array.from({ length: 51 }, (_, i) => { init[2025 - i] = 0; });
+    return init;
+  });
+  const [trimAssState, setTrimAssState] = useState(() => {
+    const init = {};
+    Array.from({ length: 51 }, (_, i) => { init[2025 - i] = 0; });
+    return init;
+  });
+  const [frozenLoading, setFrozenLoading] = useState(false);
 
   // ── AGIRC-ARRCO Skill State ──
   const [agircLoading, setAgircLoading] = useState(false);
@@ -454,6 +478,50 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       .then((skills) => setAvailableSkills(Array.isArray(skills) ? skills : []))
       .catch(() => setAvailableSkills([]));
   }, []);
+
+  // Load career data from RIS OCR sessionStorage (written by the OCR workflow)
+  useEffect(() => {
+    if (!id) return;
+    try {
+      const stored = sessionStorage.getItem(`ris_import_data_${id}`);
+      if (!stored) return;
+      const { risData, timestamp } = JSON.parse(stored);
+      if (!risData || Date.now() - timestamp > 30 * 60 * 1000) return;
+      const careerData = risData.debug_carriere_detaillee_regex || [];
+      if (!careerData.length) return;
+      const careerMap = {};
+      careerData.forEach(entry => { if (entry.annee) careerMap[entry.annee] = entry; });
+      setCarriereRows(prev => prev.map(row => {
+        const entry = careerMap[row.yr];
+        if (!entry) return row;
+        const sal = entry.revenu_brut || 0;
+        const plaf = PLAFONDS_SS[row.yr] || 48060;
+        const coeff = REVALO_CNAV[row.yr] || 1;
+        const revalo = Math.round(Math.min(sal, plaf) * coeff);
+        return { ...row, sal, revalo };
+      }));
+      setRevaloValues(prev => {
+        const next = { ...prev };
+        careerData.forEach(entry => {
+          if (entry.annee && entry.revenu_brut) {
+            const plaf = PLAFONDS_SS[entry.annee] || 48060;
+            const coeff = REVALO_CNAV[entry.annee] || 1;
+            next[entry.annee] = Math.round(Math.min(entry.revenu_brut, plaf) * coeff);
+          }
+        });
+        return next;
+      });
+      const newTrimCot = {};
+      careerData.forEach(entry => {
+        if (entry.annee && entry.trimestres_valides) {
+          newTrimCot[entry.annee] = entry.trimestres_valides;
+        }
+      });
+      if (Object.keys(newTrimCot).length) {
+        setTrimCotState(prev => ({ ...prev, ...newTrimCot }));
+      }
+    } catch (e) { /* noop */ }
+  }, [id]);
 
   // ── File upload handler (drag & drop or click) ──
   const handleUpload = useCallback(async (acceptedFiles) => {
@@ -705,6 +773,54 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     }
   };
 
+  const handleGeler = useCallback(async () => {
+    setFrozenLoading(true);
+    try {
+      const carriere = carriereRows.map(row => ({
+        annee: row.yr,
+        salaire_brut: row.sal,
+        salaire_revalo: revaloValues[row.yr] ?? 0,
+        deplafonne: deplafValues[row.yr] || false,
+        trimestres_cotises: trimCotState[row.yr] ?? 0,
+        trimestres_assimiles: trimAssState[row.yr] ?? 0,
+      }));
+      const totalCot = carriere.reduce((s, r) => s + (r.trimestres_cotises || 0), 0);
+      const totalAss = carriere.reduce((s, r) => s + (r.trimestres_assimiles || 0), 0);
+      const payload = {
+        user_id: parseInt(id),
+        source: "SAISIE_CONSULTANT",
+        meta: {
+          nom: user?.last_name || "",
+          prenom: user?.first_name || "",
+          date_naissance: user?.birth_date || "",
+          valide_le: new Date().toISOString().split("T")[0],
+        },
+        carriere,
+        alertes: [],
+        totaux: {
+          trimestres_cotises: totalCot,
+          trimestres_assimiles: totalAss,
+          trimestres_total: totalCot + totalAss,
+        },
+      };
+      const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+      await axios.post(`${global.config.server_url}/frozen_data`, payload, Config);
+      setCarriereValidee(true);
+      toast.success("Carrière gelée — calcul CNAV disponible");
+      setExpandedPanel("dispositifs");
+      setSelectedAction(null);
+      setExecuted(null);
+    } catch (err) {
+      if (err.response?.status === 423) {
+        toast.error("Données verrouillées — déverrouillez d'abord");
+      } else {
+        toast.error("Erreur lors du gel des données carrière");
+      }
+    } finally {
+      setFrozenLoading(false);
+    }
+  }, [carriereRows, revaloValues, deplafValues, trimCotState, trimAssState, id, user]);
+
   const handleAgircExecute = async () => {
     if (!carriereValidee) return;
     setAgircLoading(true);
@@ -952,29 +1068,13 @@ export default function SimulatorV6({ mode = "production", id, user }) {
 
                     // ── CARRIÈRE: TABLEAU UNIFIÉ ──
                     if (expandedPanel === "carriere") {
-                      // Préparation des données pour le tableau unifié
-                      const MOCK_CNAV = Array.from({ length: 51 }, (_, i) => {
-                        const yr = 2025 - i;
-                        const sal = Math.round(15000 + i * 1800 + Math.random() * 2000);
-                        const ss = Math.round(sal * 0.92);
-                        const coeff = REVALO_CNAV[yr] || 1;
-                        const revalo = Math.round(sal * coeff);
-                        return { yr, sal, ss, coeff: coeff.toFixed(3), revalo, trim: 4, ar: 0, total: 4 };
-                      });
-                      const MOCK_AGIRC = Array.from({ length: 51 }, (_, i) => {
-                        const yr = 2025 - i;
-                        const p = AGIRC_PARAMS[yr] || { ta: 6.20, tb: 17.00, ref: 5611 };
-                        const sal = Math.round(18000 + i * 2000 + Math.random() * 3000);
-                        const trA = Math.round((sal * p.ta) / 100);
-                        const trB = Math.round((sal * p.tb) / 100);
-                        return { yr, sal, ta: p.ta, tb: p.tb, ref: p.ref, trA, trB, total: trA + trB };
-                      });
-                      const totalRows = MOCK_CNAV.slice(0, 20).map((row, i) => {
-                        const agircRow = MOCK_AGIRC[i] || {};
-                        const ptIrc = i < 10 ? Math.round(80 + i * 12) : 0;
-                        const ptRci = i >= 5 && i < 15 ? Math.round(40 + i * 8) : 0;
-                        return { ...row, agircPts: agircRow.total || 0, ircPts: ptIrc, rciPts: ptRci };
-                      });
+                      // Utilise carriereRows (état stable, hydraté depuis OCR ou saisie manuelle)
+                      const totalRows = carriereRows.slice(0, 20);
+                      const totalCotTbl = totalRows.reduce((s, r) => s + (trimCotState[r.yr] ?? 0), 0);
+                      const totalAssTbl = totalRows.reduce((s, r) => s + (trimAssState[r.yr] ?? 0), 0);
+                      const totalTrimTbl = totalCotTbl + totalAssTbl;
+                      const samRows = [...carriereRows].sort((a, b) => (revaloValues[b.yr] ?? 0) - (revaloValues[a.yr] ?? 0)).slice(0, 25);
+                      const samVal = samRows.length ? Math.round(samRows.reduce((s, r) => s + (revaloValues[r.yr] ?? 0), 0) / samRows.length) : 0;
 
                       return (
                         <div>
@@ -1055,7 +1155,9 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                     <tr key={row.yr} style={{ background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
                                       <td style={{ padding: "3px 5px", fontWeight: 700, color: "#333" }}>{row.yr}</td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "1px solid #eee" }}>
-                                        <input type="number" defaultValue={row.sal} disabled={carriereValidee} style={{ width: 62, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 10, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" value={row.sal || ""} disabled={carriereValidee}
+                                          onChange={(e) => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, sal: parseInt(e.target.value) || 0 } : r))}
+                                          style={{ width: 62, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 10, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "right", color: "#888", borderLeft: "2px solid #6C5CE715" }}>{row.ss.toLocaleString("fr-FR")}</td>
                                       <td style={{ padding: "3px 5px", textAlign: "right", color: "#0984E3", fontWeight: 600 }}>{row.coeff}</td>
@@ -1085,10 +1187,14 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                         )}
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
-                                        <input type="number" defaultValue={row.trim} disabled={carriereValidee} style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 10, padding: "1px" }} />
+                                        <input type="number" value={trimCotState[row.yr] ?? 0} disabled={carriereValidee}
+                                          onChange={(e) => setTrimCotState(prev => ({ ...prev, [row.yr]: parseInt(e.target.value) || 0 }))}
+                                          style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 10, padding: "1px" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
-                                        <input type="number" defaultValue={0} disabled={carriereValidee} title="Trimestres assimilés (maladie, chômage, maternité…)" style={{ width: 26, textAlign: "center", border: "1px solid #6C5CE730", borderRadius: 3, fontSize: 10, padding: "1px", color: "#6C5CE7" }} />
+                                        <input type="number" value={trimAssState[row.yr] ?? 0} disabled={carriereValidee}
+                                          onChange={(e) => setTrimAssState(prev => ({ ...prev, [row.yr]: parseInt(e.target.value) || 0 }))}
+                                          title="Trimestres assimilés (maladie, chômage, maternité…)" style={{ width: 26, textAlign: "center", border: "1px solid #6C5CE730", borderRadius: 3, fontSize: 10, padding: "1px", color: "#6C5CE7" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
                                         <input type="number" defaultValue={row.ar} disabled={carriereValidee} style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 10, padding: "1px" }} />
@@ -1132,16 +1238,16 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                   <td colSpan={3} style={{ padding: "5px 5px", textAlign: "right", fontSize: 10, color: "#6C5CE7", borderLeft: "2px solid #6C5CE715" }}>
                                     <button onClick={() => setSamOpen(v => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 10, color: "#6C5CE7", padding: 0 }}>
                                       <span style={{ fontSize: 8, display: "inline-block", transform: samOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>▶</span>
-                                      SAM : 38 420 €
+                                      SAM : {samVal ? samVal.toLocaleString("fr-FR") + " €" : "—"}
                                     </button>
                                   </td>
-                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#6C5CE7" }}>156</td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#6C5CE7" }}>{totalCotTbl || "—"}</td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#6C5CE7" }}>{totalAssTbl || "—"}</td>
                                   <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#6C5CE7" }}>—</td>
-                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#6C5CE7" }}>25</td>
-                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#6C5CE7", fontWeight: 800 }}>181</td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#6C5CE7", fontWeight: 800 }}>{totalTrimTbl || "—"}</td>
                                   {(() => {
-                                    const totalT1 = totalRows.slice(0, 20).reduce((s, r) => s + Math.round(r.agircPts * 0.62), 0);
-                                    const totalT2 = totalRows.slice(0, 20).reduce((s, r) => s + Math.round(r.agircPts * 0.38), 0);
+                                    const totalT1 = carriereRows.slice(0, 20).reduce((s, r) => s + Math.round(r.agircPts * 0.62), 0);
+                                    const totalT2 = carriereRows.slice(0, 20).reduce((s, r) => s + Math.round(r.agircPts * 0.38), 0);
                                     return (
                                       <>
                                         <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#0984E3", borderLeft: "2px solid #0984E315", fontWeight: 700 }}>{totalT1.toLocaleString("fr-FR")}</td>
@@ -1176,20 +1282,20 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                             </tr>
                                           </thead>
                                           <tbody>
-                                            {[...totalRows].sort((a, b) => b.revalo - a.revalo).slice(0, 25).map((r, idx) => (
+                                            {samRows.map((r, idx) => (
                                               <tr key={r.yr} style={{ background: idx % 2 === 0 ? "#fff" : "#fafafa" }}>
                                                 <td style={{ padding: "3px 8px", color: "#aaa", fontWeight: 600 }}>#{idx + 1}</td>
                                                 <td style={{ padding: "3px 8px", textAlign: "right", fontWeight: 700 }}>{r.yr}</td>
-                                                <td style={{ padding: "3px 8px", textAlign: "right", color: "#555" }}>{r.sal.toLocaleString("fr-FR")} €</td>
+                                                <td style={{ padding: "3px 8px", textAlign: "right", color: "#555" }}>{(r.sal || 0).toLocaleString("fr-FR")} €</td>
                                                 <td style={{ padding: "3px 8px", textAlign: "right", color: "#0984E3", fontWeight: 600 }}>{r.coeff}</td>
-                                                <td style={{ padding: "3px 8px", textAlign: "right", fontWeight: 700, color: "#6C5CE7" }}>{r.revalo.toLocaleString("fr-FR")} €</td>
+                                                <td style={{ padding: "3px 8px", textAlign: "right", fontWeight: 700, color: "#6C5CE7" }}>{(revaloValues[r.yr] ?? 0).toLocaleString("fr-FR")} €</td>
                                               </tr>
                                             ))}
                                           </tbody>
                                           <tfoot>
                                             <tr style={{ background: "#6C5CE708", borderTop: "2px solid #6C5CE720" }}>
                                               <td colSpan={4} style={{ padding: "5px 8px", fontWeight: 700, color: "#6C5CE7" }}>SAM — moyenne des 25 meilleures années CNAV revalorisées</td>
-                                              <td style={{ padding: "5px 8px", textAlign: "right", fontWeight: 800, fontSize: 11, color: "#6C5CE7" }}>38 420 €</td>
+                                              <td style={{ padding: "5px 8px", textAlign: "right", fontWeight: 800, fontSize: 11, color: "#6C5CE7" }}>{samVal ? samVal.toLocaleString("fr-FR") + " €" : "—"}</td>
                                             </tr>
                                           </tfoot>
                                         </table>
@@ -1274,10 +1380,10 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                           {/* Boutons bas */}
                           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                             <button
-                              onClick={() => { setCarriereValidee(true); setExpandedPanel("dispositifs"); setSelectedAction(null); setExecuted(null); }}
-                              disabled={carriereValidee}
-                              style={{ flex: 1, padding: "8px 0", borderRadius: 7, border: "none", background: carriereValidee ? "#00B894" : "#E17055", color: "#fff", fontWeight: 700, fontSize: 11, cursor: carriereValidee ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                              {carriereValidee ? "🔒 Données verrouillées" : "▶ Valider & Simuler"}
+                              onClick={handleGeler}
+                              disabled={carriereValidee || frozenLoading}
+                              style={{ flex: 1, padding: "8px 0", borderRadius: 7, border: "none", background: carriereValidee ? "#00B894" : frozenLoading ? "#aaa" : "#E17055", color: "#fff", fontWeight: 700, fontSize: 11, cursor: (carriereValidee || frozenLoading) ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                              {carriereValidee ? "🔒 Données gelées" : frozenLoading ? "⏳ Gel en cours…" : "🔒 Geler & Calculer"}
                             </button>
                             <button
                               onClick={() => setCarriereValidee(false)}
