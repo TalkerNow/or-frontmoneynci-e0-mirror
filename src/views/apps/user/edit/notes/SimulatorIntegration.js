@@ -12,7 +12,7 @@ import {
   persistUploadedDocs,
   loadUploadedDocs,
 } from "./utils";
-import { executeSkill } from "../risService";
+import { executeSkill, fetchLatestReport, fetchSkillsList } from "../risService";
 const MD_CONTENT = {};
 
 // Map QUICK_TAGS to icons for the analyse panel
@@ -424,6 +424,27 @@ export default function SimulatorV6({ mode = "production", id, user }) {
 
   // Fetch documents on mount
   useEffect(() => { fetchUserDocuments(); }, [fetchUserDocuments]);
+
+  // R4 — Auto-load latest CNAV report if one exists
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    fetchLatestReport(id, "CNAV")
+      .then((report) => {
+        if (cancelled || !report) return;
+        setSkillResult({
+          success: true,
+          skill_code: report.skill_id,
+          report_id: report.id,
+          python_output: report.result_json,
+          alertes: report.alertes_json || [],
+          arret_critique: report.arret_critique_json || null,
+          status: report.statut,
+        });
+      })
+      .catch(() => { /* silencieux — pas de rapport = normal */ });
+    return () => { cancelled = true; };
+  }, [id]);
 
   // ── File upload handler (drag & drop or click) ──
   const handleUpload = useCallback(async (acceptedFiles) => {
