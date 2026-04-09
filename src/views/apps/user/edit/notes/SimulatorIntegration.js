@@ -359,6 +359,8 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   const [skillLoading, setSkillLoading] = useState(false);
   const [skillResult, setSkillResult] = useState(null);
   const [skillError, setSkillError] = useState(null);
+  // ── R5: Skills catalog ──
+  const [availableSkills, setAvailableSkills] = useState([]);
 
   // ── AGIRC-ARRCO Skill State ──
   const [agircLoading, setAgircLoading] = useState(false);
@@ -445,6 +447,13 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       .catch(() => { /* silencieux — pas de rapport = normal */ });
     return () => { cancelled = true; };
   }, [id]);
+
+  // R5 — Load available skills from API once on mount
+  useEffect(() => {
+    fetchSkillsList()
+      .then((skills) => setAvailableSkills(Array.isArray(skills) ? skills : []))
+      .catch(() => setAvailableSkills([]));
+  }, []);
 
   // ── File upload handler (drag & drop or click) ──
   const handleUpload = useCallback(async (acceptedFiles) => {
@@ -1344,19 +1353,45 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
                               )}
                             </div>
-                            <button
-                              onClick={handleSkillExecute}
-                              disabled={!carriereValidee || skillLoading}
-                              title={!carriereValidee ? "Validez d'abord la carrière" : "Lancer le calcul CNAV"}
-                              style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 7, border: "none", background: carriereValidee && !skillLoading ? "#6C5CE7" : "#ccc", color: "#fff", fontWeight: 700, fontSize: 11, cursor: carriereValidee && !skillLoading ? "pointer" : "not-allowed", transition: "background 0.15s" }}
-                            >
-                              {skillLoading ? (
-                                <>
-                                  <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                                  Calcul en cours…
-                                </>
-                              ) : "▶ Calculer CNAV"}
-                            </button>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                              {availableSkills.length === 0 ? (
+                                <button
+                                  onClick={handleSkillExecute}
+                                  disabled={!carriereValidee || skillLoading}
+                                  title={!carriereValidee ? "Validez d'abord la carrière" : "Lancer le calcul CNAV"}
+                                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 7, border: "none", background: carriereValidee && !skillLoading ? "#6C5CE7" : "#ccc", color: "#fff", fontWeight: 700, fontSize: 11, cursor: carriereValidee && !skillLoading ? "pointer" : "not-allowed", transition: "background 0.15s" }}
+                                >
+                                  {skillLoading ? (
+                                    <>
+                                      <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                                      Calcul en cours…
+                                    </>
+                                  ) : "▶ Calculer CNAV"}
+                                </button>
+                              ) : (
+                                availableSkills.map((skill) => {
+                                  const isActive = skill.code === "CNAV";
+                                  const isLoading = isActive && skillLoading;
+                                  const canRun = isActive && carriereValidee && !skillLoading;
+                                  return (
+                                    <button
+                                      key={skill.skill_id}
+                                      onClick={isActive ? handleSkillExecute : undefined}
+                                      disabled={!canRun}
+                                      title={!isActive ? "Bientôt disponible" : !carriereValidee ? "Validez d'abord la carrière" : skill.description}
+                                      style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 7, border: "none", background: canRun ? "#6C5CE7" : "#ccc", color: "#fff", fontWeight: 700, fontSize: 11, cursor: canRun ? "pointer" : "not-allowed", transition: "background 0.15s" }}
+                                    >
+                                      {isLoading ? (
+                                        <>
+                                          <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                                          Calcul en cours…
+                                        </>
+                                      ) : `▶ Calculer ${skill.nom}`}
+                                    </button>
+                                  );
+                                })
+                              )}
+                            </div>
                             {skillError && (
                               <div style={{ marginTop: 8, fontSize: 10, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
                                 ⚠ {skillError}
