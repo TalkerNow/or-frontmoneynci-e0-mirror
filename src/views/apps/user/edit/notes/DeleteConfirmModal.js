@@ -23,14 +23,14 @@ const DeleteConfirmModal = ({
                 ?
             </ModalBody>
             <ModalFooter>
+                <Button color="primary" onClick={onConfirm}>
+                    Supprimer
+                </Button>{" "}
                 <Button
-                    color="secondary"
+                    color="danger"
                     onClick={onCancel}
                 >
                     Annuler
-                </Button>
-                <Button color="danger" onClick={onConfirm}>
-                    Supprimer
                 </Button>
             </ModalFooter>
         </Modal>
