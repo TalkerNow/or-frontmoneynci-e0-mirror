@@ -800,9 +800,10 @@ class SideMenuContent extends React.Component {
                 : "justify-content-start"
             }`}
             style={
-              (item.id === "kpi" && this.state.crmBadge > 0) ||
-              (item.id === "tasks" && this.state.tasksBadge > 0) ||
-              (item.id === "contracts" && this.state.contractsBadge > 0)
+              ((item.id === "kpi" && this.state.crmBadge > 0) ||
+                (item.id === "tasks" && this.state.tasksBadge > 0) ||
+                (item.id === "contracts" && this.state.contractsBadge > 0)) &&
+              !this.props.isCollapsed
                 ? { paddingRight: "44px" }
                 : undefined
             }
@@ -819,8 +820,26 @@ class SideMenuContent extends React.Component {
             }}
             target={item.newTab ? "_blank" : undefined}
           >
-            <div className="menu-text">
+            <div className="menu-text" style={{ position: "relative" }}>
               {item.icon}
+              {/* Petit point rouge pour les notifs (visible en collapsed) */}
+              {((item.id === "contracts" && this.state.contractsBadge > 0) ||
+                (item.id === "tasks" && this.state.tasksBadge > 0) ||
+                (item.id === "kpi" && this.state.crmBadge > 0)) && (
+                <span
+                  className="sidebar-notif-dot"
+                  style={{
+                    position: "absolute",
+                    top: -2,
+                    left: 14,
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    backgroundColor: "#ea5455",
+                    border: "1.5px solid #fff",
+                  }}
+                />
+              )}
               <span className="menu-item menu-title">
                 <FormattedMessage id={item.title} />
               </span>
@@ -829,6 +848,7 @@ class SideMenuContent extends React.Component {
             {/* ✅ Badge Contrats terminés impayés */}
             {item.id === "contracts" && this.state.contractsBadge > 0 ? (
               <span
+                className="sidebar-badge-num"
                 style={{
                   position: "absolute",
                   right: 10,
@@ -855,6 +875,7 @@ class SideMenuContent extends React.Component {
             {/* ✅ Badge Tâches Urgentes */}
             {item.id === "tasks" && this.state.tasksBadge > 0 ? (
               <span
+                className="sidebar-badge-num"
                 style={{
                   position: "absolute",
                   right: 10,
@@ -881,6 +902,7 @@ class SideMenuContent extends React.Component {
             {/* ✅ Badge CRM (Suivi Admin) */}
             {item.id === "kpi" && this.state.crmBadge > 0 ? (
               <span
+                className="sidebar-badge-num"
                 style={{
                   position: "absolute",
                   right: 10,

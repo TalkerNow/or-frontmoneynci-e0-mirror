@@ -580,7 +580,7 @@ class DropzoneBasic extends React.Component {
           <Folder size={20} className="mr-2" />
           <div>
             <strong>{currentFolderObj.name}</strong>
-            <div style={{ fontSize: "12px", color: "#888" }}>
+            <div style={{ fontSize: "12px", color: "#555" }}>
               {filesInFolder.length} fichier(s)
             </div>
           </div>
