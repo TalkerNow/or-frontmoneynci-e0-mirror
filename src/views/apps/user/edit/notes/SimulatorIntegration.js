@@ -13,6 +13,9 @@ import {
   loadUploadedDocs,
 } from "./utils";
 import { executeSkill, fetchLatestReport, fetchSkillsList } from "../risService";
+import api from "../../../../../services/api";
+import SkillEditModal from "./SkillEditModal";
+import SkillCreateModal from "./SkillCreateModal";
 const MD_CONTENT = {};
 
 // Map QUICK_TAGS to icons for the analyse panel
@@ -299,20 +302,6 @@ const ADMIN_SKILL_PROMPTS = [
   { id: "sk_prompt2",    label: "PROMPT 2 — Rapport de consultation client",  icon: "📄", color: "#6C5CE7", contentKey: "sk_prompt2",    category: "Workflow principal" },
   { id: "sk_prompt3",    label: "PROMPT 3 — Auto-apprentissage erreurs",      icon: "🧠", color: "#6C5CE7", contentKey: "sk_prompt3",    category: "Workflow principal" },
   { id: "sk_workflow",   label: "Workflow consultation final",                 icon: "🔀", color: "#D63031", contentKey: "sk_workflow",   category: "Workflow principal" },
-  { id: "sk_analyse",    label: "Analyse relevé de carrière harmonisé",       icon: "📋", color: "#0984E3", contentKey: "sk_analyse",    category: "Skills N8N" },
-  { id: "sk_racl",       label: "Éligibilité carrière longue (RACL)",         icon: "⏩", color: "#0984E3", contentKey: "sk_racl",       category: "Skills N8N" },
-  { id: "sk_estimation", label: "Estimation pensions retraite",               icon: "💰", color: "#0984E3", contentKey: "sk_estimation", category: "Skills N8N" },
-  { id: "sk_progressive",label: "Retraite progressive",                       icon: "⚖️", color: "#0984E3", contentKey: "progressive",   category: "Skills N8N" },
-  { id: "sk_cumul",      label: "Cumul emploi-retraite",                      icon: "🔄", color: "#0984E3", contentKey: "cumul",         category: "Skills N8N" },
-  { id: "sk_etranger",   label: "Trimestres étrangers",                       icon: "🌍", color: "#0984E3", contentKey: "conventions",   category: "Skills N8N" },
-  // ── Manquants ──
-  { id: "miss_paie",     label: "Rapprochement RIS / bulletin de salaire",    icon: "💶", color: "#666",    contentKey: null,            category: "Manquants — à créer", missing: true },
-  { id: "miss_ft",       label: "Rapprochement RIS / France Travail",         icon: "📉", color: "#666",    contentKey: null,            category: "Manquants — à créer", missing: true },
-  { id: "miss_fp",       label: "Rapprochement RIS / fonctionnaire Ircantec", icon: "🏛️", color: "#666",    contentKey: null,            category: "Manquants — à créer", missing: true },
-  { id: "miss_chomage",  label: "Chômage indemnisé / non indemnisé",          icon: "⚠️", color: "#666",    contentKey: null,            category: "Manquants — à créer", missing: true },
-  { id: "miss_arret",    label: "Arrêt d'activité",                           icon: "🛑", color: "#666",    contentKey: null,            category: "Manquants — à créer", missing: true },
-  { id: "miss_tns",      label: "Cotisations minimales TI/TNS",               icon: "📑", color: "#666",    contentKey: null,            category: "Manquants — à créer", missing: true },
-  { id: "miss_mincontrib",label: "Minimum contributif",                       icon: "🔒", color: "#666",    contentKey: null,            category: "Manquants — à créer", missing: true },
 ];
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
@@ -330,6 +319,23 @@ function _buildDefaultCarriereRows() {
 
 export default function SimulatorV6({ mode = "production", id, user }) {
   // ── UI State ──
+  const [apiSkills, setApiSkills] = useState([]);
+  const [apiSkillsLoading, setApiSkillsLoading] = useState(false);
+  const [editSkillCode, setEditSkillCode] = useState(null);
+  const [createSkillOpen, setCreateSkillOpen] = useState(false);
+
+  const fetchApiSkills = useCallback(() => {
+    setApiSkillsLoading(true);
+    api.get("/v1/skills")
+      .then((res) => setApiSkills(res.data))
+      .catch(() => toast.error("Impossible de charger les skills"))
+      .finally(() => setApiSkillsLoading(false));
+  }, []);
+
+  useEffect(() => {
+    fetchApiSkills();
+  }, [fetchApiSkills]);
+
   const [expandedPanel, setExpandedPanel] = useState("analyse");
   const [selectedAction, setSelectedAction] = useState(null);
   const [inputValues, setInputValues] = useState({});
@@ -2255,22 +2261,22 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                     </button>
                   </div>
 
-                  {["Workflow principal", "Skills N8N", "Manquants — à créer"].map((cat) => {
+                  {/* Workflow principal — inchangé, lit ADMIN_SKILL_PROMPTS */}
+                  {["Workflow principal"].map((cat) => {
                     const items = ADMIN_SKILL_PROMPTS.filter(p => p.category === cat);
                     return (
                       <div key={cat} style={{ marginBottom: 16 }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: cat === "Manquants — à créer" ? "#D63031" : "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6, paddingBottom: 4, borderBottom: `1px solid ${cat === "Manquants — à créer" ? "#D6303120" : "#eee"}` }}>
-                          {cat === "Manquants — à créer" ? "⚠ " : ""}{cat}
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6, paddingBottom: 4, borderBottom: "1px solid #eee" }}>
+                          {cat}
                         </div>
                         <div className="simu-prompts-grid">
                           {items.map((skill) => {
                             const hasContent = !!skill.contentKey && !!MD_CONTENT[skill.contentKey];
                             return (
-                              <div key={skill.id} style={{ borderRadius: 7, padding: "9px 11px", background: skill.missing ? "#fafafa" : "#fff", border: `1px solid ${skill.missing ? "#f0f0f0" : "#e0e0e0"}`, borderLeft: `3px solid ${skill.missing ? "#ddd" : skill.color}`, opacity: skill.missing ? 0.6 : 1 }}>
+                              <div key={skill.id} style={{ borderRadius: 7, padding: "9px 11px", background: "#fff", border: "1px solid #e0e0e0", borderLeft: `3px solid ${skill.color}` }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>
                                   <span style={{ fontSize: 14 }}>{skill.icon}</span>
-                                  <span style={{ fontSize: 11, fontWeight: 600, color: skill.missing ? "#aaa" : skill.color, flex: 1 }}>{skill.label}</span>
-                                  {skill.missing && <span style={{ fontSize: 8, padding: "1px 5px", borderRadius: 3, background: "#D6303115", color: "#D63031", fontWeight: 700 }}>À créer</span>}
+                                  <span style={{ fontSize: 11, fontWeight: 600, color: skill.color, flex: 1 }}>{skill.label}</span>
                                 </div>
                                 <div style={{ display: "flex", gap: 4 }}>
                                   {hasContent ? (
@@ -2282,8 +2288,8 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                   ) : (
                                     <span style={{ fontSize: 9, color: "#D63031" }}>Fichier manquant</span>
                                   )}
-                                  {!skill.missing && <button style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid #888", background: "transparent", color: "#555", fontWeight: 600, cursor: "pointer" }}>✏️ Éditer</button>}
-                                  {!skill.missing && <button style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid #00B894", background: "transparent", color: "#00B894", fontWeight: 600, cursor: "pointer" }}>🧪 Tester</button>}
+                                  <button style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid #888", background: "transparent", color: "#555", fontWeight: 600, cursor: "pointer" }}>✏️ Éditer</button>
+                                  <button style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid #00B894", background: "transparent", color: "#00B894", fontWeight: 600, cursor: "pointer" }}>🧪 Tester</button>
                                 </div>
                               </div>
                             );
@@ -2292,6 +2298,44 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                       </div>
                     );
                   })}
+
+                  {/* Skills N8N — dynamique depuis /v1/skills */}
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6, paddingBottom: 4, borderBottom: "1px solid #eee" }}>
+                      Skills N8N {apiSkillsLoading && "(chargement…)"} {!apiSkillsLoading && `— ${apiSkills.length} skills`}
+                    </div>
+                    <div className="simu-prompts-grid">
+                      {apiSkills.map((skill) => (
+                        <div key={skill.id} style={{ borderRadius: 7, padding: "9px 11px", background: "#fff", border: "1px solid #e0e0e0", borderLeft: "3px solid #0984E3" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>
+                            <span style={{ fontSize: 14 }}>🧩</span>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: "#0984E3", flex: 1 }}>{skill.nom}</span>
+                            <span style={{ fontSize: 8, padding: "1px 5px", borderRadius: 3, background: "#0984E315", color: "#0984E3", fontWeight: 700 }}>{skill.code}</span>
+                          </div>
+                          {skill.description && (
+                            <div style={{ fontSize: 9, color: "#666", marginBottom: 5, lineHeight: 1.3 }}>{skill.description}</div>
+                          )}
+                          <div style={{ display: "flex", gap: 4 }}>
+                            <button
+                              onClick={() => setEditSkillCode(skill.code)}
+                              style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid #0984E3", background: "#0984E308", color: "#0984E3", fontWeight: 700, cursor: "pointer" }}>
+                              ✏️ Éditer
+                            </button>
+                            <button disabled title="À implémenter" style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid #00B894", background: "transparent", color: "#00B894", fontWeight: 600, cursor: "not-allowed", opacity: 0.5 }}>🧪 Tester</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Créer un nouveau skill */}
+                  <div style={{ marginTop: 14, textAlign: "center" }}>
+                    <button
+                      onClick={() => setCreateSkillOpen(true)}
+                      style={{ fontSize: 11, padding: "8px 18px", borderRadius: 6, border: "1.5px dashed #00B894", background: "#00B89408", color: "#00B894", fontWeight: 700, cursor: "pointer" }}>
+                      + Créer un nouveau skill
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -2511,6 +2555,19 @@ export default function SimulatorV6({ mode = "production", id, user }) {
           </Button>
         </ModalFooter>
       </Modal>
+
+      <SkillEditModal
+        isOpen={!!editSkillCode}
+        skillCode={editSkillCode}
+        onClose={() => setEditSkillCode(null)}
+        onSaved={() => fetchApiSkills()}
+      />
+      <SkillCreateModal
+        isOpen={createSkillOpen}
+        onClose={() => setCreateSkillOpen(false)}
+        onCreated={() => fetchApiSkills()}
+        existingTypes={[...new Set(apiSkills.map((s) => s.type))].filter(Boolean)}
+      />
     </div>
   );
 
