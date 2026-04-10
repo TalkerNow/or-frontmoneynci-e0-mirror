@@ -356,11 +356,16 @@ html {
       width: 80px;
       transition: 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
       .badge,
+      .sidebar-badge-num,
       svg.menu-toggle-icon,
       .brand-text,
       .navigation-header,
       ul.menu-content {
-        display: none;
+        display: none !important;
+      }
+      // Afficher le point rouge en mode collapsed
+      .sidebar-notif-dot {
+        display: block !important;
       }
     }
     .app-content {
@@ -373,6 +378,11 @@ html {
       margin-left: 80px;
     }
   }
+}
+
+// Masquer le point rouge par défaut
+.sidebar-notif-dot {
+  display: none;
 }
 
 @media (max-width: 1200px) {

@@ -16,6 +16,7 @@ import {
   Menu,
   Download,
   Cpu,
+  Disc,
   
 } from "react-feather";
 import axios from "axios";
@@ -436,6 +437,7 @@ class Sidebar extends Component {
 
           return (
             <React.Fragment>
+
               {/* --- BOUTON FLOTTANT GAUCHE (plus bas) POUR OUVRIR LA SIDEBAR SUR MOBILE --- */}
               {isMobile &&
                 shouldHide &&
@@ -543,6 +545,7 @@ class Sidebar extends Component {
                         collapsedMenuPaths={collapsedMenuPaths}
                         toggleMenu={sidebarVisibility}
                         deviceWidth={width}
+                        isCollapsed={isCollapsed}
                       />
                     </ul>
                   </Hammer>
@@ -599,6 +602,34 @@ class Sidebar extends Component {
                     <Settings size={18} />
                   </div>
                 </div>
+
+                {/* --- POIGNÉE DESKTOP pour réduire/afficher la sidebar --- */}
+                {!isMobile && (
+                  <div
+                    className="nav-link modern-nav-toggle"
+                    style={{
+                      position: "absolute",
+                      top: 14,
+                      right: 10,
+                      zIndex: 50,
+                      cursor: "pointer",
+                      lineHeight: 0,
+                    }}
+                  >
+                    <Disc
+                      onClick={() => {
+                        toggleSidebarMenu && toggleSidebarMenu(!collapsed)
+                        toggle && toggle()
+                      }}
+                      className="toggle-icon text-primary"
+                      size={20}
+                      title={collapsed ? "Afficher le menu" : "Réduire le menu"}
+                      aria-label={
+                        collapsed ? "Afficher le menu" : "Réduire le menu"
+                      }
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Menu Paramètres en portal */}

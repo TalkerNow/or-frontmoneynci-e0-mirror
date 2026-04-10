@@ -39,7 +39,7 @@ import SimulatorHub from "./SimulatorHub";
 import SimulatorIntegration from "./notes/SimulatorIntegration";
 import { history } from "../../../../history";
 import Contracts from "./Contracts";
-// import SuiviAvancementBox from "./SuiviAvancementBox";
+import SuiviAvancementBox from "./SuiviAvancementBox";
 
 import { canAccessSimulator } from "../../../../constants/permissions";
 import ClientTasks from "./clientTask/Task";
@@ -392,7 +392,7 @@ class UserEdit extends React.Component {
             />
 
             {/* 👇 Ta box de suivi d'avancement, dans un fichier séparé */}
-            {/* {String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
+            {String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
               <SuiviAvancementBox
                 clientId={id}
                 onContractUpdate={() => {
@@ -401,7 +401,7 @@ class UserEdit extends React.Component {
                   }
                 }}
               />
-            )} */}
+            )}
           </div>
         </Col>
         <Col
