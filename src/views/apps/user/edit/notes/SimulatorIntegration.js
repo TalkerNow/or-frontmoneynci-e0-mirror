@@ -417,6 +417,9 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     return init;
   });
   const [frozenLoading, setFrozenLoading] = useState(false);
+  const [isParsingRIS, setIsParsingRIS] = useState(false);
+  const [visibleRowCount, setVisibleRowCount] = useState(20);
+  const [risFileName, setRisFileName] = useState(null);
 
   // ── AGIRC-ARRCO Skill State ──
   const [agircLoading, setAgircLoading] = useState(false);
@@ -447,22 +450,6 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     catch (e) { /* noop */ }
   }, [n8nMessage, id]);
 
-  // Restore fileToSend from sessionStorage on mount
-  useEffect(() => {
-    if (!id) return;
-    const restoreFile = async () => {
-      try {
-        const storedFileData = sessionStorage.getItem(`simu_file_to_send_${id}`);
-        if (storedFileData) {
-          const { name, type, dataUrl } = JSON.parse(storedFileData);
-          const response = await fetch(dataUrl);
-          const blob = await response.blob();
-          setFileToSend(new File([blob], name, { type }));
-        }
-      } catch (e) { /* noop */ }
-    };
-    restoreFile();
-  }, [id]);
 
   // ── Fetch user documents from server ──
   const fetchUserDocuments = useCallback(async () => {
@@ -554,6 +541,112 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       }
     } catch (e) { /* noop */ }
   }, [id]);
+
+  // ── Parse PDF via webhook and fill career table ──
+  const parsePdfAndFillCarriere = useCallback(async (file) => {
+    if (!file) return;
+    setIsParsingRIS(true);
+    toast.info("Analyse du RIS en cours…");
+    try {
+      const formData = new FormData();
+      formData.append("file0", file);
+      const response = await axios.post(
+        "https://n8n.srv796541.hstgr.cloud/webhook/parse-pdf-salaire",
+        formData
+      );
+      const risData = Array.isArray(response.data) ? response.data[0] : response.data;
+      const isRIS = risData?.trimestres != null && Array.isArray(risData?.detail_carriere);
+      if (!isRIS) {
+        toast.error("Ce document ne semble pas être un RIS — aucune donnée de carrière détectée");
+        return;
+      }
+      const careerData = risData.detail_carriere;
+      if (!careerData.length) {
+        toast.error("Le RIS ne contient aucune ligne de carrière exploitable");
+        return;
+      }
+      try {
+        sessionStorage.setItem(`ris_import_data_${id}`, JSON.stringify({ risData, timestamp: Date.now() }));
+      } catch { /* noop */ }
+      // Group by year, dedup by (employeur+revenus) to avoid double-counting cross-regime entries
+      const yearMap = {};
+      careerData.forEach(entry => {
+        if (!entry.date_debut || entry.revenus == null) return;
+        const parts = entry.date_debut.split('/');
+        const annee = parseInt(parts[2], 10);
+        if (!annee) return;
+        if (!yearMap[annee]) yearMap[annee] = { entries: new Map(), devise: entry.devise || '€' };
+        // if any entry for this year is in EUR, mark the year as EUR
+        if (entry.devise === '€') yearMap[annee].devise = '€';
+        const key = `${entry.employeur}__${entry.revenus}`;
+        if (!yearMap[annee].entries.has(key)) {
+          const eur = entry.devise === 'FRF' ? Math.round(entry.revenus / 6.55957) : entry.revenus;
+          yearMap[annee].entries.set(key, { original: entry.revenus, eur });
+        }
+      });
+      const minYear = Math.min(...Object.keys(yearMap).map(Number));
+      const neededRows = Math.max(20, 2025 - minYear + 1);
+      setVisibleRowCount(Math.min(neededRows, 51));
+
+      setCarriereRows(prev => prev.map(row => {
+        const bucket = yearMap[row.yr];
+        if (!bucket || bucket.entries.size === 0) return row;
+        const sal = [...bucket.entries.values()].reduce((s, v) => s + v.original, 0);
+        const salEur = [...bucket.entries.values()].reduce((s, v) => s + v.eur, 0);
+        const plaf = PLAFONDS_SS[row.yr] || 48060;
+        const coeff = REVALO_CNAV[row.yr] || 1;
+        const revalo = Math.round(Math.min(salEur, plaf) * coeff);
+        return { ...row, sal, revalo, devise: bucket.devise };
+      }));
+      setRevaloValues(prev => {
+        const next = { ...prev };
+        Object.entries(yearMap).forEach(([yr, bucket]) => {
+          const annee = parseInt(yr, 10);
+          if (!bucket.entries.size) return;
+          const salEur = [...bucket.entries.values()].reduce((s, v) => s + v.eur, 0);
+          const plaf = PLAFONDS_SS[annee] || 48060;
+          const coeff = REVALO_CNAV[annee] || 1;
+          next[annee] = Math.round(Math.min(salEur, plaf) * coeff);
+        });
+        return next;
+      });
+      toast.success("Tableau carrière rempli");
+    } catch (e) {
+      console.error("[parsePdfAndFillCarriere] erreur:", e?.response?.data || e?.message || e);
+      toast.error("Erreur lors de l'analyse du RIS");
+    } finally {
+      setIsParsingRIS(false);
+    }
+  }, [id]);
+
+  // ── Select document from list (for analysis report — no RIS parsing) ──
+  const handleSelectDocument = useCallback(async (doc) => {
+    try {
+      toast.info("Chargement du document…");
+      const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") }, responseType: "blob" };
+      const response = await axios.get(`${global.config.server_url}/downloadFile?file_id=${doc.id}`, Config);
+      const blob = response.data;
+      const file = new File([blob], doc.filename, { type: blob.type || "application/pdf" });
+      setFileToSend(file);
+      toast.success(`"${doc.filename}" sélectionné`);
+    } catch { toast.error("Impossible de charger le document"); }
+  }, []);
+
+  // ── Mark a server document as the RIS ──
+  const handleSetDocAsRIS = useCallback(async (doc) => {
+    if (risFileName === doc.filename) {
+      setRisFileName(null);
+      return;
+    }
+    try {
+      const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") }, responseType: "blob" };
+      const response = await axios.get(`${global.config.server_url}/downloadFile?file_id=${doc.id}`, Config);
+      const blob = response.data;
+      const file = new File([blob], doc.filename, { type: blob.type || "application/pdf" });
+      setRisFileName(doc.filename);
+      parsePdfAndFillCarriere(file);
+    } catch { toast.error("Impossible de charger le document RIS"); }
+  }, [risFileName, parsePdfAndFillCarriere]);
 
   // ── File upload handler (drag & drop or click) ──
   const handleUpload = useCallback(async (acceptedFiles) => {
@@ -1017,47 +1110,45 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                       // 🟢 Green for PDF
                       const color = ext === "pdf" ? "#00B894" : ext === "html" ? "#0984E3" : "#6C5CE7";
                       const isSelected = fileToSend && fileToSend.name === doc.filename;
-                      
+                      const isRIS = risFileName === doc.filename;
+
                       return (
                         <div key={doc.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 7, background: isSelected ? `${color}18` : `${color}08`, border: `1px solid ${isSelected ? color : `${color}18`}`, fontSize: 11, cursor: "pointer", transition: "all 0.15s" }}
                           onClick={() => {
                             if (isSelected) return;
-                            const selectDoc = async () => {
-                              try {
-                                toast.info("Chargement du document…");
-                                const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") }, responseType: "blob" };
-                                const response = await axios.get(`${global.config.server_url}/downloadFile?file_id=${doc.id}`, Config);
-                                const blob = response.data;
-                                setFileToSend(new File([blob], doc.filename, { type: blob.type || "application/pdf" }));
-                                toast.success(`"${doc.filename}" sélectionné`);
-                              } catch { toast.error("Impossible de charger le document"); }
-                            };
-                            selectDoc();
+                            handleSelectDocument(doc);
                           }}
                           title={isSelected ? "Document sélectionné pour l'analyse" : `Cliquer pour sélectionner "${doc.filename}"`}
                         >
                           <span style={{ fontSize: 13 }}>📄</span>
                           <span style={{ fontWeight: 600, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12 }}>{doc.filename}</span>
                           <span style={{ fontSize: 9, color, fontWeight: 700 }}>{ext.toUpperCase()}</span>
-                          
+
                           <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto", paddingLeft: 4 }}>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleSetDocAsRIS(doc); }}
+                              title={isRIS ? "Retirer le tag RIS" : "Marquer comme RIS"}
+                              style={{ background: isRIS ? "#6C5CE7" : "none", border: `1px solid ${isRIS ? "#6C5CE7" : "#ccc"}`, borderRadius: 4, color: isRIS ? "#fff" : "#888", cursor: "pointer", padding: "1px 5px", fontSize: 9, fontWeight: 700, lineHeight: 1.4 }}
+                            >
+                              RIS
+                            </button>
                             {isSelected && (
-                              <button 
-                                onClick={(e) => { 
-                                  e.stopPropagation(); 
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   const url = URL.createObjectURL(fileToSend);
                                   window.open(url, '_blank');
-                                }} 
-                                style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "2px", display: "flex", alignItems: "center", justifyContent: "center" }} 
+                                }}
+                                style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "2px", display: "flex", alignItems: "center", justifyContent: "center" }}
                                 title="Visualiser le document"
                               >
                                 <Eye size={14} />
                               </button>
                             )}
-                            <button 
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
-                                handleDeleteDocument(doc.id, doc.filename); 
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteDocument(doc.id, doc.filename);
                               }} 
                               style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "2px", fontSize: 14, lineHeight: 1, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }} 
                               title="Supprimer le document"
@@ -1075,20 +1166,27 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                         <span style={{ fontSize: 13 }}>📄</span>
                         <span style={{ fontWeight: 600, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12 }}>{fileToSend.name}</span>
                         <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto", paddingLeft: 4 }}>
-                          <button 
-                            onClick={(e) => { 
-                              e.stopPropagation(); 
+                          <button
+                            onClick={(e) => { e.stopPropagation(); const isRIS = risFileName === fileToSend.name; setRisFileName(isRIS ? null : fileToSend.name); if (!isRIS) parsePdfAndFillCarriere(fileToSend); }}
+                            title={risFileName === fileToSend.name ? "Retirer le tag RIS" : "Marquer comme RIS"}
+                            style={{ background: risFileName === fileToSend.name ? "#6C5CE7" : "none", border: `1px solid ${risFileName === fileToSend.name ? "#6C5CE7" : "#ccc"}`, borderRadius: 4, color: risFileName === fileToSend.name ? "#fff" : "#888", cursor: "pointer", padding: "1px 5px", fontSize: 9, fontWeight: 700, lineHeight: 1.4 }}
+                          >
+                            RIS
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
                               const url = URL.createObjectURL(fileToSend);
                               window.open(url, '_blank');
-                            }} 
-                            style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "2px", display: "flex", alignItems: "center", justifyContent: "center" }} 
+                            }}
+                            style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "2px", display: "flex", alignItems: "center", justifyContent: "center" }}
                             title="Visualiser"
                           >
                             <Eye size={14} />
                           </button>
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); clearFileToSend(); }} 
-                            style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "2px", fontSize: 14, lineHeight: 1, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }} 
+                          <button
+                            onClick={(e) => { e.stopPropagation(); clearFileToSend(); }}
+                            style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "2px", fontSize: 14, lineHeight: 1, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}
                             title="Retirer"
                           >
                             ✕
@@ -1150,7 +1248,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                     // ── CARRIÈRE: TABLEAU UNIFIÉ ──
                     if (expandedPanel === "carriere") {
                       // Utilise carriereRows (état stable, hydraté depuis OCR ou saisie manuelle)
-                      const totalRows = carriereRows.slice(0, 20);
+                      const totalRows = carriereRows.slice(0, visibleRowCount);
                       const totalCotTbl = totalRows.reduce((s, r) => s + (trimCotState[r.yr] ?? 0), 0);
                       const totalAssTbl = totalRows.reduce((s, r) => s + (trimAssState[r.yr] ?? 0), 0);
                       const totalTrimTbl = totalCotTbl + totalAssTbl;
@@ -1167,8 +1265,8 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               <span style={{ fontSize: 10, color: "#555" }}>— tableau unifié tous régimes</span>
                             </div>
                             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                              <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, background: carriereValidee ? "#00B89415" : "#E1705515", color: carriereValidee ? "#00B894" : "#E17055", fontWeight: 700 }}>
-                                {carriereValidee ? "🔒 Validée" : "📥 Importée OCR"}
+                              <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, background: isParsingRIS ? "#0984E315" : carriereValidee ? "#00B89415" : "#E1705515", color: isParsingRIS ? "#0984E3" : carriereValidee ? "#00B894" : "#E17055", fontWeight: 700 }}>
+                                {isParsingRIS ? "⏳ Analyse en cours…" : carriereValidee ? "🔒 Validée" : "📥 Importée OCR"}
                               </span>
                               <button onClick={() => setCarriereValidee(v => !v)} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, border: "none", background: carriereValidee ? "#E1705520" : "#00B89420", color: carriereValidee ? "#E17055" : "#00B894", cursor: "pointer", fontWeight: 700 }}>
                                 {carriereValidee ? "🔓 Déverrouiller" : "🔒 Valider"}
@@ -1239,6 +1337,9 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                         <input type="number" value={row.sal || ""} disabled={carriereValidee}
                                           onChange={(e) => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, sal: parseInt(e.target.value) || 0 } : r))}
                                           style={{ width: 62, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 10, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        {row.devise === 'FRF' && (
+                                          <span style={{ display: "block", fontSize: 8, color: "#E17055", fontWeight: 700, textAlign: "center", marginTop: 1 }}>FRF</span>
+                                        )}
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "right", color: "#555", borderLeft: "2px solid #6C5CE715" }}>{row.ss.toLocaleString("fr-FR")}</td>
                                       <td style={{ padding: "3px 5px", textAlign: "right", color: "#0984E3", fontWeight: 600 }}>{row.coeff}</td>
@@ -1327,8 +1428,8 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                   <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#6C5CE7" }}>—</td>
                                   <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#6C5CE7", fontWeight: 800 }}>{totalTrimTbl || "—"}</td>
                                   {(() => {
-                                    const totalT1 = carriereRows.slice(0, 20).reduce((s, r) => s + Math.round(r.agircPts * 0.62), 0);
-                                    const totalT2 = carriereRows.slice(0, 20).reduce((s, r) => s + Math.round(r.agircPts * 0.38), 0);
+                                    const totalT1 = carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + Math.round(r.agircPts * 0.62), 0);
+                                    const totalT2 = carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + Math.round(r.agircPts * 0.38), 0);
                                     return (
                                       <>
                                         <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#0984E3", borderLeft: "2px solid #0984E315", fontWeight: 700 }}>{totalT1.toLocaleString("fr-FR")}</td>
