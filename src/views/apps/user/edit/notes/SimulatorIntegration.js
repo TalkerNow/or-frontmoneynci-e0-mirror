@@ -108,18 +108,18 @@ const ADMIN_SECTIONS = {
   regles: {
     label: "Règles métier", icon: "📜", color: "#6C5CE7",
     items: [
-      { id: "cnav_base", label: "Régime de base CNAV", icon: "🏛️", file: "circulaire_revalorisation_2025.md", contentKey: "cnav_base", officialUrl: "https://www.legislation.cnav.fr", desc: "Calcul pension, SAM, taux, durée d'assurance" },
-      { id: "agirc_arrco", label: "AGIRC-ARRCO", icon: "📊", file: "REGIMES-COMPLEMENTAIRE-AGIRC_ARRCO.md", contentKey: "agirc_arrco", officialUrl: "https://www.agirc-arrco.fr/particuliers", desc: "Points, valeur de service, coefficients" },
-      { id: "ircantec", label: "Ircantec", icon: "🏢", file: null, contentKey: null, officialUrl: "https://www.ircantec.retraites.fr", desc: "Points, calcul pension agents non titulaires", missing: true },
-      { id: "rci", label: "RCI / SSI", icon: "📑", file: "circulaire_rci_2025.md", contentKey: "rci", officialUrl: "https://www.secu-independants.fr", desc: "Complémentaire indépendants, BIC/BNC" },
+      { id: "cnav_base", label: "Régime de base CNAV", icon: "🏛️", file: "circulaire_revalorisation_2025.md", contentKey: "cnav_base", officialUrl: "https://www.lassuranceretraite.fr/", desc: "Calcul pension, SAM, taux, durée d'assurance" },
+      { id: "agirc_arrco", label: "AGIRC-ARRCO", icon: "📊", file: "REGIMES-COMPLEMENTAIRE-AGIRC_ARRCO.md", contentKey: "agirc_arrco", officialUrl: "https://www.agirc-arrco.fr/", desc: "Points, valeur de service, coefficients" },
+      { id: "ircantec", label: "Ircantec", icon: "🏢", file: null, contentKey: null, officialUrl: "https://www.ircantec.retraites.fr/", desc: "Points, calcul pension agents non titulaires", missing: true },
+      { id: "rci", label: "RCI / SSI", icon: "📑", file: "circulaire_rci_2025.md", contentKey: "rci", officialUrl: "https://www.lassuranceretraite.fr/portail-info/hors-menu/annexe/travailleurs-independants/retraite-complementaire.html", desc: "Complémentaire indépendants, BIC/BNC" },
       { id: "racl", label: "Carrière longue (RACL)", icon: "⏩", file: "racl-regles-conditions.md", contentKey: "racl", officialUrl: "https://www.service-public.fr/particuliers/vosdroits/F13845", desc: "Conditions, seuils, trimestres retenus" },
-      { id: "vplr", label: "Rachat VPLR", icon: "🧩", file: "circulaire_rachat_vplr_2025.md", contentKey: "vplr", officialUrl: "https://www.lassuranceretraite.fr/rachat-trimestres", desc: "Barèmes, options taux/proratisation" },
-      { id: "progressive", label: "Retraite progressive", icon: "⚖️", file: "SKILL_retraite_progressive.md", contentKey: "progressive", officialUrl: "https://www.service-public.fr/particuliers/vosdroits/F13819", desc: "Conditions, fraction, quotité" },
+      { id: "vplr", label: "Rachat VPLR", icon: "🧩", file: "circulaire_rachat_vplr_2025.md", contentKey: "vplr", officialUrl: "https://www.service-public.fr/particuliers/vosdroits/F15675", desc: "Barèmes, options taux/proratisation" },
+      { id: "progressive", label: "Retraite progressive", icon: "⚖️", file: "SKILL_retraite_progressive.md", contentKey: "progressive", officialUrl: "https://www.lassuranceretraite.fr/portail-info/home/actif/je-souhaite-partir-plus-tot/retraite-progressive.html#:~:text=La%20retraite%20progressive%20permet%20de,plusieurs%20activit%C3%A9s%20%C3%A0%20temps%20partiel.", desc: "Conditions, fraction, quotité" },
       { id: "cumul", label: "Cumul emploi-retraite", icon: "🔄", file: "SKILL_cumul_emploi_retraite.md", contentKey: "cumul", officialUrl: "https://www.service-public.fr/particuliers/vosdroits/F13243", desc: "Intégral, plafonné, 2e pension réforme 2023" },
-      { id: "chomage", label: "Chômage et retraite", icon: "📉", file: null, contentKey: null, officialUrl: "https://www.unedic.org", desc: "Assimilés, non indemnisé, exception +55 ans", missing: true },
-      { id: "conventions", label: "Conventions internationales", icon: "🌍", file: "SKILL_trimestres_etranger.md", contentKey: "conventions", officialUrl: "https://www.cleiss.fr/docs/textes/index.html", desc: "Bilatérales, UE, totalisation/proratisation" },
-      { id: "minimum", label: "Minimum contributif", icon: "🔒", file: null, contentKey: null, officialUrl: "https://www.legislation.cnav.fr", desc: "Base, majoré, plafond toutes pensions", missing: true },
-      { id: "majorations", label: "Majorations (enfants, handicap…)", icon: "👶", file: null, contentKey: null, officialUrl: "https://www.legislation.cnav.fr", desc: "MDA, +10% 3 enfants, tierce personne", missing: true },
+      { id: "chomage", label: "Chômage et retraite", icon: "📉", file: null, contentKey: null, officialUrl: "https://www.francetravail.fr/candidat/mes-droits-aux-aides-et-allocati/a-chaque-situation-son-allocatio/quelle-est-ma-situation-personne/je-suis-proche-de-la-retraite.html", desc: "Assimilés, non indemnisé, exception +55 ans", missing: true },
+      { id: "conventions", label: "Conventions internationales", icon: "🌍", file: "SKILL_trimestres_etranger.md", contentKey: "conventions", officialUrl: "https://www.cleiss.fr/", desc: "Bilatérales, UE, totalisation/proratisation" },
+      { id: "minimum", label: "Minimum contributif", icon: "🔒", file: null, contentKey: null, officialUrl: "https://www.service-public.fr/particuliers/vosdroits/F15522", desc: "Base, majoré, plafond toutes pensions", missing: true },
+      { id: "majorations", label: "Majorations (enfants, handicap…)", icon: "👶", file: null, contentKey: null, officialUrl: "https://www.service-public.fr/particuliers/vosdroits/F14818", desc: "MDA, +10% 3 enfants, tierce personne", missing: true },
     ]
   },
   parametres: {
@@ -2164,7 +2164,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                     {ADMIN_SECTIONS.regles.items.map((rule, i) => {
                       const hasMd = !!rule.contentKey && !!MD_CONTENT[rule.contentKey];
                       return (
-                        <div key={rule.id} style={{ borderRadius: 8, border: `1px solid ${rule.missing ? "#eee" : expandedRule === i ? "#6C5CE730" : "#eee"}`, overflow: "hidden", opacity: rule.missing ? 0.55 : 1 }}>
+                        <div key={rule.id} style={{ borderRadius: 8, border: `1px solid ${expandedRule === i ? "#6C5CE730" : "#eee"}`, overflow: "hidden" }}>
                           <div onClick={() => setExpandedRule(expandedRule === i ? null : i)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", cursor: "pointer", background: expandedRule === i ? "#6C5CE706" : "#fafafa" }}>
                             <span style={{ fontSize: 16 }}>{rule.icon}</span>
                             <div style={{ flex: 1 }}>
@@ -2176,7 +2176,11 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 ? <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 4, background: "#6C5CE712", color: "#6C5CE7", fontWeight: 600 }}>📄 {rule.file}</span>
                                 : <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 4, background: "#D6303115", color: "#D63031", fontWeight: 600 }}>⚠ Fichier manquant</span>
                               }
-                              <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 4, background: "#0984E312", color: "#0984E3", fontWeight: 600 }}>🔗 Officiel</span>
+                              {rule.officialUrl && (
+                                <a href={rule.officialUrl} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
+                                  <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 4, background: "#0984E312", color: "#0984E3", fontWeight: 600 }}>🔗 Officiel</span>
+                                </a>
+                              )}
                             </div>
                           </div>
                           {expandedRule === i && (
@@ -2191,7 +2195,11 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 ) : (
                                   <span style={{ fontSize: 10, color: "#D63031", padding: "6px 0" }}>⚠ Fichier MD à créer dans 01_REGLEMENTATION/</span>
                                 )}
-                                <button style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 6, border: "1px solid #0984E3", background: "#0984E308", color: "#0984E3", fontWeight: 600, fontSize: 10, cursor: "pointer" }}>🔗 Site officiel</button>
+                                {rule.officialUrl && (
+                                  <a href={rule.officialUrl} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
+                                    <button style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 6, border: "1px solid #0984E3", background: "#0984E308", color: "#0984E3", fontWeight: 600, fontSize: 10, cursor: "pointer" }}>🔗 Site officiel</button>
+                                  </a>
+                                )}
                                 <button style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 6, border: "1px solid #00B894", background: "#00B89408", color: "#00B894", fontWeight: 600, fontSize: 10, cursor: "pointer" }}>✏️ Éditer</button>
                               </div>
                             </div>
