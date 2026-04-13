@@ -4,7 +4,7 @@ import { toast } from "react-toastify";
 import api from "../../../../../services/api";
 
 /**
- * Modale d'édition d'un skill (skill_md uniquement).
+ * Modale d'édition d'un skill (skill_md + regles_json).
  *
  * Props :
  *  - isOpen          : boolean
@@ -17,10 +17,10 @@ const SkillEditModal = ({ isOpen, skillCode, onClose, onSaved }) => {
   const [saving, setSaving] = useState(false);
   const [skill, setSkill] = useState(null);
   const [skillMd, setSkillMd] = useState("");
+  const [editedReglesJson, setEditedReglesJson] = useState("");
   const [tab, setTab] = useState("edit"); // edit | history
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [showRegles, setShowRegles] = useState(false);
 
   const loadSkill = useCallback(() => {
     if (!skillCode) return;
@@ -29,6 +29,8 @@ const SkillEditModal = ({ isOpen, skillCode, onClose, onSaved }) => {
       .then((res) => {
         setSkill(res.data);
         setSkillMd(res.data.skill_md || "");
+        const rj = res.data.regles_json;
+        setEditedReglesJson(rj ? JSON.stringify(rj, null, 2) : "");
       })
       .catch((err) => {
         const msg = err.response?.data?.error || "Impossible de charger le skill";
@@ -53,7 +55,6 @@ const SkillEditModal = ({ isOpen, skillCode, onClose, onSaved }) => {
   useEffect(() => {
     if (isOpen) {
       setTab("edit");
-      setShowRegles(false);
       loadSkill();
     }
   }, [isOpen, loadSkill]);
@@ -69,8 +70,17 @@ const SkillEditModal = ({ isOpen, skillCode, onClose, onSaved }) => {
       toast.error("Le contenu Markdown ne peut pas être vide");
       return;
     }
+    let parsedReglesJson = null;
+    if (editedReglesJson.trim()) {
+      try {
+        parsedReglesJson = JSON.parse(editedReglesJson);
+      } catch (e) {
+        toast.error("Le JSON des règles est invalide — vérifiez la syntaxe");
+        return;
+      }
+    }
     setSaving(true);
-    api.put(`/v1/skills/${skill.id}`, { skill_md: skillMd })
+    api.put(`/v1/skills/${skill.id}`, { skill_md: skillMd, regles_json: parsedReglesJson })
       .then((res) => {
         toast.success("Skill mis à jour");
         setSkill(res.data.skill);
@@ -115,7 +125,7 @@ const SkillEditModal = ({ isOpen, skillCode, onClose, onSaved }) => {
   return (
     <Modal isOpen={isOpen} toggle={onClose} size="xl" backdrop="static">
       <ModalHeader toggle={onClose}>
-        {skill ? `${skill.nom} — ${skill.code}` : "Chargement…"}
+        {skill ? `${skill.code} — ${skill.description || skill.nom}` : "Chargement…"}
       </ModalHeader>
 
       <ModalBody>
@@ -148,34 +158,27 @@ const SkillEditModal = ({ isOpen, skillCode, onClose, onSaved }) => {
                 <textarea
                   value={skillMd}
                   onChange={(e) => setSkillMd(e.target.value)}
-                  style={{ width: "100%", minHeight: 500, fontFamily: "monospace", fontSize: 12, padding: 10, border: "1px solid #ccc", borderRadius: 4 }}
+                  style={{ width: "100%", minHeight: 400, fontFamily: "monospace", fontSize: 12, padding: 10, border: "1px solid #ccc", borderRadius: 4 }}
                 />
 
-                <div style={{ marginTop: 12 }}>
-                  <button
-                    type="button"
-                    onClick={() => setShowRegles(!showRegles)}
-                    style={{ background: "none", border: "1px solid #ccc", borderRadius: 4, padding: "4px 10px", fontSize: 11, cursor: "pointer" }}
-                  >
-                    {showRegles ? "▼" : "▶"} Voir les règles et le calcul (lecture seule)
-                  </button>
-                  {showRegles && (
-                    <div style={{ marginTop: 10 }}>
-                      <label style={{ fontSize: 11, fontWeight: 600 }}>regles_json</label>
-                      <pre style={{ background: "#f5f5f5", padding: 10, maxHeight: 200, overflow: "auto", fontSize: 10 }}>
-                        {JSON.stringify(skill.regles_json, null, 2)}
-                      </pre>
-                      {skill.calcul_py && (
-                        <>
-                          <label style={{ fontSize: 11, fontWeight: 600 }}>calcul_py</label>
-                          <pre style={{ background: "#f5f5f5", padding: 10, maxHeight: 200, overflow: "auto", fontSize: 10 }}>
-                            {skill.calcul_py}
-                          </pre>
-                        </>
-                      )}
-                    </div>
-                  )}
+                <div style={{ marginTop: 16 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600 }}>Configuration JSON (regles_json)</label>
+                  <textarea
+                    value={editedReglesJson}
+                    onChange={(e) => setEditedReglesJson(e.target.value)}
+                    style={{ width: "100%", minHeight: 200, fontFamily: "monospace", fontSize: 12, padding: 10, border: "1px solid #ccc", borderRadius: 4 }}
+                    placeholder="{}"
+                  />
                 </div>
+
+                {skill.calcul_py && (
+                  <div style={{ marginTop: 12 }}>
+                    <label style={{ fontSize: 11, fontWeight: 600, color: "#888" }}>calcul_py (lecture seule)</label>
+                    <pre style={{ background: "#f5f5f5", padding: 10, maxHeight: 200, overflow: "auto", fontSize: 10, borderRadius: 4 }}>
+                      {skill.calcul_py}
+                    </pre>
+                  </div>
+                )}
               </TabPane>
 
               <TabPane tabId="history">

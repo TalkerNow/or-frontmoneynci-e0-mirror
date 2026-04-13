@@ -302,6 +302,14 @@ const ADMIN_SKILL_PROMPTS = [
   { id: "sk_prompt2",    label: "PROMPT 2 — Rapport de consultation client",  icon: "📄", color: "#6C5CE7", contentKey: "sk_prompt2",    category: "Workflow principal" },
   { id: "sk_prompt3",    label: "PROMPT 3 — Auto-apprentissage erreurs",      icon: "🧠", color: "#6C5CE7", contentKey: "sk_prompt3",    category: "Workflow principal" },
   { id: "sk_workflow",   label: "Workflow consultation final",                 icon: "🔀", color: "#D63031", contentKey: "sk_workflow",   category: "Workflow principal" },
+  // ── Manquants — à créer ──
+  { id: "miss_paie",      label: "Rapprochement RIS / bulletin de salaire",    icon: "💶", color: "#666", contentKey: null, category: "Manquants — à créer", missing: true },
+  { id: "miss_ft",        label: "Rapprochement RIS / France Travail",         icon: "📉", color: "#666", contentKey: null, category: "Manquants — à créer", missing: true },
+  { id: "miss_fp",        label: "Rapprochement RIS / fonctionnaire Ircantec", icon: "🏛️", color: "#666", contentKey: null, category: "Manquants — à créer", missing: true },
+  { id: "miss_chomage",   label: "Chômage indemnisé / non indemnisé",          icon: "⚠️", color: "#666", contentKey: null, category: "Manquants — à créer", missing: true },
+  { id: "miss_arret",     label: "Arrêt d'activité",                           icon: "🛑", color: "#666", contentKey: null, category: "Manquants — à créer", missing: true },
+  { id: "miss_tns",       label: "Cotisations minimales TI/TNS",               icon: "📑", color: "#666", contentKey: null, category: "Manquants — à créer", missing: true },
+  { id: "miss_mincontrib",label: "Minimum contributif",                        icon: "🔒", color: "#666", contentKey: null, category: "Manquants — à créer", missing: true },
 ];
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
@@ -945,24 +953,26 @@ export default function SimulatorV6({ mode = "production", id, user }) {
 
       {/* ══ MODAL ÉDITION PROMPT PRÉ-ENTRETIEN EOR ══ */}
       {preentretienModal && (
-        <div onClick={() => !preentretienModal.saving && setPreentretienModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 12, width: "100%", maxWidth: "min(900px, calc(100vw - 32px))", maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 8px 40px rgba(0,0,0,0.3)" }}>
-            <div style={{ padding: "14px 18px", borderBottom: "1px solid #eee", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#E17055" }}>Rapport de génération pré-entretien EOR</div>
-                <div style={{ fontSize: 10, color: "#555", marginTop: 2 }}>Éditeur de prompt — une nouvelle version sera créée à l'enregistrement</div>
-              </div>
-              <button
-                disabled={preentretienModal.saving}
-                onClick={() => setPreentretienModal(null)}
-                style={{ background: "none", border: "none", fontSize: 18, cursor: preentretienModal.saving ? "not-allowed" : "pointer", color: "#555", lineHeight: 1, opacity: preentretienModal.saving ? 0.4 : 1 }}>
-                ✕
-              </button>
+        <Modal
+          isOpen={!!preentretienModal}
+          toggle={() => !preentretienModal.saving && setPreentretienModal(null)}
+          size="xl"
+          backdrop="static"
+        >
+          <ModalHeader toggle={() => !preentretienModal.saving && setPreentretienModal(null)}>
+            Rapport de génération pré-entretien EOR
+            <div style={{ fontSize: 11, color: "#555", marginTop: 4, fontWeight: "normal" }}>
+              Éditeur de prompt — une nouvelle version sera créée à l'enregistrement
             </div>
-            <div style={{ flex: 1, overflowY: "auto", padding: "14px 18px", display: "flex", flexDirection: "column" }}>
-              {preentretienModal.loading ? (
-                <div style={{ padding: 40, textAlign: "center", color: "#555", fontSize: 12 }}>Chargement du prompt…</div>
-              ) : (
+          </ModalHeader>
+          <ModalBody>
+            {preentretienModal.loading ? (
+              <div className="text-center p-4" style={{ color: "#555", fontSize: 12 }}>
+                Chargement du prompt…
+              </div>
+            ) : (
+              <>
+                <label style={{ fontSize: 12, fontWeight: 600 }}>Contenu (Prompt)</label>
                 <textarea
                   value={preentretienModal.text}
                   disabled={preentretienModal.saving}
@@ -970,26 +980,36 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                     const nouvelleValeur = e.target.value;
                     setPreentretienModal((m) => (m ? { ...m, text: nouvelleValeur } : m));
                   }}
-                  style={{ width: "100%", flex: 1, minHeight: 420, padding: 12, borderRadius: 6, border: "1px solid #ddd", fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: 11, lineHeight: 1.6, color: "#333", resize: "vertical", outline: "none" }}
+                  style={{
+                    width: "100%",
+                    minHeight: 400,
+                    fontFamily: "monospace",
+                    fontSize: 12,
+                    padding: 10,
+                    border: "1px solid #ccc",
+                    borderRadius: 4,
+                  }}
                 />
-              )}
-            </div>
-            <div style={{ padding: "12px 18px", borderTop: "1px solid #eee", display: "flex", justifyContent: "flex-end", gap: 8, flexShrink: 0 }}>
-              <button
-                disabled={preentretienModal.saving}
-                onClick={() => setPreentretienModal(null)}
-                style={{ fontSize: 11, padding: "8px 16px", borderRadius: 5, border: "1px solid #ccc", background: "#fff", color: "#666", fontWeight: 600, cursor: preentretienModal.saving ? "not-allowed" : "pointer" }}>
-                Annuler
-              </button>
-              <button
-                disabled={preentretienModal.loading || preentretienModal.saving}
-                onClick={() => savePreentretienPrompt(preentretienModal.text)}
-                style={{ fontSize: 11, padding: "8px 18px", borderRadius: 5, border: "1px solid #28a745", background: preentretienModal.saving ? "#28a74580" : "#28a745", color: "#fff", fontWeight: 700, cursor: preentretienModal.loading || preentretienModal.saving ? "not-allowed" : "pointer" }}>
-                {preentretienModal.saving ? "Enregistrement…" : "Enregistrer"}
-              </button>
-            </div>
-          </div>
-        </div>
+              </>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              color="secondary"
+              onClick={() => setPreentretienModal(null)}
+              disabled={preentretienModal.saving}
+            >
+              Annuler
+            </Button>
+            <Button
+              color="primary"
+              onClick={() => savePreentretienPrompt(preentretienModal.text)}
+              disabled={preentretienModal.loading || preentretienModal.saving}
+            >
+              {preentretienModal.saving ? "Enregistrement…" : "Enregistrer"}
+            </Button>
+          </ModalFooter>
+        </Modal>
       )}
 
       {mode === "production" && (
@@ -2322,6 +2342,24 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               ✏️ Éditer
                             </button>
                             <button disabled title="À implémenter" style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid #00B894", background: "transparent", color: "#00B894", fontWeight: 600, cursor: "not-allowed", opacity: 0.5 }}>🧪 Tester</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Manquants — à créer */}
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#D63031", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6, paddingBottom: 4, borderBottom: "1px solid #D6303120" }}>
+                      ⚠ Manquants — à créer
+                    </div>
+                    <div className="simu-prompts-grid">
+                      {ADMIN_SKILL_PROMPTS.filter(p => p.category === "Manquants — à créer").map((skill) => (
+                        <div key={skill.id} style={{ borderRadius: 7, padding: "9px 11px", background: "#fafafa", border: "1px solid #f0f0f0", borderLeft: "3px solid #ddd", opacity: 0.6 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>
+                            <span style={{ fontSize: 14 }}>{skill.icon}</span>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: "#aaa", flex: 1 }}>{skill.label}</span>
+                            <span style={{ fontSize: 8, padding: "1px 5px", borderRadius: 3, background: "#D6303115", color: "#D63031", fontWeight: 700 }}>À créer</span>
                           </div>
                         </div>
                       ))}
