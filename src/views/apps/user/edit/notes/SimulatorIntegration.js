@@ -498,20 +498,6 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       .catch(() => setAvailableSkills([]));
   }, []);
 
-  // Load career data from frozen_data on mount
-  useEffect(() => {
-    if (!id) return;
-    const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
-    axios.get(`${global.config.server_url}/frozen_data/${id}`, Config)
-      .then(res => {
-        const carriere = res.data?.carriere;
-        if (Array.isArray(carriere) && carriere.length) {
-          applyCarriereData(carriere);
-        }
-      })
-      .catch(() => { /* pas de données = normal */ });
-  }, [id, applyCarriereData]);
-
   // ── Apply career rows from backend data ─────────────────────────────────
   const applyCarriereData = useCallback((carriere) => {
     if (!Array.isArray(carriere) || !carriere.length) return;
@@ -535,6 +521,20 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       return next;
     });
   }, []);
+
+  // Load career data from frozen_data on mount
+  useEffect(() => {
+    if (!id) return;
+    const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+    axios.get(`${global.config.server_url}/frozen_data/${id}`, Config)
+      .then(res => {
+        const carriere = res.data?.carriere;
+        if (Array.isArray(carriere) && carriere.length) {
+          applyCarriereData(carriere);
+        }
+      })
+      .catch(() => { /* pas de données = normal */ });
+  }, [id, applyCarriereData]);
 
   // ── Parse PDF via backend (calls n8n server-side) ────────────────────────
   const parsePdfAndFillCarriere = useCallback(async (file) => {
