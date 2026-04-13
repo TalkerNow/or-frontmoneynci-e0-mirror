@@ -2260,7 +2260,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
                     <span style={{ fontSize: 18 }}>🤖</span>
                     <span style={{ fontSize: 14, fontWeight: 700, color: "#E17055" }}>Prompts IA & Skills N8N</span>
-                    <span style={{ fontSize: 10, color: "#555" }}>— {ADMIN_SKILL_PROMPTS.filter(p => !p.missing).length} fichiers · {ADMIN_SKILL_PROMPTS.filter(p => p.missing).length} manquants</span>
+                    <span style={{ fontSize: 10, color: "#555" }}>— {apiSkills.length} fichiers · {ADMIN_SKILL_PROMPTS.filter(p => p.missing).length} manquants</span>
                   </div>
 
                   {/* Vignette éditable — Rapport pré-entretien EOR (prompt ID 4) */}
@@ -2453,19 +2453,20 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
                     <span style={{ fontSize: 18 }}>🔀</span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: "#D63031" }}>Flux & Architecture V6</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "#D63031" }}>Flux & Architecture</span>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
                     {[
-                      { s: "1", t: "Analyse documents", d: "Rapprochements RIS vs autres sources — 5 actions (caisse, paie, FT, étranger, fonctionnaire)", c: "#6C5CE7" },
-                      { s: "2", t: "Dispositifs", d: "Activer RACL, VPLR, progressive, chômage, cumul, arrêt… (9 dispositifs)", c: "#00B894" },
-                      { s: "3", t: "Dates & Simulations", d: "Dates auto-calculées par l'IA + âge légal, taux plein, 67 ans, date libre", c: "#0984E3" },
-                      { s: "4", t: "Livrables", d: "Rapport consultation (1p), Simulation (1p), Audit (30p)", c: "#D63031" },
+                      { s: "1", t: "Analyse documents", d: "5 rapprochements RIS — caisse, paie, France Travail, étranger, fonctionnaire (Ircantec)", c: "#6C5CE7" },
+                      { s: "2", t: "Carrière", d: "Données carrière validées par le consultant — 5 régimes : CNAV, AGIRC-ARRCO, CIPAV, IRCANTEC, RCI", c: "#E17055" },
+                      { s: "3", t: "Scénarios", d: "9 dispositifs activables : RACL, VPLR (incomplet/études), progressive, cumul, chômage ind./non ind., arrêt, cotisations min.", c: "#00B894" },
+                      { s: "4", t: "Dates & Simulations", d: "4 scénarios : âge légal, taux plein (durée), taux plein auto 67 ans, date(s) libre(s)", c: "#0984E3" },
+                      { s: "5", t: "Livrables", d: "Rapport consultation (~1p), Simulation retraite (~1p), Audit retraite (~30p)", c: "#D63031" },
                     ].map((step, i) => (
                       <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 36 }}>
                           <div style={{ width: 36, height: 36, borderRadius: "50%", background: step.c, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 14, boxShadow: `0 2px 8px ${step.c}30` }}>{step.s}</div>
-                          {i < 3 && <div style={{ width: 2, height: 20, background: step.c, margin: "2px 0", opacity: 0.3 }} />}
+                          {i < 4 && <div style={{ width: 2, height: 20, background: step.c, margin: "2px 0", opacity: 0.3 }} />}
                         </div>
                         <div style={{ background: "#fff", borderRadius: 11, boxShadow: "0 1px 5px rgba(0,0,0,0.05)", padding: "10px 14px", flex: 1 }}>
                           <span style={{ fontWeight: 700, fontSize: 12, color: step.c }}>{step.t}</span>

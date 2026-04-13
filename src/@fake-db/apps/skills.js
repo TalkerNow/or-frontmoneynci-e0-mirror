@@ -84,41 +84,17 @@ mock.onPost(/skill-execute/).reply((config) => {
 mock.onGet(/\/v1\/analysis-reports\/latest\/\d+\/CNAV/).reply(404);
 
 // GET /api/v1/skills → liste des skills disponibles
-mock.onGet(/\/v1\/skills/).reply(200, [
-  {
-    skill_id: 1,
-    code: "CNAV",
-    nom: "CNAV",
-    type: "skill_calcul_regime",
-    description: "Calcul pension de base CNAV via Python",
-    version: "1.0.0",
-    priority: 1,
-  },
-  {
-    skill_id: 2,
-    code: "AGIRC",
-    nom: "AGIRC-ARRCO",
-    type: "skill_calcul_regime",
-    description: "Calcul pension complémentaire AGIRC-ARRCO",
-    version: "1.0.0",
-    priority: 2,
-  },
-  {
-    skill_id: 3,
-    code: "RACL",
-    nom: "RACL",
-    type: "skill_dispositif",
-    description: "Carrière longue — éligibilité et date de départ anticipé",
-    version: "0.1.0",
-    priority: 3,
-  },
-  {
-    skill_id: 4,
-    code: "VPLR",
-    nom: "VPLR",
-    type: "skill_dispositif",
-    description: "Rachat de trimestres — simulation coût et impact",
-    version: "0.1.0",
-    priority: 4,
-  },
+mock.onGet(/\/v1\/skills$/).reply(200, [
+  { id: 1,  skill_id: "SKILL_validation_autocontrole_v1", nom: "Autocontrôle Zéro Erreur",                  code: "AUTOCONTROLE",        version: "1.1", type: "skill_validation",    description: "Validation Gate 1 (données obligatoires) + Gate 2 (cohérence). Architecture fail-safe : impossible d'avancer sans validation complète.", priority: 0 },
+  { id: 2,  skill_id: "SKILL_validation_continuite_v1",   nom: "Validation Continuité de Carrière",         code: "CONTINUITE",          version: "1.0", type: "skill_validation",    description: "Vérifie la continuité chronologique de la carrière, détecte les trous et incohérences.", priority: 0 },
+  { id: 3,  skill_id: "SKILL_normalisation_question_v1",  nom: "Normalisation de Question",                 code: "NORMALISATION",       version: "1.0", type: "skill_preprocessing", description: "Normalise les questions des experts-comptables et clients en requêtes structurées pour le moteur de calcul.", priority: 1 },
+  { id: 4,  skill_id: "SKILL_analyse_releve_v2",          nom: "Analyse de Relevé de Carrière Retraite",    code: "ANALYSE_RELEVE",      version: "2.0", type: "skill_analyse",       description: "Analyse complète du relevé de carrière : détection anomalies, périodes manquantes, régimes concernés.", priority: 2 },
+  { id: 5,  skill_id: "SKILL_calcul_cnav_v1",             nom: "Calcul Pension CNAV",                       code: "CNAV",                version: "1.0", type: "skill_calcul_regime", description: "Calcul pension BRUTE régime général (Sécurité Sociale). SAM, taux de liquidation, coefficient de proratisation.", priority: 3 },
+  { id: 6,  skill_id: "SKILL_complementaires_v1",         nom: "Calcul des Pensions Complémentaires",       code: "COMPLEMENTAIRES",     version: "1.0", type: "skill_calcul_regime", description: "Calcul pensions complémentaires AGIRC-ARRCO, IRCANTEC, RCI. Points, valeur de service, décote/surcote.", priority: 3 },
+  { id: 7,  skill_id: "SKILL_racl_v2",                    nom: "RACL - Retraite Anticipée Carrière Longue", code: "RACL",                version: "2.0", type: "skill_dispositif",    description: "Éligibilité RACL : trimestres avant 16/18/20/21 ans, trimestres réputés cotisés, âge de départ anticipé.", priority: 4 },
+  { id: 8,  skill_id: "SKILL_vplr_v2",                    nom: "VPLR - Versement Pour La Retraite",         code: "VPLR",                version: "2.0", type: "skill_dispositif",    description: "Simulation rachat de trimestres : éligibilité, coût par trimestre (barème âge/option), impact sur pension.", priority: 4 },
+  { id: 9,  skill_id: "SKILL_retraite_progressive_v1",    nom: "Retraite Progressive",                      code: "RETRAITE_PROGRESSIVE",version: "1.0", type: "skill_dispositif",    description: "Éligibilité et simulation retraite progressive : temps partiel, fraction de pension, conditions d'âge et durée.", priority: 4 },
+  { id: 10, skill_id: "SKILL_cumul_emploi_retraite_v1",   nom: "Cumul Emploi Retraite",                     code: "CUMUL_EMPLOI_RETRAITE",version: "1.0", type: "skill_dispositif",   description: "Éligibilité cumul emploi-retraite intégral/plafonné, nouvelles cotisations créatrices de droits.", priority: 4 },
+  { id: 11, skill_id: "SKILL_trimestres_etranger_v1",     nom: "Trimestres Étranger",                       code: "TRIMESTRES_ETRANGER", version: "1.0", type: "skill_dispositif",    description: "Prise en compte des périodes étrangères : UE, conventions bilatérales, hors convention.", priority: 4 },
+  { id: 12, skill_id: "SKILL_reversion_v1",               nom: "Pension de Réversion",                      code: "REVERSION",           version: "1.0", type: "skill_dispositif",    description: "Éligibilité et calcul pension de réversion : conditions d'âge, de ressources, taux de 54%.", priority: 4 },
 ]);
