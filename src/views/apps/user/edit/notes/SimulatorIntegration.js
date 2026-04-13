@@ -498,126 +498,65 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       .catch(() => setAvailableSkills([]));
   }, []);
 
-  // Load career data from RIS OCR sessionStorage (written by the OCR workflow)
+  // Load career data from frozen_data on mount
   useEffect(() => {
     if (!id) return;
-    try {
-      const stored = sessionStorage.getItem(`ris_import_data_${id}`);
-      if (!stored) return;
-      const { risData, timestamp } = JSON.parse(stored);
-      if (!risData || Date.now() - timestamp > 30 * 60 * 1000) return;
-      const careerData = risData.debug_carriere_detaillee_regex || [];
-      if (!careerData.length) return;
-      const careerMap = {};
-      careerData.forEach(entry => { if (entry.annee) careerMap[entry.annee] = entry; });
-      setCarriereRows(prev => prev.map(row => {
-        const entry = careerMap[row.yr];
-        if (!entry) return row;
-        const sal = entry.revenu_brut || 0;
-        const plaf = PLAFONDS_SS[row.yr] || 48060;
-        const coeff = REVALO_CNAV[row.yr] || 1;
-        const revalo = Math.round(Math.min(sal, plaf) * coeff);
-        return { ...row, sal, revalo };
-      }));
-      setRevaloValues(prev => {
-        const next = { ...prev };
-        careerData.forEach(entry => {
-          if (entry.annee && entry.revenu_brut) {
-            const plaf = PLAFONDS_SS[entry.annee] || 48060;
-            const coeff = REVALO_CNAV[entry.annee] || 1;
-            next[entry.annee] = Math.round(Math.min(entry.revenu_brut, plaf) * coeff);
-          }
-        });
-        return next;
-      });
-      const newTrimCot = {};
-      careerData.forEach(entry => {
-        if (entry.annee && entry.trimestres_valides) {
-          newTrimCot[entry.annee] = entry.trimestres_valides;
+    const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+    axios.get(`${global.config.server_url}/frozen_data/${id}`, Config)
+      .then(res => {
+        const carriere = res.data?.carriere;
+        if (Array.isArray(carriere) && carriere.length) {
+          applyCarriereData(carriere);
         }
-      });
-      if (Object.keys(newTrimCot).length) {
-        setTrimCotState(prev => ({ ...prev, ...newTrimCot }));
-      }
-    } catch (e) { /* noop */ }
-  }, [id]);
+      })
+      .catch(() => { /* pas de données = normal */ });
+  }, [id, applyCarriereData]);
 
-  // ── Parse PDF via webhook and fill career table ──
+  // ── Apply career rows from backend data ─────────────────────────────────
+  const applyCarriereData = useCallback((carriere) => {
+    if (!Array.isArray(carriere) || !carriere.length) return;
+    const minYear = Math.min(...carriere.map(r => r.annee));
+    setVisibleRowCount(Math.min(Math.max(20, 2025 - minYear + 1), 51));
+    setCarriereRows(prev => prev.map(row => {
+      const entry = carriere.find(r => r.annee === row.yr);
+      if (!entry) return row;
+      const plaf = PLAFONDS_SS[row.yr] || 48060;
+      const coeff = REVALO_CNAV[row.yr] || 1;
+      const revalo = Math.round(Math.min(entry.sal_eur, plaf) * coeff);
+      return { ...row, sal: entry.sal_original, revalo, devise: entry.devise };
+    }));
+    setRevaloValues(prev => {
+      const next = { ...prev };
+      carriere.forEach(entry => {
+        const plaf = PLAFONDS_SS[entry.annee] || 48060;
+        const coeff = REVALO_CNAV[entry.annee] || 1;
+        next[entry.annee] = Math.round(Math.min(entry.sal_eur, plaf) * coeff);
+      });
+      return next;
+    });
+  }, []);
+
+  // ── Parse PDF via backend (calls n8n server-side) ────────────────────────
   const parsePdfAndFillCarriere = useCallback(async (file) => {
     if (!file) return;
     setIsParsingRIS(true);
     toast.info("Analyse du RIS en cours…");
     try {
       const formData = new FormData();
-      formData.append("file0", file);
-      const response = await axios.post(
-        "https://n8n.srv796541.hstgr.cloud/webhook/parse-pdf-salaire",
-        formData
-      );
-      const risData = Array.isArray(response.data) ? response.data[0] : response.data;
-      const isRIS = risData?.trimestres != null && Array.isArray(risData?.detail_carriere);
-      if (!isRIS) {
-        toast.error("Ce document ne semble pas être un RIS — aucune donnée de carrière détectée");
-        return;
-      }
-      const careerData = risData.detail_carriere;
-      if (!careerData.length) {
-        toast.error("Le RIS ne contient aucune ligne de carrière exploitable");
-        return;
-      }
-      try {
-        sessionStorage.setItem(`ris_import_data_${id}`, JSON.stringify({ risData, timestamp: Date.now() }));
-      } catch { /* noop */ }
-      // Group by year, dedup by (employeur+revenus) to avoid double-counting cross-regime entries
-      const yearMap = {};
-      careerData.forEach(entry => {
-        if (!entry.date_debut || entry.revenus == null) return;
-        const parts = entry.date_debut.split('/');
-        const annee = parseInt(parts[2], 10);
-        if (!annee) return;
-        if (!yearMap[annee]) yearMap[annee] = { entries: new Map(), devise: entry.devise || '€' };
-        // if any entry for this year is in EUR, mark the year as EUR
-        if (entry.devise === '€') yearMap[annee].devise = '€';
-        const key = `${entry.employeur}__${entry.revenus}`;
-        if (!yearMap[annee].entries.has(key)) {
-          const eur = entry.devise === 'FRF' ? Math.round(entry.revenus / 6.55957) : entry.revenus;
-          yearMap[annee].entries.set(key, { original: entry.revenus, eur });
-        }
-      });
-      const minYear = Math.min(...Object.keys(yearMap).map(Number));
-      const neededRows = Math.max(20, 2025 - minYear + 1);
-      setVisibleRowCount(Math.min(neededRows, 51));
-
-      setCarriereRows(prev => prev.map(row => {
-        const bucket = yearMap[row.yr];
-        if (!bucket || bucket.entries.size === 0) return row;
-        const sal = [...bucket.entries.values()].reduce((s, v) => s + v.original, 0);
-        const salEur = [...bucket.entries.values()].reduce((s, v) => s + v.eur, 0);
-        const plaf = PLAFONDS_SS[row.yr] || 48060;
-        const coeff = REVALO_CNAV[row.yr] || 1;
-        const revalo = Math.round(Math.min(salEur, plaf) * coeff);
-        return { ...row, sal, revalo, devise: bucket.devise };
-      }));
-      setRevaloValues(prev => {
-        const next = { ...prev };
-        Object.entries(yearMap).forEach(([yr, bucket]) => {
-          const annee = parseInt(yr, 10);
-          if (!bucket.entries.size) return;
-          const salEur = [...bucket.entries.values()].reduce((s, v) => s + v.eur, 0);
-          const plaf = PLAFONDS_SS[annee] || 48060;
-          const coeff = REVALO_CNAV[annee] || 1;
-          next[annee] = Math.round(Math.min(salEur, plaf) * coeff);
-        });
-        return next;
-      });
+      formData.append("file", file);
+      formData.append("user_id", id);
+      const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+      const response = await axios.post(`${global.config.server_url}/parse-ris`, formData, Config);
+      applyCarriereData(response.data?.carriere);
       toast.success("Tableau carrière rempli");
     } catch (e) {
+      const msg = e?.response?.data?.message;
       console.error("[parsePdfAndFillCarriere] erreur:", e?.response?.data || e?.message || e);
-      toast.error("Erreur lors de l'analyse du RIS");
+      toast.error(msg || "Erreur lors de l'analyse du RIS");
     } finally {
       setIsParsingRIS(false);
     }
-  }, [id]);
+  }, [id, applyCarriereData]);
 
   // ── Select document from list (for analysis report — no RIS parsing) ──
   const handleSelectDocument = useCallback(async (doc) => {
