@@ -315,11 +315,10 @@ const ADMIN_SKILL_PROMPTS = [
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 
 function _buildDefaultCarriereRows() {
-  return Array.from({ length: 51 }, (_, i) => {
-    const yr = 2025 - i;
-    const ss = PLAFONDS_SS[yr] || 48060;
+  return Array.from({ length: 52 }, (_, i) => {
+    const yr = 2026 - i;
     const coeff = REVALO_CNAV[yr] || 1;
-    return { yr, sal: 0, ss, coeff: coeff.toFixed(3), revalo: 0, trim: 0, ar: 0, total: 0, agircPts: 0, ircPts: 0, rciPts: 0 };
+    return { yr, sal: 0, ss: 0, coeff: coeff.toFixed(3), revalo: 0, trim: 0, ar: 0, total: 0, agircPts: 0, ircPts: 0, rciPts: 0 };
   });
 }
 
@@ -400,14 +399,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   const [reportText, setReportText] = useState("");
   const [revaloValues, setRevaloValues] = useState(() => {
     const init = {};
-    Array.from({ length: 51 }, (_, i) => {
-      const yr = 2025 - i;
-      const sal = Math.round(15000 + i * 1800);
-      const coeff = REVALO_CNAV[yr] || 1;
-      const revalo = Math.round(sal * coeff);
-      const plafond = PLAFONDS_SS[yr] || 48060;
-      init[yr] = yr >= 2005 ? Math.min(revalo, plafond) : revalo;
-    });
+    Array.from({ length: 52 }, (_, i) => { init[2026 - i] = 0; });
     return init;
   });
   const [deplafValues, setDeplafValues] = useState({});
@@ -422,12 +414,12 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   const [carriereRows, setCarriereRows] = useState(_buildDefaultCarriereRows);
   const [trimCotState, setTrimCotState] = useState(() => {
     const init = {};
-    Array.from({ length: 51 }, (_, i) => { init[2025 - i] = 0; });
+    Array.from({ length: 52 }, (_, i) => { init[2026 - i] = 0; });
     return init;
   });
   const [trimAssState, setTrimAssState] = useState(() => {
     const init = {};
-    Array.from({ length: 51 }, (_, i) => { init[2025 - i] = 0; });
+    Array.from({ length: 52 }, (_, i) => { init[2026 - i] = 0; });
     return init;
   });
   const [frozenLoading, setFrozenLoading] = useState(false);
@@ -516,14 +508,15 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   const applyCarriereData = useCallback((carriere) => {
     if (!Array.isArray(carriere) || !carriere.length) return;
     const minYear = Math.min(...carriere.map(r => r.annee));
-    setVisibleRowCount(Math.min(Math.max(20, 2025 - minYear + 1), 51));
+    setVisibleRowCount(Math.min(Math.max(20, 2026 - minYear + 1), 52));
     setCarriereRows(prev => prev.map(row => {
       const entry = carriere.find(r => r.annee === row.yr);
       if (!entry) return row;
       const plaf = PLAFONDS_SS[row.yr] || 48060;
       const coeff = REVALO_CNAV[row.yr] || 1;
       const revalo = Math.round(Math.min(entry.sal_eur, plaf) * coeff);
-      return { ...row, sal: entry.sal_original, revalo, devise: entry.devise };
+      const ss = Math.min(entry.sal_eur, plaf);
+      return { ...row, sal: entry.sal_original, ss, revalo, devise: entry.devise };
     }));
     setRevaloValues(prev => {
       const next = { ...prev };
@@ -1307,7 +1300,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                         )}
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "right", borderLeft: "2px solid #6C5CE715" }}>
-                                        <input type="number" value={row.ss} disabled={carriereValidee}
+                                        <input type="number" value={row.ss || ""} disabled={carriereValidee}
                                           onChange={(e) => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, ss: parseInt(e.target.value) || 0 } : r))}
                                           style={{ width: 62, textAlign: "right", border: "1px solid #6C5CE730", borderRadius: 3, fontSize: 10, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff", color: "#555" }} />
                                       </td>
@@ -1315,7 +1308,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       <td style={{ padding: "3px 5px", textAlign: "right", fontWeight: 700, color: "#6C5CE7" }}>
                                         <input
                                           type="number"
-                                          value={revaloVal}
+                                          value={revaloVal || ""}
                                           disabled={carriereValidee}
                                           onChange={(e) => handleRevaloChange(row.yr, e.target.value, deplafValues[row.yr])}
                                           style={{ width: 68, textAlign: "right", border: `1px solid ${isPlafonne ? "#E17055" : "#6C5CE730"}`, borderRadius: 3, fontSize: 10, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff", color: "#6C5CE7", fontWeight: 700 }}
@@ -1376,8 +1369,8 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 })}
                                 <tr>
                                   <td colSpan={16} style={{ padding: "4px 8px" }}>
-                                    <button style={{ fontSize: 9, padding: "3px 10px", borderRadius: 5, border: "1px dashed #bbb", background: "transparent", color: "#555", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
-                                      <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> Ajouter une année (1984…)
+                                    <button onClick={() => setVisibleRowCount(v => Math.min(v + 1, 52))} style={{ fontSize: 9, padding: "3px 10px", borderRadius: 5, border: "1px dashed #bbb", background: "transparent", color: "#555", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                                      <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> Ajouter une année ({carriereRows[visibleRowCount] ? carriereRows[visibleRowCount].yr : "—"})
                                     </button>
                                   </td>
                                 </tr>
@@ -1407,8 +1400,8 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       </>
                                     );
                                   })()}
-                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#00B894", borderLeft: "2px solid #00B89415" }}>1 240</td>
-                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#E17055", borderLeft: "2px solid #E1705515" }}>620</td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#00B894", borderLeft: "2px solid #00B89415", fontWeight: 700 }}>{carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (r.ircPts || 0), 0) || "—"}</td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#E17055", borderLeft: "2px solid #E1705515", fontWeight: 700 }}>{carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (r.rciPts || 0), 0) || "—"}</td>
                                   {cnavplOpen ? (
                                     <>
                                       <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#9B59B6", borderLeft: "2px solid #9B59B630", fontWeight: 700, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>—</td>
