@@ -1306,7 +1306,11 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                           <span style={{ display: "block", fontSize: 8, color: "#E17055", fontWeight: 700, textAlign: "center", marginTop: 1 }}>FRF</span>
                                         )}
                                       </td>
-                                      <td style={{ padding: "3px 5px", textAlign: "right", color: "#555", borderLeft: "2px solid #6C5CE715" }}>{row.ss.toLocaleString("fr-FR")}</td>
+                                      <td style={{ padding: "3px 5px", textAlign: "right", borderLeft: "2px solid #6C5CE715" }}>
+                                        <input type="number" value={row.ss} disabled={carriereValidee}
+                                          onChange={(e) => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, ss: parseInt(e.target.value) || 0 } : r))}
+                                          style={{ width: 62, textAlign: "right", border: "1px solid #6C5CE730", borderRadius: 3, fontSize: 10, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff", color: "#555" }} />
+                                      </td>
                                       <td style={{ padding: "3px 5px", textAlign: "right", color: "#0984E3", fontWeight: 600 }}>{row.coeff}</td>
                                       <td style={{ padding: "3px 5px", textAlign: "right", fontWeight: 700, color: "#6C5CE7" }}>
                                         <input
@@ -1355,13 +1359,13 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       {cnavplOpen ? (
                                         <>
                                           <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #9B59B630", animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>
-                                            <input type="number" defaultValue="" disabled={carriereValidee} placeholder="—" style={{ width: 52, textAlign: "center", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 10, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 600 }} />
+                                            <input type="number" defaultValue="" disabled={carriereValidee} style={{ width: 52, textAlign: "center", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 10, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 600 }} />
                                           </td>
                                           <td style={{ padding: "3px 5px", textAlign: "center", animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>
-                                            <input type="number" defaultValue="" disabled={carriereValidee} placeholder="—" style={{ width: 52, textAlign: "center", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 10, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 600 }} />
+                                            <input type="number" defaultValue="" disabled={carriereValidee} style={{ width: 52, textAlign: "center", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 10, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 600 }} />
                                           </td>
                                           <td style={{ padding: "3px 5px", textAlign: "center", animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>
-                                            <input type="number" defaultValue="" disabled={carriereValidee} placeholder="—" style={{ width: 40, textAlign: "center", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 10, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 700 }} />
+                                            <input type="number" defaultValue="" disabled={carriereValidee} style={{ width: 40, textAlign: "center", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 10, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 700 }} />
                                           </td>
                                         </>
                                       ) : (
@@ -1504,7 +1508,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                                     <td style={{ padding: "4px 8px", fontWeight: 700, color: "#333" }}>{yr}</td>
                                                     {reg.cols.map(c => (
                                                       <td key={c} style={{ padding: "4px 8px", textAlign: "right" }}>
-                                                        <input type="number" defaultValue="" disabled={carriereValidee} placeholder="—"
+                                                        <input type="number" defaultValue="" disabled={carriereValidee}
                                                           style={{ width: 70, textAlign: "right", border: `1px solid ${reg.color}30`, borderRadius: 3, fontSize: 10, padding: "1px 4px", color: reg.color, fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                                       </td>
                                                     ))}
