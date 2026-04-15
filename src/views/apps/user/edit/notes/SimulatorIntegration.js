@@ -1327,7 +1327,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       <td style={{ padding: "3px 5px", fontWeight: 700, color: "#333" }}>{row.yr}</td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "1px solid #eee" }}>
                                         <input type="number" value={row.sal || ""} disabled={carriereValidee}
-                                          onChange={(e) => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, sal: parseInt(e.target.value) || 0 } : r))}
+                                          onChange={(e) => { const v = parseInt(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, sal: v } : r)); }}
                                           style={{ width: 62, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 10, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff" }} />
                                         {row.devise === 'FRF' && (
                                           <span style={{ display: "block", fontSize: 8, color: "#E17055", fontWeight: 700, textAlign: "center", marginTop: 1 }}>FRF</span>
@@ -1335,7 +1335,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "right", borderLeft: "2px solid #6C5CE715" }}>
                                         <input type="number" value={row.ss || ""} disabled={carriereValidee}
-                                          onChange={(e) => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, ss: parseInt(e.target.value) || 0 } : r))}
+                                          onChange={(e) => { const v = parseInt(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, ss: v } : r)); }}
                                           style={{ width: 62, textAlign: "right", border: "1px solid #6C5CE730", borderRadius: 3, fontSize: 10, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff", color: "#555" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "right", color: "#0984E3", fontWeight: 600 }}>{row.coeff}</td>
@@ -1366,12 +1366,12 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
                                         <input type="number" value={trimCotState[row.yr] ?? 0} disabled={carriereValidee}
-                                          onChange={(e) => setTrimCotState(prev => ({ ...prev, [row.yr]: parseInt(e.target.value) || 0 }))}
+                                          onChange={(e) => { const v = parseInt(e.target.value) || 0; setTrimCotState(prev => ({ ...prev, [row.yr]: v })); }}
                                           style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 10, padding: "1px" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
                                         <input type="number" value={trimAssState[row.yr] ?? 0} disabled={carriereValidee}
-                                          onChange={(e) => setTrimAssState(prev => ({ ...prev, [row.yr]: parseInt(e.target.value) || 0 }))}
+                                          onChange={(e) => { const v = parseInt(e.target.value) || 0; setTrimAssState(prev => ({ ...prev, [row.yr]: v })); }}
                                           title="Trimestres assimilés (maladie, chômage, maternité…)" style={{ width: 26, textAlign: "center", border: "1px solid #6C5CE730", borderRadius: 3, fontSize: 10, padding: "1px", color: "#6C5CE7" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
