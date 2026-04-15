@@ -882,6 +882,8 @@
 
 /* ===== Simulator Responsive ===== */
 
+/* ── Base layout ────────────────────────────────────────────── */
+
 /* Simulator workflow grid: sidebar + content */
 .simu-workflow-grid {
   display: grid;
@@ -889,9 +891,30 @@
   gap: 14px;
   margin-bottom: 16px;
   transition: grid-template-columns 0.2s;
+  min-width: 0;
+  width: 100%;
 }
 .simu-workflow-grid.nav-collapsed {
   grid-template-columns: 36px 1fr;
+}
+
+/* Ensure both children never overflow their grid cell */
+.simu-workflow-grid > * {
+  min-width: 0;
+}
+
+/* Nav column */
+.simu-nav-col {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+/* Content card */
+.simu-content-card {
+  min-width: 0;
+  overflow: hidden;
 }
 
 /* Admin mode sidebar + content */
@@ -899,6 +922,11 @@
   display: grid;
   grid-template-columns: 200px 1fr;
   gap: 14px;
+  min-width: 0;
+  width: 100%;
+}
+.simu-admin-grid > * {
+  min-width: 0;
 }
 
 /* CNAV split view */
@@ -954,11 +982,28 @@
   flex-wrap: wrap;
 }
 
-/* Table wrappers for horizontal scroll */
+/* Bottom simulator mode tabs (Production Client / Admin) */
+.simu-mode-tabs {
+  display: flex;
+  gap: 0;
+  width: 100%;
+}
+.simu-mode-tabs button {
+  flex: 1;
+  padding: 12px 20px;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 13px;
+  transition: all 0.15s ease;
+}
+
+/* ── Table wrappers for horizontal scroll ───────────────────── */
 .simu-table-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   width: 100%;
+  max-width: 100%;
   position: relative;
 }
 .simu-table-wrap::-webkit-scrollbar {
@@ -976,11 +1021,10 @@
   background: #94a3b8;
 }
 
-/* ===== Carrière 5 régimes table responsive ===== */
-
 /* Base table inside simu-table-wrap */
 .simu-table-wrap table {
   min-width: 720px;
+  table-layout: auto;
 }
 
 /* Scroll hint gradient overlay */
@@ -989,7 +1033,7 @@
   position: absolute;
   top: 0;
   right: 0;
-  bottom: 6px; /* above scrollbar */
+  bottom: 6px;
   width: 32px;
   pointer-events: none;
   background: linear-gradient(to right, rgba(255,255,255,0), rgba(255,255,255,0.85) 70%);
@@ -1021,7 +1065,9 @@
   background: #f0f0f0;
 }
 
-/* Tablet adjustments */
+/* ── Breakpoints ────────────────────────────────────────────── */
+
+/* Large tablet (≤1200px): tighten table */
 @media (max-width: 1200px) {
   .simu-table-wrap table {
     font-size: 9px;
@@ -1037,84 +1083,48 @@
   }
 }
 
-/* Small tablet / large mobile */
+/* Tablet (≤992px): stack workflow grid, nav becomes horizontal tab strip */
 @media (max-width: 992px) {
-  .simu-table-wrap table {
-    min-width: 680px;
-    font-size: 9px;
-  }
-  .simu-table-wrap table th,
-  .simu-table-wrap table td {
-    padding: 2px 3px;
-  }
-  .simu-table-wrap table input[type="number"] {
-    width: 50px;
-    font-size: 9px;
-  }
-}
-
-/* Mobile */
-@media (max-width: 768px) {
-  .simu-table-wrap table {
-    min-width: 620px;
-    font-size: 8.5px;
-  }
-  .simu-table-wrap table thead th {
-    padding: 2px 3px;
-    font-size: 8px;
-  }
-  .simu-table-wrap table td {
-    padding: 2px 2px;
-  }
-  .simu-table-wrap table input[type="number"] {
-    width: 44px;
-    font-size: 8px;
-    padding: 1px 2px;
-  }
-  /* Scroll hint more visible on mobile */
-  .simu-table-wrap.has-scroll::after {
-    width: 24px;
-  }
-}
-
-/* Small mobile */
-@media (max-width: 480px) {
-  .simu-table-wrap table {
-    min-width: 560px;
-    font-size: 8px;
-  }
-  .simu-table-wrap table thead th {
-    font-size: 7.5px;
-    padding: 2px 2px;
-  }
-  .simu-table-wrap table input[type="number"] {
-    width: 38px;
-    font-size: 7.5px;
-  }
-}
-
-/* Bottom simulator mode tabs (Production Client / Admin) */
-.simu-mode-tabs {
-  display: flex;
-  gap: 0;
-  width: 100%;
-}
-.simu-mode-tabs button {
-  flex: 1;
-  padding: 12px 20px;
-  border: none;
-  cursor: pointer;
-  font-weight: 700;
-  font-size: 13px;
-  transition: all 0.15s ease;
-}
-
-/* Tablet: stack workflow grid */
-@media (max-width: 992px) {
+  /* Stack main grid */
   .simu-workflow-grid,
   .simu-workflow-grid.nav-collapsed {
     grid-template-columns: 1fr;
+    gap: 8px;
   }
+
+  /* Nav: flip from vertical column → horizontal scrollable strip */
+  .simu-nav-col {
+    flex-direction: row !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+    gap: 4px !important;
+    align-items: stretch;
+  }
+  .simu-nav-col::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide "Flux de travail" header label + collapse button in horizontal mode */
+  .simu-nav-col > div:first-child {
+    display: none !important;
+  }
+
+  /* Each nav button: compact horizontal pill */
+  .simu-nav-col > button {
+    flex-shrink: 0;
+    padding: 8px 12px !important;
+    white-space: nowrap;
+    min-width: auto;
+  }
+
+  /* Content card: remove inline maxWidth constraint */
+  .simu-content-card {
+    max-width: 100% !important;
+  }
+
+  /* Other grids */
   .simu-admin-grid {
     grid-template-columns: 1fr;
   }
@@ -1130,9 +1140,23 @@
   .simu-auto-results-strip {
     flex-direction: column;
   }
+
+  /* Table */
+  .simu-table-wrap table {
+    min-width: 680px;
+    font-size: 9px;
+  }
+  .simu-table-wrap table th,
+  .simu-table-wrap table td {
+    padding: 2px 3px;
+  }
+  .simu-table-wrap table input[type="number"] {
+    width: 50px;
+    font-size: 9px;
+  }
 }
 
-/* Mobile: stack all grids to single column */
+/* Mobile (≤768px) */
 @media (max-width: 768px) {
   .simu-action-grid {
     grid-template-columns: 1fr;
@@ -1143,6 +1167,59 @@
   .simu-mode-tabs button {
     padding: 10px 12px;
     font-size: 12px;
+  }
+
+  /* Table */
+  .simu-table-wrap table {
+    min-width: 600px;
+    font-size: 8.5px;
+  }
+  .simu-table-wrap table thead th {
+    padding: 2px 3px;
+    font-size: 8px;
+  }
+  .simu-table-wrap table td {
+    padding: 2px 2px;
+  }
+  .simu-table-wrap table input[type="number"] {
+    width: 44px;
+    font-size: 8px;
+    padding: 1px 2px;
+  }
+  .simu-table-wrap.has-scroll::after {
+    width: 20px;
+  }
+
+  /* Content card padding */
+  .simu-content-card {
+    padding: 10px !important;
+  }
+}
+
+/* Small mobile (≤480px) */
+@media (max-width: 480px) {
+  .simu-table-wrap table {
+    min-width: 540px;
+    font-size: 8px;
+  }
+  .simu-table-wrap table thead th {
+    font-size: 7.5px;
+    padding: 2px 2px;
+  }
+  .simu-table-wrap table input[type="number"] {
+    width: 36px;
+    font-size: 7.5px;
+  }
+
+  .simu-estimation-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* Nav pills even more compact */
+  .simu-nav-col > button {
+    padding: 6px 10px !important;
+    font-size: 10px;
   }
 }
 

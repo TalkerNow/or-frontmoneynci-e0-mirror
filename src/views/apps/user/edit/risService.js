@@ -7,6 +7,7 @@ const N8N_BASE = "https://n8n.srv796541.hstgr.cloud/webhook";
 
 export const WEBHOOKS = {
   PARSE_RIS: RIS_WEBHOOK_URL,
+  PARSE_RIS_V6: `${N8N_BASE}/ris-extraction-v6`,
   CALCULATE: `${N8N_BASE}/production-validated-calculate`,
   SKILL_EXECUTE: `${N8N_BASE}/skill-execute`,
 };
@@ -26,6 +27,25 @@ export async function fetchRISAnalysis(file, message, clientId) {
 
   const response = await axios.post(RIS_WEBHOOK_URL, formData, {
     headers: { "Content-Type": "multipart/form-data" },
+  });
+
+  const data = response.data;
+  return Array.isArray(data) ? data[0] : data;
+}
+
+/**
+ * Envoie un PDF RIS au webhook n8n v6 (SimulatorV6 compatible).
+ * Retourne : { profil, carriere_synthese, droits_synthese, debug_carriere_detaillee_regex, detail_annuel, alertes_detection }
+ * @param {File} file - Le fichier PDF RIS
+ * @returns {Promise<object>}
+ */
+export async function fetchRISAnalysisV6(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await axios.post(WEBHOOKS.PARSE_RIS_V6, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+    timeout: 300000, // 5 min — Gemini + extraction PDF peut prendre du temps
   });
 
   const data = response.data;
