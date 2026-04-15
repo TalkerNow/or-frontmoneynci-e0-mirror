@@ -88,14 +88,6 @@ const ACTION_PANELS = {
   },
 };
 
-// Rapprochement actions (cross-check RIS vs other documents)
-const RAPPROCHEMENT_ACTIONS = [
-  { id: "ris_vs_autre_caisse", label: "Rapprochement RIS relevé autre caisse ou régime", icon: "🏢", requires: ["ris"], desc: "Cohérence trimestres inter-régimes" },
-  { id: "ris_vs_paie", label: "Rapprochement RIS Bulletin de salaire", icon: "💰", requires: ["ris", "fiche_paie"], desc: "Écarts salariaux, recalcul SAM" },
-  { id: "ris_vs_ft", label: "Rapprochement RIS doc France Travail (chômage)", icon: "📄", requires: ["ris", "pole_emploi"], desc: "Trimestres assimilés chômage" },
-  { id: "ris_vs_etranger", label: "Rapprochement RIS carrière documents étranger", icon: "🌍", requires: ["ris", "releve_etranger"], desc: "Totalisation, conventions bilatérales" },
-  { id: "ris_vs_fp", label: "Rapprochement RIS période(s) fonctionnaire", icon: "🏛️", requires: ["ris", "ircantec"], desc: "Fonction publique contractuelle, Ircantec" },
-];
 
 // Auto-results that appear automatically in bilans (not buttons)
 const AUTO_RESULTS = [
@@ -526,7 +518,9 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       const salOriginal = entry.sal_original ?? entry.salaire_brut ?? 0;
       const plaf = PLAFONDS_SS[row.yr] || 48060;
       const coeff = REVALO_CNAV[row.yr] || 1;
-      const revalo = entry.salaire_revalo ?? Math.round(Math.min(salEur, plaf) * coeff);
+      const calculatedRevalo = Math.round(Math.min(salEur, plaf) * coeff);
+      let uncappedRevalo = entry.salaire_revalo ?? calculatedRevalo;
+      const revalo = Math.min(uncappedRevalo, plaf);
       const ss = Math.min(salEur, plaf);
       return { ...row, sal: salOriginal, ss, revalo, devise: entry.devise || '€' };
     }));
@@ -536,7 +530,9 @@ export default function SimulatorV6({ mode = "production", id, user }) {
         const salEur = entry.sal_eur ?? entry.salaire_brut ?? 0;
         const plaf = PLAFONDS_SS[entry.annee] || 48060;
         const coeff = REVALO_CNAV[entry.annee] || 1;
-        next[entry.annee] = entry.salaire_revalo ?? Math.round(Math.min(salEur, plaf) * coeff);
+        const calculatedRevalo = Math.round(Math.min(salEur, plaf) * coeff);
+        let uncappedRevalo = entry.salaire_revalo ?? calculatedRevalo;
+        next[entry.annee] = Math.min(uncappedRevalo, plaf);
       });
       return next;
     });
@@ -599,29 +595,58 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       if (payload.carriere_synthese) setRisCarriereSynthese(payload.carriere_synthese);
 
       // ── CNAV PL : revenus CIPAV par année ────────────────────────────────
-      const cipavEntries = Array.isArray(payload.detail_annuel)
-        ? payload.detail_annuel.filter(e => (e.regimes_concernes || "").includes("CIPAV"))
-        : [];
+      const detail_annuel = Array.isArray(payload.detail_annuel) ? payload.detail_annuel : [];
+      const cipavEntries = detail_annuel.filter(e => (e.regimes_concernes || "").toLowerCase().includes("cipav"));
       if (cipavEntries.length) {
         const revenuMap = {};
-        cipavEntries.forEach(({ annee, revenus }) => {
+        cipavEntries.forEach(({ annee, revenus, points_acquis }) => {
           const yr = parseInt(annee, 10);
-          if (!yr || !revenus) return;
-          const sum = revenus.replace(/[€\s]/g, "").split("+")
-            .reduce((s, p) => s + (parseFloat(p.replace(",", ".")) || 0), 0);
-          if (sum > 0) revenuMap[yr] = Math.round(sum).toString();
+          if (!yr) return;
+          if (revenus) {
+            const sum = revenus.replace(/[€\s]/g, "").split("+")
+              .reduce((s, p) => s + (parseFloat(p.replace(",", ".")) || 0), 0);
+            if (sum > 0) revenuMap[yr] = { revenus: Math.round(sum).toString(), points: parseFloat(points_acquis) || "" };
+          }
         });
         if (Object.keys(revenuMap).length) {
+          setCnavplOpen(true); // auto-ouvrir la colonne CIPAV
           setCnavplRows(prev => {
             const next = { ...prev };
-            Object.entries(revenuMap).forEach(([yr, val]) => {
+            Object.entries(revenuMap).forEach(([yr, vals]) => {
               const y = parseInt(yr, 10);
-              if (next[y]) next[y] = { ...next[y], revenus: val };
-              else next[y] = { revenus: val, revCnavpl: "", points: "" };
+              if (next[y]) next[y] = { ...next[y], revenus: vals.revenus, points: vals.points || next[y].points };
+              else next[y] = { revenus: vals.revenus, revCnavpl: "", points: vals.points || "" };
             });
             return next;
           });
         }
+      }
+
+      // ── Points par régime : AGIRC-ARRCO, Ircantec, RCI ──────────────────
+      const agircPtsMap = {};
+      const ircPtsMap = {};
+      const rciPtsMap = {};
+      detail_annuel.forEach((entry) => {
+        const regime = (entry.regimes_concernes || "").toLowerCase();
+        const yr = parseInt(entry.annee, 10);
+        const pts = parseFloat(entry.points_acquis) || 0;
+        if (!yr || !pts) return;
+        if (regime.includes("agirc") || regime.includes("arrco")) {
+          agircPtsMap[yr] = (agircPtsMap[yr] || 0) + pts;
+        } else if (regime.includes("ircantec")) {
+          ircPtsMap[yr] = (ircPtsMap[yr] || 0) + pts;
+        } else if (regime.includes("rci") || regime.includes("ssi")) {
+          rciPtsMap[yr] = (rciPtsMap[yr] || 0) + pts;
+        }
+      });
+      if (Object.keys(agircPtsMap).length || Object.keys(ircPtsMap).length || Object.keys(rciPtsMap).length) {
+        setCarriereRows(prev => prev.map(row => {
+          const updates = {};
+          if (agircPtsMap[row.yr] != null) updates.agircPts = agircPtsMap[row.yr];
+          if (ircPtsMap[row.yr] != null) updates.ircPts = ircPtsMap[row.yr];
+          if (rciPtsMap[row.yr] != null) updates.rciPts = rciPtsMap[row.yr];
+          return Object.keys(updates).length ? { ...row, ...updates } : row;
+        }));
       }
 
       // ── 1. Sal. brut / Sal. SS / Revalo (CNAV) ──────────────────────────
@@ -636,10 +661,9 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       applyCarriereData(carriere);
 
       // ── 2. Trimestres cotisés / assimilés ───────────────────────────────
-      const detail = Array.isArray(payload.detail_annuel) ? payload.detail_annuel : [];
       const newTrimCot = {};
       const newTrimAss = {};
-      detail.forEach(({ annee, trimestres_retenus, nature }) => {
+      detail_annuel.forEach(({ annee, trimestres_retenus, nature }) => {
         const yr = parseInt(annee, 10);
         const t = parseInt(trimestres_retenus, 10) || 0;
         if (!yr) return;
@@ -1397,9 +1421,9 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                   <th colSpan={1} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#00B894", background: "#00B89408", borderLeft: "2px solid #00B89430", borderBottom: "1px solid #00B89420" }}>🏢 Ircantec</th>
                                   <th colSpan={1} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#E17055", background: "#E1705508", borderLeft: "2px solid #E1705530", borderBottom: "1px solid #E1705520" }}>📑 RCI</th>
                                   <th colSpan={cnavplOpen ? 3 : 1} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#9B59B6", background: cnavplOpen ? "#9B59B608" : "#f8f8f8", borderLeft: "2px solid #9B59B630", borderBottom: "1px solid #9B59B620", whiteSpace: "nowrap" }}>
-                                    <button onClick={toggleCnavpl} title="CNAV PL — Libéral" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 10, color: "#9B59B6", padding: 0, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                                    <button onClick={toggleCnavpl} title="CIPAV — Libéral" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 10, color: "#9B59B6", padding: 0, display: "inline-flex", alignItems: "center", gap: 3 }}>
                                       <span style={{ display: "inline-block", transform: cnavplOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s", fontSize: 9 }}>▶</span>
-                                      {cnavplOpen && <span style={{ fontSize: 9, fontWeight: 700 }}>🏥 CNAV PL</span>}
+                                      {cnavplOpen && <span style={{ fontSize: 9, fontWeight: 700 }}>🏥 CIPAV</span>}
                                     </button>
                                   </th>
                                 </tr>
@@ -1414,7 +1438,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                   <th style={{ padding: "3px 5px", textAlign: "center", fontWeight: 600, color: "#E17055", borderBottom: "2px solid #E1705520", borderLeft: "2px solid #E1705530" }}>Points</th>
                                   {cnavplOpen ? (
                                     <>
-                                      {["Revenus", "Rev. CNAV PL", "Points"].map((h, i) => (
+                                      {["Revenus", "Rev. CIPAV", "Points"].map((h, i) => (
                                         <th key={h} style={{ padding: "3px 5px", textAlign: "center", fontWeight: 600, color: "#9B59B6", borderBottom: "2px solid #9B59B620", borderLeft: i === 0 ? "2px solid #9B59B630" : undefined, whiteSpace: "nowrap", animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>{h}</th>
                                       ))}
                                     </>
@@ -1429,7 +1453,10 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                   const ptT2 = i < 20 ? Math.round(row.agircPts * 0.38) : 0;
                                   const ptSum = ptT1 + ptT2;
                                   const tot = row.trim + row.ar;
-                                  const revaloVal = revaloValues[row.yr] ?? row.revalo;
+                                  let revaloVal = revaloValues[row.yr] ?? row.revalo;
+                                  if (revaloVal > getPlafond(row.yr) && (row.yr >= 2005 || !deplafValues[row.yr])) {
+                                    revaloVal = getPlafond(row.yr);
+                                  }
                                   const isPlafonne = revaloVal >= getPlafond(row.yr) && (row.yr >= 2005 || !deplafValues[row.yr]);
                                   return (
                                     <tr key={row.yr} style={{ background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
@@ -1462,16 +1489,12 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                         </span>
                                       </td>
                                       <td style={{ padding: "2px 3px", textAlign: "center", width: 28 }}>
-                                        {row.yr <= 2004 ? (
-                                          <input type="checkbox"
-                                            checked={deplafValues[row.yr] || false}
-                                            disabled={carriereValidee}
-                                            onChange={(e) => handleDeplafChange(row.yr, e.target.checked)}
-                                            title="Déplafonner : salaire enregistré au-dessus du plafond SS"
-                                            style={{ cursor: carriereValidee ? "default" : "pointer", accentColor: "#6C5CE7", width: 12, height: 12 }} />
-                                        ) : (
-                                          <span style={{ fontSize: 9, color: "#ddd" }}>—</span>
-                                        )}
+                                        <input type="checkbox"
+                                          checked={deplafValues[row.yr] || false}
+                                          disabled={carriereValidee}
+                                          onChange={(e) => handleDeplafChange(row.yr, e.target.checked)}
+                                          title="Déplafonner : salaire enregistré au-dessus du plafond SS"
+                                          style={{ cursor: carriereValidee ? "default" : "pointer", accentColor: "#6C5CE7", width: 12, height: 12 }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
                                         <input type="number" value={trimCotState[row.yr] ?? 0} disabled={carriereValidee}
@@ -1487,21 +1510,31 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                         <input type="number" defaultValue={row.ar} disabled={carriereValidee} style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 10, padding: "1px" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", fontWeight: 700, color: "#6C5CE7" }}>{tot}</td>
-                                      <td style={{ padding: "3px 5px", textAlign: "center", color: "#0984E3", fontWeight: 600, borderLeft: "2px solid #0984E315" }}>{ptT1 || <span style={{ color: "#ddd" }}>—</span>}</td>
-                                      <td style={{ padding: "3px 5px", textAlign: "center", color: "#0984E3", fontWeight: 600 }}>{ptT2 || <span style={{ color: "#ddd" }}>—</span>}</td>
-                                      <td style={{ padding: "3px 5px", textAlign: "center", fontWeight: 800, color: ptSum ? "#1a1a2e" : "#ddd" }}>{ptSum || "—"}</td>
-                                      <td style={{ padding: "3px 5px", textAlign: "center", color: "#00B894", fontWeight: 600, borderLeft: "2px solid #00B89415" }}>{row.ircPts > 0 ? row.ircPts : <span style={{ color: "#ddd" }}>—</span>}</td>
-                                      <td style={{ padding: "3px 5px", textAlign: "center", color: "#E17055", fontWeight: 600, borderLeft: "2px solid #E1705515" }}>{row.rciPts > 0 ? row.rciPts : <span style={{ color: "#ddd" }}>—</span>}</td>
+                                      <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #0984E315" }}>
+                                        <input type="number" value={row.agircT1 ?? (ptT1 || "")} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircT1: parseFloat(e.target.value) || 0 } : r))} style={{ width: 40, textAlign: "center", border: "1px solid #0984E330", borderRadius: 3, fontSize: 10, padding: "1px 2px", color: "#0984E3", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                      </td>
+                                      <td style={{ padding: "3px 5px", textAlign: "center" }}>
+                                        <input type="number" value={row.agircT2 ?? (ptT2 || "")} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircT2: parseFloat(e.target.value) || 0 } : r))} style={{ width: 40, textAlign: "center", border: "1px solid #0984E330", borderRadius: 3, fontSize: 10, padding: "1px 2px", color: "#0984E3", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                      </td>
+                                      <td style={{ padding: "3px 5px", textAlign: "center" }}>
+                                        <input type="number" value={row.agircPts || ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircPts: parseFloat(e.target.value) || 0 } : r))} style={{ width: 40, textAlign: "center", border: "1px solid #0984E350", borderRadius: 3, fontSize: 10, padding: "1px 2px", color: "#1a1a2e", fontWeight: 800, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                      </td>
+                                      <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #00B89415" }}>
+                                        <input type="number" value={row.ircPts || ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, ircPts: parseFloat(e.target.value) || 0 } : r))} style={{ width: 40, textAlign: "center", border: "1px solid #00B89430", borderRadius: 3, fontSize: 10, padding: "1px 2px", color: "#00B894", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                      </td>
+                                      <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #E1705515" }}>
+                                        <input type="number" value={row.rciPts || ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, rciPts: parseFloat(e.target.value) || 0 } : r))} style={{ width: 40, textAlign: "center", border: "1px solid #E1705530", borderRadius: 3, fontSize: 10, padding: "1px 2px", color: "#E17055", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                      </td>
                                       {cnavplOpen ? (
                                         <>
                                           <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #9B59B630", animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>
-                                            <input type="number" defaultValue="" disabled={carriereValidee} style={{ width: 52, textAlign: "center", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 10, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 600 }} />
+                                            <input type="text" value={cnavplRows[row.yr]?.revenus || ""} onChange={e => setCnavplRows(p => ({...p, [row.yr]: {...p[row.yr], revenus: e.target.value}}))} disabled={carriereValidee} style={{ width: 52, textAlign: "right", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 10, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 600 }} />
                                           </td>
                                           <td style={{ padding: "3px 5px", textAlign: "center", animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>
-                                            <input type="number" defaultValue="" disabled={carriereValidee} style={{ width: 52, textAlign: "center", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 10, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 600 }} />
+                                            <input type="text" value={cnavplRows[row.yr]?.revCnavpl || ""} onChange={e => setCnavplRows(p => ({...p, [row.yr]: {...p[row.yr], revCnavpl: e.target.value}}))} disabled={carriereValidee} style={{ width: 52, textAlign: "right", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 10, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 600 }} />
                                           </td>
                                           <td style={{ padding: "3px 5px", textAlign: "center", animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>
-                                            <input type="number" defaultValue="" disabled={carriereValidee} style={{ width: 40, textAlign: "center", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 10, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 700 }} />
+                                            <input type="text" value={cnavplRows[row.yr]?.points || ""} onChange={e => setCnavplRows(p => ({...p, [row.yr]: {...p[row.yr], points: e.target.value}}))} disabled={carriereValidee} style={{ width: 40, textAlign: "right", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 10, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 700 }} />
                                           </td>
                                         </>
                                       ) : (
@@ -1610,7 +1643,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 { id: "agirc_acc", label: "AGIRC-ARRCO — Complémentaire",      icon: "📊", color: "#0984E3" },
                                 { id: "irc_acc",   label: "IRCANTEC — Agents non titulaires",  icon: "🏢", color: "#00B894" },
                                 { id: "rci_acc",   label: "RCI / SSI — Indépendants",          icon: "📑", color: "#E17055" },
-                                { id: "cnavpl_acc",label: "CNAV PL — Libéral",                 icon: "🏥", color: "#9B59B6", cols: ["Revenus", "Rev. CNAV PL", "Points"] },
+                                { id: "cnavpl_acc",label: "CIPAV — Libéral",                 icon: "🏥", color: "#9B59B6", cols: ["Revenus", "Rev. CIPAV", "Points"] },
                                 { id: "per_acc",   label: "PER — Épargne retraite",             icon: "💼", color: "#D63031" },
                               ].map((reg) => {
                                 const isOpen = openAccordeons.includes(reg.id);
@@ -1634,7 +1667,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                               <thead>
                                                 <tr style={{ background: `${reg.color}08` }}>
                                                   <th style={{ padding: "4px 8px", textAlign: "left", fontWeight: 700, color: reg.color, borderBottom: `1px solid ${reg.color}20` }}>Année</th>
-                                                  {["Revenus", "Rev. CNAV PL", "Points"].map(c => (
+                                                  {["Revenus", "Rev. CIPAV", "Points"].map(c => (
                                                     <th key={c} style={{ padding: "4px 8px", textAlign: "right", fontWeight: 700, color: reg.color, borderBottom: `1px solid ${reg.color}20`, whiteSpace: "nowrap" }}>{c}</th>
                                                   ))}
                                                 </tr>
@@ -2229,37 +2262,9 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                           <span style={{ fontSize: 18 }}>{panel.icon}</span>
                           <span style={{ fontSize: 14, fontWeight: 700, color: panel.color }}>{panel.label}</span>
-                          <span style={{ fontSize: 10, color: "#555" }}>— {panel.actions.length + RAPPROCHEMENT_ACTIONS.length} actions disponibles</span>
+                          <span style={{ fontSize: 10, color: "#555" }}>— {panel.actions.length} actions disponibles</span>
                         </div>
                         <div style={{ fontSize: 11, color: "#555", marginBottom: 14 }}>{panel.desc}</div>
-
-                        {/* Rapprochement vignettes */}
-                        <div style={{ fontSize: 11, fontWeight: 700, color: "#555", marginBottom: 8 }}>Cross-check et rapprochements entre documents — à la demande</div>
-                        <div className="simu-action-grid" style={{ marginBottom: 18 }}>
-                          {RAPPROCHEMENT_ACTIONS.map((action) => {
-                            const ok = checkReq(action.requires);
-                            const miss = getMissing(action.requires);
-                            const sel = selectedAction?.id === action.id;
-                            return (
-                              <button key={action.id} onClick={() => {
-                                if (ok) {
-                                  setSelectedAction(sel ? null : action);
-                                  setExecuted(null);
-                                  setCommentairesMode(false);
-                                  setPromptText(sel ? "" : `[Prompt calibré pour "${action.label}". Voir Admin → Prompts IA pour le contenu complet.]`);
-                                }
-                              }} style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 11px", borderRadius: 8, border: `2px solid ${sel ? panel.color : ok ? "#e8e8e8" : "#f0f0f0"}`, background: sel ? `${panel.color}10` : ok ? "#fafafa" : "#f8f8f8", cursor: ok ? "pointer" : "not-allowed", textAlign: "left", opacity: ok ? 1 : 0.45 }}>
-                                <span style={{ fontSize: 15, flexShrink: 0 }}>{action.icon}</span>
-                                <div style={{ minWidth: 0 }}>
-                                  <div style={{ fontSize: 11, fontWeight: sel ? 700 : 600, color: sel ? panel.color : ok ? "#333" : "#999" }}>{action.label}</div>
-                                  <div style={{ fontSize: 9, color: "#555" }}>{action.desc}</div>
-                                  {!ok && <div style={{ fontSize: 8, color: "#D63031", marginTop: 1 }}>⚠ Manque : {miss.map((m) => DOC_TYPES.find((d) => d.id === m)?.label).join(", ")}</div>}
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-
                         {/* Thematic analysis vignettes */}
                         <div style={{ fontSize: 11, fontWeight: 700, color: "#555", marginBottom: 8 }}>Thématiques d'analyse</div>
                         <div className="simu-action-grid">
