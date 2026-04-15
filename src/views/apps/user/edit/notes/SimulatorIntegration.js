@@ -12,7 +12,7 @@ import {
   persistUploadedDocs,
   loadUploadedDocs,
 } from "./utils";
-import { executeSkill, fetchLatestReport, fetchSkillsList } from "../risService";
+import { executeSkill, fetchLatestReport, fetchSkillsList, fetchRISAnalysisV6 } from "../risService";
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
 import SkillCreateModal from "./SkillCreateModal";
@@ -426,6 +426,12 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   const [isParsingRIS, setIsParsingRIS] = useState(false);
   const [visibleRowCount, setVisibleRowCount] = useState(20);
   const [risFileName, setRisFileName] = useState(null);
+  const [droitsSynthese, setDroitsSynthese] = useState(null);
+  const [risCarriereSynthese, setRisCarriereSynthese] = useState(null);
+  const [cnavplRows, setCnavplRows] = useState(() => {
+    const yrs = [2025,2024,2023,2022,2021,2020,2019,2018,2017,2016,2015];
+    return Object.fromEntries(yrs.map(yr => [yr, { revenus: "", revCnavpl: "", points: "" }]));
+  });
 
   // ── AGIRC-ARRCO Skill State ──
   const [agircLoading, setAgircLoading] = useState(false);
@@ -543,27 +549,94 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       .catch(() => { /* pas de données = normal */ });
   }, [id, applyCarriereData]);
 
-  // ── Parse PDF via backend (calls n8n server-side) ────────────────────────
+  // ── Réinitialiser le tableau carrière ───────────────────────────────────────
+  const handleResetCarriere = useCallback(() => {
+    setCarriereRows(_buildDefaultCarriereRows());
+    setRevaloValues(() => { const init = {}; Array.from({ length: 52 }, (_, i) => { init[2026 - i] = 0; }); return init; });
+    setDeplafValues({});
+    setTrimCotState(() => { const init = {}; Array.from({ length: 52 }, (_, i) => { init[2026 - i] = 0; }); return init; });
+    setTrimAssState(() => { const init = {}; Array.from({ length: 52 }, (_, i) => { init[2026 - i] = 0; }); return init; });
+    setVisibleRowCount(20);
+    setCarriereValidee(false);
+    setRisFileName(null);
+  }, []);
+
+  // ── Parse PDF via n8n v6 (direct webhook, SimulatorV6 compatible) ─────────
   const parsePdfAndFillCarriere = useCallback(async (file) => {
     if (!file) return;
     setIsParsingRIS(true);
-    toast.info("Analyse du RIS en cours…");
+    toast.info("Analyse du RIS en cours… (peut prendre 1-2 minutes)", { autoClose: false, toastId: "ris-parsing" });
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("user_id", id);
-      const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
-      const response = await axios.post(`${global.config.server_url}/parse-ris`, formData, Config);
-      applyCarriereData(response.data?.carriere);
+      const payload = await fetchRISAnalysisV6(file);
+
+      // ── Droits synthèse (totaux extraits du RIS) ─────────────────────────
+      if (payload.droits_synthese) setDroitsSynthese(payload.droits_synthese);
+      if (payload.carriere_synthese) setRisCarriereSynthese(payload.carriere_synthese);
+
+      // ── CNAV PL : revenus CIPAV par année ────────────────────────────────
+      const cipavEntries = Array.isArray(payload.detail_annuel)
+        ? payload.detail_annuel.filter(e => (e.regimes_concernes || "").includes("CIPAV"))
+        : [];
+      if (cipavEntries.length) {
+        const revenuMap = {};
+        cipavEntries.forEach(({ annee, revenus }) => {
+          const yr = parseInt(annee, 10);
+          if (!yr || !revenus) return;
+          const sum = revenus.replace(/[€\s]/g, "").split("+")
+            .reduce((s, p) => s + (parseFloat(p.replace(",", ".")) || 0), 0);
+          if (sum > 0) revenuMap[yr] = Math.round(sum).toString();
+        });
+        if (Object.keys(revenuMap).length) {
+          setCnavplRows(prev => {
+            const next = { ...prev };
+            Object.entries(revenuMap).forEach(([yr, val]) => {
+              const y = parseInt(yr, 10);
+              if (next[y]) next[y] = { ...next[y], revenus: val };
+              else next[y] = { revenus: val, revCnavpl: "", points: "" };
+            });
+            return next;
+          });
+        }
+      }
+
+      // ── 1. Sal. brut / Sal. SS / Revalo (CNAV) ──────────────────────────
+      const raw = Array.isArray(payload.debug_carriere_detaillee_regex)
+        ? payload.debug_carriere_detaillee_regex : [];
+      const carriere = raw.map((entry) => ({
+        annee: entry.annee,
+        sal_eur: entry.annee < 2002 ? Math.round((entry.revenu_brut || 0) / 6.55957) : (entry.revenu_brut || 0),
+        sal_original: entry.revenu_brut || 0,
+        devise: entry.annee < 2002 ? "FRF" : "EUR",
+      }));
+      applyCarriereData(carriere);
+
+      // ── 2. Trimestres cotisés / assimilés ───────────────────────────────
+      const detail = Array.isArray(payload.detail_annuel) ? payload.detail_annuel : [];
+      const newTrimCot = {};
+      const newTrimAss = {};
+      detail.forEach(({ annee, trimestres_retenus, nature }) => {
+        const yr = parseInt(annee, 10);
+        const t = parseInt(trimestres_retenus, 10) || 0;
+        if (!yr) return;
+        if ((nature || "Cotisé") === "Cotisé") {
+          newTrimCot[yr] = Math.min((newTrimCot[yr] || 0) + t, 4);
+        } else {
+          newTrimAss[yr] = Math.min((newTrimAss[yr] || 0) + t, 4);
+        }
+      });
+      if (Object.keys(newTrimCot).length) setTrimCotState(prev => ({ ...prev, ...newTrimCot }));
+      if (Object.keys(newTrimAss).length) setTrimAssState(prev => ({ ...prev, ...newTrimAss }));
+
+      toast.dismiss("ris-parsing");
       toast.success("Tableau carrière rempli");
     } catch (e) {
-      const msg = e?.response?.data?.message;
+      toast.dismiss("ris-parsing");
       console.error("[parsePdfAndFillCarriere] erreur:", e?.response?.data || e?.message || e);
-      toast.error(msg || "Erreur lors de l'analyse du RIS");
+      toast.error("Erreur lors de l'analyse du RIS");
     } finally {
       setIsParsingRIS(false);
     }
-  }, [id, applyCarriereData]);
+  }, [applyCarriereData]);
 
   // ── Select document from list (for analysis report — no RIS parsing) ──
   const handleSelectDocument = useCallback(async (doc) => {
@@ -1164,7 +1237,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
               <div className={`simu-workflow-grid${navCollapsed ? " nav-collapsed" : ""}`}>
 
                 {/* Panel navigation — ordered by logic */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
+                <div className="simu-nav-col" style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
                   {navCollapsed ? (
                     /* Barre réduite */
                     <button onClick={() => setNavCollapsed(false)} title="Afficher le flux de travail" style={{ width: 36, alignSelf: "flex-start", padding: "8px 0", borderRadius: 9, border: "1px solid #e0e0e0", background: "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, color: "#555" }}>
@@ -1199,7 +1272,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                 </div>
 
                 {/* Content area */}
-                <div style={{ ...S.card, padding: 16, ...(expandedPanel === "carriere" && !cnavplOpen ? { maxWidth: 820 } : {}) }}>
+                <div className="simu-content-card" style={{ ...S.card, padding: 16, ...(expandedPanel === "carriere" && !cnavplOpen ? { maxWidth: 820 } : {}) }}>
                   {(() => {
                     const panel = ACTION_PANELS[expandedPanel];
 
@@ -1229,6 +1302,9 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               <button onClick={() => setCarriereValidee(v => !v)} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, border: "none", background: carriereValidee ? "#E1705520" : "#00B89420", color: carriereValidee ? "#E17055" : "#00B894", cursor: "pointer", fontWeight: 700 }}>
                                 {carriereValidee ? "🔓 Déverrouiller" : "🔒 Valider"}
                               </button>
+                              <button onClick={handleResetCarriere} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, border: "1px solid #ddd", background: "#fff", color: "#888", cursor: "pointer", fontWeight: 700 }}>
+                                🗑️ Réinitialiser
+                              </button>
                             </div>
                           </div>
 
@@ -1241,6 +1317,39 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               </div>
                             ))}
                           </div>
+
+                          {/* Droits extraits du RIS */}
+                          {droitsSynthese && (
+                            <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+                              {droitsSynthese.agirc_arrco?.points_total > 0 && (
+                                <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#0984E308", border: "1px solid #0984E330", borderRadius: 6, padding: "4px 10px" }}>
+                                  <span style={{ fontSize: 11 }}>📊</span>
+                                  <span style={{ fontSize: 10, color: "#0984E3", fontWeight: 700 }}>AGIRC-ARRCO</span>
+                                  <span style={{ fontSize: 10, color: "#555" }}>—</span>
+                                  <span style={{ fontSize: 11, fontWeight: 700, color: "#1a1a2e" }}>{droitsSynthese.agirc_arrco.points_total.toLocaleString("fr-FR")} pts</span>
+                                  <span style={{ fontSize: 9, color: "#999" }}>extraits du RIS</span>
+                                </div>
+                              )}
+                              {droitsSynthese.ircantec?.points_total > 0 && (
+                                <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#00B89408", border: "1px solid #00B89430", borderRadius: 6, padding: "4px 10px" }}>
+                                  <span style={{ fontSize: 11 }}>🏢</span>
+                                  <span style={{ fontSize: 10, color: "#00B894", fontWeight: 700 }}>Ircantec</span>
+                                  <span style={{ fontSize: 10, color: "#555" }}>—</span>
+                                  <span style={{ fontSize: 11, fontWeight: 700, color: "#1a1a2e" }}>{droitsSynthese.ircantec.points_total.toLocaleString("fr-FR")} pts</span>
+                                  <span style={{ fontSize: 9, color: "#999" }}>extraits du RIS</span>
+                                </div>
+                              )}
+                              {droitsSynthese.rci?.points_total > 0 && (
+                                <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#E1705508", border: "1px solid #E1705530", borderRadius: 6, padding: "4px 10px" }}>
+                                  <span style={{ fontSize: 11 }}>📑</span>
+                                  <span style={{ fontSize: 10, color: "#E17055", fontWeight: 700 }}>RCI / SSI</span>
+                                  <span style={{ fontSize: 10, color: "#555" }}>—</span>
+                                  <span style={{ fontSize: 11, fontWeight: 700, color: "#1a1a2e" }}>{droitsSynthese.rci.points_total.toLocaleString("fr-FR")} pts</span>
+                                  <span style={{ fontSize: 9, color: "#999" }}>extraits du RIS</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
 
                           {/* Grand tableau unifié */}
                           <div className="simu-table-wrap" style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
@@ -1484,25 +1593,35 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                     </button>
                                     {isOpen && (
                                       <div style={{ padding: "14px 16px", background: "#fff" }}>
-                                        {reg.cols ? (
+                                        {/* ── CNAV PL : table contrôlée pré-remplie ── */}
+                                        {reg.id === "cnavpl_acc" ? (
                                           <div style={{ overflowX: "auto" }}>
                                             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}>
                                               <thead>
                                                 <tr style={{ background: `${reg.color}08` }}>
                                                   <th style={{ padding: "4px 8px", textAlign: "left", fontWeight: 700, color: reg.color, borderBottom: `1px solid ${reg.color}20` }}>Année</th>
-                                                  {reg.cols.map(c => (
+                                                  {["Revenus", "Rev. CNAV PL", "Points"].map(c => (
                                                     <th key={c} style={{ padding: "4px 8px", textAlign: "right", fontWeight: 700, color: reg.color, borderBottom: `1px solid ${reg.color}20`, whiteSpace: "nowrap" }}>{c}</th>
                                                   ))}
                                                 </tr>
                                               </thead>
                                               <tbody>
-                                                {[2024,2023,2022,2021,2020,2019,2018,2017,2016,2015].map((yr, i) => (
+                                                {Object.entries(cnavplRows).sort(([a],[b]) => b - a).map(([yr, row], i) => (
                                                   <tr key={yr} style={{ background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
                                                     <td style={{ padding: "4px 8px", fontWeight: 700, color: "#333" }}>{yr}</td>
-                                                    {reg.cols.map(c => (
-                                                      <td key={c} style={{ padding: "4px 8px", textAlign: "right" }}>
-                                                        <input type="number" defaultValue="" disabled={carriereValidee}
-                                                          style={{ width: 70, textAlign: "right", border: `1px solid ${reg.color}30`, borderRadius: 3, fontSize: 10, padding: "1px 4px", color: reg.color, fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                                    {[
+                                                      { key: "revenus", val: row.revenus },
+                                                      { key: "revCnavpl", val: row.revCnavpl },
+                                                      { key: "points", val: row.points },
+                                                    ].map(({ key, val }) => (
+                                                      <td key={key} style={{ padding: "4px 8px", textAlign: "right" }}>
+                                                        <input
+                                                          type="number"
+                                                          value={val}
+                                                          disabled={carriereValidee}
+                                                          onChange={e => setCnavplRows(prev => ({ ...prev, [parseInt(yr,10)]: { ...prev[parseInt(yr,10)], [key]: e.target.value } }))}
+                                                          style={{ width: 70, textAlign: "right", border: `1px solid ${val ? reg.color + "60" : reg.color + "30"}`, borderRadius: 3, fontSize: 10, padding: "1px 4px", color: reg.color, fontWeight: 600, background: carriereValidee ? "#fafafa" : val ? `${reg.color}06` : "#fff" }}
+                                                        />
                                                       </td>
                                                     ))}
                                                   </tr>
@@ -1510,7 +1629,84 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                               </tbody>
                                             </table>
                                           </div>
+                                        ) : reg.id === "cnav_acc" ? (
+                                          /* ── CNAV : synthèse extraction ── */
+                                          risCarriereSynthese ? (
+                                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                                                {[
+                                                  { label: "Trimestres validés", value: risCarriereSynthese.trimestres_total ?? "—" },
+                                                  { label: "Années cotisées", value: risCarriereSynthese.annees_cotisees ?? "—" },
+                                                ].map(({ label, value }) => (
+                                                  <div key={label} style={{ background: "#6C5CE708", border: "1px solid #6C5CE730", borderRadius: 7, padding: "8px 14px", textAlign: "center" }}>
+                                                    <div style={{ fontSize: 18, fontWeight: 800, color: "#6C5CE7" }}>{value}</div>
+                                                    <div style={{ fontSize: 9, color: "#555", marginTop: 2 }}>{label}</div>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                              <div style={{ fontSize: 10, color: "#888", marginTop: 2 }}>
+                                                💡 Salaires et trimestres chargés dans le tableau carrière ci-dessus.
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div style={{ fontSize: 11, color: "#555" }}><em>Données CNAV — à compléter / importer depuis le RIS.</em></div>
+                                          )
+                                        ) : reg.id === "agirc_acc" ? (
+                                          /* ── AGIRC-ARRCO : total extrait ── */
+                                          droitsSynthese?.agirc_arrco != null ? (
+                                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                              <div style={{ display: "inline-flex", alignItems: "baseline", gap: 6, background: "#0984E308", border: "1px solid #0984E330", borderRadius: 7, padding: "10px 16px", alignSelf: "flex-start" }}>
+                                                <span style={{ fontSize: 22, fontWeight: 800, color: "#0984E3" }}>
+                                                  {(droitsSynthese.agirc_arrco.points_total ?? 0).toLocaleString("fr-FR")}
+                                                </span>
+                                                <span style={{ fontSize: 11, color: "#0984E3", fontWeight: 600 }}>pts</span>
+                                                <span style={{ fontSize: 9, color: "#888", marginLeft: 4 }}>total extrait du RIS</span>
+                                              </div>
+                                              <div style={{ fontSize: 10, color: "#888" }}>
+                                                💡 Détail annuel disponible après le calcul par script.
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div style={{ fontSize: 11, color: "#555" }}><em>Données AGIRC-ARRCO — à compléter / importer depuis le RIS.</em></div>
+                                          )
+                                        ) : reg.id === "irc_acc" ? (
+                                          /* ── IRCANTEC ── */
+                                          droitsSynthese?.ircantec != null ? (
+                                            droitsSynthese.ircantec.points_total > 0 ? (
+                                              <div style={{ display: "inline-flex", alignItems: "baseline", gap: 6, background: "#00B89408", border: "1px solid #00B89430", borderRadius: 7, padding: "10px 16px" }}>
+                                                <span style={{ fontSize: 22, fontWeight: 800, color: "#00B894" }}>{droitsSynthese.ircantec.points_total.toLocaleString("fr-FR")}</span>
+                                                <span style={{ fontSize: 11, color: "#00B894", fontWeight: 600 }}>pts</span>
+                                                <span style={{ fontSize: 9, color: "#888", marginLeft: 4 }}>total extrait du RIS</span>
+                                              </div>
+                                            ) : (
+                                              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "#888" }}>
+                                                <span style={{ fontSize: 14 }}>✅</span>
+                                                <em>Non concerné d'après le RIS (0 pt IRCANTEC)</em>
+                                              </div>
+                                            )
+                                          ) : (
+                                            <div style={{ fontSize: 11, color: "#555" }}><em>Données IRCANTEC — à compléter / importer depuis le RIS.</em></div>
+                                          )
+                                        ) : reg.id === "rci_acc" ? (
+                                          /* ── RCI / SSI ── */
+                                          droitsSynthese?.rci != null ? (
+                                            droitsSynthese.rci.points_total > 0 ? (
+                                              <div style={{ display: "inline-flex", alignItems: "baseline", gap: 6, background: "#E1705508", border: "1px solid #E1705530", borderRadius: 7, padding: "10px 16px" }}>
+                                                <span style={{ fontSize: 22, fontWeight: 800, color: "#E17055" }}>{droitsSynthese.rci.points_total.toLocaleString("fr-FR")}</span>
+                                                <span style={{ fontSize: 11, color: "#E17055", fontWeight: 600 }}>pts</span>
+                                                <span style={{ fontSize: 9, color: "#888", marginLeft: 4 }}>total extrait du RIS</span>
+                                              </div>
+                                            ) : (
+                                              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "#888" }}>
+                                                <span style={{ fontSize: 14 }}>✅</span>
+                                                <em>Non concerné d'après le RIS (0 pt RCI / SSI)</em>
+                                              </div>
+                                            )
+                                          ) : (
+                                            <div style={{ fontSize: 11, color: "#555" }}><em>Données RCI / SSI — à compléter / importer depuis le RIS.</em></div>
+                                          )
                                         ) : (
+                                          /* ── Autres (PER) : placeholder ── */
                                           <div style={{ fontSize: 11, color: "#555" }}><em>Données {reg.label} — à compléter / importer depuis le RIS.</em></div>
                                         )}
                                       </div>
