@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardBody } from "reactstrap";
 import GeneratedDocumentItem from "../components/GeneratedDocumentItem";
 
@@ -8,27 +8,71 @@ const GeneratedDocsSection = ({
     requestDeleteGenerated,
     handleRenameDoc,
 }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const count = generatedDocs ? generatedDocs.length : 0;
+
     return (
         <div className="notes-documents-block">
-            <h6>Documents générés</h6>
-            {generatedDocs && generatedDocs.length ? (
-                <div className="notes-documents-list">
-                    {generatedDocs.map((doc) => (
-                        <GeneratedDocumentItem
-                            key={doc.id}
-                            doc={doc}
-                            onOpen={() => handleOpenDoc(doc)}
-                            onDelete={() => requestDeleteGenerated(doc)}
-                            onRename={handleRenameDoc}
-                        />
-                    ))}
+            <button
+                onClick={() => setIsOpen((v) => !v)}
+                style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    background: "none",
+                    border: "none",
+                    padding: "4px 0 6px 0",
+                    cursor: "pointer",
+                    textAlign: "left",
+                }}
+            >
+                <h6 style={{ margin: 0 }}>Documents générés</h6>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {count > 0 && (
+                        <span style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            color: "#6C5CE7",
+                            background: "#6C5CE712",
+                            borderRadius: 10,
+                            padding: "1px 8px",
+                        }}>
+                            {count}
+                        </span>
+                    )}
+                    <span style={{
+                        fontSize: 11,
+                        color: "#888",
+                        transform: isOpen ? "rotate(0deg)" : "rotate(-90deg)",
+                        transition: "transform 0.15s",
+                        display: "inline-block",
+                    }}>
+                        ▼
+                    </span>
                 </div>
-            ) : (
-                <Card className="notes-empty-doc-card">
-                    <CardBody className="text-muted">
-                        Aucun document généré pour le moment.
-                    </CardBody>
-                </Card>
+            </button>
+
+            {isOpen && (
+                count > 0 ? (
+                    <div className="notes-documents-list">
+                        {generatedDocs.map((doc) => (
+                            <GeneratedDocumentItem
+                                key={doc.id}
+                                doc={doc}
+                                onOpen={() => handleOpenDoc(doc)}
+                                onDelete={() => requestDeleteGenerated(doc)}
+                                onRename={handleRenameDoc}
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    <Card className="notes-empty-doc-card">
+                        <CardBody className="text-muted">
+                            Aucun document généré pour le moment.
+                        </CardBody>
+                    </Card>
+                )
             )}
         </div>
     );
