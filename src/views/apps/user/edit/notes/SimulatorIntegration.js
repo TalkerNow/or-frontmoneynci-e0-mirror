@@ -511,6 +511,9 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   }, []);
 
   // ── Apply career rows from backend data ─────────────────────────────────
+  // Handles two formats:
+  //   RIS format  : { annee, sal_original, sal_eur, devise, regimes }
+  //   SAISIE format: { annee, salaire_brut, salaire_revalo, trimestres_cotises, trimestres_assimiles }
   const applyCarriereData = useCallback((carriere) => {
     if (!Array.isArray(carriere) || !carriere.length) return;
     const minYear = Math.min(...carriere.map(r => r.annee));
@@ -518,21 +521,39 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     setCarriereRows(prev => prev.map(row => {
       const entry = carriere.find(r => r.annee === row.yr);
       if (!entry) return row;
+      // Normalize salary: RIS uses sal_eur, SAISIE uses salaire_brut
+      const salEur = entry.sal_eur ?? entry.salaire_brut ?? 0;
+      const salOriginal = entry.sal_original ?? entry.salaire_brut ?? 0;
       const plaf = PLAFONDS_SS[row.yr] || 48060;
       const coeff = REVALO_CNAV[row.yr] || 1;
-      const revalo = Math.round(Math.min(entry.sal_eur, plaf) * coeff);
-      const ss = Math.min(entry.sal_eur, plaf);
-      return { ...row, sal: entry.sal_original, ss, revalo, devise: entry.devise };
+      const revalo = entry.salaire_revalo ?? Math.round(Math.min(salEur, plaf) * coeff);
+      const ss = Math.min(salEur, plaf);
+      return { ...row, sal: salOriginal, ss, revalo, devise: entry.devise || '€' };
     }));
     setRevaloValues(prev => {
       const next = { ...prev };
       carriere.forEach(entry => {
+        const salEur = entry.sal_eur ?? entry.salaire_brut ?? 0;
         const plaf = PLAFONDS_SS[entry.annee] || 48060;
         const coeff = REVALO_CNAV[entry.annee] || 1;
-        next[entry.annee] = Math.round(Math.min(entry.sal_eur, plaf) * coeff);
+        next[entry.annee] = entry.salaire_revalo ?? Math.round(Math.min(salEur, plaf) * coeff);
       });
       return next;
     });
+    // Restore trimestres if present (SAISIE format)
+    const hasTrim = carriere.some(e => e.trimestres_cotises != null || e.trimestres_assimiles != null);
+    if (hasTrim) {
+      setTrimCotState(prev => {
+        const next = { ...prev };
+        carriere.forEach(e => { if (e.trimestres_cotises != null) next[e.annee] = e.trimestres_cotises; });
+        return next;
+      });
+      setTrimAssState(prev => {
+        const next = { ...prev };
+        carriere.forEach(e => { if (e.trimestres_assimiles != null) next[e.annee] = e.trimestres_assimiles; });
+        return next;
+      });
+    }
   }, []);
 
   // Load career data from frozen_data on mount
@@ -544,6 +565,10 @@ export default function SimulatorV6({ mode = "production", id, user }) {
         const carriere = res.data?.carriere;
         if (Array.isArray(carriere) && carriere.length) {
           applyCarriereData(carriere);
+        }
+        // Restore frozen state if data was previously geled
+        if (res.data?.locked_at) {
+          setCarriereValidee(true);
         }
       })
       .catch(() => { /* pas de données = normal */ });
@@ -949,6 +974,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       };
       const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
       await axios.post(`${global.config.server_url}/frozen_data`, payload, Config);
+      await axios.post(`${global.config.server_url}/frozen_data/${parseInt(id)}/lock`, {}, Config);
       setCarriereValidee(true);
       toast.success("Carrière gelée — calcul CNAV disponible");
       setExpandedPanel("dispositifs");
@@ -1299,7 +1325,15 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, background: isParsingRIS ? "#0984E315" : carriereValidee ? "#00B89415" : "#E1705515", color: isParsingRIS ? "#0984E3" : carriereValidee ? "#00B894" : "#E17055", fontWeight: 700 }}>
                                 {isParsingRIS ? "⏳ Analyse en cours…" : carriereValidee ? "🔒 Validée" : "📥 Importée OCR"}
                               </span>
-                              <button onClick={() => setCarriereValidee(v => !v)} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, border: "none", background: carriereValidee ? "#E1705520" : "#00B89420", color: carriereValidee ? "#E17055" : "#00B894", cursor: "pointer", fontWeight: 700 }}>
+                              <button onClick={async () => {
+                                if (carriereValidee) {
+                                  try {
+                                    const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+                                    await axios.post(`${global.config.server_url}/frozen_data/${parseInt(id)}/unlock`, {}, Config);
+                                  } catch (e) { /* silencieux */ }
+                                }
+                                setCarriereValidee(v => !v);
+                              }} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, border: "none", background: carriereValidee ? "#E1705520" : "#00B89420", color: carriereValidee ? "#E17055" : "#00B894", cursor: "pointer", fontWeight: 700 }}>
                                 {carriereValidee ? "🔓 Déverrouiller" : "🔒 Valider"}
                               </button>
                               <button onClick={handleResetCarriere} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, border: "1px solid #ddd", background: "#fff", color: "#888", cursor: "pointer", fontWeight: 700 }}>
@@ -1402,7 +1436,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       <td style={{ padding: "3px 5px", fontWeight: 700, color: "#333" }}>{row.yr}</td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "1px solid #eee" }}>
                                         <input type="number" value={row.sal || ""} disabled={carriereValidee}
-                                          onChange={(e) => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, sal: parseInt(e.target.value) || 0 } : r))}
+                                          onChange={(e) => { const v = parseInt(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, sal: v } : r)); }}
                                           style={{ width: 62, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 10, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff" }} />
                                         {row.devise === 'FRF' && (
                                           <span style={{ display: "block", fontSize: 8, color: "#E17055", fontWeight: 700, textAlign: "center", marginTop: 1 }}>FRF</span>
@@ -1410,7 +1444,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "right", borderLeft: "2px solid #6C5CE715" }}>
                                         <input type="number" value={row.ss || ""} disabled={carriereValidee}
-                                          onChange={(e) => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, ss: parseInt(e.target.value) || 0 } : r))}
+                                          onChange={(e) => { const v = parseInt(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, ss: v } : r)); }}
                                           style={{ width: 62, textAlign: "right", border: "1px solid #6C5CE730", borderRadius: 3, fontSize: 10, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff", color: "#555" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "right", color: "#0984E3", fontWeight: 600 }}>{row.coeff}</td>
@@ -1441,12 +1475,12 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
                                         <input type="number" value={trimCotState[row.yr] ?? 0} disabled={carriereValidee}
-                                          onChange={(e) => setTrimCotState(prev => ({ ...prev, [row.yr]: parseInt(e.target.value) || 0 }))}
+                                          onChange={(e) => { const v = parseInt(e.target.value) || 0; setTrimCotState(prev => ({ ...prev, [row.yr]: v })); }}
                                           style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 10, padding: "1px" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
                                         <input type="number" value={trimAssState[row.yr] ?? 0} disabled={carriereValidee}
-                                          onChange={(e) => setTrimAssState(prev => ({ ...prev, [row.yr]: parseInt(e.target.value) || 0 }))}
+                                          onChange={(e) => { const v = parseInt(e.target.value) || 0; setTrimAssState(prev => ({ ...prev, [row.yr]: v })); }}
                                           title="Trimestres assimilés (maladie, chômage, maternité…)" style={{ width: 26, textAlign: "center", border: "1px solid #6C5CE730", borderRadius: 3, fontSize: 10, padding: "1px", color: "#6C5CE7" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
@@ -1726,7 +1760,13 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               {carriereValidee ? "🔒 Données gelées" : frozenLoading ? "⏳ Gel en cours…" : "🔒 Geler & Calculer"}
                             </button>
                             <button
-                              onClick={() => setCarriereValidee(false)}
+                              onClick={async () => {
+                                try {
+                                  const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+                                  await axios.post(`${global.config.server_url}/frozen_data/${parseInt(id)}/unlock`, {}, Config);
+                                } catch (e) { /* silencieux */ }
+                                setCarriereValidee(false);
+                              }}
                               disabled={!carriereValidee}
                               style={{ padding: "8px 14px", borderRadius: 7, border: "1px solid #ddd", background: "#fafafa", color: carriereValidee ? "#E17055" : "#bbb", fontSize: 11, cursor: carriereValidee ? "pointer" : "default", fontWeight: carriereValidee ? 600 : 400 }}>
                               ↺ Déverrouiller
