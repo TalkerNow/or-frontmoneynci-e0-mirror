@@ -1645,7 +1645,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                   );
                                 })}
                                 <tr>
-                                  <td colSpan={16} style={{ padding: "4px 8px" }}>
+                                  <td colSpan={cnavplOpen ? 18 : 16} style={{ padding: "4px 8px" }}>
                                     <button onClick={() => setVisibleRowCount(v => Math.min(v + 1, 52))} style={{ fontSize: 12, padding: "3px 10px", borderRadius: 5, border: "1px dashed #bbb", background: "transparent", color: "#555", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
                                       <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> Ajouter une année ({carriereRows[visibleRowCount] ? carriereRows[visibleRowCount].yr : "—"})
                                     </button>
@@ -1693,7 +1693,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 </tr>
                                 {samOpen && (
                                   <tr>
-                                    <td colSpan={16} style={{ padding: 0, background: "#fff" }}>
+                                    <td colSpan={cnavplOpen ? 18 : 16} style={{ padding: 0, background: "#fff" }}>
                                       <div style={{ padding: "10px 14px", borderTop: "1px solid #6C5CE720" }}>
                                         <div style={{ fontSize: 10, fontWeight: 700, color: "#6C5CE7", marginBottom: 8 }}>📊 25 meilleures années retenues — salaires revalorisés</div>
                                         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}>
