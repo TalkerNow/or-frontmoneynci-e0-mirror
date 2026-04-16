@@ -5,6 +5,10 @@ import { sanitizeSalaryInput } from "./utils";
 const ManualCareerTable = ({
     manualCareerRows,
     setManualCareerRows,
+    handleSalaryChange,
+    handleDeplafonnerChange,
+    handleIsCadreChange,
+    isCadre,
     handleManualAddLine,
     handleManualImport,
     isImportingRIS,
@@ -27,7 +31,28 @@ const ManualCareerTable = ({
                     <h5 className="notes-card-title mb-1">
                         Saisie de carrière manuelle
                     </h5>
-                    <div className="manual-header-actions">
+                    <div className="manual-header-actions" style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px" }}>
+                            <span style={{ fontWeight: 600, color: "#6b7280" }}>Statut ARRCO :</span>
+                            <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", margin: 0 }}>
+                                <input
+                                    type="radio"
+                                    name="manual-cadre-status"
+                                    checked={!isCadre}
+                                    onChange={() => handleIsCadreChange(false)}
+                                />
+                                Non-Cadre
+                            </label>
+                            <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", margin: 0 }}>
+                                <input
+                                    type="radio"
+                                    name="manual-cadre-status"
+                                    checked={isCadre}
+                                    onChange={() => handleIsCadreChange(true)}
+                                />
+                                Cadre
+                            </label>
+                        </div>
                         <Button
                             color="light"
                             className="notes-action-btn manual-add-btn"
@@ -45,6 +70,7 @@ const ManualCareerTable = ({
                                 <tr>
                                     <th className="col-year">Année</th>
                                     <th className="col-large">Rémunération annuelle brute</th>
+                                    <th className="col-small">Déplafonner</th>
                                     <th className="col-micro">TRIM</th>
                                     <th className="col-micro">AR</th>
                                     <th className="col-micro">TOT</th>
@@ -100,14 +126,7 @@ const ManualCareerTable = ({
                                                 className={`manual-input ${row.errR ? "err" : ""}`}
                                                 value={row.revenu ?? ""}
                                                 onChange={(e) => {
-                                                    const val = sanitizeSalaryInput(e.target.value);
-                                                    setManualCareerRows((prev) =>
-                                                        prev.map((r) =>
-                                                            r.id === row.id
-                                                                ? { ...r, revenu: val, errR: false }
-                                                                : r
-                                                        )
-                                                    );
+                                                    handleSalaryChange(row.id, sanitizeSalaryInput(e.target.value));
                                                 }}
                                                 onBlur={() => {
                                                     const raw = (row.revenu || "")
@@ -122,17 +141,34 @@ const ManualCareerTable = ({
                                                             maximumFractionDigits: 2,
                                                         }).format(num)
                                                         : row.revenu;
-                                                    setManualCareerRows((prev) =>
-                                                        prev.map((r) =>
-                                                            r.id === row.id
-                                                                ? { ...r, revenu: formatted, errR: !ok }
-                                                                : r
-                                                        )
-                                                    );
+                                                    if (ok) {
+                                                        handleSalaryChange(row.id, formatted);
+                                                    } else {
+                                                        setManualCareerRows((prev) =>
+                                                            prev.map((r) =>
+                                                                r.id === row.id
+                                                                    ? { ...r, revenu: formatted, errR: true }
+                                                                    : r
+                                                            )
+                                                        );
+                                                    }
                                                 }}
                                                 placeholder="0,00"
                                                 aria-label="Rémunération annuelle brute"
                                             />
+                                        </td>
+                                        <td className="col-small" style={{ textAlign: 'center' }}>
+                                            {parseInt(row.annee, 10) < 2005 && (
+                                                <input
+                                                    type="checkbox"
+                                                    checked={row.deplafonner || false}
+                                                    onChange={(e) =>
+                                                        handleDeplafonnerChange(row.id, e.target.checked)
+                                                    }
+                                                    aria-label="Déplafonner"
+                                                    title="Déplafonner le salaire au-dessus du PASS"
+                                                />
+                                            )}
                                         </td>
                                         <td className="col-micro">
                                             <input
