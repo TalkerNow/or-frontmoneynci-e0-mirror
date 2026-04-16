@@ -15,7 +15,7 @@ import {
   wrapPlainTextAsHtml,
 } from "./utils";
 import { fetchRISAnalysis } from "../risService";
-import { calculateCnav } from '../../../../utils/calculators';
+import { calculateCnav } from '../../../../../utils/calculators';
 
 const fmtEUR = (num) =>
   new Intl.NumberFormat('fr-FR', {
