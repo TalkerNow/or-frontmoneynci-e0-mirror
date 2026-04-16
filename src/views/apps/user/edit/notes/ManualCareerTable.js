@@ -7,6 +7,8 @@ const ManualCareerTable = ({
     setManualCareerRows,
     handleSalaryChange,
     handleDeplafonnerChange,
+    handleIsCadreChange,
+    isCadre,
     handleManualAddLine,
     handleManualImport,
     isImportingRIS,
@@ -29,7 +31,28 @@ const ManualCareerTable = ({
                     <h5 className="notes-card-title mb-1">
                         Saisie de carrière manuelle
                     </h5>
-                    <div className="manual-header-actions">
+                    <div className="manual-header-actions" style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px" }}>
+                            <span style={{ fontWeight: 600, color: "#6b7280" }}>Statut ARRCO :</span>
+                            <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", margin: 0 }}>
+                                <input
+                                    type="radio"
+                                    name="manual-cadre-status"
+                                    checked={!isCadre}
+                                    onChange={() => handleIsCadreChange(false)}
+                                />
+                                Non-Cadre
+                            </label>
+                            <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", margin: 0 }}>
+                                <input
+                                    type="radio"
+                                    name="manual-cadre-status"
+                                    checked={isCadre}
+                                    onChange={() => handleIsCadreChange(true)}
+                                />
+                                Cadre
+                            </label>
+                        </div>
                         <Button
                             color="light"
                             className="notes-action-btn manual-add-btn"

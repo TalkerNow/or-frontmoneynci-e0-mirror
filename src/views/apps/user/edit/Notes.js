@@ -72,6 +72,8 @@ const NotesTab = ({ id, perso = {}, commentsSlot, renderUploadOutside }) => {
     setManualCareerRows,
     handleSalaryChange,
     handleDeplafonnerChange,
+    handleIsCadreChange,
+    isCadre,
     handleManualAddLine,
     handleManualImport,
     isImportingRIS,
@@ -165,6 +167,8 @@ const NotesTab = ({ id, perso = {}, commentsSlot, renderUploadOutside }) => {
         setManualCareerRows={setManualCareerRows}
         handleSalaryChange={handleSalaryChange}
         handleDeplafonnerChange={handleDeplafonnerChange}
+        handleIsCadreChange={handleIsCadreChange}
+        isCadre={isCadre}
         handleManualAddLine={handleManualAddLine}
         handleManualImport={handleManualImport}
         isImportingRIS={isImportingRIS}

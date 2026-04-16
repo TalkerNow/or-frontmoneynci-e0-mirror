@@ -13,6 +13,7 @@ import {
   loadUploadedDocs,
 } from "./utils";
 import { executeSkill, fetchLatestReport, fetchSkillsList, fetchRISAnalysisV6 } from "../risService";
+import { calculateArrco, calculateIrcantec, calculateRci } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
 import SkillCreateModal from "./SkillCreateModal";
@@ -404,6 +405,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   const [availableSkills, setAvailableSkills] = useState([]);
   // ── Career data state (stable, populated from OCR or manual input) ──
   const [carriereRows, setCarriereRows] = useState(_buildDefaultCarriereRows);
+  const [isCadreSimu, setIsCadreSimu] = useState(false);
   const [trimCotState, setTrimCotState] = useState(() => {
     const init = {};
     Array.from({ length: 52 }, (_, i) => { init[2026 - i] = 0; });
@@ -1344,7 +1346,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                 </div>
 
                 {/* Content area */}
-                <div className="simu-content-card" style={{ ...S.card, padding: 16, ...(expandedPanel === "carriere" && !cnavplOpen ? { maxWidth: 980 } : {}) }}>
+                <div className="simu-content-card" style={{ ...S.card, padding: 16, ...(expandedPanel === "carriere" && !cnavplOpen ? { maxWidth: 1280 } : {}) }}>
                   {(() => {
                     const panel = ACTION_PANELS[expandedPanel];
 
@@ -1389,14 +1391,41 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                             </div>
                           </div>
 
-                          {/* Légende couleurs régimes */}
-                          <div style={{ display: "flex", gap: 12, marginBottom: 10, flexWrap: "wrap" }}>
-                            {[["🏛️ CNAV", "#6C5CE7"], ["📊 AGIRC-ARRCO", "#0984E3"], ["🏢 Ircantec", "#00B894"], ["📑 RCI / SSI", "#E17055"]].map(([label, color]) => (
-                              <div key={label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: "#555" }}>
-                                <div style={{ width: 10, height: 10, borderRadius: 2, background: color, opacity: 0.7 }} />
-                                {label}
-                              </div>
-                            ))}
+                          {/* Légende couleurs régimes + toggle Cadre/Non-Cadre ARRCO */}
+                          <div style={{ display: "flex", gap: 12, marginBottom: 10, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
+                            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                              {[["🏛️ CNAV", "#6C5CE7"], ["📊 AGIRC-ARRCO", "#0984E3"], ["🏢 Ircantec", "#00B894"], ["📑 RCI / SSI", "#E17055"]].map(([label, color]) => (
+                                <div key={label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: "#555" }}>
+                                  <div style={{ width: 10, height: 10, borderRadius: 2, background: color, opacity: 0.7 }} />
+                                  {label}
+                                </div>
+                              ))}
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, background: "#0984E308", border: "1px solid #0984E320", borderRadius: 6, padding: "3px 10px" }}>
+                              <span style={{ fontWeight: 600, color: "#0984E3" }}>Statut ARRCO :</span>
+                              <label style={{ display: "flex", alignItems: "center", gap: 3, cursor: "pointer", margin: 0, color: "#555" }}>
+                                <input type="radio" name="simu-cadre-status" checked={!isCadreSimu} onChange={() => {
+                                  setIsCadreSimu(false);
+                                  setCarriereRows(prev => prev.map(r => {
+                                    if (!r.sal || r.sal <= 0) return r;
+                                    const res = calculateArrco(r.yr, r.sal, false);
+                                    return res ? { ...r, agircT1: parseFloat(res.t1.toFixed(2)), agircT2: parseFloat(res.t2.toFixed(2)), agircPts: parseFloat(res.total.toFixed(2)) } : r;
+                                  }));
+                                }} />
+                                Non-Cadre
+                              </label>
+                              <label style={{ display: "flex", alignItems: "center", gap: 3, cursor: "pointer", margin: 0, color: "#555" }}>
+                                <input type="radio" name="simu-cadre-status" checked={isCadreSimu} onChange={() => {
+                                  setIsCadreSimu(true);
+                                  setCarriereRows(prev => prev.map(r => {
+                                    if (!r.sal || r.sal <= 0) return r;
+                                    const res = calculateArrco(r.yr, r.sal, true);
+                                    return res ? { ...r, agircT1: parseFloat(res.t1.toFixed(2)), agircT2: parseFloat(res.t2.toFixed(2)), agircPts: parseFloat(res.total.toFixed(2)) } : r;
+                                  }));
+                                }} />
+                                Cadre
+                              </label>
+                            </div>
                           </div>
 
                           {/* Droits extraits du RIS */}
@@ -1472,9 +1501,6 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               </thead>
                               <tbody>
                                 {totalRows.map((row, i) => {
-                                  const ptT1 = i < 20 ? Math.round(row.agircPts * 0.62) : 0;
-                                  const ptT2 = i < 20 ? Math.round(row.agircPts * 0.38) : 0;
-                                  const ptSum = ptT1 + ptT2;
                                   const tot = row.trim + row.ar;
                                   let revaloVal = revaloValues[row.yr] ?? row.revalo;
                                   if (revaloVal > getPlafond(row.yr) && (row.yr >= 2005 || !deplafValues[row.yr])) {
@@ -1513,7 +1539,20 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                             const trimestres = Math.min(4, Math.max(0, Math.floor(v / (seuilTrimestre || Infinity))));
                                             setRevaloValues(prev => ({ ...prev, [yr]: revalo }));
                                             setTrimCotState(prev => ({ ...prev, [yr]: trimestres }));
-                                            setCarriereRows(prev => prev.map(r => r.yr === yr ? { ...r, sal: v, ss: ssEur } : r));
+                                            // Calcul ARRCO/AGIRC-ARRCO, IRCANTEC, RCI depuis le salaire brut
+                                            const arrcoRes = v > 0 ? calculateArrco(yr, v, isCadreSimu) : null;
+                                            const ircRes = v > 0 ? calculateIrcantec(yr, v) : null;
+                                            const rciRes = v > 0 ? calculateRci(yr, v) : null;
+                                            setCarriereRows(prev => prev.map(r => r.yr === yr ? {
+                                              ...r,
+                                              sal: v,
+                                              ss: ssEur,
+                                              agircT1: arrcoRes ? parseFloat(arrcoRes.t1.toFixed(2)) : null,
+                                              agircT2: arrcoRes ? parseFloat(arrcoRes.t2.toFixed(2)) : null,
+                                              agircPts: arrcoRes ? parseFloat(arrcoRes.total.toFixed(2)) : 0,
+                                              ircPts: ircRes ? parseFloat(ircRes.total.toFixed(5)) : 0,
+                                              rciPts: rciRes ? parseFloat(rciRes.total.toFixed(5)) : 0,
+                                            } : r));
                                           }}
                                           style={{ width: 62, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 13, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff" }} />
                                         {row.devise === 'FRF' && (
@@ -1573,19 +1612,19 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", fontWeight: 700, color: "#6C5CE7" }}>{tot}</td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #0984E315" }}>
-                                        <input type="number" value={row.agircT1 ?? (ptT1 || "")} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircT1: parseFloat(e.target.value) || 0 } : r))} style={{ width: 40, textAlign: "center", border: "1px solid #0984E330", borderRadius: 3, fontSize: 13, padding: "1px 2px", color: "#0984E3", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" step="0.01" value={row.agircT1 ?? ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircT1: parseFloat(e.target.value) || 0 } : r))} style={{ width: 72, textAlign: "center", border: "1px solid #0984E330", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#0984E3", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
-                                        <input type="number" value={row.agircT2 ?? (ptT2 || "")} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircT2: parseFloat(e.target.value) || 0 } : r))} style={{ width: 40, textAlign: "center", border: "1px solid #0984E330", borderRadius: 3, fontSize: 13, padding: "1px 2px", color: "#0984E3", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" step="0.01" value={row.agircT2 ?? ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircT2: parseFloat(e.target.value) || 0 } : r))} style={{ width: 72, textAlign: "center", border: "1px solid #0984E330", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#0984E3", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
-                                        <input type="number" value={row.agircPts || ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircPts: parseFloat(e.target.value) || 0 } : r))} style={{ width: 40, textAlign: "center", border: "1px solid #0984E350", borderRadius: 3, fontSize: 13, padding: "1px 2px", color: "#1a1a2e", fontWeight: 800, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" step="0.01" value={row.agircPts || ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircPts: parseFloat(e.target.value) || 0 } : r))} style={{ width: 72, textAlign: "center", border: "1px solid #0984E350", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#1a1a2e", fontWeight: 800, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #00B89415" }}>
-                                        <input type="number" value={row.ircPts || ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, ircPts: parseFloat(e.target.value) || 0 } : r))} style={{ width: 40, textAlign: "center", border: "1px solid #00B89430", borderRadius: 3, fontSize: 13, padding: "1px 2px", color: "#00B894", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" step="0.01" value={row.ircPts || ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, ircPts: parseFloat(e.target.value) || 0 } : r))} style={{ width: 72, textAlign: "center", border: "1px solid #00B89430", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#00B894", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #E1705515" }}>
-                                        <input type="number" value={row.rciPts || ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, rciPts: parseFloat(e.target.value) || 0 } : r))} style={{ width: 40, textAlign: "center", border: "1px solid #E1705530", borderRadius: 3, fontSize: 13, padding: "1px 2px", color: "#E17055", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" step="0.01" value={row.rciPts || ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, rciPts: parseFloat(e.target.value) || 0 } : r))} style={{ width: 72, textAlign: "center", border: "1px solid #E1705530", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#E17055", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                       </td>
                                       {cnavplOpen ? (
                                         <>
@@ -1628,13 +1667,15 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                   <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#6C5CE7" }}>{totalArTbl || "—"}</td>
                                   <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#6C5CE7", fontWeight: 800 }}>{totalTrimTbl || "—"}</td>
                                   {(() => {
-                                    const totalT1 = carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + Math.round(r.agircPts * 0.62), 0);
-                                    const totalT2 = carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + Math.round(r.agircPts * 0.38), 0);
+                                    const visRows = carriereRows.slice(0, visibleRowCount);
+                                    const totalT1 = parseFloat(visRows.reduce((s, r) => s + (r.agircT1 ?? 0), 0).toFixed(2));
+                                    const totalT2 = parseFloat(visRows.reduce((s, r) => s + (r.agircT2 ?? 0), 0).toFixed(2));
+                                    const totalPts = parseFloat(visRows.reduce((s, r) => s + (r.agircPts || 0), 0).toFixed(2));
                                     return (
                                       <>
-                                        <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#0984E3", borderLeft: "2px solid #0984E315", fontWeight: 700 }}>{totalT1.toLocaleString("fr-FR")}</td>
-                                        <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#0984E3", fontWeight: 700 }}>{totalT2.toLocaleString("fr-FR")}</td>
-                                        <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#1a1a2e", fontWeight: 800 }}>{(totalT1 + totalT2).toLocaleString("fr-FR")}</td>
+                                        <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#0984E3", borderLeft: "2px solid #0984E315", fontWeight: 700 }}>{totalT1 ? totalT1.toLocaleString("fr-FR") : "—"}</td>
+                                        <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#0984E3", fontWeight: 700 }}>{totalT2 ? totalT2.toLocaleString("fr-FR") : "—"}</td>
+                                        <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#1a1a2e", fontWeight: 800 }}>{totalPts ? totalPts.toLocaleString("fr-FR") : "—"}</td>
                                       </>
                                     );
                                   })()}
