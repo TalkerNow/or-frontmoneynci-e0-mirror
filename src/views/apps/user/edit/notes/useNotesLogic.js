@@ -15,6 +15,24 @@ import {
   wrapPlainTextAsHtml,
 } from "./utils";
 import { fetchRISAnalysis } from "../risService";
+import { calculateCnav, calculateArrco, calculateIrcantec, calculateRci } from '../../../../../utils/calculators';
+
+const fmtEUR = (num) =>
+  new Intl.NumberFormat('fr-FR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(num);
+
+function applyCnavToRow(row, result, rawSalary, year) {
+  const salaireEUR = year <= 2001 ? rawSalary / 6.556957 : rawSalary;
+  return {
+    ...row,
+    cnavPoints: fmtEUR(result.revalo),
+    trimBase: String(result.trimestres),
+    ta: fmtEUR(result.salSS),
+    tb: fmtEUR(Math.max(0, salaireEUR - result.salSS)),
+  };
+}
 
 export const useNotesLogic = (id, perso) => {
   const [notes, setNotes] = useState(perso?.notes ?? "");
@@ -74,11 +92,13 @@ export const useNotesLogic = (id, perso) => {
       ta: "",
       tb: "",
       tc: "",
+      deplafonner: false,
       errY: false,
       errR: false,
     },
   ]);
 
+  const [isCadre, setIsCadre] = useState(false);
   const [isImportingRIS, setIsImportingRIS] = useState(false);
   const [userDocuments, setUserDocuments] = useState([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
@@ -91,6 +111,71 @@ export const useNotesLogic = (id, perso) => {
       cancelRef.current = null;
     }
     setIsGenerating(false);
+  }, []);
+
+  const handleSalaryChange = useCallback((rowId, newRevenu) => {
+    setManualCareerRows((prev) =>
+      prev.map((row) => {
+        if (row.id !== rowId) return row;
+        const base = { ...row, revenu: newRevenu, errR: false };
+        const year = parseInt(row.annee, 10);
+        if (!year) return base;
+        const raw = parseFloat(
+          String(newRevenu).replace(/\s/g, '').replace(',', '.')
+        );
+        if (isNaN(raw) || raw <= 0) {
+          return { ...base, cnavPoints: '', trimBase: '', ta: '', tb: '', arrcoPoints: '', ircantecPoints: '', rciPoints: '' };
+        }
+        let updated = base;
+        const cnavResult = calculateCnav(year, raw, row.deplafonner || false);
+        if (cnavResult) {
+          updated = applyCnavToRow(updated, cnavResult, raw, year);
+        } else {
+          updated = { ...updated, cnavPoints: '', trimBase: '', ta: '', tb: '' };
+        }
+        const arrcoResult = calculateArrco(year, raw, isCadre);
+        updated = { ...updated, arrcoPoints: arrcoResult ? arrcoResult.total.toFixed(2) : '' };
+        const ircantecResult = calculateIrcantec(year, raw);
+        updated = { ...updated, ircantecPoints: ircantecResult ? ircantecResult.total.toFixed(5) : '' };
+        const rciResult = calculateRci(year, raw);
+        updated = { ...updated, rciPoints: rciResult ? rciResult.total.toFixed(5) : '' };
+        return updated;
+      })
+    );
+  }, [isCadre]);
+
+  const handleDeplafonnerChange = useCallback((rowId, checked) => {
+    setManualCareerRows((prev) =>
+      prev.map((row) => {
+        if (row.id !== rowId) return row;
+        const updated = { ...row, deplafonner: checked };
+        const year = parseInt(row.annee, 10);
+        if (!year) return updated;
+        const raw = parseFloat(
+          String(row.revenu).replace(/\s/g, '').replace(',', '.')
+        );
+        if (isNaN(raw) || raw <= 0) return updated;
+        const result = calculateCnav(year, raw, checked);
+        if (!result) return updated;
+        return applyCnavToRow(updated, result, raw, year);
+      })
+    );
+  }, []);
+
+  const handleIsCadreChange = useCallback((newIsCadre) => {
+    setIsCadre(newIsCadre);
+    setManualCareerRows((prev) =>
+      prev.map((row) => {
+        const year = parseInt(row.annee, 10);
+        if (!year) return row;
+        const raw = parseFloat(
+          String(row.revenu).replace(/\s/g, '').replace(',', '.')
+        );
+        if (isNaN(raw) || raw <= 0) return row;
+        const arrcoResult = calculateArrco(year, raw, newIsCadre);
+        return { ...row, arrcoPoints: arrcoResult ? arrcoResult.total.toFixed(2) : ''  };
+      })
+    );
   }, []);
 
   // Fetch user documents from the server (for inline document picker)
@@ -449,6 +534,7 @@ export const useNotesLogic = (id, perso) => {
             ta: "",
             tb: "",
             tc: "",
+            deplafonner: false,
             errY: false,
             errR: false,
           });
@@ -1424,6 +1510,7 @@ export const useNotesLogic = (id, perso) => {
         ta: "",
         tb: "",
         tc: "",
+        deplafonner: false,
         errY: false,
         errR: false,
       },
@@ -1450,6 +1537,7 @@ export const useNotesLogic = (id, perso) => {
       return;
     }
 
+    setIsCadre(isCadre);
     setIsImportingRIS(true);
     try {
       const tagsPrefix =
@@ -1540,6 +1628,10 @@ export const useNotesLogic = (id, perso) => {
     manualCareerRows,
     setManualCareerRows,
     handleManualAddLine,
+    handleSalaryChange,
+    handleDeplafonnerChange,
+    handleIsCadreChange,
+    isCadre,
     handleManualImport,
     isImportingRIS,
     fileToSend,
