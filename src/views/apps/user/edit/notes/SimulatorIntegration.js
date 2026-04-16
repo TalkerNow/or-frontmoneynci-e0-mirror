@@ -1575,7 +1575,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                         />
                                         <span style={{ fontSize: 7, color: "#666", display: "block", textAlign: "right", marginTop: 1 }}>
                                           ≤ {getPlafond(row.yr).toLocaleString("fr-FR")} €
-                                          {isPlafonne && (
+                                          {isPlafonne && row.yr < 2005 && (
                                             <>
                                               <span id={`revalo-alert-${row.yr}`} style={{ color: "#E17055", cursor: "pointer", display: "inline-block", padding: "0 2px" }}>
                                                 ⚠
