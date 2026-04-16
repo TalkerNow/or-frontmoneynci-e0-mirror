@@ -12,9 +12,9 @@ import {
   persistUploadedDocs,
   loadUploadedDocs,
 } from "./utils";
-import { executeSkill, executeScript, executeCnavV2, fetchLatestReport, fetchSkillsList, fetchRISAnalysisV6 } from "../risService";
+import { executeSkill, executeScript, fetchLatestReport, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
+import { calculateArrco, calculateIrcantec, calculateRci } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
-import { calculateArrco, calculateIrcantec, calculateRci } from "../../../../../utils/calculators";
 import SkillEditModal from "./SkillEditModal";
 import SkillCreateModal from "./SkillCreateModal";
 const MD_CONTENT = {};
@@ -382,6 +382,8 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   const [showAutoResults, setShowAutoResults] = useState(false);
   const [excludedDates, setExcludedDates] = useState([]);
   const [carriereValidee, setCarriereValidee] = useState(false);
+  const [lockedAt, setLockedAt] = useState(null);
+  const [lockedBy, setLockedBy] = useState(null);
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [cnavplOpen, setCnavplOpen] = useState(false);
   const [cnavplClosing, setCnavplClosing] = useState(false);
@@ -432,17 +434,17 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   const [agircResult, setAgircResult] = useState(null);
   const [agircError, setAgircError] = useState(null);
 
-  // ── IRCANTEC State ──
+  // ── IRCANTEC Skill State ──
   const [ircantecLoading, setIrcantecLoading] = useState(false);
   const [ircantecResult, setIrcantecResult] = useState(null);
   const [ircantecError, setIrcantecError] = useState(null);
 
-  // ── RCI State ──
+  // ── RCI Skill State ──
   const [rciLoading, setRciLoading] = useState(false);
   const [rciResult, setRciResult] = useState(null);
   const [rciError, setRciError] = useState(null);
 
-  // ── CIPAV State ──
+  // ── CIPAV Skill State ──
   const [cipavLoading, setCipavLoading] = useState(false);
   const [cipavResult, setCipavResult] = useState(null);
   const [cipavError, setCipavError] = useState(null);
@@ -462,6 +464,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     } catch { return ""; }
   });
   const cancelRef = useRef(null);
+  const hasHydratedRef = useRef(false);
   // const clientNames = useMemo(() => extractClientNames(user), [user]);
 
   // Persist n8nMessage to sessionStorage
@@ -471,6 +474,132 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     catch (e) { /* noop */ }
   }, [n8nMessage, id]);
 
+
+  // ── Apply career rows from backend data ─────────────────────────────────
+  // Handles two formats:
+  //   RIS format  : { annee, sal_original, sal_eur, devise, regimes }
+  //   SAISIE format: { annee, salaire_brut, salaire_revalo, trimestres_cotises, trimestres_assimiles }
+  const applyCarriereData = useCallback((carriere) => {
+    if (!Array.isArray(carriere) || !carriere.length) return;
+    const minYear = Math.min(...carriere.map(r => r.annee));
+    setVisibleRowCount(Math.min(Math.max(20, 2026 - minYear + 1), 52));
+    setCarriereRows(prev => prev.map(row => {
+      const entry = carriere.find(r => r.annee === row.yr);
+      if (!entry) return row;
+      // Normalize salary: new format uses revenu_brut, legacy uses salaire_brut, RIS uses sal_eur
+      const salEur = entry.revenu_brut ?? entry.salaire_brut ?? entry.sal_eur ?? 0;
+      const salOriginal = entry.revenu_brut ?? entry.salaire_brut ?? entry.sal_original ?? 0;
+      const plaf = PLAFONDS_SS[row.yr] || 48060;
+      const coeff = REVALO_CNAV[row.yr] || 1;
+      const calculatedRevalo = Math.round(Math.min(salEur, plaf) * coeff);
+      let uncappedRevalo = entry.salaire_revalo ?? calculatedRevalo;
+      const revalo = Math.min(uncappedRevalo, plaf);
+      const ss = Math.min(salEur, plaf);
+      const pts = {};
+      // Backward compatibility for points (supporting both points_ and pts_ prefixes)
+      const agirc = entry.points_agirc_arrco ?? entry.pts_agirc_arrco;
+      if (agirc != null) pts.agircPts = agirc;
+      const irc = entry.points_ircantec ?? entry.pts_ircantec;
+      if (irc != null)   pts.ircPts = irc;
+      const rci = entry.points_rci ?? entry.pts_rci;
+      if (rci != null)   pts.rciPts = rci;
+      return { ...row, sal: salOriginal, ss, revalo, devise: entry.devise || '€', ...pts };
+    }));
+    setRevaloValues(prev => {
+      const next = { ...prev };
+      carriere.forEach(entry => {
+        const salEur = entry.revenu_brut ?? entry.salaire_brut ?? entry.sal_eur ?? 0;
+        const plaf = PLAFONDS_SS[entry.annee] || 48060;
+        const coeff = REVALO_CNAV[entry.annee] || 1;
+        const calculatedRevalo = Math.round(Math.min(salEur, plaf) * coeff);
+        let uncappedRevalo = entry.salaire_revalo ?? calculatedRevalo;
+        next[entry.annee] = Math.min(uncappedRevalo, plaf);
+      });
+      return next;
+    });
+    // Restore trimestres if present (SAISIE format)
+    const hasTrim = carriere.some(e => e.trimestres_cotises != null || e.trimestres_assimiles != null);
+    if (hasTrim) {
+      setTrimCotState(prev => {
+        const next = { ...prev };
+        carriere.forEach(e => { if (e.trimestres_cotises != null) next[e.annee] = e.trimestres_cotises; });
+        return next;
+      });
+      setTrimAssState(prev => {
+        const next = { ...prev };
+        carriere.forEach(e => { if (e.trimestres_assimiles != null) next[e.annee] = e.trimestres_assimiles; });
+        return next;
+      });
+    }
+  }, []);
+
+  // Load career data from frozen_data on mount
+  useEffect(() => {
+    if (!id) return;
+    const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+    axios.get(`${global.config.server_url}/frozen_data/${id}`, Config)
+      .then(res => {
+        // Restore CIPAV points (from dedicated column or legacy carriere objects)
+        const cipav = res.data?.cipav;
+        const carriere = res.data?.carriere;
+
+        if (Array.isArray(cipav) && cipav.length) {
+          setCnavplOpen(true);
+          setCnavplRows(prev => {
+            const next = { ...prev };
+            cipav.forEach(e => {
+              if (e.annee) {
+                // Support both new points_cipav_* and legacy pts_cipav_* keys
+                const ptsBase = e.points_cipav_base ?? e.pts_cipav_base;
+                const ptsCompl = e.points_cipav_complementaire ?? e.pts_cipav_complementaire;
+                
+                next[e.annee] = {
+                  ...(next[e.annee] || { revenus: "", revCnavpl: "" }),
+                  points: ptsBase ?? (next[e.annee]?.points ?? ""),
+                  pointsCompl: ptsCompl ?? (next[e.annee]?.pointsCompl ?? ""),
+                };
+              }
+            });
+            return next;
+          });
+        }
+
+        if (Array.isArray(carriere) && carriere.length) {
+          applyCarriereData(carriere);
+          
+          // Legacy fallback: Restore CIPAV from carriere if cipav column was empty
+          if (!Array.isArray(cipav) || !cipav.length) {
+            const hasCipav = carriere.some(e => e.pts_cipav_base != null || e.pts_cipav_complementaire != null);
+            if (hasCipav) {
+              setCnavplOpen(true);
+              setCnavplRows(prev => {
+                const next = { ...prev };
+                carriere.forEach(e => {
+                  const ptsBase = e.points_cipav_base ?? e.pts_cipav_base;
+                  const ptsCompl = e.points_cipav_complementaire ?? e.pts_cipav_complementaire;
+                  
+                  if (ptsBase != null || ptsCompl != null) {
+                    next[e.annee] = {
+                      ...(next[e.annee] || { revenus: "", revCnavpl: "" }),
+                      points: ptsBase != null ? ptsBase : (next[e.annee]?.points ?? ""),
+                      pointsCompl: ptsCompl != null ? ptsCompl : (next[e.annee]?.pointsCompl ?? ""),
+                    };
+                  }
+                });
+                return next;
+              });
+            }
+          }
+        }
+        // Restore frozen state if data was previously geled
+        if (res.data?.locked_at) {
+          setCarriereValidee(true);
+          setLockedAt(res.data.locked_at);
+          setLockedBy(res.data.locked_by);
+        }
+      })
+      .catch(() => { /* pas de données = normal */ });
+  }, [id, applyCarriereData]);
 
   // ── Fetch user documents from server ──
   const fetchUserDocuments = useCallback(async () => {
@@ -487,6 +616,53 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       setIsLoadingDocs(false);
     }
   }, [id]);
+
+  // ── Réinitialiser le tableau carrière ───────────────────────────────────────
+  const handleResetCarriere = useCallback(() => {
+    setCarriereRows(_buildDefaultCarriereRows());
+    setRevaloValues(() => { const init = {}; Array.from({ length: 52 }, (_, i) => { init[2026 - i] = 0; }); return init; });
+    setDeplafValues({});
+    setTrimCotState(() => { const init = {}; Array.from({ length: 52 }, (_, i) => { init[2026 - i] = 0; }); return init; });
+    setTrimAssState(() => { const init = {}; Array.from({ length: 52 }, (_, i) => { init[2026 - i] = 0; }); return init; });
+    setVisibleRowCount(20);
+    setCarriereValidee(false);
+    setRisFileName(null);
+    try { sessionStorage.removeItem(`simu_ris_extracted_data_${id}`); } catch(e){}
+  }, [id]);
+
+  // ── Side Effects ──
+
+  // Reset hydration tracker on client switch
+  useEffect(() => {
+    hasHydratedRef.current = false;
+  }, [id]);
+
+  // Auto-recovery of latest RIS extraction results
+  useEffect(() => {
+    if (!id || carriereValidee || hasHydratedRef.current) return;
+    try {
+      const cached = sessionStorage.getItem(`simu_ris_extracted_data_${id}`);
+      if (cached) {
+        const payload = JSON.parse(cached);
+        // Only apply if the table looks empty (first row sal is 0)
+        // We use a raw check instead of carriereRows dependency to avoid loops
+        if (payload.droits_synthese) setDroitsSynthese(payload.droits_synthese);
+        if (payload.carriere_synthese) setRisCarriereSynthese(payload.carriere_synthese);
+        
+        const raw = Array.isArray(payload.debug_carriere_detaillee_regex)
+          ? payload.debug_carriere_detaillee_regex : [];
+        const carriere = raw.map((entry) => ({
+          annee: entry.annee,
+          sal_eur: entry.annee < 2002 ? Math.round((entry.revenu_brut || 0) / 6.55957) : (entry.revenu_brut || 0),
+          sal_original: entry.revenu_brut || 0,
+          devise: entry.annee < 2002 ? "FRF" : "EUR",
+        }));
+        
+        hasHydratedRef.current = true;
+        applyCarriereData(carriere);
+      }
+    } catch (e) { console.error("Auto-recovery error:", e); }
+  }, [id, carriereValidee, applyCarriereData]);
 
   // Fetch documents on mount
   useEffect(() => { fetchUserDocuments(); }, [fetchUserDocuments]);
@@ -519,107 +695,6 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       .catch(() => setAvailableSkills([]));
   }, []);
 
-  // ── Apply career rows from backend data ─────────────────────────────────
-  // Handles two formats:
-  //   RIS format  : { annee, sal_original, sal_eur, devise, regimes }
-  //   SAISIE format: { annee, salaire_brut, salaire_revalo, trimestres_cotises, trimestres_assimiles }
-  const applyCarriereData = useCallback((carriere) => {
-    if (!Array.isArray(carriere) || !carriere.length) return;
-    const minYear = Math.min(...carriere.map(r => r.annee));
-    setVisibleRowCount(Math.min(Math.max(20, 2026 - minYear + 1), 52));
-    setCarriereRows(prev => prev.map(row => {
-      const entry = carriere.find(r => r.annee === row.yr);
-      if (!entry) return row;
-      // Normalize salary: RIS uses sal_eur, SAISIE uses salaire_brut
-      const salEur = entry.sal_eur ?? entry.salaire_brut ?? 0;
-      const salOriginal = entry.sal_original ?? entry.salaire_brut ?? 0;
-      const plaf = PLAFONDS_SS[row.yr] || 48060;
-      const coeff = REVALO_CNAV[row.yr] || 1;
-      const calculatedRevalo = Math.round(Math.min(salEur, plaf) * coeff);
-      let uncappedRevalo = entry.salaire_revalo ?? calculatedRevalo;
-      const revalo = Math.min(uncappedRevalo, plaf);
-      const ss = Math.min(salEur, plaf);
-      const pts = {};
-      if (entry.pts_agirc_arrco != null) pts.agircPts = entry.pts_agirc_arrco;
-      if (entry.pts_ircantec != null)    pts.ircPts   = entry.pts_ircantec;
-      if (entry.pts_rci != null)         pts.rciPts   = entry.pts_rci;
-      return { ...row, sal: salOriginal, ss, revalo, devise: entry.devise || '€', ...pts };
-    }));
-    setRevaloValues(prev => {
-      const next = { ...prev };
-      carriere.forEach(entry => {
-        const salEur = entry.sal_eur ?? entry.salaire_brut ?? 0;
-        const plaf = PLAFONDS_SS[entry.annee] || 48060;
-        const coeff = REVALO_CNAV[entry.annee] || 1;
-        const calculatedRevalo = Math.round(Math.min(salEur, plaf) * coeff);
-        let uncappedRevalo = entry.salaire_revalo ?? calculatedRevalo;
-        next[entry.annee] = Math.min(uncappedRevalo, plaf);
-      });
-      return next;
-    });
-    // Restore trimestres if present (SAISIE format)
-    const hasTrim = carriere.some(e => e.trimestres_cotises != null || e.trimestres_assimiles != null);
-    if (hasTrim) {
-      setTrimCotState(prev => {
-        const next = { ...prev };
-        carriere.forEach(e => { if (e.trimestres_cotises != null) next[e.annee] = e.trimestres_cotises; });
-        return next;
-      });
-      setTrimAssState(prev => {
-        const next = { ...prev };
-        carriere.forEach(e => { if (e.trimestres_assimiles != null) next[e.annee] = e.trimestres_assimiles; });
-        return next;
-      });
-    }
-  }, []);
-
-  // Load career data from frozen_data on mount
-  useEffect(() => {
-    if (!id) return;
-    const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
-    axios.get(`${global.config.server_url}/frozen_data/${id}`, Config)
-      .then(res => {
-        const carriere = res.data?.carriere;
-        if (Array.isArray(carriere) && carriere.length) {
-          applyCarriereData(carriere);
-        }
-        // Restore CIPAV points
-        const cipav = res.data?.cipav;
-        if (Array.isArray(cipav) && cipav.length) {
-          setCnavplOpen(true);
-          setCnavplRows(prev => {
-            const next = { ...prev };
-            cipav.forEach(({ annee, pts_cipav_base, pts_cipav_complementaire }) => {
-              if (!annee) return;
-              next[annee] = {
-                ...(next[annee] || { revenus: "", revCnavpl: "" }),
-                points:      pts_cipav_base            != null ? pts_cipav_base            : (next[annee]?.points      ?? ""),
-                pointsCompl: pts_cipav_complementaire  != null ? pts_cipav_complementaire  : (next[annee]?.pointsCompl ?? ""),
-              };
-            });
-            return next;
-          });
-        }
-        // Restore frozen state if data was previously geled
-        if (res.data?.locked_at) {
-          setCarriereValidee(true);
-        }
-      })
-      .catch(() => { /* pas de données = normal */ });
-  }, [id, applyCarriereData]);
-
-  // ── Réinitialiser le tableau carrière ───────────────────────────────────────
-  const handleResetCarriere = useCallback(() => {
-    setCarriereRows(_buildDefaultCarriereRows());
-    setRevaloValues(() => { const init = {}; Array.from({ length: 52 }, (_, i) => { init[2026 - i] = 0; }); return init; });
-    setDeplafValues({});
-    setTrimCotState(() => { const init = {}; Array.from({ length: 52 }, (_, i) => { init[2026 - i] = 0; }); return init; });
-    setTrimAssState(() => { const init = {}; Array.from({ length: 52 }, (_, i) => { init[2026 - i] = 0; }); return init; });
-    setVisibleRowCount(20);
-    setCarriereValidee(false);
-    setRisFileName(null);
-  }, []);
-
   // ── Parse PDF via n8n v6 (direct webhook, SimulatorV6 compatible) ─────────
   const parsePdfAndFillCarriere = useCallback(async (file) => {
     if (!file) return;
@@ -627,6 +702,8 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     toast.info("Analyse du RIS en cours… (peut prendre 1-2 minutes)", { autoClose: false, toastId: "ris-parsing" });
     try {
       const payload = await fetchRISAnalysisV6(file);
+      // Cache results for auto-recovery
+      try { sessionStorage.setItem(`simu_ris_extracted_data_${id}`, JSON.stringify(payload)); } catch(e){}
 
       // ── Détection du format de réponse ──────────────────────────────────
       const isNewFormat = Array.isArray(payload.carriere) && !Array.isArray(payload.debug_carriere_detaillee_regex);
@@ -1090,36 +1167,36 @@ export default function SimulatorV6({ mode = "production", id, user }) {
 
 
   const handleGeler = useCallback(async () => {
-    if (!user?.birth_date) {
-      toast.error("Date de naissance manquante — renseignez-la dans le profil client avant de geler.");
-      return;
-    }
+    if (!id) return;
     setFrozenLoading(true);
     try {
-      const carriere = carriereRows.map(row => ({
-        annee: row.yr,
-        salaire_brut: row.sal,
-        salaire_revalo: revaloValues[row.yr] ?? 0,
-        deplafonne: deplafValues[row.yr] || false,
-        trimestres_cotises: trimCotState[row.yr] ?? 0,
-        trimestres_assimiles: trimAssState[row.yr] ?? 0,
-        ...(row.agircPts != null && { pts_agirc_arrco: row.agircPts }),
-        ...(row.ircPts != null && { pts_ircantec: row.ircPts }),
-        ...(row.rciPts != null && { pts_rci: row.rciPts }),
-      }));
+      const carriere = carriereRows.map(row => {
+        const cipavRow = cnavplRows[row.yr];
+        return {
+          annee: row.yr,
+          revenu_brut: row.sal, // Align with CnavSimulator and migration standard
+          salaire_revalo: revaloValues[row.yr] ?? 0,
+          deplafonne: deplafValues[row.yr] || false,
+          trimestres_cotises: trimCotState[row.yr] ?? 0,
+          trimestres_assimiles: trimAssState[row.yr] ?? 0,
+          // Use standard points_ prefix for Python script compatibility
+          ...(row.agircPts != null && { points_agirc_arrco: row.agircPts }),
+          ...(row.ircantecPoints != null && { points_ircantec: row.ircantecPoints }),
+          ...(row.ircPts != null && { points_ircantec: row.ircPts }), // fallback if ircPts is used
+          ...(row.rciPts != null && { points_rci: row.rciPts }),
+          ...(cipavRow?.points && { points_cipav_base: parseFloat(cipavRow.points) || 0 }),
+          ...(cipavRow?.pointsCompl && { points_cipav_complementaire: parseFloat(cipavRow.pointsCompl) || 0 }),
+        };
+      });
 
-      // CIPAV points (base + complémentaire)
-      const cipav = Object.entries(cnavplRows)
-        .filter(([, v]) => v.points !== "" || v.pointsCompl !== "")
-        .map(([yr, v]) => ({
-          annee: parseInt(yr, 10),
-          ...(v.points !== "" && { pts_cipav_base: parseFloat(v.points) || 0 }),
-          ...(v.pointsCompl !== "" && { pts_cipav_complementaire: parseFloat(v.pointsCompl) || 0 }),
-        }));
       const totalCot = carriere.reduce((s, r) => s + (r.trimestres_cotises || 0), 0);
       const totalAss = carriere.reduce((s, r) => s + (r.trimestres_assimiles || 0), 0);
+
+      const consultantId = parseInt(localStorage.getItem("userid"));
+      const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
       const payload = {
-        user_id: parseInt(id),
+        user_id: parseInt(id), // Primary identifier for the client in DB
         source: "SAISIE_CONSULTANT",
         meta: {
           nom: user?.last_name || "",
@@ -1128,18 +1205,48 @@ export default function SimulatorV6({ mode = "production", id, user }) {
           valide_le: new Date().toISOString().split("T")[0],
         },
         carriere,
-        cipav,
+        // Restore CIPAV column (dedicated JSON field)
+        cipav: Object.entries(cnavplRows)
+          .filter(([_, row]) => row.points || row.pointsCompl)
+          .map(([yr, row]) => ({
+            annee: parseInt(yr),
+            points_cipav_base: parseFloat(row.points) || 0,
+            points_cipav_complementaire: parseFloat(row.pointsCompl) || 0,
+          })),
         alertes: [],
         totaux: {
           trimestres_cotises: totalCot,
           trimestres_assimiles: totalAss,
           trimestres_total: totalCot + totalAss,
+          points_officiels: {
+            agirc_arrco: {
+              total_points: carriere.reduce((s, r) => s + (r.points_agirc_arrco || 0), 0),
+              valeur_point: droitsSynthese?.agirc_arrco?.valeur_point || 1.4386,
+            },
+            ircantec: {
+              total_points: carriere.reduce((s, r) => s + (r.points_ircantec || 0), 0),
+              valeur_point: droitsSynthese?.ircantec?.valeur_point || 0.51005,
+            },
+            rci: {
+              total_points: carriere.reduce((s, r) => s + (r.points_rci || 0), 0),
+              valeur_point: droitsSynthese?.rci?.valeur_point || 1.280,
+            },
+          },
         },
+        // Adapt: Set locking fields directly in the store payload
+        locked_at: now,
+        locked_by: consultantId,
       };
+
       const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
       await axios.post(`${global.config.server_url}/frozen_data`, payload, Config);
-      await axios.post(`${global.config.server_url}/frozen_data/${parseInt(id)}/lock`, {}, Config);
+
+      // Clear extraction cache on successful freeze
+      try { sessionStorage.removeItem(`simu_ris_extracted_data_${id}`); } catch(e){}
+      
       setCarriereValidee(true);
+      setLockedAt(now);
+      setLockedBy(consultantId);
       toast.success("Carrière gelée — calcul CNAV disponible");
       setExpandedPanel("dispositifs");
       setSelectedAction(null);
@@ -1153,7 +1260,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     } finally {
       setFrozenLoading(false);
     }
-  }, [carriereRows, revaloValues, deplafValues, trimCotState, trimAssState, cnavplRows, id, user]);
+  }, [id, carriereRows, revaloValues, deplafValues, trimCotState, trimAssState, user]);
 
   const handleAgircExecute = async () => {
     if (!carriereValidee) return;
@@ -1163,9 +1270,13 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     try {
       const result = await executeScript("AGIRC_ARRCO", id, "");
       setAgircResult(result);
+      if (result.success === false && result.arret_critique) {
+        toast.error(result.arret_critique.raison || "Calcul AGIRC-ARRCO interrompu");
+      }
     } catch (err) {
-      setAgircError("Erreur lors du calcul AGIRC-ARRCO. Veuillez réessayer.");
-      toast.error("Erreur calcul AGIRC-ARRCO");
+      const msg = err.response?.data?.arret_critique?.raison || err.message || "Erreur réseau — veuillez réessayer";
+      setAgircError(msg);
+      toast.error(msg);
     } finally {
       setAgircLoading(false);
     }
@@ -1179,8 +1290,12 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     try {
       const result = await executeScript("IRCANTEC", id, "");
       setIrcantecResult(result);
+      if (result.success === false && result.arret_critique) {
+        toast.error(result.arret_critique.raison || "Calcul IRCANTEC interrompu");
+      }
     } catch (err) {
-      setIrcantecError("Erreur lors du calcul IRCANTEC. Veuillez réessayer.");
+      const msg = err.response?.data?.arret_critique?.raison || err.message || "Erreur réseau";
+      setIrcantecError(msg);
       toast.error("Erreur calcul IRCANTEC");
     } finally {
       setIrcantecLoading(false);
@@ -1195,8 +1310,12 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     try {
       const result = await executeScript("RCI", id, "");
       setRciResult(result);
+      if (result.success === false && result.arret_critique) {
+        toast.error(result.arret_critique.raison || "Calcul RCI interrompu");
+      }
     } catch (err) {
-      setRciError("Erreur lors du calcul RCI. Veuillez réessayer.");
+      const msg = err.response?.data?.arret_critique?.raison || err.message || "Erreur réseau";
+      setRciError(msg);
       toast.error("Erreur calcul RCI");
     } finally {
       setRciLoading(false);
@@ -1211,8 +1330,12 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     try {
       const result = await executeScript("CIPAV", id, "");
       setCipavResult(result);
+      if (result.success === false && result.arret_critique) {
+        toast.error(result.arret_critique.raison || "Calcul CIPAV interrompu");
+      }
     } catch (err) {
-      setCipavError("Erreur lors du calcul CIPAV. Veuillez réessayer.");
+      const msg = err.response?.data?.arret_critique?.raison || err.message || "Erreur réseau";
+      setCipavError(msg);
       toast.error("Erreur calcul CIPAV");
     } finally {
       setCipavLoading(false);
@@ -1536,7 +1659,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                             </div>
                             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                               <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, background: isParsingRIS ? "#0984E315" : carriereValidee ? "#00B89415" : "#E1705515", color: isParsingRIS ? "#0984E3" : carriereValidee ? "#00B894" : "#E17055", fontWeight: 700 }}>
-                                {isParsingRIS ? "⏳ Analyse en cours…" : carriereValidee ? "🔒 Validée" : "📥 Importée OCR"}
+                                {isParsingRIS ? "⏳ Analyse en cours…" : carriereValidee ? `🔒 Validée${lockedAt ? ` le ${new Date(lockedAt).toLocaleDateString("fr-FR")}` : ""}` : "📥 Importée OCR"}
                               </span>
                               <button onClick={async () => {
                                 if (carriereValidee) {
@@ -2196,7 +2319,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                         <span style={{ fontSize: 10, fontWeight: 700, color: "#D63031", letterSpacing: "0.06em", textTransform: "uppercase" }}>Arrêt critique</span>
                                       </div>
                                       <div style={{ fontSize: 12, color: "#D63031", lineHeight: 1.5 }}>
-                                        {skillResult.arret_critique.raison || skillResult.arret_critique}
+                                        {skillResult.arret_critique.raison || (typeof skillResult.arret_critique === 'string' ? skillResult.arret_critique : JSON.stringify(skillResult.arret_critique))}
                                       </div>
                                       {skillResult.arret_critique.action_requise && (
                                         <div style={{ marginTop: 7, paddingTop: 7, borderTop: "1px solid #D6303118", fontSize: 10, color: "#b71c1c", lineHeight: 1.4 }}>
@@ -2327,7 +2450,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 {agircResult.arret_critique && (
                                   <div style={{ marginBottom: 10, padding: "10px 12px", borderRadius: 8, background: "#D6303112", border: "2px solid #D63031" }}>
                                     <div style={{ fontSize: 11, fontWeight: 700, color: "#D63031", marginBottom: 4 }}>🚫 Arrêt critique</div>
-                                    <div style={{ fontSize: 10, color: "#D63031" }}>{agircResult.arret_critique}</div>
+                                    <div style={{ fontSize: 10, color: "#D63031" }}>{agircResult.arret_critique.raison || (typeof agircResult.arret_critique === 'string' ? agircResult.arret_critique : JSON.stringify(agircResult.arret_critique))}</div>
                                   </div>
                                 )}
                                 <div style={{ background: "#0984E308", border: "1px solid #0984E320", borderRadius: 8, padding: "10px 14px", marginBottom: 10 }}>
@@ -2355,7 +2478,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       return (
                                         <div key={a.code} style={{ display: "flex", gap: 8, padding: "7px 10px", borderRadius: 6, background: `${color}10`, border: `1px solid ${color}30` }}>
                                           <span style={{ fontSize: 10, fontWeight: 700, color, flexShrink: 0, minWidth: 36 }}>{a.code}</span>
-                                          <span style={{ fontSize: 10, color: "#333" }}>{a.message}</span>
+                                          <span style={{ fontSize: 10, color: "#333" }}>{a.message?.raison || a.message || (typeof a === 'object' ? a.raison || a.message : a)}</span>
                                         </div>
                                       );
                                     })}
@@ -2366,12 +2489,12 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                           </div>
 
                           {/* ── Calculer IRCANTEC ── */}
-                          <div style={{ marginTop: 12, padding: "12px 14px", background: carriereValidee ? "#f0fff8" : "#fafafa", borderRadius: 9, border: `1px solid ${carriereValidee ? "#00B89430" : "#e8e8e8"}` }}>
+                          <div style={{ marginTop: 12, padding: "12px 14px", background: carriereValidee ? "#f0fdf9" : "#fafafa", borderRadius: 9, border: `1px solid ${carriereValidee ? "#00B89430" : "#e8e8e8"}` }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                               <span style={{ fontSize: 16 }}>🏢</span>
                               <span style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>Calcul pension IRCANTEC</span>
                               {!carriereValidee && (
-                                <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 4, background: "#00B89415", color: "#00B894", fontWeight: 700 }}>Validez d'abord la carrière</span>
+                                <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
                               )}
                             </div>
                             <button
@@ -2392,36 +2515,39 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 ⚠ {ircantecError}
                               </div>
                             )}
+                            {/* Résultat IRCANTEC */}
                             {ircantecResult && ircantecResult.python_output && (
-                              <div style={{ marginTop: 14, background: "#00B89408", border: "1px solid #00B89420", borderRadius: 8, padding: "10px 14px" }}>
-                                <div style={{ fontSize: 10, fontWeight: 700, color: "#00B894", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Résultat IRCANTEC</div>
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px" }}>
-                                  {Object.entries(ircantecResult.python_output).map(([key, val]) => (
-                                    <div key={key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #00B89410" }}>
-                                      <span style={{ fontSize: 9, color: "#555" }}>{key}</span>
-                                      <span style={{ fontSize: 10, fontWeight: 700, color: "#1a1a2e" }}>{typeof val === "number" ? val.toLocaleString("fr-FR") : String(val)}</span>
+                              <div style={{ marginTop: 14 }}>
+                                <div style={{ background: "#00B89408", border: "1px solid #00B89420", borderRadius: 8, padding: "10px 14px" }}>
+                                  <div style={{ fontSize: 10, fontWeight: 700, color: "#00B894", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Résultat IRCANTEC</div>
+                                  <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                                    <div style={{ flex: 1, background: "#00B89415", borderRadius: 7, padding: "10px 12px" }}>
+                                      <div style={{ fontSize: 9, color: "#555", marginBottom: 4 }}>Mensuelle brute</div>
+                                      <div style={{ fontSize: 20, fontWeight: 700, color: "#00B894" }}>{ircantecResult.python_output.pension_mensuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €</div>
                                     </div>
-                                  ))}
-                                </div>
-                                {ircantecResult.alertes && ircantecResult.alertes.length > 0 && (
-                                  <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5 }}>
-                                    {ircantecResult.alertes.map((a) => {
-                                      const color = a.niveau === "ROUGE" ? "#D63031" : a.niveau === "JAUNE" ? "#F9A825" : "#00B894";
-                                      return (
-                                        <div key={a.code} style={{ display: "flex", gap: 8, padding: "7px 10px", borderRadius: 6, background: `${color}10`, border: `1px solid ${color}30` }}>
-                                          <span style={{ fontSize: 10, fontWeight: 700, color, flexShrink: 0, minWidth: 36 }}>{a.code}</span>
-                                          <span style={{ fontSize: 10, color: "#333" }}>{a.message}</span>
-                                        </div>
-                                      );
-                                    })}
+                                    <div style={{ flex: 1, background: "#f8fdfb", borderRadius: 7, padding: "10px 12px", border: "1px solid #00B89410" }}>
+                                      <div style={{ fontSize: 9, color: "#555", marginBottom: 4 }}>Annuelle brute</div>
+                                      <div style={{ fontSize: 15, fontWeight: 700, color: "#1a1a2e" }}>{ircantecResult.python_output.pension_annuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 0 })} €</div>
+                                    </div>
                                   </div>
-                                )}
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                    {[
+                                      ["Nb points total", ircantecResult.python_output.nb_points_total?.toLocaleString("fr-FR")],
+                                      ["Valeur du point", `${ircantecResult.python_output.valeur_point} €`],
+                                    ].map(([label, val]) => (
+                                      <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 10, borderBottom: "1px solid #00B89410", paddingBottom: 4 }}>
+                                        <span style={{ color: "#666" }}>{label}</span>
+                                        <span style={{ fontWeight: 700, color: "#1a1a2e" }}>{val}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
                               </div>
                             )}
                           </div>
 
                           {/* ── Calculer RCI ── */}
-                          <div style={{ marginTop: 12, padding: "12px 14px", background: carriereValidee ? "#fff8f5" : "#fafafa", borderRadius: 9, border: `1px solid ${carriereValidee ? "#E1705530" : "#e8e8e8"}` }}>
+                          <div style={{ marginTop: 12, padding: "12px 14px", background: carriereValidee ? "#fef8f5" : "#fafafa", borderRadius: 9, border: `1px solid ${carriereValidee ? "#E1705530" : "#e8e8e8"}` }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                               <span style={{ fontSize: 16 }}>📑</span>
                               <span style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>Calcul pension RCI</span>
@@ -2447,41 +2573,44 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 ⚠ {rciError}
                               </div>
                             )}
+                            {/* Résultat RCI */}
                             {rciResult && rciResult.python_output && (
-                              <div style={{ marginTop: 14, background: "#E1705508", border: "1px solid #E1705520", borderRadius: 8, padding: "10px 14px" }}>
-                                <div style={{ fontSize: 10, fontWeight: 700, color: "#E17055", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Résultat RCI</div>
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px" }}>
-                                  {Object.entries(rciResult.python_output).map(([key, val]) => (
-                                    <div key={key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #E1705510" }}>
-                                      <span style={{ fontSize: 9, color: "#555" }}>{key}</span>
-                                      <span style={{ fontSize: 10, fontWeight: 700, color: "#1a1a2e" }}>{typeof val === "number" ? val.toLocaleString("fr-FR") : String(val)}</span>
+                              <div style={{ marginTop: 14 }}>
+                                <div style={{ background: "#E1705508", border: "1px solid #E1705520", borderRadius: 8, padding: "10px 14px" }}>
+                                  <div style={{ fontSize: 10, fontWeight: 700, color: "#E17055", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Résultat RCI</div>
+                                  <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                                    <div style={{ flex: 1, background: "#E1705515", borderRadius: 7, padding: "10px 12px" }}>
+                                      <div style={{ fontSize: 9, color: "#555", marginBottom: 4 }}>Mensuelle brute</div>
+                                      <div style={{ fontSize: 20, fontWeight: 700, color: "#E17055" }}>{rciResult.python_output.pension_mensuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €</div>
                                     </div>
-                                  ))}
-                                </div>
-                                {rciResult.alertes && rciResult.alertes.length > 0 && (
-                                  <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5 }}>
-                                    {rciResult.alertes.map((a) => {
-                                      const color = a.niveau === "ROUGE" ? "#D63031" : a.niveau === "JAUNE" ? "#F9A825" : "#E17055";
-                                      return (
-                                        <div key={a.code} style={{ display: "flex", gap: 8, padding: "7px 10px", borderRadius: 6, background: `${color}10`, border: `1px solid ${color}30` }}>
-                                          <span style={{ fontSize: 10, fontWeight: 700, color, flexShrink: 0, minWidth: 36 }}>{a.code}</span>
-                                          <span style={{ fontSize: 10, color: "#333" }}>{a.message}</span>
-                                        </div>
-                                      );
-                                    })}
+                                    <div style={{ flex: 1, background: "#fffaf8", borderRadius: 7, padding: "10px 12px", border: "1px solid #E1705510" }}>
+                                      <div style={{ fontSize: 9, color: "#555", marginBottom: 4 }}>Annuelle brute</div>
+                                      <div style={{ fontSize: 15, fontWeight: 700, color: "#1a1a2e" }}>{rciResult.python_output.pension_annuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 0 })} €</div>
+                                    </div>
                                   </div>
-                                )}
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                    {[
+                                      ["Nb points total", rciResult.python_output.nb_points_total?.toLocaleString("fr-FR")],
+                                      ["Valeur du point", `${rciResult.python_output.valeur_point} €`],
+                                    ].map(([label, val]) => (
+                                      <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 10, borderBottom: "1px solid #E1705510", paddingBottom: 4 }}>
+                                        <span style={{ color: "#666" }}>{label}</span>
+                                        <span style={{ fontWeight: 700, color: "#1a1a2e" }}>{val}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
                               </div>
                             )}
                           </div>
 
                           {/* ── Calculer CIPAV ── */}
-                          <div style={{ marginTop: 12, padding: "12px 14px", background: carriereValidee ? "#fdf5ff" : "#fafafa", borderRadius: 9, border: `1px solid ${carriereValidee ? "#9B59B630" : "#e8e8e8"}` }}>
+                          <div style={{ marginTop: 12, padding: "12px 14px", background: carriereValidee ? "#f9f1fc" : "#fafafa", borderRadius: 9, border: `1px solid ${carriereValidee ? "#9B59B630" : "#e8e8e8"}` }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                               <span style={{ fontSize: 16 }}>🏥</span>
                               <span style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>Calcul pension CIPAV</span>
                               {!carriereValidee && (
-                                <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 4, background: "#9B59B615", color: "#9B59B6", fontWeight: 700 }}>Validez d'abord la carrière</span>
+                                <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
                               )}
                             </div>
                             <button
@@ -2502,34 +2631,51 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 ⚠ {cipavError}
                               </div>
                             )}
+                            {/* Résultat CIPAV */}
                             {cipavResult && cipavResult.python_output && (
-                              <div style={{ marginTop: 14, background: "#9B59B608", border: "1px solid #9B59B620", borderRadius: 8, padding: "10px 14px" }}>
-                                <div style={{ fontSize: 10, fontWeight: 700, color: "#9B59B6", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Résultat CIPAV</div>
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px" }}>
-                                  {Object.entries(cipavResult.python_output).map(([key, val]) => (
-                                    <div key={key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #9B59B610" }}>
-                                      <span style={{ fontSize: 9, color: "#555" }}>{key}</span>
-                                      <span style={{ fontSize: 10, fontWeight: 700, color: "#1a1a2e" }}>{typeof val === "number" ? val.toLocaleString("fr-FR") : String(val)}</span>
+                              <div style={{ marginTop: 14 }}>
+                                <div style={{ background: "#9B59B608", border: "1px solid #9B59B620", borderRadius: 8, padding: "10px 14px" }}>
+                                  <div style={{ fontSize: 10, fontWeight: 700, color: "#9B59B6", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Résultat CIPAV</div>
+                                  
+                                  {/* Hero boxes specific for CIPAV */}
+                                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+                                    <div style={{ background: "#9B59B618", borderRadius: 7, padding: "10px 12px" }}>
+                                      <div style={{ fontSize: 9, color: "#555", marginBottom: 4 }}>Total mensuel</div>
+                                      <div style={{ fontSize: 18, fontWeight: 700, color: "#9B59B6" }}>
+                                        {((cipavResult.python_output.pension_base_annuelle || 0) + (cipavResult.python_output.pension_complementaire_annuelle || 0) / 12).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €
+                                      </div>
                                     </div>
-                                  ))}
-                                </div>
-                                {cipavResult.alertes && cipavResult.alertes.length > 0 && (
-                                  <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5 }}>
-                                    {cipavResult.alertes.map((a) => {
-                                      const color = a.niveau === "ROUGE" ? "#D63031" : a.niveau === "JAUNE" ? "#F9A825" : "#9B59B6";
-                                      return (
-                                        <div key={a.code} style={{ display: "flex", gap: 8, padding: "7px 10px", borderRadius: 6, background: `${color}10`, border: `1px solid ${color}30` }}>
-                                          <span style={{ fontSize: 10, fontWeight: 700, color, flexShrink: 0, minWidth: 36 }}>{a.code}</span>
-                                          <span style={{ fontSize: 10, color: "#333" }}>{a.message}</span>
-                                        </div>
-                                      );
-                                    })}
+                                    <div style={{ background: "#fbf8fd", borderRadius: 7, padding: "10px 12px", border: "1px solid #9B59B610" }}>
+                                      <div style={{ fontSize: 9, color: "#555", marginBottom: 4 }}>Total annuel</div>
+                                      <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>
+                                        {((cipavResult.python_output.pension_base_annuelle || 0) + (cipavResult.python_output.pension_complementaire_annuelle || 0)).toLocaleString("fr-FR", { minimumFractionDigits: 0 })} €
+                                      </div>
+                                    </div>
+                                    <div style={{ background: "#fbf8fd", borderRadius: 7, padding: "8px 10px", border: "1px solid #9B59B608" }}>
+                                      <div style={{ fontSize: 8, color: "#666", marginBottom: 2 }}>Base annuelle</div>
+                                      <div style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>{cipavResult.python_output.pension_base_annuelle?.toLocaleString("fr-FR")} €</div>
+                                    </div>
+                                    <div style={{ background: "#fbf8fd", borderRadius: 7, padding: "8px 10px", border: "1px solid #9B59B608" }}>
+                                      <div style={{ fontSize: 8, color: "#666", marginBottom: 2 }}>Compl. annuelle</div>
+                                      <div style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>{cipavResult.python_output.pension_complementaire_annuelle?.toLocaleString("fr-FR")} €</div>
+                                    </div>
                                   </div>
-                                )}
+
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                    {[
+                                      ["Points base", cipavResult.python_output.details_points?.base?.toLocaleString("fr-FR")],
+                                      ["Points complémentaire", cipavResult.python_output.details_points?.complementaire?.toLocaleString("fr-FR")],
+                                    ].map(([label, val]) => (
+                                      <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 10, borderBottom: "1px solid #9B59B610", paddingBottom: 4 }}>
+                                        <span style={{ color: "#666" }}>{label}</span>
+                                        <span style={{ fontWeight: 700, color: "#1a1a2e" }}>{val}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
                               </div>
                             )}
                           </div>
-
                         </div>
                       );
                     }
