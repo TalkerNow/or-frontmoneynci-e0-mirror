@@ -3,7 +3,7 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from "react"
 import axios from "axios";
 import { toast } from "react-toastify";
 import Dropzone from "react-dropzone";
-import { Modal, ModalHeader, ModalBody, ModalFooter, Button } from "reactstrap";
+import { Modal, ModalHeader, ModalBody, ModalFooter, Button, UncontrolledTooltip } from "reactstrap";
 import { DownloadCloud, Eye } from "react-feather";
 import {
   QUICK_TAGS_OPTIONS,
@@ -961,10 +961,32 @@ export default function SimulatorV6({ mode = "production", id, user }) {
 
   const handleDeplafChange = (yr, checked) => {
     setDeplafValues(prev => ({ ...prev, [yr]: checked }));
-    if (!checked) {
-      setRevaloValues(prev => ({ ...prev, [yr]: Math.min(prev[yr] || 0, getPlafond(yr)) }));
+    // Recalculer revalo et trimestres depuis le salaire réel — réplique exacte CnavSimulator
+    const row = carriereRows.find(r => r.yr === yr);
+    const sal = row?.sal || 0;
+    if (sal > 0) {
+      const coeff = REVALO_CNAV[yr] || 1;
+      const passEuro = PLAFONDS_SS[yr] || 48060;
+      const isCapped = !checked || yr >= 2005;
+      let salPlafonne, revalo, ssEur;
+      if (yr <= 2001) {
+        const passFrancs = passEuro * 6.556957;
+        salPlafonne = isCapped ? Math.min(sal, passFrancs) : sal;
+        revalo = Math.round((salPlafonne * coeff) / 6.556957);
+        ssEur = Math.round(salPlafonne / 6.556957);
+      } else {
+        salPlafonne = isCapped ? Math.min(sal, passEuro) : sal;
+        revalo = Math.round(salPlafonne * coeff);
+        ssEur = salPlafonne;
+      }
+      const seuilTrimestre = yr <= 2001 ? (passEuro * 6.556957) / 4 : passEuro / 4;
+      const trimestres = Math.min(4, Math.max(0, Math.floor(sal / (seuilTrimestre || Infinity))));
+      setRevaloValues(prev => ({ ...prev, [yr]: revalo }));
+      setTrimCotState(prev => ({ ...prev, [yr]: trimestres }));
+      setCarriereRows(prev => prev.map(r => r.yr === yr ? { ...r, ss: ssEur } : r));
     }
   };
+
 
   const handleGeler = useCallback(async () => {
     setFrozenLoading(true);
@@ -1463,7 +1485,35 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       <td style={{ padding: "3px 5px", fontWeight: 700, color: "#333" }}>{row.yr}</td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "1px solid #eee" }}>
                                         <input type="number" value={row.sal || ""} disabled={carriereValidee}
-                                          onChange={(e) => { const v = parseInt(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, sal: v } : r)); }}
+                                          onChange={(e) => {
+                                            const v = parseInt(e.target.value) || 0;
+                                            const yr = row.yr;
+                                            const coeff = REVALO_CNAV[yr] || 1;
+                                            const passEuro = PLAFONDS_SS[yr] || 48060;
+                                            const isDeplaf = deplafValues[yr] || false;
+                                            const isCapped = !isDeplaf || yr >= 2005;
+                                            let salPlafonne, revalo, ssEur;
+                                            if (yr <= 2001) {
+                                              // Salaire en FRF — réplique exacte CnavSimulator
+                                              const passFrancs = passEuro * 6.556957;
+                                              salPlafonne = isCapped ? Math.min(v, passFrancs) : v;
+                                              revalo = Math.round((salPlafonne * coeff) / 6.556957);
+                                              ssEur = Math.round(salPlafonne / 6.556957);
+                                            } else {
+                                              // Salaire en EUR
+                                              salPlafonne = isCapped ? Math.min(v, passEuro) : v;
+                                              revalo = Math.round(salPlafonne * coeff);
+                                              ssEur = salPlafonne;
+                                            }
+                                            // Trimestres cotisés — réplique exacte CnavSimulator
+                                            const seuilTrimestre = yr <= 2001
+                                              ? (passEuro * 6.556957) / 4
+                                              : passEuro / 4;
+                                            const trimestres = Math.min(4, Math.max(0, Math.floor(v / (seuilTrimestre || Infinity))));
+                                            setRevaloValues(prev => ({ ...prev, [yr]: revalo }));
+                                            setTrimCotState(prev => ({ ...prev, [yr]: trimestres }));
+                                            setCarriereRows(prev => prev.map(r => r.yr === yr ? { ...r, sal: v, ss: ssEur } : r));
+                                          }}
                                           style={{ width: 62, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 10, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff" }} />
                                         {row.devise === 'FRF' && (
                                           <span style={{ display: "block", fontSize: 8, color: "#E17055", fontWeight: 700, textAlign: "center", marginTop: 1 }}>FRF</span>
@@ -1485,16 +1535,27 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                         />
                                         <span style={{ fontSize: 7, color: "#666", display: "block", textAlign: "right", marginTop: 1 }}>
                                           ≤ {getPlafond(row.yr).toLocaleString("fr-FR")} €
-                                          {isPlafonne && <span style={{ color: "#E17055" }}> ⚠</span>}
+                                          {isPlafonne && (
+                                            <>
+                                              <span id={`revalo-alert-${row.yr}`} style={{ color: "#E17055", cursor: "pointer", display: "inline-block", padding: "0 2px" }}>
+                                                ⚠
+                                              </span>
+                                              <UncontrolledTooltip placement="top" target={`revalo-alert-${row.yr}`}>
+                                                À revoir par un consultant : la revalorisation dépasse peut-être le plafond du PASS de l'année.
+                                              </UncontrolledTooltip>
+                                            </>
+                                          )}
                                         </span>
                                       </td>
                                       <td style={{ padding: "2px 3px", textAlign: "center", width: 28 }}>
-                                        <input type="checkbox"
-                                          checked={deplafValues[row.yr] || false}
-                                          disabled={carriereValidee}
-                                          onChange={(e) => handleDeplafChange(row.yr, e.target.checked)}
-                                          title="Déplafonner : salaire enregistré au-dessus du plafond SS"
-                                          style={{ cursor: carriereValidee ? "default" : "pointer", accentColor: "#6C5CE7", width: 12, height: 12 }} />
+                                        {row.yr < 2005 && (
+                                          <input type="checkbox"
+                                            checked={deplafValues[row.yr] || false}
+                                            disabled={carriereValidee}
+                                            onChange={(e) => handleDeplafChange(row.yr, e.target.checked)}
+                                            title="Déplafonner : salaire enregistré au-dessus du plafond SS"
+                                            style={{ cursor: carriereValidee ? "default" : "pointer", accentColor: "#6C5CE7", width: 12, height: 12 }} />
+                                        )}
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
                                         <input type="number" value={trimCotState[row.yr] ?? 0} disabled={carriereValidee}

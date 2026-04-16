@@ -135,15 +135,17 @@ const ManualCareerTable = ({
                                             />
                                         </td>
                                         <td className="col-small" style={{ textAlign: 'center' }}>
-                                            <input
-                                                type="checkbox"
-                                                checked={row.deplafonner || false}
-                                                onChange={(e) =>
-                                                    handleDeplafonnerChange(row.id, e.target.checked)
-                                                }
-                                                aria-label="Déplafonner"
-                                                title="Déplafonner le salaire au-dessus du PASS"
-                                            />
+                                            {parseInt(row.annee, 10) < 2005 && (
+                                                <input
+                                                    type="checkbox"
+                                                    checked={row.deplafonner || false}
+                                                    onChange={(e) =>
+                                                        handleDeplafonnerChange(row.id, e.target.checked)
+                                                    }
+                                                    aria-label="Déplafonner"
+                                                    title="Déplafonner le salaire au-dessus du PASS"
+                                                />
+                                            )}
                                         </td>
                                         <td className="col-micro">
                                             <input
