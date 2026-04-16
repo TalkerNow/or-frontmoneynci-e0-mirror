@@ -3,6 +3,7 @@ import ReactDOM from "react-dom";
 import { Row, Col } from "reactstrap";
 import "../../../../assets/scss/pages/notes-hub.scss";
 import { useNotesLogic } from "./notes/useNotesLogic";
+import ManualCareerTable from "./notes/ManualCareerTable";
 import NotesForm from "./notes/NotesForm";
 import DocumentViewerModal from "./notes/DocumentViewerModal";
 import ReportErrorModal from "./notes/ReportErrorModal";
@@ -67,6 +68,15 @@ const NotesTab = ({ id, perso = {}, commentsSlot, renderUploadOutside }) => {
     handleOpenDoc,
     requestDeleteGenerated,
     handleRenameDoc,
+    manualCareerRows,
+    setManualCareerRows,
+    handleSalaryChange,
+    handleDeplafonnerChange,
+    handleIsCadreChange,
+    isCadre,
+    handleManualAddLine,
+    handleManualImport,
+    isImportingRIS,
   } = useNotesLogic(id, perso);
 
   const isProspect = String(perso.role).toLowerCase() === "prospect";
@@ -151,6 +161,18 @@ const NotesTab = ({ id, perso = {}, commentsSlot, renderUploadOutside }) => {
           </Col>
         )}
       </Row>
+
+      <ManualCareerTable
+        manualCareerRows={manualCareerRows}
+        setManualCareerRows={setManualCareerRows}
+        handleSalaryChange={handleSalaryChange}
+        handleDeplafonnerChange={handleDeplafonnerChange}
+        handleIsCadreChange={handleIsCadreChange}
+        isCadre={isCadre}
+        handleManualAddLine={handleManualAddLine}
+        handleManualImport={handleManualImport}
+        isImportingRIS={isImportingRIS}
+      />
 
       <DeleteConfirmModal
         target={deleteConfirmTarget}
