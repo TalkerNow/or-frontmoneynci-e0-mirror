@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const RIS_WEBHOOK_URL =
-  "https://n8n.srv796541.hstgr.cloud/webhook/d4655d2d-133e-48d3-9595-558bdc431952";
+  "https://n8n.srv796541.hstgr.cloud/webhook/parse-pdf-salaire";
 
 const N8N_BASE = "https://n8n.srv796541.hstgr.cloud/webhook";
 
@@ -10,6 +10,7 @@ export const WEBHOOKS = {
   PARSE_RIS_V6: `${N8N_BASE}/ris-extraction-v6`,
   CALCULATE: `${N8N_BASE}/production-validated-calculate`,
   SKILL_EXECUTE: `${N8N_BASE}/skill-execute`,
+  SKILL_EXECUTE_CNAV_V2: `${N8N_BASE}/skill-execute-cnav-v2-1-test`,
 };
 
 /**
@@ -43,10 +44,38 @@ export async function fetchRISAnalysisV6(file) {
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await axios.post(WEBHOOKS.PARSE_RIS_V6, formData, {
+  const response = await axios.post(WEBHOOKS.PARSE_RIS, formData, {
     headers: { "Content-Type": "multipart/form-data" },
     timeout: 300000, // 5 min — Gemini + extraction PDF peut prendre du temps
   });
+
+  const data = response.data;
+  return Array.isArray(data) ? data[0] : data;
+}
+
+/**
+ * Exécute un calcul de régime via le proxy Laravel (évite CORS).
+ * @param {string} regimeCode - "CNAV" | "AGIRC_ARRCO" | "IRCANTEC" | "RCI" | "CIPAV"
+ * @param {number} clientId
+ * @param {string} [userContext]
+ * @param {object} [scenarioParams]
+ * @returns {Promise<object>} { python_output, alertes, arret_critique? }
+ */
+export async function executeScript(regimeCode, clientId, userContext, scenarioParams = {}) {
+  const token = localStorage.getItem("token");
+
+  const response = await axios.post(
+    `${global.config.server_url}/script/calculate`,
+    {
+      regime_code: regimeCode,
+      client_id: clientId,
+      token,
+      user_context: userContext || "",
+      scenario_params: scenarioParams,
+      frozen_data_id: null,
+    },
+    { headers: { "Content-Type": "application/json" }, timeout: 120000 }
+  );
 
   const data = response.data;
   return Array.isArray(data) ? data[0] : data;
@@ -66,6 +95,24 @@ export async function executeSkill(skillCode, clientId, userContext) {
     WEBHOOKS.SKILL_EXECUTE,
     { skill_code: skillCode, client_id: clientId, user_context: userContext || "", token },
     { headers: { "Content-Type": "application/json" }, timeout: 60000 }
+  );
+
+  const data = response.data;
+  return Array.isArray(data) ? data[0] : data;
+}
+
+/**
+ * Exécute le calcul CNAV v2 via le workflow dédié.
+ * @param {number} clientId
+ * @returns {Promise<object>} { python_output, alertes, arret_critique? }
+ */
+export async function executeCnavV2(clientId) {
+  const token = localStorage.getItem("token");
+
+  const response = await axios.post(
+    `${global.config.server_url}/cnav/calculate`,
+    { client_id: clientId, token },
+    { headers: { "Content-Type": "application/json" }, timeout: 120000 }
   );
 
   const data = response.data;

@@ -12,7 +12,7 @@ import {
   persistUploadedDocs,
   loadUploadedDocs,
 } from "./utils";
-import { executeSkill, fetchLatestReport, fetchSkillsList, fetchRISAnalysisV6 } from "../risService";
+import { executeSkill, executeScript, executeCnavV2, fetchLatestReport, fetchSkillsList, fetchRISAnalysisV6 } from "../risService";
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
 import SkillCreateModal from "./SkillCreateModal";
@@ -430,6 +430,21 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   const [agircResult, setAgircResult] = useState(null);
   const [agircError, setAgircError] = useState(null);
 
+  // ── IRCANTEC State ──
+  const [ircantecLoading, setIrcantecLoading] = useState(false);
+  const [ircantecResult, setIrcantecResult] = useState(null);
+  const [ircantecError, setIrcantecError] = useState(null);
+
+  // ── RCI State ──
+  const [rciLoading, setRciLoading] = useState(false);
+  const [rciResult, setRciResult] = useState(null);
+  const [rciError, setRciError] = useState(null);
+
+  // ── CIPAV State ──
+  const [cipavLoading, setCipavLoading] = useState(false);
+  const [cipavResult, setCipavResult] = useState(null);
+  const [cipavError, setCipavError] = useState(null);
+
   // ── Upload & Analysis State (migrated from useNotesLogic) ──
   const [fileToSend, setFileToSend] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -522,7 +537,11 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       let uncappedRevalo = entry.salaire_revalo ?? calculatedRevalo;
       const revalo = Math.min(uncappedRevalo, plaf);
       const ss = Math.min(salEur, plaf);
-      return { ...row, sal: salOriginal, ss, revalo, devise: entry.devise || '€' };
+      const pts = {};
+      if (entry.pts_agirc_arrco != null) pts.agircPts = entry.pts_agirc_arrco;
+      if (entry.pts_ircantec != null)    pts.ircPts   = entry.pts_ircantec;
+      if (entry.pts_rci != null)         pts.rciPts   = entry.pts_rci;
+      return { ...row, sal: salOriginal, ss, revalo, devise: entry.devise || '€', ...pts };
     }));
     setRevaloValues(prev => {
       const next = { ...prev };
@@ -562,6 +581,23 @@ export default function SimulatorV6({ mode = "production", id, user }) {
         if (Array.isArray(carriere) && carriere.length) {
           applyCarriereData(carriere);
         }
+        // Restore CIPAV points
+        const cipav = res.data?.cipav;
+        if (Array.isArray(cipav) && cipav.length) {
+          setCnavplOpen(true);
+          setCnavplRows(prev => {
+            const next = { ...prev };
+            cipav.forEach(({ annee, pts_cipav_base, pts_cipav_complementaire }) => {
+              if (!annee) return;
+              next[annee] = {
+                ...(next[annee] || { revenus: "", revCnavpl: "" }),
+                points:      pts_cipav_base            != null ? pts_cipav_base            : (next[annee]?.points      ?? ""),
+                pointsCompl: pts_cipav_complementaire  != null ? pts_cipav_complementaire  : (next[annee]?.pointsCompl ?? ""),
+              };
+            });
+            return next;
+          });
+        }
         // Restore frozen state if data was previously geled
         if (res.data?.locked_at) {
           setCarriereValidee(true);
@@ -590,91 +626,154 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     try {
       const payload = await fetchRISAnalysisV6(file);
 
-      // ── Droits synthèse (totaux extraits du RIS) ─────────────────────────
-      if (payload.droits_synthese) setDroitsSynthese(payload.droits_synthese);
-      if (payload.carriere_synthese) setRisCarriereSynthese(payload.carriere_synthese);
+      // ── Détection du format de réponse ──────────────────────────────────
+      const isNewFormat = Array.isArray(payload.carriere) && !Array.isArray(payload.debug_carriere_detaillee_regex);
 
-      // ── CNAV PL : revenus CIPAV par année ────────────────────────────────
-      const detail_annuel = Array.isArray(payload.detail_annuel) ? payload.detail_annuel : [];
-      const cipavEntries = detail_annuel.filter(e => (e.regimes_concernes || "").toLowerCase().includes("cipav"));
-      if (cipavEntries.length) {
-        const revenuMap = {};
-        cipavEntries.forEach(({ annee, revenus, points_acquis }) => {
-          const yr = parseInt(annee, 10);
-          if (!yr) return;
-          if (revenus) {
-            const sum = revenus.replace(/[€\s]/g, "").split("+")
-              .reduce((s, p) => s + (parseFloat(p.replace(",", ".")) || 0), 0);
-            if (sum > 0) revenuMap[yr] = { revenus: Math.round(sum).toString(), points: parseFloat(points_acquis) || "" };
-          }
+      if (isNewFormat) {
+        // ── NOUVEAU FORMAT : { carriere[], synthese, profil, meta } ─────────
+        const carriereRaw = payload.carriere || [];
+
+        // 1. Salaires
+        applyCarriereData(carriereRaw.map(entry => ({
+          annee: entry.annee,
+          sal_eur: entry.annee < 2002 ? Math.round((entry.revenu || 0) / 6.55957) : (entry.revenu || 0),
+          sal_original: entry.revenu || 0,
+          devise: entry.annee < 2002 ? "FRF" : "€",
+        })));
+
+        // 2. Trimestres cotisés par année
+        const trimCotN = {};
+        carriereRaw.forEach(({ annee, trimestres }) => {
+          const t = parseInt(trimestres, 10) || 0;
+          if (annee && t > 0) trimCotN[annee] = Math.min(t, 4);
         });
-        if (Object.keys(revenuMap).length) {
-          setCnavplOpen(true); // auto-ouvrir la colonne CIPAV
+        if (Object.keys(trimCotN).length) setTrimCotState(prev => ({ ...prev, ...trimCotN }));
+
+        // 3. Points AGIRC-ARRCO / Ircantec / RCI / CIPAV par année
+        const agircN = {}, ircN = {}, rciN = {}, cipavBaseN = {}, cipavComplN = {};
+        carriereRaw.forEach(({ annee, points }) => {
+          if (!Array.isArray(points)) return;
+          points.forEach(({ regime, valeur }) => {
+            const r = (regime || "").toLowerCase();
+            const pts = parseFloat(valeur) || 0;
+            if (!pts) return;
+            if (r.includes("agirc") || r.includes("arrco")) agircN[annee] = (agircN[annee] || 0) + pts;
+            else if (r.includes("ircantec")) ircN[annee] = (ircN[annee] || 0) + pts;
+            else if (r.includes("cipav") && (r.includes("compl") || r.includes("complémentaire"))) cipavComplN[annee] = (cipavComplN[annee] || 0) + pts;
+            else if (r.includes("cipav")) cipavBaseN[annee] = (cipavBaseN[annee] || 0) + pts;
+            else if (r.includes("rci") || r.includes("ssi")) rciN[annee] = (rciN[annee] || 0) + pts;
+          });
+        });
+        if (Object.keys(agircN).length || Object.keys(ircN).length || Object.keys(rciN).length) {
+          setCarriereRows(prev => prev.map(row => {
+            const u = {};
+            if (agircN[row.yr] != null) u.agircPts = agircN[row.yr];
+            if (ircN[row.yr] != null) u.ircPts = ircN[row.yr];
+            if (rciN[row.yr] != null) u.rciPts = rciN[row.yr];
+            return Object.keys(u).length ? { ...row, ...u } : row;
+          }));
+        }
+        if (Object.keys(cipavBaseN).length || Object.keys(cipavComplN).length) {
+          setCnavplOpen(true);
           setCnavplRows(prev => {
             const next = { ...prev };
-            Object.entries(revenuMap).forEach(([yr, vals]) => {
+            const allYears = new Set([...Object.keys(cipavBaseN), ...Object.keys(cipavComplN)]);
+            allYears.forEach(yr => {
               const y = parseInt(yr, 10);
-              if (next[y]) next[y] = { ...next[y], revenus: vals.revenus, points: vals.points || next[y].points };
-              else next[y] = { revenus: vals.revenus, revCnavpl: "", points: vals.points || "" };
+              const base = cipavBaseN[yr] ?? null;
+              const compl = cipavComplN[yr] ?? null;
+              if (next[y]) next[y] = { ...next[y], ...(base != null && { points: base }), ...(compl != null && { pointsCompl: compl }) };
+              else next[y] = { revenus: "", revCnavpl: "", points: base ?? "", pointsCompl: compl ?? "" };
             });
             return next;
           });
         }
-      }
 
-      // ── Points par régime : AGIRC-ARRCO, Ircantec, RCI ──────────────────
-      const agircPtsMap = {};
-      const ircPtsMap = {};
-      const rciPtsMap = {};
-      detail_annuel.forEach((entry) => {
-        const regime = (entry.regimes_concernes || "").toLowerCase();
-        const yr = parseInt(entry.annee, 10);
-        const pts = parseFloat(entry.points_acquis) || 0;
-        if (!yr || !pts) return;
-        if (regime.includes("agirc") || regime.includes("arrco")) {
-          agircPtsMap[yr] = (agircPtsMap[yr] || 0) + pts;
-        } else if (regime.includes("ircantec")) {
-          ircPtsMap[yr] = (ircPtsMap[yr] || 0) + pts;
-        } else if (regime.includes("rci") || regime.includes("ssi")) {
-          rciPtsMap[yr] = (rciPtsMap[yr] || 0) + pts;
+        // 4. Synthèse globale
+        const synthese = payload.synthese || {};
+        if (synthese.trimestres_total || synthese.points) {
+          const pts = synthese.points || {};
+          setDroitsSynthese({
+            trimestres_total: synthese.trimestres_total,
+            points_agirc_arrco: pts.agirc_arrco,
+            points_cipav_base: pts.cipav_base,
+            points_cipav_complementaire: pts.cipav_complementaire,
+            // backward compat: if old single cipav field
+            points_cipav: (pts.cipav ?? ((pts.cipav_base || 0) + (pts.cipav_complementaire || 0))) || null,
+          });
         }
-      });
-      if (Object.keys(agircPtsMap).length || Object.keys(ircPtsMap).length || Object.keys(rciPtsMap).length) {
-        setCarriereRows(prev => prev.map(row => {
-          const updates = {};
-          if (agircPtsMap[row.yr] != null) updates.agircPts = agircPtsMap[row.yr];
-          if (ircPtsMap[row.yr] != null) updates.ircPts = ircPtsMap[row.yr];
-          if (rciPtsMap[row.yr] != null) updates.rciPts = rciPtsMap[row.yr];
-          return Object.keys(updates).length ? { ...row, ...updates } : row;
-        }));
-      }
 
-      // ── 1. Sal. brut / Sal. SS / Revalo (CNAV) ──────────────────────────
-      const raw = Array.isArray(payload.debug_carriere_detaillee_regex)
-        ? payload.debug_carriere_detaillee_regex : [];
-      const carriere = raw.map((entry) => ({
-        annee: entry.annee,
-        sal_eur: entry.annee < 2002 ? Math.round((entry.revenu_brut || 0) / 6.55957) : (entry.revenu_brut || 0),
-        sal_original: entry.revenu_brut || 0,
-        devise: entry.annee < 2002 ? "FRF" : "EUR",
-      }));
-      applyCarriereData(carriere);
+      } else {
+        // ── ANCIEN FORMAT : { debug_carriere_detaillee_regex[], detail_annuel[], ... } ──
+        if (payload.droits_synthese) setDroitsSynthese(payload.droits_synthese);
+        if (payload.carriere_synthese) setRisCarriereSynthese(payload.carriere_synthese);
 
-      // ── 2. Trimestres cotisés / assimilés ───────────────────────────────
-      const newTrimCot = {};
-      const newTrimAss = {};
-      detail_annuel.forEach(({ annee, trimestres_retenus, nature }) => {
-        const yr = parseInt(annee, 10);
-        const t = parseInt(trimestres_retenus, 10) || 0;
-        if (!yr) return;
-        if ((nature || "Cotisé") === "Cotisé") {
-          newTrimCot[yr] = Math.min((newTrimCot[yr] || 0) + t, 4);
-        } else {
-          newTrimAss[yr] = Math.min((newTrimAss[yr] || 0) + t, 4);
+        const detail_annuel = Array.isArray(payload.detail_annuel) ? payload.detail_annuel : [];
+        const cipavEntries = detail_annuel.filter(e => (e.regimes_concernes || "").toLowerCase().includes("cipav"));
+        if (cipavEntries.length) {
+          const revenuMap = {};
+          cipavEntries.forEach(({ annee, revenus, points_acquis }) => {
+            const yr = parseInt(annee, 10);
+            if (!yr) return;
+            if (revenus) {
+              const sum = revenus.replace(/[€\s]/g, "").split("+")
+                .reduce((s, p) => s + (parseFloat(p.replace(",", ".")) || 0), 0);
+              if (sum > 0) revenuMap[yr] = { revenus: Math.round(sum).toString(), points: parseFloat(points_acquis) || "" };
+            }
+          });
+          if (Object.keys(revenuMap).length) {
+            setCnavplOpen(true);
+            setCnavplRows(prev => {
+              const next = { ...prev };
+              Object.entries(revenuMap).forEach(([yr, vals]) => {
+                const y = parseInt(yr, 10);
+                if (next[y]) next[y] = { ...next[y], revenus: vals.revenus, points: vals.points || next[y].points };
+                else next[y] = { revenus: vals.revenus, revCnavpl: "", points: vals.points || "" };
+              });
+              return next;
+            });
+          }
         }
-      });
-      if (Object.keys(newTrimCot).length) setTrimCotState(prev => ({ ...prev, ...newTrimCot }));
-      if (Object.keys(newTrimAss).length) setTrimAssState(prev => ({ ...prev, ...newTrimAss }));
+
+        const agircPtsMap = {}, ircPtsMap = {}, rciPtsMap = {};
+        detail_annuel.forEach((entry) => {
+          const regime = (entry.regimes_concernes || "").toLowerCase();
+          const yr = parseInt(entry.annee, 10);
+          const pts = parseFloat(entry.points_acquis) || 0;
+          if (!yr || !pts) return;
+          if (regime.includes("agirc") || regime.includes("arrco")) agircPtsMap[yr] = (agircPtsMap[yr] || 0) + pts;
+          else if (regime.includes("ircantec")) ircPtsMap[yr] = (ircPtsMap[yr] || 0) + pts;
+          else if (regime.includes("rci") || regime.includes("ssi")) rciPtsMap[yr] = (rciPtsMap[yr] || 0) + pts;
+        });
+        if (Object.keys(agircPtsMap).length || Object.keys(ircPtsMap).length || Object.keys(rciPtsMap).length) {
+          setCarriereRows(prev => prev.map(row => {
+            const updates = {};
+            if (agircPtsMap[row.yr] != null) updates.agircPts = agircPtsMap[row.yr];
+            if (ircPtsMap[row.yr] != null) updates.ircPts = ircPtsMap[row.yr];
+            if (rciPtsMap[row.yr] != null) updates.rciPts = rciPtsMap[row.yr];
+            return Object.keys(updates).length ? { ...row, ...updates } : row;
+          }));
+        }
+
+        const raw = Array.isArray(payload.debug_carriere_detaillee_regex) ? payload.debug_carriere_detaillee_regex : [];
+        applyCarriereData(raw.map((entry) => ({
+          annee: entry.annee,
+          sal_eur: entry.annee < 2002 ? Math.round((entry.revenu_brut || 0) / 6.55957) : (entry.revenu_brut || 0),
+          sal_original: entry.revenu_brut || 0,
+          devise: entry.annee < 2002 ? "FRF" : "EUR",
+        })));
+
+        const newTrimCot = {}, newTrimAss = {};
+        detail_annuel.forEach(({ annee, trimestres_retenus, nature }) => {
+          const yr = parseInt(annee, 10);
+          const t = parseInt(trimestres_retenus, 10) || 0;
+          if (!yr) return;
+          if ((nature || "Cotisé") === "Cotisé") newTrimCot[yr] = Math.min((newTrimCot[yr] || 0) + t, 4);
+          else newTrimAss[yr] = Math.min((newTrimAss[yr] || 0) + t, 4);
+        });
+        if (Object.keys(newTrimCot).length) setTrimCotState(prev => ({ ...prev, ...newTrimCot }));
+        if (Object.keys(newTrimAss).length) setTrimAssState(prev => ({ ...prev, ...newTrimAss }));
+      }
 
       toast.dismiss("ris-parsing");
       toast.success("Tableau carrière rempli");
@@ -967,6 +1066,10 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   };
 
   const handleGeler = useCallback(async () => {
+    if (!user?.birth_date) {
+      toast.error("Date de naissance manquante — renseignez-la dans le profil client avant de geler.");
+      return;
+    }
     setFrozenLoading(true);
     try {
       const carriere = carriereRows.map(row => ({
@@ -976,7 +1079,19 @@ export default function SimulatorV6({ mode = "production", id, user }) {
         deplafonne: deplafValues[row.yr] || false,
         trimestres_cotises: trimCotState[row.yr] ?? 0,
         trimestres_assimiles: trimAssState[row.yr] ?? 0,
+        ...(row.agircPts != null && { pts_agirc_arrco: row.agircPts }),
+        ...(row.ircPts != null && { pts_ircantec: row.ircPts }),
+        ...(row.rciPts != null && { pts_rci: row.rciPts }),
       }));
+
+      // CIPAV points (base + complémentaire)
+      const cipav = Object.entries(cnavplRows)
+        .filter(([, v]) => v.points !== "" || v.pointsCompl !== "")
+        .map(([yr, v]) => ({
+          annee: parseInt(yr, 10),
+          ...(v.points !== "" && { pts_cipav_base: parseFloat(v.points) || 0 }),
+          ...(v.pointsCompl !== "" && { pts_cipav_complementaire: parseFloat(v.pointsCompl) || 0 }),
+        }));
       const totalCot = carriere.reduce((s, r) => s + (r.trimestres_cotises || 0), 0);
       const totalAss = carriere.reduce((s, r) => s + (r.trimestres_assimiles || 0), 0);
       const payload = {
@@ -989,6 +1104,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
           valide_le: new Date().toISOString().split("T")[0],
         },
         carriere,
+        cipav,
         alertes: [],
         totaux: {
           trimestres_cotises: totalCot,
@@ -1013,7 +1129,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     } finally {
       setFrozenLoading(false);
     }
-  }, [carriereRows, revaloValues, deplafValues, trimCotState, trimAssState, id, user]);
+  }, [carriereRows, revaloValues, deplafValues, trimCotState, trimAssState, cnavplRows, id, user]);
 
   const handleAgircExecute = async () => {
     if (!carriereValidee) return;
@@ -1021,7 +1137,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     setAgircError(null);
     setAgircResult(null);
     try {
-      const result = await executeSkill("AGIRC", id, "");
+      const result = await executeScript("AGIRC_ARRCO", id, "");
       setAgircResult(result);
     } catch (err) {
       setAgircError("Erreur lors du calcul AGIRC-ARRCO. Veuillez réessayer.");
@@ -1031,15 +1147,63 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     }
   };
 
+  const handleIrcantecExecute = async () => {
+    if (!carriereValidee) return;
+    setIrcantecLoading(true);
+    setIrcantecError(null);
+    setIrcantecResult(null);
+    try {
+      const result = await executeScript("IRCANTEC", id, "");
+      setIrcantecResult(result);
+    } catch (err) {
+      setIrcantecError("Erreur lors du calcul IRCANTEC. Veuillez réessayer.");
+      toast.error("Erreur calcul IRCANTEC");
+    } finally {
+      setIrcantecLoading(false);
+    }
+  };
+
+  const handleRciExecute = async () => {
+    if (!carriereValidee) return;
+    setRciLoading(true);
+    setRciError(null);
+    setRciResult(null);
+    try {
+      const result = await executeScript("RCI", id, "");
+      setRciResult(result);
+    } catch (err) {
+      setRciError("Erreur lors du calcul RCI. Veuillez réessayer.");
+      toast.error("Erreur calcul RCI");
+    } finally {
+      setRciLoading(false);
+    }
+  };
+
+  const handleCipavExecute = async () => {
+    if (!carriereValidee) return;
+    setCipavLoading(true);
+    setCipavError(null);
+    setCipavResult(null);
+    try {
+      const result = await executeScript("CIPAV", id, "");
+      setCipavResult(result);
+    } catch (err) {
+      setCipavError("Erreur lors du calcul CIPAV. Veuillez réessayer.");
+      toast.error("Erreur calcul CIPAV");
+    } finally {
+      setCipavLoading(false);
+    }
+  };
+
   const handleSkillExecute = async () => {
     if (!carriereValidee) return;
     setSkillLoading(true);
     setSkillError(null);
     setSkillResult(null);
     try {
-      const result = await executeSkill("CNAV", id, "");
+      const result = await executeScript("CNAV", id, "");
       setSkillResult(result);
-      if (result.success === false && result.arret_critique) {
+      if (result.arret_critique) {
         toast.error(result.arret_critique.raison || "Calcul CNAV interrompu");
       }
     } catch (err) {
@@ -1355,10 +1519,12 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                     const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
                                     await axios.post(`${global.config.server_url}/frozen_data/${parseInt(id)}/unlock`, {}, Config);
                                   } catch (e) { /* silencieux */ }
+                                  setCarriereValidee(false);
+                                } else {
+                                  handleGeler();
                                 }
-                                setCarriereValidee(v => !v);
-                              }} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, border: "none", background: carriereValidee ? "#E1705520" : "#00B89420", color: carriereValidee ? "#E17055" : "#00B894", cursor: "pointer", fontWeight: 700 }}>
-                                {carriereValidee ? "🔓 Déverrouiller" : "🔒 Valider"}
+                              }} disabled={frozenLoading} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, border: "none", background: carriereValidee ? "#E1705520" : "#00B89420", color: carriereValidee ? "#E17055" : "#00B894", cursor: frozenLoading ? "default" : "pointer", fontWeight: 700 }}>
+                                {carriereValidee ? "🔓 Déverrouiller" : frozenLoading ? "⏳…" : "🔒 Valider"}
                               </button>
                               <button onClick={handleResetCarriere} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, border: "1px solid #ddd", background: "#fff", color: "#888", cursor: "pointer", fontWeight: 700 }}>
                                 🗑️ Réinitialiser
@@ -1420,7 +1586,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                   <th colSpan={3} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#0984E3", background: "#0984E308", borderLeft: "2px solid #0984E330", borderBottom: "1px solid #0984E320" }}>📊 AGIRC-ARRCO</th>
                                   <th colSpan={1} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#00B894", background: "#00B89408", borderLeft: "2px solid #00B89430", borderBottom: "1px solid #00B89420" }}>🏢 Ircantec</th>
                                   <th colSpan={1} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#E17055", background: "#E1705508", borderLeft: "2px solid #E1705530", borderBottom: "1px solid #E1705520" }}>📑 RCI</th>
-                                  <th colSpan={cnavplOpen ? 3 : 1} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#9B59B6", background: cnavplOpen ? "#9B59B608" : "#f8f8f8", borderLeft: "2px solid #9B59B630", borderBottom: "1px solid #9B59B620", whiteSpace: "nowrap" }}>
+                                  <th colSpan={cnavplOpen ? 2 : 1} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#9B59B6", background: cnavplOpen ? "#9B59B608" : "#f8f8f8", borderLeft: "2px solid #9B59B630", borderBottom: "1px solid #9B59B620", whiteSpace: "nowrap" }}>
                                     <button onClick={toggleCnavpl} title="CIPAV — Libéral" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 10, color: "#9B59B6", padding: 0, display: "inline-flex", alignItems: "center", gap: 3 }}>
                                       <span style={{ display: "inline-block", transform: cnavplOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s", fontSize: 9 }}>▶</span>
                                       {cnavplOpen && <span style={{ fontSize: 9, fontWeight: 700 }}>🏥 CIPAV</span>}
@@ -1438,7 +1604,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                   <th style={{ padding: "3px 5px", textAlign: "center", fontWeight: 600, color: "#E17055", borderBottom: "2px solid #E1705520", borderLeft: "2px solid #E1705530" }}>Points</th>
                                   {cnavplOpen ? (
                                     <>
-                                      {["Revenus", "Rev. CIPAV", "Points"].map((h, i) => (
+                                      {["Pts Base", "Pts Compl."].map((h, i) => (
                                         <th key={h} style={{ padding: "3px 5px", textAlign: "center", fontWeight: 600, color: "#9B59B6", borderBottom: "2px solid #9B59B620", borderLeft: i === 0 ? "2px solid #9B59B630" : undefined, whiteSpace: "nowrap", animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>{h}</th>
                                       ))}
                                     </>
@@ -1528,13 +1694,10 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       {cnavplOpen ? (
                                         <>
                                           <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #9B59B630", animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>
-                                            <input type="text" value={cnavplRows[row.yr]?.revenus || ""} onChange={e => setCnavplRows(p => ({...p, [row.yr]: {...p[row.yr], revenus: e.target.value}}))} disabled={carriereValidee} style={{ width: 52, textAlign: "right", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 10, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 600 }} />
-                                          </td>
-                                          <td style={{ padding: "3px 5px", textAlign: "center", animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>
-                                            <input type="text" value={cnavplRows[row.yr]?.revCnavpl || ""} onChange={e => setCnavplRows(p => ({...p, [row.yr]: {...p[row.yr], revCnavpl: e.target.value}}))} disabled={carriereValidee} style={{ width: 52, textAlign: "right", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 10, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 600 }} />
-                                          </td>
-                                          <td style={{ padding: "3px 5px", textAlign: "center", animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>
                                             <input type="text" value={cnavplRows[row.yr]?.points || ""} onChange={e => setCnavplRows(p => ({...p, [row.yr]: {...p[row.yr], points: e.target.value}}))} disabled={carriereValidee} style={{ width: 40, textAlign: "right", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 10, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 700 }} />
+                                          </td>
+                                          <td style={{ padding: "3px 5px", textAlign: "center", animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>
+                                            <input type="text" value={cnavplRows[row.yr]?.pointsCompl || ""} onChange={e => setCnavplRows(p => ({...p, [row.yr]: {...p[row.yr], pointsCompl: e.target.value}}))} disabled={carriereValidee} style={{ width: 40, textAlign: "right", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 10, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 600 }} />
                                           </td>
                                         </>
                                       ) : (
@@ -1580,9 +1743,8 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                   <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#E17055", borderLeft: "2px solid #E1705515", fontWeight: 700 }}>{carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (r.rciPts || 0), 0) || "—"}</td>
                                   {cnavplOpen ? (
                                     <>
-                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#9B59B6", borderLeft: "2px solid #9B59B630", fontWeight: 700, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>—</td>
-                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#9B59B6", fontWeight: 700, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>—</td>
-                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#9B59B6", fontWeight: 800, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>—</td>
+                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#9B59B6", borderLeft: "2px solid #9B59B630", fontWeight: 800, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>{carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (parseFloat(cnavplRows[r.yr]?.points) || 0), 0) || "—"}</td>
+                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#9B59B6", fontWeight: 800, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>{carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (parseFloat(cnavplRows[r.yr]?.pointsCompl) || 0), 0) || "—"}</td>
                                     </>
                                   ) : (
                                     <td style={{ padding: "5px 5px", width: 24, borderLeft: "2px solid #9B59B630" }}></td>
@@ -1941,10 +2103,10 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                     </div>
                                     {skillResult.alertes && skillResult.alertes.length > 0 && (
                                       <div style={{ padding: "9px 14px 11px", display: "flex", flexDirection: "column", gap: 5 }}>
-                                        {skillResult.alertes.map((a) => {
+                                        {skillResult.alertes.map((a, i) => {
                                           const c = a.niveau === "ROUGE" ? "#D63031" : a.niveau === "ORANGE" ? "#E17055" : "#F9A825";
                                           return (
-                                            <div key={a.code} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                                            <div key={`${a.code}-${i}`} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
                                               <span style={{ fontSize: 9, fontWeight: 700, color: c, flexShrink: 0, minWidth: 32 }}>{a.code}</span>
                                               <span style={{ fontSize: 10, color: "#555", lineHeight: 1.4 }}>{a.message}</span>
                                             </div>
@@ -2029,7 +2191,6 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                             )}
                           </div>
                           {/* ── Calculer AGIRC-ARRCO ── */}
-                          {false && (
                           <div style={{ marginTop: 12, padding: "12px 14px", background: carriereValidee ? "#f0f7ff" : "#fafafa", borderRadius: 9, border: `1px solid ${carriereValidee ? "#0984E330" : "#e8e8e8"}` }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                               <span style={{ fontSize: 16 }}>📊</span>
@@ -2100,7 +2261,172 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               </div>
                             )}
                           </div>
-                          )}
+
+                          {/* ── Calculer IRCANTEC ── */}
+                          <div style={{ marginTop: 12, padding: "12px 14px", background: carriereValidee ? "#f0fff8" : "#fafafa", borderRadius: 9, border: `1px solid ${carriereValidee ? "#00B89430" : "#e8e8e8"}` }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                              <span style={{ fontSize: 16 }}>🏢</span>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>Calcul pension IRCANTEC</span>
+                              {!carriereValidee && (
+                                <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 4, background: "#00B89415", color: "#00B894", fontWeight: 700 }}>Validez d'abord la carrière</span>
+                              )}
+                            </div>
+                            <button
+                              onClick={handleIrcantecExecute}
+                              disabled={!carriereValidee || ircantecLoading}
+                              title={!carriereValidee ? "Validez d'abord la carrière" : "Lancer le calcul IRCANTEC"}
+                              style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 7, border: "none", background: carriereValidee && !ircantecLoading ? "#00B894" : "#ccc", color: "#fff", fontWeight: 700, fontSize: 11, cursor: carriereValidee && !ircantecLoading ? "pointer" : "not-allowed", transition: "background 0.15s" }}
+                            >
+                              {ircantecLoading ? (
+                                <>
+                                  <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                                  Calcul en cours…
+                                </>
+                              ) : "▶ Calculer IRCANTEC"}
+                            </button>
+                            {ircantecError && (
+                              <div style={{ marginTop: 8, fontSize: 10, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
+                                ⚠ {ircantecError}
+                              </div>
+                            )}
+                            {ircantecResult && ircantecResult.python_output && (
+                              <div style={{ marginTop: 14, background: "#00B89408", border: "1px solid #00B89420", borderRadius: 8, padding: "10px 14px" }}>
+                                <div style={{ fontSize: 10, fontWeight: 700, color: "#00B894", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Résultat IRCANTEC</div>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px" }}>
+                                  {Object.entries(ircantecResult.python_output).map(([key, val]) => (
+                                    <div key={key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #00B89410" }}>
+                                      <span style={{ fontSize: 9, color: "#555" }}>{key}</span>
+                                      <span style={{ fontSize: 10, fontWeight: 700, color: "#1a1a2e" }}>{typeof val === "number" ? val.toLocaleString("fr-FR") : String(val)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                                {ircantecResult.alertes && ircantecResult.alertes.length > 0 && (
+                                  <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5 }}>
+                                    {ircantecResult.alertes.map((a) => {
+                                      const color = a.niveau === "ROUGE" ? "#D63031" : a.niveau === "JAUNE" ? "#F9A825" : "#00B894";
+                                      return (
+                                        <div key={a.code} style={{ display: "flex", gap: 8, padding: "7px 10px", borderRadius: 6, background: `${color}10`, border: `1px solid ${color}30` }}>
+                                          <span style={{ fontSize: 10, fontWeight: 700, color, flexShrink: 0, minWidth: 36 }}>{a.code}</span>
+                                          <span style={{ fontSize: 10, color: "#333" }}>{a.message}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* ── Calculer RCI ── */}
+                          <div style={{ marginTop: 12, padding: "12px 14px", background: carriereValidee ? "#fff8f5" : "#fafafa", borderRadius: 9, border: `1px solid ${carriereValidee ? "#E1705530" : "#e8e8e8"}` }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                              <span style={{ fontSize: 16 }}>📑</span>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>Calcul pension RCI</span>
+                              {!carriereValidee && (
+                                <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
+                              )}
+                            </div>
+                            <button
+                              onClick={handleRciExecute}
+                              disabled={!carriereValidee || rciLoading}
+                              title={!carriereValidee ? "Validez d'abord la carrière" : "Lancer le calcul RCI"}
+                              style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 7, border: "none", background: carriereValidee && !rciLoading ? "#E17055" : "#ccc", color: "#fff", fontWeight: 700, fontSize: 11, cursor: carriereValidee && !rciLoading ? "pointer" : "not-allowed", transition: "background 0.15s" }}
+                            >
+                              {rciLoading ? (
+                                <>
+                                  <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                                  Calcul en cours…
+                                </>
+                              ) : "▶ Calculer RCI"}
+                            </button>
+                            {rciError && (
+                              <div style={{ marginTop: 8, fontSize: 10, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
+                                ⚠ {rciError}
+                              </div>
+                            )}
+                            {rciResult && rciResult.python_output && (
+                              <div style={{ marginTop: 14, background: "#E1705508", border: "1px solid #E1705520", borderRadius: 8, padding: "10px 14px" }}>
+                                <div style={{ fontSize: 10, fontWeight: 700, color: "#E17055", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Résultat RCI</div>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px" }}>
+                                  {Object.entries(rciResult.python_output).map(([key, val]) => (
+                                    <div key={key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #E1705510" }}>
+                                      <span style={{ fontSize: 9, color: "#555" }}>{key}</span>
+                                      <span style={{ fontSize: 10, fontWeight: 700, color: "#1a1a2e" }}>{typeof val === "number" ? val.toLocaleString("fr-FR") : String(val)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                                {rciResult.alertes && rciResult.alertes.length > 0 && (
+                                  <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5 }}>
+                                    {rciResult.alertes.map((a) => {
+                                      const color = a.niveau === "ROUGE" ? "#D63031" : a.niveau === "JAUNE" ? "#F9A825" : "#E17055";
+                                      return (
+                                        <div key={a.code} style={{ display: "flex", gap: 8, padding: "7px 10px", borderRadius: 6, background: `${color}10`, border: `1px solid ${color}30` }}>
+                                          <span style={{ fontSize: 10, fontWeight: 700, color, flexShrink: 0, minWidth: 36 }}>{a.code}</span>
+                                          <span style={{ fontSize: 10, color: "#333" }}>{a.message}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* ── Calculer CIPAV ── */}
+                          <div style={{ marginTop: 12, padding: "12px 14px", background: carriereValidee ? "#fdf5ff" : "#fafafa", borderRadius: 9, border: `1px solid ${carriereValidee ? "#9B59B630" : "#e8e8e8"}` }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                              <span style={{ fontSize: 16 }}>🏥</span>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>Calcul pension CIPAV</span>
+                              {!carriereValidee && (
+                                <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 4, background: "#9B59B615", color: "#9B59B6", fontWeight: 700 }}>Validez d'abord la carrière</span>
+                              )}
+                            </div>
+                            <button
+                              onClick={handleCipavExecute}
+                              disabled={!carriereValidee || cipavLoading}
+                              title={!carriereValidee ? "Validez d'abord la carrière" : "Lancer le calcul CIPAV"}
+                              style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 7, border: "none", background: carriereValidee && !cipavLoading ? "#9B59B6" : "#ccc", color: "#fff", fontWeight: 700, fontSize: 11, cursor: carriereValidee && !cipavLoading ? "pointer" : "not-allowed", transition: "background 0.15s" }}
+                            >
+                              {cipavLoading ? (
+                                <>
+                                  <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                                  Calcul en cours…
+                                </>
+                              ) : "▶ Calculer CIPAV"}
+                            </button>
+                            {cipavError && (
+                              <div style={{ marginTop: 8, fontSize: 10, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
+                                ⚠ {cipavError}
+                              </div>
+                            )}
+                            {cipavResult && cipavResult.python_output && (
+                              <div style={{ marginTop: 14, background: "#9B59B608", border: "1px solid #9B59B620", borderRadius: 8, padding: "10px 14px" }}>
+                                <div style={{ fontSize: 10, fontWeight: 700, color: "#9B59B6", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Résultat CIPAV</div>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px" }}>
+                                  {Object.entries(cipavResult.python_output).map(([key, val]) => (
+                                    <div key={key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #9B59B610" }}>
+                                      <span style={{ fontSize: 9, color: "#555" }}>{key}</span>
+                                      <span style={{ fontSize: 10, fontWeight: 700, color: "#1a1a2e" }}>{typeof val === "number" ? val.toLocaleString("fr-FR") : String(val)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                                {cipavResult.alertes && cipavResult.alertes.length > 0 && (
+                                  <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5 }}>
+                                    {cipavResult.alertes.map((a) => {
+                                      const color = a.niveau === "ROUGE" ? "#D63031" : a.niveau === "JAUNE" ? "#F9A825" : "#9B59B6";
+                                      return (
+                                        <div key={a.code} style={{ display: "flex", gap: 8, padding: "7px 10px", borderRadius: 6, background: `${color}10`, border: `1px solid ${color}30` }}>
+                                          <span style={{ fontSize: 10, fontWeight: 700, color, flexShrink: 0, minWidth: 36 }}>{a.code}</span>
+                                          <span style={{ fontSize: 10, color: "#333" }}>{a.message}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
                         </div>
                       );
                     }
