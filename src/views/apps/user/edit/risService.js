@@ -9,8 +9,14 @@ export const WEBHOOKS = {
   PARSE_RIS: RIS_WEBHOOK_URL,
   PARSE_RIS_V6: `${N8N_BASE}/ris-extraction-v6`,
   CALCULATE: `${N8N_BASE}/production-validated-calculate`,
-  SKILL_EXECUTE: `${N8N_BASE}/skill-execute`,
-  SKILL_EXECUTE_CNAV_V2: `${N8N_BASE}/skill-execute-cnav-v2-1-test`,
+  SKILL_EXECUTE: `${N8N_BASE}/skill-execute`, // ancien v1 — garder pour prod
+
+  // v2.2 test — un webhook par regime
+  SCRIPT_CNAV: `${N8N_BASE}/script-execute-cnav-v2-test`,
+  SCRIPT_AGIRC_ARRCO: `${N8N_BASE}/script-execute-agirc-arrco-v2-test`,
+  SCRIPT_IRCANTEC: `${N8N_BASE}/script-execute-ircantec-v2-test`,
+  SCRIPT_RCI: `${N8N_BASE}/script-execute-rci-v2-test`,
+  SCRIPT_CIPAV: `${N8N_BASE}/script-execute-cipav-v2-test`,
 };
 
 /**
@@ -61,20 +67,32 @@ export async function fetchRISAnalysisV6(file) {
  * @param {object} [scenarioParams]
  * @returns {Promise<object>} { python_output, alertes, arret_critique? }
  */
-export async function executeScript(regimeCode, clientId, userContext, scenarioParams = {}) {
+export async function executeScript(regimeCode, clientId, userContext) {
   const token = localStorage.getItem("token");
+  const userId = localStorage.getItem("userid");
+
+  const WEBHOOK_MAP = {
+    CNAV: WEBHOOKS.SCRIPT_CNAV,
+    AGIRC_ARRCO: WEBHOOKS.SCRIPT_AGIRC_ARRCO,
+    IRCANTEC: WEBHOOKS.SCRIPT_IRCANTEC,
+    RCI: WEBHOOKS.SCRIPT_RCI,
+    CIPAV: WEBHOOKS.SCRIPT_CIPAV,
+  };
+
+  const url = WEBHOOK_MAP[regimeCode];
+  if (!url) throw new Error(`Regime inconnu: ${regimeCode}`);
 
   const response = await axios.post(
-    `${global.config.server_url}/script/calculate`,
+    url,
     {
-      regime_code: regimeCode,
       client_id: clientId,
       token,
-      user_context: userContext || "",
-      scenario_params: scenarioParams,
+      user_id: parseInt(userId),
+      user_context: userContext || "Analyse standard",
+      scenario_params: {},
       frozen_data_id: null,
     },
-    { headers: { "Content-Type": "application/json" }, timeout: 120000 }
+    { headers: { "Content-Type": "application/json" }, timeout: 60000 }
   );
 
   const data = response.data;
@@ -102,22 +120,24 @@ export async function executeSkill(skillCode, clientId, userContext) {
 }
 
 /**
- * Exécute le calcul CNAV v2 via le workflow dédié.
+ * Exécute un calcul AGIRC-ARRCO spécifique via le webhook n8n v2.
  * @param {number} clientId
- * @returns {Promise<object>} { python_output, alertes, arret_critique? }
+ * @param {object} payload - Les données de carrière et infos utilisateur requises
+ * @returns {Promise<object>} { success, python_output, alertes, ... }
  */
-export async function executeCnavV2(clientId) {
+export async function executeAgircArrcoWebhook(clientId, payload) {
   const token = localStorage.getItem("token");
 
   const response = await axios.post(
-    `${global.config.server_url}/cnav/calculate`,
-    { client_id: clientId, token },
-    { headers: { "Content-Type": "application/json" }, timeout: 120000 }
+    "https://n8n.srv796541.hstgr.cloud/webhook/script-execute-agirc-arrco-v2-test",
+    { skill_code: "AGIRC", client_id: clientId, ...payload, token },
+    { headers: { "Content-Type": "application/json" }, timeout: 60000 }
   );
 
   const data = response.data;
   return Array.isArray(data) ? data[0] : data;
 }
+
 
 /**
  * Récupère le dernier rapport d'analyse pour un client et un skill donné.
