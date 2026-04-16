@@ -1354,7 +1354,8 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                       const totalRows = carriereRows.slice(0, visibleRowCount);
                       const totalCotTbl = totalRows.reduce((s, r) => s + (trimCotState[r.yr] ?? 0), 0);
                       const totalAssTbl = totalRows.reduce((s, r) => s + (trimAssState[r.yr] ?? 0), 0);
-                      const totalTrimTbl = totalCotTbl + totalAssTbl;
+                      const totalArTbl = totalRows.reduce((s, r) => s + (parseInt(r.ar) || 0), 0);
+                      const totalTrimTbl = totalCotTbl + totalAssTbl + totalArTbl;
                       const samRows = [...carriereRows].sort((a, b) => (revaloValues[b.yr] ?? 0) - (revaloValues[a.yr] ?? 0)).slice(0, 25);
                       const samVal = samRows.length ? Math.round(samRows.reduce((s, r) => s + (revaloValues[r.yr] ?? 0), 0) / samRows.length) : 0;
 
@@ -1624,7 +1625,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                   </td>
                                   <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#6C5CE7" }}>{totalCotTbl || "—"}</td>
                                   <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#6C5CE7" }}>{totalAssTbl || "—"}</td>
-                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#6C5CE7" }}>—</td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#6C5CE7" }}>{totalArTbl || "—"}</td>
                                   <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#6C5CE7", fontWeight: 800 }}>{totalTrimTbl || "—"}</td>
                                   {(() => {
                                     const totalT1 = carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + Math.round(r.agircPts * 0.62), 0);
