@@ -1344,7 +1344,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                 </div>
 
                 {/* Content area */}
-                <div className="simu-content-card" style={{ ...S.card, padding: 16, ...(expandedPanel === "carriere" && !cnavplOpen ? { maxWidth: 820 } : {}) }}>
+                <div className="simu-content-card" style={{ ...S.card, padding: 16, ...(expandedPanel === "carriere" && !cnavplOpen ? { maxWidth: 980 } : {}) }}>
                   {(() => {
                     const panel = ACTION_PANELS[expandedPanel];
 
@@ -1434,19 +1434,19 @@ export default function SimulatorV6({ mode = "production", id, user }) {
 
                           {/* Grand tableau unifié */}
                           <div className="simu-table-wrap" style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
-                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}>
+                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                               <thead>
                                 <tr>
                                   <th rowSpan={2} style={{ padding: "5px 6px", textAlign: "left", fontWeight: 700, color: "#333", borderBottom: "2px solid #ddd", background: "#f8f8f8", verticalAlign: "bottom", width: 36 }}>An.</th>
-                                  <th rowSpan={2} style={{ padding: "5px 6px", textAlign: "center", fontWeight: 700, color: "#555", borderBottom: "2px solid #ddd", background: "#f8f8f8", borderLeft: "1px solid #ddd", verticalAlign: "bottom" }}>Sal. brut<br/><span style={{ fontWeight: 400, color: "#666", fontSize: 9 }}>/Rému.</span></th>
+                                  <th rowSpan={2} style={{ padding: "5px 6px", textAlign: "center", fontWeight: 700, color: "#555", borderBottom: "2px solid #ddd", background: "#f8f8f8", borderLeft: "1px solid #ddd", verticalAlign: "bottom" }}>Sal. brut<br/><span style={{ fontWeight: 400, color: "#666", fontSize: 12 }}>/Rému.</span></th>
                                   <th colSpan={8} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#6C5CE7", background: "#6C5CE708", borderLeft: "2px solid #6C5CE730", borderBottom: "1px solid #6C5CE720" }}>🏛️ CNAV</th>
                                   <th colSpan={3} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#0984E3", background: "#0984E308", borderLeft: "2px solid #0984E330", borderBottom: "1px solid #0984E320" }}>📊 AGIRC-ARRCO</th>
                                   <th colSpan={1} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#00B894", background: "#00B89408", borderLeft: "2px solid #00B89430", borderBottom: "1px solid #00B89420" }}>🏢 Ircantec</th>
                                   <th colSpan={1} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#E17055", background: "#E1705508", borderLeft: "2px solid #E1705530", borderBottom: "1px solid #E1705520" }}>📑 RCI</th>
                                   <th colSpan={cnavplOpen ? 3 : 1} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#9B59B6", background: cnavplOpen ? "#9B59B608" : "#f8f8f8", borderLeft: "2px solid #9B59B630", borderBottom: "1px solid #9B59B620", whiteSpace: "nowrap" }}>
-                                    <button onClick={toggleCnavpl} title="CIPAV — Libéral" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 10, color: "#9B59B6", padding: 0, display: "inline-flex", alignItems: "center", gap: 3 }}>
-                                      <span style={{ display: "inline-block", transform: cnavplOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s", fontSize: 9 }}>▶</span>
-                                      {cnavplOpen && <span style={{ fontSize: 9, fontWeight: 700 }}>🏥 CIPAV</span>}
+                                    <button onClick={toggleCnavpl} title="CIPAV — Libéral" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "#9B59B6", padding: 0, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                                      <span style={{ display: "inline-block", transform: cnavplOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s", fontSize: 12 }}>▶</span>
+                                      {cnavplOpen && <span style={{ fontSize: 12, fontWeight: 700 }}>🏥 CIPAV</span>}
                                     </button>
                                   </th>
                                 </tr>
@@ -1515,7 +1515,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                             setTrimCotState(prev => ({ ...prev, [yr]: trimestres }));
                                             setCarriereRows(prev => prev.map(r => r.yr === yr ? { ...r, sal: v, ss: ssEur } : r));
                                           }}
-                                          style={{ width: 62, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 10, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                          style={{ width: 62, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 13, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff" }} />
                                         {row.devise === 'FRF' && (
                                           <span style={{ display: "block", fontSize: 8, color: "#E17055", fontWeight: 700, textAlign: "center", marginTop: 1 }}>FRF</span>
                                         )}
@@ -1523,7 +1523,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       <td style={{ padding: "3px 5px", textAlign: "right", borderLeft: "2px solid #6C5CE715" }}>
                                         <input type="number" value={row.ss || ""} disabled={carriereValidee}
                                           onChange={(e) => { const v = parseInt(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, ss: v } : r)); }}
-                                          style={{ width: 62, textAlign: "right", border: "1px solid #6C5CE730", borderRadius: 3, fontSize: 10, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff", color: "#555" }} />
+                                          style={{ width: 62, textAlign: "right", border: "1px solid #6C5CE730", borderRadius: 3, fontSize: 13, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff", color: "#555" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "right", color: "#0984E3", fontWeight: 600 }}>{row.coeff}</td>
                                       <td style={{ padding: "3px 5px", textAlign: "right", fontWeight: 700, color: "#6C5CE7" }}>
@@ -1532,7 +1532,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                           value={revaloVal || ""}
                                           disabled={carriereValidee}
                                           onChange={(e) => handleRevaloChange(row.yr, e.target.value, deplafValues[row.yr])}
-                                          style={{ width: 68, textAlign: "right", border: `1px solid ${isPlafonne ? "#E17055" : "#6C5CE730"}`, borderRadius: 3, fontSize: 10, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff", color: "#6C5CE7", fontWeight: 700 }}
+                                          style={{ width: 68, textAlign: "right", border: `1px solid ${isPlafonne ? "#E17055" : "#6C5CE730"}`, borderRadius: 3, fontSize: 13, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff", color: "#6C5CE7", fontWeight: 700 }}
                                         />
                                         <span style={{ fontSize: 7, color: "#666", display: "block", textAlign: "right", marginTop: 1 }}>
                                           ≤ {getPlafond(row.yr).toLocaleString("fr-FR")} €
@@ -1561,42 +1561,42 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
                                         <input type="number" value={trimCotState[row.yr] ?? 0} disabled={carriereValidee}
                                           onChange={(e) => { const v = parseInt(e.target.value) || 0; setTrimCotState(prev => ({ ...prev, [row.yr]: v })); }}
-                                          style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 10, padding: "1px" }} />
+                                          style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 13, padding: "1px" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
                                         <input type="number" value={trimAssState[row.yr] ?? 0} disabled={carriereValidee}
                                           onChange={(e) => { const v = parseInt(e.target.value) || 0; setTrimAssState(prev => ({ ...prev, [row.yr]: v })); }}
-                                          title="Trimestres assimilés (maladie, chômage, maternité…)" style={{ width: 26, textAlign: "center", border: "1px solid #6C5CE730", borderRadius: 3, fontSize: 10, padding: "1px", color: "#6C5CE7" }} />
+                                          title="Trimestres assimilés (maladie, chômage, maternité…)" style={{ width: 26, textAlign: "center", border: "1px solid #6C5CE730", borderRadius: 3, fontSize: 13, padding: "1px", color: "#6C5CE7" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
-                                        <input type="number" defaultValue={row.ar} disabled={carriereValidee} style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 10, padding: "1px" }} />
+                                        <input type="number" defaultValue={row.ar} disabled={carriereValidee} style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 13, padding: "1px" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", fontWeight: 700, color: "#6C5CE7" }}>{tot}</td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #0984E315" }}>
-                                        <input type="number" value={row.agircT1 ?? (ptT1 || "")} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircT1: parseFloat(e.target.value) || 0 } : r))} style={{ width: 40, textAlign: "center", border: "1px solid #0984E330", borderRadius: 3, fontSize: 10, padding: "1px 2px", color: "#0984E3", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" value={row.agircT1 ?? (ptT1 || "")} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircT1: parseFloat(e.target.value) || 0 } : r))} style={{ width: 40, textAlign: "center", border: "1px solid #0984E330", borderRadius: 3, fontSize: 13, padding: "1px 2px", color: "#0984E3", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
-                                        <input type="number" value={row.agircT2 ?? (ptT2 || "")} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircT2: parseFloat(e.target.value) || 0 } : r))} style={{ width: 40, textAlign: "center", border: "1px solid #0984E330", borderRadius: 3, fontSize: 10, padding: "1px 2px", color: "#0984E3", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" value={row.agircT2 ?? (ptT2 || "")} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircT2: parseFloat(e.target.value) || 0 } : r))} style={{ width: 40, textAlign: "center", border: "1px solid #0984E330", borderRadius: 3, fontSize: 13, padding: "1px 2px", color: "#0984E3", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
-                                        <input type="number" value={row.agircPts || ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircPts: parseFloat(e.target.value) || 0 } : r))} style={{ width: 40, textAlign: "center", border: "1px solid #0984E350", borderRadius: 3, fontSize: 10, padding: "1px 2px", color: "#1a1a2e", fontWeight: 800, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" value={row.agircPts || ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircPts: parseFloat(e.target.value) || 0 } : r))} style={{ width: 40, textAlign: "center", border: "1px solid #0984E350", borderRadius: 3, fontSize: 13, padding: "1px 2px", color: "#1a1a2e", fontWeight: 800, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #00B89415" }}>
-                                        <input type="number" value={row.ircPts || ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, ircPts: parseFloat(e.target.value) || 0 } : r))} style={{ width: 40, textAlign: "center", border: "1px solid #00B89430", borderRadius: 3, fontSize: 10, padding: "1px 2px", color: "#00B894", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" value={row.ircPts || ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, ircPts: parseFloat(e.target.value) || 0 } : r))} style={{ width: 40, textAlign: "center", border: "1px solid #00B89430", borderRadius: 3, fontSize: 13, padding: "1px 2px", color: "#00B894", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #E1705515" }}>
-                                        <input type="number" value={row.rciPts || ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, rciPts: parseFloat(e.target.value) || 0 } : r))} style={{ width: 40, textAlign: "center", border: "1px solid #E1705530", borderRadius: 3, fontSize: 10, padding: "1px 2px", color: "#E17055", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" value={row.rciPts || ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, rciPts: parseFloat(e.target.value) || 0 } : r))} style={{ width: 40, textAlign: "center", border: "1px solid #E1705530", borderRadius: 3, fontSize: 13, padding: "1px 2px", color: "#E17055", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                       </td>
                                       {cnavplOpen ? (
                                         <>
                                           <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #9B59B630", animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>
-                                            <input type="text" value={cnavplRows[row.yr]?.revenus || ""} onChange={e => setCnavplRows(p => ({...p, [row.yr]: {...p[row.yr], revenus: e.target.value}}))} disabled={carriereValidee} style={{ width: 52, textAlign: "right", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 10, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 600 }} />
+                                            <input type="text" value={cnavplRows[row.yr]?.revenus || ""} onChange={e => setCnavplRows(p => ({...p, [row.yr]: {...p[row.yr], revenus: e.target.value}}))} disabled={carriereValidee} style={{ width: 52, textAlign: "right", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 13, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 600 }} />
                                           </td>
                                           <td style={{ padding: "3px 5px", textAlign: "center", animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>
-                                            <input type="text" value={cnavplRows[row.yr]?.revCnavpl || ""} onChange={e => setCnavplRows(p => ({...p, [row.yr]: {...p[row.yr], revCnavpl: e.target.value}}))} disabled={carriereValidee} style={{ width: 52, textAlign: "right", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 10, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 600 }} />
+                                            <input type="text" value={cnavplRows[row.yr]?.revCnavpl || ""} onChange={e => setCnavplRows(p => ({...p, [row.yr]: {...p[row.yr], revCnavpl: e.target.value}}))} disabled={carriereValidee} style={{ width: 52, textAlign: "right", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 13, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 600 }} />
                                           </td>
                                           <td style={{ padding: "3px 5px", textAlign: "center", animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>
-                                            <input type="text" value={cnavplRows[row.yr]?.points || ""} onChange={e => setCnavplRows(p => ({...p, [row.yr]: {...p[row.yr], points: e.target.value}}))} disabled={carriereValidee} style={{ width: 40, textAlign: "right", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 10, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 700 }} />
+                                            <input type="text" value={cnavplRows[row.yr]?.points || ""} onChange={e => setCnavplRows(p => ({...p, [row.yr]: {...p[row.yr], points: e.target.value}}))} disabled={carriereValidee} style={{ width: 40, textAlign: "right", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 13, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 700 }} />
                                           </td>
                                         </>
                                       ) : (
@@ -1607,7 +1607,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 })}
                                 <tr>
                                   <td colSpan={16} style={{ padding: "4px 8px" }}>
-                                    <button onClick={() => setVisibleRowCount(v => Math.min(v + 1, 52))} style={{ fontSize: 9, padding: "3px 10px", borderRadius: 5, border: "1px dashed #bbb", background: "transparent", color: "#555", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                                    <button onClick={() => setVisibleRowCount(v => Math.min(v + 1, 52))} style={{ fontSize: 12, padding: "3px 10px", borderRadius: 5, border: "1px dashed #bbb", background: "transparent", color: "#555", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
                                       <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> Ajouter une année ({carriereRows[visibleRowCount] ? carriereRows[visibleRowCount].yr : "—"})
                                     </button>
                                   </td>
@@ -1615,36 +1615,36 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               </tbody>
                               <tfoot>
                                 <tr style={{ background: "#f0f0f0", fontWeight: 700, borderTop: "2px solid #ddd" }}>
-                                  <td style={{ padding: "5px 5px", fontSize: 10, color: "#333" }}>∑</td>
+                                  <td style={{ padding: "5px 5px", fontSize: 13, color: "#333" }}>∑</td>
                                   <td style={{ borderLeft: "1px solid #eee" }}></td>
-                                  <td colSpan={3} style={{ padding: "5px 5px", textAlign: "right", fontSize: 10, color: "#6C5CE7", borderLeft: "2px solid #6C5CE715" }}>
-                                    <button onClick={() => setSamOpen(v => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 10, color: "#6C5CE7", padding: 0 }}>
+                                  <td colSpan={3} style={{ padding: "5px 5px", textAlign: "right", fontSize: 13, color: "#6C5CE7", borderLeft: "2px solid #6C5CE715" }}>
+                                    <button onClick={() => setSamOpen(v => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13, color: "#6C5CE7", padding: 0 }}>
                                       <span style={{ fontSize: 8, display: "inline-block", transform: samOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>▶</span>
                                       SAM : {samVal ? samVal.toLocaleString("fr-FR") + " €" : "—"}
                                     </button>
                                   </td>
-                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#6C5CE7" }}>{totalCotTbl || "—"}</td>
-                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#6C5CE7" }}>{totalAssTbl || "—"}</td>
-                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#6C5CE7" }}>{totalArTbl || "—"}</td>
-                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#6C5CE7", fontWeight: 800 }}>{totalTrimTbl || "—"}</td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#6C5CE7" }}>{totalCotTbl || "—"}</td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#6C5CE7" }}>{totalAssTbl || "—"}</td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#6C5CE7" }}>{totalArTbl || "—"}</td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#6C5CE7", fontWeight: 800 }}>{totalTrimTbl || "—"}</td>
                                   {(() => {
                                     const totalT1 = carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + Math.round(r.agircPts * 0.62), 0);
                                     const totalT2 = carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + Math.round(r.agircPts * 0.38), 0);
                                     return (
                                       <>
-                                        <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#0984E3", borderLeft: "2px solid #0984E315", fontWeight: 700 }}>{totalT1.toLocaleString("fr-FR")}</td>
-                                        <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#0984E3", fontWeight: 700 }}>{totalT2.toLocaleString("fr-FR")}</td>
-                                        <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#1a1a2e", fontWeight: 800 }}>{(totalT1 + totalT2).toLocaleString("fr-FR")}</td>
+                                        <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#0984E3", borderLeft: "2px solid #0984E315", fontWeight: 700 }}>{totalT1.toLocaleString("fr-FR")}</td>
+                                        <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#0984E3", fontWeight: 700 }}>{totalT2.toLocaleString("fr-FR")}</td>
+                                        <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#1a1a2e", fontWeight: 800 }}>{(totalT1 + totalT2).toLocaleString("fr-FR")}</td>
                                       </>
                                     );
                                   })()}
-                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#00B894", borderLeft: "2px solid #00B89415", fontWeight: 700 }}>{carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (r.ircPts || 0), 0) || "—"}</td>
-                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#E17055", borderLeft: "2px solid #E1705515", fontWeight: 700 }}>{carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (r.rciPts || 0), 0) || "—"}</td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#00B894", borderLeft: "2px solid #00B89415", fontWeight: 700 }}>{carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (r.ircPts || 0), 0) || "—"}</td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#E17055", borderLeft: "2px solid #E1705515", fontWeight: 700 }}>{carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (r.rciPts || 0), 0) || "—"}</td>
                                   {cnavplOpen ? (
                                     <>
-                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#9B59B6", borderLeft: "2px solid #9B59B630", fontWeight: 700, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>—</td>
-                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#9B59B6", fontWeight: 700, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>—</td>
-                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#9B59B6", fontWeight: 800, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>—</td>
+                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#9B59B6", borderLeft: "2px solid #9B59B630", fontWeight: 700, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>—</td>
+                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#9B59B6", fontWeight: 700, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>—</td>
+                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#9B59B6", fontWeight: 800, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>—</td>
                                     </>
                                   ) : (
                                     <td style={{ padding: "5px 5px", width: 24, borderLeft: "2px solid #9B59B630" }}></td>
