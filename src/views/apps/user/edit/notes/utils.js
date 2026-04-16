@@ -845,7 +845,7 @@ export function convertRISToManualRows(risData, { isCadre = false } = {}) {
     rows.push({
       id: Date.now() + idx,
       annee: String(annee),
-      revenu: formatEUR(brutEUR),
+      revenu: annee <= 2001 ? String(montant) : formatEUR(brutEUR),
       trimBase: String(trimBase),
       trimAR: String(trimAR),
       cnavPoints: cnavDisplay,
@@ -856,6 +856,7 @@ export function convertRISToManualRows(risData, { isCadre = false } = {}) {
       ta,
       tb,
       tc: "",
+      deplafonner: false,
       errY: false,
       errR: false,
     });

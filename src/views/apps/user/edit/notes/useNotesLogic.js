@@ -15,6 +15,24 @@ import {
   wrapPlainTextAsHtml,
 } from "./utils";
 import { fetchRISAnalysis } from "../risService";
+import { calculateCnav } from '../../../../utils/calculators';
+
+const fmtEUR = (num) =>
+  new Intl.NumberFormat('fr-FR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(num);
+
+function applyCnavToRow(row, result, rawSalary, year) {
+  const salaireEUR = year <= 2001 ? rawSalary / 6.556957 : rawSalary;
+  return {
+    ...row,
+    cnavPoints: fmtEUR(result.revalo),
+    trimBase: String(result.trimestres),
+    ta: fmtEUR(result.salSS),
+    tb: fmtEUR(Math.max(0, salaireEUR - result.salSS)),
+  };
+}
 
 export const useNotesLogic = (id, perso) => {
   const [notes, setNotes] = useState(perso?.notes ?? "");
@@ -74,6 +92,7 @@ export const useNotesLogic = (id, perso) => {
       ta: "",
       tb: "",
       tc: "",
+      deplafonner: false,
       errY: false,
       errR: false,
     },
@@ -91,6 +110,46 @@ export const useNotesLogic = (id, perso) => {
       cancelRef.current = null;
     }
     setIsGenerating(false);
+  }, []);
+
+  const handleSalaryChange = useCallback((rowId, newRevenu) => {
+    setManualCareerRows((prev) =>
+      prev.map((row) => {
+        if (row.id !== rowId) return row;
+        const base = { ...row, revenu: newRevenu, errR: false };
+        const year = parseInt(row.annee, 10);
+        if (!year) return base;
+        const raw = parseFloat(
+          String(newRevenu).replace(/\s/g, '').replace(',', '.')
+        );
+        if (isNaN(raw) || raw <= 0) {
+          return { ...base, cnavPoints: '', trimBase: '', ta: '', tb: '' };
+        }
+        const result = calculateCnav(year, raw, row.deplafonner || false);
+        if (!result) {
+          return { ...base, cnavPoints: '', trimBase: '', ta: '', tb: '' };
+        }
+        return applyCnavToRow(base, result, raw, year);
+      })
+    );
+  }, []);
+
+  const handleDeplafonnerChange = useCallback((rowId, checked) => {
+    setManualCareerRows((prev) =>
+      prev.map((row) => {
+        if (row.id !== rowId) return row;
+        const updated = { ...row, deplafonner: checked };
+        const year = parseInt(row.annee, 10);
+        if (!year) return updated;
+        const raw = parseFloat(
+          String(row.revenu).replace(/\s/g, '').replace(',', '.')
+        );
+        if (isNaN(raw) || raw <= 0) return updated;
+        const result = calculateCnav(year, raw, checked);
+        if (!result) return updated;
+        return applyCnavToRow(updated, result, raw, year);
+      })
+    );
   }, []);
 
   // Fetch user documents from the server (for inline document picker)
@@ -449,6 +508,7 @@ export const useNotesLogic = (id, perso) => {
             ta: "",
             tb: "",
             tc: "",
+            deplafonner: false,
             errY: false,
             errR: false,
           });
@@ -1424,6 +1484,7 @@ export const useNotesLogic = (id, perso) => {
         ta: "",
         tb: "",
         tc: "",
+        deplafonner: false,
         errY: false,
         errR: false,
       },
@@ -1540,6 +1601,8 @@ export const useNotesLogic = (id, perso) => {
     manualCareerRows,
     setManualCareerRows,
     handleManualAddLine,
+    handleSalaryChange,
+    handleDeplafonnerChange,
     handleManualImport,
     isImportingRIS,
     fileToSend,
