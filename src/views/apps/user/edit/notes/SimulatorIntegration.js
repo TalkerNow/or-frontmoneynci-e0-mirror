@@ -13,7 +13,7 @@ import {
   loadUploadedDocs,
   parseNIR,
 } from "./utils";
-import { executeSkill, executeScript, fetchLatestReport, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
+import { executeSkill, executeScript, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
@@ -474,6 +474,27 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     try { sessionStorage.setItem(`simu_n8n_message_${id}`, n8nMessage); }
     catch (e) { /* noop */ }
   }, [n8nMessage, id]);
+
+  // Load cached skill results from DB on mount (persist across F5)
+  useEffect(() => {
+    if (!id) return;
+    const loadCached = async () => {
+      const skillMap = [
+        ["CNAV",        setSkillResult],
+        ["AGIRC_ARRCO", setAgircResult],
+        ["IRCANTEC",    setIrcantecResult],
+        ["RCI",         setRciResult],
+        ["CIPAV",       setCipavResult],
+      ];
+      for (const [code, setter] of skillMap) {
+        try {
+          const report = await fetchLatestReport(id, code);
+          if (report?.result_json) setter(report.result_json);
+        } catch { /* 404 = pas encore calculé, on ignore */ }
+      }
+    };
+    loadCached();
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
   // ── Apply career rows from backend data ─────────────────────────────────
@@ -1378,6 +1399,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     try {
       const result = await executeScript("AGIRC_ARRCO", id, "");
       setAgircResult(result);
+      saveSkillResult(id, "AGIRC_ARRCO", result);
       if (result.success === false && result.arret_critique) {
         toast.error(result.arret_critique.raison || "Calcul AGIRC-ARRCO interrompu");
       }
@@ -1398,6 +1420,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     try {
       const result = await executeScript("IRCANTEC", id, "");
       setIrcantecResult(result);
+      saveSkillResult(id, "IRCANTEC", result);
       if (result.success === false && result.arret_critique) {
         toast.error(result.arret_critique.raison || "Calcul IRCANTEC interrompu");
       }
@@ -1418,6 +1441,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     try {
       const result = await executeScript("RCI", id, "");
       setRciResult(result);
+      saveSkillResult(id, "RCI", result);
       if (result.success === false && result.arret_critique) {
         toast.error(result.arret_critique.raison || "Calcul RCI interrompu");
       }
@@ -1438,6 +1462,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     try {
       const result = await executeScript("CIPAV", id, "");
       setCipavResult(result);
+      saveSkillResult(id, "CIPAV", result);
       if (result.success === false && result.arret_critique) {
         toast.error(result.arret_critique.raison || "Calcul CIPAV interrompu");
       }
@@ -1458,6 +1483,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     try {
       const result = await executeScript("CNAV", id, "");
       setSkillResult(result);
+      saveSkillResult(id, "CNAV", result);
       if (result.arret_critique) {
         toast.error(result.arret_critique.raison || "Calcul CNAV interrompu");
       }
@@ -2567,9 +2593,9 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                     {[
                                       ["Pension mensuelle brute", `${agircResult.python_output.pension_mensuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €`, "#0984E3", true],
                                       ["Pension annuelle brute",  `${agircResult.python_output.pension_annuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €`, "#1a1a2e", false],
-                                      ["Nb points total",         agircResult.python_output.nb_points_total?.toLocaleString("fr-FR"), "#6C5CE7", false],
+                                      ["Nb points total",         (agircResult.python_output.total_points ?? agircResult.python_output.nb_points_total)?.toLocaleString("fr-FR"), "#6C5CE7", false],
                                       ["Coeff. solidarité",       agircResult.python_output.coefficient_solidarite ? `-${agircResult.python_output.coefficient_solidarite * 100}%` : "Aucun (taux plein)", agircResult.python_output.coefficient_solidarite ? "#E17055" : "#00B894", false],
-                                      ["Valeur de service",       `${agircResult.python_output.valeur_service} €/pt`, "#888", false],
+                                      ["Valeur de service",       `${(agircResult.python_output.valeur_point ?? agircResult.python_output.valeur_service)} €/pt`, "#888", false],
                                     ].map(([label, val, color, big]) => (
                                       <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #0984E310" }}>
                                         <span style={{ fontSize: 9, color: "#555" }}>{label}</span>
@@ -2750,7 +2776,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                     <div style={{ background: "#9B59B618", borderRadius: 7, padding: "10px 12px" }}>
                                       <div style={{ fontSize: 9, color: "#555", marginBottom: 4 }}>Total mensuel</div>
                                       <div style={{ fontSize: 18, fontWeight: 700, color: "#9B59B6" }}>
-                                        {((cipavResult.python_output.pension_base_annuelle || 0) + (cipavResult.python_output.pension_complementaire_annuelle || 0) / 12).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €
+                                        {(((cipavResult.python_output.pension_base_annuelle || 0) + (cipavResult.python_output.pension_complementaire_annuelle || 0)) / 12).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €
                                       </div>
                                     </div>
                                     <div style={{ background: "#fbf8fd", borderRadius: 7, padding: "10px 12px", border: "1px solid #9B59B610" }}>
