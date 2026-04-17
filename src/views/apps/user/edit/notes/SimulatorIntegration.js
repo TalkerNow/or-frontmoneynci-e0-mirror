@@ -1194,11 +1194,21 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       const totalAss = carriere.reduce((s, r) => s + (r.trimestres_assimiles || 0), 0);
 
       // ────────────────────────────────────────────────────────
-      // Trimestres par régime : priorité au RIS (droitsSynthese),
-      // sinon heuristique basée sur les points/salaire de chaque année
+      // Trimestres par régime :
+      //   1. Priorité au cache RIS (duree_assurance_trimestres = données officielles)
+      //   2. Fallback droitsSynthese
+      //   3. Fallback heuristique basée sur les points/salaire
       // ────────────────────────────────────────────────────────
+      let risCache = null;
+      try {
+        const cached = sessionStorage.getItem(`simu_ris_extracted_data_${id}`);
+        if (cached) risCache = JSON.parse(cached);
+      } catch (e) {}
+      const dureeAssurance = risCache?.duree_assurance_trimestres || {};
+
       const getRisTrim = (r) => (
-        droitsSynthese?.[r]?.trimestres_total
+        dureeAssurance[r]
+        ?? droitsSynthese?.[r]?.trimestres_total
         ?? droitsSynthese?.[r]?.trimestres
         ?? null
       );
@@ -1206,6 +1216,12 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       const risTrimCipav = getRisTrim("cipav");
       const risTrimIrcantec = getRisTrim("ircantec");
       const risTrimRci = getRisTrim("rci");
+      const risTrimTousRegimes = dureeAssurance.tous_regimes
+        ?? risCache?.carriere_synthese?.trimestres_valides_total
+        ?? null;
+      const risTrimRequis = dureeAssurance.requis_taux_plein
+        ?? risCache?.carriere_synthese?.trimestres_requis_taux_plein
+        ?? null;
 
       // Heuristique fallback : compter les trimestres des années où chaque régime est présent
       const heuristicTrim = { cnav: 0, cipav: 0, ircantec: 0, rci: 0 };
@@ -1230,10 +1246,26 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       };
 
       // ────────────────────────────────────────────────────────
-      // NIR parser : extrait sexe + date naissance fallback
+      // NIR parser : source officielle pour sexe + date naissance
+      // Priorite NIR sur user.birth_date quand l'un ou l'autre est incoherent
       // ────────────────────────────────────────────────────────
-      const nir = user?.secu_social || "";
+      const nir = user?.secu_social || risCache?.profil?.numero_securite_sociale || risCache?.profil?.numero_ss || "";
       const nirInfo = parseNIR(nir);
+
+      // Date naissance finale : si NIR et user.birth_date divergent (année/mois),
+      // NIR fait foi (source officielle d'Etat)
+      let dateNaissanceFinale = user?.birth_date || "";
+      if (nirInfo && dateNaissanceFinale) {
+        const userYr = parseInt(String(dateNaissanceFinale).substring(0, 4), 10);
+        const userMm = parseInt(String(dateNaissanceFinale).substring(5, 7), 10);
+        if (userYr !== nirInfo.annee_naissance || userMm !== nirInfo.mois_naissance) {
+          // Incohérence détectée : NIR prioritaire
+          dateNaissanceFinale = nirInfo.date_naissance_estimee;
+          console.warn(`[handleGeler] Date naissance user (${user.birth_date}) incohérente avec NIR (${nirInfo.date_naissance_estimee}) → NIR prioritaire`);
+        }
+      } else if (!dateNaissanceFinale && nirInfo) {
+        dateNaissanceFinale = nirInfo.date_naissance_estimee;
+      }
 
       const consultantId = parseInt(localStorage.getItem("userid"));
       const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
@@ -1259,11 +1291,11 @@ export default function SimulatorV6({ mode = "production", id, user }) {
         user_id: parseInt(id), // Primary identifier for the client in DB
         source: "SAISIE_CONSULTANT",
         meta: {
-          nom: user?.last_name || "",
-          prenom: user?.first_name || "",
-          date_naissance: user?.birth_date || nirInfo?.date_naissance_estimee || "",
+          nom: user?.last_name || risCache?.profil?.nom || "",
+          prenom: user?.first_name || risCache?.profil?.prenom || "",
+          date_naissance: dateNaissanceFinale,
           sexe: nirInfo?.sexe || user?.sexe || null,
-          nombre_enfants: user?.children_number ?? user?.nombre_enfants ?? 0,
+          nombre_enfants: user?.children_number ?? user?.nombre_enfants ?? risCache?.profil?.nombre_enfants ?? 0,
           nir: nir || null,
           valide_le: new Date().toISOString().split("T")[0],
         },
@@ -1281,8 +1313,10 @@ export default function SimulatorV6({ mode = "production", id, user }) {
           trimestres_cotises: totalCot,
           trimestres_assimiles: totalAss,
           trimestres_total: totalCot + totalAss,
-          trimestres_tous_regimes: totalCot + totalAss,
-          trimestres_requis: droitsSynthese?.trimestres_requis_taux_plein
+          // Trimestres officiels RIS prioritaires sur la somme calculée
+          trimestres_tous_regimes: risTrimTousRegimes ?? (totalCot + totalAss),
+          trimestres_requis: risTrimRequis
+            ?? droitsSynthese?.trimestres_requis_taux_plein
             ?? risCarriereSynthese?.trimestres_requis_taux_plein
             ?? 172,
           trimestres_par_regime,
