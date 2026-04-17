@@ -2567,9 +2567,9 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                     {[
                                       ["Pension mensuelle brute", `${agircResult.python_output.pension_mensuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €`, "#0984E3", true],
                                       ["Pension annuelle brute",  `${agircResult.python_output.pension_annuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €`, "#1a1a2e", false],
-                                      ["Nb points total",         agircResult.python_output.nb_points_total?.toLocaleString("fr-FR"), "#6C5CE7", false],
+                                      ["Nb points total",         (agircResult.python_output.total_points ?? agircResult.python_output.nb_points_total)?.toLocaleString("fr-FR"), "#6C5CE7", false],
                                       ["Coeff. solidarité",       agircResult.python_output.coefficient_solidarite ? `-${agircResult.python_output.coefficient_solidarite * 100}%` : "Aucun (taux plein)", agircResult.python_output.coefficient_solidarite ? "#E17055" : "#00B894", false],
-                                      ["Valeur de service",       `${agircResult.python_output.valeur_service} €/pt`, "#888", false],
+                                      ["Valeur de service",       `${(agircResult.python_output.valeur_point ?? agircResult.python_output.valeur_service)} €/pt`, "#888", false],
                                     ].map(([label, val, color, big]) => (
                                       <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #0984E310" }}>
                                         <span style={{ fontSize: 9, color: "#555" }}>{label}</span>
