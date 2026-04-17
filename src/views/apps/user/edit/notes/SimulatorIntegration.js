@@ -13,7 +13,7 @@ import {
   loadUploadedDocs,
   parseNIR,
 } from "./utils";
-import { executeSkill, executeScript, fetchLatestReport, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
+import { executeSkill, executeScript, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
@@ -474,6 +474,27 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     try { sessionStorage.setItem(`simu_n8n_message_${id}`, n8nMessage); }
     catch (e) { /* noop */ }
   }, [n8nMessage, id]);
+
+  // Load cached skill results from DB on mount (persist across F5)
+  useEffect(() => {
+    if (!id) return;
+    const loadCached = async () => {
+      const skillMap = [
+        ["CNAV",        setSkillResult],
+        ["AGIRC_ARRCO", setAgircResult],
+        ["IRCANTEC",    setIrcantecResult],
+        ["RCI",         setRciResult],
+        ["CIPAV",       setCipavResult],
+      ];
+      for (const [code, setter] of skillMap) {
+        try {
+          const report = await fetchLatestReport(id, code);
+          if (report?.result_json) setter(report.result_json);
+        } catch { /* 404 = pas encore calculé, on ignore */ }
+      }
+    };
+    loadCached();
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
   // ── Apply career rows from backend data ─────────────────────────────────
@@ -1378,6 +1399,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     try {
       const result = await executeScript("AGIRC_ARRCO", id, "");
       setAgircResult(result);
+      saveSkillResult(id, "AGIRC_ARRCO", result);
       if (result.success === false && result.arret_critique) {
         toast.error(result.arret_critique.raison || "Calcul AGIRC-ARRCO interrompu");
       }
@@ -1398,6 +1420,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     try {
       const result = await executeScript("IRCANTEC", id, "");
       setIrcantecResult(result);
+      saveSkillResult(id, "IRCANTEC", result);
       if (result.success === false && result.arret_critique) {
         toast.error(result.arret_critique.raison || "Calcul IRCANTEC interrompu");
       }
@@ -1418,6 +1441,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     try {
       const result = await executeScript("RCI", id, "");
       setRciResult(result);
+      saveSkillResult(id, "RCI", result);
       if (result.success === false && result.arret_critique) {
         toast.error(result.arret_critique.raison || "Calcul RCI interrompu");
       }
@@ -1438,6 +1462,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     try {
       const result = await executeScript("CIPAV", id, "");
       setCipavResult(result);
+      saveSkillResult(id, "CIPAV", result);
       if (result.success === false && result.arret_critique) {
         toast.error(result.arret_critique.raison || "Calcul CIPAV interrompu");
       }
@@ -1458,6 +1483,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     try {
       const result = await executeScript("CNAV", id, "");
       setSkillResult(result);
+      saveSkillResult(id, "CNAV", result);
       if (result.arret_critique) {
         toast.error(result.arret_critique.raison || "Calcul CNAV interrompu");
       }

@@ -160,6 +160,32 @@ export async function fetchLatestReport(clientId, skillCode) {
 }
 
 /**
+ * Sauvegarde un résultat de calcul en base (analysis_reports).
+ * Silencieux — n'interrompt pas l'UI en cas d'erreur.
+ * @param {number|string} clientId
+ * @param {string} skillCode - ex: "CNAV", "AGIRC_ARRCO"
+ * @param {object} result - L'objet retourné par executeScript
+ */
+export async function saveSkillResult(clientId, skillCode, result) {
+  const token = localStorage.getItem("token");
+  try {
+    await axios.post(
+      `${global.config.server_url}/v1/analysis-reports`,
+      {
+        user_id: parseInt(clientId),
+        skill_id: skillCode.toLowerCase(),
+        result_json: result,
+        alertes_json: result.alertes || null,
+        arret_critique_json: result.arret_critique || null,
+      },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+  } catch (err) {
+    console.warn(`saveSkillResult(${skillCode}) failed silently:`, err?.response?.data || err.message);
+  }
+}
+
+/**
  * Récupère la liste des skills disponibles.
  * @param {string} [type] - Filtre optionnel par type
  * @returns {Promise<Array>}
