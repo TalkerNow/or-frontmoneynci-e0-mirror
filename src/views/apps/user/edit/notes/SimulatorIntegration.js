@@ -2750,7 +2750,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                     <div style={{ background: "#9B59B618", borderRadius: 7, padding: "10px 12px" }}>
                                       <div style={{ fontSize: 9, color: "#555", marginBottom: 4 }}>Total mensuel</div>
                                       <div style={{ fontSize: 18, fontWeight: 700, color: "#9B59B6" }}>
-                                        {((cipavResult.python_output.pension_base_annuelle || 0) + (cipavResult.python_output.pension_complementaire_annuelle || 0) / 12).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €
+                                        {(((cipavResult.python_output.pension_base_annuelle || 0) + (cipavResult.python_output.pension_complementaire_annuelle || 0)) / 12).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €
                                       </div>
                                     </div>
                                     <div style={{ background: "#fbf8fd", borderRadius: 7, padding: "10px 12px", border: "1px solid #9B59B610" }}>
