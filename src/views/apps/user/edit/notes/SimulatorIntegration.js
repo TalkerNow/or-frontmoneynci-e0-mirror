@@ -11,6 +11,7 @@ import {
   extractClientNames,
   persistUploadedDocs,
   loadUploadedDocs,
+  parseNIR,
 } from "./utils";
 import { executeSkill, executeScript, fetchLatestReport, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci } from '../../../../../utils/calculators';
@@ -1192,8 +1193,67 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       const totalCot = carriere.reduce((s, r) => s + (r.trimestres_cotises || 0), 0);
       const totalAss = carriere.reduce((s, r) => s + (r.trimestres_assimiles || 0), 0);
 
+      // ────────────────────────────────────────────────────────
+      // Trimestres par régime : priorité au RIS (droitsSynthese),
+      // sinon heuristique basée sur les points/salaire de chaque année
+      // ────────────────────────────────────────────────────────
+      const getRisTrim = (r) => (
+        droitsSynthese?.[r]?.trimestres_total
+        ?? droitsSynthese?.[r]?.trimestres
+        ?? null
+      );
+      const risTrimCnav = getRisTrim("assurance_retraite") ?? getRisTrim("cnav");
+      const risTrimCipav = getRisTrim("cipav");
+      const risTrimIrcantec = getRisTrim("ircantec");
+      const risTrimRci = getRisTrim("rci");
+
+      // Heuristique fallback : compter les trimestres des années où chaque régime est présent
+      const heuristicTrim = { cnav: 0, cipav: 0, ircantec: 0, rci: 0 };
+      carriere.forEach(row => {
+        const totalTrim = (row.trimestres_cotises || 0) + (row.trimestres_assimiles || 0);
+        const hasCnav = (row.revenu_brut || 0) > 0 || (row.points_agirc_arrco || 0) > 0;
+        const hasCipav = (row.points_cipav_base || 0) > 0 || (row.points_cipav_complementaire || 0) > 0;
+        const hasIrcantec = (row.points_ircantec || 0) > 0;
+        const hasRci = (row.points_rci || 0) > 0;
+        if (hasCnav) heuristicTrim.cnav += totalTrim;
+        if (hasCipav) heuristicTrim.cipav += totalTrim;
+        if (hasIrcantec) heuristicTrim.ircantec += totalTrim;
+        if (hasRci) heuristicTrim.rci += totalTrim;
+      });
+
+      const trimestres_par_regime = {
+        cnav: risTrimCnav ?? heuristicTrim.cnav,
+        cipav: risTrimCipav ?? heuristicTrim.cipav,
+        ircantec: risTrimIrcantec ?? heuristicTrim.ircantec,
+        rci: risTrimRci ?? heuristicTrim.rci,
+        msa: 0,
+      };
+
+      // ────────────────────────────────────────────────────────
+      // NIR parser : extrait sexe + date naissance fallback
+      // ────────────────────────────────────────────────────────
+      const nir = user?.secu_social || "";
+      const nirInfo = parseNIR(nir);
+
       const consultantId = parseInt(localStorage.getItem("userid"));
       const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+      // Totaux points par régime (préfère droitsSynthese si présent, sinon somme de la carrière)
+      const totalPointsAgirc = droitsSynthese?.agirc_arrco?.points_total
+        ?? droitsSynthese?.agirc_arrco?.total_points
+        ?? carriere.reduce((s, r) => s + (r.points_agirc_arrco || 0), 0);
+      const totalPointsIrcantec = droitsSynthese?.ircantec?.points_total
+        ?? droitsSynthese?.ircantec?.total_points
+        ?? carriere.reduce((s, r) => s + (r.points_ircantec || 0), 0);
+      const totalPointsRci = droitsSynthese?.rci?.points_total
+        ?? droitsSynthese?.rci?.total_points
+        ?? carriere.reduce((s, r) => s + (r.points_rci || 0), 0);
+      const totalPointsCipavBase = droitsSynthese?.cipav?.points_base
+        ?? droitsSynthese?.points_cipav_base
+        ?? Object.values(cnavplRows).reduce((s, r) => s + (parseFloat(r.points) || 0), 0);
+      const totalPointsCipavCompl = droitsSynthese?.cipav?.points_complementaire
+        ?? droitsSynthese?.points_cipav_complementaire
+        ?? Object.values(cnavplRows).reduce((s, r) => s + (parseFloat(r.pointsCompl) || 0), 0);
 
       const payload = {
         user_id: parseInt(id), // Primary identifier for the client in DB
@@ -1201,7 +1261,10 @@ export default function SimulatorV6({ mode = "production", id, user }) {
         meta: {
           nom: user?.last_name || "",
           prenom: user?.first_name || "",
-          date_naissance: user?.birth_date || "",
+          date_naissance: user?.birth_date || nirInfo?.date_naissance_estimee || "",
+          sexe: nirInfo?.sexe || user?.sexe || null,
+          nombre_enfants: user?.children_number ?? user?.nombre_enfants ?? 0,
+          nir: nir || null,
           valide_le: new Date().toISOString().split("T")[0],
         },
         carriere,
@@ -1218,17 +1281,28 @@ export default function SimulatorV6({ mode = "production", id, user }) {
           trimestres_cotises: totalCot,
           trimestres_assimiles: totalAss,
           trimestres_total: totalCot + totalAss,
+          trimestres_tous_regimes: totalCot + totalAss,
+          trimestres_requis: droitsSynthese?.trimestres_requis_taux_plein
+            ?? risCarriereSynthese?.trimestres_requis_taux_plein
+            ?? 172,
+          trimestres_par_regime,
           points_officiels: {
             agirc_arrco: {
-              total_points: carriere.reduce((s, r) => s + (r.points_agirc_arrco || 0), 0),
+              total_points: totalPointsAgirc,
               valeur_point: droitsSynthese?.agirc_arrco?.valeur_point || 1.4386,
             },
+            cipav: {
+              points_base: totalPointsCipavBase,
+              valeur_point_base: droitsSynthese?.cipav?.valeur_point_base || 0.654,
+              points_complementaire: totalPointsCipavCompl,
+              valeur_point_complementaire: droitsSynthese?.cipav?.valeur_point_complementaire || 2.89,
+            },
             ircantec: {
-              total_points: carriere.reduce((s, r) => s + (r.points_ircantec || 0), 0),
-              valeur_point: droitsSynthese?.ircantec?.valeur_point || 0.51005,
+              total_points: totalPointsIrcantec,
+              valeur_point: droitsSynthese?.ircantec?.valeur_point || 0.56357,
             },
             rci: {
-              total_points: carriere.reduce((s, r) => s + (r.points_rci || 0), 0),
+              total_points: totalPointsRci,
               valeur_point: droitsSynthese?.rci?.valeur_point || 1.280,
             },
           },
@@ -1260,7 +1334,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     } finally {
       setFrozenLoading(false);
     }
-  }, [id, carriereRows, revaloValues, deplafValues, trimCotState, trimAssState, user]);
+  }, [id, carriereRows, revaloValues, deplafValues, trimCotState, trimAssState, user, cnavplRows, droitsSynthese, risCarriereSynthese]);
 
   const handleAgircExecute = async () => {
     if (!carriereValidee) return;
