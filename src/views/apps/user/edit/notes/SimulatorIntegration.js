@@ -13,7 +13,7 @@ import {
   loadUploadedDocs,
   parseNIR,
 } from "./utils";
-import { executeSkill, executeScript, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
+import { executeSkill, executeScript, executeSkillGeneric, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
@@ -90,6 +90,21 @@ const ACTION_PANELS = {
   },
 };
 
+
+// Mapping dispositif UI id → skill_code DB (null = pas de skill générique pour ce dispositif)
+const DISPOSITIF_TO_SKILL_CODE = {
+  racl: "RACL",
+  rachat_incomplete: "VPLR",
+  rachat_etude: "VPLR",
+  retraite_progressive: "RETRAITE_PROGRESSIVE",
+  cumul_emploi: "CUMUL_EMPLOI_RETRAITE",
+  chomage_ind: null,
+  chomage_non_ind: null,
+  arret_activite: null,
+  cotisations_min: null,
+  trimestres_etranger: "TRIMESTRES_ETRANGER",
+  reversion: "REVERSION",
+};
 
 // Auto-results that appear automatically in bilans (not buttons)
 const AUTO_RESULTS = [
@@ -210,12 +225,51 @@ const DOC_TYPES = [
 
 // MOCK_DOCS removed — real documents are fetched from the backend
 
-// Dispositifs auto-détectés comme potentiellement applicables (basé sur l'analyse du dossier)
-const MOCK_DETECTED_DISPOSITIFS = {
-  racl: "Début activité à 17 ans détecté sur le RIS",
-  chomage_ind: "Attestation France Travail présente au dossier",
-  retraite_progressive: "Profil compatible (âge légal −2 ans atteint)",
-};
+// Détection automatique des dispositifs applicables à partir des données RIS
+function detectDispositifsFromRIS(trimCot, birthDate) {
+  const detected = {};
+  if (!birthDate) return detected;
+
+  const birthYear = parseInt((birthDate || "").split("-")[0] || (birthDate || "").split("/")[2], 10);
+  if (!birthYear) return detected;
+
+  // Années avec au moins 1 trimestre cotisé
+  const activeYears = Object.entries(trimCot)
+    .filter(([, t]) => parseInt(t, 10) > 0)
+    .map(([yr]) => parseInt(yr, 10))
+    .sort((a, b) => a - b);
+
+  const firstWorkYear = activeYears[0] || null;
+
+  // RACL — début d'activité avant 21 ans
+  if (firstWorkYear) {
+    const ageDebutCarriere = firstWorkYear - birthYear;
+    if (ageDebutCarriere <= 20 && ageDebutCarriere >= 14) {
+      detected.racl = `Début d'activité à ${ageDebutCarriere} ans détecté sur le RIS (${firstWorkYear})`;
+    }
+  }
+
+  // VPLR rachat années incomplètes — au moins une année avec 1-3 trimestres
+  const incompletYears = Object.entries(trimCot)
+    .filter(([, t]) => { const v = parseInt(t, 10); return v > 0 && v < 4; })
+    .map(([yr]) => yr);
+  if (incompletYears.length > 0) {
+    detected.rachat_incomplete = `${incompletYears.length} année(s) incomplète(s) (${incompletYears.slice(0, 3).join(", ")}${incompletYears.length > 3 ? "…" : ""})`;
+  }
+
+  // Retraite progressive — âge légal estimé selon génération (réforme 2023)
+  const ageLegal = birthYear >= 1968 ? 64
+    : birthYear >= 1965 ? 63.5
+    : birthYear >= 1963 ? 63
+    : birthYear >= 1961 ? 62.5
+    : 62;
+  const ageApprox = 2026 - birthYear;
+  if (ageApprox >= ageLegal - 4 && ageApprox <= ageLegal + 3) {
+    detected.retraite_progressive = `Profil compatible — âge ~${ageApprox} ans (éligible dès ${ageLegal - 2} ans)`;
+  }
+
+  return detected;
+}
 
 // Mock auto-generated dates from dispositifs
 const MOCK_AUTO_DATES = [
@@ -348,6 +402,8 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   const [expandedParam, setExpandedParam] = useState(null);
   const [modal, setModal] = useState(null);
   const [preentretienModal, setPreentretienModal] = useState(null);
+  const [systemPromptModal, setSystemPromptModal] = useState(null);
+  const [hiddenSystemPrompt, setHiddenSystemPrompt] = useState("");
 
   const openPreentretienEditor = async () => {
     setPreentretienModal({ text: "", loading: true, saving: false });
@@ -376,6 +432,37 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     } catch (err) {
       toast.error("Erreur lors de l'enregistrement du prompt");
       setPreentretienModal((m) => (m ? { ...m, saving: false } : m));
+    }
+  };
+
+  const openSystemPromptEditor = async () => {
+    setSystemPromptModal({ text: "", id: null, loading: true, saving: false });
+    try {
+      const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+      const response = await axios.get(`${global.config.server_url}/v1/system-prompt/latest`, Config);
+      const { id, prompt_text } = response.data;
+      setSystemPromptModal({ text: prompt_text || "", id, loading: false, saving: false });
+    } catch (err) {
+      toast.error("Impossible de charger le system prompt");
+      setSystemPromptModal(null);
+    }
+  };
+
+  const saveSystemPrompt = async (text) => {
+    if (!systemPromptModal?.id) return;
+    setSystemPromptModal((m) => (m ? { ...m, saving: true } : m));
+    try {
+      const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+      await axios.put(
+        `${global.config.server_url}/prompts/${systemPromptModal.id}`,
+        { prompt_text: text },
+        Config
+      );
+      toast.success("System prompt enregistré avec succès");
+      setSystemPromptModal(null);
+    } catch (err) {
+      toast.error("Erreur lors de l'enregistrement du system prompt");
+      setSystemPromptModal((m) => (m ? { ...m, saving: false } : m));
     }
   };
 
@@ -450,6 +537,14 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   const [cipavResult, setCipavResult] = useState(null);
   const [cipavError, setCipavError] = useState(null);
 
+  // ── Scénarios — Generic Skill Executor State ──
+  const [scenarioSkillResults, setScenarioSkillResults] = useState({});
+  const [scenarioSkillLoading, setScenarioSkillLoading] = useState({});
+  const [scenarioSkillErrors, setScenarioSkillErrors] = useState({});
+
+  // ── Détection automatique des dispositifs applicables ──
+  const [detectedDispositifs, setDetectedDispositifs] = useState({});
+
   // ── Upload & Analysis State (migrated from useNotesLogic) ──
   const [fileToSend, setFileToSend] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -496,10 +591,30 @@ export default function SimulatorV6({ mode = "production", id, user }) {
           }
         } catch { /* 404 = pas encore calculé, on ignore */ }
       }
+
+      // Recharger les résultats skills scénarios (RACL, VPLR, etc.)
+      const scenarioCodes = Object.values(DISPOSITIF_TO_SKILL_CODE).filter(Boolean);
+      const uniqueCodes = [...new Set(scenarioCodes)];
+      const scenarioResults = {};
+      for (const code of uniqueCodes) {
+        try {
+          const report = await fetchLatestReport(id, code);
+          if (report?.result_json) scenarioResults[code] = report.result_json;
+        } catch { /* 404 = jamais exécuté, on ignore */ }
+      }
+      if (Object.keys(scenarioResults).length > 0) {
+        setScenarioSkillResults(scenarioResults);
+      }
     };
     loadCached();
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Détection réactive des dispositifs après import RIS ──────────────────
+  useEffect(() => {
+    const hasActivity = Object.values(trimCotState).some(t => parseInt(t, 10) > 0);
+    if (!hasActivity || !user?.birth_date) return;
+    setDetectedDispositifs(detectDispositifsFromRIS(trimCotState, user.birth_date));
+  }, [trimCotState, user?.birth_date]);
 
   // ── Apply career rows from backend data ─────────────────────────────────
   // Handles two formats:
@@ -700,6 +815,14 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     fetchSkillsList()
       .then((skills) => setAvailableSkills(Array.isArray(skills) ? skills : []))
       .catch(() => setAvailableSkills([]));
+  }, []);
+
+  // Chargement silencieux du system prompt IA depuis la DB (jamais affiché)
+  useEffect(() => {
+    const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+    axios.get(`${global.config.server_url}/v1/system-prompt/latest`, Config)
+      .then((res) => setHiddenSystemPrompt(res.data?.prompt_text || ""))
+      .catch(() => {});
   }, []);
 
   // ── Parse PDF via n8n v6 (direct webhook, SimulatorV6 compatible) ─────────
@@ -1043,8 +1166,8 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       const finalMessage = `${tagsPrefix}${promptText || ""}\n\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDate}`.trim();
       n8nFormData.append("message", finalMessage);
       if (id) n8nFormData.append("client_id", id);
+      if (hiddenSystemPrompt) n8nFormData.append("system_prompt", hiddenSystemPrompt);
 
-      const webhookUrl = "https://n8n.srv796541.hstgr.cloud/webhook/f012dfc7-8b2c-479f-af1f-20dcd44cda02";
       toast.info("Analyse en cours (Standard)…");
 
       // --- APPEL N8N DÉSACTIVÉ ---
@@ -1109,7 +1232,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       setIsGenerating(false);
       cancelRef.current = null;
     }
-  }, [fileToSend, selectedAction, user, id, promptText, fetchUserDocuments]);
+  }, [fileToSend, selectedAction, user, id, promptText, hiddenSystemPrompt, fetchUserDocuments]);
 
   // Derive doc availability from real uploaded documents
   const hasDocuments = userDocuments.some((d) => localUploadedIds.has(String(d.id))) || !!fileToSend;
@@ -1484,6 +1607,35 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     }
   };
 
+  const handleScenarioSkillExecute = useCallback(async (skillCode, scenarioParams = {}) => {
+    if (!id || !carriereValidee) {
+      toast.error("Geler la carrière d'abord");
+      return;
+    }
+    setScenarioSkillLoading(prev => ({ ...prev, [skillCode]: true }));
+    setScenarioSkillErrors(prev => ({ ...prev, [skillCode]: null }));
+    try {
+      const result = await executeSkillGeneric(skillCode, {
+        clientId: parseInt(id),
+        userContext: `Analyse dispositif ${skillCode} pour client ${id}`,
+        scenarioParams,
+      });
+      setScenarioSkillResults(prev => ({ ...prev, [skillCode]: result }));
+      saveSkillResult(id, skillCode, result);
+      if (result.eligible === true) {
+        toast.success(`${result.skill_name || skillCode} : éligible`);
+      } else if (result.eligible === false) {
+        toast.info(`${result.skill_name || skillCode} : non éligible`);
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Erreur exécution skill";
+      setScenarioSkillErrors(prev => ({ ...prev, [skillCode]: msg }));
+      toast.error(`Erreur ${skillCode} : ${msg}`);
+    } finally {
+      setScenarioSkillLoading(prev => ({ ...prev, [skillCode]: false }));
+    }
+  }, [id, carriereValidee]);
+
       return (
     <div style={{ marginTop: "24px" }}>
       <style>{`
@@ -1585,6 +1737,67 @@ export default function SimulatorV6({ mode = "production", id, user }) {
               disabled={preentretienModal.loading || preentretienModal.saving}
             >
               {preentretienModal.saving ? "Enregistrement…" : "Enregistrer"}
+            </Button>
+          </ModalFooter>
+        </Modal>
+      )}
+
+      {/* ══ MODAL ÉDITION SYSTEM PROMPT ══ */}
+      {systemPromptModal && (
+        <Modal
+          isOpen={!!systemPromptModal}
+          toggle={() => !systemPromptModal.saving && setSystemPromptModal(null)}
+          size="xl"
+          backdrop="static"
+        >
+          <ModalHeader toggle={() => !systemPromptModal.saving && setSystemPromptModal(null)}>
+            EOR SystemPrompt — Moteur Analyse Réglementaire
+            <div style={{ fontSize: 11, color: "#555", marginTop: 4, fontWeight: "normal" }}>
+              Instructions fondamentales du moteur IA — une nouvelle version sera créée à l'enregistrement
+            </div>
+          </ModalHeader>
+          <ModalBody>
+            {systemPromptModal.loading ? (
+              <div className="text-center p-4" style={{ color: "#555", fontSize: 12 }}>
+                Chargement du system prompt…
+              </div>
+            ) : (
+              <>
+                <label style={{ fontSize: 12, fontWeight: 600 }}>Contenu (System Prompt)</label>
+                <textarea
+                  value={systemPromptModal.text}
+                  disabled={systemPromptModal.saving}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSystemPromptModal((m) => (m ? { ...m, text: val } : m));
+                  }}
+                  style={{
+                    width: "100%",
+                    minHeight: 500,
+                    fontFamily: "monospace",
+                    fontSize: 12,
+                    padding: 10,
+                    border: "1px solid #ccc",
+                    borderRadius: 4,
+                  }}
+                />
+              </>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              color="secondary"
+              onClick={() => setSystemPromptModal(null)}
+              disabled={systemPromptModal.saving}
+            >
+              Annuler
+            </Button>
+            <Button
+              color="primary"
+              onClick={() => saveSystemPrompt(systemPromptModal.text)}
+              disabled={systemPromptModal.loading || systemPromptModal.saving}
+            >
+              {systemPromptModal.saving ? "Enregistrement…" : "Enregistrer"}
             </Button>
           </ModalFooter>
         </Modal>
@@ -2332,25 +2545,100 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               const ok = checkReq(action.requires);
                               const miss = getMissing(action.requires);
                               const isActivated = activatedDispositifs.includes(action.id);
-                              const isDetected = !!MOCK_DETECTED_DISPOSITIFS[action.id];
+                              const isDetected = !!detectedDispositifs[action.id];
+                              const detectedReason = detectedDispositifs[action.id] || "";
+                              const skillCode = DISPOSITIF_TO_SKILL_CODE[action.id];
+                              const isSkillRunning = skillCode ? !!scenarioSkillLoading[skillCode] : false;
+                              const skillResultData = skillCode ? scenarioSkillResults[skillCode] : null;
+                              const skillErrorMsg = skillCode ? scenarioSkillErrors[skillCode] : null;
                               return (
-                                <button key={action.id} onClick={() => { if (ok) toggleDispositif(action.id); }} style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 11px", borderRadius: 8, border: `2px solid ${isActivated ? panel.color : ok ? "#e8e8e8" : "#f0f0f0"}`, background: isActivated ? `${panel.color}12` : ok ? "#fafafa" : "#f8f8f8", cursor: ok ? "pointer" : "not-allowed", textAlign: "left", opacity: ok ? 1 : 0.45, transition: "all 0.12s", position: "relative" }}>
-                                  <div style={{ width: 20, height: 20, borderRadius: 5, border: `2px solid ${isActivated ? panel.color : "#ccc"}`, background: isActivated ? panel.color : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 11, color: "#fff" }}>
-                                    {isActivated && "✓"}
-                                  </div>
-                                  <span style={{ fontSize: 15, flexShrink: 0 }}>{action.icon}</span>
-                                  <div style={{ minWidth: 0, flex: 1 }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                                      <div style={{ fontSize: 11, fontWeight: isActivated ? 700 : 600, color: isActivated ? panel.color : ok ? "#333" : "#999" }}>{action.label}</div>
-                                      {isDetected && !isActivated && ok && (
-                                        <span style={{ fontSize: 8, padding: "1px 5px", borderRadius: 4, background: "#F9A825", color: "#fff", fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>💡 Détecté</span>
-                                      )}
+                                <div key={action.id} style={{ display: "flex", flexDirection: "column" }}>
+                                  <button onClick={() => { if (ok) toggleDispositif(action.id); }} style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 11px", borderRadius: 8, border: `2px solid ${isActivated ? panel.color : ok ? "#e8e8e8" : "#f0f0f0"}`, background: isActivated ? `${panel.color}12` : ok ? "#fafafa" : "#f8f8f8", cursor: ok ? "pointer" : "not-allowed", textAlign: "left", opacity: ok ? 1 : 0.45, transition: "all 0.12s", position: "relative", width: "100%", flex: 1 }}>
+                                    <div style={{ width: 20, height: 20, borderRadius: 5, border: `2px solid ${isActivated ? panel.color : "#ccc"}`, background: isActivated ? panel.color : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 11, color: "#fff" }}>
+                                      {isActivated && "✓"}
                                     </div>
-                                    <div style={{ fontSize: 9, color: "#555" }}>{action.desc}</div>
-                                    {action.generates_date && <div style={{ fontSize: 8, color: "#0984E3", marginTop: 1 }}>📅 Génère une date de simulation</div>}
-                                    {!ok && <div style={{ fontSize: 8, color: "#D63031", marginTop: 1 }}>⚠ Manque : {miss.map((m) => DOC_TYPES.find((d) => d.id === m)?.label).join(", ")}</div>}
-                                  </div>
-                                </button>
+                                    <span style={{ fontSize: 15, flexShrink: 0 }}>{action.icon}</span>
+                                    <div style={{ minWidth: 0, flex: 1 }}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                                        <div style={{ fontSize: 11, fontWeight: isActivated ? 700 : 600, color: isActivated ? panel.color : ok ? "#333" : "#999" }}>{action.label}</div>
+                                        {isDetected && ok && (
+                                          <span title={detectedReason} style={{ fontSize: 8, padding: "1px 5px", borderRadius: 4, background: isActivated ? "#F9A825" : "#F9A825", color: "#fff", fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>💡 Détecté</span>
+                                        )}
+                                      </div>
+                                      <div style={{ fontSize: 9, color: "#555" }}>{action.desc}</div>
+                                      {isDetected && detectedReason && (
+                                        <div style={{ fontSize: 8, color: "#F9A825", marginTop: 1, fontStyle: "italic" }}>{detectedReason}</div>
+                                      )}
+                                      {action.generates_date && <div style={{ fontSize: 8, color: "#0984E3", marginTop: 1 }}>📅 Génère une date de simulation</div>}
+                                      {!ok && <div style={{ fontSize: 8, color: "#D63031", marginTop: 1 }}>⚠ Manque : {miss.map((m) => DOC_TYPES.find((d) => d.id === m)?.label).join(", ")}</div>}
+                                    </div>
+                                  </button>
+
+                                  {isActivated && skillCode && (
+                                    <div style={{ marginTop: 6 }}>
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); handleScenarioSkillExecute(skillCode, inputValues[action.id] ? { input: inputValues[action.id] } : {}); }}
+                                        disabled={isSkillRunning || !carriereValidee}
+                                        style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 5, border: "none", background: isSkillRunning || !carriereValidee ? "#ccc" : panel.color, color: "#fff", fontWeight: 700, fontSize: 10, cursor: isSkillRunning || !carriereValidee ? "not-allowed" : "pointer", opacity: isSkillRunning || !carriereValidee ? 0.6 : 1, width: "100%" }}
+                                      >
+                                        {isSkillRunning ? (
+                                          <>
+                                            <span style={{ display: "inline-block", width: 10, height: 10, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite", flexShrink: 0 }} />
+                                            Analyse en cours...
+                                          </>
+                                        ) : "🔍 Analyser avec IA"}
+                                      </button>
+
+                                      {skillErrorMsg && (
+                                        <div style={{ marginTop: 6, padding: "7px 10px", background: "#D6303110", border: "1px solid #D63031", borderRadius: 5, fontSize: 10, color: "#D63031" }}>
+                                          ⚠ {skillErrorMsg}
+                                        </div>
+                                      )}
+
+                                      {skillResultData && !skillErrorMsg && (() => {
+                                        const color = skillResultData.eligible ? "#00B894" : "#E17055";
+                                        const bgColor = skillResultData.eligible ? "#00B89410" : "#E1705510";
+                                        return (
+                                          <div style={{ marginTop: 6, padding: "10px 12px", background: bgColor, border: `1px solid ${color}`, borderRadius: 6 }}>
+                                            <div style={{ fontSize: 11, fontWeight: 700, color, marginBottom: 4 }}>
+                                              {skillResultData.eligible ? "✓ Éligible" : "✗ Non éligible"}
+                                            </div>
+                                            {skillResultData.raison_eligibilite && (
+                                              <div style={{ fontSize: 10, color: "#333", marginBottom: 6 }}>{skillResultData.raison_eligibilite}</div>
+                                            )}
+                                            {skillResultData.impact?.gain_mensuel > 0 && (
+                                              <div style={{ fontSize: 11, fontWeight: 600, color: "#00B894", marginBottom: 4 }}>
+                                                💰 Gain : +{skillResultData.impact.gain_mensuel.toFixed(2)} €/mois ({skillResultData.impact.gain_annuel?.toFixed(0)} €/an)
+                                              </div>
+                                            )}
+                                            {skillResultData.impact?.trimestres_ajoutes > 0 && (
+                                              <div style={{ fontSize: 10, color: "#555", marginBottom: 4 }}>
+                                                + {skillResultData.impact.trimestres_ajoutes} trimestres ajoutés
+                                              </div>
+                                            )}
+                                            {skillResultData.alertes?.length > 0 && (
+                                              <div style={{ marginTop: 5, paddingTop: 5, borderTop: `1px solid ${color}40` }}>
+                                                {skillResultData.alertes.map((a, i) => (
+                                                  <div key={i} style={{ fontSize: 9, color: a.niveau === "ROUGE" ? "#D63031" : a.niveau === "ORANGE" ? "#E17055" : "#00B894", marginBottom: 2 }}>
+                                                    <strong>{a.niveau}</strong> — {a.message}
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            )}
+                                            {skillResultData.recommandations?.length > 0 && (
+                                              <div style={{ marginTop: 5, fontSize: 9, color: "#555" }}>
+                                                <strong>Recommandations :</strong>
+                                                <ul style={{ margin: "3px 0 0 14px", padding: 0 }}>
+                                                  {skillResultData.recommandations.slice(0, 3).map((r, i) => <li key={i}>{r}</li>)}
+                                                </ul>
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })()}
+                                    </div>
+                                  )}
+                                </div>
                               );
                             })}
                           </div>
@@ -3243,6 +3531,25 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                     <span style={{ fontSize: 10, color: "#555" }}>— {apiSkills.length} fichiers · {ADMIN_SKILL_PROMPTS.filter(p => p.missing).length} manquants</span>
                   </div>
 
+                  {/* Vignette System Prompt — fondation du moteur IA */}
+                  <div style={{ borderRadius: 9, padding: "12px 14px", background: "linear-gradient(135deg, #f9f0ff 0%, #fff 100%)", border: "1.5px solid #6C3483", borderLeft: "4px solid #6C3483", marginBottom: 10, display: "flex", alignItems: "center", gap: 12, boxShadow: "0 2px 8px rgba(108, 52, 131, 0.08)" }}>
+                    <span style={{ fontSize: 22 }}>⚙️</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "#6C3483" }}>EOR SystemPrompt — Moteur Analyse Réglementaire</span>
+                        <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, background: "#6C348315", color: "#6C3483", fontWeight: 700, letterSpacing: "0.04em" }}>SYSTEM PROMPT</span>
+                      </div>
+                      <div style={{ fontSize: 10, color: "#666", lineHeight: 1.4 }}>
+                        Instructions fondamentales du moteur IA. Définit le rôle, les règles métier et les contraintes applicables à tous les skills. Chargé par N8N avant chaque exécution.
+                      </div>
+                    </div>
+                    <button
+                      onClick={openSystemPromptEditor}
+                      style={{ fontSize: 10, padding: "7px 13px", borderRadius: 5, border: "1px solid #6C3483", background: "#6C3483", color: "#fff", fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+                      Éditer
+                    </button>
+                  </div>
+
                   {/* Vignette éditable — Rapport pré-entretien EOR (prompt ID 4) */}
                   <div style={{ borderRadius: 9, padding: "12px 14px", background: "linear-gradient(135deg, #fff8f3 0%, #fff 100%)", border: "1.5px solid #E17055", borderLeft: "4px solid #E17055", marginBottom: 18, display: "flex", alignItems: "center", gap: 12, boxShadow: "0 2px 8px rgba(225, 112, 85, 0.08)" }}>
                     <span style={{ fontSize: 22 }}>📋</span>
@@ -3289,7 +3596,6 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                     <span style={{ fontSize: 9, color: "#D63031" }}>Fichier manquant</span>
                                   )}
                                   <button style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid #888", background: "transparent", color: "#555", fontWeight: 600, cursor: "pointer" }}>✏️ Éditer</button>
-                                  <button style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid #00B894", background: "transparent", color: "#00B894", fontWeight: 600, cursor: "pointer" }}>🧪 Tester</button>
                                 </div>
                               </div>
                             );
@@ -3321,7 +3627,6 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid #0984E3", background: "#0984E308", color: "#0984E3", fontWeight: 700, cursor: "pointer" }}>
                               ✏️ Éditer
                             </button>
-                            <button disabled title="À implémenter" style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid #00B894", background: "transparent", color: "#00B894", fontWeight: 600, cursor: "not-allowed", opacity: 0.5 }}>🧪 Tester</button>
                           </div>
                         </div>
                       ))}
