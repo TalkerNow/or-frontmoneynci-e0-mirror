@@ -907,8 +907,9 @@ export default function SimulatorV6({ mode = "production", id, user }) {
             points_agirc_arrco: pts.agirc_arrco,
             points_cipav_base: pts.cipav_base,
             points_cipav_complementaire: pts.cipav_complementaire,
-            // backward compat: if old single cipav field
             points_cipav: (pts.cipav ?? ((pts.cipav_base || 0) + (pts.cipav_complementaire || 0))) || null,
+            ...(pts.ircantec != null && { ircantec: { points_total: pts.ircantec } }),
+            ...(pts.rci != null      && { rci:      { points_total: pts.rci      } }),
           });
         }
 
@@ -1837,85 +1838,155 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                       const isRIS = risFileName === doc.filename;
 
                       return (
-                        <div key={doc.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 7, background: isSelected ? `${color}18` : `${color}08`, border: `1px solid ${isSelected ? color : `${color}18`}`, fontSize: 11, cursor: "pointer", transition: "all 0.15s" }}
+                        <div key={doc.id} style={{ display: "flex", flexDirection: "column", padding: "6px 12px", borderRadius: 7, background: isSelected ? `${color}18` : `${color}08`, border: `1px solid ${isSelected ? color : `${color}18`}`, fontSize: 11, cursor: "pointer", transition: "all 0.15s", minWidth: 180 }}
                           onClick={() => {
                             if (isSelected) return;
                             handleSelectDocument(doc);
                           }}
                           title={isSelected ? "Document sélectionné pour l'analyse" : `Cliquer pour sélectionner "${doc.filename}"`}
                         >
-                          <span style={{ fontSize: 13 }}>📄</span>
-                          <span style={{ fontWeight: 600, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12 }}>{doc.filename}</span>
-                          <span style={{ fontSize: 9, color, fontWeight: 700 }}>{ext.toUpperCase()}</span>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ fontSize: 13 }}>📄</span>
+                            <span style={{ fontWeight: 600, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12 }}>{doc.filename}</span>
+                            <span style={{ fontSize: 9, color, fontWeight: 700 }}>{ext.toUpperCase()}</span>
 
-                          <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto", paddingLeft: 4 }}>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleSetDocAsRIS(doc); }}
-                              title={isRIS ? "Retirer le tag RIS" : "Marquer comme RIS"}
-                              style={{ background: isRIS ? "#6C5CE7" : "none", border: `1px solid ${isRIS ? "#6C5CE7" : "#ccc"}`, borderRadius: 4, color: isRIS ? "#fff" : "#888", cursor: "pointer", padding: "1px 5px", fontSize: 9, fontWeight: 700, lineHeight: 1.4 }}
-                            >
-                              RIS
-                            </button>
-                            {isSelected && (
+                            <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto", paddingLeft: 4 }}>
+                              {isRIS && (
+                                <span style={{ background: "#6C5CE7", border: "1px solid #6C5CE7", borderRadius: 4, color: "#fff", padding: "1px 5px", fontSize: 9, fontWeight: 700, lineHeight: 1.4 }}>
+                                  RIS
+                                </span>
+                              )}
+                              {isSelected && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const url = URL.createObjectURL(fileToSend);
+                                    window.open(url, '_blank');
+                                  }}
+                                  style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "2px", display: "flex", alignItems: "center", justifyContent: "center" }}
+                                  title="Visualiser le document"
+                                >
+                                  <Eye size={14} />
+                                </button>
+                              )}
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  const url = URL.createObjectURL(fileToSend);
-                                  window.open(url, '_blank');
+                                  handleDeleteDocument(doc.id, doc.filename);
                                 }}
-                                style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "2px", display: "flex", alignItems: "center", justifyContent: "center" }}
-                                title="Visualiser le document"
+                                style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "2px", fontSize: 14, lineHeight: 1, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}
+                                title="Supprimer le document"
                               >
-                                <Eye size={14} />
+                                ✕
                               </button>
-                            )}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteDocument(doc.id, doc.filename);
-                              }} 
-                              style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "2px", fontSize: 14, lineHeight: 1, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }} 
-                              title="Supprimer le document"
-                            >
-                              ✕
-                            </button>
+                            </div>
                           </div>
+                          {ext === "pdf" && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleSetDocAsRIS(doc); }}
+                              disabled={isParsingRIS}
+                              style={{
+                                marginTop: 6,
+                                background: isParsingRIS && isRIS ? "#a29bfe" : "#7367f0",
+                                color: "#fff",
+                                border: "none",
+                                borderRadius: 6,
+                                padding: "5px 10px",
+                                fontSize: 11,
+                                fontWeight: 700,
+                                cursor: isParsingRIS ? "not-allowed" : "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: 5,
+                                width: "100%",
+                                opacity: isParsingRIS && !isRIS ? 0.5 : 1,
+                                transition: "all 0.2s ease",
+                              }}
+                            >
+                              {isParsingRIS && isRIS ? (
+                                <>
+                                  <span className="spinner-border spinner-border-sm" style={{ width: "0.6rem", height: "0.6rem", borderWidth: "0.15em" }} role="status" />
+                                  Extraction en cours…
+                                </>
+                              ) : (
+                                "🚀 Analyser ce RIS"
+                              )}
+                            </button>
+                          )}
                         </div>
                       );
                     })}
                     
                     {/* Fichier uploadé manuellement (pas encore dans la liste serveur) */}
                     {fileToSend && !userDocuments.filter((d) => localUploadedIds.has(String(d.id))).some((d) => d.filename === fileToSend.name) && (
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 7, background: "#00B89418", border: "1px solid #00B894", fontSize: 11 }}>
-                        <span style={{ fontSize: 13 }}>📄</span>
-                        <span style={{ fontWeight: 600, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12 }}>{fileToSend.name}</span>
-                        <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto", paddingLeft: 4 }}>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); const isRIS = risFileName === fileToSend.name; setRisFileName(isRIS ? null : fileToSend.name); if (!isRIS) parsePdfAndFillCarriere(fileToSend); }}
-                            title={risFileName === fileToSend.name ? "Retirer le tag RIS" : "Marquer comme RIS"}
-                            style={{ background: risFileName === fileToSend.name ? "#6C5CE7" : "none", border: `1px solid ${risFileName === fileToSend.name ? "#6C5CE7" : "#ccc"}`, borderRadius: 4, color: risFileName === fileToSend.name ? "#fff" : "#888", cursor: "pointer", padding: "1px 5px", fontSize: 9, fontWeight: 700, lineHeight: 1.4 }}
-                          >
-                            RIS
-                          </button>
+                      <div style={{ display: "flex", flexDirection: "column", padding: "6px 12px", borderRadius: 7, background: "#00B89418", border: "1px solid #00B894", fontSize: 11, minWidth: 180 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ fontSize: 13 }}>📄</span>
+                          <span style={{ fontWeight: 600, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12 }}>{fileToSend.name}</span>
+                          <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto", paddingLeft: 4 }}>
+                            {risFileName === fileToSend.name && (
+                              <span style={{ background: "#6C5CE7", border: "1px solid #6C5CE7", borderRadius: 4, color: "#fff", padding: "1px 5px", fontSize: 9, fontWeight: 700, lineHeight: 1.4 }}>
+                                RIS
+                              </span>
+                            )}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const url = URL.createObjectURL(fileToSend);
+                                window.open(url, '_blank');
+                              }}
+                              style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "2px", display: "flex", alignItems: "center", justifyContent: "center" }}
+                              title="Visualiser"
+                            >
+                              <Eye size={14} />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); clearFileToSend(); }}
+                              style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "2px", fontSize: 14, lineHeight: 1, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}
+                              title="Retirer"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                        {fileToSend.name.toLowerCase().endsWith(".pdf") && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              const url = URL.createObjectURL(fileToSend);
-                              window.open(url, '_blank');
+                              setRisFileName(fileToSend.name);
+                              parsePdfAndFillCarriere(fileToSend);
                             }}
-                            style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "2px", display: "flex", alignItems: "center", justifyContent: "center" }}
-                            title="Visualiser"
+                            disabled={isParsingRIS}
+                            style={{
+                              marginTop: 6,
+                              background: isParsingRIS && risFileName === fileToSend.name ? "#a29bfe" : "#7367f0",
+                              color: "#fff",
+                              border: "none",
+                              borderRadius: 6,
+                              padding: "5px 10px",
+                              fontSize: 11,
+                              fontWeight: 700,
+                              cursor: isParsingRIS ? "not-allowed" : "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: 5,
+                              width: "100%",
+                              opacity: isParsingRIS && risFileName !== fileToSend.name ? 0.5 : 1,
+                              transition: "all 0.2s ease",
+                            }}
                           >
-                            <Eye size={14} />
+                            {isParsingRIS && risFileName === fileToSend.name ? (
+                              <>
+                                <span className="spinner-border spinner-border-sm" style={{ width: "0.6rem", height: "0.6rem", borderWidth: "0.15em" }} role="status" />
+                                Extraction en cours…
+                              </>
+                            ) : (
+                              "🚀 Analyser ce RIS"
+                            )}
                           </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); clearFileToSend(); }}
-                            style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "2px", fontSize: 14, lineHeight: 1, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}
-                            title="Retirer"
-                          >
-                            ✕
-                          </button>
-                        </div>
+                        )}
                       </div>
                     )}
                   </div>
