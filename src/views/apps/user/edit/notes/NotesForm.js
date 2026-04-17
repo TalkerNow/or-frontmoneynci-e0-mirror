@@ -1,5 +1,6 @@
 import React from "react";
 import { Card, CardBody, Form, Input, Button } from "reactstrap";
+import { Maximize2, Minimize2 } from "react-feather";
 
 const NotesForm = ({
   notes,
@@ -17,6 +18,8 @@ const NotesForm = ({
   handleGenerateNotesWithPrompt,
   previousNotesSnapshot,
   handleRestorePreviousNotes,
+  isExpanded,
+  onToggleExpand,
 }) => {
   return (
     <Card className="notes-card notes-card--compact h-100">
@@ -24,19 +27,33 @@ const NotesForm = ({
         <Form className="notes-form" onSubmit={handleSubmit}>
           <div className="d-flex align-items-center justify-content-between mb-50">
             <h5 className="notes-card-title mb-0">Notes</h5>
-            {selectedNotePromptId && (
-              <Button
-                className="notes-action-btn"
-                color="primary"
-                outline
-                size="sm"
-                type="button"
-                onClick={handleGenerateNotesWithPrompt}
-                disabled={isGeneratingNotes}
-              >
-                {isGeneratingNotes ? "Génération…" : "Générer avec l'IA"}
-              </Button>
-            )}
+            <div className="d-flex align-items-center" style={{ gap: "0.5rem" }}>
+              {selectedNotePromptId && (
+                <Button
+                  className="notes-action-btn"
+                  color="primary"
+                  outline
+                  size="sm"
+                  type="button"
+                  onClick={handleGenerateNotesWithPrompt}
+                  disabled={isGeneratingNotes}
+                >
+                  {isGeneratingNotes ? "Génération…" : "Générer avec l'IA"}
+                </Button>
+              )}
+              {onToggleExpand && (
+                <Button
+                  className={`notes-expand-btn ${isExpanded ? "is-expanded" : ""}`}
+                  color="flat-secondary"
+                  size="sm"
+                  type="button"
+                  onClick={onToggleExpand}
+                  title={isExpanded ? "Réduire" : "Élargir le pavé notes"}
+                >
+                  {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                </Button>
+              )}
+            </div>
           </div>
           <Input
             id="notes"
