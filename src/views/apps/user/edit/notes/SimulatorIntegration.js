@@ -402,6 +402,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   const [expandedParam, setExpandedParam] = useState(null);
   const [modal, setModal] = useState(null);
   const [preentretienModal, setPreentretienModal] = useState(null);
+  const [systemPromptModal, setSystemPromptModal] = useState(null);
 
   const openPreentretienEditor = async () => {
     setPreentretienModal({ text: "", loading: true, saving: false });
@@ -430,6 +431,37 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     } catch (err) {
       toast.error("Erreur lors de l'enregistrement du prompt");
       setPreentretienModal((m) => (m ? { ...m, saving: false } : m));
+    }
+  };
+
+  const openSystemPromptEditor = async () => {
+    setSystemPromptModal({ text: "", id: null, loading: true, saving: false });
+    try {
+      const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+      const response = await axios.get(`${global.config.server_url}/v1/system-prompt/latest`, Config);
+      const { id, prompt_text } = response.data;
+      setSystemPromptModal({ text: prompt_text || "", id, loading: false, saving: false });
+    } catch (err) {
+      toast.error("Impossible de charger le system prompt");
+      setSystemPromptModal(null);
+    }
+  };
+
+  const saveSystemPrompt = async (text) => {
+    if (!systemPromptModal?.id) return;
+    setSystemPromptModal((m) => (m ? { ...m, saving: true } : m));
+    try {
+      const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+      await axios.put(
+        `${global.config.server_url}/prompts/${systemPromptModal.id}`,
+        { prompt_text: text },
+        Config
+      );
+      toast.success("System prompt enregistré avec succès");
+      setSystemPromptModal(null);
+    } catch (err) {
+      toast.error("Erreur lors de l'enregistrement du system prompt");
+      setSystemPromptModal((m) => (m ? { ...m, saving: false } : m));
     }
   };
 
@@ -1695,6 +1727,67 @@ export default function SimulatorV6({ mode = "production", id, user }) {
               disabled={preentretienModal.loading || preentretienModal.saving}
             >
               {preentretienModal.saving ? "Enregistrement…" : "Enregistrer"}
+            </Button>
+          </ModalFooter>
+        </Modal>
+      )}
+
+      {/* ══ MODAL ÉDITION SYSTEM PROMPT ══ */}
+      {systemPromptModal && (
+        <Modal
+          isOpen={!!systemPromptModal}
+          toggle={() => !systemPromptModal.saving && setSystemPromptModal(null)}
+          size="xl"
+          backdrop="static"
+        >
+          <ModalHeader toggle={() => !systemPromptModal.saving && setSystemPromptModal(null)}>
+            EOR SystemPrompt — Moteur Analyse Réglementaire
+            <div style={{ fontSize: 11, color: "#555", marginTop: 4, fontWeight: "normal" }}>
+              Instructions fondamentales du moteur IA — une nouvelle version sera créée à l'enregistrement
+            </div>
+          </ModalHeader>
+          <ModalBody>
+            {systemPromptModal.loading ? (
+              <div className="text-center p-4" style={{ color: "#555", fontSize: 12 }}>
+                Chargement du system prompt…
+              </div>
+            ) : (
+              <>
+                <label style={{ fontSize: 12, fontWeight: 600 }}>Contenu (System Prompt)</label>
+                <textarea
+                  value={systemPromptModal.text}
+                  disabled={systemPromptModal.saving}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSystemPromptModal((m) => (m ? { ...m, text: val } : m));
+                  }}
+                  style={{
+                    width: "100%",
+                    minHeight: 500,
+                    fontFamily: "monospace",
+                    fontSize: 12,
+                    padding: 10,
+                    border: "1px solid #ccc",
+                    borderRadius: 4,
+                  }}
+                />
+              </>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              color="secondary"
+              onClick={() => setSystemPromptModal(null)}
+              disabled={systemPromptModal.saving}
+            >
+              Annuler
+            </Button>
+            <Button
+              color="primary"
+              onClick={() => saveSystemPrompt(systemPromptModal.text)}
+              disabled={systemPromptModal.loading || systemPromptModal.saving}
+            >
+              {systemPromptModal.saving ? "Enregistrement…" : "Enregistrer"}
             </Button>
           </ModalFooter>
         </Modal>
@@ -3426,6 +3519,25 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                     <span style={{ fontSize: 18 }}>🤖</span>
                     <span style={{ fontSize: 14, fontWeight: 700, color: "#E17055" }}>Prompts IA & Skills N8N</span>
                     <span style={{ fontSize: 10, color: "#555" }}>— {apiSkills.length} fichiers · {ADMIN_SKILL_PROMPTS.filter(p => p.missing).length} manquants</span>
+                  </div>
+
+                  {/* Vignette System Prompt — fondation du moteur IA */}
+                  <div style={{ borderRadius: 9, padding: "12px 14px", background: "linear-gradient(135deg, #f9f0ff 0%, #fff 100%)", border: "1.5px solid #6C3483", borderLeft: "4px solid #6C3483", marginBottom: 10, display: "flex", alignItems: "center", gap: 12, boxShadow: "0 2px 8px rgba(108, 52, 131, 0.08)" }}>
+                    <span style={{ fontSize: 22 }}>⚙️</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "#6C3483" }}>EOR SystemPrompt — Moteur Analyse Réglementaire</span>
+                        <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, background: "#6C348315", color: "#6C3483", fontWeight: 700, letterSpacing: "0.04em" }}>SYSTEM PROMPT</span>
+                      </div>
+                      <div style={{ fontSize: 10, color: "#666", lineHeight: 1.4 }}>
+                        Instructions fondamentales du moteur IA. Définit le rôle, les règles métier et les contraintes applicables à tous les skills. Chargé par N8N avant chaque exécution.
+                      </div>
+                    </div>
+                    <button
+                      onClick={openSystemPromptEditor}
+                      style={{ fontSize: 10, padding: "7px 13px", borderRadius: 5, border: "1px solid #6C3483", background: "#6C3483", color: "#fff", fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+                      Éditer
+                    </button>
                   </div>
 
                   {/* Vignette éditable — Rapport pré-entretien EOR (prompt ID 4) */}
