@@ -693,26 +693,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   // Fetch documents on mount
   useEffect(() => { fetchUserDocuments(); }, [fetchUserDocuments]);
 
-  // R4 — Auto-load latest CNAV report if one exists
-  useEffect(() => {
-    if (!id) return;
-    let cancelled = false;
-    fetchLatestReport(id, "CNAV")
-      .then((report) => {
-        if (cancelled || !report) return;
-        setSkillResult({
-          success: true,
-          skill_code: report.skill_id,
-          report_id: report.id,
-          python_output: report.result_json,
-          alertes: report.alertes_json || [],
-          arret_critique: report.arret_critique_json || null,
-          status: report.statut,
-        });
-      })
-      .catch(() => { /* silencieux — pas de rapport = normal */ });
-    return () => { cancelled = true; };
-  }, [id]);
+  // R4 removed — loadCached useEffect handles all 5 regimes with correct shape
 
   // R5 — Load available skills from API once on mount
   useEffect(() => {
@@ -1487,12 +1468,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     try {
       const result = await executeScript("CNAV", id, "");
       setSkillResult(result);
-      try {
-        await saveSkillResult(id, "CNAV", result);
-      } catch (saveErr) {
-        const detail = JSON.stringify(saveErr?.response?.data || saveErr.message);
-        toast.error(`Save CNAV failed: ${detail}`);
-      }
+      saveSkillResult(id, "CNAV", result);
       if (result.arret_critique) {
         toast.error(result.arret_critique.raison || "Calcul CNAV interrompu");
       }
