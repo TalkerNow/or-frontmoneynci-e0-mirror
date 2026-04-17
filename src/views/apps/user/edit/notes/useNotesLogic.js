@@ -100,6 +100,8 @@ export const useNotesLogic = (id, perso) => {
 
   const [isCadre, setIsCadre] = useState(false);
   const [isImportingRIS, setIsImportingRIS] = useState(false);
+  const [isSavingFrozen, setIsSavingFrozen] = useState(false);
+  const [frozenSaved, setFrozenSaved] = useState(false);
   const [userDocuments, setUserDocuments] = useState([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
 
@@ -1585,6 +1587,105 @@ export const useNotesLogic = (id, perso) => {
     }
   }, [fileToSend, perso, selectedTags, n8nMessage, id]);
 
+  const handleSaveFrozenData = useCallback(async () => {
+    const validRows = manualCareerRows.filter(
+      (r) => /^\d{4}$/.test(String(r.annee)) && !r.errY && !r.errR
+    );
+    if (!validRows.length) {
+      toast.error("Le tableau est vide ou contient des erreurs — corrigez avant de geler.");
+      return;
+    }
+
+    setIsSavingFrozen(true);
+    try {
+      const parseNum = (v) => {
+        if (v === null || v === undefined || v === "") return 0;
+        const clean = String(v).replace(/\s/g, "").replace(",", ".");
+        const n = parseFloat(clean);
+        return isNaN(n) ? 0 : n;
+      };
+
+      const carriere = validRows.map((row) => {
+        const annee = parseInt(row.annee, 10);
+        const revenuBrut = parseNum(row.revenu);
+        const trimCot = parseInt(row.trimBase || "0", 10) || 0;
+        const trimAss = parseInt(row.trimAR || "0", 10) || 0;
+        const entry = {
+          annee,
+          revenu_brut: revenuBrut,
+          salaire_revalo: revenuBrut, // pas de revalorisation manuelle pour l'instant
+          deplafonne: row.deplafonner || false,
+          trimestres_cotises: trimCot,
+          trimestres_assimiles: trimAss,
+        };
+        const arrco = parseNum(row.arrcoPoints);
+        if (arrco) entry.points_agirc_arrco = arrco;
+        const ircantec = parseNum(row.ircantecPoints);
+        if (ircantec) entry.points_ircantec = ircantec;
+        const rci = parseNum(row.rciPoints);
+        if (rci) entry.points_rci = rci;
+        return entry;
+      });
+
+      const totalCot = carriere.reduce((s, r) => s + r.trimestres_cotises, 0);
+      const totalAss = carriere.reduce((s, r) => s + r.trimestres_assimiles, 0);
+
+      // Trimestres par régime : heuristique (années avec salaire → CNAV)
+      const trimCnav = carriere.reduce(
+        (s, r) => s + (r.revenu_brut > 0 ? r.trimestres_cotises + r.trimestres_assimiles : 0),
+        0
+      );
+
+      const birthDate = perso?.birth_date || "";
+      const token = localStorage.getItem("token");
+      const Config = { headers: { Authorization: `Bearer ${token}` } };
+
+      const payload = {
+        user_id: parseInt(id),
+        source: "SAISIE_MANUELLE",
+        meta: {
+          nom: perso?.last_name || "",
+          prenom: perso?.first_name || "",
+          date_naissance: birthDate,
+          sexe: perso?.sexe || null,
+          nombre_enfants: perso?.children_number ?? 0,
+          nir: perso?.secu_social || null,
+          valide_le: new Date().toISOString().split("T")[0],
+        },
+        carriere,
+        cipav: validRows
+          .filter((r) => parseNum(r.cipavPoints) > 0)
+          .map((r) => ({
+            annee: parseInt(r.annee, 10),
+            points_cipav_base: parseNum(r.cipavPoints),
+            points_cipav_complementaire: 0,
+          })),
+        alertes: [],
+        totaux: {
+          trimestres_cotises: totalCot,
+          trimestres_assimiles: totalAss,
+          trimestres_total: totalCot + totalAss,
+          trimestres_tous_regimes: totalCot + totalAss,
+          trimestres_requis: 172,
+          trimestres_par_regime: { cnav: trimCnav, cipav: 0, ircantec: 0, rci: 0, msa: 0 },
+        },
+      };
+
+      await axios.post(`${global.config.server_url}/frozen_data`, payload, Config);
+      setFrozenSaved(true);
+      toast.success("Carrière gelée — calcul CNAV disponible");
+    } catch (err) {
+      if (err.response?.status === 423) {
+        toast.error("Données verrouillées — déverrouillez d'abord dans le simulateur");
+      } else {
+        console.error("[handleSaveFrozenData]", err);
+        toast.error("Erreur lors du gel des données carrière");
+      }
+    } finally {
+      setIsSavingFrozen(false);
+    }
+  }, [manualCareerRows, id, perso]);
+
   return {
     notes,
     handleNotesChange,
@@ -1634,6 +1735,9 @@ export const useNotesLogic = (id, perso) => {
     isCadre,
     handleManualImport,
     isImportingRIS,
+    handleSaveFrozenData,
+    isSavingFrozen,
+    frozenSaved,
     fileToSend,
     clearFileToSend,
     handleSaveDoc,

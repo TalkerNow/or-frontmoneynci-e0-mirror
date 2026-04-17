@@ -77,6 +77,9 @@ const NotesTab = ({ id, perso = {}, commentsSlot, renderUploadOutside }) => {
     handleManualAddLine,
     handleManualImport,
     isImportingRIS,
+    handleSaveFrozenData,
+    isSavingFrozen,
+    frozenSaved,
   } = useNotesLogic(id, perso);
 
   const isProspect = String(perso.role).toLowerCase() === "prospect";
@@ -176,19 +179,22 @@ const NotesTab = ({ id, perso = {}, commentsSlot, renderUploadOutside }) => {
         )}
       </Row>
 
-      {/*
-      <ManualCareerTable
-        manualCareerRows={manualCareerRows}
-        setManualCareerRows={setManualCareerRows}
-        handleSalaryChange={handleSalaryChange}
-        handleDeplafonnerChange={handleDeplafonnerChange}
-        handleIsCadreChange={handleIsCadreChange}
-        isCadre={isCadre}
-        handleManualAddLine={handleManualAddLine}
-        handleManualImport={handleManualImport}
-        isImportingRIS={isImportingRIS}
-      />
-      */}
+      {!isProspect && (
+        <ManualCareerTable
+          manualCareerRows={manualCareerRows}
+          setManualCareerRows={setManualCareerRows}
+          handleSalaryChange={handleSalaryChange}
+          handleDeplafonnerChange={handleDeplafonnerChange}
+          handleIsCadreChange={handleIsCadreChange}
+          isCadre={isCadre}
+          handleManualAddLine={handleManualAddLine}
+          handleManualImport={handleManualImport}
+          isImportingRIS={isImportingRIS}
+          handleSaveFrozenData={handleSaveFrozenData}
+          isSavingFrozen={isSavingFrozen}
+          frozenSaved={frozenSaved}
+        />
+      )}
 
       <DeleteConfirmModal
         target={deleteConfirmTarget}

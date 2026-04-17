@@ -12,6 +12,9 @@ const ManualCareerTable = ({
     handleManualAddLine,
     handleManualImport,
     isImportingRIS,
+    handleSaveFrozenData,
+    isSavingFrozen,
+    frozenSaved,
 }) => {
     const [showCadreModal, setShowCadreModal] = useState(false);
 
@@ -409,7 +412,7 @@ const ManualCareerTable = ({
                         </table>
                     </div>
                 </div>
-                <div className="manual-entry-actions mt-1">
+                <div className="manual-entry-actions mt-1" style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                     <Button
                         color="primary"
                         className="notes-action-btn manual-import-btn"
@@ -418,6 +421,16 @@ const ManualCareerTable = ({
                     >
                         {isImportingRIS ? "Import RIS en cours…" : "Importer les données"}
                     </Button>
+                    {handleSaveFrozenData && (
+                        <Button
+                            color={frozenSaved ? "success" : "warning"}
+                            className="notes-action-btn"
+                            onClick={handleSaveFrozenData}
+                            disabled={isSavingFrozen || frozenSaved}
+                        >
+                            {isSavingFrozen ? "Gel en cours…" : frozenSaved ? "Carrière gelée" : "Geler & Calculer"}
+                        </Button>
+                    )}
                 </div>
             </CardBody>
 
