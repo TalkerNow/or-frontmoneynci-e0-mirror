@@ -489,7 +489,11 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       for (const [code, setter] of skillMap) {
         try {
           const report = await fetchLatestReport(id, code);
-          if (report?.result_json) setter(report.result_json);
+          const result = report?.result_json;
+          // Only restore v2 results (mode: 'parallel_v2.x') — old v1 records have different field names
+          if (result?.python_output && result.mode?.startsWith('parallel')) {
+            setter(result);
+          }
         } catch { /* 404 = pas encore calculé, on ignore */ }
       }
     };
