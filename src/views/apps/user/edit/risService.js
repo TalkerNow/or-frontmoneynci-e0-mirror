@@ -185,6 +185,43 @@ export async function saveSkillResult(clientId, skillCode, result) {
   }
 }
 
+// ============================================================
+// SKILL EXECUTOR GENERIC — exécute n'importe quel skill de la DB
+// Un seul webhook pour les 12 skills (code passé en paramètre)
+// ============================================================
+const SKILL_EXECUTE_GENERIC_URL =
+  "https://n8n.srv796541.hstgr.cloud/webhook/skill-execute-generic-v1-test";
+
+/**
+ * Exécute un skill via le workflow n8n générique.
+ * @param {string} skillCode - Code du skill : RACL, VPLR, RETRAITE_PROGRESSIVE, etc.
+ * @param {Object} opts
+ * @param {number} opts.clientId - ID du client
+ * @param {string} opts.userContext - Contexte libre du consultant
+ * @param {Object} opts.scenarioParams - Params spécifiques au skill
+ * @returns {Promise<Object>}
+ */
+export async function executeSkillGeneric(skillCode, { clientId, userContext, scenarioParams }) {
+  const token = localStorage.getItem("token");
+  const userId = parseInt(localStorage.getItem("userid"));
+
+  const response = await axios.post(
+    SKILL_EXECUTE_GENERIC_URL,
+    {
+      client_id: clientId,
+      token,
+      user_id: userId,
+      skill_code: skillCode,
+      user_context: userContext || `Execution skill ${skillCode}`,
+      scenario_params: scenarioParams || {},
+    },
+    { timeout: 60000, headers: { "Content-Type": "application/json" } }
+  );
+
+  const data = response.data;
+  return Array.isArray(data) ? data[0] : data;
+}
+
 /**
  * Récupère la liste des skills disponibles.
  * @param {string} [type] - Filtre optionnel par type
