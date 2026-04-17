@@ -403,6 +403,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   const [modal, setModal] = useState(null);
   const [preentretienModal, setPreentretienModal] = useState(null);
   const [systemPromptModal, setSystemPromptModal] = useState(null);
+  const [hiddenSystemPrompt, setHiddenSystemPrompt] = useState("");
 
   const openPreentretienEditor = async () => {
     setPreentretienModal({ text: "", loading: true, saving: false });
@@ -816,6 +817,14 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       .catch(() => setAvailableSkills([]));
   }, []);
 
+  // Chargement silencieux du system prompt IA depuis la DB (jamais affiché)
+  useEffect(() => {
+    const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+    axios.get(`${global.config.server_url}/v1/system-prompt/latest`, Config)
+      .then((res) => setHiddenSystemPrompt(res.data?.prompt_text || ""))
+      .catch(() => {});
+  }, []);
+
   // ── Parse PDF via n8n v6 (direct webhook, SimulatorV6 compatible) ─────────
   const parsePdfAndFillCarriere = useCallback(async (file) => {
     if (!file) return;
@@ -1157,6 +1166,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       const finalMessage = `${tagsPrefix}${promptText || ""}\n\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDate}`.trim();
       n8nFormData.append("message", finalMessage);
       if (id) n8nFormData.append("client_id", id);
+      if (hiddenSystemPrompt) n8nFormData.append("system_prompt", hiddenSystemPrompt);
 
       toast.info("Analyse en cours (Standard)…");
 
@@ -1222,7 +1232,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       setIsGenerating(false);
       cancelRef.current = null;
     }
-  }, [fileToSend, selectedAction, user, id, promptText, fetchUserDocuments]);
+  }, [fileToSend, selectedAction, user, id, promptText, hiddenSystemPrompt, fetchUserDocuments]);
 
   // Derive doc availability from real uploaded documents
   const hasDocuments = userDocuments.some((d) => localUploadedIds.has(String(d.id))) || !!fileToSend;
@@ -3586,7 +3596,6 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                     <span style={{ fontSize: 9, color: "#D63031" }}>Fichier manquant</span>
                                   )}
                                   <button style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid #888", background: "transparent", color: "#555", fontWeight: 600, cursor: "pointer" }}>✏️ Éditer</button>
-                                  <button style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid #00B894", background: "transparent", color: "#00B894", fontWeight: 600, cursor: "pointer" }}>🧪 Tester</button>
                                 </div>
                               </div>
                             );
@@ -3618,7 +3627,6 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid #0984E3", background: "#0984E308", color: "#0984E3", fontWeight: 700, cursor: "pointer" }}>
                               ✏️ Éditer
                             </button>
-                            <button disabled title="À implémenter" style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid #00B894", background: "transparent", color: "#00B894", fontWeight: 600, cursor: "not-allowed", opacity: 0.5 }}>🧪 Tester</button>
                           </div>
                         </div>
                       ))}
