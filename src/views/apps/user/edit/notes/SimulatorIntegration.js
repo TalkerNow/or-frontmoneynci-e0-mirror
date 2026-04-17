@@ -309,7 +309,7 @@ const ADMIN_SKILL_PROMPTS = [
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 
 function _buildDefaultCarriereRows() {
-  return Array.from({ length: 52 }, (_, i) => {
+  return Array.from({ length: 65 }, (_, i) => {
     const yr = 2026 - i;
     const coeff = REVALO_CNAV[yr] || 1;
     return { yr, sal: 0, ss: 0, coeff: coeff.toFixed(3), revalo: 0, trim: 0, ar: 0, total: 0, agircPts: 0, ircPts: 0, rciPts: 0 };
@@ -395,7 +395,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   const [reportText, setReportText] = useState("");
   const [revaloValues, setRevaloValues] = useState(() => {
     const init = {};
-    Array.from({ length: 52 }, (_, i) => { init[2026 - i] = 0; });
+    Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; });
     return init;
   });
   const [deplafValues, setDeplafValues] = useState({});
@@ -411,12 +411,12 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   const [isCadreSimu, setIsCadreSimu] = useState(false);
   const [trimCotState, setTrimCotState] = useState(() => {
     const init = {};
-    Array.from({ length: 52 }, (_, i) => { init[2026 - i] = 0; });
+    Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; });
     return init;
   });
   const [trimAssState, setTrimAssState] = useState(() => {
     const init = {};
-    Array.from({ length: 52 }, (_, i) => { init[2026 - i] = 0; });
+    Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; });
     return init;
   });
   const [frozenLoading, setFrozenLoading] = useState(false);
@@ -508,7 +508,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   const applyCarriereData = useCallback((carriere) => {
     if (!Array.isArray(carriere) || !carriere.length) return;
     const minYear = Math.min(...carriere.map(r => r.annee));
-    setVisibleRowCount(Math.min(Math.max(20, 2026 - minYear + 1), 52));
+    setVisibleRowCount(Math.min(Math.max(20, 2026 - minYear + 1), 65));
     setCarriereRows(prev => prev.map(row => {
       const entry = carriere.find(r => r.annee === row.yr);
       if (!entry) return row;
@@ -646,10 +646,10 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   // ── Réinitialiser le tableau carrière ───────────────────────────────────────
   const handleResetCarriere = useCallback(() => {
     setCarriereRows(_buildDefaultCarriereRows());
-    setRevaloValues(() => { const init = {}; Array.from({ length: 52 }, (_, i) => { init[2026 - i] = 0; }); return init; });
+    setRevaloValues(() => { const init = {}; Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; }); return init; });
     setDeplafValues({});
-    setTrimCotState(() => { const init = {}; Array.from({ length: 52 }, (_, i) => { init[2026 - i] = 0; }); return init; });
-    setTrimAssState(() => { const init = {}; Array.from({ length: 52 }, (_, i) => { init[2026 - i] = 0; }); return init; });
+    setTrimCotState(() => { const init = {}; Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; }); return init; });
+    setTrimAssState(() => { const init = {}; Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; }); return init; });
     setVisibleRowCount(20);
     setCarriereValidee(false);
     setRisFileName(null);
@@ -2051,7 +2051,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 })}
                                 <tr>
                                   <td colSpan={cnavplOpen ? 18 : 16} style={{ padding: "4px 8px" }}>
-                                    <button onClick={() => setVisibleRowCount(v => Math.min(v + 1, 52))} style={{ fontSize: 12, padding: "3px 10px", borderRadius: 5, border: "1px dashed #bbb", background: "transparent", color: "#555", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                                    <button onClick={() => setVisibleRowCount(v => Math.min(v + 1, 65))} style={{ fontSize: 12, padding: "3px 10px", borderRadius: 5, border: "1px dashed #bbb", background: "transparent", color: "#555", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
                                       <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> Ajouter une année ({carriereRows[visibleRowCount] ? carriereRows[visibleRowCount].yr : "—"})
                                     </button>
                                   </td>
