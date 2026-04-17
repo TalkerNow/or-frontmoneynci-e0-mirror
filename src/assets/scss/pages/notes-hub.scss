@@ -40,6 +40,7 @@
   display: flex;
   min-height: 100%;
   width: 100%;
+  overflow: visible;
 }
 
 .notes-card .card-body {
@@ -48,6 +49,7 @@
   width: 100%;
   height: auto;
   min-height: 100%;
+  overflow: visible;
 }
 .notes-card--analysis {
   border: 1px solid #e2e8f0;
@@ -62,6 +64,61 @@
   display: block;
 }
 
+.notes-expand-btn {
+  padding: 0.25rem 0.45rem;
+  line-height: 1;
+  color: #64748b;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.25s ease;
+}
+
+.notes-expand-btn:hover {
+  background-color: rgba(100, 116, 139, 0.12);
+  color: #1f2937;
+}
+
+.notes-expand-btn.is-expanded {
+  color: #7367f0;
+  background-color: rgba(115, 103, 240, 0.1);
+}
+
+.notes-expand-btn svg {
+  transition: transform 0.3s ease;
+}
+
+.notes-expand-btn.is-expanded svg {
+  transform: rotate(180deg);
+}
+
+.notes-main-col,
+.notes-comments-col {
+  transition: max-width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    flex-basis 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    padding 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.25s ease;
+  will-change: max-width, flex-basis;
+}
+
+.notes-comments-col {
+  overflow: hidden;
+}
+
+.notes-comments-col.notes-comments-col--hidden {
+  flex: 0 0 0 !important;
+  max-width: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.notes-comments-col.notes-comments-col--hidden > * {
+  visibility: hidden;
+}
+
 .notes-form {
   flex: 1 1 auto;
   display: flex;
@@ -74,7 +131,7 @@
 }
 
 .notes-textarea {
-  min-height: 200px;
+  min-height: 280px;
   border-radius: 10px;
   margin-top: -0.55rem;
   padding: 1.2rem;
@@ -82,6 +139,9 @@
   flex-direction: column;
   height: 100%;
   flex: 1 1 auto;
+  resize: both;
+  min-width: 100%;
+  max-width: calc(100vw - 3rem);
 }
 
 .notes-upload-body {
@@ -545,6 +605,8 @@
   .notes-textarea {
     padding: 1rem;
     min-height: 150px;
+    resize: vertical;
+    max-width: 100%;
   }
   .notes-dropzone {
     min-height: 150px;
