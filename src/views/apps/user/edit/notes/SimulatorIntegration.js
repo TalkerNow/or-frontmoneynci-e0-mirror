@@ -1487,7 +1487,12 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     try {
       const result = await executeScript("CNAV", id, "");
       setSkillResult(result);
-      saveSkillResult(id, "CNAV", result);
+      try {
+        await saveSkillResult(id, "CNAV", result);
+      } catch (saveErr) {
+        const detail = JSON.stringify(saveErr?.response?.data || saveErr.message);
+        toast.error(`Save CNAV failed: ${detail}`);
+      }
       if (result.arret_critique) {
         toast.error(result.arret_critique.raison || "Calcul CNAV interrompu");
       }

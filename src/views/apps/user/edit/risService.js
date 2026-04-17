@@ -181,7 +181,9 @@ export async function saveSkillResult(clientId, skillCode, result) {
       { headers: { Authorization: `Bearer ${token}` } }
     );
   } catch (err) {
-    console.warn(`saveSkillResult(${skillCode}) failed silently:`, err?.response?.data || err.message);
+    const detail = err?.response?.data || err.message;
+    console.error(`saveSkillResult(${skillCode}) FAILED:`, detail);
+    throw err; // re-throw so callers can see it
   }
 }
 
