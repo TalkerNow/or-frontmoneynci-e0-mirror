@@ -506,12 +506,18 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; });
     return init;
   });
+  const [arState, setArState] = useState(() => {
+    const init = {};
+    Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; });
+    return init;
+  });
   const [frozenLoading, setFrozenLoading] = useState(false);
   const [isParsingRIS, setIsParsingRIS] = useState(false);
   const [visibleRowCount, setVisibleRowCount] = useState(20);
   const [risFileName, setRisFileName] = useState(null);
   const [droitsSynthese, setDroitsSynthese] = useState(null);
   const [risCarriereSynthese, setRisCarriereSynthese] = useState(null);
+  const [lastRisPayload, setLastRisPayload] = useState(null);
   const [cnavplRows, setCnavplRows] = useState(() => {
     const yrs = [2025,2024,2023,2022,2021,2020,2019,2018,2017,2016,2015];
     return Object.fromEntries(yrs.map(yr => [yr, { revenus: "", revCnavpl: "", points: "" }]));
@@ -671,6 +677,11 @@ export default function SimulatorV6({ mode = "production", id, user }) {
         carriere.forEach(e => { if (e.trimestres_assimiles != null) next[e.annee] = e.trimestres_assimiles; });
         return next;
       });
+      setArState(prev => {
+        const next = { ...prev };
+        carriere.forEach(e => { if (e.trimestres_rachetes != null) next[e.annee] = e.trimestres_rachetes; });
+        return next;
+      });
     }
   }, []);
 
@@ -759,17 +770,32 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   }, [id]);
 
   // ── Réinitialiser le tableau carrière ───────────────────────────────────────
-  const handleResetCarriere = useCallback(() => {
+  const handleResetCarriere = useCallback(async () => {
+    if (carriereValidee) {
+      toast.error("Cette carrière est validée. Déverrouillez-la avant de réinitialiser.");
+      return;
+    }
+    if (!window.confirm("Êtes-vous sûr de vouloir réinitialiser la carrière ? Les données importées seront supprimées définitivement.")) {
+      return;
+    }
     setCarriereRows(_buildDefaultCarriereRows());
     setRevaloValues(() => { const init = {}; Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; }); return init; });
     setDeplafValues({});
     setTrimCotState(() => { const init = {}; Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; }); return init; });
     setTrimAssState(() => { const init = {}; Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; }); return init; });
+    setArState(() => { const init = {}; Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; }); return init; });
     setVisibleRowCount(20);
     setCarriereValidee(false);
     setRisFileName(null);
-    try { sessionStorage.removeItem(`simu_ris_extracted_data_${id}`); } catch(e){}
-  }, [id]);
+    setLastRisPayload(null);
+    try {
+      const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+      await axios.delete(`${global.config.server_url}/frozen_data/${id}`, Config);
+      toast.success("Carrière réinitialisée.");
+    } catch (e) {
+      toast.error("Échec de la suppression côté serveur. Les données reviendront au rechargement.");
+    }
+  }, [id, carriereValidee]);
 
   // ── Side Effects ──
 
@@ -778,32 +804,10 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     hasHydratedRef.current = false;
   }, [id]);
 
-  // Auto-recovery of latest RIS extraction results
+  // Reset RIS payload state on client switch (source of truth = backend frozen_data)
   useEffect(() => {
-    if (!id || carriereValidee || hasHydratedRef.current) return;
-    try {
-      const cached = sessionStorage.getItem(`simu_ris_extracted_data_${id}`);
-      if (cached) {
-        const payload = JSON.parse(cached);
-        // Only apply if the table looks empty (first row sal is 0)
-        // We use a raw check instead of carriereRows dependency to avoid loops
-        if (payload.droits_synthese) setDroitsSynthese(payload.droits_synthese);
-        if (payload.carriere_synthese) setRisCarriereSynthese(payload.carriere_synthese);
-        
-        const raw = Array.isArray(payload.debug_carriere_detaillee_regex)
-          ? payload.debug_carriere_detaillee_regex : [];
-        const carriere = raw.map((entry) => ({
-          annee: entry.annee,
-          sal_eur: entry.annee < 2002 ? Math.round((entry.revenu_brut || 0) / 6.55957) : (entry.revenu_brut || 0),
-          sal_original: entry.revenu_brut || 0,
-          devise: entry.annee < 2002 ? "FRF" : "EUR",
-        }));
-        
-        hasHydratedRef.current = true;
-        applyCarriereData(carriere);
-      }
-    } catch (e) { console.error("Auto-recovery error:", e); }
-  }, [id, carriereValidee, applyCarriereData]);
+    setLastRisPayload(null);
+  }, [id]);
 
   // Fetch documents on mount
   useEffect(() => { fetchUserDocuments(); }, [fetchUserDocuments]);
@@ -832,8 +836,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     toast.info("Analyse du RIS en cours… (peut prendre 1-2 minutes)", { autoClose: false, toastId: "ris-parsing" });
     try {
       const payload = await fetchRISAnalysisV6(file);
-      // Cache results for auto-recovery
-      try { sessionStorage.setItem(`simu_ris_extracted_data_${id}`, JSON.stringify(payload)); } catch(e){}
+      setLastRisPayload(payload);
 
       // ── Détection du format de réponse ──────────────────────────────────
       const isNewFormat = Array.isArray(payload.carriere) && !Array.isArray(payload.debug_carriere_detaillee_regex);
@@ -850,13 +853,28 @@ export default function SimulatorV6({ mode = "production", id, user }) {
           devise: entry.annee < 2002 ? "FRF" : "€",
         })));
 
-        // 2. Trimestres cotisés par année
-        const trimCotN = {};
-        carriereRaw.forEach(({ annee, trimestres }) => {
-          const t = parseInt(trimestres, 10) || 0;
-          if (annee && t > 0) trimCotN[annee] = Math.min(t, 4);
+        // 2. Trimestres par année — nouveau format (cotisés/assimilés/rachetés séparés)
+        //    avec fallback sur l'ancien format (champ "trimestres" agrégé → tout en cotisés)
+        const trimCotN = {}, trimAssN = {}, arN = {};
+        carriereRaw.forEach(({ annee, trimestres, trimestres_cotises, trimestres_assimiles, trimestres_rachetes }) => {
+          if (!annee) return;
+          const hasDetailedNature =
+            trimestres_cotises != null || trimestres_assimiles != null || trimestres_rachetes != null;
+          if (hasDetailedNature) {
+            const tc = parseInt(trimestres_cotises, 10) || 0;
+            const ta = parseInt(trimestres_assimiles, 10) || 0;
+            const tr = parseInt(trimestres_rachetes, 10) || 0;
+            if (tc > 0) trimCotN[annee] = Math.min(tc, 4);
+            if (ta > 0) trimAssN[annee] = Math.min(ta, 4);
+            if (tr > 0) arN[annee] = Math.min(tr, 4);
+          } else {
+            const t = parseInt(trimestres, 10) || 0;
+            if (t > 0) trimCotN[annee] = Math.min(t, 4);
+          }
         });
         if (Object.keys(trimCotN).length) setTrimCotState(prev => ({ ...prev, ...trimCotN }));
+        if (Object.keys(trimAssN).length) setTrimAssState(prev => ({ ...prev, ...trimAssN }));
+        if (Object.keys(arN).length)      setArState(prev => ({ ...prev, ...arN }));
 
         // 3. Points AGIRC-ARRCO / Ircantec / RCI / CIPAV par année
         const agircN = {}, ircN = {}, rciN = {}, cipavBaseN = {}, cipavComplN = {};
@@ -973,16 +991,19 @@ export default function SimulatorV6({ mode = "production", id, user }) {
           devise: entry.annee < 2002 ? "FRF" : "EUR",
         })));
 
-        const newTrimCot = {}, newTrimAss = {};
+        const newTrimCot = {}, newTrimAss = {}, newAr = {};
         detail_annuel.forEach(({ annee, trimestres_retenus, nature }) => {
           const yr = parseInt(annee, 10);
           const t = parseInt(trimestres_retenus, 10) || 0;
           if (!yr) return;
-          if ((nature || "Cotisé") === "Cotisé") newTrimCot[yr] = Math.min((newTrimCot[yr] || 0) + t, 4);
+          const n = nature || "Cotisé";
+          if (n === "Racheté" || n === "Rachete" || n === "VPLR") newAr[yr] = Math.min((newAr[yr] || 0) + t, 4);
+          else if (n === "Cotisé") newTrimCot[yr] = Math.min((newTrimCot[yr] || 0) + t, 4);
           else newTrimAss[yr] = Math.min((newTrimAss[yr] || 0) + t, 4);
         });
         if (Object.keys(newTrimCot).length) setTrimCotState(prev => ({ ...prev, ...newTrimCot }));
         if (Object.keys(newTrimAss).length) setTrimAssState(prev => ({ ...prev, ...newTrimAss }));
+        if (Object.keys(newAr).length) setArState(prev => ({ ...prev, ...newAr }));
       }
 
       toast.dismiss("ris-parsing");
@@ -1297,8 +1318,25 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   };
 
 
+  const isCarriereEmpty = useMemo(() => {
+    return !carriereRows.some(row => {
+      const cipavRow = cnavplRows[row.yr];
+      return (row.sal > 0)
+        || (row.agircPts != null && row.agircPts !== "")
+        || (row.ircantecPoints != null && row.ircantecPoints !== "")
+        || (row.ircPts != null && row.ircPts !== "")
+        || (row.rciPts != null && row.rciPts !== "")
+        || (cipavRow?.points) || (cipavRow?.pointsCompl)
+        || (trimCotState[row.yr] > 0) || (trimAssState[row.yr] > 0) || (arState[row.yr] > 0);
+    });
+  }, [carriereRows, cnavplRows, trimCotState, trimAssState, arState]);
+
   const handleGeler = useCallback(async () => {
     if (!id) return;
+    if (isCarriereEmpty) {
+      toast.error("Remplissez au moins une ligne de carrière avant de valider.");
+      return;
+    }
     setFrozenLoading(true);
     try {
       const carriere = carriereRows.map(row => {
@@ -1310,6 +1348,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
           deplafonne: deplafValues[row.yr] || false,
           trimestres_cotises: trimCotState[row.yr] ?? 0,
           trimestres_assimiles: trimAssState[row.yr] ?? 0,
+          trimestres_rachetes: arState[row.yr] ?? 0,
           // Use standard points_ prefix for Python script compatibility
           ...(row.agircPts != null && { points_agirc_arrco: row.agircPts }),
           ...(row.ircantecPoints != null && { points_ircantec: row.ircantecPoints }),
@@ -1329,12 +1368,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       //   2. Fallback droitsSynthese
       //   3. Fallback heuristique basée sur les points/salaire
       // ────────────────────────────────────────────────────────
-      let risCache = null;
-      try {
-        const cached = sessionStorage.getItem(`simu_ris_extracted_data_${id}`);
-        if (cached) risCache = JSON.parse(cached);
-      } catch (e) {}
-      const dureeAssurance = risCache?.duree_assurance_trimestres || {};
+      const dureeAssurance = lastRisPayload?.duree_assurance_trimestres || {};
 
       const getRisTrim = (r) => (
         dureeAssurance[r]
@@ -1347,10 +1381,10 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       const risTrimIrcantec = getRisTrim("ircantec");
       const risTrimRci = getRisTrim("rci");
       const risTrimTousRegimes = dureeAssurance.tous_regimes
-        ?? risCache?.carriere_synthese?.trimestres_valides_total
+        ?? lastRisPayload?.carriere_synthese?.trimestres_valides_total
         ?? null;
       const risTrimRequis = dureeAssurance.requis_taux_plein
-        ?? risCache?.carriere_synthese?.trimestres_requis_taux_plein
+        ?? lastRisPayload?.carriere_synthese?.trimestres_requis_taux_plein
         ?? null;
 
       // Heuristique fallback : compter les trimestres des années où chaque régime est présent
@@ -1379,7 +1413,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       // NIR parser : source officielle pour sexe + date naissance
       // Priorite NIR sur user.birth_date quand l'un ou l'autre est incoherent
       // ────────────────────────────────────────────────────────
-      const nir = user?.secu_social || risCache?.profil?.numero_securite_sociale || risCache?.profil?.numero_ss || "";
+      const nir = user?.secu_social || lastRisPayload?.profil?.numero_securite_sociale || lastRisPayload?.profil?.numero_ss || "";
       const nirInfo = parseNIR(nir);
 
       // Date naissance finale : si NIR et user.birth_date divergent (année/mois),
@@ -1421,11 +1455,11 @@ export default function SimulatorV6({ mode = "production", id, user }) {
         user_id: parseInt(id), // Primary identifier for the client in DB
         source: "SAISIE_CONSULTANT",
         meta: {
-          nom: user?.last_name || risCache?.profil?.nom || "",
-          prenom: user?.first_name || risCache?.profil?.prenom || "",
+          nom: user?.last_name || lastRisPayload?.profil?.nom || "",
+          prenom: user?.first_name || lastRisPayload?.profil?.prenom || "",
           date_naissance: dateNaissanceFinale,
           sexe: nirInfo?.sexe || user?.sexe || null,
-          nombre_enfants: user?.children_number ?? user?.nombre_enfants ?? risCache?.profil?.nombre_enfants ?? 0,
+          nombre_enfants: user?.children_number ?? user?.nombre_enfants ?? lastRisPayload?.profil?.nombre_enfants ?? 0,
           nir: nir || null,
           valide_le: new Date().toISOString().split("T")[0],
         },
@@ -1479,9 +1513,8 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
       await axios.post(`${global.config.server_url}/frozen_data`, payload, Config);
 
-      // Clear extraction cache on successful freeze
-      try { sessionStorage.removeItem(`simu_ris_extracted_data_${id}`); } catch(e){}
-      
+      setLastRisPayload(null);
+
       setCarriereValidee(true);
       setLockedAt(now);
       setLockedBy(consultantId);
@@ -1498,7 +1531,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     } finally {
       setFrozenLoading(false);
     }
-  }, [id, carriereRows, revaloValues, deplafValues, trimCotState, trimAssState, user, cnavplRows, droitsSynthese, risCarriereSynthese]);
+  }, [id, carriereRows, revaloValues, deplafValues, trimCotState, trimAssState, user, cnavplRows, droitsSynthese, risCarriereSynthese, isCarriereEmpty]);
 
   const handleAgircExecute = async () => {
     if (!carriereValidee) return;
@@ -2046,7 +2079,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                       const totalRows = carriereRows.slice(0, visibleRowCount);
                       const totalCotTbl = totalRows.reduce((s, r) => s + (trimCotState[r.yr] ?? 0), 0);
                       const totalAssTbl = totalRows.reduce((s, r) => s + (trimAssState[r.yr] ?? 0), 0);
-                      const totalArTbl = totalRows.reduce((s, r) => s + (parseInt(r.ar) || 0), 0);
+                      const totalArTbl = totalRows.reduce((s, r) => s + (arState[r.yr] ?? 0), 0);
                       const totalTrimTbl = totalCotTbl + totalAssTbl + totalArTbl;
                       const samRows = [...carriereRows].sort((a, b) => (revaloValues[b.yr] ?? 0) - (revaloValues[a.yr] ?? 0)).slice(0, 25);
                       const samVal = samRows.length ? Math.round(samRows.reduce((s, r) => s + (revaloValues[r.yr] ?? 0), 0) / samRows.length) : 0;
@@ -2074,7 +2107,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 } else {
                                   handleGeler();
                                 }
-                              }} disabled={frozenLoading} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, border: "none", background: carriereValidee ? "#E1705520" : "#00B89420", color: carriereValidee ? "#E17055" : "#00B894", cursor: frozenLoading ? "default" : "pointer", fontWeight: 700 }}>
+                              }} disabled={frozenLoading || (!carriereValidee && isCarriereEmpty)} title={!carriereValidee && isCarriereEmpty ? "Remplissez au moins une ligne de carrière" : ""} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, border: "none", background: carriereValidee ? "#E1705520" : (isCarriereEmpty ? "#ccc" : "#00B89420"), color: carriereValidee ? "#E17055" : (isCarriereEmpty ? "#888" : "#00B894"), cursor: (frozenLoading || (!carriereValidee && isCarriereEmpty)) ? "not-allowed" : "pointer", fontWeight: 700 }}>
                                 {carriereValidee ? "🔓 Déverrouiller" : frozenLoading ? "⏳…" : "🔒 Valider"}
                               </button>
                               <button onClick={handleResetCarriere} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, border: "1px solid #ddd", background: "#fff", color: "#888", cursor: "pointer", fontWeight: 700 }}>
@@ -2193,7 +2226,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               </thead>
                               <tbody>
                                 {totalRows.map((row, i) => {
-                                  const tot = row.trim + row.ar;
+                                  const tot = (trimCotState[row.yr] ?? 0) + (trimAssState[row.yr] ?? 0) + (arState[row.yr] ?? 0);
                                   let revaloVal = revaloValues[row.yr] ?? row.revalo;
                                   if (revaloVal > getPlafond(row.yr) && (row.yr >= 2005 || !deplafValues[row.yr])) {
                                     revaloVal = getPlafond(row.yr);
@@ -2300,7 +2333,10 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                           title="Trimestres assimilés (maladie, chômage, maternité…)" style={{ width: 26, textAlign: "center", border: "1px solid #6C5CE730", borderRadius: 3, fontSize: 13, padding: "1px", color: "#6C5CE7" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
-                                        <input type="number" defaultValue={row.ar} disabled={carriereValidee} style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 13, padding: "1px" }} />
+                                        <input type="number" value={arState[row.yr] ?? 0} disabled={carriereValidee}
+                                          onChange={(e) => { const v = parseInt(e.target.value) || 0; setArState(prev => ({ ...prev, [row.yr]: v })); }}
+                                          title="Trimestres rachetés (versement pour la retraite)"
+                                          style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 13, padding: "1px" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", fontWeight: 700, color: "#6C5CE7" }}>{tot}</td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #0984E315" }}>
@@ -2321,10 +2357,10 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       {cnavplOpen ? (
                                         <>
                                           <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #9B59B630", animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>
-                                            <input type="text" value={cnavplRows[row.yr]?.points || ""} onChange={e => setCnavplRows(p => ({...p, [row.yr]: {...p[row.yr], points: e.target.value}}))} disabled={carriereValidee} style={{ width: 40, textAlign: "right", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 10, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 700 }} />
+                                            <input type="text" value={cnavplRows[row.yr]?.points || ""} onChange={e => setCnavplRows(p => ({...p, [row.yr]: {...p[row.yr], points: e.target.value}}))} disabled={carriereValidee} style={{ width: 72, textAlign: "center", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 13, padding: "1px 4px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 700 }} />
                                           </td>
                                           <td style={{ padding: "3px 5px", textAlign: "center", animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>
-                                            <input type="text" value={cnavplRows[row.yr]?.pointsCompl || ""} onChange={e => setCnavplRows(p => ({...p, [row.yr]: {...p[row.yr], pointsCompl: e.target.value}}))} disabled={carriereValidee} style={{ width: 40, textAlign: "right", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 10, padding: "1px 2px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 600 }} />
+                                            <input type="text" value={cnavplRows[row.yr]?.pointsCompl || ""} onChange={e => setCnavplRows(p => ({...p, [row.yr]: {...p[row.yr], pointsCompl: e.target.value}}))} disabled={carriereValidee} style={{ width: 72, textAlign: "center", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 13, padding: "1px 4px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 600 }} />
                                           </td>
                                         </>
                                       ) : (
@@ -2351,6 +2387,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       SAM : {samVal ? samVal.toLocaleString("fr-FR") + " €" : "—"}
                                     </button>
                                   </td>
+                                  <td></td>
                                   <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#6C5CE7" }}>{totalCotTbl || "—"}</td>
                                   <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#6C5CE7" }}>{totalAssTbl || "—"}</td>
                                   <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#6C5CE7" }}>{totalArTbl || "—"}</td>
@@ -2579,9 +2616,10 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                             <button
                               onClick={handleGeler}
-                              disabled={carriereValidee || frozenLoading}
-                              style={{ flex: 1, padding: "8px 0", borderRadius: 7, border: "none", background: carriereValidee ? "#00B894" : frozenLoading ? "#aaa" : "#E17055", color: "#fff", fontWeight: 700, fontSize: 11, cursor: (carriereValidee || frozenLoading) ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                              {carriereValidee ? "🔒 Données gelées" : frozenLoading ? "⏳ Gel en cours…" : "🔒 Geler & Calculer"}
+                              disabled={carriereValidee || frozenLoading || isCarriereEmpty}
+                              title={isCarriereEmpty && !carriereValidee ? "Remplissez au moins une ligne de carrière" : ""}
+                              style={{ flex: 1, padding: "8px 0", borderRadius: 7, border: "none", background: carriereValidee ? "#00B894" : frozenLoading ? "#aaa" : isCarriereEmpty ? "#ccc" : "#E17055", color: "#fff", fontWeight: 700, fontSize: 11, cursor: (carriereValidee || frozenLoading || isCarriereEmpty) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                              {carriereValidee ? "🔒 Données gelées" : frozenLoading ? "⏳ Gel en cours…" : isCarriereEmpty ? "📝 Carrière vide" : "🔒 Geler & Calculer"}
                             </button>
                             <button
                               onClick={async () => {
@@ -3141,8 +3179,8 @@ export default function SimulatorV6({ mode = "production", id, user }) {
 
                                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                                     {[
-                                      ["Points base", cipavResult.python_output.details_points?.base?.toLocaleString("fr-FR")],
-                                      ["Points complémentaire", cipavResult.python_output.details_points?.complementaire?.toLocaleString("fr-FR")],
+                                      ["Points base", cipavResult.python_output.details_points?.base?.toLocaleString("fr-FR", { maximumFractionDigits: 2 })],
+                                      ["Points complémentaire", cipavResult.python_output.details_points?.complementaire?.toLocaleString("fr-FR", { maximumFractionDigits: 2 })],
                                     ].map(([label, val]) => (
                                       <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 10, borderBottom: "1px solid #9B59B610", paddingBottom: 4 }}>
                                         <span style={{ color: "#666" }}>{label}</span>
