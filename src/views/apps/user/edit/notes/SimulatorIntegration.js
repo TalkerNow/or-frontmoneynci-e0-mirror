@@ -2717,7 +2717,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               const skillResultData = skillCode ? scenarioSkillResults[skillCode] : null;
                               const skillErrorMsg = skillCode ? scenarioSkillErrors[skillCode] : null;
                               return (
-                                <div key={action.id} style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                                <div key={action.id}>
                                   <button onClick={() => { if (ok) toggleDispositif(action.id); }} style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 11px", borderRadius: 8, border: `2px solid ${isActivated ? panel.color : ok ? "#e8e8e8" : "#f0f0f0"}`, background: isActivated ? `${panel.color}12` : ok ? "#fafafa" : "#f8f8f8", cursor: ok ? "pointer" : "not-allowed", textAlign: "left", opacity: ok ? 1 : 0.45, transition: "all 0.12s", position: "relative", width: "100%", flex: 1 }}>
                                     <div style={{ width: 20, height: 20, borderRadius: 5, border: `2px solid ${isActivated ? panel.color : "#ccc"}`, background: isActivated ? panel.color : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 11, color: "#fff" }}>
                                       {isActivated && "✓"}
@@ -3411,7 +3411,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                         <div style={{ fontSize: 11, color: "#555", marginBottom: 14 }}>{panel.desc}</div>
                         {/* Thematic analysis vignettes */}
                         <div style={{ fontSize: 11, fontWeight: 700, color: "#555", marginBottom: 8 }}>Thématiques d'analyse</div>
-                        <div className="simu-action-grid">
+                        <div className="simu-action-grid simu-action-grid--analyse">
                           {panel.actions.map((action) => {
                             const ok = checkReq(action.requires);
                             const miss = getMissing(action.requires);

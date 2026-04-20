@@ -1006,8 +1006,33 @@
 .simu-action-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-auto-rows: 115px;
   gap: 7px;
   align-items: stretch;
+
+  > div {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+
+    > button:first-child {
+      height: 115px;
+      min-height: 115px;
+      max-height: 115px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+  }
+
+  &--analyse {
+    grid-auto-rows: auto;
+
+    > div > button:first-child {
+      height: auto;
+      min-height: unset;
+      max-height: unset;
+    }
+  }
 }
 
 /* Livrables 3-col grid */
