@@ -92,7 +92,7 @@ export async function executeScript(regimeCode, clientId, userContext) {
       scenario_params: {},
       frozen_data_id: null,
     },
-    { headers: { "Content-Type": "application/json" }, timeout: 60000 }
+    { headers: { "Content-Type": "application/json" }, timeout: 180000 }
   );
 
   const data = response.data;
@@ -112,7 +112,7 @@ export async function executeSkill(skillCode, clientId, userContext) {
   const response = await axios.post(
     WEBHOOKS.SKILL_EXECUTE,
     { skill_code: skillCode, client_id: clientId, user_context: userContext || "", token },
-    { headers: { "Content-Type": "application/json" }, timeout: 60000 }
+    { headers: { "Content-Type": "application/json" }, timeout: 180000 }
   );
 
   const data = response.data;
@@ -131,7 +131,7 @@ export async function executeAgircArrcoWebhook(clientId, payload) {
   const response = await axios.post(
     "https://n8n.srv796541.hstgr.cloud/webhook/script-execute-agirc-arrco-v2-test",
     { skill_code: "AGIRC", client_id: clientId, ...payload, token },
-    { headers: { "Content-Type": "application/json" }, timeout: 60000 }
+    { headers: { "Content-Type": "application/json" }, timeout: 180000 }
   );
 
   const data = response.data;
@@ -217,7 +217,7 @@ export async function executeSkillGeneric(skillCode, { clientId, userContext, sc
       user_context: userContext || `Execution skill ${skillCode}`,
       scenario_params: scenarioParams || {},
     },
-    { timeout: 60000, headers: { "Content-Type": "application/json" } }
+    { timeout: 180000, headers: { "Content-Type": "application/json" } }
   );
 
   const data = response.data;
