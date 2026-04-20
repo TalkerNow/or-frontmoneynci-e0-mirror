@@ -17,6 +17,7 @@ export const WEBHOOKS = {
   SCRIPT_IRCANTEC: `${N8N_BASE}/script-execute-ircantec-v2-test`,
   SCRIPT_RCI: `${N8N_BASE}/script-execute-rci-v2-test`,
   SCRIPT_CIPAV: `${N8N_BASE}/script-execute-cipav-v2-test`,
+  SCRIPT_RACL: `${N8N_BASE}/racl-executor-v1-test`,
 };
 
 /**
@@ -222,6 +223,43 @@ export async function executeSkillGeneric(skillCode, { clientId, userContext, sc
 
   const data = response.data;
   return Array.isArray(data) ? data[0] : data;
+}
+
+/**
+ * Exécute le calcul RACL (Retraite Anticipée Carrière Longue).
+ * Normalise le résultat : eligible = racl_eligible, raison_eligibilite = message
+ * @param {number} clientId
+ * @param {object} [scenarioParams]
+ * @returns {Promise<object>}
+ */
+/**
+ * Exécute le calcul RACL via le proxy Laravel.
+ * Le backend charge frozen_data depuis la DB et l'injecte dans le payload n8n
+ * — n8n n'a donc pas besoin de rappeler le serveur (fonctionne en local).
+ */
+export async function executeRaclScenario(clientId, scenarioParams = {}) {
+  const token = localStorage.getItem("token");
+  const userId = parseInt(localStorage.getItem("userid"));
+
+  const response = await axios.post(
+    `${global.config.server_url}/script/calculate`,
+    {
+      regime_code: "RACL",
+      client_id: clientId,
+      token,
+      user_id: userId,
+      user_context: "Analyse Carrière Longue RACL",
+      scenario_params: scenarioParams,
+    },
+    { timeout: 90000, headers: { "Content-Type": "application/json" } }
+  );
+
+  const data = Array.isArray(response.data) ? response.data[0] : response.data;
+  return {
+    ...data,
+    eligible: data.racl_eligible ?? data.eligible,
+    raison_eligibilite: data.racl_result?.message || data.message || data.raison_eligibilite,
+  };
 }
 
 /**
