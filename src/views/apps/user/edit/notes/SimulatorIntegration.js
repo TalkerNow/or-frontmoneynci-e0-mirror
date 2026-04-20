@@ -18,6 +18,7 @@ import { calculateArrco, calculateIrcantec, calculateRci } from '../../../../../
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
 import SkillCreateModal from "./SkillCreateModal";
+import SweetAlert from "react-bootstrap-sweetalert";
 const MD_CONTENT = {};
 
 // Map QUICK_TAGS to icons for the analyse panel
@@ -474,6 +475,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   const [lockedBy, setLockedBy] = useState(null);
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [cnavplOpen, setCnavplOpen] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [cnavplClosing, setCnavplClosing] = useState(false);
   const [samOpen, setSamOpen] = useState(false);
   const [accordeonsVisible, setAccordeonsVisible] = useState(true);
@@ -627,7 +629,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   //   RIS format  : { annee, sal_original, sal_eur, devise, regimes }
   //   SAISIE format: { annee, salaire_brut, salaire_revalo, trimestres_cotises, trimestres_assimiles }
   const applyCarriereData = useCallback((carriere) => {
-    if (!Array.isArray(carriere) || !carriere.length) return;
+    if (!Array.isArray(carriere) || !carriere.length) return 0;
     const minYear = Math.min(...carriere.map(r => r.annee));
     setVisibleRowCount(Math.min(Math.max(20, 2026 - minYear + 1), 65));
     setCarriereRows(prev => prev.map(row => {
@@ -683,6 +685,15 @@ export default function SimulatorV6({ mode = "production", id, user }) {
         return next;
       });
     }
+    // Count years where the revalorized salary hit the PASS ceiling (matches isPlafonne in UI)
+    return carriere.filter(entry => {
+      const salEur = entry.revenu_brut ?? entry.salaire_brut ?? entry.sal_eur ?? 0;
+      if (!salEur) return false;
+      const plaf = PLAFONDS_SS[entry.annee] || 48060;
+      const coeff = REVALO_CNAV[entry.annee] || 1;
+      const uncappedRevalo = entry.salaire_revalo ?? Math.round(Math.min(salEur, plaf) * coeff);
+      return uncappedRevalo >= plaf;
+    }).length;
   }, []);
 
   // Load career data from frozen_data on mount
@@ -717,8 +728,14 @@ export default function SimulatorV6({ mode = "production", id, user }) {
         }
 
         if (Array.isArray(carriere) && carriere.length) {
-          applyCarriereData(carriere);
-          
+          const cappedCount = applyCarriereData(carriere);
+          if (cappedCount > 0) {
+            toast.info(
+              `📏 ${cappedCount} an${cappedCount > 1 ? 's' : ''} plafonnée${cappedCount > 1 ? 's' : ''} au PASS — revalo ramenée au max autorisé (cellules en rouge).`,
+              { autoClose: 12000 }
+            );
+          }
+
           // Legacy fallback: Restore CIPAV from carriere if cipav column was empty
           if (!Array.isArray(cipav) || !cipav.length) {
             const hasCipav = carriere.some(e => e.pts_cipav_base != null || e.pts_cipav_complementaire != null);
@@ -770,20 +787,16 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   }, [id]);
 
   // ── Réinitialiser le tableau carrière ───────────────────────────────────────
-  const handleResetCarriere = useCallback(async () => {
-    if (carriereValidee) {
-      toast.error("Cette carrière est validée. Déverrouillez-la avant de réinitialiser.");
-      return;
-    }
-    if (!window.confirm("Êtes-vous sûr de vouloir réinitialiser la carrière ? Les données importées seront supprimées définitivement.")) {
-      return;
-    }
+  const doResetCarriere = useCallback(async () => {
+    setShowResetConfirm(false);
     setCarriereRows(_buildDefaultCarriereRows());
     setRevaloValues(() => { const init = {}; Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; }); return init; });
     setDeplafValues({});
     setTrimCotState(() => { const init = {}; Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; }); return init; });
     setTrimAssState(() => { const init = {}; Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; }); return init; });
     setArState(() => { const init = {}; Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; }); return init; });
+    setCnavplRows(Object.fromEntries([2025,2024,2023,2022,2021,2020,2019,2018,2017,2016,2015].map(yr => [yr, { revenus: "", revCnavpl: "", points: "" }])));
+    setCnavplOpen(false);
     setVisibleRowCount(20);
     setCarriereValidee(false);
     setRisFileName(null);
@@ -791,11 +804,23 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     try {
       const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
       await axios.delete(`${global.config.server_url}/frozen_data/${id}`, Config);
-      toast.success("Carrière réinitialisée.");
     } catch (e) {
-      toast.error("Échec de la suppression côté serveur. Les données reviendront au rechargement.");
+      if (e?.response?.status !== 404) {
+        toast.error("Échec de la suppression côté serveur. Les données reviendront au rechargement.");
+        return;
+      }
+      // 404 = pas encore de données en base (import RIS non gelé) → normal
     }
-  }, [id, carriereValidee]);
+    toast.success("Carrière réinitialisée.");
+  }, [id]);
+
+  const handleResetCarriere = useCallback(() => {
+    if (carriereValidee) {
+      toast.error("Cette carrière est validée. Déverrouillez-la avant de réinitialiser.");
+      return;
+    }
+    setShowResetConfirm(true);
+  }, [carriereValidee]);
 
   // ── Side Effects ──
 
@@ -839,6 +864,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       setLastRisPayload(payload);
 
       // ── Détection du format de réponse ──────────────────────────────────
+      let cappedFromRIS = 0;
       const isNewFormat = Array.isArray(payload.carriere) && !Array.isArray(payload.debug_carriere_detaillee_regex);
 
       if (isNewFormat) {
@@ -846,7 +872,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
         const carriereRaw = payload.carriere || [];
 
         // 1. Salaires
-        applyCarriereData(carriereRaw.map(entry => ({
+        cappedFromRIS = applyCarriereData(carriereRaw.map(entry => ({
           annee: entry.annee,
           sal_eur: entry.annee < 2002 ? Math.round((entry.revenu || 0) / 6.55957) : (entry.revenu || 0),
           sal_original: entry.revenu || 0,
@@ -984,7 +1010,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
         }
 
         const raw = Array.isArray(payload.debug_carriere_detaillee_regex) ? payload.debug_carriere_detaillee_regex : [];
-        applyCarriereData(raw.map((entry) => ({
+        cappedFromRIS = applyCarriereData(raw.map((entry) => ({
           annee: entry.annee,
           sal_eur: entry.annee < 2002 ? Math.round((entry.revenu_brut || 0) / 6.55957) : (entry.revenu_brut || 0),
           sal_original: entry.revenu_brut || 0,
@@ -1008,6 +1034,12 @@ export default function SimulatorV6({ mode = "production", id, user }) {
 
       toast.dismiss("ris-parsing");
       toast.success("Tableau carrière rempli");
+      if (cappedFromRIS > 0) {
+        toast.info(
+          `📏 ${cappedFromRIS} an${cappedFromRIS > 1 ? 's' : ''} plafonnée${cappedFromRIS > 1 ? 's' : ''} au PASS — revalo ramenée au max autorisé (cellules en rouge).`,
+          { autoClose: 12000 }
+        );
+      }
     } catch (e) {
       toast.dismiss("ris-parsing");
       console.error("[parsePdfAndFillCarriere] erreur:", e?.response?.data || e?.message || e);
@@ -1322,11 +1354,10 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     return !carriereRows.some(row => {
       const cipavRow = cnavplRows[row.yr];
       return (row.sal > 0)
-        || (row.agircPts != null && row.agircPts !== "")
-        || (row.ircantecPoints != null && row.ircantecPoints !== "")
-        || (row.ircPts != null && row.ircPts !== "")
-        || (row.rciPts != null && row.rciPts !== "")
-        || (cipavRow?.points) || (cipavRow?.pointsCompl)
+        || (row.agircPts > 0)
+        || (row.ircPts > 0)
+        || (row.rciPts > 0)
+        || (parseFloat(cipavRow?.points) > 0) || (parseFloat(cipavRow?.pointsCompl) > 0)
         || (trimCotState[row.yr] > 0) || (trimAssState[row.yr] > 0) || (arState[row.yr] > 0);
     });
   }, [carriereRows, cnavplRows, trimCotState, trimAssState, arState]);
@@ -1884,11 +1915,6 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                             <span style={{ fontSize: 9, color, fontWeight: 700 }}>{ext.toUpperCase()}</span>
 
                             <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto", paddingLeft: 4 }}>
-                              {isRIS && (
-                                <span style={{ background: "#6C5CE7", border: "1px solid #6C5CE7", borderRadius: 4, color: "#fff", padding: "1px 5px", fontSize: 9, fontWeight: 700, lineHeight: 1.4 }}>
-                                  RIS
-                                </span>
-                              )}
                               {isSelected && (
                                 <button
                                   onClick={(e) => {
@@ -1958,11 +1984,6 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                           <span style={{ fontSize: 13 }}>📄</span>
                           <span style={{ fontWeight: 600, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12 }}>{fileToSend.name}</span>
                           <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto", paddingLeft: 4 }}>
-                            {risFileName === fileToSend.name && (
-                              <span style={{ background: "#6C5CE7", border: "1px solid #6C5CE7", borderRadius: 4, color: "#fff", padding: "1px 5px", fontSize: 9, fontWeight: 700, lineHeight: 1.4 }}>
-                                RIS
-                              </span>
-                            )}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -2154,7 +2175,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                           </div>
 
                           {/* Droits extraits du RIS */}
-                          {droitsSynthese && (
+                          {/* {droitsSynthese && (
                             <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
                               {droitsSynthese.agirc_arrco?.points_total > 0 && (
                                 <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#0984E308", border: "1px solid #0984E330", borderRadius: 6, padding: "4px 10px" }}>
@@ -2184,7 +2205,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 </div>
                               )}
                             </div>
-                          )}
+                          )} */}
 
                           {/* Grand tableau unifié */}
                           <div className="simu-table-wrap" style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
@@ -2300,13 +2321,13 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                         />
                                         <span style={{ fontSize: 7, color: "#666", display: "block", textAlign: "right", marginTop: 1 }}>
                                           ≤ {getPlafond(row.yr).toLocaleString("fr-FR")} €
-                                          {isPlafonne && row.yr < 2005 && (
+                                          {isPlafonne && (
                                             <>
                                               <span id={`revalo-alert-${row.yr}`} style={{ color: "#E17055", cursor: "pointer", display: "inline-block", padding: "0 2px" }}>
                                                 ⚠
                                               </span>
                                               <UncontrolledTooltip placement="top" target={`revalo-alert-${row.yr}`}>
-                                                À revoir par un consultant : la revalorisation dépasse peut-être le plafond du PASS de l'année.
+                                                Salaire au plafond PASS {row.yr} ({getPlafond(row.yr).toLocaleString("fr-FR")} €) — la revalorisation a été automatiquement ramenée au maximum autorisé pour le calcul CNAV.
                                               </UncontrolledTooltip>
                                             </>
                                           )}
@@ -2409,8 +2430,8 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                   <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#E17055", borderLeft: "2px solid #E1705515", fontWeight: 700 }}>{carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (r.rciPts || 0), 0) || "—"}</td>
                                   {cnavplOpen ? (
                                     <>
-                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#9B59B6", borderLeft: "2px solid #9B59B630", fontWeight: 800, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>{carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (parseFloat(cnavplRows[r.yr]?.points) || 0), 0) || "—"}</td>
-                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#9B59B6", fontWeight: 800, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>{carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (parseFloat(cnavplRows[r.yr]?.pointsCompl) || 0), 0) || "—"}</td>
+                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#9B59B6", borderLeft: "2px solid #9B59B630", fontWeight: 800, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>{(total => total ? total.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : "—")(carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (parseFloat(cnavplRows[r.yr]?.points) || 0), 0))}</td>
+                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#9B59B6", fontWeight: 800, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>{(total => total ? total.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : "—")(carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (parseFloat(cnavplRows[r.yr]?.pointsCompl) || 0), 0))}</td>
                                     </>
                                   ) : (
                                     <td style={{ padding: "5px 5px", width: 24, borderLeft: "2px solid #9B59B630" }}></td>
@@ -4001,6 +4022,20 @@ export default function SimulatorV6({ mode = "production", id, user }) {
         onCreated={() => fetchApiSkills()}
         existingTypes={[...new Set(apiSkills.map((s) => s.type))].filter(Boolean)}
       />
+      <SweetAlert
+        warning
+        showCancel
+        confirmBtnText="Réinitialiser"
+        confirmBtnBsStyle="danger"
+        cancelBtnText="Annuler"
+        cancelBtnBsStyle="primary"
+        title="Réinitialiser la carrière ?"
+        show={showResetConfirm}
+        onConfirm={doResetCarriere}
+        onCancel={() => setShowResetConfirm(false)}
+      >
+        Les données importées seront supprimées définitivement.
+      </SweetAlert>
     </div>
   );
 
