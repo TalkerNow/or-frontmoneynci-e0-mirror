@@ -2644,12 +2644,31 @@ export default function SimulatorV6({ mode = "production", id, user }) {
 
                     // ── DISPOSITIFS: special rendering with toggle chips ──
                     if (expandedPanel === "dispositifs") {
+                      const analyserTousDisabled = !carriereValidee || activatedDispositifs.filter(id => DISPOSITIF_TO_SKILL_CODE[id]).every(id => !!scenarioSkillLoading[DISPOSITIF_TO_SKILL_CODE[id]]);
+                      const analyserTousVisible = activatedDispositifs.some(id => DISPOSITIF_TO_SKILL_CODE[id]);
+                      const analyserTousLoading = activatedDispositifs.filter(id => DISPOSITIF_TO_SKILL_CODE[id]).some(id => !!scenarioSkillLoading[DISPOSITIF_TO_SKILL_CODE[id]]);
                       return (
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                             <span style={{ fontSize: 18 }}>{panel.icon}</span>
                             <span style={{ fontSize: 14, fontWeight: 700, color: panel.color }}>{panel.label}</span>
                             <span style={{ fontSize: 10, color: "#555" }}>— Activez les dispositifs, l'IA calcule les dates</span>
+                            {analyserTousVisible && (
+                              <button
+                                onClick={() => {
+                                  activatedDispositifs.forEach(dId => {
+                                    const sc = DISPOSITIF_TO_SKILL_CODE[dId];
+                                    if (sc && !scenarioSkillLoading[sc]) handleScenarioSkillExecute(sc, {});
+                                  });
+                                }}
+                                disabled={analyserTousDisabled}
+                                style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 6, border: "none", background: analyserTousDisabled ? "#ccc" : panel.color, color: "#fff", fontWeight: 700, fontSize: 10, cursor: analyserTousDisabled ? "not-allowed" : "pointer", opacity: analyserTousDisabled ? 0.6 : 1, whiteSpace: "nowrap" }}
+                              >
+                                {analyserTousLoading ? (
+                                  <><span style={{ display: "inline-block", width: 9, height: 9, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> Analyse en cours...</>
+                                ) : "🔍 Analyser tous"}
+                              </button>
+                            )}
                           </div>
                           <div style={{ fontSize: 11, color: "#555", marginBottom: 14 }}>{panel.desc}</div>
 
