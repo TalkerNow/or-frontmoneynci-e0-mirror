@@ -347,7 +347,7 @@ const PLAFONDS_SS = {
 };
 
 const ADMIN_SKILL_PROMPTS = [
-  { id: "sk_prompt1",    label: "PROMPT 1 — Pré-analyse consultant",          icon: "🔍", color: "#6C5CE7", contentKey: "sk_prompt1",    category: "Workflow principal" },
+  { id: "sk_prompt1",    label: "PROMPT 1 — Rapport de génération pré-entretien", icon: "🔍", color: "#6C5CE7", contentKey: "sk_prompt1",    category: "Workflow principal" },
   { id: "sk_prompt2",    label: "PROMPT 2 — Rapport de consultation client",  icon: "📄", color: "#6C5CE7", contentKey: "sk_prompt2",    category: "Workflow principal" },
   { id: "sk_prompt3",    label: "PROMPT 3 — Auto-apprentissage erreurs",      icon: "🧠", color: "#6C5CE7", contentKey: "sk_prompt3",    category: "Workflow principal" },
   { id: "sk_workflow",   label: "Workflow consultation final",                 icon: "🔀", color: "#D63031", contentKey: "sk_workflow",   category: "Workflow principal" },
@@ -3661,23 +3661,6 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                     </button>
                   </div>
 
-                  {/* Vignette éditable — Rapport pré-entretien EOR (prompt ID 4) */}
-                  <div style={{ borderRadius: 9, padding: "12px 14px", background: "linear-gradient(135deg, #fff8f3 0%, #fff 100%)", border: "1.5px solid #E17055", borderLeft: "4px solid #E17055", marginBottom: 18, display: "flex", alignItems: "center", gap: 12, boxShadow: "0 2px 8px rgba(225, 112, 85, 0.08)" }}>
-                    <span style={{ fontSize: 22 }}>📋</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: "#E17055", marginBottom: 2 }}>
-                        Rapport de génération pré-entretien EOR
-                      </div>
-                      <div style={{ fontSize: 10, color: "#666", lineHeight: 1.4 }}>
-                        Prompt utilisé par le workflow n8n pour générer le rapport pré-entretien. Chaque modification est archivée dans l'historique des versions.
-                      </div>
-                    </div>
-                    <button
-                      onClick={openPreentretienEditor}
-                      style={{ fontSize: 10, padding: "7px 13px", borderRadius: 5, border: "1px solid #E17055", background: "#E17055", color: "#fff", fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
-                        Éditer
-                    </button>
-                  </div>
 
                   {/* Workflow principal — inchangé, lit ADMIN_SKILL_PROMPTS */}
                   {["Workflow principal"].map((cat) => {
@@ -3706,7 +3689,11 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                   ) : (
                                     <span style={{ fontSize: 9, color: "#D63031" }}>Fichier manquant</span>
                                   )}
-                                  <button style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid #888", background: "transparent", color: "#555", fontWeight: 600, cursor: "pointer" }}>✏️ Éditer</button>
+                                  <button
+                                    onClick={skill.id === "sk_prompt1" ? openPreentretienEditor : undefined}
+                                    style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid #888", background: "transparent", color: "#555", fontWeight: 600, cursor: skill.id === "sk_prompt1" ? "pointer" : "default" }}>
+                                    ✏️ Éditer
+                                  </button>
                                 </div>
                               </div>
                             );
