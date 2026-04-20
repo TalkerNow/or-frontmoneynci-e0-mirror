@@ -1457,6 +1457,10 @@ export default function SimulatorV6({ mode = "production", id, user }) {
             `[handleGeler] user.birth_date (${user.birth_date}) IGNORE — ` +
             `utilisation du NIR du RIS courant : ${nirInfo.date_naissance_estimee} (NIR=${nir})`
           );
+          toast.warning(
+            `Date de naissance corrigée via le NIR du RIS : ${nirInfo.date_naissance_estimee} (fiche client : ${user.birth_date})`,
+            { autoClose: 6000 }
+          );
         }
       } else {
         // Fallback uniquement si aucun NIR disponible
