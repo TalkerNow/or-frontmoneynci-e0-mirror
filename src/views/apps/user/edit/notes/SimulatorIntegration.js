@@ -1438,25 +1438,30 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       };
 
       // ────────────────────────────────────────────────────────
-      // NIR parser : source officielle pour sexe + date naissance
-      // Priorite NIR sur user.birth_date quand l'un ou l'autre est incoherent
+      // NIR parser : SOURCE OFFICIELLE UNIQUE pour sexe + date naissance
+      // Priorite ABSOLUE au NIR du RIS courant (ignorant user.birth_date
+      // qui peut etre errone / d'un ancien RIS)
       // ────────────────────────────────────────────────────────
-      const nir = user?.secu_social || lastRisPayload?.profil?.numero_securite_sociale || lastRisPayload?.profil?.numero_ss || "";
+      const nir = lastRisPayload?.profil?.numero_securite_sociale
+        || lastRisPayload?.profil?.numero_ss
+        || user?.secu_social
+        || "";
       const nirInfo = parseNIR(nir);
 
-      // Date naissance finale : si NIR et user.birth_date divergent (année/mois),
-      // NIR fait foi (source officielle d'Etat)
-      let dateNaissanceFinale = user?.birth_date || "";
-      if (nirInfo && dateNaissanceFinale) {
-        const userYr = parseInt(String(dateNaissanceFinale).substring(0, 4), 10);
-        const userMm = parseInt(String(dateNaissanceFinale).substring(5, 7), 10);
-        if (userYr !== nirInfo.annee_naissance || userMm !== nirInfo.mois_naissance) {
-          // Incohérence détectée : NIR prioritaire
-          dateNaissanceFinale = nirInfo.date_naissance_estimee;
-          console.warn(`[handleGeler] Date naissance user (${user.birth_date}) incohérente avec NIR (${nirInfo.date_naissance_estimee}) → NIR prioritaire`);
-        }
-      } else if (!dateNaissanceFinale && nirInfo) {
+      // Date naissance : TOUJOURS le NIR si disponible, peu importe user.birth_date
+      let dateNaissanceFinale = null;
+      if (nirInfo?.date_naissance_estimee) {
         dateNaissanceFinale = nirInfo.date_naissance_estimee;
+        if (user?.birth_date && user.birth_date !== nirInfo.date_naissance_estimee) {
+          console.warn(
+            `[handleGeler] user.birth_date (${user.birth_date}) IGNORE — ` +
+            `utilisation du NIR du RIS courant : ${nirInfo.date_naissance_estimee} (NIR=${nir})`
+          );
+        }
+      } else {
+        // Fallback uniquement si aucun NIR disponible
+        dateNaissanceFinale = user?.birth_date || "";
+        console.warn(`[handleGeler] Aucun NIR disponible, fallback sur user.birth_date : ${dateNaissanceFinale}`);
       }
 
       const consultantId = parseInt(localStorage.getItem("userid"));
