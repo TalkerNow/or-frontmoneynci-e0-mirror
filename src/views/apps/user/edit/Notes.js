@@ -179,6 +179,7 @@ const NotesTab = ({ id, perso = {}, commentsSlot, renderUploadOutside }) => {
         )}
       </Row>
 
+      {/* ManualCareerTable masquée
       {!isProspect && (
         <ManualCareerTable
           manualCareerRows={manualCareerRows}
@@ -195,6 +196,7 @@ const NotesTab = ({ id, perso = {}, commentsSlot, renderUploadOutside }) => {
           frozenSaved={frozenSaved}
         />
       )}
+      */}
 
       <DeleteConfirmModal
         target={deleteConfirmTarget}

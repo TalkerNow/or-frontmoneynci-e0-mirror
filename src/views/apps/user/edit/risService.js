@@ -168,15 +168,17 @@ export async function fetchLatestReport(clientId, skillCode) {
  */
 export async function saveSkillResult(clientId, skillCode, result) {
   const token = localStorage.getItem("token");
+  const normalizedResult = Array.isArray(result) ? result[0] : result;
+  if (!normalizedResult || typeof normalizedResult !== "object") return;
   try {
     await axios.post(
       `${global.config.server_url}/v1/analysis-reports`,
       {
         user_id: parseInt(clientId),
         skill_id: skillCode.toLowerCase(),
-        result_json: result,
-        alertes_json: result.alertes || null,
-        arret_critique_json: result.arret_critique || null,
+        result_json: normalizedResult,
+        alertes_json: normalizedResult.alertes || null,
+        arret_critique_json: normalizedResult.arret_critique || null,
       },
       { headers: { Authorization: `Bearer ${token}` } }
     );

@@ -545,6 +545,9 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   const [cipavResult, setCipavResult] = useState(null);
   const [cipavError, setCipavError] = useState(null);
 
+  // ── Master "Calculate All" State ──
+  const [isCalculatingAll, setIsCalculatingAll] = useState(false);
+
   // ── Scénarios — Generic Skill Executor State ──
   const [scenarioSkillResults, setScenarioSkillResults] = useState({});
   const [scenarioSkillLoading, setScenarioSkillLoading] = useState({});
@@ -728,13 +731,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
         }
 
         if (Array.isArray(carriere) && carriere.length) {
-          const cappedCount = applyCarriereData(carriere);
-          if (cappedCount > 0) {
-            toast.info(
-              `📏 ${cappedCount} an${cappedCount > 1 ? 's' : ''} plafonnée${cappedCount > 1 ? 's' : ''} au PASS — revalo ramenée au max autorisé (cellules en rouge).`,
-              { autoClose: 12000 }
-            );
-          }
+          applyCarriereData(carriere);
 
           // Legacy fallback: Restore CIPAV from carriere if cipav column was empty
           if (!Array.isArray(cipav) || !cipav.length) {
@@ -1549,7 +1546,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       setCarriereValidee(true);
       setLockedAt(now);
       setLockedBy(consultantId);
-      toast.success("Carrière gelée — calcul CNAV disponible");
+      toast.success("Carrière gelée — calculs CNAV, AGIRC-ARRCO, IRCANTEC, RCI et CIPAV disponibles");
       setExpandedPanel("dispositifs");
       setSelectedAction(null);
       setExecuted(null);
@@ -1564,111 +1561,97 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     }
   }, [id, carriereRows, revaloValues, deplafValues, trimCotState, trimAssState, user, cnavplRows, droitsSynthese, risCarriereSynthese, isCarriereEmpty]);
 
-  const handleAgircExecute = async () => {
+  const handleCalculateAllRegimes = async () => {
     if (!carriereValidee) return;
+    if (isCarriereEmpty) {
+      toast.error("Carrière vide — déverrouillez et renseignez les données avant de calculer.");
+      return;
+    }
+    if (!user?.birth_date) {
+      toast.error("Date de naissance manquante dans le profil client — impossible de calculer.");
+      return;
+    }
+    setIsCalculatingAll(true);
+    setSkillLoading(true);
+    setSkillError(null);
+    setSkillResult(null);
     setAgircLoading(true);
     setAgircError(null);
     setAgircResult(null);
-    try {
-      const result = await executeScript("AGIRC_ARRCO", id, "");
-      setAgircResult(result);
-      saveSkillResult(id, "AGIRC_ARRCO", result);
-      if (result.success === false && result.arret_critique) {
-        toast.error(result.arret_critique.raison || "Calcul AGIRC-ARRCO interrompu");
-      }
-    } catch (err) {
-      const msg = err.response?.data?.arret_critique?.raison || err.message || "Erreur réseau — veuillez réessayer";
-      setAgircError(msg);
-      toast.error(msg);
-    } finally {
-      setAgircLoading(false);
-    }
-  };
-
-  const handleIrcantecExecute = async () => {
-    if (!carriereValidee) return;
     setIrcantecLoading(true);
     setIrcantecError(null);
     setIrcantecResult(null);
-    try {
-      const result = await executeScript("IRCANTEC", id, "");
-      setIrcantecResult(result);
-      saveSkillResult(id, "IRCANTEC", result);
-      if (result.success === false && result.arret_critique) {
-        toast.error(result.arret_critique.raison || "Calcul IRCANTEC interrompu");
-      }
-    } catch (err) {
-      const msg = err.response?.data?.arret_critique?.raison || err.message || "Erreur réseau";
-      setIrcantecError(msg);
-      toast.error("Erreur calcul IRCANTEC");
-    } finally {
-      setIrcantecLoading(false);
-    }
-  };
-
-  const handleRciExecute = async () => {
-    if (!carriereValidee) return;
     setRciLoading(true);
     setRciError(null);
     setRciResult(null);
-    try {
-      const result = await executeScript("RCI", id, "");
-      setRciResult(result);
-      saveSkillResult(id, "RCI", result);
-      if (result.success === false && result.arret_critique) {
-        toast.error(result.arret_critique.raison || "Calcul RCI interrompu");
-      }
-    } catch (err) {
-      const msg = err.response?.data?.arret_critique?.raison || err.message || "Erreur réseau";
-      setRciError(msg);
-      toast.error("Erreur calcul RCI");
-    } finally {
-      setRciLoading(false);
-    }
-  };
-
-  const handleCipavExecute = async () => {
-    if (!carriereValidee) return;
     setCipavLoading(true);
     setCipavError(null);
     setCipavResult(null);
     try {
-      const result = await executeScript("CIPAV", id, "");
-      setCipavResult(result);
-      saveSkillResult(id, "CIPAV", result);
-      if (result.success === false && result.arret_critique) {
-        toast.error(result.arret_critique.raison || "Calcul CIPAV interrompu");
-      }
-    } catch (err) {
-      const msg = err.response?.data?.arret_critique?.raison || err.message || "Erreur réseau";
-      setCipavError(msg);
-      toast.error("Erreur calcul CIPAV");
-    } finally {
-      setCipavLoading(false);
-    }
-  };
+      const [cnavRes, agircRes, ircantecRes, rciRes, cipavRes] = await Promise.allSettled([
+        executeScript("CNAV", id, ""),
+        executeScript("AGIRC_ARRCO", id, ""),
+        executeScript("IRCANTEC", id, ""),
+        executeScript("RCI", id, ""),
+        executeScript("CIPAV", id, ""),
+      ]);
 
-  const handleSkillExecute = async () => {
-    if (!carriereValidee) return;
-    setSkillLoading(true);
-    setSkillError(null);
-    setSkillResult(null);
-    try {
-      const result = await executeScript("CNAV", id, "");
-      setSkillResult(result);
-      saveSkillResult(id, "CNAV", result);
-      if (result.arret_critique) {
-        toast.error(result.arret_critique.raison || "Calcul CNAV interrompu");
+      if (cnavRes.status === "fulfilled") {
+        setSkillResult(cnavRes.value);
+        saveSkillResult(id, "CNAV", cnavRes.value);
+        if (cnavRes.value.arret_critique) toast.error(cnavRes.value.arret_critique.raison || "Calcul CNAV interrompu");
+      } else {
+        const msg = cnavRes.reason?.response?.data?.arret_critique?.raison || cnavRes.reason?.message || "Erreur réseau CNAV";
+        setSkillError(msg);
+        toast.error(msg);
       }
-    } catch (err) {
-      const msg =
-        err.response?.data?.arret_critique?.raison ||
-        err.message ||
-        "Erreur réseau — veuillez réessayer";
-      setSkillError(msg);
-      toast.error(msg);
+
+      if (agircRes.status === "fulfilled") {
+        setAgircResult(agircRes.value);
+        saveSkillResult(id, "AGIRC_ARRCO", agircRes.value);
+        if (agircRes.value.success === false && agircRes.value.arret_critique) toast.error(agircRes.value.arret_critique.raison || "Calcul AGIRC-ARRCO interrompu");
+      } else {
+        const msg = agircRes.reason?.response?.data?.arret_critique?.raison || agircRes.reason?.message || "Erreur réseau AGIRC-ARRCO";
+        setAgircError(msg);
+        toast.error(msg);
+      }
+
+      if (ircantecRes.status === "fulfilled") {
+        setIrcantecResult(ircantecRes.value);
+        saveSkillResult(id, "IRCANTEC", ircantecRes.value);
+        if (ircantecRes.value.success === false && ircantecRes.value.arret_critique) toast.error(ircantecRes.value.arret_critique.raison || "Calcul IRCANTEC interrompu");
+      } else {
+        const msg = ircantecRes.reason?.response?.data?.arret_critique?.raison || ircantecRes.reason?.message || "Erreur réseau IRCANTEC";
+        setIrcantecError(msg);
+        toast.error("Erreur calcul IRCANTEC");
+      }
+
+      if (rciRes.status === "fulfilled") {
+        setRciResult(rciRes.value);
+        saveSkillResult(id, "RCI", rciRes.value);
+        if (rciRes.value.success === false && rciRes.value.arret_critique) toast.error(rciRes.value.arret_critique.raison || "Calcul RCI interrompu");
+      } else {
+        const msg = rciRes.reason?.response?.data?.arret_critique?.raison || rciRes.reason?.message || "Erreur réseau RCI";
+        setRciError(msg);
+        toast.error("Erreur calcul RCI");
+      }
+
+      if (cipavRes.status === "fulfilled") {
+        setCipavResult(cipavRes.value);
+        saveSkillResult(id, "CIPAV", cipavRes.value);
+        if (cipavRes.value.success === false && cipavRes.value.arret_critique) toast.error(cipavRes.value.arret_critique.raison || "Calcul CIPAV interrompu");
+      } else {
+        const msg = cipavRes.reason?.response?.data?.arret_critique?.raison || cipavRes.reason?.message || "Erreur réseau CIPAV";
+        setCipavError(msg);
+        toast.error("Erreur calcul CIPAV");
+      }
     } finally {
+      setIsCalculatingAll(false);
       setSkillLoading(false);
+      setAgircLoading(false);
+      setIrcantecLoading(false);
+      setRciLoading(false);
+      setCipavLoading(false);
     }
   };
 
@@ -2789,6 +2772,46 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                             </div>
                           )}
 
+                          {/* ── Bouton maître — Calculer tous les régimes ── */}
+                          <div style={{ marginTop: 18, marginBottom: 4 }}>
+                            {!carriereValidee && (
+                              <div style={{ marginBottom: 8, fontSize: 10, color: "#E17055", background: "#E1705510", border: "1px solid #E1705530", borderRadius: 6, padding: "7px 12px", display: "flex", alignItems: "center", gap: 6 }}>
+                                <span>⚠</span>
+                                <span>Veuillez valider la carrière avant de lancer les calculs.</span>
+                              </div>
+                            )}
+                            {carriereValidee && isCarriereEmpty && (
+                              <div style={{ marginBottom: 8, fontSize: 10, color: "#D63031", background: "#D6303110", border: "1px solid #D6303130", borderRadius: 6, padding: "7px 12px", display: "flex", alignItems: "center", gap: 6 }}>
+                                <span>🚫</span>
+                                <span>Carrière vide — déverrouillez et renseignez les données avant de calculer.</span>
+                              </div>
+                            )}
+                            {carriereValidee && !isCarriereEmpty && !user?.birth_date && (
+                              <div style={{ marginBottom: 8, fontSize: 10, color: "#D63031", background: "#D6303110", border: "1px solid #D6303130", borderRadius: 6, padding: "7px 12px", display: "flex", alignItems: "center", gap: 6 }}>
+                                <span>🚫</span>
+                                <span>Date de naissance manquante dans le profil client.</span>
+                              </div>
+                            )}
+                            <button
+                              onClick={handleCalculateAllRegimes}
+                              disabled={!carriereValidee || isCalculatingAll || isCarriereEmpty || !user?.birth_date}
+                              title={!carriereValidee ? "Validez d'abord la carrière" : isCarriereEmpty ? "Carrière vide" : !user?.birth_date ? "Date de naissance manquante" : "Lancer le calcul simultané des 5 régimes"}
+                              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", padding: "12px 20px", borderRadius: 8, border: "none", background: carriereValidee && !isCalculatingAll && !isCarriereEmpty && user?.birth_date ? "linear-gradient(135deg, #6C5CE7 0%, #0984E3 100%)" : "#ccc", color: "#fff", fontWeight: 700, fontSize: 13, cursor: carriereValidee && !isCalculatingAll && !isCarriereEmpty && user?.birth_date ? "pointer" : "not-allowed", boxShadow: carriereValidee && !isCalculatingAll && !isCarriereEmpty && user?.birth_date ? "0 4px 14px rgba(108,92,231,0.35)" : "none", transition: "all 0.2s" }}
+                            >
+                              {isCalculatingAll ? (
+                                <>
+                                  <span style={{ display: "inline-block", width: 14, height: 14, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                                  Calculs en cours… (5 régimes)
+                                </>
+                              ) : (
+                                <>
+                                  <span style={{ fontSize: 16 }}>🚀</span>
+                                  Calculer toutes les pensions (5 régimes)
+                                </>
+                              )}
+                            </button>
+                          </div>
+
                           {/* ── Calculer CNAV ── */}
                           <div style={{ marginTop: 18, padding: "12px 14px", background: carriereValidee ? "#f0fdf9" : "#fafafa", borderRadius: 9, border: `1px solid ${carriereValidee ? "#00B89430" : "#e8e8e8"}` }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
@@ -2798,45 +2821,12 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
                               )}
                             </div>
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                              {availableSkills.length === 0 ? (
-                                <button
-                                  onClick={handleSkillExecute}
-                                  disabled={!carriereValidee || skillLoading}
-                                  title={!carriereValidee ? "Validez d'abord la carrière" : "Lancer le calcul CNAV"}
-                                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 7, border: "none", background: carriereValidee && !skillLoading ? "#6C5CE7" : "#ccc", color: "#fff", fontWeight: 700, fontSize: 11, cursor: carriereValidee && !skillLoading ? "pointer" : "not-allowed", transition: "background 0.15s" }}
-                                >
-                                  {skillLoading ? (
-                                    <>
-                                      <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                                      Calcul en cours…
-                                    </>
-                                  ) : "▶ Calculer CNAV"}
-                                </button>
-                              ) : (
-                                availableSkills.filter((skill) => skill.code === "CNAV").map((skill) => {
-                                  const isActive = skill.code === "CNAV";
-                                  const isLoading = isActive && skillLoading;
-                                  const canRun = isActive && carriereValidee && !skillLoading;
-                                  return (
-                                    <button
-                                      key={skill.skill_id}
-                                      onClick={isActive ? handleSkillExecute : undefined}
-                                      disabled={!canRun}
-                                      title={!isActive ? "Bientôt disponible" : !carriereValidee ? "Validez d'abord la carrière" : skill.description}
-                                      style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 7, border: "none", background: canRun ? "#6C5CE7" : "#ccc", color: "#fff", fontWeight: 700, fontSize: 11, cursor: canRun ? "pointer" : "not-allowed", transition: "background 0.15s" }}
-                                    >
-                                      {isLoading ? (
-                                        <>
-                                          <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                                          Calcul en cours…
-                                        </>
-                                      ) : `▶ Calculer ${skill.nom}`}
-                                    </button>
-                                  );
-                                })
-                              )}
-                            </div>
+                            {skillLoading && (
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#6C5CE7" }}>
+                                <span style={{ display: "inline-block", width: 10, height: 10, border: "2px solid #6C5CE740", borderTop: "2px solid #6C5CE7", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                                Calcul CNAV en cours…
+                              </div>
+                            )}
                             {skillError && (
                               <div style={{ marginTop: 8, fontSize: 10, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
                                 ⚠ {skillError}
@@ -2930,10 +2920,10 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       <div style={{ padding: "8px 14px 12px", borderTop: "1px solid #f0eeff" }}>
                                         <div style={{ fontSize: 9, fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 7 }}>Alertes</div>
                                         <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                                          {skillResult.alertes.map((a) => {
+                                          {skillResult.alertes.map((a, i) => {
                                             const c = a.niveau === "ROUGE" ? "#D63031" : a.niveau === "ORANGE" ? "#E17055" : "#F9A825";
                                             return (
-                                              <div key={a.code} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "6px 10px", borderRadius: 6, background: `${c}0D`, border: `1px solid ${c}28` }}>
+                                              <div key={`${a.code}-${i}`} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "6px 10px", borderRadius: 6, background: `${c}0D`, border: `1px solid ${c}28` }}>
                                                 <span style={{ fontSize: 9, fontWeight: 700, color: c, flexShrink: 0, minWidth: 32 }}>{a.code}</span>
                                                 <span style={{ fontSize: 10, color: "#444", lineHeight: 1.4 }}>{a.message}</span>
                                               </div>
@@ -2962,19 +2952,12 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
                               )}
                             </div>
-                            <button
-                              onClick={handleAgircExecute}
-                              disabled={!carriereValidee || agircLoading}
-                              title={!carriereValidee ? "Validez d'abord la carrière" : "Lancer le calcul AGIRC-ARRCO"}
-                              style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 7, border: "none", background: carriereValidee && !agircLoading ? "#0984E3" : "#ccc", color: "#fff", fontWeight: 700, fontSize: 11, cursor: carriereValidee && !agircLoading ? "pointer" : "not-allowed", transition: "background 0.15s" }}
-                            >
-                              {agircLoading ? (
-                                <>
-                                  <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                                  Calcul en cours…
-                                </>
-                              ) : "▶ Calculer AGIRC-ARRCO"}
-                            </button>
+                            {agircLoading && (
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#0984E3" }}>
+                                <span style={{ display: "inline-block", width: 10, height: 10, border: "2px solid #0984E340", borderTop: "2px solid #0984E3", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                                Calcul AGIRC-ARRCO en cours…
+                              </div>
+                            )}
                             {agircError && (
                               <div style={{ marginTop: 8, fontSize: 10, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
                                 ⚠ {agircError}
@@ -3010,10 +2993,10 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 {agircResult.alertes && agircResult.alertes.length > 0 && (
                                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                                     <div style={{ fontSize: 10, fontWeight: 700, color: "#555", marginBottom: 2 }}>Alertes</div>
-                                    {agircResult.alertes.map((a) => {
+                                    {agircResult.alertes.map((a, i) => {
                                       const color = a.niveau === "ROUGE" ? "#D63031" : a.niveau === "JAUNE" ? "#F9A825" : "#00B894";
                                       return (
-                                        <div key={a.code} style={{ display: "flex", gap: 8, padding: "7px 10px", borderRadius: 6, background: `${color}10`, border: `1px solid ${color}30` }}>
+                                        <div key={`${a.code}-${i}`} style={{ display: "flex", gap: 8, padding: "7px 10px", borderRadius: 6, background: `${color}10`, border: `1px solid ${color}30` }}>
                                           <span style={{ fontSize: 10, fontWeight: 700, color, flexShrink: 0, minWidth: 36 }}>{a.code}</span>
                                           <span style={{ fontSize: 10, color: "#333" }}>{a.message?.raison || a.message || (typeof a === 'object' ? a.raison || a.message : a)}</span>
                                         </div>
@@ -3034,19 +3017,12 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
                               )}
                             </div>
-                            <button
-                              onClick={handleIrcantecExecute}
-                              disabled={!carriereValidee || ircantecLoading}
-                              title={!carriereValidee ? "Validez d'abord la carrière" : "Lancer le calcul IRCANTEC"}
-                              style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 7, border: "none", background: carriereValidee && !ircantecLoading ? "#00B894" : "#ccc", color: "#fff", fontWeight: 700, fontSize: 11, cursor: carriereValidee && !ircantecLoading ? "pointer" : "not-allowed", transition: "background 0.15s" }}
-                            >
-                              {ircantecLoading ? (
-                                <>
-                                  <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                                  Calcul en cours…
-                                </>
-                              ) : "▶ Calculer IRCANTEC"}
-                            </button>
+                            {ircantecLoading && (
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#00B894" }}>
+                                <span style={{ display: "inline-block", width: 10, height: 10, border: "2px solid #00B89440", borderTop: "2px solid #00B894", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                                Calcul IRCANTEC en cours…
+                              </div>
+                            )}
                             {ircantecError && (
                               <div style={{ marginTop: 8, fontSize: 10, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
                                 ⚠ {ircantecError}
@@ -3092,19 +3068,12 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
                               )}
                             </div>
-                            <button
-                              onClick={handleRciExecute}
-                              disabled={!carriereValidee || rciLoading}
-                              title={!carriereValidee ? "Validez d'abord la carrière" : "Lancer le calcul RCI"}
-                              style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 7, border: "none", background: carriereValidee && !rciLoading ? "#E17055" : "#ccc", color: "#fff", fontWeight: 700, fontSize: 11, cursor: carriereValidee && !rciLoading ? "pointer" : "not-allowed", transition: "background 0.15s" }}
-                            >
-                              {rciLoading ? (
-                                <>
-                                  <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                                  Calcul en cours…
-                                </>
-                              ) : "▶ Calculer RCI"}
-                            </button>
+                            {rciLoading && (
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#E17055" }}>
+                                <span style={{ display: "inline-block", width: 10, height: 10, border: "2px solid #E1705540", borderTop: "2px solid #E17055", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                                Calcul RCI en cours…
+                              </div>
+                            )}
                             {rciError && (
                               <div style={{ marginTop: 8, fontSize: 10, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
                                 ⚠ {rciError}
@@ -3150,19 +3119,12 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
                               )}
                             </div>
-                            <button
-                              onClick={handleCipavExecute}
-                              disabled={!carriereValidee || cipavLoading}
-                              title={!carriereValidee ? "Validez d'abord la carrière" : "Lancer le calcul CIPAV"}
-                              style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 7, border: "none", background: carriereValidee && !cipavLoading ? "#9B59B6" : "#ccc", color: "#fff", fontWeight: 700, fontSize: 11, cursor: carriereValidee && !cipavLoading ? "pointer" : "not-allowed", transition: "background 0.15s" }}
-                            >
-                              {cipavLoading ? (
-                                <>
-                                  <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                                  Calcul en cours…
-                                </>
-                              ) : "▶ Calculer CIPAV"}
-                            </button>
+                            {cipavLoading && (
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#9B59B6" }}>
+                                <span style={{ display: "inline-block", width: 10, height: 10, border: "2px solid #9B59B640", borderTop: "2px solid #9B59B6", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                                Calcul CIPAV en cours…
+                              </div>
+                            )}
                             {cipavError && (
                               <div style={{ marginTop: 8, fontSize: 10, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
                                 ⚠ {cipavError}
