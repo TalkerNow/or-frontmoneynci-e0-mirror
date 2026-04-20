@@ -488,6 +488,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     return init;
   });
   const [deplafValues, setDeplafValues] = useState({});
+  const [deplafSnapshots, setDeplafSnapshots] = useState({});
 
   // ── CNAV Skill State ──
   const [skillLoading, setSkillLoading] = useState(false);
@@ -789,6 +790,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     setCarriereRows(_buildDefaultCarriereRows());
     setRevaloValues(() => { const init = {}; Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; }); return init; });
     setDeplafValues({});
+    setDeplafSnapshots({});
     setTrimCotState(() => { const init = {}; Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; }); return init; });
     setTrimAssState(() => { const init = {}; Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; }); return init; });
     setArState(() => { const init = {}; Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; }); return init; });
@@ -1320,7 +1322,6 @@ export default function SimulatorV6({ mode = "production", id, user }) {
 
   const handleDeplafChange = (yr, checked) => {
     setDeplafValues(prev => ({ ...prev, [yr]: checked }));
-    // Recalculer revalo et trimestres depuis le salaire réel — réplique exacte CnavSimulator
     const row = carriereRows.find(r => r.yr === yr);
     const sal = row?.sal || 0;
     if (sal > 0) {
@@ -1338,11 +1339,33 @@ export default function SimulatorV6({ mode = "production", id, user }) {
         revalo = Math.round(salPlafonne * coeff);
         ssEur = salPlafonne;
       }
-      const seuilTrimestre = yr <= 2001 ? (passEuro * 6.556957) / 4 : passEuro / 4;
-      const trimestres = Math.min(4, Math.max(0, Math.floor(sal / (seuilTrimestre || Infinity))));
       setRevaloValues(prev => ({ ...prev, [yr]: revalo }));
-      setTrimCotState(prev => ({ ...prev, [yr]: trimestres }));
       setCarriereRows(prev => prev.map(r => r.yr === yr ? { ...r, ss: ssEur } : r));
+
+      if (checked) {
+        // Sauvegarder les valeurs actuelles avant déplafonnement
+        setDeplafSnapshots(prev => ({
+          ...prev,
+          [yr]: {
+            trimCot: trimCotState[yr] ?? 0,
+            trimAss: trimAssState[yr] ?? 0,
+            ar: arState[yr] ?? 0,
+          },
+        }));
+        // Recalculer les trimestres sur la base du salaire complet
+        const seuilTrimestre = yr <= 2001 ? (passEuro * 6.556957) / 4 : passEuro / 4;
+        const trimestres = Math.min(4, Math.max(0, Math.floor(sal / (seuilTrimestre || Infinity))));
+        setTrimCotState(prev => ({ ...prev, [yr]: trimestres }));
+      } else {
+        // Restaurer le snapshot sauvegardé au moment du cochage
+        const snap = deplafSnapshots[yr];
+        if (snap) {
+          setTrimCotState(prev => ({ ...prev, [yr]: snap.trimCot }));
+          setTrimAssState(prev => ({ ...prev, [yr]: snap.trimAss }));
+          setArState(prev => ({ ...prev, [yr]: snap.ar }));
+          setDeplafSnapshots(prev => { const next = { ...prev }; delete next[yr]; return next; });
+        }
+      }
     }
   };
 
