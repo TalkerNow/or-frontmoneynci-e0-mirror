@@ -13,7 +13,7 @@ import {
   loadUploadedDocs,
   parseNIR,
 } from "./utils";
-import { executeSkill, executeScript, executeSkillGeneric, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
+import { executeSkill, executeScript, executeSkillGeneric, executeRaclScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
@@ -1680,11 +1680,13 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     setScenarioSkillLoading(prev => ({ ...prev, [skillCode]: true }));
     setScenarioSkillErrors(prev => ({ ...prev, [skillCode]: null }));
     try {
-      const result = await executeSkillGeneric(skillCode, {
-        clientId: parseInt(id),
-        userContext: `Analyse dispositif ${skillCode} pour client ${id}`,
-        scenarioParams,
-      });
+      const result = skillCode === "RACL"
+        ? await executeRaclScenario(parseInt(id), scenarioParams)
+        : await executeSkillGeneric(skillCode, {
+            clientId: parseInt(id),
+            userContext: `Analyse dispositif ${skillCode} pour client ${id}`,
+            scenarioParams,
+          });
       setScenarioSkillResults(prev => ({ ...prev, [skillCode]: result }));
       saveSkillResult(id, skillCode, result);
       if (result.eligible === true) {
@@ -2736,6 +2738,24 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                             {skillResultData.raison_eligibilite && (
                                               <div style={{ fontSize: 10, color: "#333", marginBottom: 6 }}>{skillResultData.raison_eligibilite}</div>
                                             )}
+                                            {skillCode === "RACL" && skillResultData.eligible && (
+                                              <div style={{ marginBottom: 6 }}>
+                                                {skillResultData.age_depart_possible != null && (
+                                                  <div style={{ fontSize: 11, fontWeight: 700, color, marginBottom: 2 }}>
+                                                    🗓 Départ possible à {skillResultData.age_depart_possible} ans
+                                                    {skillResultData.date_depart_estimee ? ` — ${skillResultData.date_depart_estimee}` : ""}
+                                                  </div>
+                                                )}
+                                                {skillResultData.palier?.libelle && (
+                                                  <div style={{ fontSize: 10, color: "#555", marginBottom: 2 }}>Palier : {skillResultData.palier.libelle}</div>
+                                                )}
+                                              </div>
+                                            )}
+                                            {skillCode === "RACL" && !skillResultData.eligible && skillResultData.manquants > 0 && (
+                                              <div style={{ fontSize: 10, color: "#E17055", marginBottom: 6 }}>
+                                                ⏳ {skillResultData.manquants} trimestre{skillResultData.manquants > 1 ? "s" : ""} cotisé{skillResultData.manquants > 1 ? "s" : ""} manquant{skillResultData.manquants > 1 ? "s" : ""}
+                                              </div>
+                                            )}
                                             {skillResultData.impact?.gain_mensuel > 0 && (
                                               <div style={{ fontSize: 11, fontWeight: 600, color: "#00B894", marginBottom: 4 }}>
                                                 💰 Gain : +{skillResultData.impact.gain_mensuel.toFixed(2)} €/mois ({skillResultData.impact.gain_annuel?.toFixed(0)} €/an)
@@ -3010,10 +3030,10 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 {agircResult.alertes && agircResult.alertes.length > 0 && (
                                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                                     <div style={{ fontSize: 10, fontWeight: 700, color: "#555", marginBottom: 2 }}>Alertes</div>
-                                    {agircResult.alertes.map((a) => {
+                                    {agircResult.alertes.map((a, i) => {
                                       const color = a.niveau === "ROUGE" ? "#D63031" : a.niveau === "JAUNE" ? "#F9A825" : "#00B894";
                                       return (
-                                        <div key={a.code} style={{ display: "flex", gap: 8, padding: "7px 10px", borderRadius: 6, background: `${color}10`, border: `1px solid ${color}30` }}>
+                                        <div key={`${a.code}-${i}`} style={{ display: "flex", gap: 8, padding: "7px 10px", borderRadius: 6, background: `${color}10`, border: `1px solid ${color}30` }}>
                                           <span style={{ fontSize: 10, fontWeight: 700, color, flexShrink: 0, minWidth: 36 }}>{a.code}</span>
                                           <span style={{ fontSize: 10, color: "#333" }}>{a.message?.raison || a.message || (typeof a === 'object' ? a.raison || a.message : a)}</span>
                                         </div>
