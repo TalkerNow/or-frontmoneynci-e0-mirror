@@ -684,7 +684,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       });
       setArState(prev => {
         const next = { ...prev };
-        carriere.forEach(e => { if (e.trimestres_rachetes != null) next[e.annee] = e.trimestres_rachetes; });
+        carriere.forEach(e => { if (e.trimestres_ar != null) next[e.annee] = e.trimestres_ar; });
         return next;
       });
     }
@@ -879,14 +879,14 @@ export default function SimulatorV6({ mode = "production", id, user }) {
         // 2. Trimestres par année — nouveau format (cotisés/assimilés/rachetés séparés)
         //    avec fallback sur l'ancien format (champ "trimestres" agrégé → tout en cotisés)
         const trimCotN = {}, trimAssN = {}, arN = {};
-        carriereRaw.forEach(({ annee, trimestres, trimestres_cotises, trimestres_assimiles, trimestres_rachetes }) => {
+        carriereRaw.forEach(({ annee, trimestres, trimestres_cotises, trimestres_assimiles, trimestres_ar }) => {
           if (!annee) return;
           const hasDetailedNature =
-            trimestres_cotises != null || trimestres_assimiles != null || trimestres_rachetes != null;
+            trimestres_cotises != null || trimestres_assimiles != null || trimestres_ar != null;
           if (hasDetailedNature) {
             const tc = parseInt(trimestres_cotises, 10) || 0;
             const ta = parseInt(trimestres_assimiles, 10) || 0;
-            const tr = parseInt(trimestres_rachetes, 10) || 0;
+            const tr = parseInt(trimestres_ar, 10) || 0;
             if (tc > 0) trimCotN[annee] = Math.min(tc, 4);
             if (ta > 0) trimAssN[annee] = Math.min(ta, 4);
             if (tr > 0) arN[annee] = Math.min(tr, 4);
@@ -1376,7 +1376,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
           deplafonne: deplafValues[row.yr] || false,
           trimestres_cotises: trimCotState[row.yr] ?? 0,
           trimestres_assimiles: trimAssState[row.yr] ?? 0,
-          trimestres_rachetes: arState[row.yr] ?? 0,
+          trimestres_ar: arState[row.yr] ?? 0,
           // Use standard points_ prefix for Python script compatibility
           ...(row.agircPts != null && { points_agirc_arrco: row.agircPts }),
           ...(row.ircantecPoints != null && { points_ircantec: row.ircantecPoints }),
@@ -2122,42 +2122,15 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                             </div>
                           </div>
 
-                          {/* Légende couleurs régimes + toggle Cadre/Non-Cadre ARRCO */}
-                          <div style={{ display: "flex", gap: 12, marginBottom: 10, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
-                            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                              {[["🏛️ CNAV", "#6C5CE7"], ["📊 AGIRC-ARRCO", "#0984E3"], ["🏢 Ircantec", "#00B894"], ["📑 RCI / SSI", "#E17055"]].map(([label, color]) => (
-                                <div key={label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: "#555" }}>
-                                  <div style={{ width: 10, height: 10, borderRadius: 2, background: color, opacity: 0.7 }} />
-                                  {label}
-                                </div>
-                              ))}
-                            </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, background: "#0984E308", border: "1px solid #0984E320", borderRadius: 6, padding: "3px 10px" }}>
-                              <span style={{ fontWeight: 600, color: "#0984E3" }}>Statut ARRCO :</span>
-                              <label style={{ display: "flex", alignItems: "center", gap: 3, cursor: "pointer", margin: 0, color: "#555" }}>
-                                <input type="radio" name="simu-cadre-status" checked={!isCadreSimu} onChange={() => {
-                                  setIsCadreSimu(false);
-                                  setCarriereRows(prev => prev.map(r => {
-                                    if (!r.sal || r.sal <= 0) return r;
-                                    const res = calculateArrco(r.yr, r.sal, false);
-                                    return res ? { ...r, agircT1: parseFloat(res.t1.toFixed(2)), agircT2: parseFloat(res.t2.toFixed(2)), agircPts: parseFloat(res.total.toFixed(2)) } : r;
-                                  }));
-                                }} />
-                                Non-Cadre
-                              </label>
-                              <label style={{ display: "flex", alignItems: "center", gap: 3, cursor: "pointer", margin: 0, color: "#555" }}>
-                                <input type="radio" name="simu-cadre-status" checked={isCadreSimu} onChange={() => {
-                                  setIsCadreSimu(true);
-                                  setCarriereRows(prev => prev.map(r => {
-                                    if (!r.sal || r.sal <= 0) return r;
-                                    const res = calculateArrco(r.yr, r.sal, true);
-                                    return res ? { ...r, agircT1: parseFloat(res.t1.toFixed(2)), agircT2: parseFloat(res.t2.toFixed(2)), agircPts: parseFloat(res.total.toFixed(2)) } : r;
-                                  }));
-                                }} />
-                                Cadre
-                              </label>
-                            </div>
-                          </div>
+                          {/* Légende couleurs régimes */}
+                          {/* <div style={{ display: "flex", gap: 12, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
+                            {[["🏛️ CNAV", "#6C5CE7"], ["📊 AGIRC-ARRCO", "#0984E3"], ["🏢 Ircantec", "#00B894"], ["📑 RCI / SSI", "#E17055"]].map(([label, color]) => (
+                              <div key={label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: "#555" }}>
+                                <div style={{ width: 10, height: 10, borderRadius: 2, background: color, opacity: 0.7 }} />
+                                {label}
+                              </div>
+                            ))}
+                          </div> */}
 
                           {/* Droits extraits du RIS */}
                           {/* {droitsSynthese && (
@@ -2200,7 +2173,33 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                   <th rowSpan={2} style={{ padding: "5px 6px", textAlign: "left", fontWeight: 700, color: "#333", borderBottom: "2px solid #ddd", background: "#f8f8f8", verticalAlign: "bottom", width: 36 }}>An.</th>
                                   <th rowSpan={2} style={{ padding: "5px 6px", textAlign: "center", fontWeight: 700, color: "#555", borderBottom: "2px solid #ddd", background: "#f8f8f8", borderLeft: "1px solid #ddd", verticalAlign: "bottom" }}>Sal. brut<br/><span style={{ fontWeight: 400, color: "#666", fontSize: 12 }}>/Rému.</span></th>
                                   <th colSpan={8} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#6C5CE7", background: "#6C5CE708", borderLeft: "2px solid #6C5CE730", borderBottom: "1px solid #6C5CE720" }}>🏛️ CNAV</th>
-                                  <th colSpan={3} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#0984E3", background: "#0984E308", borderLeft: "2px solid #0984E330", borderBottom: "1px solid #0984E320" }}>📊 AGIRC-ARRCO</th>
+                                  <th colSpan={3} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#0984E3", background: "#0984E308", borderLeft: "2px solid #0984E330", borderBottom: "1px solid #0984E320" }}>
+                                    <div>📊 AGIRC-ARRCO</div>
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 3, fontSize: 10, fontWeight: 400 }}>
+                                      <label style={{ display: "flex", alignItems: "center", gap: 3, cursor: "pointer", margin: 0, color: "#555" }}>
+                                        <input type="radio" name="simu-cadre-status" checked={!isCadreSimu} onChange={() => {
+                                          setIsCadreSimu(false);
+                                          setCarriereRows(prev => prev.map(r => {
+                                            if (!r.sal || r.sal <= 0) return r;
+                                            const res = calculateArrco(r.yr, r.sal, false);
+                                            return res ? { ...r, agircT1: parseFloat(res.t1.toFixed(2)), agircT2: parseFloat(res.t2.toFixed(2)), agircPts: parseFloat(res.total.toFixed(2)) } : r;
+                                          }));
+                                        }} />
+                                        Non-Cadre
+                                      </label>
+                                      <label style={{ display: "flex", alignItems: "center", gap: 3, cursor: "pointer", margin: 0, color: "#555" }}>
+                                        <input type="radio" name="simu-cadre-status" checked={isCadreSimu} onChange={() => {
+                                          setIsCadreSimu(true);
+                                          setCarriereRows(prev => prev.map(r => {
+                                            if (!r.sal || r.sal <= 0) return r;
+                                            const res = calculateArrco(r.yr, r.sal, true);
+                                            return res ? { ...r, agircT1: parseFloat(res.t1.toFixed(2)), agircT2: parseFloat(res.t2.toFixed(2)), agircPts: parseFloat(res.total.toFixed(2)) } : r;
+                                          }));
+                                        }} />
+                                        Cadre
+                                      </label>
+                                    </div>
+                                  </th>
                                   <th colSpan={1} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#00B894", background: "#00B89408", borderLeft: "2px solid #00B89430", borderBottom: "1px solid #00B89420" }}>🏢 Ircantec</th>
                                   <th colSpan={1} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#E17055", background: "#E1705508", borderLeft: "2px solid #E1705530", borderBottom: "1px solid #E1705520" }}>📑 RCI</th>
                                   <th colSpan={cnavplOpen ? 2 : 1} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#9B59B6", background: cnavplOpen ? "#9B59B608" : "#f8f8f8", borderLeft: "2px solid #9B59B630", borderBottom: "1px solid #9B59B620", whiteSpace: "nowrap" }}>
@@ -2232,7 +2231,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               </thead>
                               <tbody>
                                 {totalRows.map((row, i) => {
-                                  const tot = (trimCotState[row.yr] ?? 0) + (trimAssState[row.yr] ?? 0) + (arState[row.yr] ?? 0);
+                                  const tot = Math.min(4, (trimCotState[row.yr] ?? 0) + (trimAssState[row.yr] ?? 0) + (arState[row.yr] ?? 0));
                                   let revaloVal = revaloValues[row.yr] ?? row.revalo;
                                   if (revaloVal > getPlafond(row.yr) && (row.yr >= 2005 || !deplafValues[row.yr])) {
                                     revaloVal = getPlafond(row.yr);
