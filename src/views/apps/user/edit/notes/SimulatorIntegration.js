@@ -625,7 +625,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       if (irc != null)   pts.ircPts = irc;
       const rci = entry.points_rci ?? entry.pts_rci;
       if (rci != null)   pts.rciPts = rci;
-      return { ...row, sal: salOriginal, ss, revalo, devise: entry.devise || '€', ...pts };
+      return { ...row, sal: salOriginal, ss, revalo, devise: entry.devise || '€', regimes_concernes: entry.regimes_concernes || '', ...pts };
     }));
     setRevaloValues(prev => {
       const next = { ...prev };
@@ -845,6 +845,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
           sal_eur: entry.annee < 2002 ? Math.round((entry.revenu || 0) / 6.55957) : (entry.revenu || 0),
           sal_original: entry.revenu || 0,
           devise: entry.annee < 2002 ? "FRF" : "€",
+          regimes_concernes: entry.regimes_concernes || '',
         })));
 
         // 2. Trimestres par année — nouveau format (cotisés/assimilés/rachetés séparés)
@@ -983,6 +984,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
           sal_eur: entry.annee < 2002 ? Math.round((entry.revenu_brut || 0) / 6.55957) : (entry.revenu_brut || 0),
           sal_original: entry.revenu_brut || 0,
           devise: entry.annee < 2002 ? "FRF" : "EUR",
+          regimes_concernes: entry.regimes_concernes || '',
         })));
 
         const newTrimCot = {}, newTrimAss = {}, newAr = {};
@@ -1378,6 +1380,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
           ...(row.rciPts != null && { points_rci: row.rciPts }),
           ...(cipavRow?.points && { points_cipav_base: parseFloat(cipavRow.points) || 0 }),
           ...(cipavRow?.pointsCompl && { points_cipav_complementaire: parseFloat(cipavRow.pointsCompl) || 0 }),
+          regimes_concernes: row.regimes_concernes || '',
         };
       });
 
@@ -1413,7 +1416,11 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       const heuristicTrim = { cnav: 0, cipav: 0, ircantec: 0, rci: 0 };
       carriere.forEach(row => {
         const totalTrim = (row.trimestres_cotises || 0) + (row.trimestres_assimiles || 0);
-        const hasCnav = (row.revenu_brut || 0) > 0 || (row.points_agirc_arrco || 0) > 0;
+        const regimesLower = (row.regimes_concernes || '').toLowerCase();
+        const isCipavYear = (row.points_cipav_base || 0) > 0 || (row.points_cipav_complementaire || 0) > 0;
+        const hasCnav = regimesLower.includes('assurance retraite') || regimesLower.includes('cnav')
+          || (row.points_agirc_arrco || 0) > 0
+          || (!isCipavYear && (row.revenu_brut || 0) > 0);
         const hasCipav = (row.points_cipav_base || 0) > 0 || (row.points_cipav_complementaire || 0) > 0;
         const hasIrcantec = (row.points_ircantec || 0) > 0;
         const hasRci = (row.points_rci || 0) > 0;
