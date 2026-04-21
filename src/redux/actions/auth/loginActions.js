@@ -189,7 +189,6 @@ export const loginWithJWT = (user) => {
       })
       .catch((error) => {
         if (error.response && error.response.status) {
-          console.log(error.response);
           toast.error("Email ou mot de passe incorrect.");
         } else {
           toast.error("API injoignable.");

@@ -159,7 +159,14 @@ export const useNotesLogic = (id, perso) => {
         if (isNaN(raw) || raw <= 0) return updated;
         const result = calculateCnav(year, raw, checked);
         if (!result) return updated;
-        return applyCnavToRow(updated, result, raw, year);
+        const salaireEUR = year <= 2001 ? raw / 6.556957 : raw;
+        return {
+          ...updated,
+          cnavPoints: fmtEUR(result.revalo),
+          ta: fmtEUR(result.salSS),
+          tb: fmtEUR(Math.max(0, salaireEUR - result.salSS)),
+          // trimBase, trimAR, trimAssimiles preserved from existing row
+        };
       })
     );
   }, []);

@@ -1,8 +1,6 @@
 export default (dateStr) => {
   if (!dateStr) return "";
 
-  console.log("Input date string:", dateStr);
-
   const parts = dateStr.split("-");
   if (parts.length === 3) {
     let year, month, day;
@@ -22,7 +20,6 @@ export default (dateStr) => {
 
     if (year && month !== undefined && day) {
       const resultDate = new Date(year, month, day);
-      console.log("Created date:", resultDate, "for", dateStr);
       return resultDate;
     }
   }

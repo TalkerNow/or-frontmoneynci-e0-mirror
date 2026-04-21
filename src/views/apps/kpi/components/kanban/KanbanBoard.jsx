@@ -291,7 +291,6 @@ class KanbanBoard extends React.Component {
   };
 
   handleAddCard = (columnId) => {
-    console.log("Ajouter une carte à la colonne:", columnId);
     // TODO: Implémenter l'ajout de carte
   };
 

@@ -8,7 +8,6 @@ import { DownloadCloud, Eye } from "react-feather";
 import {
   QUICK_TAGS_OPTIONS,
   generateDocId,
-  extractClientNames,
   persistUploadedDocs,
   loadUploadedDocs,
   parseNIR,
@@ -293,39 +292,6 @@ const REVALO_CNAV = {
   1970:8.200,1969:9.180,1968:10.150,1967:11.090,1966:12.040,1965:12.840,
 };
 
-const AGIRC_PARAMS = {
-  2026:{ta:6.20,tb:17.00,ref:5787},2025:{ta:6.20,tb:17.00,ref:5735},
-  2024:{ta:6.20,tb:17.00,ref:5611},2023:{ta:6.20,tb:17.00,ref:5329},
-  2022:{ta:6.20,tb:17.00,ref:5083},2021:{ta:6.20,tb:17.00,ref:5028},
-  2020:{ta:6.20,tb:17.00,ref:5008},2019:{ta:6.20,tb:17.00,ref:4958},
-  2018:{ta:6.20,tb:15.60,ref:4943},2017:{ta:6.20,tb:15.60,ref:4904},
-  2016:{ta:6.20,tb:15.28,ref:4766},2015:{ta:6.20,tb:15.28,ref:4687},
-  2014:{ta:6.20,tb:15.00,ref:4631},2013:{ta:6.20,tb:14.50,ref:4575},
-  2012:{ta:6.20,tb:14.50,ref:4543},2011:{ta:6.20,tb:14.50,ref:4474},
-  2010:{ta:6.20,tb:14.50,ref:4391},2009:{ta:6.20,tb:14.50,ref:4374},
-  2008:{ta:6.20,tb:14.50,ref:4381},2007:{ta:6.20,tb:14.50,ref:4162},
-  2006:{ta:6.00,tb:14.00,ref:3968},2005:{ta:6.00,tb:14.00,ref:3838},
-  2004:{ta:6.00,tb:14.00,ref:3745},2003:{ta:6.00,tb:14.00,ref:3676},
-  2002:{ta:6.00,tb:14.00,ref:3587},2001:{ta:6.00,tb:14.00,ref:3455},
-  2000:{ta:6.00,tb:14.00,ref:3259},1999:{ta:6.00,tb:14.00,ref:3178},
-  1998:{ta:6.00,tb:14.00,ref:3100},1997:{ta:6.00,tb:14.00,ref:3051},
-  1996:{ta:6.00,tb:14.00,ref:2971},1995:{ta:6.00,tb:14.00,ref:2894},
-  1994:{ta:6.00,tb:14.00,ref:2794},1993:{ta:6.00,tb:14.00,ref:2741},
-  1992:{ta:6.00,tb:14.00,ref:2619},1991:{ta:6.00,tb:14.00,ref:2487},
-  1990:{ta:6.00,tb:14.00,ref:2303},1989:{ta:6.00,tb:14.00,ref:2116},
-  1988:{ta:6.00,tb:14.00,ref:1985},1987:{ta:6.00,tb:14.00,ref:1880},
-  1986:{ta:6.00,tb:14.00,ref:1764},1985:{ta:6.00,tb:14.00,ref:1629},
-  1984:{ta:6.00,tb:14.00,ref:1493},1983:{ta:6.00,tb:14.00,ref:1319},
-  1982:{ta:6.00,tb:14.00,ref:1091},1981:{ta:6.00,tb:14.00,ref:868},
-  1980:{ta:6.00,tb:14.00,ref:697},1979:{ta:6.00,tb:14.00,ref:566},
-  1978:{ta:6.00,tb:14.00,ref:483},1977:{ta:6.00,tb:14.00,ref:415},
-  1976:{ta:6.00,tb:14.00,ref:347},1975:{ta:6.00,tb:14.00,ref:291},
-  1974:{ta:6.00,tb:14.00,ref:236},1973:{ta:6.00,tb:14.00,ref:193},
-  1972:{ta:6.00,tb:14.00,ref:166},1971:{ta:6.00,tb:14.00,ref:146},
-  1970:{ta:6.00,tb:14.00,ref:130},1969:{ta:6.00,tb:14.00,ref:120},
-  1968:{ta:6.00,tb:14.00,ref:107},1967:{ta:6.00,tb:14.00,ref:97},
-  1966:{ta:6.00,tb:14.00,ref:89},1965:{ta:6.00,tb:14.00,ref:82},
-};
 
 const PLAFONDS_SS = {
   1985: Math.round(106740/6.55957), 1986: Math.round(112200/6.55957),
@@ -468,11 +434,12 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   };
 
   const [activatedDispositifs, setActivatedDispositifs] = useState([]);
+  // eslint-disable-next-line no-unused-vars
   const [showAutoResults, setShowAutoResults] = useState(false);
   const [excludedDates, setExcludedDates] = useState([]);
   const [carriereValidee, setCarriereValidee] = useState(false);
   const [lockedAt, setLockedAt] = useState(null);
-  const [lockedBy, setLockedBy] = useState(null);
+  const [lockedBy, setLockedBy] = useState(null); // eslint-disable-line no-unused-vars
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [cnavplOpen, setCnavplOpen] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -484,33 +451,34 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   const [reportText, setReportText] = useState("");
   const [revaloValues, setRevaloValues] = useState(() => {
     const init = {};
-    Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; });
+    for (let i = 0; i < 65; i++) { init[2026 - i] = 0; }
     return init;
   });
   const [deplafValues, setDeplafValues] = useState({});
+  const [deplafSnapshots, setDeplafSnapshots] = useState({});
 
   // ── CNAV Skill State ──
   const [skillLoading, setSkillLoading] = useState(false);
   const [skillResult, setSkillResult] = useState(null);
   const [skillError, setSkillError] = useState(null);
-  // ── R5: Skills catalog ──
+  // eslint-disable-next-line no-unused-vars
   const [availableSkills, setAvailableSkills] = useState([]);
   // ── Career data state (stable, populated from OCR or manual input) ──
   const [carriereRows, setCarriereRows] = useState(_buildDefaultCarriereRows);
   const [isCadreSimu, setIsCadreSimu] = useState(false);
   const [trimCotState, setTrimCotState] = useState(() => {
     const init = {};
-    Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; });
+    for (let i = 0; i < 65; i++) { init[2026 - i] = 0; }
     return init;
   });
   const [trimAssState, setTrimAssState] = useState(() => {
     const init = {};
-    Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; });
+    for (let i = 0; i < 65; i++) { init[2026 - i] = 0; }
     return init;
   });
   const [arState, setArState] = useState(() => {
     const init = {};
-    Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; });
+    for (let i = 0; i < 65; i++) { init[2026 - i] = 0; }
     return init;
   });
   const [frozenLoading, setFrozenLoading] = useState(false);
@@ -564,6 +532,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, docId: null, fileName: "" });
   const [localUploadedIds, setLocalUploadedIds] = useState(() => new Set(loadUploadedDocs(id).map((d) => String(d.id))));
+  // eslint-disable-next-line no-unused-vars
   const [n8nMessage, setN8nMessage] = useState(() => {
     try {
       const stored = sessionStorage.getItem(`simu_n8n_message_${id}`);
@@ -621,11 +590,12 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Détection réactive des dispositifs après import RIS ──────────────────
+  const birthDate = user?.birth_date;
   useEffect(() => {
     const hasActivity = Object.values(trimCotState).some(t => parseInt(t, 10) > 0);
-    if (!hasActivity || !user?.birth_date) return;
-    setDetectedDispositifs(detectDispositifsFromRIS(trimCotState, user.birth_date));
-  }, [trimCotState, user?.birth_date]);
+    if (!hasActivity || !birthDate) return;
+    setDetectedDispositifs(detectDispositifsFromRIS(trimCotState, birthDate));
+  }, [trimCotState, birthDate]);
 
   // ── Apply career rows from backend data ─────────────────────────────────
   // Handles two formats:
@@ -787,11 +757,12 @@ export default function SimulatorV6({ mode = "production", id, user }) {
   const doResetCarriere = useCallback(async () => {
     setShowResetConfirm(false);
     setCarriereRows(_buildDefaultCarriereRows());
-    setRevaloValues(() => { const init = {}; Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; }); return init; });
+    setRevaloValues(() => { const init = {}; for (let i = 0; i < 65; i++) { init[2026 - i] = 0; } return init; });
     setDeplafValues({});
-    setTrimCotState(() => { const init = {}; Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; }); return init; });
-    setTrimAssState(() => { const init = {}; Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; }); return init; });
-    setArState(() => { const init = {}; Array.from({ length: 65 }, (_, i) => { init[2026 - i] = 0; }); return init; });
+    setDeplafSnapshots({});
+    setTrimCotState(() => { const init = {}; for (let i = 0; i < 65; i++) { init[2026 - i] = 0; } return init; });
+    setTrimAssState(() => { const init = {}; for (let i = 0; i < 65; i++) { init[2026 - i] = 0; } return init; });
+    setArState(() => { const init = {}; for (let i = 0; i < 65; i++) { init[2026 - i] = 0; } return init; });
     setCnavplRows(Object.fromEntries([2025,2024,2023,2022,2021,2020,2019,2018,2017,2016,2015].map(yr => [yr, { revenus: "", revCnavpl: "", points: "" }])));
     setCnavplOpen(false);
     setVisibleRowCount(20);
@@ -1165,6 +1136,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     } finally {
       setDeleteModal({ isOpen: false, docId: null, fileName: "" });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deleteModal, fileToSend, clearFileToSend]);
 
   const toggleDeleteModal = useCallback(() => {
@@ -1283,7 +1255,8 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       setIsGenerating(false);
       cancelRef.current = null;
     }
-  }, [fileToSend, selectedAction, user, id, promptText, hiddenSystemPrompt, fetchUserDocuments]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fileToSend, selectedAction, user, id, promptText, hiddenSystemPrompt]);
 
   // Derive doc availability from real uploaded documents
   const hasDocuments = userDocuments.some((d) => localUploadedIds.has(String(d.id))) || !!fileToSend;
@@ -1320,7 +1293,6 @@ export default function SimulatorV6({ mode = "production", id, user }) {
 
   const handleDeplafChange = (yr, checked) => {
     setDeplafValues(prev => ({ ...prev, [yr]: checked }));
-    // Recalculer revalo et trimestres depuis le salaire réel — réplique exacte CnavSimulator
     const row = carriereRows.find(r => r.yr === yr);
     const sal = row?.sal || 0;
     if (sal > 0) {
@@ -1338,11 +1310,33 @@ export default function SimulatorV6({ mode = "production", id, user }) {
         revalo = Math.round(salPlafonne * coeff);
         ssEur = salPlafonne;
       }
-      const seuilTrimestre = yr <= 2001 ? (passEuro * 6.556957) / 4 : passEuro / 4;
-      const trimestres = Math.min(4, Math.max(0, Math.floor(sal / (seuilTrimestre || Infinity))));
       setRevaloValues(prev => ({ ...prev, [yr]: revalo }));
-      setTrimCotState(prev => ({ ...prev, [yr]: trimestres }));
       setCarriereRows(prev => prev.map(r => r.yr === yr ? { ...r, ss: ssEur } : r));
+
+      if (checked) {
+        // Sauvegarder les valeurs actuelles avant déplafonnement
+        setDeplafSnapshots(prev => ({
+          ...prev,
+          [yr]: {
+            trimCot: trimCotState[yr] ?? 0,
+            trimAss: trimAssState[yr] ?? 0,
+            ar: arState[yr] ?? 0,
+          },
+        }));
+        // Recalculer les trimestres sur la base du salaire complet
+        const seuilTrimestre = yr <= 2001 ? (passEuro * 6.556957) / 4 : passEuro / 4;
+        const trimestres = Math.min(4, Math.max(0, Math.floor(sal / (seuilTrimestre || Infinity))));
+        setTrimCotState(prev => ({ ...prev, [yr]: trimestres }));
+      } else {
+        // Restaurer le snapshot sauvegardé au moment du cochage
+        const snap = deplafSnapshots[yr];
+        if (snap) {
+          setTrimCotState(prev => ({ ...prev, [yr]: snap.trimCot }));
+          setTrimAssState(prev => ({ ...prev, [yr]: snap.trimAss }));
+          setArState(prev => ({ ...prev, [yr]: snap.ar }));
+          setDeplafSnapshots(prev => { const next = { ...prev }; delete next[yr]; return next; });
+        }
+      }
     }
   };
 
@@ -1568,6 +1562,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     } finally {
       setFrozenLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, carriereRows, revaloValues, deplafValues, trimCotState, trimAssState, user, cnavplRows, droitsSynthese, risCarriereSynthese, isCarriereEmpty]);
 
   const handleCalculateAllRegimes = async () => {
@@ -2097,8 +2092,18 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                       const totalCotTbl = totalRows.reduce((s, r) => s + (trimCotState[r.yr] ?? 0), 0);
                       const totalAssTbl = totalRows.reduce((s, r) => s + (trimAssState[r.yr] ?? 0), 0);
                       const totalArTbl = totalRows.reduce((s, r) => s + (arState[r.yr] ?? 0), 0);
-                      const totalTrimTbl = totalCotTbl + totalAssTbl + totalArTbl;
-                      const samRows = [...carriereRows].sort((a, b) => (revaloValues[b.yr] ?? 0) - (revaloValues[a.yr] ?? 0)).slice(0, 25);
+                      const totalTrimTbl = totalRows.reduce((s, r) => {
+                        const tc = trimCotState[r.yr] ?? 0;
+                        const ta = trimAssState[r.yr] ?? 0;
+                        const ar = arState[r.yr] ?? 0;
+                        return s + Math.min(4, tc + ta + ar);
+                      }, 0);
+                      // SAM CNAV : uniquement les années avec affiliation CNAV (TC ou TA > 0)
+                      // Exclut les années régime complémentaire seul (Agirc-only, CIPAV seul, etc.)
+                      const samRows = [...carriereRows]
+                        .filter(r => (trimCotState[r.yr] ?? 0) > 0 || (trimAssState[r.yr] ?? 0) > 0)
+                        .sort((a, b) => (revaloValues[b.yr] ?? 0) - (revaloValues[a.yr] ?? 0))
+                        .slice(0, 25);
                       const samVal = samRows.length ? Math.round(samRows.reduce((s, r) => s + (revaloValues[r.yr] ?? 0), 0) / samRows.length) : 0;
 
                       return (
@@ -2696,7 +2701,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               const skillResultData = skillCode ? scenarioSkillResults[skillCode] : null;
                               const skillErrorMsg = skillCode ? scenarioSkillErrors[skillCode] : null;
                               return (
-                                <div key={action.id} style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                                <div key={action.id}>
                                   <button onClick={() => { if (ok) toggleDispositif(action.id); }} style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 11px", borderRadius: 8, border: `2px solid ${isActivated ? panel.color : ok ? "#e8e8e8" : "#f0f0f0"}`, background: isActivated ? `${panel.color}12` : ok ? "#fafafa" : "#f8f8f8", cursor: ok ? "pointer" : "not-allowed", textAlign: "left", opacity: ok ? 1 : 0.45, transition: "all 0.12s", position: "relative", width: "100%", flex: 1 }}>
                                     <div style={{ width: 20, height: 20, borderRadius: 5, border: `2px solid ${isActivated ? panel.color : "#ccc"}`, background: isActivated ? panel.color : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 11, color: "#fff" }}>
                                       {isActivated && "✓"}
@@ -3410,7 +3415,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                         <div style={{ fontSize: 11, color: "#555", marginBottom: 14 }}>{panel.desc}</div>
                         {/* Thematic analysis vignettes */}
                         <div style={{ fontSize: 11, fontWeight: 700, color: "#555", marginBottom: 8 }}>Thématiques d'analyse</div>
-                        <div className="simu-action-grid">
+                        <div className="simu-action-grid simu-action-grid--analyse">
                           {panel.actions.map((action) => {
                             const ok = checkReq(action.requires);
                             const miss = getMissing(action.requires);
