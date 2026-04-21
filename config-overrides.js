@@ -5,5 +5,8 @@ module.exports = config => {
     ]
   });
 
+  config.output = config.output || {};
+  config.output.hashFunction = 'sha256';
+
   return config;
 };

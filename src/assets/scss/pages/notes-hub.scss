@@ -1006,9 +1006,9 @@
 .simu-action-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  grid-auto-rows: 115px;
+  grid-auto-rows: auto;
   gap: 7px;
-  align-items: stretch;
+  align-items: start;
 
   > div {
     display: flex;
@@ -1016,9 +1016,7 @@
     overflow: visible;
 
     > button:first-child {
-      height: 115px;
       min-height: 115px;
-      max-height: 115px;
       overflow: hidden;
       flex-shrink: 0;
     }

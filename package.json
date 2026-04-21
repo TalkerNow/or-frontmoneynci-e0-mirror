@@ -93,7 +93,7 @@
   },
   "scripts": {
     "start": "NODE_OPTIONS=--openssl-legacy-provider react-app-rewired start",
-    "build": "react-app-rewired build",
+    "build": "NODE_OPTIONS=\"--require ./scripts/crypto-patch.js\" react-app-rewired build",
     "test": "react-app-rewired test",
     "eject": "react-app-rewired eject"
   },
