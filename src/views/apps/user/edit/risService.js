@@ -72,25 +72,15 @@ export async function fetchRISAnalysisV6(file) {
  */
 export async function executeScript(regimeCode, clientId, userContext) {
   const token = localStorage.getItem("token");
-  const userId = localStorage.getItem("userid");
-
-  const WEBHOOK_MAP = {
-    CNAV: WEBHOOKS.SCRIPT_CNAV,
-    AGIRC_ARRCO: WEBHOOKS.SCRIPT_AGIRC_ARRCO,
-    IRCANTEC: WEBHOOKS.SCRIPT_IRCANTEC,
-    RCI: WEBHOOKS.SCRIPT_RCI,
-    CIPAV: WEBHOOKS.SCRIPT_CIPAV,
-  };
-
-  const url = WEBHOOK_MAP[regimeCode];
-  if (!url) throw new Error(`Regime inconnu: ${regimeCode}`);
+  const userId = parseInt(localStorage.getItem("userid"));
 
   const response = await axios.post(
-    url,
+    `${global.config.server_url}/script/calculate`,
     {
+      regime_code: regimeCode,
       client_id: clientId,
       token,
-      user_id: parseInt(userId),
+      user_id: userId,
       user_context: userContext || "Analyse standard",
       scenario_params: {},
       frozen_data_id: null,
@@ -99,7 +89,9 @@ export async function executeScript(regimeCode, clientId, userContext) {
   );
 
   const data = response.data;
-  return Array.isArray(data) ? data[0] : data;
+  const result = Array.isArray(data) ? data[0] : data;
+  // Handle workflows that return {auditBody, response, token} wrapper
+  return result.response || result;
 }
 
 /**
