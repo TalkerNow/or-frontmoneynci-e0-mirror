@@ -5,17 +5,9 @@ import classnames from "classnames"
 class SidebarHeader extends Component {
   render() {
     let {
-      toggleSidebarMenu,
-      collapsed,
-      toggle,
       sidebarVisibility,
       menuShadow
     } = this.props
-    const isCollapsed = collapsed === true
-    const handleToggle = () => {
-      toggleSidebarMenu(!isCollapsed)
-      toggle()
-    }
     return (
       <div className="navbar-header">
         <ul className="nav navbar-nav flex-row">

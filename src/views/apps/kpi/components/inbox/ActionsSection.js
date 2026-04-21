@@ -725,7 +725,6 @@ const ActionsSection = ({
         onClose={() => setShowKanbanModal(false)}
         userId={ownerId}
         onSuccess={() => {
-          console.log("✅ Rendez-vous Kanban créé avec succès");
           setShowKanbanModal(false);
           // Optionnel: recharger les données si nécessaire
         }}
