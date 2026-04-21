@@ -17,8 +17,9 @@ export const WEBHOOKS = {
   SCRIPT_IRCANTEC: `${N8N_BASE}/script-execute-ircantec-v2-test`,
   SCRIPT_RCI: `${N8N_BASE}/script-execute-rci-v2-test`,
   SCRIPT_CIPAV: `${N8N_BASE}/script-execute-cipav-v2-test`,
-  SCRIPT_RACL: `${N8N_BASE}/racl-executor-v1-test`,
-  SCRIPT_TNS:  `${N8N_BASE}/tns-executor-v1-test`,
+  SCRIPT_RACL:        `${N8N_BASE}/racl-executor-v1-test`,
+  SCRIPT_TNS:         `${N8N_BASE}/tns-executor-v1-test`,
+  SCRIPT_CHOMAGE_IND: `${N8N_BASE}/chomage-indemnise-v1-test`,
 };
 
 /**
@@ -261,6 +262,32 @@ export async function executeRaclScenario(clientId, scenarioParams = {}) {
     eligible: data.racl_eligible ?? data.eligible,
     raison_eligibilite: data.racl_result?.message || data.message || data.raison_eligibilite,
   };
+}
+
+/**
+ * Exécute l'analyse chômage indemnisé directement via n8n.
+ * @param {number} clientId
+ * @param {object} [scenarioParams] - { periodes: [{ annee, nb_jours }] }
+ * @returns {Promise<object>}
+ */
+export async function executeChomageIndScenario(clientId, scenarioParams = {}) {
+  const token = localStorage.getItem("token");
+  const userId = parseInt(localStorage.getItem("userid"));
+
+  const response = await axios.post(
+    WEBHOOKS.SCRIPT_CHOMAGE_IND,
+    {
+      client_id: clientId,
+      token,
+      user_id: userId,
+      user_context: "Analyse chômage indemnisé",
+      scenario_params: scenarioParams,
+    },
+    { timeout: 90000, headers: { "Content-Type": "application/json" } }
+  );
+
+  const data = Array.isArray(response.data) ? response.data[0] : response.data;
+  return data;
 }
 
 /**

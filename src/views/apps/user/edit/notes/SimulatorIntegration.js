@@ -12,7 +12,7 @@ import {
   loadUploadedDocs,
   parseNIR,
 } from "./utils";
-import { executeSkill, executeScript, executeSkillGeneric, executeRaclScenario, executeTnsScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
+import { executeSkill, executeScript, executeSkillGeneric, executeRaclScenario, executeTnsScenario, executeChomageIndScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
@@ -98,7 +98,7 @@ const DISPOSITIF_TO_SKILL_CODE = {
   rachat_etude: "VPLR",
   retraite_progressive: "RETRAITE_PROGRESSIVE",
   cumul_emploi: "CUMUL_EMPLOI_RETRAITE",
-  chomage_ind: null,
+  chomage_ind: "CHOMAGE_INDEMNISE",
   chomage_non_ind: null,
   arret_activite: null,
   cotisations_min: "COTISATIONS_MIN",
@@ -1678,6 +1678,8 @@ export default function SimulatorV6({ mode = "production", id, user }) {
         ? await executeRaclScenario(parseInt(id), scenarioParams)
         : skillCode === "COTISATIONS_MIN"
         ? await executeTnsScenario(parseInt(id), scenarioParams)
+        : skillCode === "CHOMAGE_INDEMNISE"
+        ? await executeChomageIndScenario(parseInt(id), scenarioParams)
         : await executeSkillGeneric(skillCode, {
             clientId: parseInt(id),
             userContext: `Analyse dispositif ${skillCode} pour client ${id}`,
