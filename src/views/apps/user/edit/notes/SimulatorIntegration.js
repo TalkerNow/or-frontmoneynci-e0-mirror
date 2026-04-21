@@ -339,7 +339,7 @@ function _buildDefaultCarriereRows() {
 
 // ─── COMPONENT ──────────────────────────────────────────────────────────────
 
-export default function SimulatorV6({ mode = "production", id, user }) {
+export default function SimulatorV6({ mode = "production", id, user, onUserUpdate }) {
   // ── UI State ──
   const [apiSkills, setApiSkills] = useState([]);
   const [apiSkillsLoading, setApiSkillsLoading] = useState(false);
@@ -830,6 +830,36 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     try {
       const payload = await fetchRISAnalysisV6(file);
       setLastRisPayload(payload);
+
+      // ── Auto-fill user profile from RIS profil (if fields are missing) ──
+      const profilRIS = payload?.profil;
+      if (profilRIS) {
+        const nirFromProfil = profilRIS.numero_secu || profilRIS.numero_securite_sociale || profilRIS.numero_ss;
+        const profileUpdates = {};
+        if (!user?.secu_social && nirFromProfil) profileUpdates.secu_social = nirFromProfil;
+        if (!user?.birth_date && profilRIS.date_naissance) {
+          profileUpdates.birth_date = profilRIS.date_naissance.length === 7
+            ? profilRIS.date_naissance + "-01"
+            : profilRIS.date_naissance;
+        }
+        if (!user?.first_name && profilRIS.prenom) profileUpdates.first_name = profilRIS.prenom;
+        if (!user?.last_name && profilRIS.nom) profileUpdates.last_name = profilRIS.nom;
+
+        if (Object.keys(profileUpdates).length > 0) {
+          try {
+            await axios.put(
+              `${global.config.server_url}/personal_information/${id}`,
+              profileUpdates,
+              { headers: { Authorization: "Bearer " + localStorage.getItem("token") } }
+            );
+            const filledFields = Object.keys(profileUpdates).join(", ");
+            toast.success(`Profil mis à jour depuis le RIS : ${filledFields}`);
+            if (onUserUpdate) onUserUpdate(profileUpdates);
+          } catch (e) {
+            console.warn("Auto-fill profile from RIS failed", e);
+          }
+        }
+      }
 
       // ── Détection du format de réponse ──────────────────────────────────
       let cappedFromRIS = 0;
