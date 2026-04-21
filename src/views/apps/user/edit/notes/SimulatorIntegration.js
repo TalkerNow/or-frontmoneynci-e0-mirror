@@ -12,7 +12,7 @@ import {
   loadUploadedDocs,
   parseNIR,
 } from "./utils";
-import { executeScript, executeSkillGeneric, executeRaclScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6 } from "../risService";
+import { executeSkill, executeScript, executeSkillGeneric, executeRaclScenario, executeTnsScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
@@ -101,7 +101,7 @@ const DISPOSITIF_TO_SKILL_CODE = {
   chomage_ind: null,
   chomage_non_ind: null,
   arret_activite: null,
-  cotisations_min: null,
+  cotisations_min: "COTISATIONS_MIN",
   trimestres_etranger: "TRIMESTRES_ETRANGER",
   reversion: "REVERSION",
 };
@@ -1669,6 +1669,8 @@ export default function SimulatorV6({ mode = "production", id, user }) {
     try {
       const result = skillCode === "RACL"
         ? await executeRaclScenario(parseInt(id), scenarioParams)
+        : skillCode === "COTISATIONS_MIN"
+        ? await executeTnsScenario(parseInt(id), scenarioParams)
         : await executeSkillGeneric(skillCode, {
             clientId: parseInt(id),
             userContext: `Analyse dispositif ${skillCode} pour client ${id}`,
@@ -1679,7 +1681,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       if (result.eligible === true) {
         toast.success(`${result.skill_name || skillCode} : éligible`);
       } else if (result.eligible === false) {
-        toast.info(`${result.skill_name || skillCode} : non éligible`);
+        toast.warning(`${result.skill_name || skillCode} : non éligible`);
       }
     } catch (err) {
       const msg = err.response?.data?.message || err.message || "Erreur exécution skill";
@@ -2743,10 +2745,11 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       )}
 
                                       {skillResultData && !skillErrorMsg && (() => {
-                                        const color = skillResultData.eligible ? "#00B894" : "#E17055";
-                                        const bgColor = skillResultData.eligible ? "#00B89410" : "#E1705510";
+                                        const color = skillResultData.eligible ? "#00B894" : "#C0392B";
+                                        const bgColor = skillResultData.eligible ? "#00B89410" : "#FDEDEC";
+                                        const borderWidth = skillResultData.eligible ? "1px" : "2px";
                                         return (
-                                          <div style={{ marginTop: 6, padding: "10px 12px", background: bgColor, border: `1px solid ${color}`, borderRadius: 6 }}>
+                                          <div style={{ marginTop: 6, padding: "10px 12px", background: bgColor, border: `${borderWidth} solid ${color}`, borderRadius: 6 }}>
                                             <div style={{ fontSize: 11, fontWeight: 700, color, marginBottom: 4 }}>
                                               {skillResultData.eligible ? "✓ Éligible" : "✗ Non éligible"}
                                             </div>
@@ -2767,8 +2770,27 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                               </div>
                                             )}
                                             {skillCode === "RACL" && !skillResultData.eligible && skillResultData.manquants > 0 && (
-                                              <div style={{ fontSize: 10, color: "#E17055", marginBottom: 6 }}>
+                                              <div style={{ fontSize: 10, color: "#C0392B", marginBottom: 6 }}>
                                                 ⏳ {skillResultData.manquants} trimestre{skillResultData.manquants > 1 ? "s" : ""} cotisé{skillResultData.manquants > 1 ? "s" : ""} manquant{skillResultData.manquants > 1 ? "s" : ""}
+                                              </div>
+                                            )}
+                                            {skillCode === "COTISATIONS_MIN" && skillResultData.tns_result && (
+                                              <div style={{ marginBottom: 6 }}>
+                                                {skillResultData.tns_result.regime_tns && (
+                                                  <div style={{ fontSize: 10, color: "#555", marginBottom: 2 }}>
+                                                    Régime : <strong>{skillResultData.tns_result.regime_tns}</strong> · {skillResultData.tns_result.nb_annees_tns} an{skillResultData.tns_result.nb_annees_tns > 1 ? "s" : ""} d'activité
+                                                  </div>
+                                                )}
+                                                {skillResultData.tns_result.pension_complementaire_mensuelle > 0 && (
+                                                  <div style={{ fontSize: 11, fontWeight: 700, color, marginBottom: 2 }}>
+                                                    💰 Pension complémentaire estimée : {skillResultData.tns_result.pension_complementaire_mensuelle.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €/mois
+                                                  </div>
+                                                )}
+                                                {skillResultData.tns_result.nb_annees_incompletes > 0 && (
+                                                  <div style={{ fontSize: 10, color: "#E17055", marginBottom: 2 }}>
+                                                    ⚠ {skillResultData.tns_result.nb_annees_incompletes} année{skillResultData.tns_result.nb_annees_incompletes > 1 ? "s" : ""} incomplète{skillResultData.tns_result.nb_annees_incompletes > 1 ? "s" : ""} · {skillResultData.tns_result.total_trimestres_manquants} trim. potentiellement perdus
+                                                  </div>
+                                                )}
                                               </div>
                                             )}
                                             {skillResultData.impact?.gain_mensuel > 0 && (
