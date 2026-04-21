@@ -1731,14 +1731,14 @@ export default function SimulatorV6({ mode = "production", id, user }) {
             {/* Header modal */}
             <div style={{ padding: "14px 18px", borderBottom: "1px solid #eee", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: modal.color || "#333" }}>{modal.title}</div>
-                <div style={{ fontSize: 10, color: "#555", marginTop: 2 }}>{modal.lines} lignes — 01_REGLEMENTATION/ · Cliquer en dehors pour fermer</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: modal.color || "#333" }}>{modal.title}</div>
+                <div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>{modal.lines} lignes — 01_REGLEMENTATION/ · Cliquer en dehors pour fermer</div>
               </div>
               <button onClick={() => setModal(null)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "#555", lineHeight: 1 }}>✕</button>
             </div>
             {/* Contenu scrollable */}
             <div style={{ overflowY: "auto", flex: 1, padding: "14px 18px" }}>
-              <pre style={{ fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: 11, lineHeight: 1.7, color: "#333", whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0 }}>
+              <pre style={{ fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: 13, lineHeight: 1.7, color: "#333", whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0 }}>
                 {modal.content}
               </pre>
             </div>
@@ -1756,18 +1756,18 @@ export default function SimulatorV6({ mode = "production", id, user }) {
         >
           <ModalHeader toggle={() => !preentretienModal.saving && setPreentretienModal(null)}>
             Rapport de génération pré-entretien EOR
-            <div style={{ fontSize: 11, color: "#555", marginTop: 4, fontWeight: "normal" }}>
+            <div style={{ fontSize: 13, color: "#555", marginTop: 4, fontWeight: "normal" }}>
               Éditeur de prompt — une nouvelle version sera créée à l'enregistrement
             </div>
           </ModalHeader>
           <ModalBody>
             {preentretienModal.loading ? (
-              <div className="text-center p-4" style={{ color: "#555", fontSize: 12 }}>
+              <div className="text-center p-4" style={{ color: "#555", fontSize: 14 }}>
                 Chargement du prompt…
               </div>
             ) : (
               <>
-                <label style={{ fontSize: 12, fontWeight: 600 }}>Contenu (Prompt)</label>
+                <label style={{ fontSize: 14, fontWeight: 600 }}>Contenu (Prompt)</label>
                 <textarea
                   value={preentretienModal.text}
                   disabled={preentretienModal.saving}
@@ -1779,7 +1779,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                     width: "100%",
                     minHeight: 400,
                     fontFamily: "monospace",
-                    fontSize: 12,
+                    fontSize: 14,
                     padding: 10,
                     border: "1px solid #ccc",
                     borderRadius: 4,
@@ -1817,18 +1817,18 @@ export default function SimulatorV6({ mode = "production", id, user }) {
         >
           <ModalHeader toggle={() => !systemPromptModal.saving && setSystemPromptModal(null)}>
             EOR SystemPrompt — Moteur Analyse Réglementaire
-            <div style={{ fontSize: 11, color: "#555", marginTop: 4, fontWeight: "normal" }}>
+            <div style={{ fontSize: 13, color: "#555", marginTop: 4, fontWeight: "normal" }}>
               Instructions fondamentales du moteur IA — une nouvelle version sera créée à l'enregistrement
             </div>
           </ModalHeader>
           <ModalBody>
             {systemPromptModal.loading ? (
-              <div className="text-center p-4" style={{ color: "#555", fontSize: 12 }}>
+              <div className="text-center p-4" style={{ color: "#555", fontSize: 14 }}>
                 Chargement du system prompt…
               </div>
             ) : (
               <>
-                <label style={{ fontSize: 12, fontWeight: 600 }}>Contenu (System Prompt)</label>
+                <label style={{ fontSize: 14, fontWeight: 600 }}>Contenu (System Prompt)</label>
                 <textarea
                   value={systemPromptModal.text}
                   disabled={systemPromptModal.saving}
@@ -1840,7 +1840,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                     width: "100%",
                     minHeight: 500,
                     fontFamily: "monospace",
-                    fontSize: 12,
+                    fontSize: 14,
                     padding: 10,
                     border: "1px solid #ccc",
                     borderRadius: 4,
@@ -1872,7 +1872,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
         <div style={{ padding: "0 4px" }}>
 {/* Zone documents — real upload */}
               <div style={{ ...S.card, padding: 14, marginBottom: 14 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>📁 Documents</div>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>📁 Documents</div>
 
                 {/* Dropzone */}
                 <Dropzone disabled={isUploading || isGenerating} onDrop={handleUpload}>
@@ -1880,17 +1880,17 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                     <div {...getRootProps()} style={{ border: `2px dashed ${isDragActive ? "#6C5CE7" : "#ccc"}`, borderRadius: 9, padding: "16px 14px", textAlign: "center", cursor: isUploading ? "wait" : "pointer", background: isDragActive ? "#6C5CE706" : "#fafafa", transition: "all 0.15s", marginBottom: 10 }}>
                       <input {...getInputProps()} />
                       <DownloadCloud size={28} color="#6C5CE7" style={{ marginBottom: 4 }} />
-                      <div style={{ fontWeight: 600, color: "#6C5CE7", fontSize: 11 }}>
+                      <div style={{ fontWeight: 600, color: "#6C5CE7", fontSize: 13 }}>
                         {isUploading ? "Import en cours…" : "Déposez tous vos documents ici"}
                       </div>
-                      <div style={{ fontSize: 10, color: "#666", marginTop: 3 }}>Glissez-déposez un fichier ou cliquez pour parcourir</div>
+                      <div style={{ fontSize: 12, color: "#666", marginTop: 3 }}>Glissez-déposez un fichier ou cliquez pour parcourir</div>
                     </div>
                   )}
                 </Dropzone>
 
                 {/* Liste des documents réels */}
                 {isLoadingDocs ? (
-                  <div style={{ fontSize: 10, color: "#555", padding: "6px 0" }}>Chargement des documents…</div>
+                  <div style={{ fontSize: 12, color: "#555", padding: "6px 0" }}>Chargement des documents…</div>
                 ) : ((userDocuments.filter((d) => localUploadedIds.has(String(d.id))).length > 0 || fileToSend)) ? (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
                     {userDocuments.filter((d) => localUploadedIds.has(String(d.id))).map((doc) => {
@@ -1902,7 +1902,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                       const isRIS = risFileName === doc.filename;
 
                       return (
-                        <div key={doc.id} style={{ display: "flex", flexDirection: "column", padding: "6px 12px", borderRadius: 7, background: isSelected ? `${color}18` : `${color}08`, border: `1px solid ${isSelected ? color : `${color}18`}`, fontSize: 11, cursor: "pointer", transition: "all 0.15s", minWidth: 180 }}
+                        <div key={doc.id} style={{ display: "flex", flexDirection: "column", padding: "6px 12px", borderRadius: 7, background: isSelected ? `${color}18` : `${color}08`, border: `1px solid ${isSelected ? color : `${color}18`}`, fontSize: 13, cursor: "pointer", transition: "all 0.15s", minWidth: 180 }}
                           onClick={() => {
                             if (isSelected) return;
                             handleSelectDocument(doc);
@@ -1910,9 +1910,9 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                           title={isSelected ? "Document sélectionné pour l'analyse" : `Cliquer pour sélectionner "${doc.filename}"`}
                         >
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <span style={{ fontSize: 13 }}>📄</span>
-                            <span style={{ fontWeight: 600, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12 }}>{doc.filename}</span>
-                            <span style={{ fontSize: 9, color, fontWeight: 700 }}>{ext.toUpperCase()}</span>
+                            <span style={{ fontSize: 15 }}>📄</span>
+                            <span style={{ fontWeight: 600, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 14 }}>{doc.filename}</span>
+                            <span style={{ fontSize: 11, color, fontWeight: 700 }}>{ext.toUpperCase()}</span>
 
                             <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto", paddingLeft: 4 }}>
                               {isSelected && (
@@ -1951,7 +1951,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 border: "none",
                                 borderRadius: 6,
                                 padding: "5px 10px",
-                                fontSize: 11,
+                                fontSize: 13,
                                 fontWeight: 700,
                                 cursor: isParsingRIS ? "not-allowed" : "pointer",
                                 display: "flex",
@@ -1979,10 +1979,10 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                     
                     {/* Fichier uploadé manuellement (pas encore dans la liste serveur) */}
                     {fileToSend && !userDocuments.filter((d) => localUploadedIds.has(String(d.id))).some((d) => d.filename === fileToSend.name) && (
-                      <div style={{ display: "flex", flexDirection: "column", padding: "6px 12px", borderRadius: 7, background: "#00B89418", border: "1px solid #00B894", fontSize: 11, minWidth: 180 }}>
+                      <div style={{ display: "flex", flexDirection: "column", padding: "6px 12px", borderRadius: 7, background: "#00B89418", border: "1px solid #00B894", fontSize: 13, minWidth: 180 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ fontSize: 13 }}>📄</span>
-                          <span style={{ fontWeight: 600, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12 }}>{fileToSend.name}</span>
+                          <span style={{ fontSize: 15 }}>📄</span>
+                          <span style={{ fontWeight: 600, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 14 }}>{fileToSend.name}</span>
                           <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto", paddingLeft: 4 }}>
                             <button
                               onClick={(e) => {
@@ -2019,7 +2019,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               border: "none",
                               borderRadius: 6,
                               padding: "5px 10px",
-                              fontSize: 11,
+                              fontSize: 13,
                               fontWeight: 700,
                               cursor: isParsingRIS ? "not-allowed" : "pointer",
                               display: "flex",
@@ -2045,7 +2045,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                     )}
                   </div>
                 ) : (
-                  <div style={{ fontSize: 10, color: "#666", textAlign: "center", padding: "4px 0" }}>Aucun document importé</div>
+                  <div style={{ fontSize: 12, color: "#666", textAlign: "center", padding: "4px 0" }}>Aucun document importé</div>
                 )}
               </div>
 
@@ -2059,14 +2059,14 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                   {navCollapsed ? (
                     /* Barre réduite */
                     <button onClick={() => setNavCollapsed(false)} title="Afficher le flux de travail" style={{ width: 36, alignSelf: "flex-start", padding: "8px 0", borderRadius: 9, border: "1px solid #e0e0e0", background: "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, color: "#555" }}>
-                      <span style={{ fontSize: 13 }}>▶</span>
-                      <span style={{ fontSize: 7, writingMode: "vertical-rl", textTransform: "uppercase", letterSpacing: "0.08em", color: "#666" }}>Flux</span>
+                      <span style={{ fontSize: 15 }}>▶</span>
+                      <span style={{ fontSize: 9, writingMode: "vertical-rl", textTransform: "uppercase", letterSpacing: "0.08em", color: "#666" }}>Flux</span>
                     </button>
                   ) : (
                     <>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 2px" }}>
-                        <div style={{ fontSize: 9, color: "#555", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Flux de travail ↓</div>
-                        <button onClick={() => setNavCollapsed(true)} title="Masquer" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "#666", padding: "0 2px", lineHeight: 1 }}>◀</button>
+                        <div style={{ fontSize: 11, color: "#555", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Flux de travail ↓</div>
+                        <button onClick={() => setNavCollapsed(true)} title="Masquer" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "#666", padding: "0 2px", lineHeight: 1 }}>◀</button>
                       </div>
                       {Object.entries(ACTION_PANELS).map(([key, panel]) => {
                         const isActive = expandedPanel === key;
@@ -2075,12 +2075,12 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                         const stepNum = panel.order;
                         return (
                           <button key={key} onClick={() => { setExpandedPanel(key); setSelectedAction(null); setExecuted(null); }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 9, border: `2px solid ${isActive ? panel.color : isDone ? panel.color + "88" : "transparent"}`, background: isActive ? `${panel.color}10` : isDone ? `${panel.color}08` : "#fff", cursor: "pointer", textAlign: "left", transition: "all 0.12s", boxShadow: isActive ? `0 2px 8px ${panel.color}20` : "0 1px 3px rgba(0,0,0,0.04)" }}>
-                            <div style={{ width: 22, height: 22, borderRadius: "50%", background: isActive ? panel.color : isDone ? panel.color : "#ddd", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, flexShrink: 0 }}>
+                            <div style={{ width: 22, height: 22, borderRadius: "50%", background: isActive ? panel.color : isDone ? panel.color : "#ddd", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, flexShrink: 0 }}>
                               {isDone ? "✓" : stepNum}
                             </div>
                             <div>
-                              <div style={{ fontSize: 11, fontWeight: 700, color: isActive ? panel.color : isDone ? panel.color : "#333" }}>{panel.label}</div>
-                              <div style={{ fontSize: 9, color: isDone ? panel.color + "99" : "#555", fontWeight: 500 }}>{isDone ? "Traité ✓" : panel.navCount || `${panel.actions.length} ${key === "dispositifs" ? "dispositifs" : key === "livrables" ? "formats" : "actions"}`}</div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: isActive ? panel.color : isDone ? panel.color : "#333" }}>{panel.label}</div>
+                              <div style={{ fontSize: 11, color: isDone ? panel.color + "99" : "#555", fontWeight: 500 }}>{isDone ? "Traité ✓" : panel.navCount || `${panel.actions.length} ${key === "dispositifs" ? "dispositifs" : key === "livrables" ? "formats" : "actions"}`}</div>
                             </div>
                           </button>
                         );
@@ -2122,10 +2122,10 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                               <span style={{ fontSize: 18 }}>📂</span>
                               <span style={{ fontSize: 14, fontWeight: 700, color: "#E17055" }}>Carrière</span>
-                              <span style={{ fontSize: 10, color: "#555" }}>— tableau unifié tous régimes</span>
+                              <span style={{ fontSize: 12, color: "#555" }}>— tableau unifié tous régimes</span>
                             </div>
                             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                              <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, background: isParsingRIS ? "#0984E315" : carriereValidee ? "#00B89415" : "#E1705515", color: isParsingRIS ? "#0984E3" : carriereValidee ? "#00B894" : "#E17055", fontWeight: 700 }}>
+                              <span style={{ fontSize: 12, padding: "3px 8px", borderRadius: 5, background: isParsingRIS ? "#0984E315" : carriereValidee ? "#00B89415" : "#E1705515", color: isParsingRIS ? "#0984E3" : carriereValidee ? "#00B894" : "#E17055", fontWeight: 700 }}>
                                 {isParsingRIS ? "⏳ Analyse en cours…" : carriereValidee ? `🔒 Validée${lockedAt ? ` le ${new Date(lockedAt).toLocaleDateString("fr-FR")}` : ""}` : "📥 Importée OCR"}
                               </span>
                               <button onClick={async () => {
@@ -2138,10 +2138,10 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 } else {
                                   handleGeler();
                                 }
-                              }} disabled={frozenLoading || (!carriereValidee && isCarriereEmpty)} title={!carriereValidee && isCarriereEmpty ? "Remplissez au moins une ligne de carrière" : ""} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, border: "none", background: carriereValidee ? "#E1705520" : (isCarriereEmpty ? "#ccc" : "#00B89420"), color: carriereValidee ? "#E17055" : (isCarriereEmpty ? "#888" : "#00B894"), cursor: (frozenLoading || (!carriereValidee && isCarriereEmpty)) ? "not-allowed" : "pointer", fontWeight: 700 }}>
+                              }} disabled={frozenLoading || (!carriereValidee && isCarriereEmpty)} title={!carriereValidee && isCarriereEmpty ? "Remplissez au moins une ligne de carrière" : ""} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, border: "none", background: carriereValidee ? "#E1705520" : (isCarriereEmpty ? "#ccc" : "#00B89420"), color: carriereValidee ? "#E17055" : (isCarriereEmpty ? "#888" : "#00B894"), cursor: (frozenLoading || (!carriereValidee && isCarriereEmpty)) ? "not-allowed" : "pointer", fontWeight: 700 }}>
                                 {carriereValidee ? "🔓 Déverrouiller" : frozenLoading ? "⏳…" : "🔒 Valider"}
                               </button>
-                              <button onClick={handleResetCarriere} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, border: "1px solid #ddd", background: "#fff", color: "#888", cursor: "pointer", fontWeight: 700 }}>
+                              <button onClick={handleResetCarriere} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, border: "1px solid #ddd", background: "#fff", color: "#888", cursor: "pointer", fontWeight: 700 }}>
                                 🗑️ Réinitialiser
                               </button>
                             </div>
@@ -2150,7 +2150,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                           {/* Légende couleurs régimes */}
                           {/* <div style={{ display: "flex", gap: 12, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
                             {[["🏛️ CNAV", "#6C5CE7"], ["📊 AGIRC-ARRCO", "#0984E3"], ["🏢 Ircantec", "#00B894"], ["📑 RCI / SSI", "#E17055"]].map(([label, color]) => (
-                              <div key={label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: "#555" }}>
+                              <div key={label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "#555" }}>
                                 <div style={{ width: 10, height: 10, borderRadius: 2, background: color, opacity: 0.7 }} />
                                 {label}
                               </div>
@@ -2162,29 +2162,29 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                             <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
                               {droitsSynthese.agirc_arrco?.points_total > 0 && (
                                 <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#0984E308", border: "1px solid #0984E330", borderRadius: 6, padding: "4px 10px" }}>
-                                  <span style={{ fontSize: 11 }}>📊</span>
-                                  <span style={{ fontSize: 10, color: "#0984E3", fontWeight: 700 }}>AGIRC-ARRCO</span>
-                                  <span style={{ fontSize: 10, color: "#555" }}>—</span>
-                                  <span style={{ fontSize: 11, fontWeight: 700, color: "#1a1a2e" }}>{droitsSynthese.agirc_arrco.points_total.toLocaleString("fr-FR")} pts</span>
-                                  <span style={{ fontSize: 9, color: "#999" }}>extraits du RIS</span>
+                                  <span style={{ fontSize: 13 }}>📊</span>
+                                  <span style={{ fontSize: 12, color: "#0984E3", fontWeight: 700 }}>AGIRC-ARRCO</span>
+                                  <span style={{ fontSize: 12, color: "#555" }}>—</span>
+                                  <span style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{droitsSynthese.agirc_arrco.points_total.toLocaleString("fr-FR")} pts</span>
+                                  <span style={{ fontSize: 11, color: "#999" }}>extraits du RIS</span>
                                 </div>
                               )}
                               {droitsSynthese.ircantec?.points_total > 0 && (
                                 <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#00B89408", border: "1px solid #00B89430", borderRadius: 6, padding: "4px 10px" }}>
-                                  <span style={{ fontSize: 11 }}>🏢</span>
-                                  <span style={{ fontSize: 10, color: "#00B894", fontWeight: 700 }}>Ircantec</span>
-                                  <span style={{ fontSize: 10, color: "#555" }}>—</span>
-                                  <span style={{ fontSize: 11, fontWeight: 700, color: "#1a1a2e" }}>{droitsSynthese.ircantec.points_total.toLocaleString("fr-FR")} pts</span>
-                                  <span style={{ fontSize: 9, color: "#999" }}>extraits du RIS</span>
+                                  <span style={{ fontSize: 13 }}>🏢</span>
+                                  <span style={{ fontSize: 12, color: "#00B894", fontWeight: 700 }}>Ircantec</span>
+                                  <span style={{ fontSize: 12, color: "#555" }}>—</span>
+                                  <span style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{droitsSynthese.ircantec.points_total.toLocaleString("fr-FR")} pts</span>
+                                  <span style={{ fontSize: 11, color: "#999" }}>extraits du RIS</span>
                                 </div>
                               )}
                               {droitsSynthese.rci?.points_total > 0 && (
                                 <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#E1705508", border: "1px solid #E1705530", borderRadius: 6, padding: "4px 10px" }}>
-                                  <span style={{ fontSize: 11 }}>📑</span>
-                                  <span style={{ fontSize: 10, color: "#E17055", fontWeight: 700 }}>RCI / SSI</span>
-                                  <span style={{ fontSize: 10, color: "#555" }}>—</span>
-                                  <span style={{ fontSize: 11, fontWeight: 700, color: "#1a1a2e" }}>{droitsSynthese.rci.points_total.toLocaleString("fr-FR")} pts</span>
-                                  <span style={{ fontSize: 9, color: "#999" }}>extraits du RIS</span>
+                                  <span style={{ fontSize: 13 }}>📑</span>
+                                  <span style={{ fontSize: 12, color: "#E17055", fontWeight: 700 }}>RCI / SSI</span>
+                                  <span style={{ fontSize: 12, color: "#555" }}>—</span>
+                                  <span style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{droitsSynthese.rci.points_total.toLocaleString("fr-FR")} pts</span>
+                                  <span style={{ fontSize: 11, color: "#999" }}>extraits du RIS</span>
                                 </div>
                               )}
                             </div>
@@ -2192,15 +2192,15 @@ export default function SimulatorV6({ mode = "production", id, user }) {
 
                           {/* Grand tableau unifié */}
                           <div className="simu-table-wrap" style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
-                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 15 }}>
                               <thead>
                                 <tr>
                                   <th rowSpan={2} style={{ padding: "5px 6px", textAlign: "left", fontWeight: 700, color: "#333", borderBottom: "2px solid #ddd", background: "#f8f8f8", verticalAlign: "bottom", width: 36 }}>An.</th>
-                                  <th rowSpan={2} style={{ padding: "5px 6px", textAlign: "center", fontWeight: 700, color: "#555", borderBottom: "2px solid #ddd", background: "#f8f8f8", borderLeft: "1px solid #ddd", verticalAlign: "bottom" }}>Sal. brut<br/><span style={{ fontWeight: 400, color: "#666", fontSize: 12 }}>/Rému.</span></th>
+                                  <th rowSpan={2} style={{ padding: "5px 6px", textAlign: "center", fontWeight: 700, color: "#555", borderBottom: "2px solid #ddd", background: "#f8f8f8", borderLeft: "1px solid #ddd", verticalAlign: "bottom" }}>Sal. brut<br/><span style={{ fontWeight: 400, color: "#666", fontSize: 14 }}>/Rému.</span></th>
                                   <th colSpan={8} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#6C5CE7", background: "#6C5CE708", borderLeft: "2px solid #6C5CE730", borderBottom: "1px solid #6C5CE720" }}>🏛️ CNAV</th>
                                   <th colSpan={3} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#0984E3", background: "#0984E308", borderLeft: "2px solid #0984E330", borderBottom: "1px solid #0984E320" }}>
                                     <div>📊 AGIRC-ARRCO</div>
-                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 3, fontSize: 10, fontWeight: 400 }}>
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 3, fontSize: 12, fontWeight: 400 }}>
                                       <label style={{ display: "flex", alignItems: "center", gap: 3, cursor: "pointer", margin: 0, color: "#555" }}>
                                         <input type="radio" name="simu-cadre-status" checked={!isCadreSimu} onChange={() => {
                                           setIsCadreSimu(false);
@@ -2228,9 +2228,9 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                   <th colSpan={1} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#00B894", background: "#00B89408", borderLeft: "2px solid #00B89430", borderBottom: "1px solid #00B89420" }}>🏢 Ircantec</th>
                                   <th colSpan={1} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#E17055", background: "#E1705508", borderLeft: "2px solid #E1705530", borderBottom: "1px solid #E1705520" }}>📑 RCI</th>
                                   <th colSpan={cnavplOpen ? 2 : 1} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#9B59B6", background: cnavplOpen ? "#9B59B608" : "#f8f8f8", borderLeft: "2px solid #9B59B630", borderBottom: "1px solid #9B59B620", whiteSpace: "nowrap" }}>
-                                    <button onClick={toggleCnavpl} title="CIPAV — Libéral" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 10, color: "#9B59B6", padding: 0, display: "inline-flex", alignItems: "center", gap: 3 }}>
-                                      <span style={{ display: "inline-block", transform: cnavplOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s", fontSize: 9 }}>▶</span>
-                                      {cnavplOpen && <span style={{ fontSize: 9, fontWeight: 700 }}>🏥 CIPAV</span>}
+                                    <button onClick={toggleCnavpl} title="CIPAV — Libéral" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "#9B59B6", padding: 0, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                                      <span style={{ display: "inline-block", transform: cnavplOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s", fontSize: 11 }}>▶</span>
+                                      {cnavplOpen && <span style={{ fontSize: 11, fontWeight: 700 }}>🏥 CIPAV</span>}
                                     </button>
                                   </th>
                                 </tr>
@@ -2309,15 +2309,15 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                               rciPts: rciRes ? parseFloat(rciRes.total.toFixed(5)) : 0,
                                             } : r));
                                           }}
-                                          style={{ width: 62, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 13, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                          style={{ width: 62, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 15, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff" }} />
                                         {row.devise === 'FRF' && (
-                                          <span style={{ display: "block", fontSize: 8, color: "#E17055", fontWeight: 700, textAlign: "center", marginTop: 1 }}>FRF</span>
+                                          <span style={{ display: "block", fontSize: 10, color: "#E17055", fontWeight: 700, textAlign: "center", marginTop: 1 }}>FRF</span>
                                         )}
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "right", borderLeft: "2px solid #6C5CE715" }}>
                                         <input type="number" value={row.ss || ""} disabled={carriereValidee}
                                           onChange={(e) => { const v = parseInt(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, ss: v } : r)); }}
-                                          style={{ width: 62, textAlign: "right", border: "1px solid #6C5CE730", borderRadius: 3, fontSize: 13, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff", color: "#555" }} />
+                                          style={{ width: 62, textAlign: "right", border: "1px solid #6C5CE730", borderRadius: 3, fontSize: 15, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff", color: "#555" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "right", color: "#0984E3", fontWeight: 600 }}>{row.coeff}</td>
                                       <td style={{ padding: "3px 5px", textAlign: "right", fontWeight: 700, color: "#6C5CE7" }}>
@@ -2326,9 +2326,9 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                           value={revaloVal || ""}
                                           disabled={carriereValidee}
                                           onChange={(e) => handleRevaloChange(row.yr, e.target.value, deplafValues[row.yr])}
-                                          style={{ width: 68, textAlign: "right", border: `1px solid ${isPlafonne ? "#E17055" : "#6C5CE730"}`, borderRadius: 3, fontSize: 13, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff", color: "#6C5CE7", fontWeight: 700 }}
+                                          style={{ width: 68, textAlign: "right", border: `1px solid ${isPlafonne ? "#E17055" : "#6C5CE730"}`, borderRadius: 3, fontSize: 15, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff", color: "#6C5CE7", fontWeight: 700 }}
                                         />
-                                        <span style={{ fontSize: 7, color: "#666", display: "block", textAlign: "right", marginTop: 1 }}>
+                                        <span style={{ fontSize: 9, color: "#666", display: "block", textAlign: "right", marginTop: 1 }}>
                                           ≤ {getPlafond(row.yr).toLocaleString("fr-FR")} €
                                           {isPlafonne && (
                                             <>
@@ -2355,42 +2355,42 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
                                         <input type="number" value={trimCotState[row.yr] ?? 0} disabled={carriereValidee}
                                           onChange={(e) => { const v = parseInt(e.target.value) || 0; setTrimCotState(prev => ({ ...prev, [row.yr]: v })); }}
-                                          style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 13, padding: "1px" }} />
+                                          style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 15, padding: "1px" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
                                         <input type="number" value={trimAssState[row.yr] ?? 0} disabled={carriereValidee}
                                           onChange={(e) => { const v = parseInt(e.target.value) || 0; setTrimAssState(prev => ({ ...prev, [row.yr]: v })); }}
-                                          title="Trimestres assimilés (maladie, chômage, maternité…)" style={{ width: 26, textAlign: "center", border: "1px solid #6C5CE730", borderRadius: 3, fontSize: 13, padding: "1px", color: "#6C5CE7" }} />
+                                          title="Trimestres assimilés (maladie, chômage, maternité…)" style={{ width: 26, textAlign: "center", border: "1px solid #6C5CE730", borderRadius: 3, fontSize: 15, padding: "1px", color: "#6C5CE7" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
                                         <input type="number" value={arState[row.yr] ?? 0} disabled={carriereValidee}
                                           onChange={(e) => { const v = parseInt(e.target.value) || 0; setArState(prev => ({ ...prev, [row.yr]: v })); }}
                                           title="Trimestres rachetés (versement pour la retraite)"
-                                          style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 13, padding: "1px" }} />
+                                          style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 15, padding: "1px" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", fontWeight: 700, color: "#6C5CE7" }}>{tot}</td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #0984E315" }}>
-                                        <input type="number" step="0.01" value={row.agircT1 ?? ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircT1: parseFloat(e.target.value) || 0 } : r))} style={{ width: 72, textAlign: "center", border: "1px solid #0984E330", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#0984E3", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" step="0.01" value={row.agircT1 ?? ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircT1: parseFloat(e.target.value) || 0 } : r))} style={{ width: 72, textAlign: "center", border: "1px solid #0984E330", borderRadius: 3, fontSize: 15, padding: "1px 4px", color: "#0984E3", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
-                                        <input type="number" step="0.01" value={row.agircT2 ?? ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircT2: parseFloat(e.target.value) || 0 } : r))} style={{ width: 72, textAlign: "center", border: "1px solid #0984E330", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#0984E3", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" step="0.01" value={row.agircT2 ?? ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircT2: parseFloat(e.target.value) || 0 } : r))} style={{ width: 72, textAlign: "center", border: "1px solid #0984E330", borderRadius: 3, fontSize: 15, padding: "1px 4px", color: "#0984E3", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
-                                        <input type="number" step="0.01" value={row.agircPts || ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircPts: parseFloat(e.target.value) || 0 } : r))} style={{ width: 72, textAlign: "center", border: "1px solid #0984E350", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#1a1a2e", fontWeight: 800, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" step="0.01" value={row.agircPts || ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircPts: parseFloat(e.target.value) || 0 } : r))} style={{ width: 72, textAlign: "center", border: "1px solid #0984E350", borderRadius: 3, fontSize: 15, padding: "1px 4px", color: "#1a1a2e", fontWeight: 800, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #00B89415" }}>
-                                        <input type="number" step="0.01" value={row.ircPts || ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, ircPts: parseFloat(e.target.value) || 0 } : r))} style={{ width: 72, textAlign: "center", border: "1px solid #00B89430", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#00B894", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" step="0.01" value={row.ircPts || ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, ircPts: parseFloat(e.target.value) || 0 } : r))} style={{ width: 72, textAlign: "center", border: "1px solid #00B89430", borderRadius: 3, fontSize: 15, padding: "1px 4px", color: "#00B894", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #E1705515" }}>
-                                        <input type="number" step="0.01" value={row.rciPts || ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, rciPts: parseFloat(e.target.value) || 0 } : r))} style={{ width: 72, textAlign: "center", border: "1px solid #E1705530", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#E17055", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" step="0.01" value={row.rciPts || ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, rciPts: parseFloat(e.target.value) || 0 } : r))} style={{ width: 72, textAlign: "center", border: "1px solid #E1705530", borderRadius: 3, fontSize: 15, padding: "1px 4px", color: "#E17055", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                       </td>
                                       {cnavplOpen ? (
                                         <>
                                           <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #9B59B630", animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>
-                                            <input type="text" value={cnavplRows[row.yr]?.points || ""} onChange={e => setCnavplRows(p => ({...p, [row.yr]: {...p[row.yr], points: e.target.value}}))} disabled={carriereValidee} style={{ width: 72, textAlign: "center", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 13, padding: "1px 4px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 700 }} />
+                                            <input type="text" value={cnavplRows[row.yr]?.points || ""} onChange={e => setCnavplRows(p => ({...p, [row.yr]: {...p[row.yr], points: e.target.value}}))} disabled={carriereValidee} style={{ width: 72, textAlign: "center", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 15, padding: "1px 4px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 700 }} />
                                           </td>
                                           <td style={{ padding: "3px 5px", textAlign: "center", animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>
-                                            <input type="text" value={cnavplRows[row.yr]?.pointsCompl || ""} onChange={e => setCnavplRows(p => ({...p, [row.yr]: {...p[row.yr], pointsCompl: e.target.value}}))} disabled={carriereValidee} style={{ width: 72, textAlign: "center", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 13, padding: "1px 4px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 600 }} />
+                                            <input type="text" value={cnavplRows[row.yr]?.pointsCompl || ""} onChange={e => setCnavplRows(p => ({...p, [row.yr]: {...p[row.yr], pointsCompl: e.target.value}}))} disabled={carriereValidee} style={{ width: 72, textAlign: "center", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 15, padding: "1px 4px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 600 }} />
                                           </td>
                                         </>
                                       ) : (
@@ -2401,7 +2401,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 })}
                                 <tr>
                                   <td colSpan={cnavplOpen ? 18 : 16} style={{ padding: "4px 8px" }}>
-                                    <button onClick={() => setVisibleRowCount(v => Math.min(v + 1, 65))} style={{ fontSize: 12, padding: "3px 10px", borderRadius: 5, border: "1px dashed #bbb", background: "transparent", color: "#555", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                                    <button onClick={() => setVisibleRowCount(v => Math.min(v + 1, 65))} style={{ fontSize: 14, padding: "3px 10px", borderRadius: 5, border: "1px dashed #bbb", background: "transparent", color: "#555", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
                                       <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> Ajouter une année ({carriereRows[visibleRowCount] ? carriereRows[visibleRowCount].yr : "—"})
                                     </button>
                                   </td>
@@ -2409,19 +2409,19 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               </tbody>
                               <tfoot>
                                 <tr style={{ background: "#f0f0f0", fontWeight: 700, borderTop: "2px solid #ddd" }}>
-                                  <td style={{ padding: "5px 5px", fontSize: 13, color: "#333" }}>∑</td>
+                                  <td style={{ padding: "5px 5px", fontSize: 15, color: "#333" }}>∑</td>
                                   <td style={{ borderLeft: "1px solid #eee" }}></td>
-                                  <td colSpan={3} style={{ padding: "5px 5px", textAlign: "right", fontSize: 13, color: "#6C5CE7", borderLeft: "2px solid #6C5CE715" }}>
-                                    <button onClick={() => setSamOpen(v => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13, color: "#6C5CE7", padding: 0 }}>
-                                      <span style={{ fontSize: 8, display: "inline-block", transform: samOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>▶</span>
+                                  <td colSpan={3} style={{ padding: "5px 5px", textAlign: "right", fontSize: 15, color: "#6C5CE7", borderLeft: "2px solid #6C5CE715" }}>
+                                    <button onClick={() => setSamOpen(v => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 15, color: "#6C5CE7", padding: 0 }}>
+                                      <span style={{ fontSize: 10, display: "inline-block", transform: samOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>▶</span>
                                       SAM : {samVal ? samVal.toLocaleString("fr-FR") + " €" : "—"}
                                     </button>
                                   </td>
                                   <td></td>
-                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#6C5CE7" }}>{totalCotTbl || "—"}</td>
-                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#6C5CE7" }}>{totalAssTbl || "—"}</td>
-                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#6C5CE7" }}>{totalArTbl || "—"}</td>
-                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#6C5CE7", fontWeight: 800 }}>{totalTrimTbl || "—"}</td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 15, color: "#6C5CE7" }}>{totalCotTbl || "—"}</td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 15, color: "#6C5CE7" }}>{totalAssTbl || "—"}</td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 15, color: "#6C5CE7" }}>{totalArTbl || "—"}</td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 15, color: "#6C5CE7", fontWeight: 800 }}>{totalTrimTbl || "—"}</td>
                                   {(() => {
                                     const visRows = carriereRows.slice(0, visibleRowCount);
                                     const totalT1 = parseFloat(visRows.reduce((s, r) => s + (r.agircT1 ?? 0), 0).toFixed(2));
@@ -2429,18 +2429,18 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                     const totalPts = parseFloat(visRows.reduce((s, r) => s + (r.agircPts || 0), 0).toFixed(2));
                                     return (
                                       <>
-                                        <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#0984E3", borderLeft: "2px solid #0984E315", fontWeight: 700 }}>{totalT1 ? totalT1.toLocaleString("fr-FR") : "—"}</td>
-                                        <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#0984E3", fontWeight: 700 }}>{totalT2 ? totalT2.toLocaleString("fr-FR") : "—"}</td>
-                                        <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#1a1a2e", fontWeight: 800 }}>{totalPts ? totalPts.toLocaleString("fr-FR") : "—"}</td>
+                                        <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 15, color: "#0984E3", borderLeft: "2px solid #0984E315", fontWeight: 700 }}>{totalT1 ? totalT1.toLocaleString("fr-FR") : "—"}</td>
+                                        <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 15, color: "#0984E3", fontWeight: 700 }}>{totalT2 ? totalT2.toLocaleString("fr-FR") : "—"}</td>
+                                        <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 15, color: "#1a1a2e", fontWeight: 800 }}>{totalPts ? totalPts.toLocaleString("fr-FR") : "—"}</td>
                                       </>
                                     );
                                   })()}
-                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#00B894", borderLeft: "2px solid #00B89415", fontWeight: 700 }}>{carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (r.ircPts || 0), 0) || "—"}</td>
-                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 13, color: "#E17055", borderLeft: "2px solid #E1705515", fontWeight: 700 }}>{carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (r.rciPts || 0), 0) || "—"}</td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 15, color: "#00B894", borderLeft: "2px solid #00B89415", fontWeight: 700 }}>{carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (r.ircPts || 0), 0) || "—"}</td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 15, color: "#E17055", borderLeft: "2px solid #E1705515", fontWeight: 700 }}>{carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (r.rciPts || 0), 0) || "—"}</td>
                                   {cnavplOpen ? (
                                     <>
-                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#9B59B6", borderLeft: "2px solid #9B59B630", fontWeight: 800, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>{(total => total ? total.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : "—")(carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (parseFloat(cnavplRows[r.yr]?.points) || 0), 0))}</td>
-                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 10, color: "#9B59B6", fontWeight: 800, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>{(total => total ? total.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : "—")(carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (parseFloat(cnavplRows[r.yr]?.pointsCompl) || 0), 0))}</td>
+                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 12, color: "#9B59B6", borderLeft: "2px solid #9B59B630", fontWeight: 800, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>{(total => total ? total.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : "—")(carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (parseFloat(cnavplRows[r.yr]?.points) || 0), 0))}</td>
+                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 12, color: "#9B59B6", fontWeight: 800, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>{(total => total ? total.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : "—")(carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (parseFloat(cnavplRows[r.yr]?.pointsCompl) || 0), 0))}</td>
                                     </>
                                   ) : (
                                     <td style={{ padding: "5px 5px", width: 24, borderLeft: "2px solid #9B59B630" }}></td>
@@ -2450,8 +2450,8 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                   <tr>
                                     <td colSpan={cnavplOpen ? 18 : 16} style={{ padding: 0, background: "#fff" }}>
                                       <div style={{ padding: "10px 14px", borderTop: "1px solid #6C5CE720" }}>
-                                        <div style={{ fontSize: 10, fontWeight: 700, color: "#6C5CE7", marginBottom: 8 }}>📊 25 meilleures années retenues — salaires revalorisés</div>
-                                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}>
+                                        <div style={{ fontSize: 12, fontWeight: 700, color: "#6C5CE7", marginBottom: 8 }}>📊 25 meilleures années retenues — salaires revalorisés</div>
+                                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                                           <thead>
                                             <tr style={{ background: "#6C5CE708" }}>
                                               {["Rang", "Année", "Sal. brut", "Coeff. revalo.", "Sal. CNAV revalorisé"].map(h => (
@@ -2473,7 +2473,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                           <tfoot>
                                             <tr style={{ background: "#6C5CE708", borderTop: "2px solid #6C5CE720" }}>
                                               <td colSpan={4} style={{ padding: "5px 8px", fontWeight: 700, color: "#6C5CE7" }}>SAM — moyenne des 25 meilleures années CNAV revalorisées</td>
-                                              <td style={{ padding: "5px 8px", textAlign: "right", fontWeight: 800, fontSize: 11, color: "#6C5CE7" }}>{samVal ? samVal.toLocaleString("fr-FR") + " €" : "—"}</td>
+                                              <td style={{ padding: "5px 8px", textAlign: "right", fontWeight: 800, fontSize: 13, color: "#6C5CE7" }}>{samVal ? samVal.toLocaleString("fr-FR") + " €" : "—"}</td>
                                             </tr>
                                           </tfoot>
                                         </table>
@@ -2489,9 +2489,9 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                           <div style={{ marginTop: 12, borderTop: "1px solid #f0f0f0", paddingTop: 10 }}>
                             <button onClick={() => setAccordeonsVisible(v => !v)}
                               style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", padding: "2px 0", width: "100%" }}>
-                              <span style={{ fontSize: 9, color: "#666", display: "inline-block", transform: accordeonsVisible ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>▶</span>
-                              <span style={{ fontSize: 10, color: "#555", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase" }}>Détail par régime</span>
-                              {/* <span style={{ fontSize: 9, color: "#ddd", marginLeft: 4 }}>— CNAV · AGIRC-ARRCO · Ircantec · RCI · CNAV PL · PER</span> */}
+                              <span style={{ fontSize: 11, color: "#666", display: "inline-block", transform: accordeonsVisible ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>▶</span>
+                              <span style={{ fontSize: 12, color: "#555", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase" }}>Détail par régime</span>
+                              {/* <span style={{ fontSize: 11, color: "#ddd", marginLeft: 4 }}>— CNAV · AGIRC-ARRCO · Ircantec · RCI · CNAV PL · PER</span> */}
                             </button>
                           </div>
                           {accordeonsVisible && (
@@ -2512,16 +2512,16 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: isOpen ? `${reg.color}06` : "#fafafa", border: "none", cursor: "pointer" }}>
                                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                         <span style={{ fontSize: 16 }}>{reg.icon}</span>
-                                        <span style={{ fontSize: 12, fontWeight: 700, color: reg.color }}>{reg.label}</span>
+                                        <span style={{ fontSize: 14, fontWeight: 700, color: reg.color }}>{reg.label}</span>
                                       </div>
-                                      <span style={{ fontSize: 11, color: reg.color, transform: isOpen ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 0.15s" }}>▼</span>
+                                      <span style={{ fontSize: 13, color: reg.color, transform: isOpen ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 0.15s" }}>▼</span>
                                     </button>
                                     {isOpen && (
                                       <div style={{ padding: "14px 16px", background: "#fff" }}>
                                         {/* ── CNAV PL : table contrôlée pré-remplie ── */}
                                         {reg.id === "cnavpl_acc" ? (
                                           <div style={{ overflowX: "auto" }}>
-                                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}>
+                                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                                               <thead>
                                                 <tr style={{ background: `${reg.color}08` }}>
                                                   <th style={{ padding: "4px 8px", textAlign: "left", fontWeight: 700, color: reg.color, borderBottom: `1px solid ${reg.color}20` }}>Année</th>
@@ -2545,7 +2545,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                                           value={val}
                                                           disabled={carriereValidee}
                                                           onChange={e => setCnavplRows(prev => ({ ...prev, [parseInt(yr,10)]: { ...prev[parseInt(yr,10)], [key]: e.target.value } }))}
-                                                          style={{ width: 70, textAlign: "right", border: `1px solid ${val ? reg.color + "60" : reg.color + "30"}`, borderRadius: 3, fontSize: 10, padding: "1px 4px", color: reg.color, fontWeight: 600, background: carriereValidee ? "#fafafa" : val ? `${reg.color}06` : "#fff" }}
+                                                          style={{ width: 70, textAlign: "right", border: `1px solid ${val ? reg.color + "60" : reg.color + "30"}`, borderRadius: 3, fontSize: 12, padding: "1px 4px", color: reg.color, fontWeight: 600, background: carriereValidee ? "#fafafa" : val ? `${reg.color}06` : "#fff" }}
                                                         />
                                                       </td>
                                                     ))}
@@ -2565,16 +2565,16 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                                 ].map(({ label, value }) => (
                                                   <div key={label} style={{ background: "#6C5CE708", border: "1px solid #6C5CE730", borderRadius: 7, padding: "8px 14px", textAlign: "center" }}>
                                                     <div style={{ fontSize: 18, fontWeight: 800, color: "#6C5CE7" }}>{value}</div>
-                                                    <div style={{ fontSize: 9, color: "#555", marginTop: 2 }}>{label}</div>
+                                                    <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>{label}</div>
                                                   </div>
                                                 ))}
                                               </div>
-                                              <div style={{ fontSize: 10, color: "#888", marginTop: 2 }}>
+                                              <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>
                                                 💡 Salaires et trimestres chargés dans le tableau carrière ci-dessus.
                                               </div>
                                             </div>
                                           ) : (
-                                            <div style={{ fontSize: 11, color: "#555" }}><em>Données CNAV — à compléter / importer depuis le RIS.</em></div>
+                                            <div style={{ fontSize: 13, color: "#555" }}><em>Données CNAV — à compléter / importer depuis le RIS.</em></div>
                                           )
                                         ) : reg.id === "agirc_acc" ? (
                                           /* ── AGIRC-ARRCO : total extrait ── */
@@ -2584,15 +2584,15 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                                 <span style={{ fontSize: 22, fontWeight: 800, color: "#0984E3" }}>
                                                   {(droitsSynthese.agirc_arrco.points_total ?? 0).toLocaleString("fr-FR")}
                                                 </span>
-                                                <span style={{ fontSize: 11, color: "#0984E3", fontWeight: 600 }}>pts</span>
-                                                <span style={{ fontSize: 9, color: "#888", marginLeft: 4 }}>total extrait du RIS</span>
+                                                <span style={{ fontSize: 13, color: "#0984E3", fontWeight: 600 }}>pts</span>
+                                                <span style={{ fontSize: 11, color: "#888", marginLeft: 4 }}>total extrait du RIS</span>
                                               </div>
-                                              <div style={{ fontSize: 10, color: "#888" }}>
+                                              <div style={{ fontSize: 12, color: "#888" }}>
                                                 💡 Détail annuel disponible après le calcul par script.
                                               </div>
                                             </div>
                                           ) : (
-                                            <div style={{ fontSize: 11, color: "#555" }}><em>Données AGIRC-ARRCO — à compléter / importer depuis le RIS.</em></div>
+                                            <div style={{ fontSize: 13, color: "#555" }}><em>Données AGIRC-ARRCO — à compléter / importer depuis le RIS.</em></div>
                                           )
                                         ) : reg.id === "irc_acc" ? (
                                           /* ── IRCANTEC ── */
@@ -2600,17 +2600,17 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                             droitsSynthese.ircantec.points_total > 0 ? (
                                               <div style={{ display: "inline-flex", alignItems: "baseline", gap: 6, background: "#00B89408", border: "1px solid #00B89430", borderRadius: 7, padding: "10px 16px" }}>
                                                 <span style={{ fontSize: 22, fontWeight: 800, color: "#00B894" }}>{droitsSynthese.ircantec.points_total.toLocaleString("fr-FR")}</span>
-                                                <span style={{ fontSize: 11, color: "#00B894", fontWeight: 600 }}>pts</span>
-                                                <span style={{ fontSize: 9, color: "#888", marginLeft: 4 }}>total extrait du RIS</span>
+                                                <span style={{ fontSize: 13, color: "#00B894", fontWeight: 600 }}>pts</span>
+                                                <span style={{ fontSize: 11, color: "#888", marginLeft: 4 }}>total extrait du RIS</span>
                                               </div>
                                             ) : (
-                                              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "#888" }}>
+                                              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#888" }}>
                                                 <span style={{ fontSize: 14 }}>✅</span>
                                                 <em>Non concerné d'après le RIS (0 pt IRCANTEC)</em>
                                               </div>
                                             )
                                           ) : (
-                                            <div style={{ fontSize: 11, color: "#555" }}><em>Données IRCANTEC — à compléter / importer depuis le RIS.</em></div>
+                                            <div style={{ fontSize: 13, color: "#555" }}><em>Données IRCANTEC — à compléter / importer depuis le RIS.</em></div>
                                           )
                                         ) : reg.id === "rci_acc" ? (
                                           /* ── RCI / SSI ── */
@@ -2618,21 +2618,21 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                             droitsSynthese.rci.points_total > 0 ? (
                                               <div style={{ display: "inline-flex", alignItems: "baseline", gap: 6, background: "#E1705508", border: "1px solid #E1705530", borderRadius: 7, padding: "10px 16px" }}>
                                                 <span style={{ fontSize: 22, fontWeight: 800, color: "#E17055" }}>{droitsSynthese.rci.points_total.toLocaleString("fr-FR")}</span>
-                                                <span style={{ fontSize: 11, color: "#E17055", fontWeight: 600 }}>pts</span>
-                                                <span style={{ fontSize: 9, color: "#888", marginLeft: 4 }}>total extrait du RIS</span>
+                                                <span style={{ fontSize: 13, color: "#E17055", fontWeight: 600 }}>pts</span>
+                                                <span style={{ fontSize: 11, color: "#888", marginLeft: 4 }}>total extrait du RIS</span>
                                               </div>
                                             ) : (
-                                              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "#888" }}>
+                                              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#888" }}>
                                                 <span style={{ fontSize: 14 }}>✅</span>
                                                 <em>Non concerné d'après le RIS (0 pt RCI / SSI)</em>
                                               </div>
                                             )
                                           ) : (
-                                            <div style={{ fontSize: 11, color: "#555" }}><em>Données RCI / SSI — à compléter / importer depuis le RIS.</em></div>
+                                            <div style={{ fontSize: 13, color: "#555" }}><em>Données RCI / SSI — à compléter / importer depuis le RIS.</em></div>
                                           )
                                         ) : (
                                           /* ── Autres (PER) : placeholder ── */
-                                          <div style={{ fontSize: 11, color: "#555" }}><em>Données {reg.label} — à compléter / importer depuis le RIS.</em></div>
+                                          <div style={{ fontSize: 13, color: "#555" }}><em>Données {reg.label} — à compléter / importer depuis le RIS.</em></div>
                                         )}
                                       </div>
                                     )}
@@ -2648,7 +2648,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               onClick={handleGeler}
                               disabled={carriereValidee || frozenLoading || isCarriereEmpty}
                               title={isCarriereEmpty && !carriereValidee ? "Remplissez au moins une ligne de carrière" : ""}
-                              style={{ flex: 1, padding: "8px 0", borderRadius: 7, border: "none", background: carriereValidee ? "#00B894" : frozenLoading ? "#aaa" : isCarriereEmpty ? "#ccc" : "#E17055", color: "#fff", fontWeight: 700, fontSize: 11, cursor: (carriereValidee || frozenLoading || isCarriereEmpty) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                              style={{ flex: 1, padding: "8px 0", borderRadius: 7, border: "none", background: carriereValidee ? "#00B894" : frozenLoading ? "#aaa" : isCarriereEmpty ? "#ccc" : "#E17055", color: "#fff", fontWeight: 700, fontSize: 13, cursor: (carriereValidee || frozenLoading || isCarriereEmpty) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                               {carriereValidee ? "🔒 Données gelées" : frozenLoading ? "⏳ Gel en cours…" : isCarriereEmpty ? "📝 Carrière vide" : "🔒 Geler & Calculer"}
                             </button>
                             <button
@@ -2660,7 +2660,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 setCarriereValidee(false);
                               }}
                               disabled={!carriereValidee}
-                              style={{ padding: "8px 14px", borderRadius: 7, border: "1px solid #ddd", background: "#fafafa", color: carriereValidee ? "#E17055" : "#bbb", fontSize: 11, cursor: carriereValidee ? "pointer" : "default", fontWeight: carriereValidee ? 600 : 400 }}>
+                              style={{ padding: "8px 14px", borderRadius: 7, border: "1px solid #ddd", background: "#fafafa", color: carriereValidee ? "#E17055" : "#bbb", fontSize: 13, cursor: carriereValidee ? "pointer" : "default", fontWeight: carriereValidee ? 600 : 400 }}>
                               ↺ Déverrouiller
                             </button>
                           </div>
@@ -2678,7 +2678,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                             <span style={{ fontSize: 18 }}>{panel.icon}</span>
                             <span style={{ fontSize: 14, fontWeight: 700, color: panel.color }}>{panel.label}</span>
-                            <span style={{ fontSize: 10, color: "#555" }}>— Activez les dispositifs, l'IA calcule les dates</span>
+                            <span style={{ fontSize: 12, color: "#555" }}>— Activez les dispositifs, l'IA calcule les dates</span>
                             {analyserTousVisible && (
                               <button
                                 onClick={() => {
@@ -2688,7 +2688,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                   });
                                 }}
                                 disabled={analyserTousDisabled}
-                                style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 6, border: "none", background: analyserTousDisabled ? "#ccc" : panel.color, color: "#fff", fontWeight: 700, fontSize: 10, cursor: analyserTousDisabled ? "not-allowed" : "pointer", opacity: analyserTousDisabled ? 0.6 : 1, whiteSpace: "nowrap" }}
+                                style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 6, border: "none", background: analyserTousDisabled ? "#ccc" : panel.color, color: "#fff", fontWeight: 700, fontSize: 12, cursor: analyserTousDisabled ? "not-allowed" : "pointer", opacity: analyserTousDisabled ? 0.6 : 1, whiteSpace: "nowrap" }}
                               >
                                 {analyserTousLoading ? (
                                   <><span style={{ display: "inline-block", width: 9, height: 9, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> Analyse en cours...</>
@@ -2696,7 +2696,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               </button>
                             )}
                           </div>
-                          <div style={{ fontSize: 11, color: "#555", marginBottom: 14 }}>{panel.desc}</div>
+                          <div style={{ fontSize: 13, color: "#555", marginBottom: 14 }}>{panel.desc}</div>
 
                           <div className="simu-action-grid">
                             {panel.actions.map((action) => {
@@ -2712,23 +2712,23 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               return (
                                 <div key={action.id}>
                                   <button onClick={() => { if (ok) toggleDispositif(action.id); }} style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 11px", borderRadius: 8, border: `2px solid ${isActivated ? panel.color : ok ? "#e8e8e8" : "#f0f0f0"}`, background: isActivated ? `${panel.color}12` : ok ? "#fafafa" : "#f8f8f8", cursor: ok ? "pointer" : "not-allowed", textAlign: "left", opacity: ok ? 1 : 0.45, transition: "all 0.12s", position: "relative", width: "100%", flex: 1 }}>
-                                    <div style={{ width: 20, height: 20, borderRadius: 5, border: `2px solid ${isActivated ? panel.color : "#ccc"}`, background: isActivated ? panel.color : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 11, color: "#fff" }}>
+                                    <div style={{ width: 20, height: 20, borderRadius: 5, border: `2px solid ${isActivated ? panel.color : "#ccc"}`, background: isActivated ? panel.color : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 13, color: "#fff" }}>
                                       {isActivated && "✓"}
                                     </div>
                                     <span style={{ fontSize: 15, flexShrink: 0 }}>{action.icon}</span>
                                     <div style={{ minWidth: 0, flex: 1 }}>
                                       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                                        <div style={{ fontSize: 11, fontWeight: isActivated ? 700 : 600, color: isActivated ? panel.color : ok ? "#333" : "#999" }}>{action.label}</div>
+                                        <div style={{ fontSize: 13, fontWeight: isActivated ? 700 : 600, color: isActivated ? panel.color : ok ? "#333" : "#999" }}>{action.label}</div>
                                         {isDetected && ok && (
-                                          <span title={detectedReason} style={{ fontSize: 8, padding: "1px 5px", borderRadius: 4, background: isActivated ? "#F9A825" : "#F9A825", color: "#fff", fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>💡 Détecté</span>
+                                          <span title={detectedReason} style={{ fontSize: 10, padding: "1px 5px", borderRadius: 4, background: isActivated ? "#F9A825" : "#F9A825", color: "#fff", fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>💡 Détecté</span>
                                         )}
                                       </div>
-                                      <div style={{ fontSize: 9, color: "#555" }}>{action.desc}</div>
+                                      <div style={{ fontSize: 11, color: "#555" }}>{action.desc}</div>
                                       {isDetected && detectedReason && (
-                                        <div style={{ fontSize: 8, color: "#F9A825", marginTop: 1, fontStyle: "italic" }}>{detectedReason}</div>
+                                        <div style={{ fontSize: 10, color: "#F9A825", marginTop: 1, fontStyle: "italic" }}>{detectedReason}</div>
                                       )}
-                                      {action.generates_date && <div style={{ fontSize: 8, color: "#0984E3", marginTop: 1 }}>📅 Génère une date de simulation</div>}
-                                      {!ok && <div style={{ fontSize: 8, color: "#D63031", marginTop: 1 }}>⚠ Manque : {miss.map((m) => DOC_TYPES.find((d) => d.id === m)?.label).join(", ")}</div>}
+                                      {action.generates_date && <div style={{ fontSize: 10, color: "#0984E3", marginTop: 1 }}>📅 Génère une date de simulation</div>}
+                                      {!ok && <div style={{ fontSize: 10, color: "#D63031", marginTop: 1 }}>⚠ Manque : {miss.map((m) => DOC_TYPES.find((d) => d.id === m)?.label).join(", ")}</div>}
                                     </div>
                                   </button>
 
@@ -2737,7 +2737,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       <button
                                         onClick={(e) => { e.stopPropagation(); handleScenarioSkillExecute(skillCode, inputValues[action.id] ? { input: inputValues[action.id] } : {}); }}
                                         disabled={isSkillRunning || !carriereValidee}
-                                        style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 5, border: "none", background: isSkillRunning || !carriereValidee ? "#ccc" : panel.color, color: "#fff", fontWeight: 700, fontSize: 10, cursor: isSkillRunning || !carriereValidee ? "not-allowed" : "pointer", opacity: isSkillRunning || !carriereValidee ? 0.6 : 1, width: "100%" }}
+                                        style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 5, border: "none", background: isSkillRunning || !carriereValidee ? "#ccc" : panel.color, color: "#fff", fontWeight: 700, fontSize: 12, cursor: isSkillRunning || !carriereValidee ? "not-allowed" : "pointer", opacity: isSkillRunning || !carriereValidee ? 0.6 : 1, width: "100%" }}
                                       >
                                         {isSkillRunning ? (
                                           <>
@@ -2748,7 +2748,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       </button>
 
                                       {skillErrorMsg && (
-                                        <div style={{ marginTop: 6, padding: "7px 10px", background: "#D6303110", border: "1px solid #D63031", borderRadius: 5, fontSize: 10, color: "#D63031" }}>
+                                        <div style={{ marginTop: 6, padding: "7px 10px", background: "#D6303110", border: "1px solid #D63031", borderRadius: 5, fontSize: 12, color: "#D63031" }}>
                                           ⚠ {skillErrorMsg}
                                         </div>
                                       )}
@@ -2759,72 +2759,72 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                         const borderWidth = skillResultData.eligible ? "1px" : "2px";
                                         return (
                                           <div style={{ marginTop: 6, padding: "10px 12px", background: bgColor, border: `${borderWidth} solid ${color}`, borderRadius: 6 }}>
-                                            <div style={{ fontSize: 11, fontWeight: 700, color, marginBottom: 4 }}>
+                                            <div style={{ fontSize: 12, fontWeight: 700, color, marginBottom: 4 }}>
                                               {skillResultData.eligible ? "✓ Éligible" : "✗ Non éligible"}
                                             </div>
                                             {skillResultData.raison_eligibilite && (
-                                              <div style={{ fontSize: 10, color: "#333", marginBottom: 6 }}>{skillResultData.raison_eligibilite}</div>
+                                              <div style={{ fontSize: 11, color: "#333", marginBottom: 5 }}>{skillResultData.raison_eligibilite}</div>
                                             )}
                                             {skillCode === "RACL" && skillResultData.eligible && (
-                                              <div style={{ marginBottom: 6 }}>
+                                              <div style={{ marginBottom: 4 }}>
                                                 {skillResultData.age_depart_possible != null && (
-                                                  <div style={{ fontSize: 11, fontWeight: 700, color, marginBottom: 2 }}>
+                                                  <div style={{ fontSize: 12, fontWeight: 700, color, marginBottom: 2 }}>
                                                     🗓 Départ possible à {skillResultData.age_depart_possible} ans
                                                     {skillResultData.date_depart_estimee ? ` — ${skillResultData.date_depart_estimee}` : ""}
                                                   </div>
                                                 )}
                                                 {skillResultData.palier?.libelle && (
-                                                  <div style={{ fontSize: 10, color: "#555", marginBottom: 2 }}>Palier : {skillResultData.palier.libelle}</div>
+                                                  <div style={{ fontSize: 11, color: "#555", marginBottom: 2 }}>Palier : {skillResultData.palier.libelle}</div>
                                                 )}
                                               </div>
                                             )}
                                             {skillCode === "RACL" && !skillResultData.eligible && skillResultData.manquants > 0 && (
-                                              <div style={{ fontSize: 10, color: "#C0392B", marginBottom: 6 }}>
+                                              <div style={{ fontSize: 11, color: "#C0392B", marginBottom: 4 }}>
                                                 ⏳ {skillResultData.manquants} trimestre{skillResultData.manquants > 1 ? "s" : ""} cotisé{skillResultData.manquants > 1 ? "s" : ""} manquant{skillResultData.manquants > 1 ? "s" : ""}
                                               </div>
                                             )}
                                             {skillCode === "COTISATIONS_MIN" && skillResultData.tns_result && (
-                                              <div style={{ marginBottom: 6 }}>
+                                              <div style={{ marginBottom: 4 }}>
                                                 {skillResultData.tns_result.regime_tns && (
-                                                  <div style={{ fontSize: 10, color: "#555", marginBottom: 2 }}>
+                                                  <div style={{ fontSize: 11, color: "#555", marginBottom: 2 }}>
                                                     Régime : <strong>{skillResultData.tns_result.regime_tns}</strong> · {skillResultData.tns_result.nb_annees_tns} an{skillResultData.tns_result.nb_annees_tns > 1 ? "s" : ""} d'activité
                                                   </div>
                                                 )}
                                                 {skillResultData.tns_result.pension_complementaire_mensuelle > 0 && (
-                                                  <div style={{ fontSize: 11, fontWeight: 700, color, marginBottom: 2 }}>
-                                                    💰 Pension complémentaire estimée : {skillResultData.tns_result.pension_complementaire_mensuelle.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €/mois
+                                                  <div style={{ fontSize: 12, fontWeight: 700, color, marginBottom: 2 }}>
+                                                    💰 Pension : {skillResultData.tns_result.pension_complementaire_mensuelle.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €/mois
                                                   </div>
                                                 )}
                                                 {skillResultData.tns_result.nb_annees_incompletes > 0 && (
-                                                  <div style={{ fontSize: 10, color: "#E17055", marginBottom: 2 }}>
-                                                    ⚠ {skillResultData.tns_result.nb_annees_incompletes} année{skillResultData.tns_result.nb_annees_incompletes > 1 ? "s" : ""} incomplète{skillResultData.tns_result.nb_annees_incompletes > 1 ? "s" : ""} · {skillResultData.tns_result.total_trimestres_manquants} trim. potentiellement perdus
+                                                  <div style={{ fontSize: 11, color: "#E17055", marginBottom: 2 }}>
+                                                    ⚠ {skillResultData.tns_result.nb_annees_incompletes} année{skillResultData.tns_result.nb_annees_incompletes > 1 ? "s" : ""} incomplète{skillResultData.tns_result.nb_annees_incompletes > 1 ? "s" : ""} · {skillResultData.tns_result.total_trimestres_manquants} trim. perdus
                                                   </div>
                                                 )}
                                               </div>
                                             )}
                                             {skillResultData.impact?.gain_mensuel > 0 && (
-                                              <div style={{ fontSize: 11, fontWeight: 600, color: "#00B894", marginBottom: 4 }}>
-                                                💰 Gain : +{skillResultData.impact.gain_mensuel.toFixed(2)} €/mois ({skillResultData.impact.gain_annuel?.toFixed(0)} €/an)
+                                              <div style={{ fontSize: 12, fontWeight: 600, color: "#00B894", marginBottom: 4 }}>
+                                                💰 +{skillResultData.impact.gain_mensuel.toFixed(2)} €/mois ({skillResultData.impact.gain_annuel?.toFixed(0)} €/an)
                                               </div>
                                             )}
                                             {skillResultData.impact?.trimestres_ajoutes > 0 && (
-                                              <div style={{ fontSize: 10, color: "#555", marginBottom: 4 }}>
-                                                + {skillResultData.impact.trimestres_ajoutes} trimestres ajoutés
+                                              <div style={{ fontSize: 11, color: "#555", marginBottom: 4 }}>
+                                                +{skillResultData.impact.trimestres_ajoutes} trim. assimilés
                                               </div>
                                             )}
                                             {skillResultData.alertes?.length > 0 && (
-                                              <div style={{ marginTop: 5, paddingTop: 5, borderTop: `1px solid ${color}40` }}>
+                                              <div style={{ marginTop: 6, paddingTop: 6, borderTop: `1px solid ${color}40` }}>
                                                 {skillResultData.alertes.map((a, i) => (
-                                                  <div key={i} style={{ fontSize: 9, color: a.niveau === "ROUGE" ? "#D63031" : a.niveau === "ORANGE" ? "#E17055" : "#00B894", marginBottom: 2 }}>
+                                                  <div key={i} style={{ fontSize: 10, color: a.niveau === "ROUGE" ? "#D63031" : a.niveau === "ORANGE" ? "#E17055" : "#00B894", marginBottom: 3 }}>
                                                     <strong>{a.niveau}</strong> — {a.message}
                                                   </div>
                                                 ))}
                                               </div>
                                             )}
                                             {skillResultData.recommandations?.length > 0 && (
-                                              <div style={{ marginTop: 5, fontSize: 9, color: "#555" }}>
+                                              <div style={{ marginTop: 6, fontSize: 10, color: "#555" }}>
                                                 <strong>Recommandations :</strong>
-                                                <ul style={{ margin: "3px 0 0 14px", padding: 0 }}>
+                                                <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
                                                   {skillResultData.recommandations.slice(0, 3).map((r, i) => <li key={i}>{r}</li>)}
                                                 </ul>
                                               </div>
@@ -2842,13 +2842,13 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                           {/* Input fields for activated dispositifs that need them */}
                           {activatedDispositifs.length > 0 && panel.actions.filter(a => a.hasInput && activatedDispositifs.includes(a.id)).length > 0 && (
                             <div style={{ marginTop: 12, padding: "10px 12px", background: "#00B89408", borderRadius: 8, border: "1px solid #00B89420" }}>
-                              <div style={{ fontSize: 10, fontWeight: 700, color: "#00B894", marginBottom: 8 }}>Paramètres des dispositifs activés :</div>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: "#00B894", marginBottom: 8 }}>Paramètres des dispositifs activés :</div>
                               <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
                                 {panel.actions.filter(a => a.hasInput && activatedDispositifs.includes(a.id)).map(a => (
                                   <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                    <span style={{ fontSize: 13 }}>{a.icon}</span>
-                                    <label style={{ fontSize: 10, fontWeight: 600, color: "#555" }}>{a.inputLabel} :</label>
-                                    <input type={a.inputType === "date" ? "date" : "number"} placeholder={a.inputType === "date" ? "" : "Ex: 3"} value={inputValues[a.id] || ""} onChange={(e) => setInputValues({ ...inputValues, [a.id]: e.target.value })} style={{ padding: "4px 7px", borderRadius: 5, border: "1px solid #ccc", fontSize: 11, width: a.inputType === "date" ? 130 : 60, fontFamily: "inherit" }} />
+                                    <span style={{ fontSize: 15 }}>{a.icon}</span>
+                                    <label style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>{a.inputLabel} :</label>
+                                    <input type={a.inputType === "date" ? "date" : "number"} placeholder={a.inputType === "date" ? "" : "Ex: 3"} value={inputValues[a.id] || ""} onChange={(e) => setInputValues({ ...inputValues, [a.id]: e.target.value })} style={{ padding: "4px 7px", borderRadius: 5, border: "1px solid #ccc", fontSize: 13, width: a.inputType === "date" ? 130 : 60, fontFamily: "inherit" }} />
                                   </div>
                                 ))}
                               </div>
@@ -2858,19 +2858,19 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                           {/* ── Bouton maître — Calculer tous les régimes ── */}
                           <div style={{ marginTop: 18, marginBottom: 4 }}>
                             {!carriereValidee && (
-                              <div style={{ marginBottom: 8, fontSize: 10, color: "#E17055", background: "#E1705510", border: "1px solid #E1705530", borderRadius: 6, padding: "7px 12px", display: "flex", alignItems: "center", gap: 6 }}>
+                              <div style={{ marginBottom: 8, fontSize: 12, color: "#E17055", background: "#E1705510", border: "1px solid #E1705530", borderRadius: 6, padding: "7px 12px", display: "flex", alignItems: "center", gap: 6 }}>
                                 <span>⚠</span>
                                 <span>Veuillez valider la carrière avant de lancer les calculs.</span>
                               </div>
                             )}
                             {carriereValidee && isCarriereEmpty && (
-                              <div style={{ marginBottom: 8, fontSize: 10, color: "#D63031", background: "#D6303110", border: "1px solid #D6303130", borderRadius: 6, padding: "7px 12px", display: "flex", alignItems: "center", gap: 6 }}>
+                              <div style={{ marginBottom: 8, fontSize: 12, color: "#D63031", background: "#D6303110", border: "1px solid #D6303130", borderRadius: 6, padding: "7px 12px", display: "flex", alignItems: "center", gap: 6 }}>
                                 <span>🚫</span>
                                 <span>Carrière vide — déverrouillez et renseignez les données avant de calculer.</span>
                               </div>
                             )}
                             {carriereValidee && !isCarriereEmpty && !user?.birth_date && (
-                              <div style={{ marginBottom: 8, fontSize: 10, color: "#D63031", background: "#D6303110", border: "1px solid #D6303130", borderRadius: 6, padding: "7px 12px", display: "flex", alignItems: "center", gap: 6 }}>
+                              <div style={{ marginBottom: 8, fontSize: 12, color: "#D63031", background: "#D6303110", border: "1px solid #D6303130", borderRadius: 6, padding: "7px 12px", display: "flex", alignItems: "center", gap: 6 }}>
                                 <span>🚫</span>
                                 <span>Date de naissance manquante dans le profil client.</span>
                               </div>
@@ -2879,7 +2879,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               onClick={handleCalculateAllRegimes}
                               disabled={!carriereValidee || isCalculatingAll || isCarriereEmpty || !user?.birth_date}
                               title={!carriereValidee ? "Validez d'abord la carrière" : isCarriereEmpty ? "Carrière vide" : !user?.birth_date ? "Date de naissance manquante" : "Lancer le calcul simultané des 5 régimes"}
-                              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", padding: "12px 20px", borderRadius: 8, border: "none", background: carriereValidee && !isCalculatingAll && !isCarriereEmpty && user?.birth_date ? "linear-gradient(135deg, #6C5CE7 0%, #0984E3 100%)" : "#ccc", color: "#fff", fontWeight: 700, fontSize: 13, cursor: carriereValidee && !isCalculatingAll && !isCarriereEmpty && user?.birth_date ? "pointer" : "not-allowed", boxShadow: carriereValidee && !isCalculatingAll && !isCarriereEmpty && user?.birth_date ? "0 4px 14px rgba(108,92,231,0.35)" : "none", transition: "all 0.2s" }}
+                              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", padding: "12px 20px", borderRadius: 8, border: "none", background: carriereValidee && !isCalculatingAll && !isCarriereEmpty && user?.birth_date ? "linear-gradient(135deg, #6C5CE7 0%, #0984E3 100%)" : "#ccc", color: "#fff", fontWeight: 700, fontSize: 15, cursor: carriereValidee && !isCalculatingAll && !isCarriereEmpty && user?.birth_date ? "pointer" : "not-allowed", boxShadow: carriereValidee && !isCalculatingAll && !isCarriereEmpty && user?.birth_date ? "0 4px 14px rgba(108,92,231,0.35)" : "none", transition: "all 0.2s" }}
                             >
                               {isCalculatingAll ? (
                                 <>
@@ -2899,19 +2899,19 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                           <div style={{ marginTop: 18, padding: "12px 14px", background: carriereValidee ? "#f0fdf9" : "#fafafa", borderRadius: 9, border: `1px solid ${carriereValidee ? "#00B89430" : "#e8e8e8"}` }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                               <span style={{ fontSize: 16 }}>🧮</span>
-                              <span style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>Calcul pension CNAV</span>
+                              <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>Calcul pension CNAV</span>
                               {!carriereValidee && (
-                                <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
+                                <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
                               )}
                             </div>
                             {skillLoading && (
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#6C5CE7" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#6C5CE7" }}>
                                 <span style={{ display: "inline-block", width: 10, height: 10, border: "2px solid #6C5CE740", borderTop: "2px solid #6C5CE7", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
                                 Calcul CNAV en cours…
                               </div>
                             )}
                             {skillError && (
-                              <div style={{ marginTop: 8, fontSize: 10, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
+                              <div style={{ marginTop: 8, fontSize: 12, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
                                 ⚠ {skillError}
                               </div>
                             )}
@@ -2925,14 +2925,14 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                   <div style={{ borderRadius: 8, background: "#D6303108", border: "1px solid #D6303130", overflow: "hidden" }}>
                                     <div style={{ padding: "11px 14px 10px", borderBottom: "1px solid #D6303120" }}>
                                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                                        <span style={{ fontSize: 12 }}>🚫</span>
-                                        <span style={{ fontSize: 10, fontWeight: 700, color: "#D63031", letterSpacing: "0.06em", textTransform: "uppercase" }}>Arrêt critique</span>
+                                        <span style={{ fontSize: 14 }}>🚫</span>
+                                        <span style={{ fontSize: 12, fontWeight: 700, color: "#D63031", letterSpacing: "0.06em", textTransform: "uppercase" }}>Arrêt critique</span>
                                       </div>
-                                      <div style={{ fontSize: 12, color: "#D63031", lineHeight: 1.5 }}>
+                                      <div style={{ fontSize: 14, color: "#D63031", lineHeight: 1.5 }}>
                                         {skillResult.arret_critique.raison || (typeof skillResult.arret_critique === 'string' ? skillResult.arret_critique : JSON.stringify(skillResult.arret_critique))}
                                       </div>
                                       {skillResult.arret_critique.action_requise && (
-                                        <div style={{ marginTop: 7, paddingTop: 7, borderTop: "1px solid #D6303118", fontSize: 10, color: "#b71c1c", lineHeight: 1.4 }}>
+                                        <div style={{ marginTop: 7, paddingTop: 7, borderTop: "1px solid #D6303118", fontSize: 12, color: "#b71c1c", lineHeight: 1.4 }}>
                                           <span style={{ fontWeight: 600 }}>Action requise —</span> {skillResult.arret_critique.action_requise}
                                         </div>
                                       )}
@@ -2943,8 +2943,8 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                           const c = a.niveau === "ROUGE" ? "#D63031" : a.niveau === "ORANGE" ? "#E17055" : "#F9A825";
                                           return (
                                             <div key={`${a.code}-${i}`} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                                              <span style={{ fontSize: 9, fontWeight: 700, color: c, flexShrink: 0, minWidth: 32 }}>{a.code}</span>
-                                              <span style={{ fontSize: 10, color: "#555", lineHeight: 1.4 }}>{a.message}</span>
+                                              <span style={{ fontSize: 11, fontWeight: 700, color: c, flexShrink: 0, minWidth: 32 }}>{a.code}</span>
+                                              <span style={{ fontSize: 12, color: "#555", lineHeight: 1.4 }}>{a.message}</span>
                                             </div>
                                           );
                                         })}
@@ -2959,31 +2959,31 @@ export default function SimulatorV6({ mode = "production", id, user }) {
 
                                     {/* En-tête */}
                                     <div style={{ padding: "10px 14px 9px", background: "#6C5CE708", borderBottom: "1px solid #6C5CE715", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                                      <span style={{ fontSize: 10, fontWeight: 700, color: "#6C5CE7", textTransform: "uppercase", letterSpacing: "0.07em" }}>Résultat CNAV</span>
-                                      <span style={{ fontSize: 8, fontWeight: 700, color: "#6C5CE7", background: "#6C5CE715", padding: "2px 7px", borderRadius: 3, letterSpacing: "0.08em" }}>CALCUL BRUT</span>
+                                      <span style={{ fontSize: 12, fontWeight: 700, color: "#6C5CE7", textTransform: "uppercase", letterSpacing: "0.07em" }}>Résultat CNAV</span>
+                                      <span style={{ fontSize: 10, fontWeight: 700, color: "#6C5CE7", background: "#6C5CE715", padding: "2px 7px", borderRadius: 3, letterSpacing: "0.08em" }}>CALCUL BRUT</span>
                                     </div>
 
                                     {/* Pensions — hero */}
                                     <div style={{ padding: "12px 14px", borderBottom: "1px solid #f0eeff", display: "flex", flexWrap: "wrap", gap: 10 }}>
                                       <div style={{ flex: "1 1 120px", background: "#6C5CE710", borderRadius: 7, padding: "10px 12px" }}>
-                                        <div style={{ fontSize: 9, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Mensuelle brute</div>
+                                        <div style={{ fontSize: 11, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Mensuelle brute</div>
                                         <div style={{ fontSize: 22, fontWeight: 700, color: "#6C5CE7", lineHeight: 1, letterSpacing: "-0.01em" }}>
                                           {skillResult.python_output.pension_mensuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 2 })}
-                                          <span style={{ fontSize: 13, fontWeight: 600, marginLeft: 3 }}>€</span>
+                                          <span style={{ fontSize: 15, fontWeight: 600, marginLeft: 3 }}>€</span>
                                         </div>
                                       </div>
                                       <div style={{ flex: "1 1 120px", background: "#f8f7ff", borderRadius: 7, padding: "10px 12px" }}>
-                                        <div style={{ fontSize: 9, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Annuelle brute</div>
+                                        <div style={{ fontSize: 11, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Annuelle brute</div>
                                         <div style={{ fontSize: 16, fontWeight: 700, color: "#1a1a2e", lineHeight: 1, letterSpacing: "-0.01em" }}>
                                           {skillResult.python_output.pension_annuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 0 })}
-                                          <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 3, color: "#555" }}>€</span>
+                                          <span style={{ fontSize: 13, fontWeight: 600, marginLeft: 3, color: "#555" }}>€</span>
                                         </div>
                                       </div>
                                     </div>
 
                                     {/* Paramètres */}
                                     <div style={{ padding: "10px 14px 12px" }}>
-                                      <div style={{ fontSize: 9, fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Paramètres de calcul</div>
+                                      <div style={{ fontSize: 11, fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Paramètres de calcul</div>
                                       <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
                                         {[
                                           ["SAM · 25 meilleures années", `${skillResult.python_output.sam?.toLocaleString("fr-FR", { minimumFractionDigits: 0 })} €`],
@@ -2991,8 +2991,8 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                           ["Coefficient de proratisation", skillResult.python_output.coefficient_proratisation?.toFixed(4)],
                                         ].map(([label, val], i) => (
                                           <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: i < 2 ? "1px solid #f4f3ff" : "none" }}>
-                                            <span style={{ fontSize: 10, color: "#666" }}>{label}</span>
-                                            <span style={{ fontSize: 10, fontWeight: 700, color: "#1a1a2e" }}>{val}</span>
+                                            <span style={{ fontSize: 12, color: "#666" }}>{label}</span>
+                                            <span style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>{val}</span>
                                           </div>
                                         ))}
                                       </div>
@@ -3001,14 +3001,14 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                     {/* Alertes */}
                                     {skillResult.alertes && skillResult.alertes.length > 0 && (
                                       <div style={{ padding: "8px 14px 12px", borderTop: "1px solid #f0eeff" }}>
-                                        <div style={{ fontSize: 9, fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 7 }}>Alertes</div>
+                                        <div style={{ fontSize: 11, fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 7 }}>Alertes</div>
                                         <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                                           {skillResult.alertes.map((a, i) => {
                                             const c = a.niveau === "ROUGE" ? "#D63031" : a.niveau === "ORANGE" ? "#E17055" : "#F9A825";
                                             return (
                                               <div key={`${a.code}-${i}`} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "6px 10px", borderRadius: 6, background: `${c}0D`, border: `1px solid ${c}28` }}>
-                                                <span style={{ fontSize: 9, fontWeight: 700, color: c, flexShrink: 0, minWidth: 32 }}>{a.code}</span>
-                                                <span style={{ fontSize: 10, color: "#444", lineHeight: 1.4 }}>{a.message}</span>
+                                                <span style={{ fontSize: 11, fontWeight: 700, color: c, flexShrink: 0, minWidth: 32 }}>{a.code}</span>
+                                                <span style={{ fontSize: 12, color: "#444", lineHeight: 1.4 }}>{a.message}</span>
                                               </div>
                                             );
                                           })}
@@ -3018,7 +3018,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
 
                                     {/* Pied */}
                                     <div style={{ padding: "6px 14px", borderTop: "1px solid #f4f3ff", background: "#faf9ff" }}>
-                                      <span style={{ fontSize: 9, color: "#666" }}>Montants bruts avant prélèvements sociaux (CSG/CRDS 9,2 %)</span>
+                                      <span style={{ fontSize: 11, color: "#666" }}>Montants bruts avant prélèvements sociaux (CSG/CRDS 9,2 %)</span>
                                     </div>
                                   </div>
 
@@ -3030,19 +3030,19 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                           <div style={{ marginTop: 12, padding: "12px 14px", background: carriereValidee ? "#f0f7ff" : "#fafafa", borderRadius: 9, border: `1px solid ${carriereValidee ? "#0984E330" : "#e8e8e8"}` }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                               <span style={{ fontSize: 16 }}>📊</span>
-                              <span style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>Calcul pension AGIRC-ARRCO</span>
+                              <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>Calcul pension AGIRC-ARRCO</span>
                               {!carriereValidee && (
-                                <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
+                                <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
                               )}
                             </div>
                             {agircLoading && (
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#0984E3" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#0984E3" }}>
                                 <span style={{ display: "inline-block", width: 10, height: 10, border: "2px solid #0984E340", borderTop: "2px solid #0984E3", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
                                 Calcul AGIRC-ARRCO en cours…
                               </div>
                             )}
                             {agircError && (
-                              <div style={{ marginTop: 8, fontSize: 10, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
+                              <div style={{ marginTop: 8, fontSize: 12, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
                                 ⚠ {agircError}
                               </div>
                             )}
@@ -3052,12 +3052,12 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               <div style={{ marginTop: 14 }}>
                                 {agircResult.arret_critique && (
                                   <div style={{ marginBottom: 10, padding: "10px 12px", borderRadius: 8, background: "#D6303112", border: "2px solid #D63031" }}>
-                                    <div style={{ fontSize: 11, fontWeight: 700, color: "#D63031", marginBottom: 4 }}>🚫 Arrêt critique</div>
-                                    <div style={{ fontSize: 10, color: "#D63031" }}>{agircResult.arret_critique.raison || (typeof agircResult.arret_critique === 'string' ? agircResult.arret_critique : JSON.stringify(agircResult.arret_critique))}</div>
+                                    <div style={{ fontSize: 13, fontWeight: 700, color: "#D63031", marginBottom: 4 }}>🚫 Arrêt critique</div>
+                                    <div style={{ fontSize: 12, color: "#D63031" }}>{agircResult.arret_critique.raison || (typeof agircResult.arret_critique === 'string' ? agircResult.arret_critique : JSON.stringify(agircResult.arret_critique))}</div>
                                   </div>
                                 )}
                                 <div style={{ background: "#0984E308", border: "1px solid #0984E320", borderRadius: 8, padding: "10px 14px", marginBottom: 10 }}>
-                                  <div style={{ fontSize: 10, fontWeight: 700, color: "#0984E3", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Résultat AGIRC-ARRCO</div>
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: "#0984E3", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Résultat AGIRC-ARRCO</div>
                                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px" }}>
                                     {[
                                       ["Pension mensuelle brute", `${agircResult.python_output.pension_mensuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €`, "#0984E3", true],
@@ -3067,7 +3067,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       ["Valeur de service",       `${(agircResult.python_output.valeur_point ?? agircResult.python_output.valeur_service)} €/pt`, "#888", false],
                                     ].map(([label, val, color, big]) => (
                                       <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #0984E310" }}>
-                                        <span style={{ fontSize: 9, color: "#555" }}>{label}</span>
+                                        <span style={{ fontSize: 11, color: "#555" }}>{label}</span>
                                         <span style={{ fontSize: big ? 13 : 10, fontWeight: 700, color }}>{val}</span>
                                       </div>
                                     ))}
@@ -3075,13 +3075,13 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 </div>
                                 {agircResult.alertes && agircResult.alertes.length > 0 && (
                                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                    <div style={{ fontSize: 10, fontWeight: 700, color: "#555", marginBottom: 2 }}>Alertes</div>
+                                    <div style={{ fontSize: 12, fontWeight: 700, color: "#555", marginBottom: 2 }}>Alertes</div>
                                     {agircResult.alertes.map((a, i) => {
                                       const color = a.niveau === "ROUGE" ? "#D63031" : a.niveau === "JAUNE" ? "#F9A825" : "#00B894";
                                       return (
                                         <div key={`${a.code}-${i}`} style={{ display: "flex", gap: 8, padding: "7px 10px", borderRadius: 6, background: `${color}10`, border: `1px solid ${color}30` }}>
-                                          <span style={{ fontSize: 10, fontWeight: 700, color, flexShrink: 0, minWidth: 36 }}>{a.code}</span>
-                                          <span style={{ fontSize: 10, color: "#333" }}>{a.message?.raison || a.message || (typeof a === 'object' ? a.raison || a.message : a)}</span>
+                                          <span style={{ fontSize: 12, fontWeight: 700, color, flexShrink: 0, minWidth: 36 }}>{a.code}</span>
+                                          <span style={{ fontSize: 12, color: "#333" }}>{a.message?.raison || a.message || (typeof a === 'object' ? a.raison || a.message : a)}</span>
                                         </div>
                                       );
                                     })}
@@ -3095,19 +3095,19 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                           <div style={{ marginTop: 12, padding: "12px 14px", background: carriereValidee ? "#f0fdf9" : "#fafafa", borderRadius: 9, border: `1px solid ${carriereValidee ? "#00B89430" : "#e8e8e8"}` }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                               <span style={{ fontSize: 16 }}>🏢</span>
-                              <span style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>Calcul pension IRCANTEC</span>
+                              <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>Calcul pension IRCANTEC</span>
                               {!carriereValidee && (
-                                <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
+                                <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
                               )}
                             </div>
                             {ircantecLoading && (
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#00B894" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#00B894" }}>
                                 <span style={{ display: "inline-block", width: 10, height: 10, border: "2px solid #00B89440", borderTop: "2px solid #00B894", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
                                 Calcul IRCANTEC en cours…
                               </div>
                             )}
                             {ircantecError && (
-                              <div style={{ marginTop: 8, fontSize: 10, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
+                              <div style={{ marginTop: 8, fontSize: 12, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
                                 ⚠ {ircantecError}
                               </div>
                             )}
@@ -3115,14 +3115,14 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                             {ircantecResult && ircantecResult.python_output && (
                               <div style={{ marginTop: 14 }}>
                                 <div style={{ background: "#00B89408", border: "1px solid #00B89420", borderRadius: 8, padding: "10px 14px" }}>
-                                  <div style={{ fontSize: 10, fontWeight: 700, color: "#00B894", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Résultat IRCANTEC</div>
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: "#00B894", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Résultat IRCANTEC</div>
                                   <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
                                     <div style={{ flex: 1, background: "#00B89415", borderRadius: 7, padding: "10px 12px" }}>
-                                      <div style={{ fontSize: 9, color: "#555", marginBottom: 4 }}>Mensuelle brute</div>
+                                      <div style={{ fontSize: 11, color: "#555", marginBottom: 4 }}>Mensuelle brute</div>
                                       <div style={{ fontSize: 20, fontWeight: 700, color: "#00B894" }}>{ircantecResult.python_output.pension_mensuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €</div>
                                     </div>
                                     <div style={{ flex: 1, background: "#f8fdfb", borderRadius: 7, padding: "10px 12px", border: "1px solid #00B89410" }}>
-                                      <div style={{ fontSize: 9, color: "#555", marginBottom: 4 }}>Annuelle brute</div>
+                                      <div style={{ fontSize: 11, color: "#555", marginBottom: 4 }}>Annuelle brute</div>
                                       <div style={{ fontSize: 15, fontWeight: 700, color: "#1a1a2e" }}>{ircantecResult.python_output.pension_annuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 0 })} €</div>
                                     </div>
                                   </div>
@@ -3131,7 +3131,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       ["Nb points total", ircantecResult.python_output.nb_points_total?.toLocaleString("fr-FR")],
                                       ["Valeur du point", `${ircantecResult.python_output.valeur_point} €`],
                                     ].map(([label, val]) => (
-                                      <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 10, borderBottom: "1px solid #00B89410", paddingBottom: 4 }}>
+                                      <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, borderBottom: "1px solid #00B89410", paddingBottom: 4 }}>
                                         <span style={{ color: "#666" }}>{label}</span>
                                         <span style={{ fontWeight: 700, color: "#1a1a2e" }}>{val}</span>
                                       </div>
@@ -3146,19 +3146,19 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                           <div style={{ marginTop: 12, padding: "12px 14px", background: carriereValidee ? "#fef8f5" : "#fafafa", borderRadius: 9, border: `1px solid ${carriereValidee ? "#E1705530" : "#e8e8e8"}` }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                               <span style={{ fontSize: 16 }}>📑</span>
-                              <span style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>Calcul pension RCI</span>
+                              <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>Calcul pension RCI</span>
                               {!carriereValidee && (
-                                <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
+                                <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
                               )}
                             </div>
                             {rciLoading && (
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#E17055" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#E17055" }}>
                                 <span style={{ display: "inline-block", width: 10, height: 10, border: "2px solid #E1705540", borderTop: "2px solid #E17055", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
                                 Calcul RCI en cours…
                               </div>
                             )}
                             {rciError && (
-                              <div style={{ marginTop: 8, fontSize: 10, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
+                              <div style={{ marginTop: 8, fontSize: 12, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
                                 ⚠ {rciError}
                               </div>
                             )}
@@ -3166,14 +3166,14 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                             {rciResult && rciResult.python_output && (
                               <div style={{ marginTop: 14 }}>
                                 <div style={{ background: "#E1705508", border: "1px solid #E1705520", borderRadius: 8, padding: "10px 14px" }}>
-                                  <div style={{ fontSize: 10, fontWeight: 700, color: "#E17055", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Résultat RCI</div>
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: "#E17055", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Résultat RCI</div>
                                   <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
                                     <div style={{ flex: 1, background: "#E1705515", borderRadius: 7, padding: "10px 12px" }}>
-                                      <div style={{ fontSize: 9, color: "#555", marginBottom: 4 }}>Mensuelle brute</div>
+                                      <div style={{ fontSize: 11, color: "#555", marginBottom: 4 }}>Mensuelle brute</div>
                                       <div style={{ fontSize: 20, fontWeight: 700, color: "#E17055" }}>{rciResult.python_output.pension_mensuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €</div>
                                     </div>
                                     <div style={{ flex: 1, background: "#fffaf8", borderRadius: 7, padding: "10px 12px", border: "1px solid #E1705510" }}>
-                                      <div style={{ fontSize: 9, color: "#555", marginBottom: 4 }}>Annuelle brute</div>
+                                      <div style={{ fontSize: 11, color: "#555", marginBottom: 4 }}>Annuelle brute</div>
                                       <div style={{ fontSize: 15, fontWeight: 700, color: "#1a1a2e" }}>{rciResult.python_output.pension_annuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 0 })} €</div>
                                     </div>
                                   </div>
@@ -3182,7 +3182,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       ["Nb points total", rciResult.python_output.nb_points_total?.toLocaleString("fr-FR")],
                                       ["Valeur du point", `${rciResult.python_output.valeur_point} €`],
                                     ].map(([label, val]) => (
-                                      <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 10, borderBottom: "1px solid #E1705510", paddingBottom: 4 }}>
+                                      <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, borderBottom: "1px solid #E1705510", paddingBottom: 4 }}>
                                         <span style={{ color: "#666" }}>{label}</span>
                                         <span style={{ fontWeight: 700, color: "#1a1a2e" }}>{val}</span>
                                       </div>
@@ -3197,19 +3197,19 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                           <div style={{ marginTop: 12, padding: "12px 14px", background: carriereValidee ? "#f9f1fc" : "#fafafa", borderRadius: 9, border: `1px solid ${carriereValidee ? "#9B59B630" : "#e8e8e8"}` }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                               <span style={{ fontSize: 16 }}>🏥</span>
-                              <span style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>Calcul pension CIPAV</span>
+                              <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>Calcul pension CIPAV</span>
                               {!carriereValidee && (
-                                <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
+                                <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
                               )}
                             </div>
                             {cipavLoading && (
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#9B59B6" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#9B59B6" }}>
                                 <span style={{ display: "inline-block", width: 10, height: 10, border: "2px solid #9B59B640", borderTop: "2px solid #9B59B6", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
                                 Calcul CIPAV en cours…
                               </div>
                             )}
                             {cipavError && (
-                              <div style={{ marginTop: 8, fontSize: 10, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
+                              <div style={{ marginTop: 8, fontSize: 12, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
                                 ⚠ {cipavError}
                               </div>
                             )}
@@ -3217,29 +3217,29 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                             {cipavResult && cipavResult.python_output && (
                               <div style={{ marginTop: 14 }}>
                                 <div style={{ background: "#9B59B608", border: "1px solid #9B59B620", borderRadius: 8, padding: "10px 14px" }}>
-                                  <div style={{ fontSize: 10, fontWeight: 700, color: "#9B59B6", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Résultat CIPAV</div>
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: "#9B59B6", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Résultat CIPAV</div>
                                   
                                   {/* Hero boxes specific for CIPAV */}
                                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
                                     <div style={{ background: "#9B59B618", borderRadius: 7, padding: "10px 12px" }}>
-                                      <div style={{ fontSize: 9, color: "#555", marginBottom: 4 }}>Total mensuel</div>
+                                      <div style={{ fontSize: 11, color: "#555", marginBottom: 4 }}>Total mensuel</div>
                                       <div style={{ fontSize: 18, fontWeight: 700, color: "#9B59B6" }}>
                                         {(((cipavResult.python_output.pension_base_annuelle || 0) + (cipavResult.python_output.pension_complementaire_annuelle || 0)) / 12).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €
                                       </div>
                                     </div>
                                     <div style={{ background: "#fbf8fd", borderRadius: 7, padding: "10px 12px", border: "1px solid #9B59B610" }}>
-                                      <div style={{ fontSize: 9, color: "#555", marginBottom: 4 }}>Total annuel</div>
+                                      <div style={{ fontSize: 11, color: "#555", marginBottom: 4 }}>Total annuel</div>
                                       <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>
                                         {((cipavResult.python_output.pension_base_annuelle || 0) + (cipavResult.python_output.pension_complementaire_annuelle || 0)).toLocaleString("fr-FR", { minimumFractionDigits: 0 })} €
                                       </div>
                                     </div>
                                     <div style={{ background: "#fbf8fd", borderRadius: 7, padding: "8px 10px", border: "1px solid #9B59B608" }}>
-                                      <div style={{ fontSize: 8, color: "#666", marginBottom: 2 }}>Base annuelle</div>
-                                      <div style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>{cipavResult.python_output.pension_base_annuelle?.toLocaleString("fr-FR")} €</div>
+                                      <div style={{ fontSize: 10, color: "#666", marginBottom: 2 }}>Base annuelle</div>
+                                      <div style={{ fontSize: 14, fontWeight: 700, color: "#333" }}>{cipavResult.python_output.pension_base_annuelle?.toLocaleString("fr-FR")} €</div>
                                     </div>
                                     <div style={{ background: "#fbf8fd", borderRadius: 7, padding: "8px 10px", border: "1px solid #9B59B608" }}>
-                                      <div style={{ fontSize: 8, color: "#666", marginBottom: 2 }}>Compl. annuelle</div>
-                                      <div style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>{cipavResult.python_output.pension_complementaire_annuelle?.toLocaleString("fr-FR")} €</div>
+                                      <div style={{ fontSize: 10, color: "#666", marginBottom: 2 }}>Compl. annuelle</div>
+                                      <div style={{ fontSize: 14, fontWeight: 700, color: "#333" }}>{cipavResult.python_output.pension_complementaire_annuelle?.toLocaleString("fr-FR")} €</div>
                                     </div>
                                   </div>
 
@@ -3248,7 +3248,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                       ["Points base", cipavResult.python_output.details_points?.base?.toLocaleString("fr-FR", { maximumFractionDigits: 2 })],
                                       ["Points complémentaire", cipavResult.python_output.details_points?.complementaire?.toLocaleString("fr-FR", { maximumFractionDigits: 2 })],
                                     ].map(([label, val]) => (
-                                      <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 10, borderBottom: "1px solid #9B59B610", paddingBottom: 4 }}>
+                                      <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, borderBottom: "1px solid #9B59B610", paddingBottom: 4 }}>
                                         <span style={{ color: "#666" }}>{label}</span>
                                         <span style={{ fontWeight: 700, color: "#1a1a2e" }}>{val}</span>
                                       </div>
@@ -3276,12 +3276,12 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                             <span style={{ fontSize: 18 }}>{panel.icon}</span>
                             <span style={{ fontSize: 14, fontWeight: 700, color: panel.color }}>{panel.label}</span>
                           </div>
-                          <div style={{ fontSize: 11, color: "#555", marginBottom: 12 }}>{panel.desc}</div>
+                          <div style={{ fontSize: 13, color: "#555", marginBottom: 12 }}>{panel.desc}</div>
 
                           {/* Données de calcul */}
                           <div style={{ background: "#F7F6F3", border: "1px solid #e8e8e8", borderRadius: 9, padding: "10px 14px", marginBottom: 14 }}>
-                            <div style={{ fontSize: 10, fontWeight: 700, color: "#555", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>📊 Données de calcul</div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 20px", fontSize: 10 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: "#555", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>📊 Données de calcul</div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 20px", fontSize: 12 }}>
                               {[
                                 ["SAMB Assurance Retraite / CNAV", "32 586 €", "#1a1a2e"],
                                 ["Points ARRCO-AGIRC au 31/12/25", "28 330 pts", "#0984E3"],
@@ -3290,7 +3290,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               ].map(([label, val, color]) => (
                                 <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #eee" }}>
                                   <span style={{ color: "#555" }}>{label}</span>
-                                  <span style={{ fontWeight: 700, color, fontSize: 10 }}>{val}</span>
+                                  <span style={{ fontWeight: 700, color, fontSize: 12 }}>{val}</span>
                                 </div>
                               ))}
                             </div>
@@ -3299,21 +3299,21 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                           {/* Auto-generated dates from dispositifs */}
                           {activatedDispositifs.length > 0 && showAutoResults && (
                             <div style={{ marginBottom: 16 }}>
-                              <div style={{ fontSize: 11, fontWeight: 700, color: "#00B894", marginBottom: 8, display: "flex", alignItems: "center", gap: 4 }}>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "#00B894", marginBottom: 8, display: "flex", alignItems: "center", gap: 4 }}>
                                 <span>🤖</span> Dates calculées automatiquement depuis les dispositifs activés
                               </div>
                               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                                 {MOCK_AUTO_DATES.map((d, i) => (
                                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 8, background: `${d.color}08`, borderLeft: `3px solid ${d.color}` }}>
                                     <div style={{ textAlign: "center", minWidth: 70 }}>
-                                      <div style={{ fontSize: 13, fontWeight: 700, color: d.color }}>{d.date}</div>
-                                      <div style={{ fontSize: 10, color: "#555" }}>{d.age}</div>
+                                      <div style={{ fontSize: 15, fontWeight: 700, color: d.color }}>{d.date}</div>
+                                      <div style={{ fontSize: 12, color: "#555" }}>{d.age}</div>
                                     </div>
                                     <div style={{ flex: 1 }}>
-                                      <div style={{ fontSize: 11, fontWeight: 600 }}>Via : {d.source}</div>
-                                      <div style={{ fontSize: 10, color: "#666" }}>{d.detail}</div>
+                                      <div style={{ fontSize: 13, fontWeight: 600 }}>Via : {d.source}</div>
+                                      <div style={{ fontSize: 12, color: "#666" }}>{d.detail}</div>
                                     </div>
-                                    <span style={{ fontSize: 9, padding: "2px 8px", borderRadius: 10, background: `${d.color}18`, color: d.color, fontWeight: 700 }}>Auto</span>
+                                    <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 10, background: `${d.color}18`, color: d.color, fontWeight: 700 }}>Auto</span>
                                   </div>
                                 ))}
                               </div>
@@ -3321,13 +3321,13 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                           )}
 
                           {activatedDispositifs.length === 0 && (
-                            <div style={{ padding: "16px", textAlign: "center", color: "#555", fontSize: 11, background: "#fafafa", borderRadius: 8, marginBottom: 14 }}>
+                            <div style={{ padding: "16px", textAlign: "center", color: "#555", fontSize: 13, background: "#fafafa", borderRadius: 8, marginBottom: 14 }}>
                               💡 Activez d'abord des dispositifs (étape 2) pour que l'IA calcule automatiquement les dates de départ possibles
                             </div>
                           )}
 
                           {/* Standard dates always available */}
-                          <div style={{ fontSize: 11, fontWeight: 700, color: "#0984E3", marginBottom: 8 }}>Dates standard :</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: "#0984E3", marginBottom: 8 }}>Dates standard :</div>
                           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 7 }}>
                             {panel.actions.map((action) => {
                               const ok = checkReq(action.requires);
@@ -3350,18 +3350,18 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                   style={{ display: "flex", flexDirection: "column", gap: 4, padding: "10px 11px", borderRadius: 8, border: `2px solid ${sel ? panel.color : "#e8e8e8"}`, background: sel ? `${panel.color}10` : "#fafafa", cursor: ok ? "pointer" : "not-allowed", textAlign: "left", opacity: isExcluded ? 0.45 : ok ? 1 : 0.45 }}>
                                   <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                                     <span style={{ fontSize: 15, flexShrink: 0 }}>{action.icon}</span>
-                                    <div style={{ flex: 1, fontSize: 11, fontWeight: sel ? 700 : 600, color: sel ? panel.color : "#333", textDecoration: isExcluded ? "line-through" : "none" }}>{action.label}</div>
+                                    <div style={{ flex: 1, fontSize: 13, fontWeight: sel ? 700 : 600, color: sel ? panel.color : "#333", textDecoration: isExcluded ? "line-through" : "none" }}>{action.label}</div>
                                     {action.auto && (
                                       <span
                                         onClick={(e) => { e.stopPropagation(); setExcludedDates((prev) => prev.includes(action.id) ? prev.filter((x) => x !== action.id) : [...prev, action.id]); }}
                                         title={isExcluded ? "Réactiver ce calcul" : "Exclure ce calcul"}
-                                        style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: isExcluded ? "#E1705525" : "#0984E312", color: isExcluded ? "#C0392B" : "#0984E3", fontWeight: 700, flexShrink: 0, cursor: "pointer" }}>
+                                        style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: isExcluded ? "#E1705525" : "#0984E312", color: isExcluded ? "#C0392B" : "#0984E3", fontWeight: 700, flexShrink: 0, cursor: "pointer" }}>
                                         {isExcluded ? "✕ Exclu" : "✓ Calculé"}
                                       </span>
                                     )}
                                   </div>
                                   {dateComments[action.id] && (
-                                    <div style={{ fontSize: 9, color: "#555", paddingLeft: 22, lineHeight: 1.5 }}>
+                                    <div style={{ fontSize: 11, color: "#555", paddingLeft: 22, lineHeight: 1.5 }}>
                                       {isDateLibre && sel ? "→ Saisir dans le Système prompt IA ↓" : dateComments[action.id]}
                                     </div>
                                   )}
@@ -3382,7 +3382,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                             <span style={{ fontSize: 18 }}>{panel.icon}</span>
                             <span style={{ fontSize: 14, fontWeight: 700, color: panel.color }}>{panel.label}</span>
                           </div>
-                          <div style={{ fontSize: 11, color: "#555", marginBottom: 14 }}>{panel.desc}</div>
+                          <div style={{ fontSize: 13, color: "#555", marginBottom: 14 }}>{panel.desc}</div>
 
                           <div className="simu-livrables-grid">
                             {panel.actions.map((action) => {
@@ -3390,9 +3390,9 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               return (
                                 <button key={action.id} onClick={() => { setSelectedAction(sel ? null : action); setExecuted(null); }} style={{ padding: "16px 14px", borderRadius: 10, border: `2px solid ${sel ? panel.color : "#e8e8e8"}`, background: sel ? `${panel.color}08` : "#fafafa", cursor: "pointer", textAlign: "center", transition: "all 0.12s" }}>
                                   <span style={{ fontSize: 28, display: "block", marginBottom: 6 }}>{action.icon}</span>
-                                  <div style={{ fontSize: 12, fontWeight: 700, color: sel ? panel.color : "#333", marginBottom: 4 }}>{action.label}</div>
-                                  <div style={{ fontSize: 10, color: "#555", marginBottom: 6 }}>{action.desc}</div>
-                                  <span style={{ fontSize: 10, padding: "3px 10px", borderRadius: 10, background: `${panel.color}12`, color: panel.color, fontWeight: 700 }}>{action.pages}</span>
+                                  <div style={{ fontSize: 14, fontWeight: 700, color: sel ? panel.color : "#333", marginBottom: 4 }}>{action.label}</div>
+                                  <div style={{ fontSize: 12, color: "#555", marginBottom: 6 }}>{action.desc}</div>
+                                  <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 10, background: `${panel.color}12`, color: panel.color, fontWeight: 700 }}>{action.pages}</span>
                                 </button>
                               );
                             })}
@@ -3401,12 +3401,12 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                           {selectedAction && (
                             <div style={{ marginTop: 14, borderTop: "1px solid #eee", paddingTop: 14 }}>
                               <div style={{ background: "#F0EDFF", borderRadius: 7, padding: 10, marginBottom: 10, border: "1px solid #6C5CE720" }}>
-                                <div style={{ fontSize: 9, fontWeight: 700, color: "#6C5CE7", marginBottom: 3 }}>📝 PROMPT STRICT :</div>
-                                <div style={{ fontSize: 10, color: "#333", lineHeight: 1.6, ...S.mono }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: "#6C5CE7", marginBottom: 3 }}>📝 PROMPT STRICT :</div>
+                                <div style={{ fontSize: 12, color: "#333", lineHeight: 1.6, ...S.mono }}>
                                   [Prompt calibré pour "{selectedAction.label}" — intègre tous les dispositifs activés ({activatedDispositifs.length}), les dates calculées, les résultats automatiques (surcote, minimum contributif, majoration enfants). Niveau de détail : {selectedAction.pages}]
                                 </div>
                               </div>
-                              <button onClick={() => setExecuted(selectedAction)} style={{ padding: "8px 18px", borderRadius: 7, border: "none", background: panel.color, color: "#fff", fontWeight: 700, fontSize: 11, cursor: "pointer" }}>▶ Générer le {selectedAction.label.toLowerCase()}</button>
+                              <button onClick={() => setExecuted(selectedAction)} style={{ padding: "8px 18px", borderRadius: 7, border: "none", background: panel.color, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>▶ Générer le {selectedAction.label.toLowerCase()}</button>
                             </div>
                           )}
                         </div>
@@ -3419,11 +3419,11 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                           <span style={{ fontSize: 18 }}>{panel.icon}</span>
                           <span style={{ fontSize: 14, fontWeight: 700, color: panel.color }}>{panel.label}</span>
-                          <span style={{ fontSize: 10, color: "#555" }}>— {panel.actions.length} actions disponibles</span>
+                          <span style={{ fontSize: 12, color: "#555" }}>— {panel.actions.length} actions disponibles</span>
                         </div>
-                        <div style={{ fontSize: 11, color: "#555", marginBottom: 14 }}>{panel.desc}</div>
+                        <div style={{ fontSize: 13, color: "#555", marginBottom: 14 }}>{panel.desc}</div>
                         {/* Thematic analysis vignettes */}
-                        <div style={{ fontSize: 11, fontWeight: 700, color: "#555", marginBottom: 8 }}>Thématiques d'analyse</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "#555", marginBottom: 8 }}>Thématiques d'analyse</div>
                         <div className="simu-action-grid simu-action-grid--analyse">
                           {panel.actions.map((action) => {
                             const ok = checkReq(action.requires);
@@ -3440,9 +3440,9 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               }} style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 11px", borderRadius: 8, border: `2px solid ${sel ? panel.color : ok ? "#e8e8e8" : "#f0f0f0"}`, background: sel ? `${panel.color}10` : ok ? "#fafafa" : "#f8f8f8", cursor: ok ? "pointer" : "not-allowed", textAlign: "left", opacity: ok ? 1 : 0.45 }}>
                                 <span style={{ fontSize: 15, flexShrink: 0 }}>{action.icon}</span>
                                 <div style={{ minWidth: 0 }}>
-                                  <div style={{ fontSize: 11, fontWeight: sel ? 700 : 600, color: sel ? panel.color : ok ? "#333" : "#999" }}>{action.label}</div>
-                                  <div style={{ fontSize: 9, color: "#555" }}>{action.desc}</div>
-                                  {!ok && <div style={{ fontSize: 8, color: "#D63031", marginTop: 1 }}>⚠ Manque : {miss.map((m) => DOC_TYPES.find((d) => d.id === m)?.label).join(", ")}</div>}
+                                  <div style={{ fontSize: 13, fontWeight: sel ? 700 : 600, color: sel ? panel.color : ok ? "#333" : "#999" }}>{action.label}</div>
+                                  <div style={{ fontSize: 11, color: "#555" }}>{action.desc}</div>
+                                  {!ok && <div style={{ fontSize: 10, color: "#D63031", marginTop: 1 }}>⚠ Manque : {miss.map((m) => DOC_TYPES.find((d) => d.id === m)?.label).join(", ")}</div>}
                                 </div>
                               </button>
                             );
@@ -3451,9 +3451,9 @@ export default function SimulatorV6({ mode = "production", id, user }) {
 
                         {selectedAction && (
                           <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", background: "#6C5CE708", borderRadius: 7, border: "1px solid #6C5CE720" }}>
-                            <span style={{ fontSize: 13 }}>{selectedAction.icon}</span>
-                            <span style={{ fontSize: 11, fontWeight: 600, color: "#6C5CE7" }}>{selectedAction.label}</span>
-                            <span style={{ fontSize: 9, color: "#555", marginLeft: "auto" }}>↓ Prompt chargé ci-dessous</span>
+                            <span style={{ fontSize: 15 }}>{selectedAction.icon}</span>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: "#6C5CE7" }}>{selectedAction.label}</span>
+                            <span style={{ fontSize: 11, color: "#555", marginLeft: "auto" }}>↓ Prompt chargé ci-dessous</span>
                           </div>
                         )}
                       </div>
@@ -3464,13 +3464,13 @@ export default function SimulatorV6({ mode = "production", id, user }) {
 
               {/* Système prompt IA */}
               <div style={{ ...S.card, padding: 14, marginBottom: 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 3 }}>💬 {
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 3 }}>💬 {
                   expandedPanel === "analyse" ? "Analyse de documents"
                   : expandedPanel === "dispositifs" ? "Demande complémentaire"
                   : expandedPanel === "dates" ? "Autres dates"
                   : "Système prompt IA"
                 }</div>
-                <div style={{ fontSize: 11, color: "#555", marginBottom: 10 }}>En complément des actions structurées — l'IA reformule et mappe vers les étapes du flux</div>
+                <div style={{ fontSize: 13, color: "#555", marginBottom: 10 }}>En complément des actions structurées — l'IA reformule et mappe vers les étapes du flux</div>
                 <style>{`.sim-readable-placeholder::placeholder { color: #666 !important; opacity: 1; } .sim-readable-placeholder::-webkit-input-placeholder { color: #666 !important; } .sim-readable-placeholder::-moz-placeholder { color: #666 !important; opacity: 1; }`}</style>
                 <textarea
                   className="sim-readable-placeholder"
@@ -3478,25 +3478,25 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                   value={promptText}
                   onChange={(e) => commentairesMode && setPromptText(e.target.value)}
                   placeholder="Sélectionnez une analyse ci-dessus ou saisissez une instruction libre…"
-                  style={{ width: "100%", padding: "9px 11px", borderRadius: 7, border: `1px solid ${commentairesMode ? "#6C5CE7" : "#ddd"}`, fontSize: 11, fontFamily: "inherit", resize: "vertical", minHeight: 60, boxSizing: "border-box", background: commentairesMode ? "#FDFCFF" : "#fafafa", color: "#333" }}
+                  style={{ width: "100%", padding: "9px 11px", borderRadius: 7, border: `1px solid ${commentairesMode ? "#6C5CE7" : "#ddd"}`, fontSize: 13, fontFamily: "inherit", resize: "vertical", minHeight: 60, boxSizing: "border-box", background: commentairesMode ? "#FDFCFF" : "#fafafa", color: "#333" }}
                 />
                 <div style={{ display: "flex", gap: 8, marginTop: 8, justifyContent: "flex-end" }}>
                   <button
                     onClick={() => setCommentairesMode(!commentairesMode)}
-                    style={{ padding: "8px 14px", borderRadius: 7, border: "1px solid #6C5CE7", background: commentairesMode ? "#6C5CE712" : "transparent", color: "#6C5CE7", fontWeight: 600, fontSize: 11, cursor: "pointer" }}>
+                    style={{ padding: "8px 14px", borderRadius: 7, border: "1px solid #6C5CE7", background: commentairesMode ? "#6C5CE712" : "transparent", color: "#6C5CE7", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
                     ✏️ {commentairesMode ? "Fermer" : "Ajouter du contexte"}
                   </button>
                   <button
                     onClick={handleGenerateDoc}
                     disabled={isGenerating}
-                    style={{ padding: "8px 18px", borderRadius: 7, border: "none", background: isGenerating ? "#a29bfe" : "linear-gradient(135deg, #6C5CE7, #a29bfe)", color: "#fff", fontWeight: 700, fontSize: 11, cursor: isGenerating ? "wait" : "pointer", opacity: isGenerating ? 0.7 : 1 }}>
+                    style={{ padding: "8px 18px", borderRadius: 7, border: "none", background: isGenerating ? "#a29bfe" : "linear-gradient(135deg, #6C5CE7, #a29bfe)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: isGenerating ? "wait" : "pointer", opacity: isGenerating ? 0.7 : 1 }}>
                     {isGenerating ? "⏳ Analyse en cours…" : "▶ Exécuter"}
                   </button>
                 </div>
                 {executed && executed.resultUrl && (
                   <div style={{ background: "#F8FFF8", borderRadius: 7, padding: 10, marginTop: 10, border: "1px solid #00B89420" }}>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: "#00B894", marginBottom: 4 }}>✅ Rapport généré :</div>
-                    <div style={{ fontSize: 11, color: "#555", lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#00B894", marginBottom: 4 }}>✅ Rapport généré :</div>
+                    <div style={{ fontSize: 13, color: "#555", lineHeight: 1.6 }}>
                       Le rapport « {executed.label} » est disponible dans les documents du client.
                     </div>
                   </div>
@@ -3527,9 +3527,9 @@ export default function SimulatorV6({ mode = "production", id, user }) {
           <div style={{ background: "linear-gradient(135deg, #E17055 0%, #D63031 100%)", borderRadius: 11, padding: "14px 20px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
               <div style={{ color: "#fff", fontWeight: 700, fontSize: 15 }}>⚙️ Administration du moteur IA</div>
-              <div style={{ color: "#FFEAA7", fontSize: 10, marginTop: 2 }}>Règles métier · Paramètres annuels · Formules · Prompts · Architecture</div>
+              <div style={{ color: "#FFEAA7", fontSize: 12, marginTop: 2 }}>Règles métier · Paramètres annuels · Formules · Prompts · Architecture</div>
             </div>
-            <div style={{ fontSize: 10, color: "#fff", background: "rgba(255,255,255,0.15)", padding: "4px 10px", borderRadius: 6, fontWeight: 600 }}>🔐 Accès administrateur</div>
+            <div style={{ fontSize: 12, color: "#fff", background: "rgba(255,255,255,0.15)", padding: "4px 10px", borderRadius: 6, fontWeight: 600 }}>🔐 Accès administrateur</div>
           </div>
 
           <div className="simu-admin-grid">
@@ -3538,8 +3538,8 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                 <button key={key} onClick={() => { setAdminSection(key); setExpandedRule(null); setExpandedParam(null); }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 9, border: `2px solid ${adminSection === key ? sec.color : "transparent"}`, background: adminSection === key ? `${sec.color}10` : "#fff", cursor: "pointer", textAlign: "left", boxShadow: adminSection === key ? `0 2px 8px ${sec.color}20` : "0 1px 3px rgba(0,0,0,0.04)" }}>
                   <span style={{ fontSize: 18 }}>{sec.icon}</span>
                   <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: adminSection === key ? sec.color : "#333" }}>{sec.label}</div>
-                    <div style={{ fontSize: 9, color: "#555" }}>{sec.items?.length ? `${sec.items.length} éléments` : sec.desc}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: adminSection === key ? sec.color : "#333" }}>{sec.label}</div>
+                    <div style={{ fontSize: 11, color: "#555" }}>{sec.items?.length ? `${sec.items.length} éléments` : sec.desc}</div>
                   </div>
                 </button>
               ))}
@@ -3553,7 +3553,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
                     <span style={{ fontSize: 18 }}>📜</span>
                     <span style={{ fontSize: 14, fontWeight: 700, color: "#6C5CE7" }}>Règles métier</span>
-                    <span style={{ fontSize: 10, color: "#555" }}>— Fichiers .md + liens législation officielle</span>
+                    <span style={{ fontSize: 12, color: "#555" }}>— Fichiers .md + liens législation officielle</span>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {ADMIN_SECTIONS.regles.items.map((rule, i) => {
@@ -3563,17 +3563,17 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                           <div onClick={() => setExpandedRule(expandedRule === i ? null : i)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", cursor: "pointer", background: expandedRule === i ? "#6C5CE706" : "#fafafa" }}>
                             <span style={{ fontSize: 16 }}>{rule.icon}</span>
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 12, fontWeight: 600 }}>{rule.label}</div>
-                              <div style={{ fontSize: 10, color: "#555" }}>{rule.desc}</div>
+                              <div style={{ fontSize: 14, fontWeight: 600 }}>{rule.label}</div>
+                              <div style={{ fontSize: 12, color: "#555" }}>{rule.desc}</div>
                             </div>
                             <div style={{ display: "flex", gap: 4 }}>
                               {hasMd
-                                ? <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 4, background: "#6C5CE712", color: "#6C5CE7", fontWeight: 600 }}>📄 {rule.file}</span>
-                                : <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 4, background: "#D6303115", color: "#D63031", fontWeight: 600 }}>⚠ Fichier manquant</span>
+                                ? <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: "#6C5CE712", color: "#6C5CE7", fontWeight: 600 }}>📄 {rule.file}</span>
+                                : <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: "#D6303115", color: "#D63031", fontWeight: 600 }}>⚠ Fichier manquant</span>
                               }
                               {rule.officialUrl && (
                                 <a href={rule.officialUrl} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
-                                  <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 4, background: "#0984E312", color: "#0984E3", fontWeight: 600 }}>🔗 Officiel</span>
+                                  <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: "#0984E312", color: "#0984E3", fontWeight: 600 }}>🔗 Officiel</span>
                                 </a>
                               )}
                             </div>
@@ -3584,18 +3584,18 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                                 {hasMd ? (
                                   <button
                                     onClick={() => setModal({ title: MD_CONTENT[rule.contentKey].title, content: MD_CONTENT[rule.contentKey].content, lines: MD_CONTENT[rule.contentKey].lines, color: "#6C5CE7" })}
-                                    style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 6, border: "1px solid #6C5CE7", background: "#6C5CE708", color: "#6C5CE7", fontWeight: 700, fontSize: 10, cursor: "pointer" }}>
+                                    style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 6, border: "1px solid #6C5CE7", background: "#6C5CE708", color: "#6C5CE7", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
                                     📄 Ouvrir {rule.file}
                                   </button>
                                 ) : (
-                                  <span style={{ fontSize: 10, color: "#D63031", padding: "6px 0" }}>⚠ Fichier MD à créer dans 01_REGLEMENTATION/</span>
+                                  <span style={{ fontSize: 12, color: "#D63031", padding: "6px 0" }}>⚠ Fichier MD à créer dans 01_REGLEMENTATION/</span>
                                 )}
                                 {rule.officialUrl && (
                                   <a href={rule.officialUrl} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
-                                    <button style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 6, border: "1px solid #0984E3", background: "#0984E308", color: "#0984E3", fontWeight: 600, fontSize: 10, cursor: "pointer" }}>🔗 Site officiel</button>
+                                    <button style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 6, border: "1px solid #0984E3", background: "#0984E308", color: "#0984E3", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>🔗 Site officiel</button>
                                   </a>
                                 )}
-                                <button style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 6, border: "1px solid #00B894", background: "#00B89408", color: "#00B894", fontWeight: 600, fontSize: 10, cursor: "pointer" }}>✏️ Éditer</button>
+                                <button style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 6, border: "1px solid #00B894", background: "#00B89408", color: "#00B894", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>✏️ Éditer</button>
                               </div>
                             </div>
                           )}
@@ -3614,7 +3614,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                       <span style={{ fontSize: 18 }}>📐</span>
                       <span style={{ fontSize: 14, fontWeight: 700, color: "#0984E3" }}>Paramètres annuels</span>
                     </div>
-                    <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>⚠ À mettre à jour chaque année</span>
+                    <span style={{ fontSize: 12, padding: "3px 8px", borderRadius: 5, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>⚠ À mettre à jour chaque année</span>
                   </div>
                   <div className="simu-params-grid">
                     {ADMIN_SECTIONS.parametres.items.map((param, i) => (
@@ -3623,20 +3623,20 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                           <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
                             <span style={{ fontSize: 14 }}>{param.icon}</span>
                             <div>
-                              <div style={{ fontSize: 11, fontWeight: 600 }}>{param.label}</div>
-                              <div style={{ fontSize: 9, color: "#555" }}>{param.desc}</div>
+                              <div style={{ fontSize: 13, fontWeight: 600 }}>{param.label}</div>
+                              <div style={{ fontSize: 11, color: "#555" }}>{param.desc}</div>
                             </div>
                           </div>
                           <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 10 }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: "#0984E3" }}>{param.value}</div>
-                            <div style={{ fontSize: 9, color: "#555" }}>{param.year}{param.maj ? ` · màj ${param.maj}` : ""}</div>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: "#0984E3" }}>{param.value}</div>
+                            <div style={{ fontSize: 11, color: "#555" }}>{param.year}{param.maj ? ` · màj ${param.maj}` : ""}</div>
                           </div>
                         </div>
 
                         {/* CSG : tableau taux */}
                         {param.csgDetail && expandedParam === i && (
                           <div className="simu-table-wrap" style={{ marginTop: 7 }}>
-                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}>
+                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                               <thead>
                                 <tr style={{ background: "#f5f5f5" }}>
                                   {["Taux CSG", "Catégorie", "CRDS 0,5%", "CASA 0,3%"].map((h) => (
@@ -3660,8 +3660,8 @@ export default function SimulatorV6({ mode = "production", id, user }) {
 
                         {expandedParam === i && (
                           <div style={{ marginTop: 8, display: "flex", gap: 6 }}>
-                            <button style={{ fontSize: 9, padding: "4px 10px", borderRadius: 5, border: "1px solid #E17055", background: "#E1705508", color: "#E17055", fontWeight: 600, cursor: "pointer" }}>✏️ Modifier</button>
-                            <button style={{ fontSize: 9, padding: "4px 10px", borderRadius: 5, border: "1px solid #888", background: "#88888808", color: "#555", fontWeight: 600, cursor: "pointer" }}>📜 Historique</button>
+                            <button style={{ fontSize: 11, padding: "4px 10px", borderRadius: 5, border: "1px solid #E17055", background: "#E1705508", color: "#E17055", fontWeight: 600, cursor: "pointer" }}>✏️ Modifier</button>
+                            <button style={{ fontSize: 11, padding: "4px 10px", borderRadius: 5, border: "1px solid #888", background: "#88888808", color: "#555", fontWeight: 600, cursor: "pointer" }}>📜 Historique</button>
                           </div>
                         )}
                       </div>
@@ -3682,14 +3682,14 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                       <div key={f.id} style={{ borderRadius: 8, padding: "12px 14px", background: "#fafafa", border: "1px solid #eee", borderLeft: "3px solid #00B894" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
                           <span style={{ fontSize: 14 }}>{f.icon}</span>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: "#00B894" }}>{f.label}</span>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: "#00B894" }}>{f.label}</span>
                         </div>
-                        <div style={{ fontSize: 13, fontWeight: 700, fontFamily: "'IBM Plex Mono', 'Courier New', monospace", background: "#fff", borderRadius: 5, padding: "8px 10px", border: "1px solid #00B89420", marginBottom: 4 }}>{f.formula}</div>
-                        <div style={{ fontSize: 10, color: "#666" }}>{f.desc}</div>
+                        <div style={{ fontSize: 15, fontWeight: 700, fontFamily: "'IBM Plex Mono', 'Courier New', monospace", background: "#fff", borderRadius: 5, padding: "8px 10px", border: "1px solid #00B89420", marginBottom: 4 }}>{f.formula}</div>
+                        <div style={{ fontSize: 12, color: "#666" }}>{f.desc}</div>
                         <div style={{ marginTop: 6, display: "flex", gap: 4 }}>
-                          <button style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid #00B894", background: "transparent", color: "#00B894", fontWeight: 600, cursor: "pointer" }}>📜 Règle</button>
-                          <button style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid #0984E3", background: "transparent", color: "#0984E3", fontWeight: 600, cursor: "pointer" }}>📐 Paramètres</button>
-                          <button style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid #E17055", background: "transparent", color: "#E17055", fontWeight: 600, cursor: "pointer" }}>✏️ Éditer</button>
+                          <button style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, border: "1px solid #00B894", background: "transparent", color: "#00B894", fontWeight: 600, cursor: "pointer" }}>📜 Règle</button>
+                          <button style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, border: "1px solid #0984E3", background: "transparent", color: "#0984E3", fontWeight: 600, cursor: "pointer" }}>📐 Paramètres</button>
+                          <button style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, border: "1px solid #E17055", background: "transparent", color: "#E17055", fontWeight: 600, cursor: "pointer" }}>✏️ Éditer</button>
                         </div>
                       </div>
                     ))}
@@ -3703,7 +3703,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
                     <span style={{ fontSize: 18 }}>🤖</span>
                     <span style={{ fontSize: 14, fontWeight: 700, color: "#E17055" }}>Prompts IA & Skills N8N</span>
-                    <span style={{ fontSize: 10, color: "#555" }}>— {apiSkills.length} fichiers · {ADMIN_SKILL_PROMPTS.filter(p => p.missing).length} manquants</span>
+                    <span style={{ fontSize: 12, color: "#555" }}>— {apiSkills.length} fichiers · {ADMIN_SKILL_PROMPTS.filter(p => p.missing).length} manquants</span>
                   </div>
 
                   {/* Vignette System Prompt — fondation du moteur IA */}
@@ -3711,16 +3711,16 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                     <span style={{ fontSize: 22 }}>⚙️</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: "#6C3483" }}>EOR SystemPrompt — Moteur Analyse Réglementaire</span>
-                        <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, background: "#6C348315", color: "#6C3483", fontWeight: 700, letterSpacing: "0.04em" }}>SYSTEM PROMPT</span>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: "#6C3483" }}>EOR SystemPrompt — Moteur Analyse Réglementaire</span>
+                        <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 3, background: "#6C348315", color: "#6C3483", fontWeight: 700, letterSpacing: "0.04em" }}>SYSTEM PROMPT</span>
                       </div>
-                      <div style={{ fontSize: 10, color: "#666", lineHeight: 1.4 }}>
+                      <div style={{ fontSize: 12, color: "#666", lineHeight: 1.4 }}>
                         Instructions fondamentales du moteur IA. Définit le rôle, les règles métier et les contraintes applicables à tous les skills. Chargé par N8N avant chaque exécution.
                       </div>
                     </div>
                     <button
                       onClick={openSystemPromptEditor}
-                      style={{ fontSize: 10, padding: "7px 13px", borderRadius: 5, border: "1px solid #6C3483", background: "#6C3483", color: "#fff", fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+                      style={{ fontSize: 12, padding: "7px 13px", borderRadius: 5, border: "1px solid #6C3483", background: "#6C3483", color: "#fff", fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
                       Éditer
                     </button>
                   </div>
@@ -3731,7 +3731,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                     const items = ADMIN_SKILL_PROMPTS.filter(p => p.category === cat);
                     return (
                       <div key={cat} style={{ marginBottom: 16 }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6, paddingBottom: 4, borderBottom: "1px solid #eee" }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6, paddingBottom: 4, borderBottom: "1px solid #eee" }}>
                           {cat}
                         </div>
                         <div className="simu-prompts-grid">
@@ -3741,21 +3741,21 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               <div key={skill.id} style={{ borderRadius: 7, padding: "9px 11px", background: "#fff", border: "1px solid #e0e0e0", borderLeft: `3px solid ${skill.color}` }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>
                                   <span style={{ fontSize: 14 }}>{skill.icon}</span>
-                                  <span style={{ fontSize: 11, fontWeight: 600, color: skill.color, flex: 1 }}>{skill.label}</span>
+                                  <span style={{ fontSize: 13, fontWeight: 600, color: skill.color, flex: 1 }}>{skill.label}</span>
                                 </div>
                                 <div style={{ display: "flex", gap: 4 }}>
                                   {hasContent ? (
                                     <button
                                       onClick={() => setModal({ title: MD_CONTENT[skill.contentKey].title, content: MD_CONTENT[skill.contentKey].content, lines: MD_CONTENT[skill.contentKey].lines, color: skill.color })}
-                                      style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: `1px solid ${skill.color}`, background: `${skill.color}08`, color: skill.color, fontWeight: 700, cursor: "pointer" }}>
+                                      style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, border: `1px solid ${skill.color}`, background: `${skill.color}08`, color: skill.color, fontWeight: 700, cursor: "pointer" }}>
                                       👁 Voir le prompt
                                     </button>
                                   ) : (
-                                    <span style={{ fontSize: 9, color: "#D63031" }}>Fichier manquant</span>
+                                    <span style={{ fontSize: 11, color: "#D63031" }}>Fichier manquant</span>
                                   )}
                                   <button
                                     onClick={skill.id === "sk_prompt1" ? openPreentretienEditor : undefined}
-                                    style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid #888", background: "transparent", color: "#555", fontWeight: 600, cursor: skill.id === "sk_prompt1" ? "pointer" : "default" }}>
+                                    style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, border: "1px solid #888", background: "transparent", color: "#555", fontWeight: 600, cursor: skill.id === "sk_prompt1" ? "pointer" : "default" }}>
                                     ✏️ Éditer
                                   </button>
                                 </div>
@@ -3769,7 +3769,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
 
                   {/* Skills N8N — dynamique depuis /v1/skills */}
                   <div style={{ marginBottom: 16 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6, paddingBottom: 4, borderBottom: "1px solid #eee" }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6, paddingBottom: 4, borderBottom: "1px solid #eee" }}>
                       Skills N8N {apiSkillsLoading && "(chargement…)"} {!apiSkillsLoading && `— ${apiSkills.length} skills`}
                     </div>
                     <div className="simu-prompts-grid">
@@ -3777,16 +3777,16 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                         <div key={skill.id} style={{ borderRadius: 7, padding: "9px 11px", background: "#fff", border: "1px solid #e0e0e0", borderLeft: "3px solid #0984E3" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>
                             <span style={{ fontSize: 14 }}>🧩</span>
-                            <span style={{ fontSize: 11, fontWeight: 600, color: "#0984E3", flex: 1 }}>{skill.nom}</span>
-                            <span style={{ fontSize: 8, padding: "1px 5px", borderRadius: 3, background: "#0984E315", color: "#0984E3", fontWeight: 700 }}>{skill.code}</span>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: "#0984E3", flex: 1 }}>{skill.nom}</span>
+                            <span style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: "#0984E315", color: "#0984E3", fontWeight: 700 }}>{skill.code}</span>
                           </div>
                           {skill.description && (
-                            <div style={{ fontSize: 9, color: "#666", marginBottom: 5, lineHeight: 1.3 }}>{skill.description}</div>
+                            <div style={{ fontSize: 11, color: "#666", marginBottom: 5, lineHeight: 1.3 }}>{skill.description}</div>
                           )}
                           <div style={{ display: "flex", gap: 4 }}>
                             <button
                               onClick={() => setEditSkillCode(skill.code)}
-                              style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid #0984E3", background: "#0984E308", color: "#0984E3", fontWeight: 700, cursor: "pointer" }}>
+                              style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, border: "1px solid #0984E3", background: "#0984E308", color: "#0984E3", fontWeight: 700, cursor: "pointer" }}>
                               ✏️ Éditer
                             </button>
                           </div>
@@ -3797,7 +3797,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
 
                   {/* Manquants — à créer */}
                   <div style={{ marginBottom: 16 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#D63031", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6, paddingBottom: 4, borderBottom: "1px solid #D6303120" }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#D63031", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6, paddingBottom: 4, borderBottom: "1px solid #D6303120" }}>
                       ⚠ Manquants — à créer
                     </div>
                     <div className="simu-prompts-grid">
@@ -3805,8 +3805,8 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                         <div key={skill.id} style={{ borderRadius: 7, padding: "9px 11px", background: "#fafafa", border: "1px solid #f0f0f0", borderLeft: "3px solid #ddd", opacity: 0.6 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>
                             <span style={{ fontSize: 14 }}>{skill.icon}</span>
-                            <span style={{ fontSize: 11, fontWeight: 600, color: "#aaa", flex: 1 }}>{skill.label}</span>
-                            <span style={{ fontSize: 8, padding: "1px 5px", borderRadius: 3, background: "#D6303115", color: "#D63031", fontWeight: 700 }}>À créer</span>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: "#aaa", flex: 1 }}>{skill.label}</span>
+                            <span style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: "#D6303115", color: "#D63031", fontWeight: 700 }}>À créer</span>
                           </div>
                         </div>
                       ))}
@@ -3817,7 +3817,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                   <div style={{ marginTop: 14, textAlign: "center" }}>
                     <button
                       onClick={() => setCreateSkillOpen(true)}
-                      style={{ fontSize: 11, padding: "8px 18px", borderRadius: 6, border: "1.5px dashed #00B894", background: "#00B89408", color: "#00B894", fontWeight: 700, cursor: "pointer" }}>
+                      style={{ fontSize: 13, padding: "8px 18px", borderRadius: 6, border: "1.5px dashed #00B894", background: "#00B89408", color: "#00B894", fontWeight: 700, cursor: "pointer" }}>
                       + Créer un nouveau skill
                     </button>
                   </div>
@@ -3831,7 +3831,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                     <span style={{ fontSize: 18 }}>📚</span>
                     <span style={{ fontSize: 14, fontWeight: 700, color: "#D63031" }}>Registre d'erreurs</span>
                   </div>
-                  <div style={{ fontSize: 10, color: "#555", marginBottom: 14 }}>Règles Gate #2 — chaque erreur capturée bloque automatiquement les calculs incohérents</div>
+                  <div style={{ fontSize: 12, color: "#555", marginBottom: 14 }}>Règles Gate #2 — chaque erreur capturée bloque automatiquement les calculs incohérents</div>
 
                   {/* Stats */}
                   <div className="simu-auto-results-strip" style={{ marginBottom: 16 }}>
@@ -3842,13 +3842,13 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                     ].map((s) => (
                       <div key={s.label} style={{ flex: 1, padding: "8px 12px", borderRadius: 8, background: "#fafafa", border: "1px solid #eee", textAlign: "center" }}>
                         <div style={{ fontSize: 16, fontWeight: 800, color: s.color }}>{s.val}</div>
-                        <div style={{ fontSize: 9, color: "#555", textTransform: "uppercase", letterSpacing: "0.05em" }}>{s.label}</div>
+                        <div style={{ fontSize: 11, color: "#555", textTransform: "uppercase", letterSpacing: "0.05em" }}>{s.label}</div>
                       </div>
                     ))}
                   </div>
 
                   {/* Liste des règles */}
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#D63031", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>🔴 Règles actives (Gate #2)</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#D63031", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>🔴 Règles actives (Gate #2)</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {REGISTRE_ERREURS.map((r) => (
                       <div key={r.id} style={{ borderRadius: 8, border: "1px solid #D6303120", background: "#fff", overflow: "hidden" }}>
@@ -3871,25 +3871,25 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                               `Statut        : ✅ ACTIF — 🔴 CRITIQUE (bloquant)`
                           })}
                           style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 13px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}>
-                          <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: "#D63031", borderRadius: 4, padding: "2px 7px", flexShrink: 0 }}>🔴 {r.id}</span>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: "#1a1a2e", flex: 1 }}>{r.title}</span>
+                          <span style={{ fontSize: 12, fontWeight: 800, color: "#fff", background: "#D63031", borderRadius: 4, padding: "2px 7px", flexShrink: 0 }}>🔴 {r.id}</span>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e", flex: 1 }}>{r.title}</span>
                           <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                            <span style={{ fontSize: 9, color: "#555" }}>{r.date}</span>
-                            <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 3, background: "#D6303110", color: "#D63031", fontWeight: 700 }}>CRITIQUE</span>
-                            <span style={{ fontSize: 9, color: "#6C5CE7" }}>👁 Voir →</span>
+                            <span style={{ fontSize: 11, color: "#555" }}>{r.date}</span>
+                            <span style={{ fontSize: 11, padding: "1px 6px", borderRadius: 3, background: "#D6303110", color: "#D63031", fontWeight: 700 }}>CRITIQUE</span>
+                            <span style={{ fontSize: 11, color: "#6C5CE7" }}>👁 Voir →</span>
                           </div>
                         </button>
                         {/* Aperçu condition */}
                         <div style={{ padding: "0 13px 8px 13px", borderTop: "1px solid #f5f5f5" }}>
-                          <code style={{ fontSize: 9, color: "#555", background: "#f5f5f5", padding: "3px 7px", borderRadius: 4, fontFamily: "'IBM Plex Mono', monospace" }}>{r.condition}</code>
-                          <span style={{ fontSize: 9, color: "#555", marginLeft: 8 }}>{r.erreur}</span>
+                          <code style={{ fontSize: 11, color: "#555", background: "#f5f5f5", padding: "3px 7px", borderRadius: 4, fontFamily: "'IBM Plex Mono', monospace" }}>{r.condition}</code>
+                          <span style={{ fontSize: 11, color: "#555", marginLeft: 8 }}>{r.erreur}</span>
                         </div>
                       </div>
                     ))}
                   </div>
 
                   {/* Bouton ajouter */}
-                  <button style={{ marginTop: 12, width: "100%", padding: "9px 0", borderRadius: 8, border: "2px dashed #D6303140", background: "transparent", color: "#D63031", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                  <button style={{ marginTop: 12, width: "100%", padding: "9px 0", borderRadius: 8, border: "2px dashed #D6303140", background: "transparent", color: "#D63031", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
                     + Ajouter une règle (PROMPT 3)
                   </button>
                 </div>
@@ -3916,18 +3916,18 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                           {i < 4 && <div style={{ width: 2, height: 20, background: step.c, margin: "2px 0", opacity: 0.3 }} />}
                         </div>
                         <div style={{ background: "#fff", borderRadius: 11, boxShadow: "0 1px 5px rgba(0,0,0,0.05)", padding: "10px 14px", flex: 1 }}>
-                          <span style={{ fontWeight: 700, fontSize: 12, color: step.c }}>{step.t}</span>
-                          <div style={{ fontSize: 10, color: "#666", marginTop: 2 }}>{step.d}</div>
+                          <span style={{ fontWeight: 700, fontSize: 14, color: step.c }}>{step.t}</span>
+                          <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>{step.d}</div>
                         </div>
                       </div>
                     ))}
                   </div>
 
                   <div style={{ marginTop: 16, padding: "10px 12px", background: "#f8f8f8", borderRadius: 8, border: "1px solid #eee" }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#555", marginBottom: 6 }}>🔄 Résultats automatiques intégrés à chaque simulation :</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#555", marginBottom: 6 }}>🔄 Résultats automatiques intégrés à chaque simulation :</div>
                     <div className="simu-auto-results-strip">
                       {AUTO_RESULTS.map((ar) => (
-                        <div key={ar.id} style={{ flex: 1, padding: "6px 8px", borderRadius: 6, background: `${ar.color}06`, border: `1px solid ${ar.color}15`, fontSize: 10 }}>
+                        <div key={ar.id} style={{ flex: 1, padding: "6px 8px", borderRadius: 6, background: `${ar.color}06`, border: `1px solid ${ar.color}15`, fontSize: 12 }}>
                           <span>{ar.icon}</span> <strong style={{ color: ar.color }}>{ar.label}</strong> — {ar.desc.split(".")[0]}.
                         </div>
                       ))}
@@ -3935,31 +3935,31 @@ export default function SimulatorV6({ mode = "production", id, user }) {
                   </div>
 
                   <div style={{ marginTop: 16, background: "#1a1a2e", borderRadius: 10, padding: 16 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", marginBottom: 10 }}>🔧 Architecture du moteur</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 10 }}>🔧 Architecture du moteur</div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 40px 1fr 40px 1fr", alignItems: "center" }}>
                       <div style={{ background: "#6C5CE720", borderRadius: 8, padding: 10, border: "1px solid #6C5CE740" }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: "#a29bfe", marginBottom: 3 }}>📜 Règles .md</div>
-                        <div style={{ fontSize: 9, color: "#555" }}>12 fichiers règles métier</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#a29bfe", marginBottom: 3 }}>📜 Règles .md</div>
+                        <div style={{ fontSize: 11, color: "#555" }}>12 fichiers règles métier</div>
                       </div>
                       <div style={{ textAlign: "center", color: "#555", fontSize: 16 }}>→</div>
                       <div style={{ background: "#E1705520", borderRadius: 8, padding: 10, border: "1px solid #E1705540" }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: "#E17055", marginBottom: 3 }}>🤖 Moteur IA</div>
-                        <div style={{ fontSize: 9, color: "#ccc" }}>Prompt + Règles + Paramètres + Formules</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#E17055", marginBottom: 3 }}>🤖 Moteur IA</div>
+                        <div style={{ fontSize: 11, color: "#ccc" }}>Prompt + Règles + Paramètres + Formules</div>
                       </div>
                       <div style={{ textAlign: "center", color: "#ccc", fontSize: 16 }}>→</div>
                       <div style={{ background: "#00B89420", borderRadius: 8, padding: 10, border: "1px solid #00B89440" }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: "#00B894", marginBottom: 3 }}>📊 Résultats</div>
-                        <div style={{ fontSize: 9, color: "#ccc" }}>+ surcote, min. contributif, majo. enfants</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#00B894", marginBottom: 3 }}>📊 Résultats</div>
+                        <div style={{ fontSize: 11, color: "#ccc" }}>+ surcote, min. contributif, majo. enfants</div>
                       </div>
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
                       <div style={{ background: "#0984E320", borderRadius: 8, padding: 8, border: "1px solid #0984E340" }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: "#0984E3" }}>📐 19 paramètres annuels</div>
-                        <div style={{ fontSize: 9, color: "#ccc" }}>PASS, SMIC, points, taux cotis. T1/T2, appel 127%, CSG…</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#0984E3" }}>📐 19 paramètres annuels</div>
+                        <div style={{ fontSize: 11, color: "#ccc" }}>PASS, SMIC, points, taux cotis. T1/T2, appel 127%, CSG…</div>
                       </div>
                       <div style={{ background: "#00B89420", borderRadius: 8, padding: 8, border: "1px solid #00B89440" }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: "#00B894" }}>🧮 8 formules de calcul</div>
-                        <div style={{ fontSize: 9, color: "#ccc" }}>Pension CNAV, décote, surcote, SAM, points AGIRC-ARRCO…</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#00B894" }}>🧮 8 formules de calcul</div>
+                        <div style={{ fontSize: 11, color: "#ccc" }}>Pension CNAV, décote, surcote, SAM, points AGIRC-ARRCO…</div>
                       </div>
                     </div>
                   </div>
@@ -3973,7 +3973,7 @@ export default function SimulatorV6({ mode = "production", id, user }) {
       <div style={{ padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "flex-end", borderTop: "1px solid #ccc", marginTop: 24 }}>
         <button
           onClick={() => setReportOpen(true)}
-          style={{ fontSize: 12, color: "#E17055", background: "#fff", border: "1px solid #E17055", borderRadius: 6, padding: "6px 16px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontWeight: 600, transition: "all 0.2s ease" }}
+          style={{ fontSize: 14, color: "#E17055", background: "#fff", border: "1px solid #E17055", borderRadius: 6, padding: "6px 16px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontWeight: 600, transition: "all 0.2s ease" }}
           onMouseOver={e => { e.currentTarget.style.background = "#E17055"; e.currentTarget.style.color = "#fff"; }}
           onMouseOut={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = "#E17055"; }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -3991,32 +3991,32 @@ export default function SimulatorV6({ mode = "production", id, user }) {
           <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 12, width: "100%", maxWidth: 480, boxShadow: "0 8px 40px rgba(0,0,0,0.18)", overflow: "hidden" }}>
             <div style={{ padding: "14px 18px", borderBottom: "1px solid #eee", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#D25F45" }}>Signaler une erreur</div>
-                <div style={{ fontSize: 10, color: "#444", marginTop: 2 }}>Un calcul incorrect, un affichage anormal, une donnée manquante…</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#D25F45" }}>Signaler une erreur</div>
+                <div style={{ fontSize: 12, color: "#444", marginTop: 2 }}>Un calcul incorrect, un affichage anormal, une donnée manquante…</div>
               </div>
               <button onClick={() => setReportOpen(false)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "#555" }}>✕</button>
             </div>
             <div style={{ padding: "16px 18px" }}>
-              <div style={{ fontSize: 11, color: "#333", fontWeight: 600, marginBottom: 8 }}>Section concernée :</div>
+              <div style={{ fontSize: 13, color: "#333", fontWeight: 600, marginBottom: 8 }}>Section concernée :</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
                 {["Carrière", "Dispositifs", "Dates & Simulations", "Livrables", "Analyse documents", "Autre"].map(s => (
-                  <button key={s} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 5, border: "1px solid #ccc", background: "#fdfdfd", color: "#444", cursor: "pointer", transition: "all 0.15s ease" }}
+                  <button key={s} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 5, border: "1px solid #ccc", background: "#fdfdfd", color: "#444", cursor: "pointer", transition: "all 0.15s ease" }}
                     onMouseOver={e => { e.currentTarget.style.borderColor = "#6C5CE7"; e.currentTarget.style.color = "#6C5CE7"; e.currentTarget.style.background = "#fff"; }}
                     onMouseOut={e => { e.currentTarget.style.borderColor = "#ccc"; e.currentTarget.style.color = "#444"; e.currentTarget.style.background = "#fdfdfd"; }}>
                     {s}
                   </button>
                 ))}
               </div>
-              <div style={{ fontSize: 11, color: "#333", fontWeight: 600, marginBottom: 8 }}>Description :</div>
+              <div style={{ fontSize: 13, color: "#333", fontWeight: 600, marginBottom: 8 }}>Description :</div>
               <textarea
                 value={reportText}
                 onChange={e => setReportText(e.target.value)}
                 placeholder="Décrivez l'erreur constatée…"
-                style={{ width: "100%", padding: "9px 11px", color: "#444", borderRadius: 8, border: "1px solid #ccc", fontSize: 11, fontFamily: "inherit", resize: "vertical", minHeight: 90, boxSizing: "border-box", outline: "none", lineHeight: 1.6 }} />
+                style={{ width: "100%", padding: "9px 11px", color: "#444", borderRadius: 8, border: "1px solid #ccc", fontSize: 13, fontFamily: "inherit", resize: "vertical", minHeight: 90, boxSizing: "border-box", outline: "none", lineHeight: 1.6 }} />
             </div>
             <div style={{ padding: "12px 18px", borderTop: "1px solid #eee", display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button onClick={() => setReportOpen(false)} style={{ padding: "7px 16px", borderRadius: 7, border: "1px solid #ccc", background: "#fafafa", color: "#444", fontSize: 11, cursor: "pointer" }}>Annuler</button>
-              <button onClick={() => { setReportOpen(false); setReportText(""); }} style={{ padding: "7px 18px", borderRadius: 7, border: "none", background: "#E17055", color: "#fff", fontWeight: 700, fontSize: 11, cursor: "pointer" }}>Envoyer</button>
+              <button onClick={() => setReportOpen(false)} style={{ padding: "7px 16px", borderRadius: 7, border: "1px solid #ccc", background: "#fafafa", color: "#444", fontSize: 13, cursor: "pointer" }}>Annuler</button>
+              <button onClick={() => { setReportOpen(false); setReportText(""); }} style={{ padding: "7px 18px", borderRadius: 7, border: "none", background: "#E17055", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Envoyer</button>
             </div>
           </div>
         </div>
