@@ -2816,9 +2816,6 @@ export default function KpiPage() {
               error={convError || diagError}
               onSelect={handleSelectConversation}
               onDataRefresh={() => {
-                console.log(
-                  "🔄 Rechargement des données après création prospect...",
-                );
                 fetchConversationArchives();
                 fetchDiagnosticResults();
               }}

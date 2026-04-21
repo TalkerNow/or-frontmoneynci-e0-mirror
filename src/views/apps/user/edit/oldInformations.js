@@ -41,7 +41,6 @@ class UserAccountTab extends React.Component {
       },
     };
     if (this.props.data) {
-      console.log("oui", this.props);
       return;
     }
     await axios

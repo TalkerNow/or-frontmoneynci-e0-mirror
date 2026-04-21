@@ -1090,7 +1090,7 @@ class EditContract extends React.Component {
             .catch((err) => console.warn("Error fetching suivi", err));
         }
       })
-      .catch((e) => console.log(e));
+      .catch(() => {});
   }
   appendCreditImpotNote = async () => {
     // Si la case n'est pas cochée, on ne fait rien

@@ -476,7 +476,6 @@ const InboxView = ({
         onGenerateAiReply={handleGenerateReply}
         setAiDraft={setAiDraft}
         onProspectCreated={(newId) => {
-          console.log("🔄 Prospect créé, rechargement des données...", newId);
           if (onDataRefresh) {
             onDataRefresh();
           }
