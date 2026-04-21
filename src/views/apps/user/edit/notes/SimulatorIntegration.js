@@ -337,6 +337,62 @@ function _buildDefaultCarriereRows() {
   });
 }
 
+// ─── CIPAV RESULT CARD ──────────────────────────────────────────────────────
+
+function CipavResult({ po }) {
+  const baseAnnuelle = po.pension_base_annuelle != null
+    ? po.pension_base_annuelle
+    : (po.points_base || 0) * (po.valeur_point_base || 0);
+  const complAnnuelle = po.pension_complementaire_annuelle != null
+    ? po.pension_complementaire_annuelle
+    : (po.points_complementaire || 0) * (po.valeur_point_complementaire || 0);
+  const totalAnnuel = po.pension_annuelle_brute != null ? po.pension_annuelle_brute : (baseAnnuelle + complAnnuelle);
+  const totalMensuel = po.pension_mensuelle_brute != null ? po.pension_mensuelle_brute : (totalAnnuel / 12);
+  const ptsBase = po.points_base != null ? po.points_base : (po.details_points && po.details_points.base);
+  const ptsCompl = po.points_complementaire != null ? po.points_complementaire : (po.details_points && po.details_points.complementaire);
+
+  return (
+    <div style={{ marginTop: 14 }}>
+      <div style={{ background: "#9B59B608", border: "1px solid #9B59B620", borderRadius: 8, padding: "10px 14px" }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: "#9B59B6", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Résultat CIPAV</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+          <div style={{ background: "#9B59B618", borderRadius: 7, padding: "10px 12px" }}>
+            <div style={{ fontSize: 9, color: "#555", marginBottom: 4 }}>Total mensuel</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "#9B59B6" }}>
+              {totalMensuel.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €
+            </div>
+          </div>
+          <div style={{ background: "#fbf8fd", borderRadius: 7, padding: "10px 12px", border: "1px solid #9B59B610" }}>
+            <div style={{ fontSize: 9, color: "#555", marginBottom: 4 }}>Total annuel</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>
+              {totalAnnuel.toLocaleString("fr-FR", { minimumFractionDigits: 0 })} €
+            </div>
+          </div>
+          <div style={{ background: "#fbf8fd", borderRadius: 7, padding: "8px 10px", border: "1px solid #9B59B608" }}>
+            <div style={{ fontSize: 8, color: "#666", marginBottom: 2 }}>Base annuelle</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>{baseAnnuelle.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €</div>
+          </div>
+          <div style={{ background: "#fbf8fd", borderRadius: 7, padding: "8px 10px", border: "1px solid #9B59B608" }}>
+            <div style={{ fontSize: 8, color: "#666", marginBottom: 2 }}>Compl. annuelle</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>{complAnnuelle.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {[
+            ["Points base", ptsBase != null ? ptsBase.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : null],
+            ["Points complémentaire", ptsCompl != null ? ptsCompl.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : null],
+          ].map(([label, val]) => (
+            <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 10, borderBottom: "1px solid #9B59B610", paddingBottom: 4 }}>
+              <span style={{ color: "#666" }}>{label}</span>
+              <span style={{ fontWeight: 700, color: "#1a1a2e" }}>{val}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── COMPONENT ──────────────────────────────────────────────────────────────
 
 export default function SimulatorV6({ mode = "production", id, user, onUserUpdate }) {
@@ -2391,27 +2447,27 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", fontWeight: 700, color: "#6C5CE7" }}>{tot}</td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #0984E315" }}>
-                                        <input type="number" step="0.01" value={row.agircT1 ?? ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircT1: parseFloat(e.target.value) || 0 } : r))} style={{ width: 72, textAlign: "center", border: "1px solid #0984E330", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#0984E3", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" step="0.01" value={row.agircT1 ?? ""} disabled={carriereValidee} onChange={e => { const v = parseFloat(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircT1: v } : r)); }} style={{ width: 72, textAlign: "center", border: "1px solid #0984E330", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#0984E3", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
-                                        <input type="number" step="0.01" value={row.agircT2 ?? ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircT2: parseFloat(e.target.value) || 0 } : r))} style={{ width: 72, textAlign: "center", border: "1px solid #0984E330", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#0984E3", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" step="0.01" value={row.agircT2 ?? ""} disabled={carriereValidee} onChange={e => { const v = parseFloat(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircT2: v } : r)); }} style={{ width: 72, textAlign: "center", border: "1px solid #0984E330", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#0984E3", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
-                                        <input type="number" step="0.01" value={row.agircPts || ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircPts: parseFloat(e.target.value) || 0 } : r))} style={{ width: 72, textAlign: "center", border: "1px solid #0984E350", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#1a1a2e", fontWeight: 800, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" step="0.01" value={row.agircPts || ""} disabled={carriereValidee} onChange={e => { const v = parseFloat(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircPts: v } : r)); }} style={{ width: 72, textAlign: "center", border: "1px solid #0984E350", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#1a1a2e", fontWeight: 800, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #00B89415" }}>
-                                        <input type="number" step="0.01" value={row.ircPts || ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, ircPts: parseFloat(e.target.value) || 0 } : r))} style={{ width: 72, textAlign: "center", border: "1px solid #00B89430", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#00B894", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" step="0.01" value={row.ircPts || ""} disabled={carriereValidee} onChange={e => { const v = parseFloat(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, ircPts: v } : r)); }} style={{ width: 72, textAlign: "center", border: "1px solid #00B89430", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#00B894", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #E1705515" }}>
-                                        <input type="number" step="0.01" value={row.rciPts || ""} disabled={carriereValidee} onChange={e => setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, rciPts: parseFloat(e.target.value) || 0 } : r))} style={{ width: 72, textAlign: "center", border: "1px solid #E1705530", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#E17055", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" step="0.01" value={row.rciPts || ""} disabled={carriereValidee} onChange={e => { const v = parseFloat(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, rciPts: v } : r)); }} style={{ width: 72, textAlign: "center", border: "1px solid #E1705530", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#E17055", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                       </td>
                                       {cnavplOpen ? (
                                         <>
                                           <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #9B59B630", animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>
-                                            <input type="text" value={cnavplRows[row.yr]?.points || ""} onChange={e => setCnavplRows(p => ({...p, [row.yr]: {...p[row.yr], points: e.target.value}}))} disabled={carriereValidee} style={{ width: 72, textAlign: "center", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 13, padding: "1px 4px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 700 }} />
+                                            <input type="text" value={cnavplRows[row.yr]?.points || ""} onChange={e => { const v = e.target.value; setCnavplRows(p => ({...p, [row.yr]: {...p[row.yr], points: v}})); }} disabled={carriereValidee} style={{ width: 72, textAlign: "center", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 13, padding: "1px 4px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 700 }} />
                                           </td>
                                           <td style={{ padding: "3px 5px", textAlign: "center", animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>
-                                            <input type="text" value={cnavplRows[row.yr]?.pointsCompl || ""} onChange={e => setCnavplRows(p => ({...p, [row.yr]: {...p[row.yr], pointsCompl: e.target.value}}))} disabled={carriereValidee} style={{ width: 72, textAlign: "center", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 13, padding: "1px 4px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 600 }} />
+                                            <input type="text" value={cnavplRows[row.yr]?.pointsCompl || ""} onChange={e => { const v = e.target.value; setCnavplRows(p => ({...p, [row.yr]: {...p[row.yr], pointsCompl: v}})); }} disabled={carriereValidee} style={{ width: 72, textAlign: "center", border: "1px solid #9B59B630", borderRadius: 3, fontSize: 13, padding: "1px 4px", background: carriereValidee ? "#fafafa" : "#fff", color: "#9B59B6", fontWeight: 600 }} />
                                           </td>
                                         </>
                                       ) : (
@@ -3236,47 +3292,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             )}
                             {/* Résultat CIPAV */}
                             {cipavResult && cipavResult.python_output && (
-                              <div style={{ marginTop: 14 }}>
-                                <div style={{ background: "#9B59B608", border: "1px solid #9B59B620", borderRadius: 8, padding: "10px 14px" }}>
-                                  <div style={{ fontSize: 10, fontWeight: 700, color: "#9B59B6", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Résultat CIPAV</div>
-                                  
-                                  {/* Hero boxes specific for CIPAV */}
-                                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
-                                    <div style={{ background: "#9B59B618", borderRadius: 7, padding: "10px 12px" }}>
-                                      <div style={{ fontSize: 9, color: "#555", marginBottom: 4 }}>Total mensuel</div>
-                                      <div style={{ fontSize: 18, fontWeight: 700, color: "#9B59B6" }}>
-                                        {(((cipavResult.python_output.pension_base_annuelle || 0) + (cipavResult.python_output.pension_complementaire_annuelle || 0)) / 12).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €
-                                      </div>
-                                    </div>
-                                    <div style={{ background: "#fbf8fd", borderRadius: 7, padding: "10px 12px", border: "1px solid #9B59B610" }}>
-                                      <div style={{ fontSize: 9, color: "#555", marginBottom: 4 }}>Total annuel</div>
-                                      <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>
-                                        {((cipavResult.python_output.pension_base_annuelle || 0) + (cipavResult.python_output.pension_complementaire_annuelle || 0)).toLocaleString("fr-FR", { minimumFractionDigits: 0 })} €
-                                      </div>
-                                    </div>
-                                    <div style={{ background: "#fbf8fd", borderRadius: 7, padding: "8px 10px", border: "1px solid #9B59B608" }}>
-                                      <div style={{ fontSize: 8, color: "#666", marginBottom: 2 }}>Base annuelle</div>
-                                      <div style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>{cipavResult.python_output.pension_base_annuelle?.toLocaleString("fr-FR")} €</div>
-                                    </div>
-                                    <div style={{ background: "#fbf8fd", borderRadius: 7, padding: "8px 10px", border: "1px solid #9B59B608" }}>
-                                      <div style={{ fontSize: 8, color: "#666", marginBottom: 2 }}>Compl. annuelle</div>
-                                      <div style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>{cipavResult.python_output.pension_complementaire_annuelle?.toLocaleString("fr-FR")} €</div>
-                                    </div>
-                                  </div>
-
-                                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                    {[
-                                      ["Points base", cipavResult.python_output.details_points?.base?.toLocaleString("fr-FR", { maximumFractionDigits: 2 })],
-                                      ["Points complémentaire", cipavResult.python_output.details_points?.complementaire?.toLocaleString("fr-FR", { maximumFractionDigits: 2 })],
-                                    ].map(([label, val]) => (
-                                      <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 10, borderBottom: "1px solid #9B59B610", paddingBottom: 4 }}>
-                                        <span style={{ color: "#666" }}>{label}</span>
-                                        <span style={{ fontWeight: 700, color: "#1a1a2e" }}>{val}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
+                              <CipavResult po={cipavResult.python_output} />
                             )}
                           </div>
                         </div>
