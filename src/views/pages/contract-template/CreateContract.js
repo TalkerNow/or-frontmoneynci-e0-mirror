@@ -900,11 +900,7 @@ class CreateContract extends React.Component {
           // Forcer AR Entreprise (section 4) à false au chargement
           values.c4 = false;
 
-          console.log(
-            "TEMPLATE c4 (raw après normalisation):",
-            values.c4,
-            typeof values.c4
-          );
+
 
           this.setState(
             {
