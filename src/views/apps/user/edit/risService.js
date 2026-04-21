@@ -18,6 +18,7 @@ export const WEBHOOKS = {
   SCRIPT_RCI: `${N8N_BASE}/script-execute-rci-v2-test`,
   SCRIPT_CIPAV: `${N8N_BASE}/script-execute-cipav-v2-test`,
   SCRIPT_RACL: `${N8N_BASE}/racl-executor-v1-test`,
+  SCRIPT_TNS:  `${N8N_BASE}/tns-executor-v1-test`,
 };
 
 /**
@@ -259,6 +260,37 @@ export async function executeRaclScenario(clientId, scenarioParams = {}) {
     ...data,
     eligible: data.racl_eligible ?? data.eligible,
     raison_eligibilite: data.racl_result?.message || data.message || data.raison_eligibilite,
+  };
+}
+
+/**
+ * Exécute l'analyse TI/TNS (cotisations minimales) via le proxy Laravel.
+ * @param {number} clientId
+ * @param {object} [scenarioParams]
+ * @returns {Promise<object>}
+ */
+export async function executeTnsScenario(clientId, scenarioParams = {}) {
+  const token = localStorage.getItem("token");
+  const userId = parseInt(localStorage.getItem("userid"));
+
+  const response = await axios.post(
+    `${global.config.server_url}/script/calculate`,
+    {
+      regime_code: "COTISATIONS_MIN",
+      client_id: clientId,
+      token,
+      user_id: userId,
+      user_context: "Analyse cotisations minimales TI/TNS",
+      scenario_params: scenarioParams,
+    },
+    { timeout: 90000, headers: { "Content-Type": "application/json" } }
+  );
+
+  const data = Array.isArray(response.data) ? response.data[0] : response.data;
+  return {
+    ...data,
+    eligible: data.has_tns ?? data.eligible,
+    raison_eligibilite: data.tns_result?.message || data.raison_eligibilite,
   };
 }
 
