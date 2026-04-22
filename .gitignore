@@ -13,3 +13,4 @@ CLAUDE.md
 .env.local
 .env.prod
 .env
+.envexample
