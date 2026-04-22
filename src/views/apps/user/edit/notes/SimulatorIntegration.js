@@ -1636,6 +1636,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
 
       const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
       await axios.post(`${global.config.server_url}/frozen_data`, payload, Config);
+      // Lock properly so locked_at is persisted in DB (store() ignores it, lock() saves it)
+      await axios.post(`${global.config.server_url}/frozen_data/${parseInt(id)}/lock`, {}, Config);
 
       setLastRisPayload(null);
 
