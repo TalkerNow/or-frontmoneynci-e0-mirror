@@ -12,7 +12,7 @@ import {
   loadUploadedDocs,
   parseNIR,
 } from "./utils";
-import { executeScript, executeSkillGeneric, executeRaclScenario, executeTnsScenario, executeChomageIndScenario, executeArretActiviteScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
+import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeTnsScenario, executeChomageIndScenario, executeArretActiviteScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
@@ -61,7 +61,7 @@ const ACTION_PANELS = {
       { id: "racl", label: "Carrière longue (RACL)", icon: "⏩", requires: ["ris"], desc: "Départ anticipé si début activité avant 16/18/20/21 ans", generates_date: true },
       { id: "rachat_incomplete", label: "Rachat VPLR année incomplète", icon: "🧩", requires: ["ris"], desc: "Racheter des trimestres pour années < 4 trimestres" },
       { id: "rachat_etude", label: "Rachat VPLR année d'étude", icon: "🎓", requires: ["ris"], hasInput: true, inputType: "number", inputLabel: "Nb années études", desc: "Max 12 trimestres rachetables" },
-      { id: "retraite_progressive", label: "Retraite progressive", icon: "⚖️", requires: ["ris"], desc: "Temps partiel + pension partielle dès âge légal −2 ans", generates_date: true },
+      { id: "retraite_progressive", label: "Retraite progressive", icon: "⚖️", requires: ["ris"], desc: "Temps partiel + pension partielle dès âge légal −2 ans", generates_date: true, hasInput: true, inputType: "number", inputLabel: "Quotité activité (%)" },
       { id: "cumul_emploi", label: "Cumul emploi-retraite", icon: "🔄", requires: ["ris"], desc: "Liquidation puis reprise d'activité, 2e pension (réforme 2023)", generates_date: true },
       { id: "chomage_ind", label: "Chômage indemnisé", icon: "📉", requires: ["ris"], hasInput: true, inputType: "number", inputLabel: "Durée (mois)", desc: "Trim. assimilés, impact sur date taux plein", generates_date: true },
       { id: "chomage_non_ind", label: "Chômage non indemnisé", icon: "⚠️", requires: ["ris"], desc: "Limites spécifiques, exception +55 ans / 20 ans cotisation", generates_date: true },
@@ -94,6 +94,7 @@ const ACTION_PANELS = {
 // Mapping dispositif UI id → skill_code DB (null = pas de skill générique pour ce dispositif)
 const SKILL_CODE_LABELS = {
   RACL: "CARRIÈRE LONGUE (RACL)",
+  RP: "RETRAITE PROGRESSIVE",
   VPLR: "RACHAT VPLR",
   "RETRAITE PROGRESSIVE": "RETRAITE PROGRESSIVE",
   "CUMUL EMPLOI RETRAITE": "CUMUL EMPLOI RETRAITE",
@@ -106,7 +107,7 @@ const DISPOSITIF_TO_SKILL_CODE = {
   racl: "RACL",
   rachat_incomplete: "VPLR",
   rachat_etude: "VPLR",
-  retraite_progressive: "RETRAITE PROGRESSIVE",
+  retraite_progressive: "RP",
   cumul_emploi: "CUMUL EMPLOI RETRAITE",
   chomage_ind: "CHOMAGE_INDEMNISE",
   chomage_non_ind: null,
@@ -1774,6 +1775,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     try {
       const result = skillCode === "RACL"
         ? await executeRaclScenario(parseInt(id), scenarioParams)
+        : skillCode === "RP"
+        ? await executeRpScenario(parseInt(id), scenarioParams)
         : skillCode === "COTISATIONS_MIN"
         ? await executeTnsScenario(parseInt(id), scenarioParams)
         : skillCode === "CHOMAGE_INDEMNISE"
@@ -2882,6 +2885,39 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                             {skillCode === "RACL" && !skillResultData.eligible && skillResultData.manquants > 0 && (
                                               <div style={{ fontSize: 11, color: "#C0392B", marginBottom: 4 }}>
                                                 ⏳ {skillResultData.manquants} trimestre{skillResultData.manquants > 1 ? "s" : ""} cotisé{skillResultData.manquants > 1 ? "s" : ""} manquant{skillResultData.manquants > 1 ? "s" : ""}
+                                              </div>
+                                            )}
+                                            {skillCode === "RP" && skillResultData.eligible && skillResultData.rp_result && (
+                                              <div style={{ marginBottom: 4 }}>
+                                                {skillResultData.rp_result.date_debut_rp_possible && (
+                                                  <div style={{ fontSize: 12, fontWeight: 700, color, marginBottom: 2 }}>
+                                                    🗓 Début RP possible : {skillResultData.rp_result.date_debut_rp_possible}
+                                                  </div>
+                                                )}
+                                                {skillResultData.rp_result.duree_max_rp_mois != null && (
+                                                  <div style={{ fontSize: 11, color: "#555", marginBottom: 2 }}>
+                                                    Durée max : {skillResultData.rp_result.duree_max_rp_mois} mois (jusqu'à {skillResultData.rp_result.age_retraite_definitive} ans)
+                                                  </div>
+                                                )}
+                                                {skillResultData.rp_result.fraction_pension_provisoire_pct != null && (
+                                                  <div style={{ fontSize: 11, color: "#0984E3", marginBottom: 2 }}>
+                                                    💶 {skillResultData.rp_result.quotite_label}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
+                                            {skillCode === "RP" && !skillResultData.eligible && skillResultData.rp_result && (
+                                              <div style={{ marginBottom: 4 }}>
+                                                {!skillResultData.rp_result.condition_age_ok && (
+                                                  <div style={{ fontSize: 11, color: "#C0392B", marginBottom: 2 }}>
+                                                    ⏳ Âge insuffisant — {Math.ceil(skillResultData.rp_result.manquants_mois_age / 12 * 10) / 10} an(s) avant 62 ans
+                                                  </div>
+                                                )}
+                                                {!skillResultData.rp_result.condition_trim_ok && (
+                                                  <div style={{ fontSize: 11, color: "#C0392B", marginBottom: 2 }}>
+                                                    ⏳ {skillResultData.rp_result.manquants_trimestres} trimestre{skillResultData.rp_result.manquants_trimestres > 1 ? "s" : ""} manquant{skillResultData.rp_result.manquants_trimestres > 1 ? "s" : ""} ({skillResultData.rp_result.trim_valides_actuels}/150 tous régimes)
+                                                  </div>
+                                                )}
                                               </div>
                                             )}
                                             {skillCode === "COTISATIONS_MIN" && skillResultData.tns_result && (
