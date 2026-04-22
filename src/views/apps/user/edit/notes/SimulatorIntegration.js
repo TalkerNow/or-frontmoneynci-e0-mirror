@@ -835,6 +835,42 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     setCarriereValidee(false);
     setRisFileName(null);
     setLastRisPayload(null);
+    // Vider les résultats des calculs et scénarios
+    setSkillResult(null);
+    setSkillError(null);
+    setAgircResult(null);
+    setAgircError(null);
+    setIrcantecResult(null);
+    setIrcantecError(null);
+    setRciResult(null);
+    setRciError(null);
+    setCipavResult(null);
+    setCipavError(null);
+    setScenarioSkillResults({});
+    setScenarioSkillErrors({});
+    setActivatedDispositifs([]);
+    setDetectedDispositifs({});
+    setShowAutoResults(false);
+    // Supprimer les rapports en base pour éviter leur rechargement au F5
+    const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+    const allCodes = [
+      "CNAV", "AGIRC_ARRCO", "IRCANTEC", "RCI", "CIPAV",
+      ...new Set(Object.values(DISPOSITIF_TO_SKILL_CODE).filter(Boolean)),
+    ];
+    for (const code of allCodes) {
+      try {
+        const report = await axios.get(
+          `${global.config.server_url}/v1/analysis-reports/latest/${id}/${code}`,
+          Config,
+        );
+        if (report?.data?.id) {
+          await axios.delete(
+            `${global.config.server_url}/v1/analysis-reports/${report.data.id}`,
+            Config,
+          );
+        }
+      } catch { /* 404 = pas de rapport, on ignore */ }
+    }
     try {
       const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
       await axios.delete(`${global.config.server_url}/frozen_data/${id}`, Config);
