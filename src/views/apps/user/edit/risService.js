@@ -20,6 +20,7 @@ export const WEBHOOKS = {
   SCRIPT_RACL:        `${N8N_BASE}/racl-executor-v1-test`,
   SCRIPT_TNS:         `${N8N_BASE}/tns-executor-v1-test`,
   SCRIPT_CHOMAGE_IND: `${N8N_BASE}/chomage-indemnise-v1-test`,
+  SCRIPT_ARRET_ACTIVITE: `${N8N_BASE}/arret-activite-executor-v1-test`,
 };
 
 /**
@@ -277,6 +278,37 @@ export async function executeChomageIndScenario(clientId, scenarioParams = {}) {
       token,
       user_id: userId,
       user_context: "Analyse chômage indemnisé",
+      scenario_params: scenarioParams,
+      frozen_data: frozenData,
+    },
+    { timeout: 90000, headers: { "Content-Type": "application/json" } }
+  );
+
+  const data = Array.isArray(response.data) ? response.data[0] : response.data;
+  return data;
+}
+
+/**
+ * Exécute l'analyse arrêt d'activité directement via n8n.
+ * @param {number} clientId
+ * @param {object} [scenarioParams] - { age_arret: number, ... }
+ * @returns {Promise<object>}
+ */
+export async function executeArretActiviteScenario(clientId, scenarioParams = {}) {
+  const token = localStorage.getItem("token");
+  const userId = parseInt(localStorage.getItem("userid"));
+  const Config = { headers: { Authorization: "Bearer " + token } };
+
+  const frozenRes = await axios.get(`${global.config.server_url}/frozen_data/${clientId}`, Config);
+  const frozenData = frozenRes.data;
+
+  const response = await axios.post(
+    WEBHOOKS.SCRIPT_ARRET_ACTIVITE,
+    {
+      client_id: clientId,
+      token,
+      user_id: userId,
+      user_context: "Analyse arrêt d'activité",
       scenario_params: scenarioParams,
       frozen_data: frozenData,
     },

@@ -12,7 +12,7 @@ import {
   loadUploadedDocs,
   parseNIR,
 } from "./utils";
-import { executeSkill, executeScript, executeSkillGeneric, executeRaclScenario, executeTnsScenario, executeChomageIndScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
+import { executeSkill, executeScript, executeSkillGeneric, executeRaclScenario, executeTnsScenario, executeChomageIndScenario, executeArretActiviteScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
@@ -96,13 +96,13 @@ const DISPOSITIF_TO_SKILL_CODE = {
   racl: "RACL",
   rachat_incomplete: "VPLR",
   rachat_etude: "VPLR",
-  retraite_progressive: "RETRAITE_PROGRESSIVE",
-  cumul_emploi: "CUMUL_EMPLOI_RETRAITE",
-  chomage_ind: "CHOMAGE_INDEMNISE",
+  retraite_progressive: "RETRAITE PROGRESSIVE",
+  cumul_emploi: "CUMUL EMPLOI RETRAITE",
+  chomage_ind: "CHOMAGE INDEMNISE",
   chomage_non_ind: null,
-  arret_activite: null,
-  cotisations_min: "COTISATIONS_MIN",
-  trimestres_etranger: "TRIMESTRES_ETRANGER",
+  arret_activite: "ARRET ACTIVITE",
+  cotisations_min: "COTISATIONS MIN",
+  trimestres_etranger: "TRIMESTRES ETRANGER",
   reversion: "REVERSION",
 };
 
@@ -1768,6 +1768,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         ? await executeTnsScenario(parseInt(id), scenarioParams)
         : skillCode === "CHOMAGE_INDEMNISE"
         ? await executeChomageIndScenario(parseInt(id), scenarioParams)
+        : skillCode === "ARRET_ACTIVITE"
+        ? await executeArretActiviteScenario(parseInt(id), scenarioParams)
         : await executeSkillGeneric(skillCode, {
             clientId: parseInt(id),
             userContext: `Analyse dispositif ${skillCode} pour client ${id}`,
