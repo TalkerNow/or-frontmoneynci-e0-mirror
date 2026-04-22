@@ -162,7 +162,7 @@ const ADMIN_SECTIONS = {
       { id: "f_decote", label: "Décote CNAV", icon: "📉", formula: "Taux plein − (1.25% × trim. manquants)", desc: "Trim. manquants = min(âge légal→67, durée requise−validés)" },
       { id: "f_surcote", label: "Surcote CNAV", icon: "📈", formula: "Pension × (1 + 1.25% × trim. surcotés)", desc: "Trimestres au-delà du taux plein, après âge légal" },
       { id: "f_agirc", label: "Pension AGIRC-ARRCO", icon: "📊", formula: "Nb points × Valeur de service du point", desc: "Points = cotisations / prix d'achat du point" },
-      { id: "f_sam", label: "SAM 25 meilleures", icon: "💰", formula: "Σ(25 meilleurs salaires revalorisés) / 25", desc: "Salaires plafonnés au PASS, revalorisés par coefficients" },
+      { id: "f_sam", label: "SAM 25 meilleures", icon: "💰", formula: "Σ(meilleures années, max 25, salaire > 0) / N", desc: "Salaires plafonnés au PASS, revalorisés — années à 0€ exclues" },
       { id: "f_trim_salaire", label: "Trimestres par salaire", icon: "✅", formula: "Trim. = min(4, Salaire annuel / (150×SMIC))", desc: "Arrondi à l'entier inférieur, max 4/an" },
       { id: "f_points_agirc", label: "Points AGIRC-ARRCO", icon: "🔢", formula: "Assiette × Taux contractuel / Prix d'achat", desc: "T1 (≤PASS) à 6,20% + T2 (>PASS) à 17%. Taux d'appel 127% (part >100% non productive)" },
       { id: "f_rachat", label: "Coût rachat VPLR", icon: "🧩", formula: "Barème(âge, revenu) × nb trimestres", desc: "Option 1 (taux seul) ou Option 2 (taux+prorata)" },
@@ -931,7 +931,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           sal_eur: entry.annee < 2002 ? Math.round((entry.revenu || 0) / 6.55957) : (entry.revenu || 0),
           sal_original: entry.revenu || 0,
           devise: entry.annee < 2002 ? "FRF" : "€",
-          regimes_concernes: entry.regimes_concernes || '',
+          regimes_concernes: Array.isArray(entry.regimes) ? entry.regimes.join(', ').toLowerCase() : (entry.regimes_concernes || ''),
         })));
 
         // 2. Trimestres par année — nouveau format (cotisés/assimilés/rachetés séparés)
@@ -2198,7 +2198,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                       // SAM CNAV : uniquement les années avec affiliation CNAV (TC ou TA > 0)
                       // Exclut les années régime complémentaire seul (Agirc-only, CIPAV seul, etc.)
                       const samRows = [...carriereRows]
-                        .filter(r => (trimCotState[r.yr] ?? 0) > 0 || (trimAssState[r.yr] ?? 0) > 0)
+                        .filter(r => ((trimCotState[r.yr] ?? 0) > 0 || (trimAssState[r.yr] ?? 0) > 0) && (revaloValues[r.yr] ?? 0) > 0)
                         .sort((a, b) => (revaloValues[b.yr] ?? 0) - (revaloValues[a.yr] ?? 0))
                         .slice(0, 25);
                       const samVal = samRows.length ? Math.round(samRows.reduce((s, r) => s + (revaloValues[r.yr] ?? 0), 0) / samRows.length) : 0;
