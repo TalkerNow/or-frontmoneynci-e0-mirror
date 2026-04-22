@@ -92,6 +92,16 @@ const ACTION_PANELS = {
 
 
 // Mapping dispositif UI id → skill_code DB (null = pas de skill générique pour ce dispositif)
+const SKILL_CODE_LABELS = {
+  RACL: "CARRIÈRE LONGUE (RACL)",
+  VPLR: "RACHAT VPLR",
+  "RETRAITE PROGRESSIVE": "RETRAITE PROGRESSIVE",
+  "CUMUL EMPLOI RETRAITE": "CUMUL EMPLOI RETRAITE",
+  CHOMAGE_INDEMNISE: "CHÔMAGE INDEMNISÉ",
+  ARRET_ACTIVITE: "ARRÊT D'ACTIVITÉ",
+  COTISATIONS_MIN: "COTISATIONS MINIMALES (TI/TNS)",
+};
+
 const DISPOSITIF_TO_SKILL_CODE = {
   racl: "RACL",
   rachat_incomplete: "VPLR",
@@ -1777,10 +1787,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           });
       setScenarioSkillResults(prev => ({ ...prev, [skillCode]: result }));
       saveSkillResult(id, skillCode, result);
+      const skillLabel = result.skill_name || SKILL_CODE_LABELS[skillCode] || skillCode.replace(/_/g, ' ');
       if (result.eligible === true) {
-        toast.success(`${result.skill_name || skillCode} : éligible`);
+        toast.success(`${skillLabel} : éligible`);
       } else if (result.eligible === false) {
-        toast.warning(`${result.skill_name || skillCode} : non éligible`);
+        toast.warning(`${skillLabel} : non éligible`);
       }
     } catch (err) {
       const msg = err.response?.data?.message || err.message || "Erreur exécution skill";
