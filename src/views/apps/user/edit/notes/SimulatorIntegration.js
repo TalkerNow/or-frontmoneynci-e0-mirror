@@ -12,7 +12,7 @@ import {
   loadUploadedDocs,
   parseNIR,
 } from "./utils";
-import { executeSkill, executeScript, executeSkillGeneric, executeRaclScenario, executeTnsScenario, executeChomageIndScenario, executeArretActiviteScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
+import { executeScript, executeSkillGeneric, executeRaclScenario, executeTnsScenario, executeChomageIndScenario, executeArretActiviteScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
@@ -98,10 +98,10 @@ const DISPOSITIF_TO_SKILL_CODE = {
   rachat_etude: "VPLR",
   retraite_progressive: "RETRAITE PROGRESSIVE",
   cumul_emploi: "CUMUL EMPLOI RETRAITE",
-  chomage_ind: "CHOMAGE INDEMNISE",
+  chomage_ind: "CHOMAGE_INDEMNISE",
   chomage_non_ind: null,
-  arret_activite: "ARRET ACTIVITE",
-  cotisations_min: "COTISATIONS MIN",
+  arret_activite: "ARRET_ACTIVITE",
+  cotisations_min: "COTISATIONS_MIN",
   trimestres_etranger: "TRIMESTRES ETRANGER",
   reversion: "REVERSION",
 };
