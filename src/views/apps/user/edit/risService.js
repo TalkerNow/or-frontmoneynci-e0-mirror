@@ -20,7 +20,7 @@ export const WEBHOOKS = {
   SCRIPT_RACL:        `${N8N_BASE}/racl-executor-v1-test`,
   SCRIPT_TNS:         `${N8N_BASE}/tns-executor-v1-test`,
   SCRIPT_CHOMAGE_IND: `${N8N_BASE}/chomage-indemnise-v1-test`,
-  SCRIPT_ARRET_ACTIVITE: `${N8N_BASE}/arret-activite-executor-v1-test`,
+  SCRIPT_ARRET_ACTIVITE: `${N8N_BASE}/arret-activite-v1-test`,
 };
 
 /**
