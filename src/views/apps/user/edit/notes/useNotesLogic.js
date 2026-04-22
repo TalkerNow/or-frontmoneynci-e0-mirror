@@ -105,6 +105,55 @@ export const useNotesLogic = (id, perso) => {
   const [userDocuments, setUserDocuments] = useState([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
 
+  // Load frozen career data on mount to repopulate ManualCareerTable after F5
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    const fetchFrozenData = async () => {
+      try {
+        const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+        const response = await axios.get(`${global.config.server_url}/frozen_data/${id}`, Config);
+        if (cancelled) return;
+        const data = response.data;
+        const carriere = Array.isArray(data.carriere) ? data.carriere : [];
+        if (!carriere.length) return;
+
+        // Build cipav lookup: annee → points_cipav_base
+        const cipavMap = {};
+        if (Array.isArray(data.cipav)) {
+          data.cipav.forEach((c) => { if (c.annee) cipavMap[c.annee] = c.points_cipav_base || 0; });
+        }
+
+        const rows = carriere.map((entry, idx) => ({
+          id: `frozen-${entry.annee}-${idx}`,
+          annee: String(entry.annee || ""),
+          revenu: String(entry.revenu_brut || ""),
+          trimBase: String(entry.trimestres_cotises || ""),
+          trimAR: String(entry.trimestres_assimiles || ""),
+          cnavPoints: "",
+          arrcoPoints: entry.points_agirc_arrco ? String(entry.points_agirc_arrco) : "",
+          ircantecPoints: entry.points_ircantec ? String(entry.points_ircantec) : "",
+          rciPoints: entry.points_rci ? String(entry.points_rci) : "",
+          cipavPoints: cipavMap[entry.annee] ? String(cipavMap[entry.annee]) : "",
+          ta: "",
+          tb: "",
+          tc: "",
+          deplafonner: entry.deplafonne || false,
+          errY: false,
+          errR: false,
+        }));
+
+        setManualCareerRows(rows);
+        setFrozenSaved(true);
+      } catch (err) {
+        if (err.response?.status === 404) return; // no frozen data yet
+        console.error("[fetchFrozenData]", err);
+      }
+    };
+    fetchFrozenData();
+    return () => { cancelled = true; };
+  }, [id]);
+
   const cancelRef = useRef(null);
 
   const handleCancelGeneration = useCallback(() => {
@@ -116,6 +165,7 @@ export const useNotesLogic = (id, perso) => {
   }, []);
 
   const handleSalaryChange = useCallback((rowId, newRevenu) => {
+    setFrozenSaved(false);
     setManualCareerRows((prev) =>
       prev.map((row) => {
         if (row.id !== rowId) return row;
@@ -1503,6 +1553,7 @@ export const useNotesLogic = (id, perso) => {
   }, [reportDoc, reportDescription, id]);
 
   const handleManualAddLine = useCallback(() => {
+    setFrozenSaved(false);
     setManualCareerRows((prev) => [
       ...prev,
       {
