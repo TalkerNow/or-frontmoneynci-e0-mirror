@@ -12,7 +12,7 @@ import {
   loadUploadedDocs,
   parseNIR,
 } from "./utils";
-import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeTnsScenario, executeChomageIndScenario, executeArretActiviteScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
+import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
@@ -99,6 +99,7 @@ const SKILL_CODE_LABELS = {
   "RETRAITE PROGRESSIVE": "RETRAITE PROGRESSIVE",
   "CUMUL EMPLOI RETRAITE": "CUMUL EMPLOI RETRAITE",
   CHOMAGE_INDEMNISE: "CHÔMAGE INDEMNISÉ",
+  CHOMAGE_NON_INDEMNISE: "CHÔMAGE NON INDEMNISÉ",
   ARRET_ACTIVITE: "ARRÊT D'ACTIVITÉ",
   COTISATIONS_MIN: "COTISATIONS MINIMALES (TI/TNS)",
 };
@@ -110,7 +111,7 @@ const DISPOSITIF_TO_SKILL_CODE = {
   retraite_progressive: "RP",
   cumul_emploi: "CUMUL EMPLOI RETRAITE",
   chomage_ind: "CHOMAGE_INDEMNISE",
-  chomage_non_ind: null,
+  chomage_non_ind: "CHOMAGE_NON_INDEMNISE",
   arret_activite: "ARRET_ACTIVITE",
   cotisations_min: "COTISATIONS_MIN",
   trimestres_etranger: "TRIMESTRES ETRANGER",
@@ -233,8 +234,6 @@ const DOC_TYPES = [
   { id: "fiche_paie", label: "Fiches paie", icon: "💰", color: "#00CEC9" },
   { id: "releve_etranger", label: "Étranger", icon: "🌍", color: "#A29BFE" },
 ];
-
-// MOCK_DOCS removed — real documents are fetched from the backend
 
 // Détection automatique des dispositifs applicables à partir des données RIS
 function detectDispositifsFromRIS(trimCot, birthDate) {
@@ -836,6 +835,42 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     setCarriereValidee(false);
     setRisFileName(null);
     setLastRisPayload(null);
+    // Vider les résultats des calculs et scénarios
+    setSkillResult(null);
+    setSkillError(null);
+    setAgircResult(null);
+    setAgircError(null);
+    setIrcantecResult(null);
+    setIrcantecError(null);
+    setRciResult(null);
+    setRciError(null);
+    setCipavResult(null);
+    setCipavError(null);
+    setScenarioSkillResults({});
+    setScenarioSkillErrors({});
+    setActivatedDispositifs([]);
+    setDetectedDispositifs({});
+    setShowAutoResults(false);
+    // Supprimer les rapports en base pour éviter leur rechargement au F5
+    const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+    const allCodes = [
+      "CNAV", "AGIRC_ARRCO", "IRCANTEC", "RCI", "CIPAV",
+      ...new Set(Object.values(DISPOSITIF_TO_SKILL_CODE).filter(Boolean)),
+    ];
+    for (const code of allCodes) {
+      try {
+        const report = await axios.get(
+          `${global.config.server_url}/v1/analysis-reports/latest/${id}/${code}`,
+          Config,
+        );
+        if (report?.data?.id) {
+          await axios.delete(
+            `${global.config.server_url}/v1/analysis-reports/${report.data.id}`,
+            Config,
+          );
+        }
+      } catch { /* 404 = pas de rapport, on ignore */ }
+    }
     try {
       const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
       await axios.delete(`${global.config.server_url}/frozen_data/${id}`, Config);
@@ -1781,6 +1816,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         ? await executeTnsScenario(parseInt(id), scenarioParams)
         : skillCode === "CHOMAGE_INDEMNISE"
         ? await executeChomageIndScenario(parseInt(id), scenarioParams)
+        : skillCode === "CHOMAGE_NON_INDEMNISE"
+        ? await executeChomageNonIndScenario(parseInt(id), scenarioParams)
         : skillCode === "ARRET_ACTIVITE"
         ? await executeArretActiviteScenario(parseInt(id), scenarioParams)
         : await executeSkillGeneric(skillCode, {
