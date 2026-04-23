@@ -24,6 +24,7 @@ export const WEBHOOKS = {
   SCRIPT_CHOMAGE_NON_IND: `${N8N_BASE}/chomage-non-indemnise-v1-test`,
   SCRIPT_ARRET_ACTIVITE: `${N8N_BASE}/arret-activite-v1-test`,
   SCRIPT_VPLR_INCOMPLETE: `${N8N_BASE}/vplr-annee-incomplete-v1-test`,
+  SCRIPT_VPLR_ETUDE: `${N8N_BASE}/vplr-annee-etude-v1-test`,
 };
 
 /**
@@ -410,6 +411,37 @@ export async function executeVplrIncompleteScenario(clientId, scenarioParams = {
       token,
       user_id: userId,
       user_context: "Analyse rachat VPLR année incomplète",
+      scenario_params: scenarioParams,
+      frozen_data: frozenData,
+    },
+    { timeout: 90000, headers: { "Content-Type": "application/json" } }
+  );
+
+  const data = Array.isArray(response.data) ? response.data[0] : response.data;
+  return data;
+}
+
+/**
+ * Exécute l'analyse VPLR année d'étude directement via n8n.
+ * @param {number} clientId
+ * @param {object} [scenarioParams]
+ * @returns {Promise<object>}
+ */
+export async function executeVplrEtudeScenario(clientId, scenarioParams = {}) {
+  const token = localStorage.getItem("token");
+  const userId = parseInt(localStorage.getItem("userid"));
+  const Config = { headers: { Authorization: "Bearer " + token } };
+
+  const frozenRes = await axios.get(`${global.config.server_url}/frozen_data/${clientId}`, Config);
+  const frozenData = frozenRes.data;
+
+  const response = await axios.post(
+    WEBHOOKS.SCRIPT_VPLR_ETUDE,
+    {
+      client_id: clientId,
+      token,
+      user_id: userId,
+      user_context: "Analyse rachat VPLR année d'étude",
       scenario_params: scenarioParams,
       frozen_data: frozenData,
     },

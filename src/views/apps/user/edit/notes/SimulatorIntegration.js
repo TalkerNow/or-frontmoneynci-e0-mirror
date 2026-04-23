@@ -12,7 +12,7 @@ import {
   loadUploadedDocs,
   parseNIR,
 } from "./utils";
-import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrIncompleteScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
+import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrIncompleteScenario, executeVplrEtudeScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
@@ -103,12 +103,13 @@ const SKILL_CODE_LABELS = {
   ARRET_ACTIVITE: "ARRÊT D'ACTIVITÉ",
   COTISATIONS_MIN: "COTISATIONS MINIMALES (TI/TNS)",
   VPLR_INCOMPLETE: "RACHAT VPLR (ANNÉE INCOMPLÈTE)",
+  VPLR_ETUDE: "RACHAT VPLR (ANNÉE D'ÉTUDE)",
 };
 
 const DISPOSITIF_TO_SKILL_CODE = {
   racl: "RACL",
   rachat_incomplete: "VPLR_INCOMPLETE",
-  rachat_etude: "VPLR",
+  rachat_etude: "VPLR_ETUDE",
   retraite_progressive: "RP",
   cumul_emploi: "CUMUL EMPLOI RETRAITE",
   chomage_ind: "CHOMAGE_INDEMNISE",
@@ -1821,6 +1822,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         ? await executeChomageNonIndScenario(parseInt(id), scenarioParams)
         : skillCode === "VPLR_INCOMPLETE"
         ? await executeVplrIncompleteScenario(parseInt(id), scenarioParams)
+        : skillCode === "VPLR_ETUDE"
+        ? await executeVplrEtudeScenario(parseInt(id), scenarioParams)
         : skillCode === "ARRET_ACTIVITE"
         ? await executeArretActiviteScenario(parseInt(id), scenarioParams)
         : await executeSkillGeneric(skillCode, {
