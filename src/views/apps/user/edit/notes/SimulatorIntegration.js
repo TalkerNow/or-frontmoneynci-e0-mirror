@@ -12,7 +12,7 @@ import {
   loadUploadedDocs,
   parseNIR,
 } from "./utils";
-import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrIncompleteScenario, executeVplrEtudeScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
+import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrIncompleteScenario, executeVplrEtudeScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
@@ -95,6 +95,7 @@ const ACTION_PANELS = {
 const SKILL_CODE_LABELS = {
   RACL: "CARRIÈRE LONGUE (RACL)",
   RP: "RETRAITE PROGRESSIVE",
+  CER: "CUMUL EMPLOI-RETRAITE",
   VPLR: "RACHAT VPLR",
   "RETRAITE PROGRESSIVE": "RETRAITE PROGRESSIVE",
   "CUMUL EMPLOI RETRAITE": "CUMUL EMPLOI RETRAITE",
@@ -111,7 +112,7 @@ const DISPOSITIF_TO_SKILL_CODE = {
   rachat_incomplete: "VPLR_INCOMPLETE",
   rachat_etude: "VPLR_ETUDE",
   retraite_progressive: "RP",
-  cumul_emploi: "CUMUL EMPLOI RETRAITE",
+  cumul_emploi: "CER",
   chomage_ind: "CHOMAGE_INDEMNISE",
   chomage_non_ind: "CHOMAGE_NON_INDEMNISE",
   arret_activite: "ARRET_ACTIVITE",
@@ -1814,6 +1815,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         ? await executeRaclScenario(parseInt(id), scenarioParams)
         : skillCode === "RP"
         ? await executeRpScenario(parseInt(id), scenarioParams)
+        : skillCode === "CER"
+        ? await executeCerScenario(parseInt(id), scenarioParams)
         : skillCode === "COTISATIONS_MIN"
         ? await executeTnsScenario(parseInt(id), scenarioParams)
         : skillCode === "CHOMAGE_INDEMNISE"
@@ -2959,6 +2962,30 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                                 {!skillResultData.rp_result.condition_trim_ok && (
                                                   <div style={{ fontSize: 11, color: "#C0392B", marginBottom: 2 }}>
                                                     ⏳ {skillResultData.rp_result.manquants_trimestres} trimestre{skillResultData.rp_result.manquants_trimestres > 1 ? "s" : ""} manquant{skillResultData.rp_result.manquants_trimestres > 1 ? "s" : ""} ({skillResultData.rp_result.trim_valides_actuels}/150 tous régimes)
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
+                                            {skillCode === "CER" && skillResultData.cer_result && (
+                                              <div style={{ marginBottom: 4 }}>
+                                                {skillResultData.cer_result.type_cumul && (
+                                                  <div style={{ fontSize: 12, fontWeight: 700, color, marginBottom: 2 }}>
+                                                    {skillResultData.cer_result.type_cumul === "CER_TOTAL" ? "✅ CER TOTAL" : "⚠️ CER PLAFONNÉ"}
+                                                  </div>
+                                                )}
+                                                {skillResultData.eligible && skillResultData.cer_result.date_cumul_possible && (
+                                                  <div style={{ fontSize: 11, color: "#555", marginBottom: 2 }}>
+                                                    🗓 Reprise possible dès {skillResultData.cer_result.date_cumul_possible}
+                                                  </div>
+                                                )}
+                                                {skillResultData.cer_result.type_cumul === "CER_PLAFONNÉ" && (
+                                                  <div style={{ fontSize: 11, color: "#E17055", marginBottom: 2 }}>
+                                                    💶 Plafond mensuel : {skillResultData.cer_result.plafond_cer_plafonne_mensuel?.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} € — Bascule CER TOTAL à 67 ans ({skillResultData.cer_result.date_bascule_cer_total})
+                                                  </div>
+                                                )}
+                                                {!skillResultData.eligible && skillResultData.cer_result.manquants_mois_age_legal > 0 && (
+                                                  <div style={{ fontSize: 11, color: "#C0392B", marginBottom: 2 }}>
+                                                    ⏳ {Math.ceil(skillResultData.cer_result.manquants_mois_age_legal / 12 * 10) / 10} an(s) avant l'âge légal ({skillResultData.cer_result.age_legal_ans} ans{skillResultData.cer_result.age_legal_mois_complementaires > 0 ? " et " + skillResultData.cer_result.age_legal_mois_complementaires + " mois" : ""}) — accès estimé : {skillResultData.cer_result.date_cumul_possible}
                                                   </div>
                                                 )}
                                               </div>
