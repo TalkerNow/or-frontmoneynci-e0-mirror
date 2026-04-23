@@ -19,6 +19,7 @@ export const WEBHOOKS = {
   SCRIPT_CIPAV: `${N8N_BASE}/script-execute-cipav-v2-test`,
   SCRIPT_RACL:        `${N8N_BASE}/racl-executor-v1-test`,
   SCRIPT_RP:          `${N8N_BASE}/rp-executor-v1-test`,
+  SCRIPT_CER:         `${N8N_BASE}/cer-executor-v1-test`,
   SCRIPT_TNS:         `${N8N_BASE}/tns-executor-v1-test`,
   SCRIPT_CHOMAGE_IND: `${N8N_BASE}/chomage-indemnise-v1-test`,
   SCRIPT_CHOMAGE_NON_IND: `${N8N_BASE}/chomage-non-indemnise-v1-test`,
@@ -294,6 +295,36 @@ export async function executeRpScenario(clientId, scenarioParams = {}) {
     ...data,
     eligible: data.rp_eligible ?? data.eligible,
     raison_eligibilite: data.rp_result?.message || data.message || data.raison_eligibilite,
+  };
+}
+
+/**
+ * Exécute le calcul Cumul Emploi-Retraite via le proxy Laravel.
+ * @param {number} clientId
+ * @param {object} [scenarioParams]
+ */
+export async function executeCerScenario(clientId, scenarioParams = {}) {
+  const token = localStorage.getItem("token");
+  const userId = parseInt(localStorage.getItem("userid"));
+
+  const response = await axios.post(
+    `${global.config.server_url}/script/calculate`,
+    {
+      regime_code: "CER",
+      client_id: clientId,
+      token,
+      user_id: userId,
+      user_context: "Analyse Cumul Emploi-Retraite",
+      scenario_params: scenarioParams,
+    },
+    { timeout: 90000, headers: { "Content-Type": "application/json" } }
+  );
+
+  const data = Array.isArray(response.data) ? response.data[0] : response.data;
+  return {
+    ...data,
+    eligible: data.cer_eligible ?? data.eligible,
+    raison_eligibilite: data.cer_result?.message || data.message || data.raison_eligibilite,
   };
 }
 
