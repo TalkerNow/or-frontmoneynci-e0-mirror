@@ -1384,23 +1384,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   }, [id]);
 
   // Génère le rapport de consultation retraite via n8n (webhook f012dfc7).
-  // Payload actuel : RIS brut (fileToSend) + message texte (date naissance, nb enfants).
-  // DETTE TECHNIQUE : devrait aussi envoyer activatedDispositifs + scenarioSkillResults
-  // pour que n8n intègre les scénarios déjà calculés dans le rapport.
-  // Idéalement (CDC V3) : envoyer uniquement { client_id } et laisser n8n lire frozen_data.
+  // CDC V2 : frontend → backend → n8n (plus d'appel direct n8n depuis le front).
+  // Backend forward le PDF à n8n en multipart. n8n inchangé.
   const handleGenerateRapportConsultation = useCallback(async () => {
     if (!fileToSend) {
-      toast.error("Aucun RIS disponible — vérifiez que le fichier a bien été chargé en début de parcours.");
-      return;
-    }
-    const childrenCount = user?.children_number;
-    if (childrenCount === undefined || childrenCount === null || String(childrenCount).trim() === "") {
-      toast.error("Le nombre d'enfants est manquant dans les informations du client.");
-      return;
-    }
-    const birthDate = user?.birth_date;
-    if (!birthDate || String(birthDate).trim() === "") {
-      toast.error("La date de naissance est manquante dans les informations du client.");
+      toast.error("Aucun RIS disponible — importez le RIS du client en début de parcours.");
       return;
     }
 
@@ -1409,41 +1397,48 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     cancelReportRef.current = axios.CancelToken.source();
 
     try {
-      const formData = new FormData();
-      formData.append("file", fileToSend);
-
       const displayName = user
         ? `${user.first_name || ""} ${user.last_name || ""}`.trim()
         : "Client";
 
+      const childrenCount = user?.children_number ?? "";
+      const birthDate = user?.birth_date ?? "";
       const message = [
         "Thématiques d'analyse : Rapport de consultation retraite",
         `Nombre d'enfants : ${childrenCount}`,
         `Date de naissance : ${birthDate}`,
       ].join("\n");
+
+      const formData = new FormData();
+      formData.append("file", fileToSend);
       formData.append("message", message);
-      if (id) formData.append("client_id", id);
+      formData.append("client_id", id);
       if (hiddenSystemPrompt) formData.append("system_prompt", hiddenSystemPrompt);
 
       toast.info("Génération du rapport de consultation en cours…");
 
-      const RAPPORT_CONSULTATION_WEBHOOK =
-        "https://n8n.srv796541.hstgr.cloud/webhook/f012dfc7-8b2c-479f-af1f-20dcd44cda02";
+      const backendRes = await axios.post(
+        `${global.config.server_url}/v1/rapports/consultation`,
+        formData,
+        {
+          headers: {
+            Authorization: "Bearer " + localStorage.getItem("token"),
+            "Content-Type": "multipart/form-data",
+          },
+          cancelToken: cancelReportRef.current.token,
+        }
+      );
 
-      const n8nRes = await axios.post(RAPPORT_CONSULTATION_WEBHOOK, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-        cancelToken: cancelReportRef.current.token,
-      });
-
-      // Extraction contenu brut
+      // Extraction contenu brut depuis réponse backend (data = réponse n8n)
       let raw = "";
-      const root = Array.isArray(n8nRes.data) ? n8nRes.data[0] : n8nRes.data;
+      const n8nData = backendRes.data?.data;
+      const root = Array.isArray(n8nData) ? n8nData[0] : n8nData;
       if (typeof root === "string") {
         raw = root;
       } else if (root && typeof root === "object") {
         raw = root.html_report || root.output || root.text || root.response || JSON.stringify(root);
       } else {
-        raw = String(n8nRes.data);
+        raw = String(n8nData);
       }
 
       // Fix n8n 2.x : string JSON wrappée
@@ -2428,7 +2423,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                 ) : (
                   <div style={{ fontSize: 12, color: "#666", textAlign: "center", padding: "4px 0" }}>Aucun document importé</div>
                 )}
-              </div>}
+              </div>
               {/* fin zone documents masquée */}
 
           {/* ── MAIN PANELS ── */}
@@ -3849,8 +3844,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             </div>
                           )}
 
-                          {/* Masqué : persistance docs générés à implémenter via analysis_reports */}
-                          {false && generatedDocs.length > 0 && (
+                          {generatedDocs.length > 0 && (
                             <div style={{ marginTop: 18 }}>
                               <div style={{ fontSize: 13, fontWeight: 700, color: "#333", marginBottom: 8 }}>Documents générés</div>
                               {generatedDocs.map((doc) => (
