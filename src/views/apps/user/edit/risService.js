@@ -182,6 +182,8 @@ export async function saveSkillResult(clientId, skillCode, result) {
       },
       { headers: { Authorization: `Bearer ${token}` } }
     );
+    // Nouvelle analyse sauvegardée — lever le flag de reset
+    localStorage.removeItem(`simulator_reset_${clientId}`);
   } catch (err) {
     console.warn(`saveSkillResult(${skillCode}) failed:`, err?.response?.data || err.message);
   }
@@ -306,20 +308,16 @@ export async function executeRpScenario(clientId, scenarioParams = {}) {
 export async function executeChomageIndScenario(clientId, scenarioParams = {}) {
   const token = localStorage.getItem("token");
   const userId = parseInt(localStorage.getItem("userid"));
-  const Config = { headers: { Authorization: "Bearer " + token } };
-
-  const frozenRes = await axios.get(`${global.config.server_url}/frozen_data/${clientId}`, Config);
-  const frozenData = frozenRes.data;
 
   const response = await axios.post(
-    WEBHOOKS.SCRIPT_CHOMAGE_IND,
+    `${global.config.server_url}/script/calculate`,
     {
+      regime_code: "CHOMAGE_INDEMNISE",
       client_id: clientId,
       token,
       user_id: userId,
       user_context: "Analyse chômage indemnisé",
       scenario_params: scenarioParams,
-      frozen_data: frozenData,
     },
     { timeout: 90000, headers: { "Content-Type": "application/json" } }
   );
@@ -337,20 +335,16 @@ export async function executeChomageIndScenario(clientId, scenarioParams = {}) {
 export async function executeArretActiviteScenario(clientId, scenarioParams = {}) {
   const token = localStorage.getItem("token");
   const userId = parseInt(localStorage.getItem("userid"));
-  const Config = { headers: { Authorization: "Bearer " + token } };
-
-  const frozenRes = await axios.get(`${global.config.server_url}/frozen_data/${clientId}`, Config);
-  const frozenData = frozenRes.data;
 
   const response = await axios.post(
-    WEBHOOKS.SCRIPT_ARRET_ACTIVITE,
+    `${global.config.server_url}/script/calculate`,
     {
+      regime_code: "ARRET_ACTIVITE",
       client_id: clientId,
       token,
       user_id: userId,
       user_context: "Analyse arrêt d'activité",
       scenario_params: scenarioParams,
-      frozen_data: frozenData,
     },
     { timeout: 90000, headers: { "Content-Type": "application/json" } }
   );
@@ -368,20 +362,16 @@ export async function executeArretActiviteScenario(clientId, scenarioParams = {}
 export async function executeChomageNonIndScenario(clientId, scenarioParams = {}) {
   const token = localStorage.getItem("token");
   const userId = parseInt(localStorage.getItem("userid"));
-  const Config = { headers: { Authorization: "Bearer " + token } };
-
-  const frozenRes = await axios.get(`${global.config.server_url}/frozen_data/${clientId}`, Config);
-  const frozenData = frozenRes.data;
 
   const response = await axios.post(
-    WEBHOOKS.SCRIPT_CHOMAGE_NON_IND,
+    `${global.config.server_url}/script/calculate`,
     {
+      regime_code: "CHOMAGE_NON_INDEMNISE",
       client_id: clientId,
       token,
       user_id: userId,
       user_context: "Analyse chômage non indemnisé",
       scenario_params: scenarioParams,
-      frozen_data: frozenData,
     },
     { timeout: 90000, headers: { "Content-Type": "application/json" } }
   );
@@ -399,20 +389,16 @@ export async function executeChomageNonIndScenario(clientId, scenarioParams = {}
 export async function executeVplrIncompleteScenario(clientId, scenarioParams = {}) {
   const token = localStorage.getItem("token");
   const userId = parseInt(localStorage.getItem("userid"));
-  const Config = { headers: { Authorization: "Bearer " + token } };
-
-  const frozenRes = await axios.get(`${global.config.server_url}/frozen_data/${clientId}`, Config);
-  const frozenData = frozenRes.data;
 
   const response = await axios.post(
-    WEBHOOKS.SCRIPT_VPLR_INCOMPLETE,
+    `${global.config.server_url}/script/calculate`,
     {
+      regime_code: "VPLR_INCOMPLETE",
       client_id: clientId,
       token,
       user_id: userId,
       user_context: "Analyse rachat VPLR année incomplète",
       scenario_params: scenarioParams,
-      frozen_data: frozenData,
     },
     { timeout: 90000, headers: { "Content-Type": "application/json" } }
   );
@@ -430,20 +416,16 @@ export async function executeVplrIncompleteScenario(clientId, scenarioParams = {
 export async function executeVplrEtudeScenario(clientId, scenarioParams = {}) {
   const token = localStorage.getItem("token");
   const userId = parseInt(localStorage.getItem("userid"));
-  const Config = { headers: { Authorization: "Bearer " + token } };
-
-  const frozenRes = await axios.get(`${global.config.server_url}/frozen_data/${clientId}`, Config);
-  const frozenData = frozenRes.data;
 
   const response = await axios.post(
-    WEBHOOKS.SCRIPT_VPLR_ETUDE,
+    `${global.config.server_url}/script/calculate`,
     {
+      regime_code: "VPLR_ETUDE",
       client_id: clientId,
       token,
       user_id: userId,
       user_context: "Analyse rachat VPLR année d'étude",
       scenario_params: scenarioParams,
-      frozen_data: frozenData,
     },
     { timeout: 90000, headers: { "Content-Type": "application/json" } }
   );

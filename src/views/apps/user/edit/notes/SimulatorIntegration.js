@@ -622,6 +622,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   useEffect(() => {
     if (!id) return;
     const loadCached = async () => {
+      // Si un reset vient d'être effectué pour ce client, ne pas recharger depuis la DB
+      // Flag supprimé uniquement quand une nouvelle analyse est sauvegardée (saveSkillResult)
+      if (localStorage.getItem(`simulator_reset_${id}`)) {
+        return;
+      }
+
       const skillMap = [
         ["CNAV",        setSkillResult],
         ["AGIRC_ARRCO", setAgircResult],
@@ -824,6 +830,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // ── Réinitialiser le tableau carrière ───────────────────────────────────────
   const doResetCarriere = useCallback(async () => {
     setShowResetConfirm(false);
+    localStorage.setItem(`simulator_reset_${id}`, '1');
     setCarriereRows(_buildDefaultCarriereRows());
     setRevaloValues(() => { const init = {}; for (let i = 0; i < 65; i++) { init[2026 - i] = 0; } return init; });
     setDeplafValues({});
