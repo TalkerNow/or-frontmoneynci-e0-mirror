@@ -8,6 +8,7 @@ import {
   ircantecTauxDisplay,
   rciPrixAchat,
   rciTauxDisplay,
+  getTrimTauxPlein,
 } from '../views/apps/user/edit/simulatorData';
 
 const FRF_PER_EUR = 6.556957;
@@ -223,4 +224,240 @@ export function calculateRci(year, grossSalary) {
   const pointsB = cotisB / prixAchat;
 
   return { total: pointsA + pointsB };
+}
+
+/**
+ * Calcule le Salaire Annuel Moyen de Base (SAMB) — 25 meilleures années.
+ * Salaire plafonné au PASS de l'année avant revalorisation.
+ *
+ * @param {Array<{yr: number, sal: number}>} carriereRows
+ * @returns {number} SAMB en EUR (arrondi)
+ */
+export function computeSAMB(carriereRows) {
+  const revalued = carriereRows
+    .filter(row => (Number(row.sal) || 0) > 0 && plafondSS[row.yr])
+    .map(row => {
+      const sal = Math.min(Number(row.sal), plafondSS[row.yr]);
+      return sal * (coeffRevalo[row.yr] || 1);
+    })
+    .sort((a, b) => b - a)
+    .slice(0, 25);
+
+  if (revalued.length === 0) return 0;
+  return Math.round(revalued.reduce((s, v) => s + v, 0) / revalued.length);
+}
+
+/**
+ * Calcule les points AGIRC-ARRCO totaux et la projection annuelle.
+ *
+ * @param {Array<{yr: number, agircPts: number}>} carriereRows
+ * @returns {{ total: number, projectionAnnuelle: number }}
+ */
+export function computeArrcoPts(carriereRows) {
+  const total = carriereRows.reduce((s, r) => s + (Number(r.agircPts) || 0), 0);
+  // carriereRows est trié du plus récent au plus ancien (2026 → 1961)
+  const withPts = carriereRows.filter(r => (Number(r.agircPts) || 0) > 0).slice(0, 3);
+  const projectionAnnuelle = withPts.length > 0
+    ? Math.round(withPts.reduce((s, r) => s + Number(r.agircPts), 0) / withPts.length)
+    : 0;
+  return { total: Math.round(total * 10) / 10, projectionAnnuelle };
+}
+
+// ─── DATES DE DÉPART À LA RETRAITE ──────────────────────────────────────────
+
+// Barème âge légal post-réforme 2023 (Décret n°2023-435 du 3 juin 2023)
+const AGE_LEGAL_BY_BIRTH_YEAR = {
+  1961: { months: 62 * 12 + 3, label: '62 ans et 3 mois' },
+  1962: { months: 62 * 12 + 6, label: '62 ans et 6 mois' },
+  1963: { months: 63 * 12,     label: '63 ans' },
+  1964: { months: 63 * 12 + 3, label: '63 ans et 3 mois' },
+  1965: { months: 63 * 12 + 6, label: '63 ans et 6 mois' },
+  1966: { months: 63 * 12 + 9, label: '63 ans et 9 mois' },
+  1967: { months: 64 * 12,     label: '64 ans' },
+};
+
+function getAgeLegalEntry(birthYear) {
+  if (birthYear < 1961) return { months: 62 * 12, label: '62 ans' };
+  return AGE_LEGAL_BY_BIRTH_YEAR[birthYear] || { months: 64 * 12, label: '64 ans' };
+}
+
+function addMonths(date, n) {
+  const totalMonths = date.getFullYear() * 12 + date.getMonth() + n;
+  const y = Math.floor(totalMonths / 12);
+  const m = totalMonths % 12;
+  return new Date(y, m, date.getDate());
+}
+
+function firstOfNextMonth(date) {
+  if (date.getDate() === 1) return new Date(date.getFullYear(), date.getMonth(), 1);
+  return new Date(date.getFullYear(), date.getMonth() + 1, 1);
+}
+
+function formatDateFR(date) {
+  return date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+}
+
+function ageLabel(birth, target) {
+  const totalMonths =
+    (target.getFullYear() - birth.getFullYear()) * 12 +
+    (target.getMonth() - birth.getMonth());
+  const y = Math.floor(totalMonths / 12);
+  const m = totalMonths % 12;
+  return m ? `${y} ans ${m}m` : `${y} ans`;
+}
+
+/**
+ * Parse une date de naissance en objet Date.
+ * Accepte "YYYY-MM-DD" ou "DD/MM/YYYY".
+ *
+ * @param {string|null} birthDate
+ * @returns {Date|null}
+ */
+export function parseBirthDate(birthDate) {
+  if (!birthDate) return null;
+  if (birthDate.includes('-')) {
+    const [y, m, d] = birthDate.split('-').map(Number);
+    if (!y || !m || !d) return null;
+    if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+    return new Date(y, m - 1, d);
+  }
+  if (birthDate.includes('/')) {
+    const parts = birthDate.split('/');
+    if (parts.length === 3) {
+      const [d, m, y] = parts.map(Number);
+      if (!y || !m || !d) return null;
+      if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+      return new Date(y, m - 1, d);
+    }
+  }
+  return null;
+}
+
+/**
+ * Calcule la date légale de départ selon la réforme 2023.
+ *
+ * @param {string|null} birthDate  "YYYY-MM-DD" ou "DD/MM/YYYY"
+ * @returns {{ date: Date, label: string, ageStr: string, dateStr: string } | null}
+ */
+export function computeDateLegale(birthDate) {
+  const birth = parseBirthDate(birthDate);
+  if (!birth) return null;
+  const entry = getAgeLegalEntry(birth.getFullYear());
+  const atAge = addMonths(birth, entry.months);
+  const departure = firstOfNextMonth(atAge);
+  return {
+    date: departure,
+    label: formatDateFR(departure),
+    ageStr: entry.label,
+    dateStr: departure.toLocaleDateString('fr-FR'),
+  };
+}
+
+/**
+ * Calcule la date d'atteinte du taux plein (durée d'assurance requise).
+ *
+ * @param {string|null} birthDate
+ * @param {number} trimAcquis  Total trimestres acquis (cotisés + assimilés)
+ * @returns {{ date: Date, label: string, trimManquants: number, trimRequis: number } | null}
+ */
+export function computeDateTauxPlein(birthDate, trimAcquis) {
+  const birth = parseBirthDate(birthDate);
+  if (!birth) return null;
+  const trimRequis = getTrimTauxPlein(birth.getFullYear());
+  const trimManquants = Math.max(0, trimRequis - trimAcquis);
+  // Projection : 4 trimestres par an = 1 trimestre par trimestre civil (3 mois)
+  const today = new Date();
+  const projected = addMonths(today, trimManquants * 3);
+  const departure = firstOfNextMonth(projected);
+  return { date: departure, label: formatDateFR(departure), trimManquants, trimRequis };
+}
+
+/**
+ * Calcule la date de départ au taux plein automatique (67 ans).
+ *
+ * @param {string|null} birthDate
+ * @returns {{ date: Date, label: string, dateStr: string } | null}
+ */
+export function computeDate67(birthDate) {
+  const birth = parseBirthDate(birthDate);
+  if (!birth) return null;
+  const at67 = addMonths(birth, 67 * 12);
+  const departure = firstOfNextMonth(at67);
+  return {
+    date: departure,
+    label: formatDateFR(departure),
+    dateStr: departure.toLocaleDateString('fr-FR'),
+  };
+}
+
+/**
+ * Calcule la date auto-générée pour un dispositif activé.
+ * Retourne null si le dispositif ne génère pas de date calculable en JS.
+ *
+ * @param {string} dispositifId  ex: "racl", "retraite_progressive"
+ * @param {string|null} birthDate
+ * @param {Object<number, number>} trimCotState  { [année]: nb_trimestres_cotisés }
+ * @param {Object<number, number>} trimAssState  { [année]: nb_trimestres_assimilés }
+ * @returns {{ date: Date, dateStr: string, age: string, detail: string, color: string, source: string } | null}
+ */
+export function computeAutoDateFromDispositif(dispositifId, birthDate, trimCotState, trimAssState) {
+  const birth = parseBirthDate(birthDate);
+  if (!birth) return null;
+  const birthYear = birth.getFullYear();
+
+  if (dispositifId === 'racl') {
+    const activeYears = Object.entries(trimCotState)
+      .filter(([, t]) => Number(t) > 0)
+      .map(([yr]) => Number(yr))
+      .sort((a, b) => a - b);
+    const firstWorkYear = activeYears[0];
+    if (!firstWorkYear) return null;
+    const ageDebut = firstWorkYear - birthYear;
+    let departureMonths;
+    let detail;
+    if (ageDebut <= 16) {
+      departureMonths = 58 * 12;
+      detail = `Début activité à ${ageDebut} ans (${firstWorkYear}) — départ anticipé à 58 ans`;
+    } else if (ageDebut <= 18) {
+      departureMonths = 60 * 12;
+      detail = `Début activité à ${ageDebut} ans (${firstWorkYear}) — départ anticipé à 60 ans`;
+    } else if (ageDebut <= 20) {
+      departureMonths = 62 * 12;
+      detail = `Début activité à ${ageDebut} ans (${firstWorkYear}) — départ anticipé à 62 ans`;
+    } else if (ageDebut <= 21) {
+      departureMonths = 63 * 12;
+      detail = `Début activité à ${ageDebut} ans (${firstWorkYear}) — départ anticipé à 63 ans`;
+    } else {
+      return null;
+    }
+    const atAge = addMonths(birth, departureMonths);
+    const departure = firstOfNextMonth(atAge);
+    return {
+      date: departure,
+      dateStr: departure.toLocaleDateString('fr-FR'),
+      age: ageLabel(birth, departure),
+      detail,
+      color: '#00B894',
+      source: 'RACL (Carrière longue)',
+    };
+  }
+
+  if (dispositifId === 'retraite_progressive') {
+    const entry = getAgeLegalEntry(birthYear);
+    const rpMonths = entry.months - 24; // éligible 2 ans avant l'âge légal
+    const atAge = addMonths(birth, rpMonths);
+    const departure = firstOfNextMonth(atAge);
+    return {
+      date: departure,
+      dateStr: departure.toLocaleDateString('fr-FR'),
+      age: ageLabel(birth, departure),
+      detail: `Éligible dès ${entry.label} − 2 ans (si 150 trimestres atteints)`,
+      color: '#0984E3',
+      source: 'Retraite progressive',
+    };
+  }
+
+  // Les autres dispositifs (chômage, arrêt activité, CER) nécessitent des données
+  // non disponibles en JS pur → pas de date calculée ici
+  return null;
 }
