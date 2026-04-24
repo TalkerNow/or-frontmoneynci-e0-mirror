@@ -12,8 +12,8 @@ import {
   loadUploadedDocs,
   parseNIR,
 } from "./utils";
-import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrIncompleteScenario, executeVplrEtudeScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
-import { calculateArrco, calculateIrcantec, calculateRci } from '../../../../../utils/calculators';
+import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrIncompleteScenario, executeVplrEtudeScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6 } from "../risService";
+import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
 import SkillCreateModal from "./SkillCreateModal";
@@ -283,13 +283,6 @@ function detectDispositifsFromRIS(trimCot, birthDate) {
 
   return detected;
 }
-
-// Mock auto-generated dates from dispositifs
-const MOCK_AUTO_DATES = [
-  { source: "RACL", date: "01/07/2011", age: "63 ans 4m", detail: "Éligible — début activité à 17 ans, 5 trim. avant 20 ans", color: "#00B894" },
-  { source: "Chômage 18m + Taux plein", date: "01/10/2014", age: "66 ans 7m", detail: "Taux plein décalé de 8 mois par période chômage", color: "#E17055" },
-  { source: "Retraite progressive", date: "01/03/2012", age: "64 ans", detail: "Éligible dès âge légal −2 ans, 150 trim. atteints", color: "#0984E3" },
-];
 
 // ─── DONNÉES CARRIÈRE ───────────────────────────────────────────────────────
 
@@ -1159,7 +1152,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     } finally {
       setIsParsingRIS(false);
     }
-  }, [applyCarriereData]);
+  }, [applyCarriereData, id, onUserUpdate, user?.birth_date, user?.first_name, user?.last_name, user?.secu_social]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Select document from list (for analysis report — no RIS parsing) ──
   const handleSelectDocument = useCallback(async (doc) => {
@@ -3438,10 +3431,25 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
 
                     // ── DATES & SIMULATIONS: shows auto-generated dates ──
                     if (expandedPanel === "dates") {
+                      const birthDate = user?.birth_date;
+                      const trimAcquis = Object.values(trimCotState).reduce((s, v) => s + (Number(v) || 0), 0)
+                        + Object.values(trimAssState).reduce((s, v) => s + (Number(v) || 0), 0);
+                      const dateLegale = computeDateLegale(birthDate);
+                      const dateTauxPlein = computeDateTauxPlein(birthDate, trimAcquis);
+                      const date67 = computeDate67(birthDate);
+
                       const dateComments = {
-                        sim_legal: "64 ans atteints le 08/07/2030 → départ le 01/08/2030",
-                        sim_taux_plein: "172 trim. atteints en 11/2032",
-                        sim_auto_67: "67 ans atteints le 08/07/2033 → départ le 01/08/2033",
+                        sim_legal: dateLegale
+                          ? `${dateLegale.ageStr} → départ en ${dateLegale.label}`
+                          : "Date de naissance manquante",
+                        sim_taux_plein: dateTauxPlein
+                          ? dateTauxPlein.trimManquants === 0
+                            ? `${dateTauxPlein.trimRequis} trim. déjà atteints`
+                            : `${dateTauxPlein.trimManquants} trim. manquants → départ en ${dateTauxPlein.label}`
+                          : "Date de naissance manquante",
+                        sim_auto_67: date67
+                          ? `67 ans → départ en ${date67.label}`
+                          : "Date de naissance manquante",
                         sim_date_libre: "Indiquer les dates de simulation souhaitées",
                       };
                       return (
@@ -3456,17 +3464,22 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                           <div style={{ background: "#F7F6F3", border: "1px solid #e8e8e8", borderRadius: 9, padding: "10px 14px", marginBottom: 14 }}>
                             <div style={{ fontSize: 12, fontWeight: 700, color: "#555", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>📊 Données de calcul</div>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 20px", fontSize: 12 }}>
-                              {[
-                                ["SAMB Assurance Retraite / CNAV", "32 586 €", "#1a1a2e"],
-                                ["Points ARRCO-AGIRC au 31/12/25", "28 330 pts", "#0984E3"],
-                                ["Projection jusqu'au départ", "+ 344 pts / an", "#00B894"],
-                                ["Situation jusqu'au départ", "Poursuite d'activité actuelle", "#555"],
-                              ].map(([label, val, color]) => (
-                                <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #eee" }}>
-                                  <span style={{ color: "#555" }}>{label}</span>
-                                  <span style={{ fontWeight: 700, color, fontSize: 12 }}>{val}</span>
-                                </div>
-                              ))}
+                              {(() => {
+                                const samb = computeSAMB(carriereRows);
+                                const { total: arrcoPts, projectionAnnuelle } = computeArrcoPts(carriereRows);
+                                const rows = [
+                                  ["SAMB Assurance Retraite / CNAV", samb > 0 ? `${samb.toLocaleString('fr-FR')} €` : "—", "#1a1a2e"],
+                                  ["Points ARRCO-AGIRC cumulés", arrcoPts > 0 ? `${arrcoPts.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} pts` : "—", "#0984E3"],
+                                  ["Projection annuelle (tendance)", projectionAnnuelle > 0 ? `+ ${projectionAnnuelle.toLocaleString('fr-FR')} pts / an` : "—", "#00B894"],
+                                  ["Situation jusqu'au départ", "Poursuite d'activité actuelle", "#555"],
+                                ];
+                                return rows.map(([label, val, color]) => (
+                                  <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #eee" }}>
+                                    <span style={{ color: "#555" }}>{label}</span>
+                                    <span style={{ fontWeight: 700, color, fontSize: 12 }}>{val}</span>
+                                  </div>
+                                ));
+                              })()}
                             </div>
                           </div>
 
@@ -3477,10 +3490,13 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                 <span>🤖</span> Dates calculées automatiquement depuis les dispositifs activés
                               </div>
                               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                {MOCK_AUTO_DATES.map((d, i) => (
+                                {activatedDispositifs
+                                  .map(dispositifId => computeAutoDateFromDispositif(dispositifId, user?.birth_date, trimCotState, trimAssState))
+                                  .filter(Boolean)
+                                  .map((d, i) => (
                                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 8, background: `${d.color}08`, borderLeft: `3px solid ${d.color}` }}>
                                     <div style={{ textAlign: "center", minWidth: 70 }}>
-                                      <div style={{ fontSize: 15, fontWeight: 700, color: d.color }}>{d.date}</div>
+                                      <div style={{ fontSize: 15, fontWeight: 700, color: d.color }}>{d.dateStr}</div>
                                       <div style={{ fontSize: 12, color: "#555" }}>{d.age}</div>
                                     </div>
                                     <div style={{ flex: 1 }}>
