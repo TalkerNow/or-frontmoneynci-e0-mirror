@@ -3491,7 +3491,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               </div>
                               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                                 {activatedDispositifs
-                                  .map(id => computeAutoDateFromDispositif(id, user?.birth_date, trimCotState, trimAssState))
+                                  .map(dispositifId => computeAutoDateFromDispositif(dispositifId, user?.birth_date, trimCotState, trimAssState))
                                   .filter(Boolean)
                                   .map((d, i) => (
                                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 8, background: `${d.color}08`, borderLeft: `3px solid ${d.color}` }}>
