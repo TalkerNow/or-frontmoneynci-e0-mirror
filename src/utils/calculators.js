@@ -282,9 +282,10 @@ function getAgeLegalEntry(birthYear) {
 }
 
 function addMonths(date, n) {
-  const d = new Date(date);
-  d.setMonth(d.getMonth() + n);
-  return d;
+  const totalMonths = date.getFullYear() * 12 + date.getMonth() + n;
+  const y = Math.floor(totalMonths / 12);
+  const m = totalMonths % 12;
+  return new Date(y, m, date.getDate());
 }
 
 function firstOfNextMonth(date) {
@@ -317,6 +318,7 @@ export function parseBirthDate(birthDate) {
   if (birthDate.includes('-')) {
     const [y, m, d] = birthDate.split('-').map(Number);
     if (!y || !m || !d) return null;
+    if (m < 1 || m > 12 || d < 1 || d > 31) return null;
     return new Date(y, m - 1, d);
   }
   if (birthDate.includes('/')) {
@@ -324,6 +326,7 @@ export function parseBirthDate(birthDate) {
     if (parts.length === 3) {
       const [d, m, y] = parts.map(Number);
       if (!y || !m || !d) return null;
+      if (m < 1 || m > 12 || d < 1 || d > 31) return null;
       return new Date(y, m - 1, d);
     }
   }
