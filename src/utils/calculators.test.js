@@ -1,4 +1,4 @@
-import { calculateCnav } from './calculators';
+import { calculateCnav, computeSAMB, computeArrcoPts } from './calculators';
 
 describe('calculateCnav', () => {
   test('returns null for salary = 0', () => {
@@ -97,5 +97,74 @@ describe('calculateCnav', () => {
   test('returns null for year with no PASS data (e.g. 1950)', () => {
     // plafondSS has no entry for 1950 — function must return null, not crash
     expect(calculateCnav(1950, 50000)).toBeNull();
+  });
+});
+
+describe('computeSAMB', () => {
+  test('returns 0 for empty rows', () => {
+    expect(computeSAMB([])).toBe(0);
+  });
+
+  test('returns 0 if all salaries are 0', () => {
+    const rows = [{ yr: 2020, sal: 0 }, { yr: 2019, sal: 0 }];
+    expect(computeSAMB(rows)).toBe(0);
+  });
+
+  test('caps salary at PASS before revaluation', () => {
+    // PASS 2024 = 46368, coeffRevalo 2024 = 1.031
+    // salary 100000 → capped to 46368 → revalorisé = 46368 * 1.031 ≈ 47805
+    const rows = [{ yr: 2024, sal: 100000 }];
+    expect(computeSAMB(rows)).toBeCloseTo(47805, -2);
+  });
+
+  test('picks top 25 years', () => {
+    // 30 rows: years 2026 to 1997, salary 10000 each + one year with 50000
+    const rows = Array.from({ length: 30 }, (_, i) => ({
+      yr: 2026 - i,
+      sal: i === 29 ? 50000 : 10000,
+    }));
+    // year 1997 has sal 50000 but no PASS data (plafondSS starts at 1963)
+    // so that row is filtered out — top 25 are all sal=10000
+    const result = computeSAMB(rows);
+    expect(result).toBeGreaterThan(9000);
+    expect(result).toBeLessThan(15000);
+  });
+
+  test('ignores years with no PASS data', () => {
+    const rows = [
+      { yr: 2024, sal: 30000 },
+      { yr: 1950, sal: 99999 }, // no PASS → ignored
+    ];
+    // Only 2024 counts: min(30000, 46368) * 1.031 / 1 = 30930
+    expect(computeSAMB(rows)).toBeCloseTo(30930, -2);
+  });
+});
+
+describe('computeArrcoPts', () => {
+  test('returns 0 for empty rows', () => {
+    const result = computeArrcoPts([]);
+    expect(result.total).toBe(0);
+    expect(result.projectionAnnuelle).toBe(0);
+  });
+
+  test('sums agircPts across all rows', () => {
+    const rows = [
+      { yr: 2026, agircPts: 100 },
+      { yr: 2025, agircPts: 200 },
+      { yr: 2024, agircPts: 150 },
+    ];
+    expect(computeArrcoPts(rows).total).toBeCloseTo(450, 0);
+  });
+
+  test('projection uses average of up to 3 most recent rows with points > 0', () => {
+    const rows = [
+      { yr: 2026, agircPts: 0 },    // skipped (no points)
+      { yr: 2025, agircPts: 300 },
+      { yr: 2024, agircPts: 200 },
+      { yr: 2023, agircPts: 100 },
+      { yr: 2022, agircPts: 400 },  // 4th, not included
+    ];
+    // top 3 with points: 2025=300, 2024=200, 2023=100 → avg = 200
+    expect(computeArrcoPts(rows).projectionAnnuelle).toBe(200);
   });
 });

@@ -224,3 +224,40 @@ export function calculateRci(year, grossSalary) {
 
   return { total: pointsA + pointsB };
 }
+
+/**
+ * Calcule le Salaire Annuel Moyen de Base (SAMB) — 25 meilleures années.
+ * Salaire plafonné au PASS de l'année avant revalorisation.
+ *
+ * @param {Array<{yr: number, sal: number}>} carriereRows
+ * @returns {number} SAMB en EUR (arrondi)
+ */
+export function computeSAMB(carriereRows) {
+  const revalued = carriereRows
+    .filter(row => (Number(row.sal) || 0) > 0 && plafondSS[row.yr])
+    .map(row => {
+      const sal = Math.min(Number(row.sal), plafondSS[row.yr]);
+      return sal * (coeffRevalo[row.yr] || 1);
+    })
+    .sort((a, b) => b - a)
+    .slice(0, 25);
+
+  if (revalued.length === 0) return 0;
+  return Math.round(revalued.reduce((s, v) => s + v, 0) / revalued.length);
+}
+
+/**
+ * Calcule les points AGIRC-ARRCO totaux et la projection annuelle.
+ *
+ * @param {Array<{yr: number, agircPts: number}>} carriereRows
+ * @returns {{ total: number, projectionAnnuelle: number }}
+ */
+export function computeArrcoPts(carriereRows) {
+  const total = carriereRows.reduce((s, r) => s + (Number(r.agircPts) || 0), 0);
+  // carriereRows est trié du plus récent au plus ancien (2026 → 1961)
+  const withPts = carriereRows.filter(r => (Number(r.agircPts) || 0) > 0).slice(0, 3);
+  const projectionAnnuelle = withPts.length > 0
+    ? Math.round(withPts.reduce((s, r) => s + Number(r.agircPts), 0) / withPts.length)
+    : 0;
+  return { total: Math.round(total * 10) / 10, projectionAnnuelle };
+}
