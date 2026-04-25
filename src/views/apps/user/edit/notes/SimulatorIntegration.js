@@ -3,8 +3,8 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from "react"
 import axios from "axios";
 import { toast } from "react-toastify";
 import Dropzone from "react-dropzone";
-import { Modal, ModalHeader, ModalBody, ModalFooter, Button, UncontrolledTooltip } from "reactstrap";
-import { DownloadCloud, Eye } from "react-feather";
+import { Modal, ModalHeader, ModalBody, ModalFooter, Button, UncontrolledTooltip, Input, UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem } from "reactstrap";
+import { DownloadCloud, Eye, Download, Edit2, Save, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List } from "react-feather";
 import {
   QUICK_TAGS_OPTIONS,
   generateDocId,
@@ -586,7 +586,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // ── Détection automatique des dispositifs applicables ──
   const [detectedDispositifs, setDetectedDispositifs] = useState({});
 
-  // ── Upload & Analysis State (migrated from useNotesLogic) ──
+  // ── RIS — Relevé de carrière du client ──────────────────────────────────────
+  // fileToSend     : fichier PDF brut déposé par le consultant (Dropzone)
+  // userDocuments  : liste des documents uploadés côté serveur (GET /files?user_id)
+  // localUploadedIds : set des IDs uploadés dans cette session (persisté sessionStorage)
+  // Source de vérité définitive = frozen_data MySQL (table frozen_data, verrouillée après validation)
+  // fileToSend sert uniquement à alimenter n8n avant que frozen_data soit gelé
   const [fileToSend, setFileToSend] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -603,6 +608,18 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   });
   const cancelRef = useRef(null);
   const hasHydratedRef = useRef(false);
+
+  // ── Livrables — Documents générés ───────────────────────────────────────────
+  // generatedDocs  : liste locale (session) des rapports produits par n8n
+  //                  { id, name, type, createdAt, url (Laravel /uploadFiles), htmlContent }
+  // viewingDoc     : doc actuellement ouvert dans ReportViewerModal
+  // IMPORTANT : ces docs ne persistent PAS entre sessions — rechargement = liste vide.
+  // TODO (V3) : persister via table analysis_reports + GET /api/v1/analysis-reports?client_id
+  const [generatedDocs, setGeneratedDocs] = useState([]);
+  const [viewingDoc, setViewingDoc] = useState(null);
+  const [chatMessage, setChatMessage] = useState("");
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const cancelReportRef = useRef(null);
   // const clientNames = useMemo(() => extractClientNames(user), [user]);
 
   // Persist n8nMessage to sessionStorage
@@ -806,6 +823,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   }, [id, applyCarriereData]);
 
   // ── Fetch user documents from server ──
+  // Charge la liste des documents uploadés pour ce client depuis Laravel
+  // Utilisé pour afficher le RIS déjà présent + permettre de le re-sélectionner
   const fetchUserDocuments = useCallback(async () => {
     if (!id) return;
     setIsLoadingDocs(true);
@@ -1183,7 +1202,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     } catch { toast.error("Impossible de charger le document RIS"); }
   }, [risFileName, parsePdfAndFillCarriere]);
 
-  // ── File upload handler (drag & drop or click) ──
+  // Drag & drop ou clic → stocke le fichier RIS en mémoire (fileToSend)
+  // ET l'uploade sur le serveur Laravel (/uploadFiles) pour historisation
+  // Déclenche ensuite parsePdfAndFillCarriere → analyse n8n → remplit carriereRows
   const handleUpload = useCallback(async (acceptedFiles) => {
     if (!acceptedFiles || !acceptedFiles.length || !id) return;
     const file = acceptedFiles[0];
@@ -1242,7 +1263,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     try { sessionStorage.removeItem(`simu_file_to_send_${id}`); } catch { /* noop */ }
   }, [id]);
 
-  // ── Delete document from server ──
+  // Suppression d'un document RIS uploadé (serveur Laravel + state local)
   const handleDeleteDocument = useCallback((docId, fileName) => {
     setDeleteModal({ isOpen: true, docId, fileName });
   }, []);
@@ -1288,6 +1309,211 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     }
     setIsGenerating(false);
   }, []);
+
+  // ── Livrables helpers ──
+
+  const cleanChainOfThought = useCallback((raw) => {
+    if (!raw || typeof raw !== "string") return raw;
+
+    // Stratégie 1 : HTML wrappé dans ```html ... ```
+    const htmlBlockMatch = raw.match(/```html\s*([\s\S]*?)```/i);
+    if (htmlBlockMatch) return htmlBlockMatch[1].trim();
+
+    // Stratégie 2 : chaîne de pensée avant le premier tag HTML structurel
+    const htmlStartIdx = raw.search(/<(!DOCTYPE|html|div|section|table|h[1-6]|p\s)/i);
+    if (htmlStartIdx > 0) {
+      const before = raw.slice(0, htmlStartIdx);
+      if (/\[(step|étape|etape)\s*\d/i.test(before)) {
+        return raw.slice(htmlStartIdx).trim();
+      }
+    }
+
+    // Stratégie 3 : strip les lignes [Step N: / [Étape N:
+    const lines = raw.split("\n");
+    const hasCot = lines.some(
+      (l) => /^\s*\[(step|étape|etape)\s*\d/i.test(l) || /^\s*\*\*(step|étape|etape)\s*\d/i.test(l)
+    );
+    if (hasCot) {
+      return lines
+        .filter((l) => !/^\s*\[(step|étape|etape)\s*\d/i.test(l))
+        .join("\n")
+        .trim();
+    }
+
+    return raw.trim();
+  }, []);
+
+  const handleDownloadReportHtml = useCallback((doc) => {
+    const content = doc?.htmlContent;
+    if (!content) { toast.error("Contenu HTML non disponible"); return; }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([content], { type: "text/html;charset=utf-8" }));
+    a.download = `${(doc.name || "rapport").replace(/[^a-z0-9_\-]/gi, "_")}.html`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }, []);
+
+  const handleDownloadReportPdf = useCallback(() => {
+    toast.info("Pour exporter en PDF, utilisez l'impression navigateur (Ctrl+P) depuis l'aperçu.");
+  }, []);
+
+  const handleSaveReport = useCallback(async (doc) => {
+    if (!doc?.htmlContent) { toast.error("Aucun contenu à sauvegarder"); return; }
+    const fileName = `Rapport_Modifie_${Date.now()}.html`;
+    const blob = new Blob([doc.htmlContent], { type: "text/html;charset=utf-8" });
+    const uploadForm = new FormData();
+    uploadForm.append("user_id", id);
+    uploadForm.append("photoUpload0", blob, fileName);
+    try {
+      const res = await axios.post(`${global.config.server_url}/uploadFiles`, uploadForm, {
+        headers: {
+          Authorization: "Bearer " + localStorage.getItem("token"),
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      const newUrl = res?.data?.files?.[0]?.url;
+      if (!newUrl) throw new Error("Pas d'URL renvoyée");
+      setGeneratedDocs((prev) =>
+        prev.map((d) => d.id === doc.id ? { ...d, url: newUrl, htmlContent: doc.htmlContent } : d)
+      );
+      setViewingDoc((prev) => prev?.id === doc.id ? { ...prev, url: newUrl, htmlContent: doc.htmlContent } : prev);
+      toast.success("Modifications enregistrées");
+    } catch {
+      toast.error("Erreur lors de l'enregistrement");
+    }
+  }, [id]);
+
+  // Génère le rapport de consultation retraite via n8n (webhook f012dfc7).
+  // CDC V2 : frontend → backend → n8n (plus d'appel direct n8n depuis le front).
+  // Backend forward le PDF à n8n en multipart. n8n inchangé.
+  const handleGenerateRapportConsultation = useCallback(async () => {
+    if (!fileToSend) {
+      toast.error("Aucun RIS disponible — importez le RIS du client en début de parcours.");
+      return;
+    }
+
+    setIsGeneratingReport(true);
+    if (cancelReportRef.current) cancelReportRef.current.cancel();
+    cancelReportRef.current = axios.CancelToken.source();
+
+    try {
+      const displayName = user
+        ? `${user.first_name || ""} ${user.last_name || ""}`.trim()
+        : "Client";
+
+      const childrenCount = user?.children_number ?? "";
+      const birthDate = user?.birth_date ?? "";
+      const message = [
+        "Thématiques d'analyse : Rapport de consultation retraite",
+        `Nombre d'enfants : ${childrenCount}`,
+        `Date de naissance : ${birthDate}`,
+      ].join("\n");
+
+      const formData = new FormData();
+      formData.append("file", fileToSend);
+      formData.append("message", message);
+      formData.append("client_id", id);
+      if (hiddenSystemPrompt) formData.append("system_prompt", hiddenSystemPrompt);
+
+      toast.info("Génération du rapport de consultation en cours…");
+
+      const backendRes = await axios.post(
+        `${global.config.server_url}/v1/rapports/consultation`,
+        formData,
+        {
+          headers: {
+            Authorization: "Bearer " + localStorage.getItem("token"),
+            "Content-Type": "multipart/form-data",
+          },
+          cancelToken: cancelReportRef.current.token,
+        }
+      );
+
+      // Extraction contenu brut depuis réponse backend (data = réponse n8n)
+      let raw = "";
+      const n8nData = backendRes.data?.data;
+      const root = Array.isArray(n8nData) ? n8nData[0] : n8nData;
+      if (typeof root === "string") {
+        raw = root;
+      } else if (root && typeof root === "object") {
+        raw = root.html_report || root.output || root.text || root.response || JSON.stringify(root);
+      } else {
+        raw = String(n8nData);
+      }
+
+      // Fix n8n 2.x : string JSON wrappée
+      const trimmedRaw = raw.trim();
+      if (trimmedRaw.charAt(0) === '"' && trimmedRaw.charAt(trimmedRaw.length - 1) === '"') {
+        try { raw = JSON.parse(trimmedRaw); } catch (_) {}
+      }
+      if (raw.indexOf("\\n") !== -1) {
+        raw = raw.split("\\n").join("\n").split("\\t").join("\t").split('\\"').join('"');
+      }
+
+      // Nettoyage chain-of-thought puis markdown
+      let contentString = cleanChainOfThought(raw);
+      contentString = contentString
+        .replace(/^```html\s*/i, "")
+        .replace(/^```\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
+
+      // Wrap si texte brut
+      if (
+        !contentString.startsWith("<!DOCTYPE") &&
+        !contentString.startsWith("<html") &&
+        !/<\/[a-zA-Z]+>/.test(contentString)
+      ) {
+        contentString = `<html><body style="font-family:sans-serif;padding:20px">${contentString.replace(/\n/g, "<br>")}</body></html>`;
+      }
+
+      // Upload vers Laravel
+      const fileName = `Rapport_Consultation_${Date.now()}.html`;
+      const blob = new Blob([contentString], { type: "text/html;charset=utf-8" });
+      const uploadForm = new FormData();
+      uploadForm.append("user_id", id);
+      uploadForm.append("photoUpload0", blob, fileName);
+
+      let reportUrl = null;
+      try {
+        const uploadRes = await axios.post(
+          `${global.config.server_url}/uploadFiles`,
+          uploadForm,
+          {
+            headers: {
+              Authorization: "Bearer " + localStorage.getItem("token"),
+              "Content-Type": "multipart/form-data",
+            },
+            cancelToken: cancelReportRef.current.token,
+          }
+        );
+        reportUrl = uploadRes?.data?.files?.[0]?.url || null;
+        if (!reportUrl) throw new Error("Pas d'URL renvoyée");
+      } catch (err) {
+        console.error(err);
+        toast.error("Rapport généré mais impossible de le sauvegarder sur le serveur.");
+      }
+
+      const doc = {
+        id: `rc_${Date.now()}`,
+        name: `Rapport de consultation retraite de ${displayName}`,
+        type: "rapport_consultation",
+        createdAt: new Date().toISOString(),
+        url: reportUrl,
+        htmlContent: contentString,
+      };
+
+      setGeneratedDocs((prev) => [doc, ...prev]);
+      toast.success("Rapport de consultation généré avec succès");
+    } catch (err) {
+      if (axios.isCancel(err)) return;
+      console.error(err);
+      toast.error("Erreur lors de la génération du rapport");
+    } finally {
+      setIsGeneratingReport(false);
+      cancelReportRef.current = null;
+    }
+  }, [fileToSend, user, id, hiddenSystemPrompt, cleanChainOfThought]);
 
   // ── Report generation (same payload as old UploadSection flow) ──
   const handleGenerateDoc = useCallback(async () => {
@@ -2198,6 +2424,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                   <div style={{ fontSize: 12, color: "#666", textAlign: "center", padding: "4px 0" }}>Aucun document importé</div>
                 )}
               </div>
+              {/* fin zone documents masquée */}
 
           {/* ── MAIN PANELS ── */}
           {hasDocuments && (
@@ -3588,7 +3815,24 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             })}
                           </div>
 
-                          {selectedAction && (
+                          {selectedAction?.id === "rapport_consultation" && (
+                            <div style={{ marginTop: 14, borderTop: "1px solid #eee", paddingTop: 14 }}>
+                              {!fileToSend && (
+                                <div style={{ padding: "8px 12px", background: "#FFF3CD", borderRadius: 7, marginBottom: 10, fontSize: 13, color: "#856404", border: "1px solid #FFE08A" }}>
+                                  ⚠ Aucun RIS chargé — importez le RIS du client en début de parcours.
+                                </div>
+                              )}
+                              <button
+                                onClick={handleGenerateRapportConsultation}
+                                disabled={isGeneratingReport || !fileToSend}
+                                style={{ padding: "10px 20px", borderRadius: 7, border: "none", background: isGeneratingReport || !fileToSend ? "#ccc" : panel.color, color: "#fff", fontWeight: 700, fontSize: 13, cursor: isGeneratingReport || !fileToSend ? "not-allowed" : "pointer" }}
+                              >
+                                {isGeneratingReport ? "⏳ Génération en cours…" : "▶ Générer le rapport de consultation retraite"}
+                              </button>
+                            </div>
+                          )}
+
+                          {selectedAction && selectedAction.id !== "rapport_consultation" && (
                             <div style={{ marginTop: 14, borderTop: "1px solid #eee", paddingTop: 14 }}>
                               <div style={{ background: "#F0EDFF", borderRadius: 7, padding: 10, marginBottom: 10, border: "1px solid #6C5CE720" }}>
                                 <div style={{ fontSize: 11, fontWeight: 700, color: "#6C5CE7", marginBottom: 3 }}>📝 PROMPT STRICT :</div>
@@ -3597,6 +3841,29 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                 </div>
                               </div>
                               <button onClick={() => setExecuted(selectedAction)} style={{ padding: "8px 18px", borderRadius: 7, border: "none", background: panel.color, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>▶ Générer le {selectedAction.label.toLowerCase()}</button>
+                            </div>
+                          )}
+
+                          {generatedDocs.length > 0 && (
+                            <div style={{ marginTop: 18 }}>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "#333", marginBottom: 8 }}>Documents générés</div>
+                              {generatedDocs.map((doc) => (
+                                <div
+                                  key={doc.id}
+                                  onClick={() => setViewingDoc(doc)}
+                                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 8, border: "1px solid #e8e8e8", background: "#fafafa", cursor: "pointer", marginBottom: 6, transition: "box-shadow 0.12s" }}
+                                  onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)"; }}
+                                  onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "none"; }}
+                                >
+                                  <div>
+                                    <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>📄 {doc.name}</div>
+                                    <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>
+                                      {new Date(doc.createdAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                                    </div>
+                                  </div>
+                                  <span style={{ fontSize: 12, color: panel.color, fontWeight: 600 }}>Ouvrir →</span>
+                                </div>
+                              ))}
                             </div>
                           )}
                         </div>
@@ -4258,7 +4525,265 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       >
         Les données importées seront supprimées définitivement.
       </SweetAlert>
+
+      {viewingDoc && (
+        <ReportViewerModal
+          viewingDoc={viewingDoc}
+          setViewingDoc={setViewingDoc}
+          chatMessage={chatMessage}
+          setChatMessage={setChatMessage}
+          isGenerating={isGeneratingReport}
+          handleSaveDoc={handleSaveReport}
+          handleDownloadHtml={handleDownloadReportHtml}
+          handleDownloadPdf={handleDownloadReportPdf}
+        />
+      )}
     </div>
   );
 
+}
+
+// ── ReportViewerModal ────────────────────────────────────────────────────────
+
+function ReportViewerModal({
+  viewingDoc,
+  setViewingDoc,
+  chatMessage,
+  setChatMessage,
+  isGenerating,
+  handleSaveDoc,
+  handleDownloadHtml,
+  handleDownloadPdf,
+}) {
+  const iframeRef = useRef(null);
+  const [staticHtmlContent, setStaticHtmlContent] = useState(viewingDoc?.htmlContent || "");
+  const [isLoadingEdit, setIsLoadingEdit] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+
+  const docId = viewingDoc?.id;
+  const docUrl = viewingDoc?.url;
+  const docHtmlContent = viewingDoc?.htmlContent;
+
+  useEffect(() => {
+    if (viewingDoc) {
+      setStaticHtmlContent(docHtmlContent || "");
+      setIsEditMode(!!docHtmlContent);
+    }
+  }, [docId, docUrl, docHtmlContent, viewingDoc]);
+
+  const execCmd = (e, command, value = null) => {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    const iframe = iframeRef.current;
+    if (!iframe || !iframe.contentDocument) return;
+    try {
+      iframe.contentDocument.execCommand(command, false, value);
+      iframe.contentWindow.focus();
+    } catch (_) {}
+  };
+
+  const handleIframeLoad = () => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    try {
+      const doc = iframe.contentDocument;
+      if (doc && doc.body) {
+        doc.body.contentEditable = "true";
+        doc.body.style.cursor = "text";
+        const updateContent = () => {
+          const newContent = doc.documentElement.outerHTML;
+          setStaticHtmlContent(newContent);
+          setViewingDoc((prev) => ({ ...prev, htmlContent: newContent }));
+        };
+        doc.body.addEventListener("blur", updateContent);
+      }
+    } catch (_) {}
+  };
+
+  const handleClose = () => {
+    if (isEditMode && viewingDoc?.htmlContent) {
+      setShowCloseConfirm(true);
+    } else {
+      setViewingDoc(null);
+    }
+  };
+
+  const handleEditToggle = async () => {
+    if (isEditMode && viewingDoc?.htmlContent) {
+      await handleSaveDoc(viewingDoc);
+      return;
+    }
+    if (viewingDoc?.htmlContent) {
+      const iframe = iframeRef.current;
+      if (iframe && iframe.contentDocument && iframe.contentDocument.body) {
+        iframe.contentDocument.body.contentEditable = "true";
+        iframe.contentDocument.body.focus();
+      }
+      setIsEditMode(true);
+      return;
+    }
+    if (!viewingDoc?.url) { toast.error("Aucune source disponible pour l'édition."); return; }
+    setIsLoadingEdit(true);
+    try {
+      const res = await axios.post(
+        `${global.config.server_url}/fetch-html`,
+        { url: viewingDoc.url },
+        { headers: { Authorization: "Bearer " + localStorage.getItem("token") } }
+      );
+      if (res.data && res.data.html) {
+        setStaticHtmlContent(res.data.html);
+        setViewingDoc((prev) => ({ ...prev, htmlContent: res.data.html }));
+        setIsEditMode(true);
+      } else {
+        toast.error("Impossible de récupérer le contenu modifiable.");
+      }
+    } catch {
+      toast.error("Erreur lors de l'activation du mode édition.");
+    } finally {
+      setIsLoadingEdit(false);
+    }
+  };
+
+  return (
+    <>
+      <Modal
+        isOpen={!!viewingDoc}
+        toggle={handleClose}
+        className="modal-dialog-centered modal-xl"
+        contentClassName="h-100"
+        style={{ maxWidth: "95vw", height: "90vh" }}
+      >
+        <ModalHeader toggle={handleClose}>{viewingDoc?.name || "Document"}</ModalHeader>
+        <ModalBody className="p-0" style={{ overflow: "hidden", height: "100%" }}>
+          <div className="d-flex h-100">
+            {/* Panneau gauche — Actions */}
+            <div className="d-flex flex-column" style={{ flex: "0 0 320px", backgroundColor: "#f8f9fa", borderRight: "1px solid #dee2e6", overflowY: "auto" }}>
+              <div className="p-4">
+                <h5 className="mb-3" style={{ color: "#495057", fontWeight: 600 }}>Actions</h5>
+
+                <div className="mb-3">
+                  <div className="d-flex" style={{ gap: 10 }}>
+                    <Button color="primary" className="flex-fill d-flex align-items-center justify-content-center" onClick={handleDownloadPdf} style={{ borderRadius: 8, padding: "10px 16px", fontWeight: 500 }}>
+                      <Download size={16} className="mr-1" /> PDF
+                    </Button>
+                    {(viewingDoc?.htmlContent || viewingDoc?.url) && (
+                      <Button color="info" className="flex-fill d-flex align-items-center justify-content-center" onClick={() => handleDownloadHtml(viewingDoc)} style={{ borderRadius: 8, padding: "10px 16px", fontWeight: 500 }}>
+                        <Download size={16} className="mr-1" /> HTML
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {(viewingDoc?.htmlContent || viewingDoc?.url) && (
+                  <Button
+                    color={isEditMode ? "success" : "warning"}
+                    className="w-100 d-flex align-items-center justify-content-center mb-3"
+                    onClick={handleEditToggle}
+                    disabled={isLoadingEdit}
+                    style={{ borderRadius: 8, padding: "12px 16px", fontWeight: 500 }}
+                  >
+                    {isLoadingEdit ? <span className="spinner-border spinner-border-sm mr-2" /> : isEditMode ? <Save size={18} className="mr-2" /> : <Edit2 size={18} className="mr-2" />}
+                    {isLoadingEdit ? "Chargement..." : isEditMode ? "Enregistrer les modifications" : "Modifier le texte"}
+                  </Button>
+                )}
+
+                <hr style={{ borderColor: "#dee2e6", margin: "16px 0" }} />
+
+                <h5 className="mb-3" style={{ color: "#495057", fontWeight: 600 }}>Assistant</h5>
+                <Input
+                  type="textarea"
+                  rows="6"
+                  placeholder="Ex: Refais le calcul avec un départ à 65 ans..."
+                  value={chatMessage}
+                  onChange={(e) => setChatMessage(e.target.value)}
+                  style={{ resize: "none", marginBottom: 12, borderRadius: 8, border: "1px solid #ced4da", padding: 12, fontSize: 14 }}
+                  disabled={isGenerating}
+                />
+                <Button
+                  color="primary"
+                  block
+                  disabled={isGenerating || !chatMessage.trim()}
+                  style={{ borderRadius: 8, padding: "12px 16px", fontWeight: 500, fontSize: 15 }}
+                >
+                  {isGenerating ? "Analyse en cours..." : "Générer un rapport spécifique"}
+                </Button>
+              </div>
+            </div>
+
+            {/* Panneau droit — Prévisualisation */}
+            <div className="flex-grow-1 bg-white position-relative d-flex flex-column">
+              {isEditMode && (
+                <div style={{ padding: "10px 14px", backgroundColor: "#fff", borderBottom: "2px solid #e9ecef", display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                  <div style={{ display: "flex", gap: 4, padding: 4, backgroundColor: "#f8f9fa", borderRadius: 6 }}>
+                    <Button color="light" onMouseDown={(e) => execCmd(e, "bold")} title="Gras" style={{ border: "1px solid #dee2e6", borderRadius: 4, padding: "6px 10px", backgroundColor: "#fff" }}><Bold size={16} /></Button>
+                    <Button color="light" onMouseDown={(e) => execCmd(e, "italic")} title="Italique" style={{ border: "1px solid #dee2e6", borderRadius: 4, padding: "6px 10px", backgroundColor: "#fff" }}><Italic size={16} /></Button>
+                    <Button color="light" onMouseDown={(e) => execCmd(e, "underline")} title="Souligné" style={{ border: "1px solid #dee2e6", borderRadius: 4, padding: "6px 10px", backgroundColor: "#fff" }}><Underline size={16} /></Button>
+                  </div>
+                  <div style={{ width: 1, height: 28, backgroundColor: "#dee2e6" }} />
+                  <UncontrolledDropdown>
+                    <DropdownToggle color="light" caret onMouseDown={(e) => e.preventDefault()} style={{ border: "1px solid #dee2e6", borderRadius: 6, padding: "6px 10px", backgroundColor: "#fff", fontWeight: 500 }}>Taille</DropdownToggle>
+                    <DropdownMenu>
+                      <DropdownItem onMouseDown={(e) => execCmd(e, "fontSize", "1")}><span style={{ fontSize: 12 }}>Petit</span></DropdownItem>
+                      <DropdownItem onMouseDown={(e) => execCmd(e, "fontSize", "3")}><span style={{ fontSize: 14 }}>Normal</span></DropdownItem>
+                      <DropdownItem onMouseDown={(e) => execCmd(e, "fontSize", "5")}><span style={{ fontSize: 18 }}>Grand</span></DropdownItem>
+                      <DropdownItem onMouseDown={(e) => execCmd(e, "fontSize", "7")}><span style={{ fontSize: 24 }}>Très grand</span></DropdownItem>
+                    </DropdownMenu>
+                  </UncontrolledDropdown>
+                  <UncontrolledDropdown>
+                    <DropdownToggle color="light" caret onMouseDown={(e) => e.preventDefault()} style={{ border: "1px solid #dee2e6", borderRadius: 6, padding: "6px 10px", backgroundColor: "#fff", fontWeight: 500 }}>Couleur</DropdownToggle>
+                    <DropdownMenu>
+                      {[["#000000", "Noir"], ["#FF0000", "Rouge"], ["#0000FF", "Bleu"], ["#008000", "Vert"], ["#FFA500", "Orange"]].map(([c, l]) => (
+                        <DropdownItem key={c} onMouseDown={(e) => execCmd(e, "foreColor", c)}><span style={{ color: c, fontWeight: 600 }}>⬤</span> {l}</DropdownItem>
+                      ))}
+                    </DropdownMenu>
+                  </UncontrolledDropdown>
+                  <div style={{ width: 1, height: 28, backgroundColor: "#dee2e6" }} />
+                  <div style={{ display: "flex", gap: 4, padding: 4, backgroundColor: "#f8f9fa", borderRadius: 6 }}>
+                    <Button color="light" onMouseDown={(e) => execCmd(e, "justifyLeft")} style={{ border: "1px solid #dee2e6", borderRadius: 4, padding: "6px 10px", backgroundColor: "#fff" }}><AlignLeft size={16} /></Button>
+                    <Button color="light" onMouseDown={(e) => execCmd(e, "justifyCenter")} style={{ border: "1px solid #dee2e6", borderRadius: 4, padding: "6px 10px", backgroundColor: "#fff" }}><AlignCenter size={16} /></Button>
+                    <Button color="light" onMouseDown={(e) => execCmd(e, "justifyRight")} style={{ border: "1px solid #dee2e6", borderRadius: 4, padding: "6px 10px", backgroundColor: "#fff" }}><AlignRight size={16} /></Button>
+                  </div>
+                  <div style={{ display: "flex", gap: 4, padding: 4, backgroundColor: "#f8f9fa", borderRadius: 6 }}>
+                    <Button color="light" onMouseDown={(e) => execCmd(e, "insertUnorderedList")} style={{ border: "1px solid #dee2e6", borderRadius: 4, padding: "6px 10px", backgroundColor: "#fff" }}><List size={16} /></Button>
+                    <Button color="light" onMouseDown={(e) => execCmd(e, "insertOrderedList")} style={{ border: "1px solid #dee2e6", borderRadius: 4, padding: "6px 10px", backgroundColor: "#fff" }}><span style={{ fontSize: 13, fontWeight: 600 }}>1.</span> <List size={14} /></Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex-grow-1 position-relative">
+                {viewingDoc?.htmlContent ? (
+                  <iframe ref={iframeRef} srcDoc={staticHtmlContent} onLoad={handleIframeLoad} title="Aperçu rapport" style={{ width: "100%", height: "100%", border: "none" }} />
+                ) : viewingDoc?.url ? (
+                  <iframe ref={iframeRef} src={viewingDoc.url} onLoad={handleIframeLoad} title="Aperçu rapport" style={{ width: "100%", height: "100%", border: "none" }} />
+                ) : (
+                  <div className="d-flex align-items-center justify-content-center h-100 text-muted">Aucun aperçu disponible</div>
+                )}
+                {isGenerating && (
+                  <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(255,255,255,0.8)", zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                    <div className="spinner-border text-primary" style={{ width: "2.5rem", height: "2.5rem" }} role="status"><span className="sr-only">Chargement...</span></div>
+                    <p className="mt-2 text-primary font-weight-bold">Nouvelle analyse en cours...</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </ModalBody>
+      </Modal>
+
+      <SweetAlert
+        warning
+        showCancel
+        confirmBtnText="Enregistrer"
+        confirmBtnBsStyle="success"
+        cancelBtnText="Ne pas enregistrer"
+        cancelBtnBsStyle="danger"
+        title="Modifications non enregistrées"
+        show={showCloseConfirm}
+        onConfirm={async () => { setShowCloseConfirm(false); await handleSaveDoc(viewingDoc); setViewingDoc(null); setIsEditMode(false); }}
+        onCancel={() => { setShowCloseConfirm(false); setViewingDoc(null); setIsEditMode(false); }}
+      >
+        Voulez-vous enregistrer vos modifications avant de fermer ?
+      </SweetAlert>
+    </>
+  );
 }
