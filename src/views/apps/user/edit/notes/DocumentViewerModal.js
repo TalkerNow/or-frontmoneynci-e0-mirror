@@ -655,7 +655,7 @@ const DocumentViewerModal = ({
         warning
         showCancel
         confirmBtnText="Enregistrer"
-        confirmBtnBsStyle="success"
+        confirmBtnBsStyle="primary"
         cancelBtnText="Ne pas enregistrer"
         cancelBtnBsStyle="danger"
         title="Modifications non enregistrées"

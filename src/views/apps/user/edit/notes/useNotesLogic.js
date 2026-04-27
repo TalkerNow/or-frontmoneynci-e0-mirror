@@ -384,28 +384,57 @@ export const useNotesLogic = (id, perso) => {
     }
   }, [n8nMessage, id]);
 
-  // Restore fileToSend from sessionStorage on mount
+  // Restore fileToSend from sessionStorage on mount, or auto-select most recent PDF
   useEffect(() => {
     if (!id) return;
-    const restoreFile = async () => {
+    const restoreOrAutoSelect = async () => {
       try {
-        const storedFileData = sessionStorage.getItem(
-          `notes_file_to_send_${id}`,
-        );
+        const storedFileData = sessionStorage.getItem(`notes_file_to_send_${id}`);
         if (storedFileData) {
           const { name, type, dataUrl } = JSON.parse(storedFileData);
-          // Convert base64 data URL back to File object
           const response = await fetch(dataUrl);
           const blob = await response.blob();
-          const file = new File([blob], name, { type });
-          setFileToSend(file);
+          setFileToSend(new File([blob], name, { type }));
+          return;
         }
+
+        // Aucun fichier en session → auto-charger le PDF le plus récent du client
+        const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+        const docsRes = await axios.get(`${global.config.server_url}/files?user_id=${id}`, Config);
+        const files = Array.isArray(docsRes.data) ? docsRes.data : [];
+        setUserDocuments(files);
+
+        const latestPdf = files
+          .filter((f) => f.filename && !f.filename.endsWith(".html"))
+          .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0];
+
+        if (!latestPdf) return;
+
+        const fileRes = await axios.get(
+          `${global.config.server_url}/downloadFile?file_id=${latestPdf.id}`,
+          { ...Config, responseType: "blob" },
+        );
+        const blob = fileRes.data;
+        const fileObj = new File([blob], latestPdf.filename, { type: blob.type || "application/pdf" });
+        setFileToSend(fileObj);
+
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            sessionStorage.setItem(`notes_file_to_send_${id}`, JSON.stringify({
+              name: fileObj.name,
+              type: fileObj.type,
+              dataUrl: reader.result,
+            }));
+          } catch (e) { /* sessionStorage plein */ }
+        };
+        reader.readAsDataURL(blob);
       } catch (e) {
-        console.error("Failed to restore fileToSend:", e);
+        console.error("Failed to restore/auto-select fileToSend:", e);
       }
     };
-    restoreFile();
-  }, [id]);
+    restoreOrAutoSelect();
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Listen for careerAnalysisFileReady event (from Documents component)
   useEffect(() => {
