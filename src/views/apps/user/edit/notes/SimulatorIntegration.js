@@ -4,7 +4,7 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import Dropzone from "react-dropzone";
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button, UncontrolledTooltip, Input, UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem } from "reactstrap";
-import { DownloadCloud, Eye, Download, Edit2, Save, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List } from "react-feather";
+import { DownloadCloud, Eye, Download, Edit2, Save, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, Trash2 } from "react-feather";
 import {
   QUICK_TAGS_OPTIONS,
   generateDocId,
@@ -598,6 +598,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [userDocuments, setUserDocuments] = useState([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, docId: null, fileName: "" });
+  const [deleteGenDocId, setDeleteGenDocId] = useState(null);
   const [localUploadedIds, setLocalUploadedIds] = useState(() => new Set(loadUploadedDocs(id).map((d) => String(d.id))));
   // eslint-disable-next-line no-unused-vars
   const [n8nMessage, setN8nMessage] = useState(() => {
@@ -613,8 +614,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // generatedDocs  : liste locale (session) des rapports produits par n8n
   //                  { id, name, type, createdAt, url (Laravel /uploadFiles), htmlContent }
   // viewingDoc     : doc actuellement ouvert dans ReportViewerModal
-  // IMPORTANT : ces docs ne persistent PAS entre sessions — rechargement = liste vide.
-  // TODO (V3) : persister via table analysis_reports + GET /api/v1/analysis-reports?client_id
+  // Persisté via analysis_reports (skill_code = RAPPORT_CONSULTATION) et rechargé au mount.
   const [generatedDocs, setGeneratedDocs] = useState([]);
   const [viewingDoc, setViewingDoc] = useState(null);
   const [chatMessage, setChatMessage] = useState("");
@@ -670,6 +670,26 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       if (Object.keys(scenarioResults).length > 0) {
         setScenarioSkillResults(scenarioResults);
       }
+
+      // Recharger le rapport de consultation depuis analysis_reports
+      try {
+        const rapportReport = await fetchLatestReport(id, "RAPPORT_CONSULTATION");
+        const rapportData = rapportReport?.result_json;
+        if (rapportData?.htmlContent) {
+          setGeneratedDocs((prev) => {
+            // Éviter les doublons si déjà chargé
+            if (prev.some((d) => d.id === rapportData.id)) return prev;
+            return [{
+              id: rapportData.id || `rc_restored_${Date.now()}`,
+              name: rapportData.name || "Rapport de consultation retraite",
+              type: rapportData.type || "rapport_consultation",
+              createdAt: rapportData.createdAt || rapportReport.created_at || new Date().toISOString(),
+              url: rapportData.url || null,
+              htmlContent: rapportData.htmlContent,
+            }, ...prev];
+          });
+        }
+      } catch { /* 404 = pas de rapport consultation, on ignore */ }
     };
     loadCached();
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -873,10 +893,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     setActivatedDispositifs([]);
     setDetectedDispositifs({});
     setShowAutoResults(false);
+    setGeneratedDocs([]);
     // Supprimer les rapports en base pour éviter leur rechargement au F5
     const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
     const allCodes = [
-      "CNAV", "AGIRC_ARRCO", "IRCANTEC", "RCI", "CIPAV",
+      "CNAV", "AGIRC_ARRCO", "IRCANTEC", "RCI", "CIPAV", "RAPPORT_CONSULTATION",
       ...new Set(Object.values(DISPOSITIF_TO_SKILL_CODE).filter(Boolean)),
     ];
     for (const code of allCodes) {
@@ -1387,9 +1408,28 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // CDC V2 : frontend → backend → n8n (plus d'appel direct n8n depuis le front).
   // Backend forward le PDF à n8n en multipart. n8n inchangé.
   const handleGenerateRapportConsultation = useCallback(async () => {
-    if (!fileToSend) {
-      toast.error("Aucun RIS disponible — importez le RIS du client en début de parcours.");
-      return;
+    // Auto-récupération du RIS si fileToSend est vide
+    let risFile = fileToSend;
+    if (!risFile) {
+      // Chercher le premier PDF dans les documents serveur du client
+      const pdfDoc = userDocuments.find((d) =>
+        (d.filename || "").toLowerCase().endsWith(".pdf")
+      );
+      if (!pdfDoc) {
+        toast.error("Aucun document PDF trouvé — importez le RIS du client.");
+        return;
+      }
+      try {
+        toast.info("Récupération automatique du RIS…");
+        const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") }, responseType: "blob" };
+        const response = await axios.get(`${global.config.server_url}/downloadFile?file_id=${pdfDoc.id}`, Config);
+        const blob = response.data;
+        risFile = new File([blob], pdfDoc.filename, { type: blob.type || "application/pdf" });
+        setFileToSend(risFile);
+      } catch {
+        toast.error("Impossible de récupérer le RIS depuis le serveur.");
+        return;
+      }
     }
 
     setIsGeneratingReport(true);
@@ -1410,7 +1450,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       ].join("\n");
 
       const formData = new FormData();
-      formData.append("file", fileToSend);
+      formData.append("file", risFile);
       formData.append("message", message);
       formData.append("client_id", id);
       if (hiddenSystemPrompt) formData.append("system_prompt", hiddenSystemPrompt);
@@ -1504,6 +1544,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       };
 
       setGeneratedDocs((prev) => [doc, ...prev]);
+
+      // Persister le rapport en base pour survie au F5
+      saveSkillResult(id, "RAPPORT_CONSULTATION", doc);
+
       toast.success("Rapport de consultation généré avec succès");
     } catch (err) {
       if (axios.isCancel(err)) return;
@@ -1513,7 +1557,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       setIsGeneratingReport(false);
       cancelReportRef.current = null;
     }
-  }, [fileToSend, user, id, hiddenSystemPrompt, cleanChainOfThought]);
+  }, [fileToSend, user, id, hiddenSystemPrompt, cleanChainOfThought, userDocuments]);
 
   // ── Report generation (same payload as old UploadSection flow) ──
   const handleGenerateDoc = useCallback(async () => {
@@ -3817,15 +3861,15 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
 
                           {selectedAction?.id === "rapport_consultation" && (
                             <div style={{ marginTop: 14, borderTop: "1px solid #eee", paddingTop: 14 }}>
-                              {!fileToSend && (
+                              {!fileToSend && userDocuments.filter(d => (d.filename || "").toLowerCase().endsWith(".pdf")).length === 0 && (
                                 <div style={{ padding: "8px 12px", background: "#FFF3CD", borderRadius: 7, marginBottom: 10, fontSize: 13, color: "#856404", border: "1px solid #FFE08A" }}>
-                                  ⚠ Aucun RIS chargé — importez le RIS du client en début de parcours.
+                                  ⚠ Aucun document PDF trouvé — importez le RIS du client.
                                 </div>
                               )}
                               <button
                                 onClick={handleGenerateRapportConsultation}
-                                disabled={isGeneratingReport || !fileToSend}
-                                style={{ padding: "10px 20px", borderRadius: 7, border: "none", background: isGeneratingReport || !fileToSend ? "#ccc" : panel.color, color: "#fff", fontWeight: 700, fontSize: 13, cursor: isGeneratingReport || !fileToSend ? "not-allowed" : "pointer" }}
+                                disabled={isGeneratingReport || (!fileToSend && userDocuments.filter(d => (d.filename || "").toLowerCase().endsWith(".pdf")).length === 0)}
+                                style={{ padding: "10px 20px", borderRadius: 7, border: "none", background: isGeneratingReport ? "#a29bfe" : panel.color, color: "#fff", fontWeight: 700, fontSize: 13, cursor: isGeneratingReport ? "wait" : "pointer", opacity: isGeneratingReport ? 0.7 : 1 }}
                               >
                                 {isGeneratingReport ? "⏳ Génération en cours…" : "▶ Générer le rapport de consultation retraite"}
                               </button>
@@ -3850,18 +3894,32 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               {generatedDocs.map((doc) => (
                                 <div
                                   key={doc.id}
-                                  onClick={() => setViewingDoc(doc)}
-                                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 8, border: "1px solid #e8e8e8", background: "#fafafa", cursor: "pointer", marginBottom: 6, transition: "box-shadow 0.12s" }}
-                                  onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)"; }}
-                                  onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "none"; }}
+                                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 8, border: "1px solid #e8e8e8", background: "#fafafa", marginBottom: 6 }}
                                 >
-                                  <div>
-                                    <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>📄 {doc.name}</div>
+                                  <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => setViewingDoc(doc)}>
+                                    <div style={{ fontSize: 13, fontWeight: 600, color: "#333", textDecoration: "underline", textDecorationColor: "#ccc", textUnderlineOffset: 2 }}>📄 {doc.name}</div>
                                     <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>
                                       {new Date(doc.createdAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                                     </div>
                                   </div>
-                                  <span style={{ fontSize: 12, color: panel.color, fontWeight: 600 }}>Ouvrir →</span>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => setViewingDoc(doc)}
+                                      style={{ background: "none", border: "none", color: panel.color, cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
+                                      title="Visualiser"
+                                    >
+                                      <Eye size={16} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setDeleteGenDocId(doc.id)}
+                                      style={{ background: "none", border: "none", color: "#dc3545", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
+                                      title="Supprimer"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -4514,6 +4572,41 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       <SweetAlert
         warning
         showCancel
+        confirmBtnText="Supprimer"
+        confirmBtnBsStyle="danger"
+        cancelBtnText="Annuler"
+        cancelBtnBsStyle="primary"
+        title="Supprimer ce document ?"
+        show={!!deleteGenDocId}
+        onConfirm={async () => {
+          const docToDelete = generatedDocs.find((d) => d.id === deleteGenDocId);
+          setGeneratedDocs((prev) => prev.filter((d) => d.id !== deleteGenDocId));
+          setDeleteGenDocId(null);
+          // Supprimer aussi de la base pour ne pas le recharger au F5
+          if (docToDelete?.type === "rapport_consultation") {
+            try {
+              const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+              const report = await axios.get(
+                `${global.config.server_url}/v1/analysis-reports/latest/${id}/RAPPORT_CONSULTATION`,
+                Config,
+              );
+              if (report?.data?.id) {
+                await axios.delete(
+                  `${global.config.server_url}/v1/analysis-reports/${report.data.id}`,
+                  Config,
+                );
+              }
+            } catch { /* 404 = déjà supprimé, on ignore */ }
+          }
+        }}
+        onCancel={() => setDeleteGenDocId(null)}
+      >
+        Cette action est irréversible.
+      </SweetAlert>
+
+      <SweetAlert
+        warning
+        showCancel
         confirmBtnText="Réinitialiser"
         confirmBtnBsStyle="danger"
         cancelBtnText="Annuler"
@@ -4775,8 +4868,8 @@ function ReportViewerModal({
         showCancel
         confirmBtnText="Enregistrer"
         confirmBtnBsStyle="success"
-        cancelBtnText="Ne pas enregistrer"
-        cancelBtnBsStyle="danger"
+        cancelBtnText="Annuler"
+        cancelBtnBsStyle="primary"
         title="Modifications non enregistrées"
         show={showCloseConfirm}
         onConfirm={async () => { setShowCloseConfirm(false); await handleSaveDoc(viewingDoc); setViewingDoc(null); setIsEditMode(false); }}
