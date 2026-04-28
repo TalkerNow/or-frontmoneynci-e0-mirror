@@ -60,23 +60,26 @@ const DiagnosticSection = ({
         sessionStorage.getItem("token") ||
         "";
 
-      // Trigger n8n workflow
-      await fetch(N8N_SIMULATION_WEBHOOK, {
+      // 1. Fetch frozen_data from our API (career data)
+      const frozenResp = await fetch(
+        `${API_BASE}/frozen_data/${resolvedClientId}`,
+        { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } }
+      );
+      if (!frozenResp.ok) throw new Error(`Données carrière introuvables (${frozenResp.status})`);
+      const frozen_data = await frozenResp.json();
+
+      // 2. Send everything to n8n — n8n no longer calls our API for data
+      const n8nResp = await fetch(N8N_SIMULATION_WEBHOOK, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ client_id: resolvedClientId, token }),
+        body: JSON.stringify({ client_id: resolvedClientId, token, frozen_data }),
       });
+      if (!n8nResp.ok) throw new Error(`Erreur workflow (${n8nResp.status})`);
 
-      // Fetch the stored report
-      const resp = await fetch(
-        `${API_BASE}/v1/simulation-retraite/${resolvedClientId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      if (!resp.ok) throw new Error(`Rapport non trouvé (${resp.status})`);
-      const data = await resp.json();
-      setSimHtml(data.html_report);
+      // 3. Read HTML directly from n8n response (no second API call needed)
+      const result = await n8nResp.json();
+      if (!result.html_report) throw new Error("Rapport vide reçu de n8n");
+      setSimHtml(result.html_report);
       setSimOpen(true);
     } catch (err) {
       setSimError(err.message);
