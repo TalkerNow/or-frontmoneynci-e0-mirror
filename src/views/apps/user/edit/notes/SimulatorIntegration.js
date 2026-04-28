@@ -12,7 +12,7 @@ import {
   loadUploadedDocs,
   parseNIR,
 } from "./utils";
-import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrIncompleteScenario, executeVplrEtudeScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6 } from "../risService";
+import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrIncompleteScenario, executeVplrEtudeScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAuditRetraite } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
@@ -619,7 +619,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [viewingDoc, setViewingDoc] = useState(null);
   const [chatMessage, setChatMessage] = useState("");
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [isGeneratingAudit, setIsGeneratingAudit] = useState(false);
   const cancelReportRef = useRef(null);
+  const cancelAuditRef = useRef(null);
   // const clientNames = useMemo(() => extractClientNames(user), [user]);
 
   // Persist n8nMessage to sessionStorage
@@ -1558,6 +1560,162 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       cancelReportRef.current = null;
     }
   }, [fileToSend, user, id, hiddenSystemPrompt, cleanChainOfThought, userDocuments]);
+
+  // Génère l'audit retraite complet (~30 pages) via backend → n8n.
+  const handleGenerateAuditRetraite = useCallback(async () => {
+    setIsGeneratingAudit(true);
+    if (cancelAuditRef.current) cancelAuditRef.current.cancel();
+    cancelAuditRef.current = axios.CancelToken.source();
+
+    try {
+      const displayName = user
+        ? `${user.first_name || ""} ${user.last_name || ""}`.trim()
+        : "Client";
+
+      // Calcul des dates simulées
+      const birthDate = user?.birth_date ?? null;
+      const trimAcquis = Object.values(trimCotState).reduce((s, v) => s + (Number(v) || 0), 0);
+      const dateLegale    = birthDate ? computeDateLegale(birthDate) : null;
+      const dateTauxPlein = birthDate ? computeDateTauxPlein(birthDate, trimAcquis) : null;
+      const date67        = birthDate ? computeDate67(birthDate) : null;
+
+      // Normaliser les dispositifs vers les noms attendus par n8n PREP PAYLOAD
+      const normalizeDispositif = (id) => {
+        if (id === 'racl') return 'racl';
+        if (id === 'cumul_emploi') return 'cer';
+        if (id === 'retraite_progressive') return 'progressive';
+        if (id.startsWith('chomage')) return 'chomage';
+        if (id === 'periode_etranger') return 'etranger';
+        return null;
+      };
+      const dispositifsN8n = [...new Set(
+        activatedDispositifs.map(normalizeDispositif).filter(Boolean)
+      )];
+
+      const payload = {
+        client_id: id,
+        dispositifs_actives: dispositifsN8n,
+        profil_client: {
+          nom:       user?.last_name  || "",
+          prenom:    user?.first_name || "",
+          naissance: user?.birth_date || "",
+          enfants:   user?.children_number ?? 0,
+          regime:    user?.regime || "",
+        },
+        regimes: {
+          agirc_arrco: agircResult?.python_output    || droitsSynthese?.agirc_arrco || null,
+          ircantec:    ircantecResult?.python_output  || droitsSynthese?.ircantec    || null,
+          rci:         rciResult?.python_output       || droitsSynthese?.rci         || null,
+          cipav:       cipavResult?.python_output     || null,
+        },
+        dates_simulees: {
+          date_legale:     dateLegale?.label     || null,
+          date_taux_plein: dateTauxPlein?.label  || null,
+          date_67:         date67?.label         || null,
+          trim_acquis:     trimAcquis,
+        },
+        simulation_context: {
+          scenario_results: scenarioSkillResults,
+        },
+      };
+
+      toast.info("Génération de l'audit retraite en cours… (~10-15 min)", { autoClose: 15000 });
+
+      const backendRes = await executeAuditRetraite(payload);
+
+      // Extraction HTML depuis réponse backend
+      // backendRes = { success, n8n_status, data: <réponse n8n> }
+      let raw = "";
+      const n8nData = backendRes?.data ?? backendRes;
+      const root = Array.isArray(n8nData) ? n8nData[0] : n8nData;
+      if (root && typeof root === "object") {
+        raw = root.result_json?.htmlContent
+           || root.html_report
+           || root.text
+           || root.output
+           || root.response
+           || JSON.stringify(root);
+      } else if (typeof root === "string") {
+        raw = root;
+      } else {
+        raw = String(n8nData ?? "");
+      }
+
+      // Fix n8n 2.x : string JSON wrappée
+      const trimmedRaw = raw.trim();
+      if (trimmedRaw.charAt(0) === '"' && trimmedRaw.charAt(trimmedRaw.length - 1) === '"') {
+        try { raw = JSON.parse(trimmedRaw); } catch (_) {}
+      }
+      if (raw.indexOf("\\n") !== -1) {
+        raw = raw.split("\\n").join("\n").split("\\t").join("\t").split('\\"').join('"');
+      }
+
+      let contentString = cleanChainOfThought(raw);
+      contentString = contentString
+        .replace(/^```html\s*/i, "")
+        .replace(/^```\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
+
+      if (
+        !contentString.startsWith("<!DOCTYPE") &&
+        !contentString.startsWith("<html") &&
+        !/<\/[a-zA-Z]+>/.test(contentString)
+      ) {
+        contentString = `<html><body style="font-family:sans-serif;padding:20px">${contentString.replace(/\n/g, "<br>")}</body></html>`;
+      }
+
+      // Upload vers Laravel pour persistance
+      const fileName = `Audit_Retraite_${Date.now()}.html`;
+      const blob = new Blob([contentString], { type: "text/html;charset=utf-8" });
+      const uploadForm = new FormData();
+      uploadForm.append("user_id", id);
+      uploadForm.append("photoUpload0", blob, fileName);
+
+      let reportUrl = null;
+      try {
+        const uploadRes = await axios.post(
+          `${global.config.server_url}/uploadFiles`,
+          uploadForm,
+          {
+            headers: {
+              Authorization: "Bearer " + localStorage.getItem("token"),
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
+        reportUrl = uploadRes?.data?.files?.[0]?.url || null;
+      } catch (err) {
+        console.error(err);
+        toast.error("Audit généré mais impossible de le sauvegarder sur le serveur.");
+      }
+
+      const doc = {
+        id: `ar_${Date.now()}`,
+        name: `Audit retraite de ${displayName}`,
+        type: "audit_retraite",
+        createdAt: new Date().toISOString(),
+        url: reportUrl,
+        htmlContent: contentString,
+      };
+
+      setGeneratedDocs((prev) => [doc, ...prev]);
+      saveSkillResult(id, "AUDIT_RETRAITE", doc);
+
+      toast.success("Audit retraite généré avec succès");
+    } catch (err) {
+      if (axios.isCancel(err)) return;
+      console.error(err);
+      toast.error("Erreur lors de la génération de l'audit retraite");
+    } finally {
+      setIsGeneratingAudit(false);
+      cancelAuditRef.current = null;
+    }
+  }, [
+    user, id, activatedDispositifs, trimCotState,
+    agircResult, ircantecResult, rciResult, cipavResult, droitsSynthese,
+    scenarioSkillResults, cleanChainOfThought,
+  ]);
 
   // ── Report generation (same payload as old UploadSection flow) ──
   const handleGenerateDoc = useCallback(async () => {
@@ -3876,7 +4034,29 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             </div>
                           )}
 
-                          {selectedAction && selectedAction.id !== "rapport_consultation" && (
+                          {selectedAction?.id === "audit_retraite" && (
+                            <div style={{ marginTop: 14, borderTop: "1px solid #eee", paddingTop: 14 }}>
+                              {activatedDispositifs.length === 0 && (
+                                <div style={{ padding: "8px 12px", background: "#FFF3CD", borderRadius: 7, marginBottom: 10, fontSize: 13, color: "#856404", border: "1px solid #FFE08A" }}>
+                                  ⚠ Aucun dispositif activé — l'audit sera généré sans analyse de dispositifs.
+                                </div>
+                              )}
+                              {!carriereValidee && (
+                                <div style={{ padding: "8px 12px", background: "#FFF3CD", borderRadius: 7, marginBottom: 10, fontSize: 13, color: "#856404", border: "1px solid #FFE08A" }}>
+                                  ⚠ Carrière non validée — validez la carrière avant de générer l'audit.
+                                </div>
+                              )}
+                              <button
+                                onClick={handleGenerateAuditRetraite}
+                                disabled={isGeneratingAudit || !carriereValidee}
+                                style={{ padding: "10px 20px", borderRadius: 7, border: "none", background: isGeneratingAudit ? "#a29bfe" : panel.color, color: "#fff", fontWeight: 700, fontSize: 13, cursor: (isGeneratingAudit || !carriereValidee) ? "not-allowed" : "pointer", opacity: (isGeneratingAudit || !carriereValidee) ? 0.7 : 1 }}
+                              >
+                                {isGeneratingAudit ? "⏳ Génération en cours… (~2 min)" : "▶ Générer l'audit retraite"}
+                              </button>
+                            </div>
+                          )}
+
+                          {selectedAction && selectedAction.id !== "rapport_consultation" && selectedAction.id !== "audit_retraite" && (
                             <div style={{ marginTop: 14, borderTop: "1px solid #eee", paddingTop: 14 }}>
                               <div style={{ background: "#F0EDFF", borderRadius: 7, padding: 10, marginBottom: 10, border: "1px solid #6C5CE720" }}>
                                 <div style={{ fontSize: 11, fontWeight: 700, color: "#6C5CE7", marginBottom: 3 }}>📝 PROMPT STRICT :</div>

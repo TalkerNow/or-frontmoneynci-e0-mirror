@@ -497,6 +497,28 @@ export async function executeTnsScenario(clientId, scenarioParams = {}) {
 }
 
 /**
+ * Génère l'audit retraite complet (~30 pages) via le backend Laravel → n8n.
+ * @param {object} payload - { client_id, dispositifs_actives, profil_client, regimes, dates_simulees, simulation_context }
+ * @returns {Promise<object>} { success, data: { htmlContent, ... } }
+ */
+export async function executeAuditRetraite(payload) {
+  const token = localStorage.getItem("token");
+  const response = await axios.post(
+    `${global.config.server_url}/v1/audit-retraite/generate`,
+    payload,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      timeout: 900000,
+    }
+  );
+  const data = response.data;
+  return Array.isArray(data) ? data[0] : data;
+}
+
+/**
  * Récupère la liste des skills disponibles.
  * @param {string} [type] - Filtre optionnel par type
  * @returns {Promise<Array>}
