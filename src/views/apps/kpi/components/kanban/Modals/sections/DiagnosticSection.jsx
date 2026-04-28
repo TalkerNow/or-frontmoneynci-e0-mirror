@@ -1,14 +1,23 @@
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "reactstrap";
 import { FileText, User, Check, Clock, Target } from "react-feather";
 import { calculateComplexityScore } from "../../../inbox/utils";
+
+const N8N_SIMULATION_WEBHOOK = "https://n8n.srv796541.hstgr.cloud/webhook/simulation-retraite";
+const API_BASE = process.env.REACT_APP_API_URL || "https://api.optionretraite.net/api";
 
 const DiagnosticSection = ({
   diagnostic,
   diagnosticRaw,
   diagnosticAttrs,
+  clientId,
   onShowVisualReport,
 }) => {
+  const [simLoading, setSimLoading] = useState(false);
+  const [simError, setSimError] = useState(null);
+  const [simHtml, setSimHtml] = useState(null);
+  const [simOpen, setSimOpen] = useState(false);
+
   if (!diagnostic) return null;
 
   const score = calculateComplexityScore(diagnosticRaw);
@@ -30,6 +39,51 @@ const DiagnosticSection = ({
     bg = "#f3f4f6";
     color = "#6b7280";
   }
+
+  const handleGenerateSimulation = async () => {
+    // clientId comes from the parent via prop (userDetails.id)
+    const resolvedClientId =
+      clientId ||
+      diagnosticAttrs?.userId ||
+      diagnosticAttrs?.clientId ||
+      diagnosticAttrs?.id ||
+      diagnosticAttrs?.user_id;
+    if (!resolvedClientId) {
+      setSimError("ID client non trouvé");
+      return;
+    }
+    setSimLoading(true);
+    setSimError(null);
+    try {
+      const token =
+        localStorage.getItem("token") ||
+        sessionStorage.getItem("token") ||
+        "";
+
+      // Trigger n8n workflow
+      await fetch(N8N_SIMULATION_WEBHOOK, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_id: resolvedClientId, token }),
+      });
+
+      // Fetch the stored report
+      const resp = await fetch(
+        `${API_BASE}/v1/simulation-retraite/${resolvedClientId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (!resp.ok) throw new Error(`Rapport non trouvé (${resp.status})`);
+      const data = await resp.json();
+      setSimHtml(data.html_report);
+      setSimOpen(true);
+    } catch (err) {
+      setSimError(err.message);
+    } finally {
+      setSimLoading(false);
+    }
+  };
 
   return (
     <div
@@ -87,6 +141,21 @@ const DiagnosticSection = ({
             <FileText size={14} className="mr-25" />
             <span>Rapport Visuel</span>
           </Button>
+          <Button
+            size="sm"
+            color="success"
+            outline
+            onClick={handleGenerateSimulation}
+            disabled={simLoading}
+            style={{ display: "flex", alignItems: "center", gap: "4px", marginLeft: "4px" }}
+          >
+            {simLoading ? "Génération..." : "Simulation Retraite"}
+          </Button>
+          {simError && (
+            <div style={{ color: "#d93025", fontSize: "11px", marginTop: "4px" }}>
+              Erreur : {simError}
+            </div>
+          )}
           {(diagnosticRaw?.profile_type || diagnosticAttrs?.PROFILE_TYPE) && (
             <span
               style={{
@@ -429,6 +498,43 @@ const DiagnosticSection = ({
           return null;
         }
       })()}
+
+      {simOpen && simHtml && (
+        <div
+          style={{
+            position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+            background: "rgba(0,0,0,0.65)", zIndex: 9999,
+            display: "flex", flexDirection: "column",
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setSimOpen(false); }}
+        >
+          <div style={{
+            background: "white", margin: "16px", borderRadius: "8px",
+            flex: 1, display: "flex", flexDirection: "column", overflow: "hidden",
+            maxWidth: "900px", width: "100%", alignSelf: "center",
+          }}>
+            <div style={{
+              padding: "12px 16px", borderBottom: "1px solid #e2e8f0",
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              background: "#021b61", color: "white", borderRadius: "8px 8px 0 0",
+            }}>
+              <strong>Simulation Retraite</strong>
+              <button
+                onClick={() => setSimOpen(false)}
+                style={{ border: "none", background: "transparent", cursor: "pointer", color: "white", fontSize: "20px", lineHeight: 1 }}
+              >
+                ×
+              </button>
+            </div>
+            <iframe
+              srcDoc={simHtml}
+              title="Simulation Retraite"
+              style={{ flex: 1, border: "none", width: "100%" }}
+              sandbox=""
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
