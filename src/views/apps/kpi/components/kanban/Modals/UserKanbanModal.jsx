@@ -951,6 +951,7 @@ class UserKanbanModal extends React.Component {
                       diagnostic={diagnostic}
                       diagnosticRaw={diagnosticRaw}
                       diagnosticAttrs={diagnosticAttrs}
+                      clientId={userDetails?.id}
                       onShowVisualReport={() =>
                         this.setState({ showVisualReport: true })
                       }
