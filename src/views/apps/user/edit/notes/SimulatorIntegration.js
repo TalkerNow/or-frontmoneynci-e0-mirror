@@ -620,6 +620,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [chatMessage, setChatMessage] = useState("");
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const cancelReportRef = useRef(null);
+  const [isGeneratingSimulation, setIsGeneratingSimulation] = useState(false);
+  const [simReportHtml, setSimReportHtml] = useState(null);
+  const [simReportOpen, setSimReportOpen] = useState(false);
   // const clientNames = useMemo(() => extractClientNames(user), [user]);
 
   // Persist n8nMessage to sessionStorage
@@ -1558,6 +1561,40 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       cancelReportRef.current = null;
     }
   }, [fileToSend, user, id, hiddenSystemPrompt, cleanChainOfThought, userDocuments]);
+
+  // ── Simulation Retraite (appelle Laravel → n8n → HTML) ──────────────────────
+  const handleGenerateSimulationRetraite = useCallback(async () => {
+    if (!id) {
+      toast.error("ID client manquant");
+      return;
+    }
+    setIsGeneratingSimulation(true);
+    try {
+      const token = localStorage.getItem("token") || "";
+      const resp = await fetch(`${global.config.server_url}/v1/simulation-retraite/generate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ client_id: id }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || `Erreur serveur (${resp.status})`);
+      }
+      const result = await resp.json();
+      if (!result.html_report) throw new Error("Rapport vide reçu — vérifiez les données carrière du client");
+      setSimReportHtml(result.html_report);
+      setSimReportOpen(true);
+      toast.success("Simulation générée !");
+    } catch (err) {
+      toast.error(err.message || "Erreur lors de la simulation");
+    } finally {
+      setIsGeneratingSimulation(false);
+    }
+  }, [id]);
 
   // ── Report generation (same payload as old UploadSection flow) ──
   const handleGenerateDoc = useCallback(async () => {
@@ -3876,7 +3913,19 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             </div>
                           )}
 
-                          {selectedAction && selectedAction.id !== "rapport_consultation" && (
+                          {selectedAction?.id === "simulation_retraite" && (
+                            <div style={{ marginTop: 14, borderTop: "1px solid #eee", paddingTop: 14 }}>
+                              <button
+                                onClick={handleGenerateSimulationRetraite}
+                                disabled={isGeneratingSimulation}
+                                style={{ padding: "10px 20px", borderRadius: 7, border: "none", background: isGeneratingSimulation ? "#aaa" : panel.color, color: "#fff", fontWeight: 700, fontSize: 13, cursor: isGeneratingSimulation ? "wait" : "pointer", opacity: isGeneratingSimulation ? 0.7 : 1 }}
+                              >
+                                {isGeneratingSimulation ? "⏳ Génération en cours… (1-2 min)" : "▶ Générer le simulation retraite"}
+                              </button>
+                            </div>
+                          )}
+
+                          {selectedAction && selectedAction.id !== "rapport_consultation" && selectedAction.id !== "simulation_retraite" && (
                             <div style={{ marginTop: 14, borderTop: "1px solid #eee", paddingTop: 14 }}>
                               <div style={{ background: "#F0EDFF", borderRadius: 7, padding: 10, marginBottom: 10, border: "1px solid #6C5CE720" }}>
                                 <div style={{ fontSize: 11, fontWeight: 700, color: "#6C5CE7", marginBottom: 3 }}>📝 PROMPT STRICT :</div>
@@ -4499,6 +4548,25 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           <span style={{ paddingTop: 1 }}>Signaler une erreur</span>
         </button>
       </div>
+
+      {/* Modal Simulation Retraite */}
+      {simReportOpen && simReportHtml && (
+        <div
+          onClick={() => setSimReportOpen(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 9999, display: "flex", flexDirection: "column" }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: "white", margin: "16px", borderRadius: "8px", flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", maxWidth: "900px", width: "100%", alignSelf: "center" }}
+          >
+            <div style={{ padding: "12px 16px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#021b61", color: "white", borderRadius: "8px 8px 0 0" }}>
+              <strong>Simulation Retraite</strong>
+              <button onClick={() => setSimReportOpen(false)} style={{ border: "none", background: "transparent", cursor: "pointer", color: "white", fontSize: "20px", lineHeight: 1 }}>×</button>
+            </div>
+            <iframe srcDoc={simReportHtml} title="Simulation Retraite" style={{ flex: 1, border: "none", width: "100%" }} sandbox="" />
+          </div>
+        </div>
+      )}
 
       {/* Modal Signaler une erreur */}
       {reportOpen && (
