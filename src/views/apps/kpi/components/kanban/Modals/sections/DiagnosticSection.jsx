@@ -40,15 +40,12 @@ const DiagnosticSection = ({
   }
 
   const handleGenerateSimulation = async () => {
-    // clientId comes from the parent via prop (userDetails.id)
-    console.log("[SIM] bouton cliqué — clientId:", clientId, "diagnosticAttrs:", diagnosticAttrs);
     const resolvedClientId =
       clientId ||
       diagnosticAttrs?.userId ||
       diagnosticAttrs?.clientId ||
       diagnosticAttrs?.id ||
       diagnosticAttrs?.user_id;
-    console.log("[SIM] resolvedClientId:", resolvedClientId);
     if (!resolvedClientId) {
       setSimError("ID client non trouvé");
       return;
