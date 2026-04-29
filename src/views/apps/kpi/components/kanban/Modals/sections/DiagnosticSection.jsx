@@ -1,14 +1,47 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "reactstrap";
 import { FileText, User, Check, Clock, Target } from "react-feather";
 import { calculateComplexityScore } from "../../../inbox/utils";
+
+const API_BASE = process.env.REACT_APP_API_URL || "https://api.optionretraite.net/api";
 
 const DiagnosticSection = ({
   diagnostic,
   diagnosticRaw,
   diagnosticAttrs,
+  clientId,
   onShowVisualReport,
 }) => {
+  const [simLoading, setSimLoading] = useState(false);
+  const [simError, setSimError] = useState(null);
+  const [simHtml, setSimHtml] = useState(null);
+  const [simOpen, setSimOpen] = useState(false);
+  const [simSavedDate, setSimSavedDate] = useState(null);
+  const [simDeleting, setSimDeleting] = useState(false);
+
+  const resolvedClientId =
+    clientId ||
+    diagnosticAttrs?.userId ||
+    diagnosticAttrs?.clientId ||
+    diagnosticAttrs?.id ||
+    diagnosticAttrs?.user_id;
+
+  useEffect(() => {
+    if (!resolvedClientId) return;
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token") || "";
+    fetch(`${API_BASE}/v1/simulation-retraite/${resolvedClientId}`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.html_report) {
+          setSimHtml(data.html_report);
+          setSimSavedDate(data.created_at);
+        }
+      })
+      .catch(() => {});
+  }, [resolvedClientId]);
+
   if (!diagnostic) return null;
 
   const score = calculateComplexityScore(diagnosticRaw);
@@ -30,6 +63,64 @@ const DiagnosticSection = ({
     bg = "#f3f4f6";
     color = "#6b7280";
   }
+
+  const handleDeleteSimulation = async () => {
+    if (!window.confirm("Supprimer le rapport de simulation retraite ?")) return;
+    setSimDeleting(true);
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token") || "";
+    try {
+      await fetch(`${API_BASE}/v1/simulation-retraite/${resolvedClientId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      });
+      setSimHtml(null);
+      setSimSavedDate(null);
+      setSimOpen(false);
+    } catch {
+      // silencieux
+    } finally {
+      setSimDeleting(false);
+    }
+  };
+
+  const handleGenerateSimulation = async () => {
+    if (!resolvedClientId) {
+      setSimError("ID client non trouvé");
+      return;
+    }
+    setSimLoading(true);
+    setSimError(null);
+    try {
+      const token =
+        localStorage.getItem("token") ||
+        sessionStorage.getItem("token") ||
+        "";
+
+      // Le backend charge frozen_data depuis la DB et forward à n8n
+      const resp = await fetch(`${API_BASE}/v1/simulation-retraite/generate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ client_id: resolvedClientId }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || `Erreur serveur (${resp.status})`);
+      }
+      const result = await resp.json();
+      if (!result.html_report) throw new Error("Rapport vide reçu");
+      setSimHtml(result.html_report);
+      setSimSavedDate(new Date().toISOString());
+      setSimOpen(true);
+    } catch (err) {
+      setSimError(err.message);
+    } finally {
+      setSimLoading(false);
+    }
+  };
 
   return (
     <div
@@ -87,6 +178,44 @@ const DiagnosticSection = ({
             <FileText size={14} className="mr-25" />
             <span>Rapport Visuel</span>
           </Button>
+          <Button
+            size="sm"
+            color="success"
+            outline
+            onClick={handleGenerateSimulation}
+            disabled={simLoading}
+            style={{ display: "flex", alignItems: "center", gap: "4px", marginLeft: "4px" }}
+          >
+            {simLoading ? "Génération..." : "Simulation Retraite"}
+          </Button>
+          {simHtml && !simOpen && (
+            <Button
+              size="sm"
+              color="success"
+              onClick={() => setSimOpen(true)}
+              style={{ display: "flex", alignItems: "center", gap: "4px", marginLeft: "4px", fontSize: "11px" }}
+              title={simSavedDate ? `Généré le ${new Date(simSavedDate).toLocaleDateString("fr-FR")}` : ""}
+            >
+              Voir le rapport
+            </Button>
+          )}
+          {simHtml && (
+            <Button
+              size="sm"
+              color="danger"
+              outline
+              onClick={handleDeleteSimulation}
+              disabled={simDeleting}
+              style={{ display: "flex", alignItems: "center", gap: "4px", marginLeft: "4px", fontSize: "11px" }}
+            >
+              {simDeleting ? "…" : "Supprimer"}
+            </Button>
+          )}
+          {simError && (
+            <div style={{ color: "#d93025", fontSize: "11px", marginTop: "4px" }}>
+              Erreur : {simError}
+            </div>
+          )}
           {(diagnosticRaw?.profile_type || diagnosticAttrs?.PROFILE_TYPE) && (
             <span
               style={{
@@ -429,6 +558,57 @@ const DiagnosticSection = ({
           return null;
         }
       })()}
+
+      {simOpen && simHtml && (
+        <div
+          style={{
+            position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+            background: "rgba(0,0,0,0.65)", zIndex: 9999,
+            display: "flex", flexDirection: "column",
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setSimOpen(false); }}
+        >
+          <div style={{
+            background: "white", margin: "16px", borderRadius: "8px",
+            flex: 1, display: "flex", flexDirection: "column", overflow: "hidden",
+            maxWidth: "900px", width: "100%", alignSelf: "center",
+          }}>
+            <div style={{
+              padding: "12px 16px", borderBottom: "1px solid #e2e8f0",
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              background: "#021b61", color: "white", borderRadius: "8px 8px 0 0",
+            }}>
+              <strong>Simulation Retraite</strong>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <button
+                  onClick={() => {
+                    const win = window.open("", "_blank");
+                    win.document.write(simHtml);
+                    win.document.close();
+                    win.focus();
+                    setTimeout(() => win.print(), 500);
+                  }}
+                  style={{ border: "1px solid rgba(255,255,255,0.5)", background: "transparent", cursor: "pointer", color: "white", fontSize: "12px", padding: "4px 10px", borderRadius: "4px" }}
+                >
+                  ⬇ Télécharger PDF
+                </button>
+                <button
+                  onClick={() => setSimOpen(false)}
+                  style={{ border: "none", background: "transparent", cursor: "pointer", color: "white", fontSize: "20px", lineHeight: 1 }}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+            <iframe
+              srcDoc={simHtml}
+              title="Simulation Retraite"
+              style={{ flex: 1, border: "none", width: "100%" }}
+              sandbox=""
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
