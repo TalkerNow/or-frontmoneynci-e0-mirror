@@ -412,7 +412,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     setApiSkillsLoading(true);
     api.get("/v1/skills")
       .then((res) => setApiSkills(res.data))
-      .catch(() => toast.error("Impossible de charger les skills"))
+      // .catch(() => toast.error("Impossible de charger les skills"))
       .finally(() => setApiSkillsLoading(false));
   }, []);
 
