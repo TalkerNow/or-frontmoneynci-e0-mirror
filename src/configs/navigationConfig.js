@@ -17,7 +17,7 @@ const items = {
     type: "collapse",
     icon: <Icon.BarChart2 size={20} />,
     permissions: ["admin"],
-    navLink: "/kpi/inbox",
+    navLink: "/kpi/suivi",
     children: [
       {
         id: "crm-flux-header",
@@ -32,7 +32,6 @@ const items = {
         icon: <Icon.Inbox size={16} />,
         permissions: ["admin", "Consultant", "Expert"],
         navLink: "/kpi/inbox/all",
-        open: true,
         children: [
           {
             id: "crm-inbox-chatbot",
