@@ -5,10 +5,7 @@ import { toast } from "react-toastify";
 import Dropzone from "react-dropzone";
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button, UncontrolledTooltip, Input, UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem } from "reactstrap";
 import { DownloadCloud, Eye, Download, Edit2, Save, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, Trash2 } from "react-feather";
-import {
-  QUICK_TAGS_OPTIONS,
-  parseNIR,
-} from "./utils";
+import { parseNIR } from "./utils";
 import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrIncompleteScenario, executeVplrEtudeScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6 } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
@@ -17,42 +14,17 @@ import SkillCreateModal from "./SkillCreateModal";
 import SweetAlert from "react-bootstrap-sweetalert";
 const MD_CONTENT = {};
 
-// Map QUICK_TAGS to icons for the analyse panel
-const TAG_ICONS = {
-  fin_carriere: "🔧",
-  rapport_consultation: "📄",
-  preparation_entretien: "🤝",
-  simulation_chomage: "📉",
-  simulation_auto: "💼",
-  racl: "⏩",
-  retraite_progressive: "⚖️",
-  cumul_emploi: "🔄",
-  periode_etranger: "🌍",
-};
-
-
 // ─── DATA ───────────────────────────────────────────────────────────────────
 
 const ACTION_PANELS = {
-  analyse: {
-    label: "Analyse documents", icon: "🔍", color: "#6C5CE7", order: 1,
-    desc: "Sélectionnez une thématique d'analyse puis exécutez",
-    actions: QUICK_TAGS_OPTIONS.map((tag) => ({
-      id: tag.value,
-      label: tag.label,
-      icon: TAG_ICONS[tag.value] || "🔍",
-      requires: [],
-      desc: "",
-    })),
-  },
   carriere: {
-    label: "Carrière", icon: "📂", color: "#E17055", order: 2,
+    label: "Carrière", icon: "📂", color: "#E17055", order: 1,
     navCount: "5 régimes",
     desc: "Données carrière par régime — validation consultant avant simulation",
     actions: [],
   },
   dispositifs: {
-    label: "Scénarios", icon: "🔧", color: "#00B894", order: 3,
+    label: "Scénarios & dates", icon: "🔧", color: "#00B894", order: 2,
     desc: "Activez les dispositifs applicables — l'IA en déduit les dates de départ possibles",
     actions: [
       { id: "racl", label: "Carrière longue (RACL)", icon: "⏩", requires: ["ris"], desc: "Départ anticipé si début activité avant 16/18/20/21 ans", generates_date: true },
@@ -66,18 +38,8 @@ const ACTION_PANELS = {
       { id: "cotisations_min", label: "Cotisations minimales (TI/TNS)", icon: "💰", requires: ["ris"], desc: "Maintien validation 4 trim./an avec revenu minimal" },
     ]
   },
-  dates: {
-    label: "Dates & Simulations", icon: "📅", color: "#0984E3", order: 4,
-    desc: "Dates auto-calculées par l'IA selon les dispositifs activés + dates standard",
-    actions: [
-      { id: "sim_legal", label: "Âge légal", icon: "⚖️", requires: ["ris"], desc: "Date d'ouverture des droits selon génération", auto: true },
-      { id: "sim_taux_plein", label: "Taux plein (durée)", icon: "🎯", requires: ["ris"], desc: "Date atteinte du nb de trimestres requis", auto: true },
-      { id: "sim_auto_67", label: "Taux plein automatique (67 ans)", icon: "🔓", requires: ["ris"], desc: "Taux plein garanti, proratisation éventuelle", auto: true },
-      { id: "sim_date_libre", label: "Dates libres", icon: "📆", requires: ["ris"], hasInput: true, inputType: "date", inputLabel: "Date souhaitée", desc: "Choisir une date, voir l'impact complet", auto: false },
-    ]
-  },
   livrables: {
-    label: "Livrables", icon: "📋", color: "#D63031", order: 5,
+    label: "Livrables", icon: "📋", color: "#D63031", order: 3,
     desc: "Générer le document final — mêmes calculs, niveaux de détail différents",
     actions: [
       { id: "rapport_consultation", label: "Rapport de consultation retraite", icon: "📄", requires: ["ris"], desc: "Synthèse 1 page — entretien client", pages: "~1 page" },
@@ -417,12 +379,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     fetchApiSkills();
   }, [fetchApiSkills]);
 
-  const [expandedPanel, setExpandedPanel] = useState("analyse");
+  const [expandedPanel, setExpandedPanel] = useState("carriere");
   const [selectedAction, setSelectedAction] = useState(null);
   const [inputValues, setInputValues] = useState({});
+  // eslint-disable-next-line no-unused-vars
   const [executed, setExecuted] = useState(null);
-  const [promptText, setPromptText] = useState("");
-  const [commentairesMode, setCommentairesMode] = useState(false);
   const [adminSection, setAdminSection] = useState("regles");
   const [expandedRule, setExpandedRule] = useState(null);
   const [expandedParam, setExpandedParam] = useState(null);
@@ -430,6 +391,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [preentretienModal, setPreentretienModal] = useState(null);
   const [systemPromptModal, setSystemPromptModal] = useState(null);
   const [hiddenSystemPrompt, setHiddenSystemPrompt] = useState("");
+  const [showDetailedCalcs, setShowDetailedCalcs] = useState(false);
+  const [expandedScenarios, setExpandedScenarios] = useState({});
+  const autoChainPendingRef = useRef(false);
 
   const openPreentretienEditor = async () => {
     setPreentretienModal({ text: "", loading: true, saving: false });
@@ -498,9 +462,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       return stored ? JSON.parse(stored) : [];
     } catch { return []; }
   });
-  // eslint-disable-next-line no-unused-vars
-  const [showAutoResults, setShowAutoResults] = useState(false);
-  const [excludedDates, setExcludedDates] = useState([]);
   const [carriereValidee, setCarriereValidee] = useState(false);
   const [lockedAt, setLockedAt] = useState(null);
   const [lockedBy, setLockedBy] = useState(null); // eslint-disable-line no-unused-vars
@@ -596,7 +557,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // Les fichiers du simulateur sont identifiés par dossier=10 en base (pas de localStorage)
   const [fileToSend, setFileToSend] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [userDocuments, setUserDocuments] = useState([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, docId: null, fileName: "" });
@@ -608,7 +568,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       return stored || "";
     } catch { return ""; }
   });
-  const cancelRef = useRef(null);
   const hasHydratedRef = useRef(false);
 
   // ── Livrables — Documents générés ───────────────────────────────────────────
@@ -928,7 +887,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     setActivatedDispositifs([]);
     try { localStorage.removeItem(`simu_dispositifs_${id}`); } catch {}
     setDetectedDispositifs({});
-    setShowAutoResults(false);
     setGeneratedDocs([]);
     // Supprimer les rapports en base pour éviter leur rechargement au F5
     const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
@@ -1221,6 +1179,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           { autoClose: 12000 }
         );
       }
+      autoChainPendingRef.current = true;
     } catch (e) {
       toast.dismiss("ris-parsing");
       console.error("[parsePdfAndFillCarriere] erreur:", e?.response?.data || e?.message || e);
@@ -1338,15 +1297,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
 
   const toggleDeleteModal = useCallback(() => {
     setDeleteModal(prev => ({ ...prev, isOpen: !prev.isOpen }));
-  }, []);
-
-  // ── Cancel generation ──
-  const handleCancelGeneration = useCallback(() => {
-    if (cancelRef.current) {
-      cancelRef.current.cancel("Opération annulée par l'utilisateur");
-      cancelRef.current = null;
-    }
-    setIsGenerating(false);
   }, []);
 
   // ── Livrables helpers ──
@@ -1632,112 +1582,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       setIsDeletingSimulation(false);
     }
   }, [id]);
-
-  // ── Report generation (same payload as old UploadSection flow) ──
-  const handleGenerateDoc = useCallback(async () => {
-    if (!fileToSend) {
-      toast.error("Merci d'importer d'abord un RIS (PDF)");
-      return null;
-    }
-    if (!selectedAction) {
-      toast.error("Sélectionnez une thématique d'analyse");
-      return null;
-    }
-
-    // Validation
-    const childrenCountVal = user?.children_number;
-    if (childrenCountVal === undefined || childrenCountVal === null || String(childrenCountVal).trim() === "") {
-      toast.error("Le nombre d'enfants est manquant. Veuillez le renseigner dans les informations du client.");
-      return null;
-    }
-    const birthDateVal = user?.birth_date;
-    if (birthDateVal === undefined || birthDateVal === null || String(birthDateVal).trim() === "") {
-      toast.error("La date de naissance est manquante. Veuillez la renseigner dans les informations du client.");
-      return null;
-    }
-
-    setIsGenerating(true);
-    if (cancelRef.current) cancelRef.current.cancel();
-    cancelRef.current = axios.CancelToken.source();
-
-    try {
-      const n8nFormData = new FormData();
-      n8nFormData.append("file", fileToSend);
-
-      const tagsPrefix = `Thématiques d'analyse : ${selectedAction.label}\n\n`;
-      const childrenCount = user?.children_number ?? "Non renseigné";
-      const birthDate = user?.birth_date ?? "Non renseignée";
-      const finalMessage = `${tagsPrefix}${promptText || ""}\n\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDate}`.trim();
-      n8nFormData.append("message", finalMessage);
-      if (id) n8nFormData.append("client_id", id);
-      if (hiddenSystemPrompt) n8nFormData.append("system_prompt", hiddenSystemPrompt);
-
-      toast.info("Analyse en cours (Standard)…");
-
-      // --- APPEL N8N DÉSACTIVÉ ---
-      // const n8nResponse = await axios.post(webhookUrl, n8nFormData, {
-      //   headers: { "Content-Type": "multipart/form-data" },
-      //   cancelToken: cancelRef.current.token,
-      // });
-      //
-      // let reportData = n8nResponse.data;
-      // let contentString = "";
-      // const rootData = Array.isArray(reportData) ? reportData[0] : reportData;
-      // if (typeof rootData === "string") {
-      //   contentString = rootData;
-      // } else if (typeof rootData === "object" && rootData !== null) {
-      //   contentString = rootData.output || rootData.text || JSON.stringify(reportData, null, 2);
-      // } else {
-      //   contentString = String(reportData);
-      // }
-      // contentString = contentString.replace(/^```html/i, "").replace(/^```/i, "").replace(/```$/i, "").trim();
-      //
-      // const fileName = `Rapport_Standard_${new Date().getTime()}.html`;
-      // const fileBlob = new Blob([contentString], { type: "text/html;charset=utf-8" });
-      // const uploadForm = new FormData();
-      // uploadForm.append("user_id", id);
-      // uploadForm.append("photoUpload0", fileBlob, fileName);
-      // const uploadConfig = {
-      //   headers: {
-      //     Authorization: "Bearer " + localStorage.getItem("token"),
-      //     "Content-Type": "multipart/form-data",
-      //   },
-      // };
-      //
-      // let reportUrl = null;
-      // try {
-      //   const uploadRes = await axios.post(
-      //     `${global.config.server_url}/uploadFiles`, uploadForm,
-      //     { ...uploadConfig, cancelToken: cancelRef.current.token },
-      //   );
-      //   if (uploadRes?.data?.files?.[0]?.url) {
-      //     reportUrl = uploadRes.data.files[0].url;
-      //   } else {
-      //     throw new Error("Pas d'URL de fichier renvoyée");
-      //   }
-      // } catch (err) {
-      //   console.error(err);
-      //   toast.error("Impossible de sauvegarder le fichier du rapport");
-      //   return null;
-      // }
-      //
-      // setExecuted({ ...selectedAction, resultUrl: reportUrl });
-      // toast.success("Rapport généré avec succès");
-      // fetchUserDocuments();
-      // return reportUrl;
-      toast.warn("Appel N8N désactivé temporairement");
-      return null;
-    } catch (error) {
-      if (axios.isCancel(error)) return null;
-      console.error(error);
-      toast.error("Erreur lors de la génération du rapport");
-      return null;
-    } finally {
-      setIsGenerating(false);
-      cancelRef.current = null;
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fileToSend, selectedAction, user, id, promptText, hiddenSystemPrompt]);
 
   // Derive doc availability from real uploaded documents
   const hasDocuments = userDocuments.some((d) => Number(d.dossier) === 10) || !!fileToSend;
@@ -2141,6 +1985,13 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         setCipavError(msg);
         toast.error("Erreur calcul CIPAV");
       }
+
+      const scenarioCodes = ACTION_PANELS.dispositifs.actions
+        .map(a => DISPOSITIF_TO_SKILL_CODE[a.id])
+        .filter(Boolean);
+      await Promise.allSettled(
+        scenarioCodes.map(code => handleScenarioSkillExecute(code, {}))
+      );
     } finally {
       setIsCalculatingAll(false);
       setSkillLoading(false);
@@ -2198,6 +2049,13 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       setScenarioSkillLoading(prev => ({ ...prev, [skillCode]: false }));
     }
   }, [id, carriereValidee]);
+
+  useEffect(() => {
+    if (!carriereValidee || !autoChainPendingRef.current) return;
+    autoChainPendingRef.current = false;
+    handleCalculateAllRegimes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [carriereValidee]);
 
       return (
     <div style={{ marginTop: "24px" }}>
@@ -2373,7 +2231,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                 <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>📁 Documents</div>
 
                 {/* Dropzone */}
-                <Dropzone disabled={isUploading || isGenerating} onDrop={handleUpload}>
+                <Dropzone disabled={isUploading} onDrop={handleUpload}>
                   {({ getRootProps, getInputProps, isDragActive }) => (
                     <div {...getRootProps()} style={{ border: `2px dashed ${isDragActive ? "#6C5CE7" : "#ccc"}`, borderRadius: 9, padding: "16px 14px", textAlign: "center", cursor: isUploading ? "wait" : "pointer", background: isDragActive ? "#6C5CE706" : "#fafafa", transition: "all 0.15s", marginBottom: 10 }}>
                       <input {...getInputProps()} />
@@ -2825,20 +2683,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                           value={revaloVal || ""}
                                           disabled={carriereValidee}
                                           onChange={(e) => handleRevaloChange(row.yr, e.target.value, deplafValues[row.yr])}
-                                          style={{ width: 68, textAlign: "right", border: `1px solid ${isPlafonne ? "#E17055" : "#6C5CE730"}`, borderRadius: 3, fontSize: 15, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff", color: "#6C5CE7", fontWeight: 700 }}
+                                          style={{ width: 68, textAlign: "right", border: "1px solid #6C5CE730", borderRadius: 3, fontSize: 15, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff", color: "#6C5CE7", fontWeight: 700 }}
                                         />
                                         <span style={{ fontSize: 9, color: "#666", display: "block", textAlign: "right", marginTop: 1 }}>
                                           ≤ {getPlafond(row.yr).toLocaleString("fr-FR")} €
-                                          {isPlafonne && (
-                                            <>
-                                              <span id={`revalo-alert-${row.yr}`} style={{ color: "#E17055", cursor: "pointer", display: "inline-block", padding: "0 2px" }}>
-                                                ⚠
-                                              </span>
-                                              <UncontrolledTooltip placement="top" target={`revalo-alert-${row.yr}`}>
-                                                Salaire au plafond PASS {row.yr} ({getPlafond(row.yr).toLocaleString("fr-FR")} €) — la revalorisation a été automatiquement ramenée au maximum autorisé pour le calcul CNAV.
-                                              </UncontrolledTooltip>
-                                            </>
-                                          )}
                                         </span>
                                       </td>
                                       <td style={{ padding: "2px 3px", textAlign: "center", width: 28 }}>
@@ -3172,6 +3020,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                       const analyserTousDisabled = !carriereValidee || activatedDispositifs.filter(id => DISPOSITIF_TO_SKILL_CODE[id]).every(id => !!scenarioSkillLoading[DISPOSITIF_TO_SKILL_CODE[id]]);
                       const analyserTousVisible = activatedDispositifs.some(id => DISPOSITIF_TO_SKILL_CODE[id]);
                       const analyserTousLoading = activatedDispositifs.filter(id => DISPOSITIF_TO_SKILL_CODE[id]).some(id => !!scenarioSkillLoading[DISPOSITIF_TO_SKILL_CODE[id]]);
+                      const dispBirthDate = user?.birth_date;
+                      const dispTrimAcquis = Object.values(trimCotState).reduce((s, v) => s + (Number(v) || 0), 0)
+                        + Object.values(trimAssState).reduce((s, v) => s + (Number(v) || 0), 0);
+                      const dispDateLegale = computeDateLegale(dispBirthDate);
+                      const dispDateTauxPlein = computeDateTauxPlein(dispBirthDate, dispTrimAcquis);
+                      const dispDate67 = computeDate67(dispBirthDate);
                       return (
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
@@ -3197,8 +3051,54 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                           </div>
                           <div style={{ fontSize: 13, color: "#555", marginBottom: 14 }}>{panel.desc}</div>
 
+                          <div style={{ background: "#F7F6F3", border: "1px solid #e8e8e8", borderRadius: 9, padding: "10px 14px", marginBottom: 14 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: "#555", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>📊 Données de calcul</div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 20px", fontSize: 12 }}>
+                              {(() => {
+                                const samb = computeSAMB(carriereRows);
+                                const { total: arrcoPts, projectionAnnuelle } = computeArrcoPts(carriereRows);
+                                const rows = [
+                                  ["SAMB Assurance Retraite / CNAV", samb > 0 ? `${samb.toLocaleString('fr-FR')} €` : "—", "#1a1a2e"],
+                                  ["Points ARRCO-AGIRC cumulés", arrcoPts > 0 ? `${arrcoPts.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} pts` : "—", "#0984E3"],
+                                  ["Projection annuelle (tendance)", projectionAnnuelle > 0 ? `+ ${projectionAnnuelle.toLocaleString('fr-FR')} pts / an` : "—", "#00B894"],
+                                  ["Situation jusqu'au départ", "Poursuite d'activité actuelle", "#555"],
+                                ];
+                                return rows.map(([label, val, color]) => (
+                                  <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #eee" }}>
+                                    <span style={{ color: "#555" }}>{label}</span>
+                                    <span style={{ fontWeight: 700, color, fontSize: 12 }}>{val}</span>
+                                  </div>
+                                ));
+                              })()}
+                            </div>
+                          </div>
+
+                          <div style={{ marginBottom: 14 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: "#0984E3", marginBottom: 8 }}>Dates standard</div>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 7 }}>
+                              {[
+                                { id: "sim_legal", label: "Âge légal", icon: "⚖️", info: dispDateLegale ? `${dispDateLegale.ageStr} → ${dispDateLegale.label}` : "Date de naissance manquante" },
+                                { id: "sim_taux_plein", label: "Taux plein (durée)", icon: "🎯", info: dispDateTauxPlein ? (dispDateTauxPlein.trimManquants === 0 ? `${dispDateTauxPlein.trimRequis} trim. atteints` : `${dispDateTauxPlein.trimManquants} trim. manquants → ${dispDateTauxPlein.label}`) : "Date de naissance manquante" },
+                                { id: "sim_auto_67", label: "Taux plein auto (67 ans)", icon: "🔓", info: dispDate67 ? `67 ans → ${dispDate67.label}` : "Date de naissance manquante" },
+                                { id: "sim_date_libre", label: "Date libre", icon: "📆", info: "Date de simulation à choisir" },
+                              ].map((d) => (
+                                <div key={d.id} style={{ display: "flex", flexDirection: "column", gap: 3, padding: "9px 11px", borderRadius: 8, border: "1px solid #e8e8e8", background: "#fafafa" }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                    <span style={{ fontSize: 14 }}>{d.icon}</span>
+                                    <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>{d.label}</div>
+                                  </div>
+                                  <div style={{ fontSize: 11, color: "#555", paddingLeft: 22 }}>{d.info}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
                           <div className="simu-action-grid">
-                            {panel.actions.map((action) => {
+                            {panel.actions.filter((action) => {
+                              const code = DISPOSITIF_TO_SKILL_CODE[action.id];
+                              if (code === "VPLR_INCOMPLETE" || code === "VPLR_ETUDE") return true;
+                              return scenarioSkillResults[code]?.eligible === true;
+                            }).map((action) => {
                               const ok = checkReq(action.requires);
                               const miss = getMissing(action.requires);
                               const isActivated = activatedDispositifs.includes(action.id);
@@ -3208,59 +3108,74 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               const isSkillRunning = skillCode ? !!scenarioSkillLoading[skillCode] : false;
                               const skillResultData = skillCode ? scenarioSkillResults[skillCode] : null;
                               const skillErrorMsg = skillCode ? scenarioSkillErrors[skillCode] : null;
+                              const isExpanded = !!expandedScenarios[action.id];
+                              const eligibilityColor = skillResultData?.eligible === true ? "#00B894"
+                                : skillResultData?.eligible === false ? "#C0392B"
+                                : "#999";
+                              const eligibilityBg = skillResultData?.eligible === true ? "#00B89412"
+                                : skillResultData?.eligible === false ? "#FDEDEC"
+                                : "#fafafa";
                               return (
                                 <div key={action.id}>
-                                  <button onClick={() => { if (ok) toggleDispositif(action.id); }} style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 11px", borderRadius: 8, border: `2px solid ${isActivated ? panel.color : ok ? "#e8e8e8" : "#f0f0f0"}`, background: isActivated ? `${panel.color}12` : ok ? "#fafafa" : "#f8f8f8", cursor: ok ? "pointer" : "not-allowed", textAlign: "left", opacity: ok ? 1 : 0.45, transition: "all 0.12s", position: "relative", width: "100%", flex: 1 }}>
-                                    <div style={{ width: 20, height: 20, borderRadius: 5, border: `2px solid ${isActivated ? panel.color : "#ccc"}`, background: isActivated ? panel.color : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 13, color: "#fff" }}>
-                                      {isActivated && "✓"}
-                                    </div>
+                                  <div
+                                    onClick={() => setExpandedScenarios(prev => ({ ...prev, [action.id]: !prev[action.id] }))}
+                                    title={skillResultData ? (skillResultData.eligible ? "Éligible" : "Non éligible") : (skillErrorMsg ? "Erreur" : "")}
+                                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 11px", borderRadius: 8, border: `2px solid ${skillResultData ? eligibilityColor + "60" : "#e8e8e8"}`, background: eligibilityBg, cursor: "pointer", opacity: ok ? 1 : 0.45, width: "100%", transition: "all 0.12s" }}>
                                     <span style={{ fontSize: 15, flexShrink: 0 }}>{action.icon}</span>
-                                    <div style={{ minWidth: 0, flex: 1 }}>
-                                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                                        <div style={{ fontSize: 13, fontWeight: isActivated ? 700 : 600, color: isActivated ? panel.color : ok ? "#333" : "#999" }}>{action.label}</div>
-                                        {isDetected && ok && (
-                                          <span title={detectedReason} style={{ fontSize: 10, padding: "1px 5px", borderRadius: 4, background: isActivated ? "#F9A825" : "#F9A825", color: "#fff", fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>💡 Détecté</span>
-                                        )}
-                                      </div>
-                                      <div style={{ fontSize: 11, color: "#555" }}>{action.desc}</div>
-                                      {isDetected && detectedReason && (
-                                        <div style={{ fontSize: 10, color: "#F9A825", marginTop: 1, fontStyle: "italic" }}>{detectedReason}</div>
-                                      )}
-                                      {action.generates_date && <div style={{ fontSize: 10, color: "#0984E3", marginTop: 1 }}>📅 Génère une date de simulation</div>}
-                                      {!ok && <div style={{ fontSize: 10, color: "#D63031", marginTop: 1 }}>⚠ Manque : {miss.map((m) => DOC_TYPES.find((d) => d.id === m)?.label).join(", ")}</div>}
-                                    </div>
-                                  </button>
+                                    <div style={{ fontSize: 13, fontWeight: 600, color: "#333", flex: 1, minWidth: 0 }}>{action.label}</div>
+                                    {isSkillRunning && !skillResultData && (
+                                      <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #ccc", borderTop: `2px solid ${panel.color}`, borderRadius: "50%", animation: "spin 0.7s linear infinite", flexShrink: 0 }} />
+                                    )}
+                                    {skillResultData && (
+                                      <span style={{ fontSize: 14, fontWeight: 700, color: eligibilityColor, flexShrink: 0, lineHeight: 1 }}>
+                                        {skillResultData.eligible ? "✓" : "✗"}
+                                      </span>
+                                    )}
+                                    {skillErrorMsg && !skillResultData && (
+                                      <span style={{ fontSize: 14, color: "#D63031", flexShrink: 0, lineHeight: 1 }}>⚠</span>
+                                    )}
+                                    <span style={{ fontSize: 10, color: "#888", flexShrink: 0, transform: isExpanded ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}>▶</span>
+                                  </div>
 
-                                  {isActivated && skillCode && (
-                                    <div style={{ marginTop: 6 }}>
-                                      <button
-                                        onClick={(e) => { e.stopPropagation(); handleScenarioSkillExecute(skillCode, inputValues[action.id] ? { input: inputValues[action.id] } : {}); }}
-                                        disabled={isSkillRunning || !carriereValidee}
-                                        style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 5, border: "none", background: isSkillRunning || !carriereValidee ? "#ccc" : panel.color, color: "#fff", fontWeight: 700, fontSize: 12, cursor: isSkillRunning || !carriereValidee ? "not-allowed" : "pointer", opacity: isSkillRunning || !carriereValidee ? 0.6 : 1, width: "100%" }}
-                                      >
-                                        {isSkillRunning ? (
-                                          <>
-                                            <span style={{ display: "inline-block", width: 10, height: 10, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite", flexShrink: 0 }} />
-                                            Analyse en cours...
-                                          </>
-                                        ) : "🔍 Analyser avec IA"}
-                                      </button>
+                                  {isExpanded && (
+                                    <div style={{ marginTop: 6, padding: "8px 12px", background: "#fff", border: "1px solid #eee", borderRadius: 6 }}>
+                                      <div style={{ fontSize: 11, color: "#555", marginBottom: 6 }}>{action.desc}</div>
+                                      {isDetected && detectedReason && (
+                                        <div style={{ fontSize: 10, color: "#F9A825", marginBottom: 6, fontStyle: "italic" }}>💡 {detectedReason}</div>
+                                      )}
+                                      {!ok && <div style={{ fontSize: 11, color: "#D63031", marginBottom: 6 }}>⚠ Manque : {miss.map((m) => DOC_TYPES.find((d) => d.id === m)?.label).join(", ")}</div>}
+
+                                      {action.hasInput && skillCode && (
+                                        <div style={{ marginBottom: 6, display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#fafafa", borderRadius: 5, border: "1px solid #eee" }}>
+                                          <label style={{ fontSize: 11, fontWeight: 600, color: "#555", margin: 0 }}>{action.inputLabel} :</label>
+                                          <input
+                                            type={action.inputType === "date" ? "date" : "number"}
+                                            placeholder={action.inputType === "date" ? "" : "Ex: 3"}
+                                            value={inputValues[action.id] || ""}
+                                            onChange={(e) => setInputValues({ ...inputValues, [action.id]: e.target.value })}
+                                            onClick={(e) => e.stopPropagation()}
+                                            style={{ padding: "3px 6px", borderRadius: 4, border: "1px solid #ccc", fontSize: 12, width: action.inputType === "date" ? 130 : 60, fontFamily: "inherit" }}
+                                          />
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); handleScenarioSkillExecute(skillCode, inputValues[action.id] ? { input: inputValues[action.id] } : {}); }}
+                                            disabled={isSkillRunning || !carriereValidee}
+                                            style={{ marginLeft: "auto", padding: "3px 9px", borderRadius: 4, border: "none", background: isSkillRunning || !carriereValidee ? "#ccc" : panel.color, color: "#fff", fontWeight: 600, fontSize: 11, cursor: isSkillRunning || !carriereValidee ? "not-allowed" : "pointer" }}
+                                          >
+                                            {isSkillRunning ? "…" : "↻ Recalculer"}
+                                          </button>
+                                        </div>
+                                      )}
 
                                       {skillErrorMsg && (
-                                        <div style={{ marginTop: 6, padding: "7px 10px", background: "#D6303110", border: "1px solid #D63031", borderRadius: 5, fontSize: 12, color: "#D63031" }}>
+                                        <div style={{ padding: "7px 10px", background: "#D6303110", border: "1px solid #D63031", borderRadius: 5, fontSize: 12, color: "#D63031" }}>
                                           ⚠ {skillErrorMsg}
                                         </div>
                                       )}
 
                                       {skillResultData && !skillErrorMsg && (() => {
                                         const color = skillResultData.eligible ? "#00B894" : "#C0392B";
-                                        const bgColor = skillResultData.eligible ? "#00B89410" : "#FDEDEC";
-                                        const borderWidth = skillResultData.eligible ? "1px" : "2px";
                                         return (
-                                          <div style={{ marginTop: 6, padding: "10px 12px", background: bgColor, border: `${borderWidth} solid ${color}`, borderRadius: 6 }}>
-                                            <div style={{ fontSize: 12, fontWeight: 700, color, marginBottom: 4 }}>
-                                              {skillResultData.eligible ? "✓ Éligible" : "✗ Non éligible"}
-                                            </div>
+                                          <div>
                                             {skillResultData.raison_eligibilite && (
                                               <div style={{ fontSize: 11, color: "#333", marginBottom: 5 }}>{skillResultData.raison_eligibilite}</div>
                                             )}
@@ -3390,26 +3305,21 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                       })()}
                                     </div>
                                   )}
+                                  {action.generates_date && skillResultData?.eligible === true && (() => {
+                                    const dateInfo = computeAutoDateFromDispositif(action.id, user?.birth_date, trimCotState, trimAssState);
+                                    if (!dateInfo) return null;
+                                    return (
+                                      <div style={{ marginTop: 6, display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 12, background: `${dateInfo.color}12`, border: `1px solid ${dateInfo.color}30` }}>
+                                        <span style={{ fontSize: 12 }}>📅</span>
+                                        <span style={{ fontSize: 12, fontWeight: 700, color: dateInfo.color }}>{dateInfo.dateStr}</span>
+                                        <span style={{ fontSize: 11, color: "#555" }}>· {dateInfo.age}</span>
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
                               );
                             })}
                           </div>
-
-                          {/* Input fields for activated dispositifs that need them */}
-                          {activatedDispositifs.length > 0 && panel.actions.filter(a => a.hasInput && activatedDispositifs.includes(a.id)).length > 0 && (
-                            <div style={{ marginTop: 12, padding: "10px 12px", background: "#00B89408", borderRadius: 8, border: "1px solid #00B89420" }}>
-                              <div style={{ fontSize: 12, fontWeight: 700, color: "#00B894", marginBottom: 8 }}>Paramètres des dispositifs activés :</div>
-                              <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-                                {panel.actions.filter(a => a.hasInput && activatedDispositifs.includes(a.id)).map(a => (
-                                  <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                    <span style={{ fontSize: 15 }}>{a.icon}</span>
-                                    <label style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>{a.inputLabel} :</label>
-                                    <input type={a.inputType === "date" ? "date" : "number"} placeholder={a.inputType === "date" ? "" : "Ex: 3"} value={inputValues[a.id] || ""} onChange={(e) => setInputValues({ ...inputValues, [a.id]: e.target.value })} style={{ padding: "4px 7px", borderRadius: 5, border: "1px solid #ccc", fontSize: 13, width: a.inputType === "date" ? 130 : 60, fontFamily: "inherit" }} />
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
 
                           {/* ── Bouton maître — Calculer tous les régimes ── */}
                           <div style={{ marginTop: 18, marginBottom: 4 }}>
@@ -3451,6 +3361,17 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             </button>
                           </div>
 
+                          {(skillResult || agircResult || ircantecResult || rciResult || cipavResult) && (
+                            <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end" }}>
+                              <button
+                                onClick={() => setShowDetailedCalcs(s => !s)}
+                                style={{ padding: "7px 14px", borderRadius: 7, border: "1px solid #6C5CE7", background: showDetailedCalcs ? "#6C5CE712" : "#fff", color: "#6C5CE7", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>
+                                {showDetailedCalcs ? "▼ Masquer les calculs détaillés" : "▶ Afficher les calculs détaillés"}
+                              </button>
+                            </div>
+                          )}
+
+                          {showDetailedCalcs && (<>
                           {/* ── Calculer CNAV ── */}
                           <div style={{ marginTop: 18, padding: "12px 14px", background: carriereValidee ? "#f0fdf9" : "#fafafa", borderRadius: 9, border: `1px solid ${carriereValidee ? "#00B89430" : "#e8e8e8"}` }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
@@ -3774,141 +3695,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               <CipavResult po={cipavResult.python_output} />
                             )}
                           </div>
-                        </div>
-                      );
-                    }
-
-                    // ── DATES & SIMULATIONS: shows auto-generated dates ──
-                    if (expandedPanel === "dates") {
-                      const birthDate = user?.birth_date;
-                      const trimAcquis = Object.values(trimCotState).reduce((s, v) => s + (Number(v) || 0), 0)
-                        + Object.values(trimAssState).reduce((s, v) => s + (Number(v) || 0), 0);
-                      const dateLegale = computeDateLegale(birthDate);
-                      const dateTauxPlein = computeDateTauxPlein(birthDate, trimAcquis);
-                      const date67 = computeDate67(birthDate);
-
-                      const dateComments = {
-                        sim_legal: dateLegale
-                          ? `${dateLegale.ageStr} → départ en ${dateLegale.label}`
-                          : "Date de naissance manquante",
-                        sim_taux_plein: dateTauxPlein
-                          ? dateTauxPlein.trimManquants === 0
-                            ? `${dateTauxPlein.trimRequis} trim. déjà atteints`
-                            : `${dateTauxPlein.trimManquants} trim. manquants → départ en ${dateTauxPlein.label}`
-                          : "Date de naissance manquante",
-                        sim_auto_67: date67
-                          ? `67 ans → départ en ${date67.label}`
-                          : "Date de naissance manquante",
-                        sim_date_libre: "Indiquer les dates de simulation souhaitées",
-                      };
-                      return (
-                        <div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                            <span style={{ fontSize: 18 }}>{panel.icon}</span>
-                            <span style={{ fontSize: 14, fontWeight: 700, color: panel.color }}>{panel.label}</span>
-                          </div>
-                          <div style={{ fontSize: 13, color: "#555", marginBottom: 12 }}>{panel.desc}</div>
-
-                          {/* Données de calcul */}
-                          <div style={{ background: "#F7F6F3", border: "1px solid #e8e8e8", borderRadius: 9, padding: "10px 14px", marginBottom: 14 }}>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: "#555", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>📊 Données de calcul</div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 20px", fontSize: 12 }}>
-                              {(() => {
-                                const samb = computeSAMB(carriereRows);
-                                const { total: arrcoPts, projectionAnnuelle } = computeArrcoPts(carriereRows);
-                                const rows = [
-                                  ["SAMB Assurance Retraite / CNAV", samb > 0 ? `${samb.toLocaleString('fr-FR')} €` : "—", "#1a1a2e"],
-                                  ["Points ARRCO-AGIRC cumulés", arrcoPts > 0 ? `${arrcoPts.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} pts` : "—", "#0984E3"],
-                                  ["Projection annuelle (tendance)", projectionAnnuelle > 0 ? `+ ${projectionAnnuelle.toLocaleString('fr-FR')} pts / an` : "—", "#00B894"],
-                                  ["Situation jusqu'au départ", "Poursuite d'activité actuelle", "#555"],
-                                ];
-                                return rows.map(([label, val, color]) => (
-                                  <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #eee" }}>
-                                    <span style={{ color: "#555" }}>{label}</span>
-                                    <span style={{ fontWeight: 700, color, fontSize: 12 }}>{val}</span>
-                                  </div>
-                                ));
-                              })()}
-                            </div>
-                          </div>
-
-                          {/* Auto-generated dates from dispositifs */}
-                          {activatedDispositifs.length > 0 && showAutoResults && (
-                            <div style={{ marginBottom: 16 }}>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: "#00B894", marginBottom: 8, display: "flex", alignItems: "center", gap: 4 }}>
-                                <span>🤖</span> Dates calculées automatiquement depuis les dispositifs activés
-                              </div>
-                              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                {activatedDispositifs
-                                  .map(dispositifId => computeAutoDateFromDispositif(dispositifId, user?.birth_date, trimCotState, trimAssState))
-                                  .filter(Boolean)
-                                  .map((d, i) => (
-                                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 8, background: `${d.color}08`, borderLeft: `3px solid ${d.color}` }}>
-                                    <div style={{ textAlign: "center", minWidth: 70 }}>
-                                      <div style={{ fontSize: 15, fontWeight: 700, color: d.color }}>{d.dateStr}</div>
-                                      <div style={{ fontSize: 12, color: "#555" }}>{d.age}</div>
-                                    </div>
-                                    <div style={{ flex: 1 }}>
-                                      <div style={{ fontSize: 13, fontWeight: 600 }}>Via : {d.source}</div>
-                                      <div style={{ fontSize: 12, color: "#666" }}>{d.detail}</div>
-                                    </div>
-                                    <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 10, background: `${d.color}18`, color: d.color, fontWeight: 700 }}>Auto</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {activatedDispositifs.length === 0 && (
-                            <div style={{ padding: "16px", textAlign: "center", color: "#555", fontSize: 13, background: "#fafafa", borderRadius: 8, marginBottom: 14 }}>
-                              💡 Activez d'abord des dispositifs (étape 2) pour que l'IA calcule automatiquement les dates de départ possibles
-                            </div>
-                          )}
-
-                          {/* Standard dates always available */}
-                          <div style={{ fontSize: 13, fontWeight: 700, color: "#0984E3", marginBottom: 8 }}>Dates standard :</div>
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 7 }}>
-                            {panel.actions.map((action) => {
-                              const ok = checkReq(action.requires);
-                              const sel = selectedAction?.id === action.id;
-                              const isExcluded = excludedDates.includes(action.id);
-                              const isDateLibre = action.id === "sim_date_libre";
-                              return (
-                                <button key={action.id}
-                                  onClick={() => {
-                                    if (!ok) return;
-                                    if (isDateLibre) {
-                                      setSelectedAction(sel ? null : action);
-                                      setPromptText("📆 Date libre : JJ/MM/AAAA\n");
-                                      setCommentairesMode(true);
-                                    } else {
-                                      setSelectedAction(sel ? null : action);
-                                    }
-                                    setExecuted(null);
-                                  }}
-                                  style={{ display: "flex", flexDirection: "column", gap: 4, padding: "10px 11px", borderRadius: 8, border: `2px solid ${sel ? panel.color : "#e8e8e8"}`, background: sel ? `${panel.color}10` : "#fafafa", cursor: ok ? "pointer" : "not-allowed", textAlign: "left", opacity: isExcluded ? 0.45 : ok ? 1 : 0.45 }}>
-                                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                                    <span style={{ fontSize: 15, flexShrink: 0 }}>{action.icon}</span>
-                                    <div style={{ flex: 1, fontSize: 13, fontWeight: sel ? 700 : 600, color: sel ? panel.color : "#333", textDecoration: isExcluded ? "line-through" : "none" }}>{action.label}</div>
-                                    {action.auto && (
-                                      <span
-                                        onClick={(e) => { e.stopPropagation(); setExcludedDates((prev) => prev.includes(action.id) ? prev.filter((x) => x !== action.id) : [...prev, action.id]); }}
-                                        title={isExcluded ? "Réactiver ce calcul" : "Exclure ce calcul"}
-                                        style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: isExcluded ? "#E1705525" : "#0984E312", color: isExcluded ? "#C0392B" : "#0984E3", fontWeight: 700, flexShrink: 0, cursor: "pointer" }}>
-                                        {isExcluded ? "✕ Exclu" : "✓ Calculé"}
-                                      </span>
-                                    )}
-                                  </div>
-                                  {dateComments[action.id] && (
-                                    <div style={{ fontSize: 11, color: "#555", paddingLeft: 22, lineHeight: 1.5 }}>
-                                      {isDateLibre && sel ? "→ Saisir dans le Système prompt IA ↓" : dateComments[action.id]}
-                                    </div>
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
-
+                          </>)}
                         </div>
                       );
                     }
@@ -4036,108 +3823,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                       );
                     }
 
-                    // ── ANALYSE DOCUMENTS: grid rendering ──
-                    return (
-                      <div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                          <span style={{ fontSize: 18 }}>{panel.icon}</span>
-                          <span style={{ fontSize: 14, fontWeight: 700, color: panel.color }}>{panel.label}</span>
-                          <span style={{ fontSize: 12, color: "#555" }}>— {panel.actions.length} actions disponibles</span>
-                        </div>
-                        <div style={{ fontSize: 13, color: "#555", marginBottom: 14 }}>{panel.desc}</div>
-                        {/* Thematic analysis vignettes */}
-                        <div style={{ fontSize: 13, fontWeight: 700, color: "#555", marginBottom: 8 }}>Thématiques d'analyse</div>
-                        <div className="simu-action-grid simu-action-grid--analyse">
-                          {panel.actions.map((action) => {
-                            const ok = checkReq(action.requires);
-                            const miss = getMissing(action.requires);
-                            const sel = selectedAction?.id === action.id;
-                            return (
-                              <button key={action.id} onClick={() => {
-                                if (ok) {
-                                  setSelectedAction(sel ? null : action);
-                                  setExecuted(null);
-                                  setCommentairesMode(false);
-                                  setPromptText(sel ? "" : `[Prompt calibré pour "${action.label}". Voir Admin → Prompts IA pour le contenu complet.]`);
-                                }
-                              }} style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 11px", borderRadius: 8, border: `2px solid ${sel ? panel.color : ok ? "#e8e8e8" : "#f0f0f0"}`, background: sel ? `${panel.color}10` : ok ? "#fafafa" : "#f8f8f8", cursor: ok ? "pointer" : "not-allowed", textAlign: "left", opacity: ok ? 1 : 0.45 }}>
-                                <span style={{ fontSize: 15, flexShrink: 0 }}>{action.icon}</span>
-                                <div style={{ minWidth: 0 }}>
-                                  <div style={{ fontSize: 13, fontWeight: sel ? 700 : 600, color: sel ? panel.color : ok ? "#333" : "#999" }}>{action.label}</div>
-                                  <div style={{ fontSize: 11, color: "#555" }}>{action.desc}</div>
-                                  {!ok && <div style={{ fontSize: 10, color: "#D63031", marginTop: 1 }}>⚠ Manque : {miss.map((m) => DOC_TYPES.find((d) => d.id === m)?.label).join(", ")}</div>}
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {selectedAction && (
-                          <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", background: "#6C5CE708", borderRadius: 7, border: "1px solid #6C5CE720" }}>
-                            <span style={{ fontSize: 15 }}>{selectedAction.icon}</span>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: "#6C5CE7" }}>{selectedAction.label}</span>
-                            <span style={{ fontSize: 11, color: "#555", marginLeft: "auto" }}>↓ Prompt chargé ci-dessous</span>
-                          </div>
-                        )}
-                      </div>
-                    );
+                    return null;
                   })()}
                 </div>
               </div>
-
-              {/* Système prompt IA */}
-              <div style={{ ...S.card, padding: 14, marginBottom: 16 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 3 }}>💬 {
-                  expandedPanel === "analyse" ? "Analyse de documents"
-                  : expandedPanel === "dispositifs" ? "Demande complémentaire"
-                  : expandedPanel === "dates" ? "Autres dates"
-                  : "Système prompt IA"
-                }</div>
-                <div style={{ fontSize: 13, color: "#555", marginBottom: 10 }}>En complément des actions structurées — l'IA reformule et mappe vers les étapes du flux</div>
-                <style>{`.sim-readable-placeholder::placeholder { color: #666 !important; opacity: 1; } .sim-readable-placeholder::-webkit-input-placeholder { color: #666 !important; } .sim-readable-placeholder::-moz-placeholder { color: #666 !important; opacity: 1; }`}</style>
-                <textarea
-                  className="sim-readable-placeholder"
-                  readOnly={!commentairesMode}
-                  value={promptText}
-                  onChange={(e) => commentairesMode && setPromptText(e.target.value)}
-                  placeholder="Sélectionnez une analyse ci-dessus ou saisissez une instruction libre…"
-                  style={{ width: "100%", padding: "9px 11px", borderRadius: 7, border: `1px solid ${commentairesMode ? "#6C5CE7" : "#ddd"}`, fontSize: 13, fontFamily: "inherit", resize: "vertical", minHeight: 60, boxSizing: "border-box", background: commentairesMode ? "#FDFCFF" : "#fafafa", color: "#333" }}
-                />
-                <div style={{ display: "flex", gap: 8, marginTop: 8, justifyContent: "flex-end" }}>
-                  <button
-                    onClick={() => setCommentairesMode(!commentairesMode)}
-                    style={{ padding: "8px 14px", borderRadius: 7, border: "1px solid #6C5CE7", background: commentairesMode ? "#6C5CE712" : "transparent", color: "#6C5CE7", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
-                    ✏️ {commentairesMode ? "Fermer" : "Ajouter du contexte"}
-                  </button>
-                  <button
-                    onClick={handleGenerateDoc}
-                    disabled={isGenerating}
-                    style={{ padding: "8px 18px", borderRadius: 7, border: "none", background: isGenerating ? "#a29bfe" : "linear-gradient(135deg, #6C5CE7, #a29bfe)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: isGenerating ? "wait" : "pointer", opacity: isGenerating ? 0.7 : 1 }}>
-                    {isGenerating ? "⏳ Analyse en cours…" : "▶ Exécuter"}
-                  </button>
-                </div>
-                {executed && executed.resultUrl && (
-                  <div style={{ background: "#F8FFF8", borderRadius: 7, padding: 10, marginTop: 10, border: "1px solid #00B89420" }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "#00B894", marginBottom: 4 }}>✅ Rapport généré :</div>
-                    <div style={{ fontSize: 13, color: "#555", lineHeight: 1.6 }}>
-                      Le rapport « {executed.label} » est disponible dans les documents du client.
-                    </div>
-                  </div>
-                )}
-              </div>
             </>
-          )}
-
-          {/* Generating overlay */}
-          {isGenerating && (
-            <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(255,255,255,0.85)", zIndex: 9998, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backdropFilter: "blur(2px)" }}>
-              <div className="spinner-border text-primary" style={{ width: "3rem", height: "3rem" }} role="status">
-                <span className="sr-only">Chargement...</span>
-              </div>
-              <h4 className="mt-2 text-primary font-weight-bold">Analyse en cours...</h4>
-              <p className="text-dark font-weight-bold">Merci de ne pas fermer cette page.</p>
-              <button type="button" onClick={handleCancelGeneration} style={{ position: "absolute", top: 15, right: 15, background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: "50%", color: "#dc2626", cursor: "pointer", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", fontWeight: "bold" }} title="Interrompre l'analyse">✕</button>
-            </div>
           )}
         </div>
       )}
@@ -4527,16 +4217,14 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
                     {[
-                      { s: "1", t: "Analyse documents", d: "5 rapprochements RIS — caisse, paie, France Travail, étranger, fonctionnaire (Ircantec)", c: "#6C5CE7" },
-                      { s: "2", t: "Carrière", d: "Données carrière validées par le consultant — 5 régimes : CNAV, AGIRC-ARRCO, CIPAV, IRCANTEC, RCI", c: "#E17055" },
-                      { s: "3", t: "Scénarios", d: "9 dispositifs activables : RACL, VPLR (incomplet/études), progressive, cumul, chômage ind./non ind., arrêt, cotisations min.", c: "#00B894" },
-                      { s: "4", t: "Dates & Simulations", d: "4 scénarios : âge légal, taux plein (durée), taux plein auto 67 ans, date(s) libre(s)", c: "#0984E3" },
-                      { s: "5", t: "Livrables", d: "Rapport consultation (~1p), Simulation retraite (~1p), Audit retraite (~30p)", c: "#D63031" },
+                      { s: "1", t: "Carrière", d: "Données carrière validées par le consultant — 5 régimes : CNAV, AGIRC-ARRCO, CIPAV, IRCANTEC, RCI", c: "#E17055" },
+                      { s: "2", t: "Scénarios & dates", d: "9 dispositifs activables (RACL, VPLR, progressive, cumul, chômage, arrêt, cotisations min.) + dates standard (légal, taux plein, 67 ans, libre)", c: "#00B894" },
+                      { s: "3", t: "Livrables", d: "Rapport consultation (~1p), Simulation retraite (~1p), Audit retraite (~30p)", c: "#D63031" },
                     ].map((step, i) => (
                       <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 36 }}>
                           <div style={{ width: 36, height: 36, borderRadius: "50%", background: step.c, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 14, boxShadow: `0 2px 8px ${step.c}30` }}>{step.s}</div>
-                          {i < 4 && <div style={{ width: 2, height: 20, background: step.c, margin: "2px 0", opacity: 0.3 }} />}
+                          {i < 2 && <div style={{ width: 2, height: 20, background: step.c, margin: "2px 0", opacity: 0.3 }} />}
                         </div>
                         <div style={{ background: "#fff", borderRadius: 11, boxShadow: "0 1px 5px rgba(0,0,0,0.05)", padding: "10px 14px", flex: 1 }}>
                           <span style={{ fontWeight: 700, fontSize: 14, color: step.c }}>{step.t}</span>
@@ -4655,7 +4343,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
             <div style={{ padding: "16px 18px" }}>
               <div style={{ fontSize: 13, color: "#333", fontWeight: 600, marginBottom: 8 }}>Section concernée :</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
-                {["Carrière", "Dispositifs", "Dates & Simulations", "Livrables", "Analyse documents", "Autre"].map(s => (
+                {["Carrière", "Scénarios & dates", "Livrables", "Autre"].map(s => (
                   <button key={s} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 5, border: "1px solid #ccc", background: "#fdfdfd", color: "#444", cursor: "pointer", transition: "all 0.15s ease" }}
                     onMouseOver={e => { e.currentTarget.style.borderColor = "#6C5CE7"; e.currentTarget.style.color = "#6C5CE7"; e.currentTarget.style.background = "#fff"; }}
                     onMouseOut={e => { e.currentTarget.style.borderColor = "#ccc"; e.currentTarget.style.color = "#444"; e.currentTarget.style.background = "#fdfdfd"; }}>
