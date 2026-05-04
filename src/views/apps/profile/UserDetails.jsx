@@ -21,6 +21,7 @@ export default function UserDetails({
   const [showSelector, setShowSelector] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [parentName, setParentName] = useState(null);
+  const [consultantHistory, setConsultantHistory] = useState([]);
 
   // --- FETCH des membres ---
   useEffect(() => {
@@ -40,6 +41,22 @@ export default function UserDetails({
     fetchMembers();
     return () => { isMounted = false; };
   }, []);
+
+  // --- FETCH historique consultants ---
+  useEffect(() => {
+    if (!user?.id) return;
+    let isMounted = true;
+    const fetchHistory = async () => {
+      try {
+        const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+        const base = (global?.config?.server_url || "").replace(/\/+$/, "");
+        const { data } = await axios.get(`${base}/users/${user.id}/consultant-history`, Config);
+        if (isMounted) setConsultantHistory(Array.isArray(data) ? data : []);
+      } catch (e) {}
+    };
+    fetchHistory();
+    return () => { isMounted = false; };
+  }, [user?.id]);
 
   // --- FETCH direct du consultant si parent_id connu ---
   useEffect(() => {
@@ -404,6 +421,24 @@ export default function UserDetails({
               )}
             </div>
           </div>
+          {consultantHistory.length > 0 && (
+            <div className="users-page-view-table compact-rows">
+              <div className="d-flex user-info align-items-center flex-wrap" style={{ marginLeft: 0 }}>
+                <div className="user-info-title font-weight-bold" style={{ fontSize: "0.85rem" }}>Consultant précédent :</div>
+                <select
+                  style={{ border: "none", background: "transparent", fontSize: "0.85rem", color: "inherit", cursor: "pointer", padding: 0, outline: "none", WebkitAppearance: "menulist-button", maxWidth: "100%" }}
+                  defaultValue={consultantHistory[0]?.id}
+                  onChange={() => {}}
+                >
+                  {consultantHistory.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.consultant_name} — {new Date(h.changed_at).toLocaleDateString("fr-FR")}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
           <div
             style={{
               borderTop: "1px solid #ebe9f1",
