@@ -7,9 +7,6 @@ import { Modal, ModalHeader, ModalBody, ModalFooter, Button, UncontrolledTooltip
 import { DownloadCloud, Eye, Download, Edit2, Save, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, Trash2 } from "react-feather";
 import {
   QUICK_TAGS_OPTIONS,
-  generateDocId,
-  persistUploadedDocs,
-  loadUploadedDocs,
   parseNIR,
 } from "./utils";
 import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrIncompleteScenario, executeVplrEtudeScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAuditRetraite, fetchAuditLatest } from "../risService";
@@ -495,7 +492,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     }
   };
 
-  const [activatedDispositifs, setActivatedDispositifs] = useState([]);
+  const [activatedDispositifs, setActivatedDispositifs] = useState(() => {
+    try {
+      const stored = localStorage.getItem(`simu_dispositifs_${id}`);
+      return stored ? JSON.parse(stored) : [];
+    } catch { return []; }
+  });
   // eslint-disable-next-line no-unused-vars
   const [showAutoResults, setShowAutoResults] = useState(false);
   const [excludedDates, setExcludedDates] = useState([]);
@@ -589,9 +591,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // ── RIS — Relevé de carrière du client ──────────────────────────────────────
   // fileToSend     : fichier PDF brut déposé par le consultant (Dropzone)
   // userDocuments  : liste des documents uploadés côté serveur (GET /files?user_id)
-  // localUploadedIds : set des IDs uploadés dans cette session (persisté sessionStorage)
   // Source de vérité définitive = frozen_data MySQL (table frozen_data, verrouillée après validation)
   // fileToSend sert uniquement à alimenter n8n avant que frozen_data soit gelé
+  // Les fichiers du simulateur sont identifiés par dossier=10 en base (pas de localStorage)
   const [fileToSend, setFileToSend] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -599,7 +601,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, docId: null, fileName: "" });
   const [deleteGenDocId, setDeleteGenDocId] = useState(null);
-  const [localUploadedIds, setLocalUploadedIds] = useState(() => new Set(loadUploadedDocs(id).map((d) => String(d.id))));
   // eslint-disable-next-line no-unused-vars
   const [n8nMessage, setN8nMessage] = useState(() => {
     try {
@@ -693,6 +694,18 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       }
       if (Object.keys(scenarioResults).length > 0) {
         setScenarioSkillResults(scenarioResults);
+        // Auto-cocher les dispositifs dont un résultat existe déjà en DB
+        const skillToDispositif = Object.fromEntries(
+          Object.entries(DISPOSITIF_TO_SKILL_CODE).map(([k, v]) => [v, k])
+        );
+        const toActivate = Object.keys(scenarioResults).map(c => skillToDispositif[c]).filter(Boolean);
+        if (toActivate.length > 0) {
+          setActivatedDispositifs(prev => {
+            const next = [...new Set([...prev, ...toActivate])];
+            try { localStorage.setItem(`simu_dispositifs_${id}`, JSON.stringify(next)); } catch {}
+            return next;
+          });
+        }
       }
 
       // Recharger le rapport de consultation depuis analysis_reports
@@ -915,6 +928,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     setScenarioSkillResults({});
     setScenarioSkillErrors({});
     setActivatedDispositifs([]);
+    try { localStorage.removeItem(`simu_dispositifs_${id}`); } catch {}
     setDetectedDispositifs({});
     setShowAutoResults(false);
     setGeneratedDocs([]);
@@ -1270,6 +1284,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     try {
       const formData = new FormData();
       formData.set("user_id", id);
+      formData.set("dossier", "10");
       acceptedFiles.forEach((f, index) => formData.append(`photoUpload${index}`, f));
       const Config = {
         headers: {
@@ -1280,20 +1295,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       const response = await axios.post(`${global.config.server_url}/uploadFiles`, formData, Config);
       const files = Array.isArray(response?.data?.files) ? response.data.files : [];
       if (files.length) {
-        const mapped = files.map((f) => ({
-          id: f.id || generateDocId(),
-          name: f.filename || "Document importé",
-          uploadedAt: f.created_at || new Date().toISOString(),
-          url: f.url || "",
-        }));
-        persistUploadedDocs(id, [...loadUploadedDocs(id), ...mapped]);
-        setLocalUploadedIds((prev) => {
-          const next = new Set(prev);
-          mapped.forEach((m) => next.add(String(m.id)));
-          return next;
-        });
         toast.success(files.length > 1 ? "Documents importés" : "Relevé importé");
-        fetchUserDocuments(); // refresh list
+        fetchUserDocuments(); // refresh list — dossier=10 filter handles display
       }
     } catch {
       toast.error("Le téléversement a échoué");
@@ -1323,13 +1326,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       toast.success("Document supprimé avec succès");
       
       setUserDocuments((prev) => prev.filter((d) => d.id !== docId));
-      const remaining = loadUploadedDocs(id).filter((d) => String(d.id) !== String(docId));
-      persistUploadedDocs(id, remaining);
-      setLocalUploadedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(String(docId));
-        return next;
-      });
       if (fileToSend && fileToSend.name === fileName) {
         clearFileToSend();
       }
@@ -1883,7 +1879,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   }, [fileToSend, selectedAction, user, id, promptText, hiddenSystemPrompt]);
 
   // Derive doc availability from real uploaded documents
-  const hasDocuments = userDocuments.some((d) => localUploadedIds.has(String(d.id))) || !!fileToSend;
+  const hasDocuments = userDocuments.some((d) => Number(d.dossier) === 10) || !!fileToSend;
   const checkReq = () => true; // requirements are met if we have a file
   const getMissing = () => [];
 
@@ -1892,10 +1888,14 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     mono: { fontFamily: "'IBM Plex Mono', 'Courier New', monospace" },
   };
 
-  const toggleDispositif = (id) => {
-    setActivatedDispositifs((prev) =>
-      prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]
-    );
+  const toggleDispositif = (dispositifId) => {
+    setActivatedDispositifs((prev) => {
+      const next = prev.includes(dispositifId)
+        ? prev.filter((d) => d !== dispositifId)
+        : [...prev, dispositifId];
+      try { localStorage.setItem(`simu_dispositifs_${id}`, JSON.stringify(next)); } catch {}
+      return next;
+    });
   };
 
   const getPlafond = (yr) => PLAFONDS_SS[yr] || 48060;
@@ -2528,9 +2528,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                 {/* Liste des documents réels */}
                 {isLoadingDocs ? (
                   <div style={{ fontSize: 12, color: "#555", padding: "6px 0" }}>Chargement des documents…</div>
-                ) : ((userDocuments.filter((d) => localUploadedIds.has(String(d.id))).length > 0 || fileToSend)) ? (
+                ) : ((userDocuments.filter((d) => Number(d.dossier) === 10).length > 0 || fileToSend)) ? (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-                    {userDocuments.filter((d) => localUploadedIds.has(String(d.id))).map((doc) => {
+                    {userDocuments.filter((d) => Number(d.dossier) === 10).map((doc) => {
                       const ext = (doc.filename || "").split(".").pop().toLowerCase();
                       
                       // 🟢 Green for PDF
@@ -2615,7 +2615,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                     })}
                     
                     {/* Fichier uploadé manuellement (pas encore dans la liste serveur) */}
-                    {fileToSend && !userDocuments.filter((d) => localUploadedIds.has(String(d.id))).some((d) => d.filename === fileToSend.name) && (
+                    {fileToSend && !userDocuments.filter((d) => Number(d.dossier) === 10).some((d) => d.filename === fileToSend.name) && (
                       <div style={{ display: "flex", flexDirection: "column", padding: "6px 12px", borderRadius: 7, background: "#00B89418", border: "1px solid #00B894", fontSize: 13, minWidth: 180 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <span style={{ fontSize: 15 }}>📄</span>
