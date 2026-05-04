@@ -81,11 +81,12 @@ export default function UserDetails({
     }
 
     // 2) Fallback via user.parent
-    if (user.parent && (user.parent.first_name || user.parent.last_name)) {
-      const s = `${user.parent.first_name || ""} ${
-        user.parent.last_name || ""
-      }`.trim();
-      if (s) return s;
+    if (user.parent) {
+      if (user.parent.first_name || user.parent.last_name) {
+        const s = `${user.parent.first_name || ""} ${user.parent.last_name || ""}`.trim();
+        if (s) return s;
+      }
+      if (user.parent.name) return user.parent.name;
     }
 
     // 3) Fallback via champ direct

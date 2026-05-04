@@ -972,6 +972,9 @@ class UserAccountTab extends React.Component {
                     placeholder="Choisir..."
                     isClearable
                     isSearchable
+                    menuPortalTarget={document.body}
+                    menuPlacement="auto"
+                    styles={{ menuPortal: (base) => ({ ...base, zIndex: 9999 }) }}
                     noOptionsMessage={() => "Aucun résultat"}
                     value={
                       this.props.members
@@ -1301,6 +1304,9 @@ class UserAccountTab extends React.Component {
                     placeholder="Choisir..."
                     isClearable
                     isSearchable
+                    menuPortalTarget={document.body}
+                    menuPlacement="auto"
+                    styles={{ menuPortal: (base) => ({ ...base, zIndex: 9999 }) }}
                     noOptionsMessage={() => "Aucun résultat"}
                     value={
                       this.props.members
