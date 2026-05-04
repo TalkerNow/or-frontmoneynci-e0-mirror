@@ -432,7 +432,12 @@ export default function UserDetails({
                 >
                   {consultantHistory.map((h) => (
                     <option key={h.id} value={h.id}>
-                      {h.consultant_name} — {new Date(h.changed_at).toLocaleDateString("fr-FR")}
+                      {(() => {
+                        if (h.consultant_name) return h.consultant_name;
+                        const m = Array.isArray(members) && members.find(m => String(m.id) === String(h.consultant_id));
+                        if (!m) return `#${h.consultant_id}`;
+                        return (m.first_name || m.last_name) ? `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim() : (m.name ?? `#${h.consultant_id}`);
+                      })()} — {new Date(h.changed_at).toLocaleDateString("fr-FR")}
                     </option>
                   ))}
                 </select>
