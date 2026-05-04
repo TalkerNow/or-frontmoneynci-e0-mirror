@@ -175,8 +175,6 @@ class SideMenuContent extends React.Component {
         });
         if (temp.length > 0 && !open_group.includes(parent)) {
           open_group = open_group.filter(function (obj) {
-            // Garder "Boîte de réception" et son parent "CRM" ouverts si déjà ouverts
-            if (obj === "crm-inbox" || obj === "kpi") return true;
             return !temp.includes(obj);
           });
         }
@@ -192,11 +190,6 @@ class SideMenuContent extends React.Component {
     }
     if (type === "item") {
       open_group = active_group.slice(0);
-      // Garder "Boîte de réception" ouvert si on clique sur un item (ex: Opportunités)
-      if (this.state.activeGroups.includes("crm-inbox")) {
-        if (!open_group.includes("crm-inbox")) open_group.push("crm-inbox");
-        if (!open_group.includes("kpi")) open_group.push("kpi");
-      }
     }
 
     this.setState({
@@ -207,14 +200,11 @@ class SideMenuContent extends React.Component {
   };
 
   initRender = (parentArr) => {
-    let active_groups = parentArr.slice(0);
-    // Force "Boîte de réception" à être ouvert par défaut si on est dans la section inbox
-    const currentPath =
-      this.props.activePath || this.props.activeItemState || "";
-    if (currentPath.includes("/kpi/inbox")) {
-      if (!active_groups.includes("crm-inbox")) active_groups.push("crm-inbox");
-      if (!active_groups.includes("kpi")) active_groups.push("kpi");
-    }
+    const activePath = this.props.activePath || this.props.activeItemState || "";
+    let active_groups = parentArr.slice(0).filter((id) => {
+      if (id === "crm-inbox" && !activePath.includes("/kpi/inbox")) return false;
+      return true;
+    });
 
     this.setState({
       activeGroups: active_groups,

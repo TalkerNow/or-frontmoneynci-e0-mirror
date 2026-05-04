@@ -1066,7 +1066,8 @@ class EditContract extends React.Component {
                 await this.print();
                 // Redirect back to the contracts tab after download
                 if (this.state.user_id) {
-                  history.push("/app/user/edit/" + this.state.user_id + "/8");
+                  const backUrl = this.props.location && this.props.location.state && this.props.location.state.backUrl ? this.props.location.state.backUrl : ("/app/user/edit/" + this.state.user_id + "/8");
+      history.push(backUrl);
                 }
               }, 500);
             }
@@ -1208,7 +1209,8 @@ class EditContract extends React.Component {
       if (redirect) {
         // 🔁 4) retour sur la fiche user
         toast.success("Contrat enregistré avec succès");
-        history.push("/app/user/edit/" + userid + "/8");
+        const backUrl = this.props.location && this.props.location.state && this.props.location.state.backUrl ? this.props.location.state.backUrl : ("/app/user/edit/" + userid + "/8");
+        history.push(backUrl);
       } else {
         this.setState({ isDirty: false });
         toast.success("Date enregistrée");
@@ -1904,7 +1906,8 @@ class EditContract extends React.Component {
 
   handleBack = () => {
     if (!this.state.isDirty) {
-      history.push("/app/user/edit/" + this.state.user_id + "/8");
+      const backUrl = this.props.location && this.props.location.state && this.props.location.state.backUrl ? this.props.location.state.backUrl : ("/app/user/edit/" + this.state.user_id + "/8");
+      history.push(backUrl);
     } else {
       this.setState({ showUnsavedModal: true });
     }
@@ -1912,7 +1915,8 @@ class EditContract extends React.Component {
 
   handleLeaveWithoutSaving = () => {
     this.setState({ showUnsavedModal: false, isDirty: false });
-    history.push("/app/user/edit/" + this.state.user_id + "/8");
+    const backUrl = this.props.location && this.props.location.state && this.props.location.state.backUrl ? this.props.location.state.backUrl : ("/app/user/edit/" + this.state.user_id + "/8");
+      history.push(backUrl);
   };
 
   handleSaveAndLeave = () => {

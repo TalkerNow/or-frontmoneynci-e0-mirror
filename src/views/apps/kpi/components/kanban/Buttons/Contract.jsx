@@ -2,7 +2,7 @@ import React from "react";
 import { withRouter } from "react-router-dom";
 import getBadgeColor from "../../../../../../helpers/getBadgeColor";
 
-const ContractButton = ({ doc, history, onDelete }) => {
+const ContractButton = ({ doc, history, location, onDelete }) => {
   const [isHovered, setIsHovered] = React.useState(false);
   const serviceLabel = (doc.subscribe_services || "")
     .split(/\s*\/\s*/)
@@ -32,7 +32,10 @@ const ContractButton = ({ doc, history, onDelete }) => {
           return; // Allow browser's default new tab behavior
         }
         e.preventDefault();
-        history.push(`/pages/contract/${doc.id}`);
+        history.push({
+          pathname: `/pages/contract/${doc.id}`,
+          state: { backUrl: location.pathname }
+        });
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}

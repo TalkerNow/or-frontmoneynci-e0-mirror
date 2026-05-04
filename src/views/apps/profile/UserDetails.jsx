@@ -13,6 +13,7 @@ export default function UserDetails({
   showCollapse = false,
   onCollapse,
   cardClassName = "",
+  backUrl,
 }) {
   const [members, setMembers] = useState([]);
   const [showDelete, setShowDelete] = useState(false);
@@ -223,7 +224,7 @@ export default function UserDetails({
             title="Retour"
             className="btn-icon rounded-circle p-0 d-flex align-items-center justify-content-center"
             style={{ width: 32, height: 32 }}
-            onClick={() => history.push("/app/user/clientslist")}
+            onClick={() => history.push(backUrl || "/app/user/clientslist")}
           >
             <ArrowLeft size={16} />
           </Button.Ripple>
@@ -231,18 +232,17 @@ export default function UserDetails({
         {showCollapse && (
           <div
             className="nav-link modern-nav-toggle"
-            style={{ position: "absolute", top: 10, right: 10, zIndex: 5 }}
+            style={{ position: "absolute", top: 14, right: 10, zIndex: 5, cursor: "pointer", lineHeight: 0 }}
           >
             <Disc
               id="profileCardCollapseToggle"
               onClick={onCollapse}
-              className="toggle-icon icon-x d-none d-xl-block text-primary"
+              className="toggle-icon text-primary"
               size={20}
+              title="Masquer la fiche"
+              aria-label="Masquer la fiche"
             />
-            <UncontrolledTooltip
-              placement="left"
-              target="profileCardCollapseToggle"
-            >
+            <UncontrolledTooltip placement="left" target="profileCardCollapseToggle">
               Masquer la fiche
             </UncontrolledTooltip>
           </div>

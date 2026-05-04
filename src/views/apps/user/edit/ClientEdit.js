@@ -21,7 +21,7 @@ import {
   Folder,
   CheckSquare,
   ArrowLeft,
-  Circle,
+  Disc,
   FileText,
   Mail,
   Activity
@@ -267,7 +267,7 @@ class UserEdit extends React.Component {
   handleBack = () => {
     const { id } = this.props.match.params;
     if (!this.state.isDirty) {
-      history.push(`/app/user/edit/${id}/2`);
+      history.push({ pathname: `/app/user/edit/${id}/2`, state: this.props.location.state });
     } else {
       this.setState({ showUnsavedModal: true });
     }
@@ -276,7 +276,7 @@ class UserEdit extends React.Component {
   handleLeaveWithoutSaving = () => {
     const { id } = this.props.match.params;
     this.setState({ showUnsavedModal: false, isDirty: false });
-    history.push(`/app/user/edit/${id}/2`);
+    history.push({ pathname: `/app/user/edit/${id}/2`, state: this.props.location.state });
   };
 
   handleSaveAndLeave = () => {
@@ -324,7 +324,7 @@ class UserEdit extends React.Component {
                   members={this.state.members}
                   id={id}
                   dob={this.state.rowData["birth_date"]}
-                  backTo={`/app/user/edit/${id}/2`}
+                  backTo={{ pathname: `/app/user/edit/${id}/2`, state: this.props.location.state }}
                   setDirty={this.setDirty}
                 />
               </CardBody>
@@ -386,9 +386,10 @@ class UserEdit extends React.Component {
           <div>
             <UserDetails
               user={this.state.rowData || {}}
-              onEdit={() => history.push(`/app/user/edit/${id}/1`)}
+              onEdit={() => history.push({ pathname: `/app/user/edit/${id}/1`, state: this.props.location.state })}
               showCollapse
               onCollapse={() => this.setState({ isCollapsed: true })}
+              backUrl={this.props.location && this.props.location.state ? this.props.location.state.backUrl : null}
             />
 
             {/* 👇 Ta box de suivi d'avancement, dans un fichier séparé */}
@@ -429,17 +430,16 @@ class UserEdit extends React.Component {
               {this.state.isCollapsed && (
                 <NavItem className="d-flex align-items-center mr-50">
                   <div
-                    role="button"
-                    tabIndex={0}
-                    className="profile-expand-btn"
-                    title="Afficher la fiche"
-                    aria-label="Afficher la fiche"
-                    onClick={() => this.setState({ isCollapsed: false })}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") this.setState({ isCollapsed: false });
-                    }}
+                    className="nav-link modern-nav-toggle"
+                    style={{ cursor: "pointer", lineHeight: 0 }}
                   >
-                    <Circle size={16} />
+                    <Disc
+                      onClick={() => this.setState({ isCollapsed: false })}
+                      className="toggle-icon text-primary"
+                      size={20}
+                      title="Afficher la fiche"
+                      aria-label="Afficher la fiche"
+                    />
                   </div>
                 </NavItem>
               )}
