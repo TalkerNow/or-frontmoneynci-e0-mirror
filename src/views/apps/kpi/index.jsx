@@ -495,40 +495,28 @@ function buildStepsForSuivi(suiviRow) {
 }
 
 const todoBadgeWrapper = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 6,
-  padding: "3px 9px",
-  borderRadius: 10, // pill
-  backgroundColor: "#f1f1f1ff", // gris très léger
-  maxWidth: 260,
+  display: "flex",
+  flexDirection: "column",
+  gap: 2,
 };
 
-const todoDot = {
-  width: 8,
-  height: 8,
-  borderRadius: "50%",
-  backgroundColor: "red", // accent bleu (change si tu veux)
-  flexShrink: 0,
-};
+const todoDot = {};
 
 const todoMainText = {
-  fontSize: 16,
-  fontWeight: 600,
+  fontSize: 14,
+  fontWeight: 400,
   color: "#212529",
-  lineHeight: 1.2,
 };
 
 const todoSubText = {
   fontSize: 12,
-  color: "#b0b3b5ff",
-  lineHeight: 1.2,
+  color: "#212529",
 };
 
 function renderTodoCell(next, badge = null) {
   if (!next) {
     return (
-      <span className="text-success" style={{ fontSize: 14, fontWeight: 600 }}>
+      <span className="text-success" style={{ fontSize: 14 }}>
         Dossier terminé
       </span>
     );
@@ -539,43 +527,21 @@ function renderTodoCell(next, badge = null) {
   else if (!next.isDatedStep) sub = "Étape de suivi";
 
   return (
-    <div style={todoBadgeWrapper}>
-      <span style={todoDot} />
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            flexWrap: "wrap",
-          }}
-        >
-          <span style={todoMainText}>{next.label}</span>
-          {badge && (
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "2px 8px",
-                borderRadius: 4,
-                backgroundColor: "#fef3c7",
-                color: "#92400e",
-                fontSize: 11,
-                fontWeight: 500,
-                whiteSpace: "nowrap",
-              }}
-            >
-              <span role="img" aria-label="Alerte">
-                ⚠️
-              </span>{" "}
-              {badge}
-            </span>
-          )}
-        </div>
-        {sub && <div style={todoSubText}>{sub}</div>}
-      </div>
-    </div>
+    <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+      <span style={todoMainText}>{next.label}</span>
+      {sub && (
+        <>
+          <span style={{ color: "#ced4da", margin: "0 5px" }}>·</span>
+          <span style={{ fontSize: 13, color: "#6e6b7b" }}>{sub}</span>
+        </>
+      )}
+      {badge && (
+        <>
+          <span style={{ color: "#ced4da", margin: "0 5px" }}>·</span>
+          <span style={{ fontSize: 13, color: "#6e6b7b" }}>{badge}</span>
+        </>
+      )}
+    </span>
   );
 }
 
@@ -589,8 +555,9 @@ export default function KpiPage() {
   const location = useLocation();
 
   const [objet, setObjet] = useState("Appel entrant");
-  const [showProcessing, setShowProcessing] = useState(false); // Dossiers en cours de traitement
-  const [showCompleted, setShowCompleted] = useState(false); // Contrats terminés
+  const [activeFilter, setActiveFilter] = useState("active"); // "active" | "processing" | "completed"
+  const showProcessing = activeFilter === "processing";
+  const showCompleted = activeFilter === "completed";
 
   const [creating, setCreating] = useState(false);
   const toggleModal = () => setCreating(!creating);
@@ -697,26 +664,6 @@ export default function KpiPage() {
     cursor: "pointer",
     userSelect: "none",
     whiteSpace: "nowrap",
-  };
-
-  // ---- styles filtres jolis ----
-
-  const filterPillBase = {
-    borderRadius: 999,
-    border: "1px solid transparent",
-    padding: "4px 10px",
-    fontSize: 14,
-    backgroundColor: "transparent",
-    color: "#495057",
-    display: "inline-flex",
-    alignItems: "center",
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-    flexShrink: 0,
-  };
-
-  const filterPillActive = {
-    fontWeight: 600,
   };
 
   // =========================================================================================
@@ -1637,67 +1584,10 @@ export default function KpiPage() {
           stepFilterOptions={stepFilterOptions}
           selectedStep={selectedStep}
           onStepChange={setSelectedStep}
-          filters={
-            <div
-              style={{ display: "flex", flexDirection: "column", gap: "8px" }}
-            >
-              <button
-                type="button"
-                onClick={() => setShowProcessing((v) => !v)}
-                style={{
-                  ...filterPillBase,
-                  ...(showProcessing ? filterPillActive : {}),
-                  // Override defaults for dropdown look
-                  width: "100%",
-                  justifyContent: "flex-start",
-                  border: "none",
-                  background: "transparent",
-                }}
-              >
-                <span
-                  style={{
-                    width: 16,
-                    height: 16,
-                    borderRadius: "50%",
-                    marginRight: 8,
-                    backgroundColor: showProcessing ? "#198754" : "transparent",
-                    border: `1px solid ${
-                      showProcessing ? "#198754" : "#ced4da"
-                    }`,
-                  }}
-                />
-                Dossiers en cours
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowCompleted((v) => !v)}
-                style={{
-                  ...filterPillBase,
-                  ...(showCompleted ? filterPillActive : {}),
-                  width: "100%",
-                  justifyContent: "flex-start",
-                  border: "none",
-                  background: "transparent",
-                }}
-              >
-                <span
-                  style={{
-                    width: 16,
-                    height: 16,
-                    borderRadius: "50%",
-                    marginRight: 8,
-                    backgroundColor: showCompleted ? "#6c757d" : "transparent",
-                    border: `1px solid ${
-                      showCompleted ? "#6c757d" : "#ced4da"
-                    }`,
-                  }}
-                />
-                Contrats terminés
-              </button>
-            </div>
-          }
+          activeFilter={activeFilter}
+          onFilterChange={setActiveFilter}
         >
-          <div style={{ padding: "0 14px" }}>
+          <div style={{ padding: "0 4px" }}>
             {/* ====== Suivis d'avancement (ANCIENNE TABLE) ====== */}
             <div className="w-100">
               {suivisError && (
@@ -1715,38 +1605,78 @@ export default function KpiPage() {
                 </div>
               )}
 
-              <Table responsive hover>
-                <thead>
+              <style>{`
+                .suivi-table td { padding: 0.85rem 0.75rem !important; vertical-align: middle !important; height: 52px; }
+                .suivi-table th { padding: 0.85rem 0.75rem !important; vertical-align: middle !important; }
+                .suivi-table thead th:hover { background-color: #f3f2f7 !important; cursor: pointer; }
+                .suivi-table tbody td { color: #212529 !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 0; }
+                .suivi-table tbody .text-muted { color: #212529 !important; }
+                .suivi-table tbody .text-success { color: #212529 !important; }
+
+                /* ── Responsive suivi-table ── */
+                /* min-width inline (720px) force overflow du wrapper div → scroll horizontal */
+                @media (max-width: 992px) {
+                  /* Masquer colonne Contrat (5e) sur tablette */
+                  .suivi-table th:nth-child(5),
+                  .suivi-table td:nth-child(5) { display: none !important; }
+                  .suivi-table { min-width: 560px !important; }
+                }
+                @media (max-width: 768px) {
+                  /* Masquer Dernière étape (3e), Type (4e), Contrat (5e) sur mobile */
+                  .suivi-table th:nth-child(3),
+                  .suivi-table td:nth-child(3),
+                  .suivi-table th:nth-child(4),
+                  .suivi-table td:nth-child(4),
+                  .suivi-table th:nth-child(5),
+                  .suivi-table td:nth-child(5) { display: none !important; }
+                  /* Redistribuer les 2 colonnes restantes */
+                  .suivi-table th:nth-child(1),
+                  .suivi-table td:nth-child(1) { width: 35% !important; }
+                  .suivi-table th:nth-child(2),
+                  .suivi-table td:nth-child(2) { width: 65% !important; }
+                  /* 2 colonnes — fit dans l'écran, pas de scroll horizontal */
+                  .suivi-table { min-width: 0 !important; width: 100% !important; }
+                  .suivi-table tbody td { white-space: normal !important; word-break: break-word !important; }
+                  .suivi-table td { padding: 0.6rem 0.5rem !important; height: auto !important; }
+                  .suivi-table th { padding: 0.6rem 0.5rem !important; }
+                }
+                @media (max-width: 480px) {
+                  .suivi-table { font-size: 13px !important; }
+                }
+              `}</style>
+              <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", width: "100%" }}>
+              <Table hover className="suivi-table" style={{ fontSize: 14, fontWeight: 400, tableLayout: "fixed", minWidth: "720px", width: "100%" }}>
+                <thead style={{ fontSize: 14, fontWeight: 400, color: "#6e6b7b" }}>
                   <tr>
                     <th
-                      style={headerClickableStyle}
+                      style={{ ...headerClickableStyle, width: "18%" }}
                       onClick={() => handleSort("client")}
                     >
                       Client
                       {renderSortIcon("client")}
                     </th>
                     <th
-                      style={headerClickableStyle}
+                      style={{ ...headerClickableStyle, width: "28%" }}
                       onClick={() => handleSort("todo")}
                     >
                       À faire
                       {renderSortIcon("todo")}
                     </th>
                     <th
-                      style={headerClickableStyle}
+                      style={{ ...headerClickableStyle, width: "25%" }}
                       onClick={() => handleSort("last")}
                     >
-                      Dernière étape validée
+                      Dernière étape
                       {renderSortIcon("last")}
                     </th>
                     <th
-                      style={headerClickableStyle}
+                      style={{ ...headerClickableStyle, width: "18%" }}
                       onClick={() => handleSort("type")}
                     >
-                      Type de contrat
+                      Type
                       {renderSortIcon("type")}
                     </th>
-                    <th>Voir le contrat</th>
+                    <th style={{ width: "11%" }}>Contrat</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1766,12 +1696,15 @@ export default function KpiPage() {
                             {noFilterActive &&
                               groupedSuivis.creationDevis.length > 0 && (
                                 <>
-                                  <tr className="table-danger">
+                                  <tr style={{ backgroundColor: "#fff" }}>
                                     <td
                                       colSpan="5"
-                                      style={{ fontSize: 14, fontWeight: 600 }}
+                                      style={{ paddingTop: 16, paddingBottom: 4, border: "none" }}
                                     >
-                                      Création devis - Urgent
+                                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "#dc2626" }}>
+                                        <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#dc2626", flexShrink: 0 }} />
+                                        Création devis — Urgent
+                                      </span>
                                     </td>
                                   </tr>
 
@@ -1797,9 +1730,10 @@ export default function KpiPage() {
                                           }`}
                                           onClick={() => {
                                             if (clientId) {
-                                              history.push(
-                                                `/app/user/edit/${clientId}/2`,
-                                              );
+                                              history.push({
+                                                pathname: `/app/user/edit/${clientId}/2`,
+                                                state: { backUrl: location.pathname }
+                                              });
                                             }
                                           }}
                                           style={{ cursor: "pointer" }}
@@ -1813,16 +1747,15 @@ export default function KpiPage() {
                                           {/* Dernière étape validée */}
                                           <td>
                                             {last ? (
-                                              <div style={{ fontSize: 14 }}>
-                                                <div>
-                                                  <strong>{last.label}</strong>
-                                                </div>
+                                              <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                                {last.label}
                                                 {last.date && (
-                                                  <div className="text-muted">
-                                                    {formatDate(last.date)}
-                                                  </div>
+                                                  <>
+                                                    <span style={{ color: "#ced4da", margin: "0 5px" }}>·</span>
+                                                    <span style={{ fontSize: 13, color: "#6e6b7b" }}>{formatDate(last.date)}</span>
+                                                  </>
                                                 )}
-                                              </div>
+                                              </span>
                                             ) : (
                                               <span
                                                 className="text-muted"
@@ -1856,9 +1789,10 @@ export default function KpiPage() {
                                                 className="p-0"
                                                 onClick={(e) => {
                                                   e.stopPropagation();
-                                                  history.push(
-                                                    `/pages/contract/${contractId}`,
-                                                  );
+                                                  history.push({
+                                                  pathname: `/pages/contract/${contractId}`,
+                                                  state: { backUrl: location.pathname }
+                                                });
                                                 }}
                                                 title="Voir le contrat"
                                               >
@@ -1877,12 +1811,15 @@ export default function KpiPage() {
                             {noFilterActive &&
                               groupedSuivis.paymentAlerts.length > 0 && (
                                 <>
-                                  <tr className="table-danger">
+                                  <tr style={{ backgroundColor: "#fff" }}>
                                     <td
                                       colSpan="5"
-                                      style={{ fontSize: 14, fontWeight: 600 }}
+                                      style={{ paddingTop: 16, paddingBottom: 4, border: "none" }}
                                     >
-                                      Paiements à lancer (Échéances atteintes)
+                                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "#dc2626" }}>
+                                        <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#dc2626", flexShrink: 0 }} />
+                                        Paiements à lancer — Échéances atteintes
+                                      </span>
                                     </td>
                                   </tr>
 
@@ -1915,9 +1852,10 @@ export default function KpiPage() {
                                           }`}
                                           onClick={() => {
                                             if (clientId) {
-                                              history.push(
-                                                `/app/user/edit/${clientId}/2`,
-                                              );
+                                              history.push({
+                                                pathname: `/app/user/edit/${clientId}/2`,
+                                                state: { backUrl: location.pathname }
+                                              });
                                             }
                                           }}
                                           style={{ cursor: "pointer" }}
@@ -1927,48 +1865,35 @@ export default function KpiPage() {
 
                                           {/* À faire - Label dynamique du paiement */}
                                           <td>
-                                            <div style={todoBadgeWrapper}>
-                                              <span
-                                                style={{
-                                                  ...todoDot,
-                                                  backgroundColor: "#dc3545",
-                                                }}
-                                              />
-                                              <div>
-                                                <div style={todoMainText}>
-                                                  {paymentAlertLabel}
-                                                </div>
-                                                {paymentAlertAmount > 0 && (
-                                                  <div style={todoSubText}>
-                                                    {new Intl.NumberFormat(
-                                                      "fr-FR",
-                                                      {
-                                                        style: "currency",
-                                                        currency: "EUR",
-                                                        minimumFractionDigits: 0,
-                                                      },
-                                                    ).format(
-                                                      paymentAlertAmount,
-                                                    )}
-                                                  </div>
-                                                )}
-                                              </div>
-                                            </div>
+                                            <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                              <span style={todoMainText}>{paymentAlertLabel}</span>
+                                              {paymentAlertAmount > 0 && (
+                                                <>
+                                                  <span style={{ color: "#ced4da", margin: "0 5px" }}>·</span>
+                                                  <span style={{ fontSize: 13, color: "#6e6b7b" }}>
+                                                    {new Intl.NumberFormat("fr-FR", {
+                                                      style: "currency",
+                                                      currency: "EUR",
+                                                      minimumFractionDigits: 0,
+                                                    }).format(paymentAlertAmount)}
+                                                  </span>
+                                                </>
+                                              )}
+                                            </span>
                                           </td>
 
                                           {/* Dernière étape validée */}
                                           <td>
                                             {last ? (
-                                              <div style={{ fontSize: 14 }}>
-                                                <div>
-                                                  <strong>{last.label}</strong>
-                                                </div>
+                                              <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                                {last.label}
                                                 {last.date && (
-                                                  <div className="text-muted">
-                                                    {formatDate(last.date)}
-                                                  </div>
+                                                  <>
+                                                    <span style={{ color: "#ced4da", margin: "0 5px" }}>·</span>
+                                                    <span style={{ fontSize: 13, color: "#6e6b7b" }}>{formatDate(last.date)}</span>
+                                                  </>
                                                 )}
-                                              </div>
+                                              </span>
                                             ) : (
                                               <span
                                                 className="text-muted"
@@ -2002,9 +1927,10 @@ export default function KpiPage() {
                                                 className="p-0"
                                                 onClick={(e) => {
                                                   e.stopPropagation();
-                                                  history.push(
-                                                    `/pages/contract/${contractId}`,
-                                                  );
+                                                  history.push({
+                                                  pathname: `/pages/contract/${contractId}`,
+                                                  state: { backUrl: location.pathname }
+                                                });
                                                 }}
                                                 title="Voir le contrat"
                                               >
@@ -2022,12 +1948,15 @@ export default function KpiPage() {
                             {noFilterActive &&
                               groupedSuivis.facturation.length > 0 && (
                                 <>
-                                  <tr className="table-danger">
+                                  <tr style={{ backgroundColor: "#fff" }}>
                                     <td
                                       colSpan="5"
-                                      style={{ fontSize: 14, fontWeight: 600 }}
+                                      style={{ paddingTop: 16, paddingBottom: 4, border: "none" }}
                                     >
-                                      Facturation - Urgent
+                                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "#dc2626" }}>
+                                        <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#dc2626", flexShrink: 0 }} />
+                                        Facturation — Urgent
+                                      </span>
                                     </td>
                                   </tr>
 
@@ -2053,9 +1982,10 @@ export default function KpiPage() {
                                           }`}
                                           onClick={() => {
                                             if (clientId) {
-                                              history.push(
-                                                `/app/user/edit/${clientId}/2`,
-                                              );
+                                              history.push({
+                                                pathname: `/app/user/edit/${clientId}/2`,
+                                                state: { backUrl: location.pathname }
+                                              });
                                             }
                                           }}
                                           style={{ cursor: "pointer" }}
@@ -2076,16 +2006,15 @@ export default function KpiPage() {
                                           {/* Dernière étape validée */}
                                           <td>
                                             {last ? (
-                                              <div style={{ fontSize: 14 }}>
-                                                <div>
-                                                  <strong>{last.label}</strong>
-                                                </div>
+                                              <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                                {last.label}
                                                 {last.date && (
-                                                  <div className="text-muted">
-                                                    {formatDate(last.date)}
-                                                  </div>
+                                                  <>
+                                                    <span style={{ color: "#ced4da", margin: "0 5px" }}>·</span>
+                                                    <span style={{ fontSize: 13, color: "#6e6b7b" }}>{formatDate(last.date)}</span>
+                                                  </>
                                                 )}
-                                              </div>
+                                              </span>
                                             ) : (
                                               <span
                                                 className="text-muted"
@@ -2119,9 +2048,10 @@ export default function KpiPage() {
                                                 className="p-0"
                                                 onClick={(e) => {
                                                   e.stopPropagation();
-                                                  history.push(
-                                                    `/pages/contract/${contractId}`,
-                                                  );
+                                                  history.push({
+                                                  pathname: `/pages/contract/${contractId}`,
+                                                  state: { backUrl: location.pathname }
+                                                });
                                                 }}
                                                 title="Voir le contrat"
                                               >
@@ -2140,13 +2070,15 @@ export default function KpiPage() {
                             {noFilterActive &&
                               groupedSuivis.relance.length > 0 && (
                                 <>
-                                  <tr className="table-warning">
+                                  <tr style={{ backgroundColor: "#fff" }}>
                                     <td
                                       colSpan="5"
-                                      style={{ fontSize: 14, fontWeight: 600 }}
+                                      style={{ paddingTop: 16, paddingBottom: 4, border: "none" }}
                                     >
-                                      Dossiers à relancer (Contrats envoyés &gt;
-                                      7 jours)
+                                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "#d97706" }}>
+                                        <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#d97706", flexShrink: 0 }} />
+                                        Dossiers à relancer — Contrats envoyés &gt; 7 jours
+                                      </span>
                                     </td>
                                   </tr>
 
@@ -2179,9 +2111,10 @@ export default function KpiPage() {
                                           }`}
                                           onClick={() => {
                                             if (clientId) {
-                                              history.push(
-                                                `/app/user/edit/${clientId}/2`,
-                                              );
+                                              history.push({
+                                                pathname: `/app/user/edit/${clientId}/2`,
+                                                state: { backUrl: location.pathname }
+                                              });
                                             }
                                           }}
                                           style={{ cursor: "pointer" }}
@@ -2204,16 +2137,15 @@ export default function KpiPage() {
                                           {/* Dernière étape validée */}
                                           <td>
                                             {last ? (
-                                              <div style={{ fontSize: 14 }}>
-                                                <div>
-                                                  <strong>{last.label}</strong>
-                                                </div>
+                                              <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                                {last.label}
                                                 {last.date && (
-                                                  <div className="text-muted">
-                                                    {formatDate(last.date)}
-                                                  </div>
+                                                  <>
+                                                    <span style={{ color: "#ced4da", margin: "0 5px" }}>·</span>
+                                                    <span style={{ fontSize: 13, color: "#6e6b7b" }}>{formatDate(last.date)}</span>
+                                                  </>
                                                 )}
-                                              </div>
+                                              </span>
                                             ) : (
                                               <span
                                                 className="text-muted"
@@ -2247,9 +2179,10 @@ export default function KpiPage() {
                                                 className="p-0"
                                                 onClick={(e) => {
                                                   e.stopPropagation();
-                                                  history.push(
-                                                    `/pages/contract/${contractId}`,
-                                                  );
+                                                  history.push({
+                                                  pathname: `/pages/contract/${contractId}`,
+                                                  state: { backUrl: location.pathname }
+                                                });
                                                 }}
                                                 title="Voir le contrat"
                                               >
@@ -2265,17 +2198,21 @@ export default function KpiPage() {
                               )}
 
                             {/* Séparateur "Dossiers à suivre" si on a des sections urgentes au-dessus */}
-                            {(groupedSuivis.creationDevis.length > 0 ||
+                            {noFilterActive &&
+                              (groupedSuivis.creationDevis.length > 0 ||
                               groupedSuivis.facturation.length > 0 ||
                               groupedSuivis.paymentAlerts.length > 0 ||
                               groupedSuivis.relance.length > 0) &&
                               groupedSuivis.active.length > 0 && (
-                                <tr className="table-info">
+                                <tr style={{ backgroundColor: "#fff" }}>
                                   <td
                                     colSpan="5"
-                                    style={{ fontSize: 14, fontWeight: 600 }}
+                                    style={{ paddingTop: 20, paddingBottom: 4, border: "none" }}
                                   >
-                                    Dossiers à suivre
+                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "#2563eb" }}>
+                                      <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#2563eb", flexShrink: 0 }} />
+                                      Dossiers à suivre
+                                    </span>
                                   </td>
                                 </tr>
                               )}
@@ -2302,9 +2239,10 @@ export default function KpiPage() {
                                       }`}
                                       onClick={() => {
                                         if (clientId) {
-                                          history.push(
-                                            `/app/user/edit/${clientId}/2`,
-                                          );
+                                          history.push({
+                                                pathname: `/app/user/edit/${clientId}/2`,
+                                                state: { backUrl: location.pathname }
+                                              });
                                         }
                                       }}
                                       style={{ cursor: "pointer" }}
@@ -2317,16 +2255,15 @@ export default function KpiPage() {
                                       {/* Dernière étape validée */}
                                       <td>
                                         {last ? (
-                                          <div style={{ fontSize: 14 }}>
-                                            <div>
-                                              <strong>{last.label}</strong>
-                                            </div>
+                                          <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                            {last.label}
                                             {last.date && (
-                                              <div className="text-muted">
-                                                {formatDate(last.date)}
-                                              </div>
+                                              <>
+                                                <span style={{ color: "#ced4da", margin: "0 5px" }}>·</span>
+                                                <span style={{ fontSize: 13, color: "#6e6b7b" }}>{formatDate(last.date)}</span>
+                                              </>
                                             )}
-                                          </div>
+                                          </span>
                                         ) : (
                                           <span
                                             className="text-muted"
@@ -2360,9 +2297,10 @@ export default function KpiPage() {
                                             className="p-0"
                                             onClick={(e) => {
                                               e.stopPropagation();
-                                              history.push(
-                                                `/pages/contract/${contractId}`,
-                                              );
+                                              history.push({
+                                                  pathname: `/pages/contract/${contractId}`,
+                                                  state: { backUrl: location.pathname }
+                                                });
                                             }}
                                             title="Voir le contrat"
                                           >
@@ -2386,12 +2324,15 @@ export default function KpiPage() {
                             {showProcessing &&
                               groupedSuivis.processing.length > 0 && (
                                 <>
-                                  <tr className="table-secondary">
+                                  <tr style={{ backgroundColor: "#fff" }}>
                                     <td
                                       colSpan="5"
-                                      style={{ fontSize: 14, fontWeight: 600 }}
+                                      style={{ paddingTop: 20, paddingBottom: 4, border: "none" }}
                                     >
-                                      Dossiers en cours de traitement
+                                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "#6b7280" }}>
+                                        <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#9ca3af", flexShrink: 0 }} />
+                                        Dossiers en cours de traitement
+                                      </span>
                                     </td>
                                   </tr>
 
@@ -2417,9 +2358,10 @@ export default function KpiPage() {
                                           }`}
                                           onClick={() => {
                                             if (clientId) {
-                                              history.push(
-                                                `/app/user/edit/${clientId}/2`,
-                                              );
+                                              history.push({
+                                                pathname: `/app/user/edit/${clientId}/2`,
+                                                state: { backUrl: location.pathname }
+                                              });
                                             }
                                           }}
                                           style={{ cursor: "pointer" }}
@@ -2428,16 +2370,15 @@ export default function KpiPage() {
                                           <td>{renderTodoCell(next)}</td>
                                           <td>
                                             {last ? (
-                                              <div style={{ fontSize: 14 }}>
-                                                <div>
-                                                  <strong>{last.label}</strong>
-                                                </div>
+                                              <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                                {last.label}
                                                 {last.date && (
-                                                  <div className="text-muted">
-                                                    {formatDate(last.date)}
-                                                  </div>
+                                                  <>
+                                                    <span style={{ color: "#ced4da", margin: "0 5px" }}>·</span>
+                                                    <span style={{ fontSize: 13, color: "#6e6b7b" }}>{formatDate(last.date)}</span>
+                                                  </>
                                                 )}
-                                              </div>
+                                              </span>
                                             ) : (
                                               <span
                                                 className="text-muted"
@@ -2469,9 +2410,10 @@ export default function KpiPage() {
                                                 className="p-0"
                                                 onClick={(e) => {
                                                   e.stopPropagation();
-                                                  history.push(
-                                                    `/pages/contract/${contractId}`,
-                                                  );
+                                                  history.push({
+                                                  pathname: `/pages/contract/${contractId}`,
+                                                  state: { backUrl: location.pathname }
+                                                });
                                                 }}
                                                 title="Voir le contrat"
                                               >
@@ -2497,12 +2439,15 @@ export default function KpiPage() {
                             {showCompleted &&
                               groupedSuivis.completed.length > 0 && (
                                 <>
-                                  <tr className="table-secondary">
+                                  <tr style={{ backgroundColor: "#fff" }}>
                                     <td
                                       colSpan="5"
-                                      style={{ fontSize: 14, fontWeight: 600 }}
+                                      style={{ paddingTop: 20, paddingBottom: 4, border: "none" }}
                                     >
-                                      Contrats terminés
+                                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "#6b7280" }}>
+                                        <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#9ca3af", flexShrink: 0 }} />
+                                        Contrats terminés
+                                      </span>
                                     </td>
                                   </tr>
 
@@ -2528,9 +2473,10 @@ export default function KpiPage() {
                                           }`}
                                           onClick={() => {
                                             if (clientId) {
-                                              history.push(
-                                                `/app/user/edit/${clientId}/2`,
-                                              );
+                                              history.push({
+                                                pathname: `/app/user/edit/${clientId}/2`,
+                                                state: { backUrl: location.pathname }
+                                              });
                                             }
                                           }}
                                           style={{ cursor: "pointer" }}
@@ -2540,10 +2486,7 @@ export default function KpiPage() {
                                           <td>
                                             <span
                                               className="text-success"
-                                              style={{
-                                                fontSize: 14,
-                                                fontWeight: 600,
-                                              }}
+                                              style={{ fontSize: 14 }}
                                             >
                                               Dossier terminé
                                             </span>
@@ -2551,16 +2494,15 @@ export default function KpiPage() {
 
                                           <td>
                                             {last ? (
-                                              <div style={{ fontSize: 14 }}>
-                                                <div>
-                                                  <strong>{last.label}</strong>
-                                                </div>
+                                              <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                                {last.label}
                                                 {last.date && (
-                                                  <div className="text-muted">
-                                                    {formatDate(last.date)}
-                                                  </div>
+                                                  <>
+                                                    <span style={{ color: "#ced4da", margin: "0 5px" }}>·</span>
+                                                    <span style={{ fontSize: 13, color: "#6e6b7b" }}>{formatDate(last.date)}</span>
+                                                  </>
                                                 )}
-                                              </div>
+                                              </span>
                                             ) : (
                                               <span
                                                 className="text-muted"
@@ -2592,9 +2534,10 @@ export default function KpiPage() {
                                                 className="p-0"
                                                 onClick={(e) => {
                                                   e.stopPropagation();
-                                                  history.push(
-                                                    `/pages/contract/${contractId}`,
-                                                  );
+                                                  history.push({
+                                                  pathname: `/pages/contract/${contractId}`,
+                                                  state: { backUrl: location.pathname }
+                                                });
                                                 }}
                                                 title="Voir le contrat"
                                               >
@@ -2637,6 +2580,7 @@ export default function KpiPage() {
                   )}
                 </tbody>
               </Table>
+              </div>
             </div>
           </div>
         </AdminView>
