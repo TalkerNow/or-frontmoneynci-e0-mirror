@@ -304,56 +304,191 @@ function _buildDefaultCarriereRows() {
 
 // ─── CIPAV RESULT CARD ──────────────────────────────────────────────────────
 
-function CipavResult({ po }) {
-  const baseAnnuelle = po.pension_base_annuelle != null
-    ? po.pension_base_annuelle
-    : (po.points_base || 0) * (po.valeur_point_base || 0);
-  const complAnnuelle = po.pension_complementaire_annuelle != null
-    ? po.pension_complementaire_annuelle
-    : (po.points_complementaire || 0) * (po.valeur_point_complementaire || 0);
-  const totalAnnuel = po.pension_annuelle_brute != null ? po.pension_annuelle_brute : (baseAnnuelle + complAnnuelle);
-  const totalMensuel = po.pension_mensuelle_brute != null ? po.pension_mensuelle_brute : (totalAnnuel / 12);
-  const ptsBase = po.points_base != null ? po.points_base : (po.details_points && po.details_points.base);
-  const ptsCompl = po.points_complementaire != null ? po.points_complementaire : (po.details_points && po.details_points.complementaire);
+const REGIME_THEMES = {
+  CNAV:        { color: "#6C5CE7", icon: "🧮", title: "Pension CNAV",        label: "CNAV" },
+  AGIRC_ARRCO: { color: "#0984E3", icon: "📊", title: "Pension AGIRC-ARRCO", label: "AGIRC-ARRCO" },
+  IRCANTEC:    { color: "#00B894", icon: "🏢", title: "Pension IRCANTEC",    label: "IRCANTEC" },
+  RCI:         { color: "#E17055", icon: "📑", title: "Pension RCI",         label: "RCI" },
+  CIPAV:       { color: "#9B59B6", icon: "🏥", title: "Pension CIPAV",       label: "CIPAV" },
+};
+
+function buildRegimeView(code, po) {
+  if (!po) return { hero: [], details: [] };
+  const fmt = (v, frac = 2) => v?.toLocaleString("fr-FR", { minimumFractionDigits: frac, maximumFractionDigits: frac });
+  const fmtInt = (v) => v?.toLocaleString("fr-FR");
+
+  if (code === "CIPAV") {
+    const baseAnnuelle = po.pension_base_annuelle ?? ((po.points_base || 0) * (po.valeur_point_base || 0));
+    const complAnnuelle = po.pension_complementaire_annuelle ?? ((po.points_complementaire || 0) * (po.valeur_point_complementaire || 0));
+    const totalAnnuel = po.pension_annuelle_brute ?? (baseAnnuelle + complAnnuelle);
+    const totalMensuel = po.pension_mensuelle_brute ?? (totalAnnuel / 12);
+    const ptsBase = po.points_base ?? po.details_points?.base;
+    const ptsCompl = po.points_complementaire ?? po.details_points?.complementaire;
+    return {
+      hero: [
+        { label: "Mensuelle brute", value: `${fmt(totalMensuel)} €` },
+        { label: "Annuelle brute",  value: `${fmt(totalAnnuel, 0)} €` },
+      ],
+      details: [
+        ["Base annuelle",          baseAnnuelle != null ? `${fmt(baseAnnuelle)} €` : null],
+        ["Complémentaire annuelle", complAnnuelle != null ? `${fmt(complAnnuelle)} €` : null],
+        ["Points base",            ptsBase != null ? fmtInt(ptsBase) : null],
+        ["Points complémentaire",  ptsCompl != null ? fmtInt(ptsCompl) : null],
+      ],
+    };
+  }
+
+  const hero = [
+    { label: "Mensuelle brute", value: `${fmt(po.pension_mensuelle_brute)} €` },
+    { label: "Annuelle brute",  value: `${fmt(po.pension_annuelle_brute, 0)} €` },
+  ];
+
+  if (code === "CNAV") {
+    return {
+      hero,
+      details: [
+        ["SAM · 25 meilleures années",   po.sam != null ? `${fmt(po.sam, 0)} €` : null],
+        ["Taux de liquidation",          po.taux_liquidation != null ? `${po.taux_liquidation} %` : null],
+        ["Coefficient de proratisation", po.coefficient_proratisation?.toFixed(4)],
+      ],
+    };
+  }
+  if (code === "AGIRC_ARRCO") {
+    return {
+      hero,
+      details: [
+        ["Nb points total",   fmtInt(po.total_points ?? po.nb_points_total)],
+        ["Coeff. solidarité", po.coefficient_solidarite ? `−${(po.coefficient_solidarite * 100).toFixed(0)} %` : "Aucun (taux plein)"],
+        ["Valeur de service", po.valeur_point != null || po.valeur_service != null ? `${po.valeur_point ?? po.valeur_service} €/pt` : null],
+      ],
+    };
+  }
+  // IRCANTEC, RCI
+  return {
+    hero,
+    details: [
+      ["Nb points total", fmtInt(po.nb_points_total)],
+      ["Valeur du point", po.valeur_point != null ? `${po.valeur_point} €` : null],
+    ],
+  };
+}
+
+function RegimeAlertes({ alertes, themeColor }) {
+  if (!alertes || alertes.length === 0) return null;
+  return (
+    <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${themeColor}20`, display: "flex", flexDirection: "column", gap: 5 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Alertes</div>
+      {alertes.map((a, i) => {
+        const c = a.niveau === "ROUGE" ? "#D63031" : a.niveau === "ORANGE" ? "#E17055" : a.niveau === "JAUNE" ? "#F9A825" : "#00B894";
+        const msg = a.message?.raison || a.message || (typeof a === "object" ? a.raison || a.message : a);
+        return (
+          <div key={`${a.code}-${i}`} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "6px 10px", borderRadius: 6, background: `${c}0D`, border: `1px solid ${c}28` }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: c, flexShrink: 0, minWidth: 36 }}>{a.code}</span>
+            <span style={{ fontSize: 12, color: "#444", lineHeight: 1.4 }}>{msg}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function RegimeArretCritique({ arret, alertes }) {
+  return (
+    <div style={{ marginTop: 14, borderRadius: 8, background: "#D6303108", border: "1px solid #D6303130", overflow: "hidden" }}>
+      <div style={{ padding: "11px 14px 10px", borderBottom: alertes && alertes.length > 0 ? "1px solid #D6303120" : "none" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+          <span style={{ fontSize: 14 }}>🚫</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#D63031", letterSpacing: "0.06em", textTransform: "uppercase" }}>Arrêt critique</span>
+        </div>
+        <div style={{ fontSize: 14, color: "#D63031", lineHeight: 1.5 }}>
+          {arret.raison || (typeof arret === "string" ? arret : JSON.stringify(arret))}
+        </div>
+        {arret.action_requise && (
+          <div style={{ marginTop: 7, paddingTop: 7, borderTop: "1px solid #D6303118", fontSize: 12, color: "#b71c1c", lineHeight: 1.4 }}>
+            <span style={{ fontWeight: 600 }}>Action requise —</span> {arret.action_requise}
+          </div>
+        )}
+      </div>
+      {alertes && alertes.length > 0 && (
+        <div style={{ padding: "9px 14px 11px", display: "flex", flexDirection: "column", gap: 5 }}>
+          {alertes.map((a, i) => {
+            const c = a.niveau === "ROUGE" ? "#D63031" : a.niveau === "ORANGE" ? "#E17055" : "#F9A825";
+            return (
+              <div key={`${a.code}-${i}`} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: c, flexShrink: 0, minWidth: 32 }}>{a.code}</span>
+                <span style={{ fontSize: 12, color: "#555", lineHeight: 1.4 }}>{a.message}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RegimeResultCard({ code, loading, error, result, carriereValidee }) {
+  const theme = REGIME_THEMES[code];
+  const po = result?.python_output;
+  const arret = result?.arret_critique;
+  const alertes = result?.alertes;
+  const { hero, details } = buildRegimeView(code, po);
+  const visibleDetails = details.filter(([_, v]) => v != null && v !== "");
 
   return (
-    <div style={{ marginTop: 14 }}>
-      <div style={{ background: "#9B59B608", border: "1px solid #9B59B620", borderRadius: 8, padding: "10px 14px" }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: "#9B59B6", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Résultat CIPAV</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
-          <div style={{ background: "#9B59B618", borderRadius: 7, padding: "10px 12px" }}>
-            <div style={{ fontSize: 9, color: "#555", marginBottom: 4 }}>Total mensuel</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: "#9B59B6" }}>
-              {totalMensuel.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €
-            </div>
-          </div>
-          <div style={{ background: "#fbf8fd", borderRadius: 7, padding: "10px 12px", border: "1px solid #9B59B610" }}>
-            <div style={{ fontSize: 9, color: "#555", marginBottom: 4 }}>Total annuel</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>
-              {totalAnnuel.toLocaleString("fr-FR", { minimumFractionDigits: 0 })} €
-            </div>
-          </div>
-          <div style={{ background: "#fbf8fd", borderRadius: 7, padding: "8px 10px", border: "1px solid #9B59B608" }}>
-            <div style={{ fontSize: 8, color: "#666", marginBottom: 2 }}>Base annuelle</div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>{baseAnnuelle.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €</div>
-          </div>
-          <div style={{ background: "#fbf8fd", borderRadius: 7, padding: "8px 10px", border: "1px solid #9B59B608" }}>
-            <div style={{ fontSize: 8, color: "#666", marginBottom: 2 }}>Compl. annuelle</div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>{complAnnuelle.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €</div>
-          </div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {[
-            ["Points base", ptsBase != null ? ptsBase.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : null],
-            ["Points complémentaire", ptsCompl != null ? ptsCompl.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : null],
-          ].map(([label, val]) => (
-            <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 10, borderBottom: "1px solid #9B59B610", paddingBottom: 4 }}>
-              <span style={{ color: "#666" }}>{label}</span>
-              <span style={{ fontWeight: 700, color: "#1a1a2e" }}>{val}</span>
-            </div>
-          ))}
-        </div>
+    <div style={{ marginTop: 12, padding: "12px 14px", background: carriereValidee ? `${theme.color}0A` : "#fafafa", borderRadius: 9, border: `1px solid ${carriereValidee ? `${theme.color}30` : "#e8e8e8"}` }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+        <span style={{ fontSize: 16 }}>{theme.icon}</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>Calcul {theme.title.replace("Pension ", "pension ")}</span>
+        {!carriereValidee && (
+          <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
+        )}
       </div>
+
+      {loading && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: theme.color }}>
+          <span style={{ display: "inline-block", width: 10, height: 10, border: `2px solid ${theme.color}40`, borderTop: `2px solid ${theme.color}`, borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+          Calcul {theme.label} en cours…
+        </div>
+      )}
+
+      {error && (
+        <div style={{ marginTop: 8, fontSize: 12, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
+          ⚠ {error}
+        </div>
+      )}
+
+      {arret && <RegimeArretCritique arret={arret} alertes={alertes} />}
+
+      {!arret && po && (
+        <div style={{ marginTop: 12, background: "#fff", border: `1px solid ${theme.color}20`, borderRadius: 8, padding: "10px 14px", boxShadow: `0 2px 8px ${theme.color}0A` }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: theme.color, textTransform: "uppercase", letterSpacing: "0.07em" }}>Résultat {theme.label}</span>
+            <span style={{ fontSize: 9, fontWeight: 700, color: theme.color, background: `${theme.color}15`, padding: "2px 7px", borderRadius: 3, letterSpacing: "0.08em" }}>CALCUL BRUT</span>
+          </div>
+
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: visibleDetails.length > 0 ? 10 : 0 }}>
+            {hero.map((h, i) => (
+              <div key={h.label} style={{ flex: "1 1 130px", background: i === 0 ? `${theme.color}15` : `${theme.color}05`, borderRadius: 7, padding: "10px 12px", border: i === 0 ? "none" : `1px solid ${theme.color}10` }}>
+                <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>{h.label}</div>
+                <div style={{ fontSize: i === 0 ? 22 : 16, fontWeight: 700, color: i === 0 ? theme.color : "#1a1a2e", lineHeight: 1, letterSpacing: "-0.01em" }}>{h.value}</div>
+              </div>
+            ))}
+          </div>
+
+          {visibleDetails.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              {visibleDetails.map(([label, value], i) => (
+                <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: i < visibleDetails.length - 1 ? `1px solid ${theme.color}12` : "none" }}>
+                  <span style={{ fontSize: 12, color: "#666" }}>{label}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>{value}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <RegimeAlertes alertes={alertes} themeColor={theme.color} />
+        </div>
+      )}
     </div>
   );
 }
@@ -3093,6 +3228,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             </div>
                           </div>
 
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 18, marginBottom: 10, paddingTop: 12, borderTop: "1px solid #e8e8e8" }}>
+                            <span style={{ fontSize: 16 }}>🔧</span>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: panel.color, textTransform: "uppercase", letterSpacing: "0.05em" }}>Scénarios applicables</span>
+                            <span style={{ fontSize: 11, color: "#888" }}>— éligibles ({Object.values(scenarioSkillResults).filter(r => r?.eligible === true).length}) + rachats VPLR</span>
+                          </div>
+
                           <div className="simu-action-grid">
                             {panel.actions.filter((action) => {
                               const code = DISPOSITIF_TO_SKILL_CODE[action.id];
@@ -3372,329 +3513,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                           )}
 
                           {showDetailedCalcs && (<>
-                          {/* ── Calculer CNAV ── */}
-                          <div style={{ marginTop: 18, padding: "12px 14px", background: carriereValidee ? "#f0fdf9" : "#fafafa", borderRadius: 9, border: `1px solid ${carriereValidee ? "#00B89430" : "#e8e8e8"}` }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                              <span style={{ fontSize: 16 }}>🧮</span>
-                              <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>Calcul pension CNAV</span>
-                              {!carriereValidee && (
-                                <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
-                              )}
-                            </div>
-                            {skillLoading && (
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#6C5CE7" }}>
-                                <span style={{ display: "inline-block", width: 10, height: 10, border: "2px solid #6C5CE740", borderTop: "2px solid #6C5CE7", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                                Calcul CNAV en cours…
-                              </div>
-                            )}
-                            {skillError && (
-                              <div style={{ marginTop: 8, fontSize: 12, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
-                                ⚠ {skillError}
-                              </div>
-                            )}
-
-                            {/* ── Résultat CNAV ── */}
-                            {skillResult && (
-                              <div style={{ marginTop: 14, animation: "cnavReveal 0.35s cubic-bezier(0.16,1,0.3,1) both" }}>
-
-                                {/* ── ÉTAT CRITIQUE ── */}
-                                {skillResult.arret_critique ? (
-                                  <div style={{ borderRadius: 8, background: "#D6303108", border: "1px solid #D6303130", overflow: "hidden" }}>
-                                    <div style={{ padding: "11px 14px 10px", borderBottom: "1px solid #D6303120" }}>
-                                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                                        <span style={{ fontSize: 14 }}>🚫</span>
-                                        <span style={{ fontSize: 12, fontWeight: 700, color: "#D63031", letterSpacing: "0.06em", textTransform: "uppercase" }}>Arrêt critique</span>
-                                      </div>
-                                      <div style={{ fontSize: 14, color: "#D63031", lineHeight: 1.5 }}>
-                                        {skillResult.arret_critique.raison || (typeof skillResult.arret_critique === 'string' ? skillResult.arret_critique : JSON.stringify(skillResult.arret_critique))}
-                                      </div>
-                                      {skillResult.arret_critique.action_requise && (
-                                        <div style={{ marginTop: 7, paddingTop: 7, borderTop: "1px solid #D6303118", fontSize: 12, color: "#b71c1c", lineHeight: 1.4 }}>
-                                          <span style={{ fontWeight: 600 }}>Action requise —</span> {skillResult.arret_critique.action_requise}
-                                        </div>
-                                      )}
-                                    </div>
-                                    {skillResult.alertes && skillResult.alertes.length > 0 && (
-                                      <div style={{ padding: "9px 14px 11px", display: "flex", flexDirection: "column", gap: 5 }}>
-                                        {skillResult.alertes.map((a, i) => {
-                                          const c = a.niveau === "ROUGE" ? "#D63031" : a.niveau === "ORANGE" ? "#E17055" : "#F9A825";
-                                          return (
-                                            <div key={`${a.code}-${i}`} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                                              <span style={{ fontSize: 11, fontWeight: 700, color: c, flexShrink: 0, minWidth: 32 }}>{a.code}</span>
-                                              <span style={{ fontSize: 12, color: "#555", lineHeight: 1.4 }}>{a.message}</span>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    )}
-                                  </div>
-
-                                ) : skillResult.python_output ? (
-
-                                  /* ── ÉTAT SUCCESS ── */
-                                  <div style={{ borderRadius: 8, background: "#fff", border: "1px solid #6C5CE722", overflow: "hidden", boxShadow: "0 2px 8px rgba(108,92,231,0.06)" }}>
-
-                                    {/* En-tête */}
-                                    <div style={{ padding: "10px 14px 9px", background: "#6C5CE708", borderBottom: "1px solid #6C5CE715", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                                      <span style={{ fontSize: 12, fontWeight: 700, color: "#6C5CE7", textTransform: "uppercase", letterSpacing: "0.07em" }}>Résultat CNAV</span>
-                                      <span style={{ fontSize: 10, fontWeight: 700, color: "#6C5CE7", background: "#6C5CE715", padding: "2px 7px", borderRadius: 3, letterSpacing: "0.08em" }}>CALCUL BRUT</span>
-                                    </div>
-
-                                    {/* Pensions — hero */}
-                                    <div style={{ padding: "12px 14px", borderBottom: "1px solid #f0eeff", display: "flex", flexWrap: "wrap", gap: 10 }}>
-                                      <div style={{ flex: "1 1 120px", background: "#6C5CE710", borderRadius: 7, padding: "10px 12px" }}>
-                                        <div style={{ fontSize: 11, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Mensuelle brute</div>
-                                        <div style={{ fontSize: 22, fontWeight: 700, color: "#6C5CE7", lineHeight: 1, letterSpacing: "-0.01em" }}>
-                                          {skillResult.python_output.pension_mensuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 2 })}
-                                          <span style={{ fontSize: 15, fontWeight: 600, marginLeft: 3 }}>€</span>
-                                        </div>
-                                      </div>
-                                      <div style={{ flex: "1 1 120px", background: "#f8f7ff", borderRadius: 7, padding: "10px 12px" }}>
-                                        <div style={{ fontSize: 11, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Annuelle brute</div>
-                                        <div style={{ fontSize: 16, fontWeight: 700, color: "#1a1a2e", lineHeight: 1, letterSpacing: "-0.01em" }}>
-                                          {skillResult.python_output.pension_annuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 0 })}
-                                          <span style={{ fontSize: 13, fontWeight: 600, marginLeft: 3, color: "#555" }}>€</span>
-                                        </div>
-                                      </div>
-                                    </div>
-
-                                    {/* Paramètres */}
-                                    <div style={{ padding: "10px 14px 12px" }}>
-                                      <div style={{ fontSize: 11, fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Paramètres de calcul</div>
-                                      <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                                        {[
-                                          ["SAM · 25 meilleures années", `${skillResult.python_output.sam?.toLocaleString("fr-FR", { minimumFractionDigits: 0 })} €`],
-                                          ["Taux de liquidation",         `${skillResult.python_output.taux_liquidation} %`],
-                                          ["Coefficient de proratisation", skillResult.python_output.coefficient_proratisation?.toFixed(4)],
-                                        ].map(([label, val], i) => (
-                                          <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: i < 2 ? "1px solid #f4f3ff" : "none" }}>
-                                            <span style={{ fontSize: 12, color: "#666" }}>{label}</span>
-                                            <span style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>{val}</span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-
-                                    {/* Alertes */}
-                                    {skillResult.alertes && skillResult.alertes.length > 0 && (
-                                      <div style={{ padding: "8px 14px 12px", borderTop: "1px solid #f0eeff" }}>
-                                        <div style={{ fontSize: 11, fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 7 }}>Alertes</div>
-                                        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                                          {skillResult.alertes.map((a, i) => {
-                                            const c = a.niveau === "ROUGE" ? "#D63031" : a.niveau === "ORANGE" ? "#E17055" : "#F9A825";
-                                            return (
-                                              <div key={`${a.code}-${i}`} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "6px 10px", borderRadius: 6, background: `${c}0D`, border: `1px solid ${c}28` }}>
-                                                <span style={{ fontSize: 11, fontWeight: 700, color: c, flexShrink: 0, minWidth: 32 }}>{a.code}</span>
-                                                <span style={{ fontSize: 12, color: "#444", lineHeight: 1.4 }}>{a.message}</span>
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-                                      </div>
-                                    )}
-
-                                    {/* Pied */}
-                                    <div style={{ padding: "6px 14px", borderTop: "1px solid #f4f3ff", background: "#faf9ff" }}>
-                                      <span style={{ fontSize: 11, color: "#666" }}>Montants bruts avant prélèvements sociaux (CSG/CRDS 9,2 %)</span>
-                                    </div>
-                                  </div>
-
-                                ) : null}
-                              </div>
-                            )}
-                          </div>
-                          {/* ── Calculer AGIRC-ARRCO ── */}
-                          <div style={{ marginTop: 12, padding: "12px 14px", background: carriereValidee ? "#f0f7ff" : "#fafafa", borderRadius: 9, border: `1px solid ${carriereValidee ? "#0984E330" : "#e8e8e8"}` }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                              <span style={{ fontSize: 16 }}>📊</span>
-                              <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>Calcul pension AGIRC-ARRCO</span>
-                              {!carriereValidee && (
-                                <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
-                              )}
-                            </div>
-                            {agircLoading && (
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#0984E3" }}>
-                                <span style={{ display: "inline-block", width: 10, height: 10, border: "2px solid #0984E340", borderTop: "2px solid #0984E3", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                                Calcul AGIRC-ARRCO en cours…
-                              </div>
-                            )}
-                            {agircError && (
-                              <div style={{ marginTop: 8, fontSize: 12, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
-                                ⚠ {agircError}
-                              </div>
-                            )}
-
-                            {/* ── Résultat AGIRC-ARRCO ── */}
-                            {agircResult && agircResult.python_output && (
-                              <div style={{ marginTop: 14 }}>
-                                {agircResult.arret_critique && (
-                                  <div style={{ marginBottom: 10, padding: "10px 12px", borderRadius: 8, background: "#D6303112", border: "2px solid #D63031" }}>
-                                    <div style={{ fontSize: 13, fontWeight: 700, color: "#D63031", marginBottom: 4 }}>🚫 Arrêt critique</div>
-                                    <div style={{ fontSize: 12, color: "#D63031" }}>{agircResult.arret_critique.raison || (typeof agircResult.arret_critique === 'string' ? agircResult.arret_critique : JSON.stringify(agircResult.arret_critique))}</div>
-                                  </div>
-                                )}
-                                <div style={{ background: "#0984E308", border: "1px solid #0984E320", borderRadius: 8, padding: "10px 14px", marginBottom: 10 }}>
-                                  <div style={{ fontSize: 12, fontWeight: 700, color: "#0984E3", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Résultat AGIRC-ARRCO</div>
-                                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px" }}>
-                                    {[
-                                      ["Pension mensuelle brute", `${agircResult.python_output.pension_mensuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €`, "#0984E3", true],
-                                      ["Pension annuelle brute",  `${agircResult.python_output.pension_annuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €`, "#1a1a2e", false],
-                                      ["Nb points total",         (agircResult.python_output.total_points ?? agircResult.python_output.nb_points_total)?.toLocaleString("fr-FR"), "#6C5CE7", false],
-                                      ["Coeff. solidarité",       agircResult.python_output.coefficient_solidarite ? `-${agircResult.python_output.coefficient_solidarite * 100}%` : "Aucun (taux plein)", agircResult.python_output.coefficient_solidarite ? "#E17055" : "#00B894", false],
-                                      ["Valeur de service",       `${(agircResult.python_output.valeur_point ?? agircResult.python_output.valeur_service)} €/pt`, "#888", false],
-                                    ].map(([label, val, color, big]) => (
-                                      <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #0984E310" }}>
-                                        <span style={{ fontSize: 11, color: "#555" }}>{label}</span>
-                                        <span style={{ fontSize: big ? 13 : 10, fontWeight: 700, color }}>{val}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                                {agircResult.alertes && agircResult.alertes.length > 0 && (
-                                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                    <div style={{ fontSize: 12, fontWeight: 700, color: "#555", marginBottom: 2 }}>Alertes</div>
-                                    {agircResult.alertes.map((a, i) => {
-                                      const color = a.niveau === "ROUGE" ? "#D63031" : a.niveau === "JAUNE" ? "#F9A825" : "#00B894";
-                                      return (
-                                        <div key={`${a.code}-${i}`} style={{ display: "flex", gap: 8, padding: "7px 10px", borderRadius: 6, background: `${color}10`, border: `1px solid ${color}30` }}>
-                                          <span style={{ fontSize: 12, fontWeight: 700, color, flexShrink: 0, minWidth: 36 }}>{a.code}</span>
-                                          <span style={{ fontSize: 12, color: "#333" }}>{a.message?.raison || a.message || (typeof a === 'object' ? a.raison || a.message : a)}</span>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* ── Calculer IRCANTEC ── */}
-                          <div style={{ marginTop: 12, padding: "12px 14px", background: carriereValidee ? "#f0fdf9" : "#fafafa", borderRadius: 9, border: `1px solid ${carriereValidee ? "#00B89430" : "#e8e8e8"}` }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                              <span style={{ fontSize: 16 }}>🏢</span>
-                              <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>Calcul pension IRCANTEC</span>
-                              {!carriereValidee && (
-                                <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
-                              )}
-                            </div>
-                            {ircantecLoading && (
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#00B894" }}>
-                                <span style={{ display: "inline-block", width: 10, height: 10, border: "2px solid #00B89440", borderTop: "2px solid #00B894", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                                Calcul IRCANTEC en cours…
-                              </div>
-                            )}
-                            {ircantecError && (
-                              <div style={{ marginTop: 8, fontSize: 12, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
-                                ⚠ {ircantecError}
-                              </div>
-                            )}
-                            {/* Résultat IRCANTEC */}
-                            {ircantecResult && ircantecResult.python_output && (
-                              <div style={{ marginTop: 14 }}>
-                                <div style={{ background: "#00B89408", border: "1px solid #00B89420", borderRadius: 8, padding: "10px 14px" }}>
-                                  <div style={{ fontSize: 12, fontWeight: 700, color: "#00B894", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Résultat IRCANTEC</div>
-                                  <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
-                                    <div style={{ flex: 1, background: "#00B89415", borderRadius: 7, padding: "10px 12px" }}>
-                                      <div style={{ fontSize: 11, color: "#555", marginBottom: 4 }}>Mensuelle brute</div>
-                                      <div style={{ fontSize: 20, fontWeight: 700, color: "#00B894" }}>{ircantecResult.python_output.pension_mensuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €</div>
-                                    </div>
-                                    <div style={{ flex: 1, background: "#f8fdfb", borderRadius: 7, padding: "10px 12px", border: "1px solid #00B89410" }}>
-                                      <div style={{ fontSize: 11, color: "#555", marginBottom: 4 }}>Annuelle brute</div>
-                                      <div style={{ fontSize: 15, fontWeight: 700, color: "#1a1a2e" }}>{ircantecResult.python_output.pension_annuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 0 })} €</div>
-                                    </div>
-                                  </div>
-                                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                    {[
-                                      ["Nb points total", ircantecResult.python_output.nb_points_total?.toLocaleString("fr-FR")],
-                                      ["Valeur du point", `${ircantecResult.python_output.valeur_point} €`],
-                                    ].map(([label, val]) => (
-                                      <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, borderBottom: "1px solid #00B89410", paddingBottom: 4 }}>
-                                        <span style={{ color: "#666" }}>{label}</span>
-                                        <span style={{ fontWeight: 700, color: "#1a1a2e" }}>{val}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* ── Calculer RCI ── */}
-                          <div style={{ marginTop: 12, padding: "12px 14px", background: carriereValidee ? "#fef8f5" : "#fafafa", borderRadius: 9, border: `1px solid ${carriereValidee ? "#E1705530" : "#e8e8e8"}` }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                              <span style={{ fontSize: 16 }}>📑</span>
-                              <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>Calcul pension RCI</span>
-                              {!carriereValidee && (
-                                <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
-                              )}
-                            </div>
-                            {rciLoading && (
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#E17055" }}>
-                                <span style={{ display: "inline-block", width: 10, height: 10, border: "2px solid #E1705540", borderTop: "2px solid #E17055", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                                Calcul RCI en cours…
-                              </div>
-                            )}
-                            {rciError && (
-                              <div style={{ marginTop: 8, fontSize: 12, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
-                                ⚠ {rciError}
-                              </div>
-                            )}
-                            {/* Résultat RCI */}
-                            {rciResult && rciResult.python_output && (
-                              <div style={{ marginTop: 14 }}>
-                                <div style={{ background: "#E1705508", border: "1px solid #E1705520", borderRadius: 8, padding: "10px 14px" }}>
-                                  <div style={{ fontSize: 12, fontWeight: 700, color: "#E17055", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Résultat RCI</div>
-                                  <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
-                                    <div style={{ flex: 1, background: "#E1705515", borderRadius: 7, padding: "10px 12px" }}>
-                                      <div style={{ fontSize: 11, color: "#555", marginBottom: 4 }}>Mensuelle brute</div>
-                                      <div style={{ fontSize: 20, fontWeight: 700, color: "#E17055" }}>{rciResult.python_output.pension_mensuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €</div>
-                                    </div>
-                                    <div style={{ flex: 1, background: "#fffaf8", borderRadius: 7, padding: "10px 12px", border: "1px solid #E1705510" }}>
-                                      <div style={{ fontSize: 11, color: "#555", marginBottom: 4 }}>Annuelle brute</div>
-                                      <div style={{ fontSize: 15, fontWeight: 700, color: "#1a1a2e" }}>{rciResult.python_output.pension_annuelle_brute?.toLocaleString("fr-FR", { minimumFractionDigits: 0 })} €</div>
-                                    </div>
-                                  </div>
-                                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                    {[
-                                      ["Nb points total", rciResult.python_output.nb_points_total?.toLocaleString("fr-FR")],
-                                      ["Valeur du point", `${rciResult.python_output.valeur_point} €`],
-                                    ].map(([label, val]) => (
-                                      <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, borderBottom: "1px solid #E1705510", paddingBottom: 4 }}>
-                                        <span style={{ color: "#666" }}>{label}</span>
-                                        <span style={{ fontWeight: 700, color: "#1a1a2e" }}>{val}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* ── Calculer CIPAV ── */}
-                          <div style={{ marginTop: 12, padding: "12px 14px", background: carriereValidee ? "#f9f1fc" : "#fafafa", borderRadius: 9, border: `1px solid ${carriereValidee ? "#9B59B630" : "#e8e8e8"}` }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                              <span style={{ fontSize: 16 }}>🏥</span>
-                              <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>Calcul pension CIPAV</span>
-                              {!carriereValidee && (
-                                <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
-                              )}
-                            </div>
-                            {cipavLoading && (
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#9B59B6" }}>
-                                <span style={{ display: "inline-block", width: 10, height: 10, border: "2px solid #9B59B640", borderTop: "2px solid #9B59B6", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                                Calcul CIPAV en cours…
-                              </div>
-                            )}
-                            {cipavError && (
-                              <div style={{ marginTop: 8, fontSize: 12, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
-                                ⚠ {cipavError}
-                              </div>
-                            )}
-                            {/* Résultat CIPAV */}
-                            {cipavResult && cipavResult.python_output && (
-                              <CipavResult po={cipavResult.python_output} />
-                            )}
-                          </div>
+                            <RegimeResultCard code="CNAV"        carriereValidee={carriereValidee} loading={skillLoading}    error={skillError}    result={skillResult} />
+                            <RegimeResultCard code="AGIRC_ARRCO" carriereValidee={carriereValidee} loading={agircLoading}    error={agircError}    result={agircResult} />
+                            <RegimeResultCard code="IRCANTEC"    carriereValidee={carriereValidee} loading={ircantecLoading} error={ircantecError} result={ircantecResult} />
+                            <RegimeResultCard code="RCI"         carriereValidee={carriereValidee} loading={rciLoading}      error={rciError}      result={rciResult} />
+                            <RegimeResultCard code="CIPAV"       carriereValidee={carriereValidee} loading={cipavLoading}    error={cipavError}    result={cipavResult} />
                           </>)}
                         </div>
                       );
