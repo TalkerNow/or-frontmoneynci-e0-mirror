@@ -257,10 +257,16 @@ export async function executeRaclScenario(clientId, scenarioParams = {}) {
   );
 
   const data = Array.isArray(response.data) ? response.data[0] : response.data;
+  const raclResult = data.racl_result || {};
+  const manquants = raclResult.duree_requise != null && raclResult.trim_cotises_actuels != null
+    ? Math.max(0, raclResult.duree_requise - raclResult.trim_cotises_actuels)
+    : data.manquants ?? null;
   return {
     ...data,
     eligible: data.racl_eligible ?? data.eligible,
-    raison_eligibilite: data.racl_result?.message || data.message || data.raison_eligibilite,
+    raison_eligibilite: raclResult.raison || raclResult.message || data.message || data.raison_eligibilite || null,
+    manquants,
+    palier: raclResult.palier ?? data.palier ?? null,
   };
 }
 

@@ -495,7 +495,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     }
   };
 
-  const [activatedDispositifs, setActivatedDispositifs] = useState([]);
+  const [activatedDispositifs, setActivatedDispositifs] = useState(() => {
+    try {
+      const stored = localStorage.getItem(`simu_dispositifs_${id}`);
+      return stored ? JSON.parse(stored) : [];
+    } catch { return []; }
+  });
   // eslint-disable-next-line no-unused-vars
   const [showAutoResults, setShowAutoResults] = useState(false);
   const [excludedDates, setExcludedDates] = useState([]);
@@ -913,6 +918,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     setScenarioSkillResults({});
     setScenarioSkillErrors({});
     setActivatedDispositifs([]);
+    try { localStorage.removeItem(`simu_dispositifs_${id}`); } catch {}
     setDetectedDispositifs({});
     setShowAutoResults(false);
     setGeneratedDocs([]);
@@ -1753,10 +1759,14 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     mono: { fontFamily: "'IBM Plex Mono', 'Courier New', monospace" },
   };
 
-  const toggleDispositif = (id) => {
-    setActivatedDispositifs((prev) =>
-      prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]
-    );
+  const toggleDispositif = (dispositifId) => {
+    setActivatedDispositifs((prev) => {
+      const next = prev.includes(dispositifId)
+        ? prev.filter((d) => d !== dispositifId)
+        : [...prev, dispositifId];
+      try { localStorage.setItem(`simu_dispositifs_${id}`, JSON.stringify(next)); } catch {}
+      return next;
+    });
   };
 
   const getPlafond = (yr) => PLAFONDS_SS[yr] || 48060;
