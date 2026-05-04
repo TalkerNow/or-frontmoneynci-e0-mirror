@@ -1215,18 +1215,23 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           });
         }
 
-        // 4. Synthèse globale
+        // 4. Synthèse globale — structure imbriquée par régime, alignée sur handleGeler (L1938+)
         const synthese = payload.synthese || {};
         if (synthese.trimestres_total || synthese.points) {
           const pts = synthese.points || {};
+          const cipavBase = pts.cipav_base ?? null;
+          const cipavCompl = pts.cipav_complementaire ?? null;
           setDroitsSynthese({
             trimestres_total: synthese.trimestres_total,
-            points_agirc_arrco: pts.agirc_arrco,
-            points_cipav_base: pts.cipav_base,
-            points_cipav_complementaire: pts.cipav_complementaire,
-            points_cipav: (pts.cipav ?? ((pts.cipav_base || 0) + (pts.cipav_complementaire || 0))) || null,
-            ...(pts.ircantec != null && { ircantec: { points_total: pts.ircantec } }),
-            ...(pts.rci != null      && { rci:      { points_total: pts.rci      } }),
+            ...(pts.agirc_arrco != null && { agirc_arrco: { points_total: pts.agirc_arrco } }),
+            ...(pts.ircantec    != null && { ircantec:    { points_total: pts.ircantec    } }),
+            ...(pts.rci         != null && { rci:         { points_total: pts.rci         } }),
+            ...((cipavBase != null || cipavCompl != null) && {
+              cipav: {
+                points_base: cipavBase ?? 0,
+                points_complementaire: cipavCompl ?? 0,
+              },
+            }),
           });
         }
 
