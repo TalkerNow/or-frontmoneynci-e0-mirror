@@ -1963,7 +1963,14 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           nom: user?.last_name || lastRisPayload?.profil?.nom || "",
           prenom: user?.first_name || lastRisPayload?.profil?.prenom || "",
           date_naissance: dateNaissanceFinale,
-          sexe: nirInfo?.sexe || user?.sexe || null,
+          // Sexe : priorité à la civilité explicite de la fiche (Madame/Mlle/Monsieur)
+          // car le consultant peut l'avoir corrigée manuellement ; fallback sur NIR puis user.sexe.
+          sexe: (() => {
+            const civ = String(user?.civility || '').toLowerCase().trim();
+            if (civ === 'madame' || civ === 'mme' || civ === 'mlle' || civ === 'mademoiselle') return 'F';
+            if (civ === 'monsieur' || civ === 'mr' || civ === 'm.') return 'M';
+            return nirInfo?.sexe || user?.sexe || null;
+          })(),
           nombre_enfants: parseInt(
             user?.children_number
               ?? user?.profil?.children_number

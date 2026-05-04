@@ -1734,7 +1734,12 @@ export const useNotesLogic = (id, perso) => {
           nom: perso?.last_name || "",
           prenom: perso?.first_name || "",
           date_naissance: birthDate,
-          sexe: perso?.sexe || null,
+          sexe: (() => {
+            const civ = String(perso?.civility || '').toLowerCase().trim();
+            if (civ === 'madame' || civ === 'mme' || civ === 'mlle' || civ === 'mademoiselle') return 'F';
+            if (civ === 'monsieur' || civ === 'mr' || civ === 'm.') return 'M';
+            return perso?.sexe || null;
+          })(),
           nombre_enfants: parseInt(
             perso?.children_number
               ?? perso?.profil?.children_number
