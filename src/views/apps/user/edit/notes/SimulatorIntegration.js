@@ -12,7 +12,7 @@ import {
   loadUploadedDocs,
   parseNIR,
 } from "./utils";
-import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrIncompleteScenario, executeVplrEtudeScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAuditRetraite } from "../risService";
+import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrIncompleteScenario, executeVplrEtudeScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAuditRetraite, fetchAuditLatest } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
@@ -1618,10 +1618,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         client_id: id,
         dispositifs_actives: dispositifsN8n,
         profil_client: {
-          nom:       user?.last_name  || "",
-          prenom:    user?.first_name || "",
-          naissance: user?.birth_date || "",
-          enfants:   user?.children_number ?? 0,
+          nom:       user?.last_name  || lastRisPayload?.profil?.nom || "",
+          prenom:    user?.first_name || lastRisPayload?.profil?.prenom || "",
+          naissance: user?.birth_date || lastRisPayload?.profil?.date_naissance || "",
+          nir:       user?.secu_social || lastRisPayload?.profil?.numero_securite_sociale || lastRisPayload?.profil?.numero_ss || "",
+          enfants:   user?.children_number ?? user?.nombre_enfants ?? lastRisPayload?.profil?.nombre_enfants ?? 0,
           regime:    user?.regime || "",
         },
         regimes: {
@@ -1641,43 +1642,24 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         },
       };
 
-      toast.info("Génération de l'audit retraite en cours… (~10-15 min)", { autoClose: 15000 });
+      toast.info("Génération de l'audit retraite en cours… (~2-5 min)", { autoClose: 30000 });
 
-      const backendRes = await executeAuditRetraite(payload);
+      // Déclenche la génération — Laravel répond immédiatement {status: 'processing'}
+      await executeAuditRetraite(payload);
 
-      // Extraction HTML depuis réponse backend
-      // backendRes = { success, n8n_status, data: <réponse n8n> }
-      let raw = "";
-      const n8nData = backendRes?.data ?? backendRes;
-      const root = Array.isArray(n8nData) ? n8nData[0] : n8nData;
-      if (root && typeof root === "object") {
-        raw = root.result_json?.htmlContent
-           || root.html_report
-           || root.text
-           || root.output
-           || root.response
-           || JSON.stringify(root);
-      } else if (typeof root === "string") {
-        raw = root;
-      } else {
-        raw = String(n8nData ?? "");
+      // Poll toutes les 15s jusqu'à résultat (max 40 tentatives = ~10 min)
+      let contentString = null;
+      for (let attempt = 0; attempt < 40; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 15000));
+        if (axios.isCancel(cancelAuditRef.current)) break;
+        const pollRes = await fetchAuditLatest(id);
+        if (pollRes?.status === "ready" && pollRes.html) {
+          contentString = pollRes.html;
+          break;
+        }
       }
 
-      // Fix n8n 2.x : string JSON wrappée
-      const trimmedRaw = raw.trim();
-      if (trimmedRaw.charAt(0) === '"' && trimmedRaw.charAt(trimmedRaw.length - 1) === '"') {
-        try { raw = JSON.parse(trimmedRaw); } catch (_) {}
-      }
-      if (raw.indexOf("\\n") !== -1) {
-        raw = raw.split("\\n").join("\n").split("\\t").join("\t").split('\\"').join('"');
-      }
-
-      let contentString = cleanChainOfThought(raw);
-      contentString = contentString
-        .replace(/^```html\s*/i, "")
-        .replace(/^```\s*/i, "")
-        .replace(/\s*```$/i, "")
-        .trim();
+      if (!contentString) throw new Error("Audit non disponible après 10 minutes");
 
       if (
         !contentString.startsWith("<!DOCTYPE") &&

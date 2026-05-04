@@ -201,7 +201,14 @@ const DocumentViewerModal = ({
                   <Button
                     color="primary"
                     className="flex-fill d-flex align-items-center justify-content-center"
-                    onClick={handleDownloadPdf}
+                    onClick={() => {
+                      if (iframeRef.current && iframeRef.current.contentWindow) {
+                        iframeRef.current.contentWindow.focus();
+                        iframeRef.current.contentWindow.print();
+                      } else if (handleDownloadPdf) {
+                        handleDownloadPdf();
+                      }
+                    }}
                     style={{
                       borderRadius: "8px",
                       padding: "10px 16px",

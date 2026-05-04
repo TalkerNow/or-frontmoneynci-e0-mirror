@@ -511,11 +511,20 @@ export async function executeAuditRetraite(payload) {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      timeout: 900000,
+      timeout: 30000,
     }
   );
   const data = response.data;
   return Array.isArray(data) ? data[0] : data;
+}
+
+export async function fetchAuditLatest(clientId) {
+  const token = localStorage.getItem("token");
+  const response = await axios.get(
+    `${global.config.server_url}/v1/audit-retraite/${clientId}/latest`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return response.data;
 }
 
 /**
