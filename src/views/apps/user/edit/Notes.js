@@ -72,6 +72,7 @@ const NotesTab = ({ id, perso = {}, commentsSlot, renderUploadOutside }) => {
   const isProspect = String(perso.role).toLowerCase() === "prospect";
 
   const [portalNode, setPortalNode] = useState(null);
+  const [isNotesExpanded, setIsNotesExpanded] = useState(false);
 
   useEffect(() => {
     // Attempt to find the portal node. It might be available immediately, or shortly after.
@@ -125,8 +126,12 @@ const NotesTab = ({ id, perso = {}, commentsSlot, renderUploadOutside }) => {
       <div className="notes-page h-100">
       <ProspectChatView user={perso} />
 
-      <Row className="match-height flex-grow-1">
-        <Col md={commentsSlot ? "6" : "12"} sm="12" className="d-flex">
+      <Row className="match-height flex-grow-1 notes-two-col-row">
+        <Col
+          md={commentsSlot && !isNotesExpanded ? "6" : "12"}
+          sm="12"
+          className={`d-flex notes-main-col ${isNotesExpanded ? "notes-main-col--expanded" : ""}`}
+        >
           <NotesForm
             notes={notes}
             handleNotesChange={handleNotesChange}
@@ -143,14 +148,42 @@ const NotesTab = ({ id, perso = {}, commentsSlot, renderUploadOutside }) => {
             handleGenerateNotesWithPrompt={handleGenerateNotesWithPrompt}
             previousNotesSnapshot={previousNotesSnapshot}
             handleRestorePreviousNotes={handleRestorePreviousNotes}
+            isExpanded={isNotesExpanded}
+            onToggleExpand={
+              commentsSlot ? () => setIsNotesExpanded((v) => !v) : null
+            }
           />
         </Col>
         {commentsSlot && (
-          <Col md="6" sm="12" className="d-flex">
+          <Col
+            md="6"
+            sm="12"
+            className={`d-flex notes-comments-col ${isNotesExpanded ? "notes-comments-col--hidden" : ""}`}
+            aria-hidden={isNotesExpanded}
+          >
             {commentsSlot}
           </Col>
         )}
       </Row>
+
+      {/* ManualCareerTable masquée
+      {!isProspect && (
+        <ManualCareerTable
+          manualCareerRows={manualCareerRows}
+          setManualCareerRows={setManualCareerRows}
+          handleSalaryChange={handleSalaryChange}
+          handleDeplafonnerChange={handleDeplafonnerChange}
+          handleIsCadreChange={handleIsCadreChange}
+          isCadre={isCadre}
+          handleManualAddLine={handleManualAddLine}
+          handleManualImport={handleManualImport}
+          isImportingRIS={isImportingRIS}
+          handleSaveFrozenData={handleSaveFrozenData}
+          isSavingFrozen={isSavingFrozen}
+          frozenSaved={frozenSaved}
+        />
+      )}
+      */}
 
       <DeleteConfirmModal
         target={deleteConfirmTarget}

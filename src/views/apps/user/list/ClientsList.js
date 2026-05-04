@@ -767,7 +767,7 @@ class ClientsList extends React.Component {
   // --- AgGrid External Filter API
   // Présence du filtre externe si "Mes clients" est actif OU si une recherche téléphone est active
   isExternalFilterPresent = () =>
-    this.state.myFilterId !== null ||
+    (this.state.activeTab === 'mine' && this.state.myFilterId !== null) ||
     (this.state.phoneQueryDigits && this.state.phoneQueryDigits.length > 0);
 
   doesExternalFilterPass = (node) => {

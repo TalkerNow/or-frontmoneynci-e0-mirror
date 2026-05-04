@@ -22,6 +22,42 @@ export const DEFAULT_DOC_URLS = {
   consult: `${PUBLIC_URL}/arrco-simulator.html`,
 };
 
+// ============================================================
+// NIR Parser — extrait sexe + date de naissance depuis le NIR
+// Format NIR : S AA MM DD RR NNN CCC (13 chiffres + 2 clé)
+//   S  = sexe (1=H, 2=F)
+//   AA = année de naissance (2 chiffres)
+//   MM = mois de naissance (01-12)
+//   DD = dept naissance
+//   RR = commune
+//   NNN = n° d'ordre
+// ============================================================
+export function parseNIR(nir) {
+  if (!nir) return null;
+  const digits = String(nir).replace(/\s/g, "");
+  if (digits.length < 5) return null;
+
+  const sexeChar = digits[0];
+  const sexe = sexeChar === "1" ? "H" : sexeChar === "2" ? "F" : null;
+
+  const yy = parseInt(digits.substring(1, 3), 10);
+  const mm = parseInt(digits.substring(3, 5), 10);
+  if (isNaN(yy) || isNaN(mm) || mm < 1 || mm > 12) return { sexe };
+
+  // Règle standard NIR : si yy > 25 → 19yy, sinon 20yy
+  // (Assumption valable jusqu'en 2025)
+  const annee = yy > 25 ? 1900 + yy : 2000 + yy;
+
+  return {
+    sexe,
+    annee_naissance: annee,
+    mois_naissance: mm,
+    // Date estimée au 1er du mois (pas d'info sur le jour dans le NIR)
+    date_naissance_estimee: `${annee}-${String(mm).padStart(2, "0")}-01`,
+    date_naissance_fr: `01/${String(mm).padStart(2, "0")}/${annee}`,
+  };
+}
+
 // Quick Tags for IA prompt - dropdown multi-select format
 export const QUICK_TAGS_OPTIONS = [
   { value: "fin_carriere", label: "Dispositifs fin de carrière" },
@@ -845,7 +881,7 @@ export function convertRISToManualRows(risData, { isCadre = false } = {}) {
     rows.push({
       id: Date.now() + idx,
       annee: String(annee),
-      revenu: formatEUR(brutEUR),
+      revenu: annee <= 2001 ? String(montant) : formatEUR(brutEUR),
       trimBase: String(trimBase),
       trimAR: String(trimAR),
       cnavPoints: cnavDisplay,
@@ -856,6 +892,7 @@ export function convertRISToManualRows(risData, { isCadre = false } = {}) {
       ta,
       tb,
       tc: "",
+      deplafonner: false,
       errY: false,
       errR: false,
     });

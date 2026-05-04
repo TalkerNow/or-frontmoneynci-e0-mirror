@@ -7,7 +7,10 @@ live-front-moneynci.zip
 local_front-moneynci.zip
 build/
 .claude
+graphify-out/
+CLAUDE.md
 
 .env.local
 .env.prod
 .env
+.envexample

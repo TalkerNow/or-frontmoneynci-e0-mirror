@@ -15,6 +15,24 @@ import {
   wrapPlainTextAsHtml,
 } from "./utils";
 import { fetchRISAnalysis } from "../risService";
+import { calculateCnav, calculateArrco, calculateIrcantec, calculateRci } from '../../../../../utils/calculators';
+
+const fmtEUR = (num) =>
+  new Intl.NumberFormat('fr-FR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(num);
+
+function applyCnavToRow(row, result, rawSalary, year) {
+  const salaireEUR = year <= 2001 ? rawSalary / 6.556957 : rawSalary;
+  return {
+    ...row,
+    cnavPoints: fmtEUR(result.revalo),
+    trimBase: String(result.trimestres),
+    ta: fmtEUR(result.salSS),
+    tb: fmtEUR(Math.max(0, salaireEUR - result.salSS)),
+  };
+}
 
 export const useNotesLogic = (id, perso) => {
   const [notes, setNotes] = useState(perso?.notes ?? "");
@@ -74,14 +92,67 @@ export const useNotesLogic = (id, perso) => {
       ta: "",
       tb: "",
       tc: "",
+      deplafonner: false,
       errY: false,
       errR: false,
     },
   ]);
 
+  const [isCadre, setIsCadre] = useState(false);
   const [isImportingRIS, setIsImportingRIS] = useState(false);
+  const [isSavingFrozen, setIsSavingFrozen] = useState(false);
+  const [frozenSaved, setFrozenSaved] = useState(false);
   const [userDocuments, setUserDocuments] = useState([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
+
+  // Load frozen career data on mount to repopulate ManualCareerTable after F5
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    const fetchFrozenData = async () => {
+      try {
+        const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+        const response = await axios.get(`${global.config.server_url}/frozen_data/${id}`, Config);
+        if (cancelled) return;
+        const data = response.data;
+        const carriere = Array.isArray(data.carriere) ? data.carriere : [];
+        if (!carriere.length) return;
+
+        // Build cipav lookup: annee → points_cipav_base
+        const cipavMap = {};
+        if (Array.isArray(data.cipav)) {
+          data.cipav.forEach((c) => { if (c.annee) cipavMap[c.annee] = c.points_cipav_base || 0; });
+        }
+
+        const rows = carriere.map((entry, idx) => ({
+          id: `frozen-${entry.annee}-${idx}`,
+          annee: String(entry.annee || ""),
+          revenu: String(entry.revenu_brut || ""),
+          trimBase: String(entry.trimestres_cotises || ""),
+          trimAR: String(entry.trimestres_assimiles || ""),
+          cnavPoints: "",
+          arrcoPoints: entry.points_agirc_arrco ? String(entry.points_agirc_arrco) : "",
+          ircantecPoints: entry.points_ircantec ? String(entry.points_ircantec) : "",
+          rciPoints: entry.points_rci ? String(entry.points_rci) : "",
+          cipavPoints: cipavMap[entry.annee] ? String(cipavMap[entry.annee]) : "",
+          ta: "",
+          tb: "",
+          tc: "",
+          deplafonner: entry.deplafonne || false,
+          errY: false,
+          errR: false,
+        }));
+
+        setManualCareerRows(rows);
+        setFrozenSaved(true);
+      } catch (err) {
+        if (err.response?.status === 404) return; // no frozen data yet
+        console.error("[fetchFrozenData]", err);
+      }
+    };
+    fetchFrozenData();
+    return () => { cancelled = true; };
+  }, [id]);
 
   const cancelRef = useRef(null);
 
@@ -91,6 +162,79 @@ export const useNotesLogic = (id, perso) => {
       cancelRef.current = null;
     }
     setIsGenerating(false);
+  }, []);
+
+  const handleSalaryChange = useCallback((rowId, newRevenu) => {
+    setFrozenSaved(false);
+    setManualCareerRows((prev) =>
+      prev.map((row) => {
+        if (row.id !== rowId) return row;
+        const base = { ...row, revenu: newRevenu, errR: false };
+        const year = parseInt(row.annee, 10);
+        if (!year) return base;
+        const raw = parseFloat(
+          String(newRevenu).replace(/\s/g, '').replace(',', '.')
+        );
+        if (isNaN(raw) || raw <= 0) {
+          return { ...base, cnavPoints: '', trimBase: '', ta: '', tb: '', arrcoPoints: '', ircantecPoints: '', rciPoints: '' };
+        }
+        let updated = base;
+        const cnavResult = calculateCnav(year, raw, row.deplafonner || false);
+        if (cnavResult) {
+          updated = applyCnavToRow(updated, cnavResult, raw, year);
+        } else {
+          updated = { ...updated, cnavPoints: '', trimBase: '', ta: '', tb: '' };
+        }
+        const arrcoResult = calculateArrco(year, raw, isCadre);
+        updated = { ...updated, arrcoPoints: arrcoResult ? arrcoResult.total.toFixed(2) : '' };
+        const ircantecResult = calculateIrcantec(year, raw);
+        updated = { ...updated, ircantecPoints: ircantecResult ? ircantecResult.total.toFixed(5) : '' };
+        const rciResult = calculateRci(year, raw);
+        updated = { ...updated, rciPoints: rciResult ? rciResult.total.toFixed(5) : '' };
+        return updated;
+      })
+    );
+  }, [isCadre]);
+
+  const handleDeplafonnerChange = useCallback((rowId, checked) => {
+    setManualCareerRows((prev) =>
+      prev.map((row) => {
+        if (row.id !== rowId) return row;
+        const updated = { ...row, deplafonner: checked };
+        const year = parseInt(row.annee, 10);
+        if (!year) return updated;
+        const raw = parseFloat(
+          String(row.revenu).replace(/\s/g, '').replace(',', '.')
+        );
+        if (isNaN(raw) || raw <= 0) return updated;
+        const result = calculateCnav(year, raw, checked);
+        if (!result) return updated;
+        const salaireEUR = year <= 2001 ? raw / 6.556957 : raw;
+        return {
+          ...updated,
+          cnavPoints: fmtEUR(result.revalo),
+          ta: fmtEUR(result.salSS),
+          tb: fmtEUR(Math.max(0, salaireEUR - result.salSS)),
+          // trimBase, trimAR, trimAssimiles preserved from existing row
+        };
+      })
+    );
+  }, []);
+
+  const handleIsCadreChange = useCallback((newIsCadre) => {
+    setIsCadre(newIsCadre);
+    setManualCareerRows((prev) =>
+      prev.map((row) => {
+        const year = parseInt(row.annee, 10);
+        if (!year) return row;
+        const raw = parseFloat(
+          String(row.revenu).replace(/\s/g, '').replace(',', '.')
+        );
+        if (isNaN(raw) || raw <= 0) return row;
+        const arrcoResult = calculateArrco(year, raw, newIsCadre);
+        return { ...row, arrcoPoints: arrcoResult ? arrcoResult.total.toFixed(2) : ''  };
+      })
+    );
   }, []);
 
   // Fetch user documents from the server (for inline document picker)
@@ -449,6 +593,7 @@ export const useNotesLogic = (id, perso) => {
             ta: "",
             tb: "",
             tc: "",
+            deplafonner: false,
             errY: false,
             errR: false,
           });
@@ -1408,6 +1553,7 @@ export const useNotesLogic = (id, perso) => {
   }, [reportDoc, reportDescription, id]);
 
   const handleManualAddLine = useCallback(() => {
+    setFrozenSaved(false);
     setManualCareerRows((prev) => [
       ...prev,
       {
@@ -1424,6 +1570,7 @@ export const useNotesLogic = (id, perso) => {
         ta: "",
         tb: "",
         tc: "",
+        deplafonner: false,
         errY: false,
         errR: false,
       },
@@ -1450,6 +1597,7 @@ export const useNotesLogic = (id, perso) => {
       return;
     }
 
+    setIsCadre(isCadre);
     setIsImportingRIS(true);
     try {
       const tagsPrefix =
@@ -1497,6 +1645,105 @@ export const useNotesLogic = (id, perso) => {
     }
   }, [fileToSend, perso, selectedTags, n8nMessage, id]);
 
+  const handleSaveFrozenData = useCallback(async () => {
+    const validRows = manualCareerRows.filter(
+      (r) => /^\d{4}$/.test(String(r.annee)) && !r.errY && !r.errR
+    );
+    if (!validRows.length) {
+      toast.error("Le tableau est vide ou contient des erreurs — corrigez avant de geler.");
+      return;
+    }
+
+    setIsSavingFrozen(true);
+    try {
+      const parseNum = (v) => {
+        if (v === null || v === undefined || v === "") return 0;
+        const clean = String(v).replace(/\s/g, "").replace(",", ".");
+        const n = parseFloat(clean);
+        return isNaN(n) ? 0 : n;
+      };
+
+      const carriere = validRows.map((row) => {
+        const annee = parseInt(row.annee, 10);
+        const revenuBrut = parseNum(row.revenu);
+        const trimCot = parseInt(row.trimBase || "0", 10) || 0;
+        const trimAss = parseInt(row.trimAR || "0", 10) || 0;
+        const entry = {
+          annee,
+          revenu_brut: revenuBrut,
+          salaire_revalo: revenuBrut, // pas de revalorisation manuelle pour l'instant
+          deplafonne: row.deplafonner || false,
+          trimestres_cotises: trimCot,
+          trimestres_assimiles: trimAss,
+        };
+        const arrco = parseNum(row.arrcoPoints);
+        if (arrco) entry.points_agirc_arrco = arrco;
+        const ircantec = parseNum(row.ircantecPoints);
+        if (ircantec) entry.points_ircantec = ircantec;
+        const rci = parseNum(row.rciPoints);
+        if (rci) entry.points_rci = rci;
+        return entry;
+      });
+
+      const totalCot = carriere.reduce((s, r) => s + r.trimestres_cotises, 0);
+      const totalAss = carriere.reduce((s, r) => s + r.trimestres_assimiles, 0);
+
+      // Trimestres par régime : heuristique (années avec salaire → CNAV)
+      const trimCnav = carriere.reduce(
+        (s, r) => s + (r.revenu_brut > 0 ? r.trimestres_cotises + r.trimestres_assimiles : 0),
+        0
+      );
+
+      const birthDate = perso?.birth_date || "";
+      const token = localStorage.getItem("token");
+      const Config = { headers: { Authorization: `Bearer ${token}` } };
+
+      const payload = {
+        user_id: parseInt(id),
+        source: "SAISIE_MANUELLE",
+        meta: {
+          nom: perso?.last_name || "",
+          prenom: perso?.first_name || "",
+          date_naissance: birthDate,
+          sexe: perso?.sexe || null,
+          nombre_enfants: perso?.children_number ?? 0,
+          nir: perso?.secu_social || null,
+          valide_le: new Date().toISOString().split("T")[0],
+        },
+        carriere,
+        cipav: validRows
+          .filter((r) => parseNum(r.cipavPoints) > 0)
+          .map((r) => ({
+            annee: parseInt(r.annee, 10),
+            points_cipav_base: parseNum(r.cipavPoints),
+            points_cipav_complementaire: 0,
+          })),
+        alertes: [],
+        totaux: {
+          trimestres_cotises: totalCot,
+          trimestres_assimiles: totalAss,
+          trimestres_total: totalCot + totalAss,
+          trimestres_tous_regimes: totalCot + totalAss,
+          trimestres_requis: 172,
+          trimestres_par_regime: { cnav: trimCnav, cipav: 0, ircantec: 0, rci: 0, msa: 0 },
+        },
+      };
+
+      await axios.post(`${global.config.server_url}/frozen_data`, payload, Config);
+      setFrozenSaved(true);
+      toast.success("Carrière gelée — calcul CNAV disponible");
+    } catch (err) {
+      if (err.response?.status === 423) {
+        toast.error("Données verrouillées — déverrouillez d'abord dans le simulateur");
+      } else {
+        console.error("[handleSaveFrozenData]", err);
+        toast.error("Erreur lors du gel des données carrière");
+      }
+    } finally {
+      setIsSavingFrozen(false);
+    }
+  }, [manualCareerRows, id, perso]);
+
   return {
     notes,
     handleNotesChange,
@@ -1540,8 +1787,15 @@ export const useNotesLogic = (id, perso) => {
     manualCareerRows,
     setManualCareerRows,
     handleManualAddLine,
+    handleSalaryChange,
+    handleDeplafonnerChange,
+    handleIsCadreChange,
+    isCadre,
     handleManualImport,
     isImportingRIS,
+    handleSaveFrozenData,
+    isSavingFrozen,
+    frozenSaved,
     fileToSend,
     clearFileToSend,
     handleSaveDoc,

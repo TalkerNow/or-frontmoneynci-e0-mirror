@@ -644,7 +644,12 @@ class UserEdit extends React.Component {
               Admin & Moteur
             </button>
           </div>
-          <SimulatorIntegration user={this.state.rowData} mode={this.state.simulatorMode} id={id} />
+          <SimulatorIntegration
+            user={this.state.rowData}
+            mode={this.state.simulatorMode}
+            id={id}
+            onUserUpdate={(updates) => this.setState(prev => ({ rowData: { ...prev.rowData, ...updates } }))}
+          />
         </div>
       )}
     </>
