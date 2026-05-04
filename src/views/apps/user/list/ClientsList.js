@@ -324,8 +324,12 @@ class ClientsList extends React.Component {
         width: 140,
         minWidth: 140,
         flex: 0,
-        valueGetter: (params) =>
-          params.data.parent ? params.data.parent.name : "",
+        valueGetter: (params) => {
+          const p = params.data.parent;
+          if (!p) return "";
+          if (p.name) return p.name;
+          return [p.first_name, p.last_name].filter(Boolean).join(" ");
+        },
       },
       {
         headerName: "Apporteur",
@@ -714,7 +718,10 @@ class ClientsList extends React.Component {
       "Téléphone bureau": c.office_number ?? "",
       Statut: c.status ?? "",
       "Mise à jour du statut": c.status_update_date ?? "",
-      "Technicien (parent)": c.parent ? c.parent.name : "",
+      "Technicien (parent)": c.parent
+        ? c.parent.name ||
+          [c.parent.first_name, c.parent.last_name].filter(Boolean).join(" ")
+        : "",
       Apporteur: apport,
       "Date de naissance": this.formatDateForExcel(c.birth_date),
       "Lieu de naissance": c.birth_place ?? "",

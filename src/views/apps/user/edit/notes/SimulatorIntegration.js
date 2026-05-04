@@ -3,17 +3,14 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from "react"
 import axios from "axios";
 import { toast } from "react-toastify";
 import Dropzone from "react-dropzone";
-import { Modal, ModalHeader, ModalBody, ModalFooter, Button, UncontrolledTooltip } from "reactstrap";
-import { DownloadCloud, Eye } from "react-feather";
+import { Modal, ModalHeader, ModalBody, ModalFooter, Button, UncontrolledTooltip, Input, UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem } from "reactstrap";
+import { DownloadCloud, Eye, Download, Edit2, Save, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, Trash2 } from "react-feather";
 import {
   QUICK_TAGS_OPTIONS,
-  generateDocId,
-  persistUploadedDocs,
-  loadUploadedDocs,
   parseNIR,
 } from "./utils";
-import { executeScript, executeSkillGeneric, executeRaclScenario, executeTnsScenario, executeChomageIndScenario, executeArretActiviteScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, executeAgircArrcoWebhook } from "../risService";
-import { calculateArrco, calculateIrcantec, calculateRci } from '../../../../../utils/calculators';
+import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrIncompleteScenario, executeVplrEtudeScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6 } from "../risService";
+import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
 import SkillCreateModal from "./SkillCreateModal";
@@ -61,7 +58,7 @@ const ACTION_PANELS = {
       { id: "racl", label: "Carrière longue (RACL)", icon: "⏩", requires: ["ris"], desc: "Départ anticipé si début activité avant 16/18/20/21 ans", generates_date: true },
       { id: "rachat_incomplete", label: "Rachat VPLR année incomplète", icon: "🧩", requires: ["ris"], desc: "Racheter des trimestres pour années < 4 trimestres" },
       { id: "rachat_etude", label: "Rachat VPLR année d'étude", icon: "🎓", requires: ["ris"], hasInput: true, inputType: "number", inputLabel: "Nb années études", desc: "Max 12 trimestres rachetables" },
-      { id: "retraite_progressive", label: "Retraite progressive", icon: "⚖️", requires: ["ris"], desc: "Temps partiel + pension partielle dès âge légal −2 ans", generates_date: true },
+      { id: "retraite_progressive", label: "Retraite progressive", icon: "⚖️", requires: ["ris"], desc: "Temps partiel + pension partielle dès âge légal −2 ans", generates_date: true, hasInput: true, inputType: "number", inputLabel: "Quotité activité (%)" },
       { id: "cumul_emploi", label: "Cumul emploi-retraite", icon: "🔄", requires: ["ris"], desc: "Liquidation puis reprise d'activité, 2e pension (réforme 2023)", generates_date: true },
       { id: "chomage_ind", label: "Chômage indemnisé", icon: "📉", requires: ["ris"], hasInput: true, inputType: "number", inputLabel: "Durée (mois)", desc: "Trim. assimilés, impact sur date taux plein", generates_date: true },
       { id: "chomage_non_ind", label: "Chômage non indemnisé", icon: "⚠️", requires: ["ris"], desc: "Limites spécifiques, exception +55 ans / 20 ans cotisation", generates_date: true },
@@ -92,14 +89,29 @@ const ACTION_PANELS = {
 
 
 // Mapping dispositif UI id → skill_code DB (null = pas de skill générique pour ce dispositif)
+const SKILL_CODE_LABELS = {
+  RACL: "CARRIÈRE LONGUE (RACL)",
+  RP: "RETRAITE PROGRESSIVE",
+  CER: "CUMUL EMPLOI-RETRAITE",
+  VPLR: "RACHAT VPLR",
+  "RETRAITE PROGRESSIVE": "RETRAITE PROGRESSIVE",
+  "CUMUL EMPLOI RETRAITE": "CUMUL EMPLOI RETRAITE",
+  CHOMAGE_INDEMNISE: "CHÔMAGE INDEMNISÉ",
+  CHOMAGE_NON_INDEMNISE: "CHÔMAGE NON INDEMNISÉ",
+  ARRET_ACTIVITE: "ARRÊT D'ACTIVITÉ",
+  COTISATIONS_MIN: "COTISATIONS MINIMALES (TI/TNS)",
+  VPLR_INCOMPLETE: "RACHAT VPLR (ANNÉE INCOMPLÈTE)",
+  VPLR_ETUDE: "RACHAT VPLR (ANNÉE D'ÉTUDE)",
+};
+
 const DISPOSITIF_TO_SKILL_CODE = {
   racl: "RACL",
-  rachat_incomplete: "VPLR",
-  rachat_etude: "VPLR",
-  retraite_progressive: "RETRAITE PROGRESSIVE",
-  cumul_emploi: "CUMUL EMPLOI RETRAITE",
+  rachat_incomplete: "VPLR_INCOMPLETE",
+  rachat_etude: "VPLR_ETUDE",
+  retraite_progressive: "RP",
+  cumul_emploi: "CER",
   chomage_ind: "CHOMAGE_INDEMNISE",
-  chomage_non_ind: null,
+  chomage_non_ind: "CHOMAGE_NON_INDEMNISE",
   arret_activite: "ARRET_ACTIVITE",
   cotisations_min: "COTISATIONS_MIN",
   trimestres_etranger: "TRIMESTRES ETRANGER",
@@ -223,8 +235,6 @@ const DOC_TYPES = [
   { id: "releve_etranger", label: "Étranger", icon: "🌍", color: "#A29BFE" },
 ];
 
-// MOCK_DOCS removed — real documents are fetched from the backend
-
 // Détection automatique des dispositifs applicables à partir des données RIS
 function detectDispositifsFromRIS(trimCot, birthDate) {
   const detected = {};
@@ -270,13 +280,6 @@ function detectDispositifsFromRIS(trimCot, birthDate) {
 
   return detected;
 }
-
-// Mock auto-generated dates from dispositifs
-const MOCK_AUTO_DATES = [
-  { source: "RACL", date: "01/07/2011", age: "63 ans 4m", detail: "Éligible — début activité à 17 ans, 5 trim. avant 20 ans", color: "#00B894" },
-  { source: "Chômage 18m + Taux plein", date: "01/10/2014", age: "66 ans 7m", detail: "Taux plein décalé de 8 mois par période chômage", color: "#E17055" },
-  { source: "Retraite progressive", date: "01/03/2012", age: "64 ans", detail: "Éligible dès âge légal −2 ans, 150 trim. atteints", color: "#0984E3" },
-];
 
 // ─── DONNÉES CARRIÈRE ───────────────────────────────────────────────────────
 
@@ -489,7 +492,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     }
   };
 
-  const [activatedDispositifs, setActivatedDispositifs] = useState([]);
+  const [activatedDispositifs, setActivatedDispositifs] = useState(() => {
+    try {
+      const stored = localStorage.getItem(`simu_dispositifs_${id}`);
+      return stored ? JSON.parse(stored) : [];
+    } catch { return []; }
+  });
   // eslint-disable-next-line no-unused-vars
   const [showAutoResults, setShowAutoResults] = useState(false);
   const [excludedDates, setExcludedDates] = useState([]);
@@ -580,14 +588,19 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // ── Détection automatique des dispositifs applicables ──
   const [detectedDispositifs, setDetectedDispositifs] = useState({});
 
-  // ── Upload & Analysis State (migrated from useNotesLogic) ──
+  // ── RIS — Relevé de carrière du client ──────────────────────────────────────
+  // fileToSend     : fichier PDF brut déposé par le consultant (Dropzone)
+  // userDocuments  : liste des documents uploadés côté serveur (GET /files?user_id)
+  // Source de vérité définitive = frozen_data MySQL (table frozen_data, verrouillée après validation)
+  // fileToSend sert uniquement à alimenter n8n avant que frozen_data soit gelé
+  // Les fichiers du simulateur sont identifiés par dossier=10 en base (pas de localStorage)
   const [fileToSend, setFileToSend] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [userDocuments, setUserDocuments] = useState([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, docId: null, fileName: "" });
-  const [localUploadedIds, setLocalUploadedIds] = useState(() => new Set(loadUploadedDocs(id).map((d) => String(d.id))));
+  const [deleteGenDocId, setDeleteGenDocId] = useState(null);
   // eslint-disable-next-line no-unused-vars
   const [n8nMessage, setN8nMessage] = useState(() => {
     try {
@@ -597,7 +610,40 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   });
   const cancelRef = useRef(null);
   const hasHydratedRef = useRef(false);
+
+  // ── Livrables — Documents générés ───────────────────────────────────────────
+  // generatedDocs  : liste locale (session) des rapports produits par n8n
+  //                  { id, name, type, createdAt, url (Laravel /uploadFiles), htmlContent }
+  // viewingDoc     : doc actuellement ouvert dans ReportViewerModal
+  // Persisté via analysis_reports (skill_code = RAPPORT_CONSULTATION) et rechargé au mount.
+  const [generatedDocs, setGeneratedDocs] = useState([]);
+  const [viewingDoc, setViewingDoc] = useState(null);
+  const [chatMessage, setChatMessage] = useState("");
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const cancelReportRef = useRef(null);
+  const [isGeneratingSimulation, setIsGeneratingSimulation] = useState(false);
+  const [simReportHtml, setSimReportHtml] = useState(null);
+  const [simReportOpen, setSimReportOpen] = useState(false);
+  const [simReportDate, setSimReportDate] = useState(null);
+  const [isDeletingSimulation, setIsDeletingSimulation] = useState(false);
   // const clientNames = useMemo(() => extractClientNames(user), [user]);
+
+  // Charger le dernier rapport simulation depuis la DB au montage
+  useEffect(() => {
+    if (!id) return;
+    const token = localStorage.getItem("token") || "";
+    fetch(`${global.config.server_url}/v1/simulation-retraite/${id}`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.html_report) {
+          setSimReportHtml(data.html_report);
+          setSimReportDate(data.created_at);
+        }
+      })
+      .catch(() => {});
+  }, [id]);
 
   // Persist n8nMessage to sessionStorage
   useEffect(() => {
@@ -610,6 +656,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   useEffect(() => {
     if (!id) return;
     const loadCached = async () => {
+      // Si un reset vient d'être effectué pour ce client, ne pas recharger depuis la DB
+      // Flag supprimé uniquement quand une nouvelle analyse est sauvegardée (saveSkillResult)
+      if (localStorage.getItem(`simulator_reset_${id}`)) {
+        return;
+      }
+
       const skillMap = [
         ["CNAV",        setSkillResult],
         ["AGIRC_ARRCO", setAgircResult],
@@ -640,7 +692,39 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       }
       if (Object.keys(scenarioResults).length > 0) {
         setScenarioSkillResults(scenarioResults);
+        // Auto-cocher les dispositifs dont un résultat existe déjà en DB
+        const skillToDispositif = Object.fromEntries(
+          Object.entries(DISPOSITIF_TO_SKILL_CODE).map(([k, v]) => [v, k])
+        );
+        const toActivate = Object.keys(scenarioResults).map(c => skillToDispositif[c]).filter(Boolean);
+        if (toActivate.length > 0) {
+          setActivatedDispositifs(prev => {
+            const next = [...new Set([...prev, ...toActivate])];
+            try { localStorage.setItem(`simu_dispositifs_${id}`, JSON.stringify(next)); } catch {}
+            return next;
+          });
+        }
       }
+
+      // Recharger le rapport de consultation depuis analysis_reports
+      try {
+        const rapportReport = await fetchLatestReport(id, "RAPPORT_CONSULTATION");
+        const rapportData = rapportReport?.result_json;
+        if (rapportData?.htmlContent) {
+          setGeneratedDocs((prev) => {
+            // Éviter les doublons si déjà chargé
+            if (prev.some((d) => d.id === rapportData.id)) return prev;
+            return [{
+              id: rapportData.id || `rc_restored_${Date.now()}`,
+              name: rapportData.name || "Rapport de consultation retraite",
+              type: rapportData.type || "rapport_consultation",
+              createdAt: rapportData.createdAt || rapportReport.created_at || new Date().toISOString(),
+              url: rapportData.url || null,
+              htmlContent: rapportData.htmlContent,
+            }, ...prev];
+          });
+        }
+      } catch { /* 404 = pas de rapport consultation, on ignore */ }
     };
     loadCached();
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -794,6 +878,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   }, [id, applyCarriereData]);
 
   // ── Fetch user documents from server ──
+  // Charge la liste des documents uploadés pour ce client depuis Laravel
+  // Utilisé pour afficher le RIS déjà présent + permettre de le re-sélectionner
   const fetchUserDocuments = useCallback(async () => {
     if (!id) return;
     setIsLoadingDocs(true);
@@ -812,6 +898,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // ── Réinitialiser le tableau carrière ───────────────────────────────────────
   const doResetCarriere = useCallback(async () => {
     setShowResetConfirm(false);
+    localStorage.setItem(`simulator_reset_${id}`, '1');
     setCarriereRows(_buildDefaultCarriereRows());
     setRevaloValues(() => { const init = {}; for (let i = 0; i < 65; i++) { init[2026 - i] = 0; } return init; });
     setDeplafValues({});
@@ -825,6 +912,44 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     setCarriereValidee(false);
     setRisFileName(null);
     setLastRisPayload(null);
+    // Vider les résultats des calculs et scénarios
+    setSkillResult(null);
+    setSkillError(null);
+    setAgircResult(null);
+    setAgircError(null);
+    setIrcantecResult(null);
+    setIrcantecError(null);
+    setRciResult(null);
+    setRciError(null);
+    setCipavResult(null);
+    setCipavError(null);
+    setScenarioSkillResults({});
+    setScenarioSkillErrors({});
+    setActivatedDispositifs([]);
+    try { localStorage.removeItem(`simu_dispositifs_${id}`); } catch {}
+    setDetectedDispositifs({});
+    setShowAutoResults(false);
+    setGeneratedDocs([]);
+    // Supprimer les rapports en base pour éviter leur rechargement au F5
+    const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+    const allCodes = [
+      "CNAV", "AGIRC_ARRCO", "IRCANTEC", "RCI", "CIPAV", "RAPPORT_CONSULTATION",
+      ...new Set(Object.values(DISPOSITIF_TO_SKILL_CODE).filter(Boolean)),
+    ];
+    for (const code of allCodes) {
+      try {
+        const report = await axios.get(
+          `${global.config.server_url}/v1/analysis-reports/latest/${id}/${code}`,
+          Config,
+        );
+        if (report?.data?.id) {
+          await axios.delete(
+            `${global.config.server_url}/v1/analysis-reports/${report.data.id}`,
+            Config,
+          );
+        }
+      } catch { /* 404 = pas de rapport, on ignore */ }
+    }
     try {
       const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
       await axios.delete(`${global.config.server_url}/frozen_data/${id}`, Config);
@@ -1103,7 +1228,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     } finally {
       setIsParsingRIS(false);
     }
-  }, [applyCarriereData]);
+  }, [applyCarriereData, id, onUserUpdate, user?.birth_date, user?.first_name, user?.last_name, user?.secu_social]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Select document from list (for analysis report — no RIS parsing) ──
   const handleSelectDocument = useCallback(async (doc) => {
@@ -1134,7 +1259,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     } catch { toast.error("Impossible de charger le document RIS"); }
   }, [risFileName, parsePdfAndFillCarriere]);
 
-  // ── File upload handler (drag & drop or click) ──
+  // Drag & drop ou clic → stocke le fichier RIS en mémoire (fileToSend)
+  // ET l'uploade sur le serveur Laravel (/uploadFiles) pour historisation
+  // Déclenche ensuite parsePdfAndFillCarriere → analyse n8n → remplit carriereRows
   const handleUpload = useCallback(async (acceptedFiles) => {
     if (!acceptedFiles || !acceptedFiles.length || !id) return;
     const file = acceptedFiles[0];
@@ -1155,6 +1282,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     try {
       const formData = new FormData();
       formData.set("user_id", id);
+      formData.set("dossier", "10");
       acceptedFiles.forEach((f, index) => formData.append(`photoUpload${index}`, f));
       const Config = {
         headers: {
@@ -1165,20 +1293,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       const response = await axios.post(`${global.config.server_url}/uploadFiles`, formData, Config);
       const files = Array.isArray(response?.data?.files) ? response.data.files : [];
       if (files.length) {
-        const mapped = files.map((f) => ({
-          id: f.id || generateDocId(),
-          name: f.filename || "Document importé",
-          uploadedAt: f.created_at || new Date().toISOString(),
-          url: f.url || "",
-        }));
-        persistUploadedDocs(id, [...loadUploadedDocs(id), ...mapped]);
-        setLocalUploadedIds((prev) => {
-          const next = new Set(prev);
-          mapped.forEach((m) => next.add(String(m.id)));
-          return next;
-        });
         toast.success(files.length > 1 ? "Documents importés" : "Relevé importé");
-        fetchUserDocuments(); // refresh list
+        fetchUserDocuments(); // refresh list — dossier=10 filter handles display
       }
     } catch {
       toast.error("Le téléversement a échoué");
@@ -1193,7 +1309,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     try { sessionStorage.removeItem(`simu_file_to_send_${id}`); } catch { /* noop */ }
   }, [id]);
 
-  // ── Delete document from server ──
+  // Suppression d'un document RIS uploadé (serveur Laravel + state local)
   const handleDeleteDocument = useCallback((docId, fileName) => {
     setDeleteModal({ isOpen: true, docId, fileName });
   }, []);
@@ -1208,13 +1324,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       toast.success("Document supprimé avec succès");
       
       setUserDocuments((prev) => prev.filter((d) => d.id !== docId));
-      const remaining = loadUploadedDocs(id).filter((d) => String(d.id) !== String(docId));
-      persistUploadedDocs(id, remaining);
-      setLocalUploadedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(String(docId));
-        return next;
-      });
       if (fileToSend && fileToSend.name === fileName) {
         clearFileToSend();
       }
@@ -1239,6 +1348,290 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     }
     setIsGenerating(false);
   }, []);
+
+  // ── Livrables helpers ──
+
+  const cleanChainOfThought = useCallback((raw) => {
+    if (!raw || typeof raw !== "string") return raw;
+
+    // Stratégie 1 : HTML wrappé dans ```html ... ```
+    const htmlBlockMatch = raw.match(/```html\s*([\s\S]*?)```/i);
+    if (htmlBlockMatch) return htmlBlockMatch[1].trim();
+
+    // Stratégie 2 : chaîne de pensée avant le premier tag HTML structurel
+    const htmlStartIdx = raw.search(/<(!DOCTYPE|html|div|section|table|h[1-6]|p\s)/i);
+    if (htmlStartIdx > 0) {
+      const before = raw.slice(0, htmlStartIdx);
+      if (/\[(step|étape|etape)\s*\d/i.test(before)) {
+        return raw.slice(htmlStartIdx).trim();
+      }
+    }
+
+    // Stratégie 3 : strip les lignes [Step N: / [Étape N:
+    const lines = raw.split("\n");
+    const hasCot = lines.some(
+      (l) => /^\s*\[(step|étape|etape)\s*\d/i.test(l) || /^\s*\*\*(step|étape|etape)\s*\d/i.test(l)
+    );
+    if (hasCot) {
+      return lines
+        .filter((l) => !/^\s*\[(step|étape|etape)\s*\d/i.test(l))
+        .join("\n")
+        .trim();
+    }
+
+    return raw.trim();
+  }, []);
+
+  const handleDownloadReportHtml = useCallback((doc) => {
+    const content = doc?.htmlContent;
+    if (!content) { toast.error("Contenu HTML non disponible"); return; }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([content], { type: "text/html;charset=utf-8" }));
+    a.download = `${(doc.name || "rapport").replace(/[^a-z0-9_\-]/gi, "_")}.html`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }, []);
+
+  const handleDownloadReportPdf = useCallback(() => {
+    toast.info("Pour exporter en PDF, utilisez l'impression navigateur (Ctrl+P) depuis l'aperçu.");
+  }, []);
+
+  const handleSaveReport = useCallback(async (doc) => {
+    if (!doc?.htmlContent) { toast.error("Aucun contenu à sauvegarder"); return; }
+    const fileName = `Rapport_Modifie_${Date.now()}.html`;
+    const blob = new Blob([doc.htmlContent], { type: "text/html;charset=utf-8" });
+    const uploadForm = new FormData();
+    uploadForm.append("user_id", id);
+    uploadForm.append("photoUpload0", blob, fileName);
+    try {
+      const res = await axios.post(`${global.config.server_url}/uploadFiles`, uploadForm, {
+        headers: {
+          Authorization: "Bearer " + localStorage.getItem("token"),
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      const newUrl = res?.data?.files?.[0]?.url;
+      if (!newUrl) throw new Error("Pas d'URL renvoyée");
+      setGeneratedDocs((prev) =>
+        prev.map((d) => d.id === doc.id ? { ...d, url: newUrl, htmlContent: doc.htmlContent } : d)
+      );
+      setViewingDoc((prev) => prev?.id === doc.id ? { ...prev, url: newUrl, htmlContent: doc.htmlContent } : prev);
+      toast.success("Modifications enregistrées");
+    } catch {
+      toast.error("Erreur lors de l'enregistrement");
+    }
+  }, [id]);
+
+  // Génère le rapport de consultation retraite via n8n (webhook f012dfc7).
+  // CDC V2 : frontend → backend → n8n (plus d'appel direct n8n depuis le front).
+  // Backend forward le PDF à n8n en multipart. n8n inchangé.
+  const handleGenerateRapportConsultation = useCallback(async () => {
+    // Auto-récupération du RIS si fileToSend est vide
+    let risFile = fileToSend;
+    if (!risFile) {
+      // Chercher le premier PDF dans les documents serveur du client
+      const pdfDoc = userDocuments.find((d) =>
+        (d.filename || "").toLowerCase().endsWith(".pdf")
+      );
+      if (!pdfDoc) {
+        toast.error("Aucun document PDF trouvé — importez le RIS du client.");
+        return;
+      }
+      try {
+        toast.info("Récupération automatique du RIS…");
+        const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") }, responseType: "blob" };
+        const response = await axios.get(`${global.config.server_url}/downloadFile?file_id=${pdfDoc.id}`, Config);
+        const blob = response.data;
+        risFile = new File([blob], pdfDoc.filename, { type: blob.type || "application/pdf" });
+        setFileToSend(risFile);
+      } catch {
+        toast.error("Impossible de récupérer le RIS depuis le serveur.");
+        return;
+      }
+    }
+
+    setIsGeneratingReport(true);
+    if (cancelReportRef.current) cancelReportRef.current.cancel();
+    cancelReportRef.current = axios.CancelToken.source();
+
+    try {
+      const displayName = user
+        ? `${user.first_name || ""} ${user.last_name || ""}`.trim()
+        : "Client";
+
+      const childrenCount = user?.children_number ?? "";
+      const birthDate = user?.birth_date ?? "";
+      const message = [
+        "Thématiques d'analyse : Rapport de consultation retraite",
+        `Nombre d'enfants : ${childrenCount}`,
+        `Date de naissance : ${birthDate}`,
+      ].join("\n");
+
+      const formData = new FormData();
+      formData.append("file", risFile);
+      formData.append("message", message);
+      formData.append("client_id", id);
+      if (hiddenSystemPrompt) formData.append("system_prompt", hiddenSystemPrompt);
+
+      toast.info("Génération du rapport de consultation en cours…");
+
+      const backendRes = await axios.post(
+        `${global.config.server_url}/v1/rapports/consultation`,
+        formData,
+        {
+          headers: {
+            Authorization: "Bearer " + localStorage.getItem("token"),
+            "Content-Type": "multipart/form-data",
+          },
+          cancelToken: cancelReportRef.current.token,
+        }
+      );
+
+      // Extraction contenu brut depuis réponse backend (data = réponse n8n)
+      let raw = "";
+      const n8nData = backendRes.data?.data;
+      const root = Array.isArray(n8nData) ? n8nData[0] : n8nData;
+      if (typeof root === "string") {
+        raw = root;
+      } else if (root && typeof root === "object") {
+        raw = root.html_report || root.output || root.text || root.response || JSON.stringify(root);
+      } else {
+        raw = String(n8nData);
+      }
+
+      // Fix n8n 2.x : string JSON wrappée
+      const trimmedRaw = raw.trim();
+      if (trimmedRaw.charAt(0) === '"' && trimmedRaw.charAt(trimmedRaw.length - 1) === '"') {
+        try { raw = JSON.parse(trimmedRaw); } catch (_) {}
+      }
+      if (raw.indexOf("\\n") !== -1) {
+        raw = raw.split("\\n").join("\n").split("\\t").join("\t").split('\\"').join('"');
+      }
+
+      // Nettoyage chain-of-thought puis markdown
+      let contentString = cleanChainOfThought(raw);
+      contentString = contentString
+        .replace(/^```html\s*/i, "")
+        .replace(/^```\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
+
+      // Wrap si texte brut
+      if (
+        !contentString.startsWith("<!DOCTYPE") &&
+        !contentString.startsWith("<html") &&
+        !/<\/[a-zA-Z]+>/.test(contentString)
+      ) {
+        contentString = `<html><body style="font-family:sans-serif;padding:20px">${contentString.replace(/\n/g, "<br>")}</body></html>`;
+      }
+
+      // Upload vers Laravel
+      const fileName = `Rapport_Consultation_${Date.now()}.html`;
+      const blob = new Blob([contentString], { type: "text/html;charset=utf-8" });
+      const uploadForm = new FormData();
+      uploadForm.append("user_id", id);
+      uploadForm.append("photoUpload0", blob, fileName);
+
+      let reportUrl = null;
+      try {
+        const uploadRes = await axios.post(
+          `${global.config.server_url}/uploadFiles`,
+          uploadForm,
+          {
+            headers: {
+              Authorization: "Bearer " + localStorage.getItem("token"),
+              "Content-Type": "multipart/form-data",
+            },
+            cancelToken: cancelReportRef.current.token,
+          }
+        );
+        reportUrl = uploadRes?.data?.files?.[0]?.url || null;
+        if (!reportUrl) throw new Error("Pas d'URL renvoyée");
+      } catch (err) {
+        console.error(err);
+        toast.error("Rapport généré mais impossible de le sauvegarder sur le serveur.");
+      }
+
+      const doc = {
+        id: `rc_${Date.now()}`,
+        name: `Rapport de consultation retraite de ${displayName}`,
+        type: "rapport_consultation",
+        createdAt: new Date().toISOString(),
+        url: reportUrl,
+        htmlContent: contentString,
+      };
+
+      setGeneratedDocs((prev) => [doc, ...prev]);
+
+      // Persister le rapport en base pour survie au F5
+      saveSkillResult(id, "RAPPORT_CONSULTATION", doc);
+
+      toast.success("Rapport de consultation généré avec succès");
+    } catch (err) {
+      if (axios.isCancel(err)) return;
+      console.error(err);
+      toast.error("Erreur lors de la génération du rapport");
+    } finally {
+      setIsGeneratingReport(false);
+      cancelReportRef.current = null;
+    }
+  }, [fileToSend, user, id, hiddenSystemPrompt, cleanChainOfThought, userDocuments]);
+
+  // ── Simulation Retraite (appelle Laravel → n8n → HTML) ──────────────────────
+  const handleGenerateSimulationRetraite = useCallback(async () => {
+    if (!id) {
+      toast.error("ID client manquant");
+      return;
+    }
+    setIsGeneratingSimulation(true);
+    try {
+      const token = localStorage.getItem("token") || "";
+      const resp = await fetch(`${global.config.server_url}/v1/simulation-retraite/generate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ client_id: id }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || `Erreur serveur (${resp.status})`);
+      }
+      const result = await resp.json();
+      if (!result.html_report) throw new Error("Rapport vide reçu — vérifiez les données carrière du client");
+      setSimReportHtml(result.html_report);
+      setSimReportDate(new Date().toISOString());
+      setSimReportOpen(true);
+      toast.success("Simulation générée !");
+    } catch (err) {
+      toast.error(err.message || "Erreur lors de la simulation");
+    } finally {
+      setIsGeneratingSimulation(false);
+    }
+  }, [id]);
+
+  const handleDeleteSimulationRetraite = useCallback(async () => {
+    if (!id) return;
+    if (!window.confirm("Supprimer le rapport de simulation retraite ?")) return;
+    setIsDeletingSimulation(true);
+    try {
+      const token = localStorage.getItem("token") || "";
+      await fetch(`${global.config.server_url}/v1/simulation-retraite/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      });
+      setSimReportHtml(null);
+      setSimReportDate(null);
+      setSimReportOpen(false);
+      toast.success("Rapport supprimé");
+    } catch {
+      toast.error("Erreur lors de la suppression");
+    } finally {
+      setIsDeletingSimulation(false);
+    }
+  }, [id]);
 
   // ── Report generation (same payload as old UploadSection flow) ──
   const handleGenerateDoc = useCallback(async () => {
@@ -1347,7 +1740,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   }, [fileToSend, selectedAction, user, id, promptText, hiddenSystemPrompt]);
 
   // Derive doc availability from real uploaded documents
-  const hasDocuments = userDocuments.some((d) => localUploadedIds.has(String(d.id))) || !!fileToSend;
+  const hasDocuments = userDocuments.some((d) => Number(d.dossier) === 10) || !!fileToSend;
   const checkReq = () => true; // requirements are met if we have a file
   const getMissing = () => [];
 
@@ -1356,10 +1749,14 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     mono: { fontFamily: "'IBM Plex Mono', 'Courier New', monospace" },
   };
 
-  const toggleDispositif = (id) => {
-    setActivatedDispositifs((prev) =>
-      prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]
-    );
+  const toggleDispositif = (dispositifId) => {
+    setActivatedDispositifs((prev) => {
+      const next = prev.includes(dispositifId)
+        ? prev.filter((d) => d !== dispositifId)
+        : [...prev, dispositifId];
+      try { localStorage.setItem(`simu_dispositifs_${id}`, JSON.stringify(next)); } catch {}
+      return next;
+    });
   };
 
   const getPlafond = (yr) => PLAFONDS_SS[yr] || 48060;
@@ -1764,10 +2161,20 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     try {
       const result = skillCode === "RACL"
         ? await executeRaclScenario(parseInt(id), scenarioParams)
+        : skillCode === "RP"
+        ? await executeRpScenario(parseInt(id), scenarioParams)
+        : skillCode === "CER"
+        ? await executeCerScenario(parseInt(id), scenarioParams)
         : skillCode === "COTISATIONS_MIN"
         ? await executeTnsScenario(parseInt(id), scenarioParams)
         : skillCode === "CHOMAGE_INDEMNISE"
         ? await executeChomageIndScenario(parseInt(id), scenarioParams)
+        : skillCode === "CHOMAGE_NON_INDEMNISE"
+        ? await executeChomageNonIndScenario(parseInt(id), scenarioParams)
+        : skillCode === "VPLR_INCOMPLETE"
+        ? await executeVplrIncompleteScenario(parseInt(id), scenarioParams)
+        : skillCode === "VPLR_ETUDE"
+        ? await executeVplrEtudeScenario(parseInt(id), scenarioParams)
         : skillCode === "ARRET_ACTIVITE"
         ? await executeArretActiviteScenario(parseInt(id), scenarioParams)
         : await executeSkillGeneric(skillCode, {
@@ -1777,10 +2184,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           });
       setScenarioSkillResults(prev => ({ ...prev, [skillCode]: result }));
       saveSkillResult(id, skillCode, result);
+      const skillLabel = result.skill_name || SKILL_CODE_LABELS[skillCode] || skillCode.replace(/_/g, ' ');
       if (result.eligible === true) {
-        toast.success(`${result.skill_name || skillCode} : éligible`);
+        toast.success(`${skillLabel} : éligible`);
       } else if (result.eligible === false) {
-        toast.warning(`${result.skill_name || skillCode} : non éligible`);
+        toast.warning(`${skillLabel} : non éligible`);
       }
     } catch (err) {
       const msg = err.response?.data?.message || err.message || "Erreur exécution skill";
@@ -1981,9 +2389,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                 {/* Liste des documents réels */}
                 {isLoadingDocs ? (
                   <div style={{ fontSize: 12, color: "#555", padding: "6px 0" }}>Chargement des documents…</div>
-                ) : ((userDocuments.filter((d) => localUploadedIds.has(String(d.id))).length > 0 || fileToSend)) ? (
+                ) : ((userDocuments.filter((d) => Number(d.dossier) === 10).length > 0 || fileToSend)) ? (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-                    {userDocuments.filter((d) => localUploadedIds.has(String(d.id))).map((doc) => {
+                    {userDocuments.filter((d) => Number(d.dossier) === 10).map((doc) => {
                       const ext = (doc.filename || "").split(".").pop().toLowerCase();
                       
                       // 🟢 Green for PDF
@@ -2068,7 +2476,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                     })}
                     
                     {/* Fichier uploadé manuellement (pas encore dans la liste serveur) */}
-                    {fileToSend && !userDocuments.filter((d) => localUploadedIds.has(String(d.id))).some((d) => d.filename === fileToSend.name) && (
+                    {fileToSend && !userDocuments.filter((d) => Number(d.dossier) === 10).some((d) => d.filename === fileToSend.name) && (
                       <div style={{ display: "flex", flexDirection: "column", padding: "6px 12px", borderRadius: 7, background: "#00B89418", border: "1px solid #00B894", fontSize: 13, minWidth: 180 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <span style={{ fontSize: 15 }}>📄</span>
@@ -2138,6 +2546,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                   <div style={{ fontSize: 12, color: "#666", textAlign: "center", padding: "4px 0" }}>Aucun document importé</div>
                 )}
               </div>
+              {/* fin zone documents masquée */}
 
           {/* ── MAIN PANELS ── */}
           {hasDocuments && (
@@ -2873,6 +3282,63 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                                 ⏳ {skillResultData.manquants} trimestre{skillResultData.manquants > 1 ? "s" : ""} cotisé{skillResultData.manquants > 1 ? "s" : ""} manquant{skillResultData.manquants > 1 ? "s" : ""}
                                               </div>
                                             )}
+                                            {skillCode === "RP" && skillResultData.eligible && skillResultData.rp_result && (
+                                              <div style={{ marginBottom: 4 }}>
+                                                {skillResultData.rp_result.date_debut_rp_possible && (
+                                                  <div style={{ fontSize: 12, fontWeight: 700, color, marginBottom: 2 }}>
+                                                    🗓 Début RP possible : {skillResultData.rp_result.date_debut_rp_possible}
+                                                  </div>
+                                                )}
+                                                {skillResultData.rp_result.duree_max_rp_mois != null && (
+                                                  <div style={{ fontSize: 11, color: "#555", marginBottom: 2 }}>
+                                                    Durée max : {skillResultData.rp_result.duree_max_rp_mois} mois (jusqu'à {skillResultData.rp_result.age_retraite_definitive} ans)
+                                                  </div>
+                                                )}
+                                                {skillResultData.rp_result.fraction_pension_provisoire_pct != null && (
+                                                  <div style={{ fontSize: 11, color: "#0984E3", marginBottom: 2 }}>
+                                                    💶 {skillResultData.rp_result.quotite_label}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
+                                            {skillCode === "RP" && !skillResultData.eligible && skillResultData.rp_result && (
+                                              <div style={{ marginBottom: 4 }}>
+                                                {!skillResultData.rp_result.condition_age_ok && (
+                                                  <div style={{ fontSize: 11, color: "#C0392B", marginBottom: 2 }}>
+                                                    ⏳ Âge insuffisant — {Math.ceil(skillResultData.rp_result.manquants_mois_age / 12 * 10) / 10} an(s) avant 62 ans
+                                                  </div>
+                                                )}
+                                                {!skillResultData.rp_result.condition_trim_ok && (
+                                                  <div style={{ fontSize: 11, color: "#C0392B", marginBottom: 2 }}>
+                                                    ⏳ {skillResultData.rp_result.manquants_trimestres} trimestre{skillResultData.rp_result.manquants_trimestres > 1 ? "s" : ""} manquant{skillResultData.rp_result.manquants_trimestres > 1 ? "s" : ""} ({skillResultData.rp_result.trim_valides_actuels}/150 tous régimes)
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
+                                            {skillCode === "CER" && skillResultData.cer_result && (
+                                              <div style={{ marginBottom: 4 }}>
+                                                {skillResultData.cer_result.type_cumul && (
+                                                  <div style={{ fontSize: 12, fontWeight: 700, color, marginBottom: 2 }}>
+                                                    {skillResultData.cer_result.type_cumul === "CER_TOTAL" ? "✅ CER TOTAL" : "⚠️ CER PLAFONNÉ"}
+                                                  </div>
+                                                )}
+                                                {skillResultData.eligible && skillResultData.cer_result.date_cumul_possible && (
+                                                  <div style={{ fontSize: 11, color: "#555", marginBottom: 2 }}>
+                                                    🗓 Reprise possible dès {skillResultData.cer_result.date_cumul_possible}
+                                                  </div>
+                                                )}
+                                                {skillResultData.cer_result.type_cumul === "CER_PLAFONNÉ" && (
+                                                  <div style={{ fontSize: 11, color: "#E17055", marginBottom: 2 }}>
+                                                    💶 Plafond mensuel : {skillResultData.cer_result.plafond_cer_plafonne_mensuel?.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} € — Bascule CER TOTAL à 67 ans ({skillResultData.cer_result.date_bascule_cer_total})
+                                                  </div>
+                                                )}
+                                                {!skillResultData.eligible && skillResultData.cer_result.manquants_mois_age_legal > 0 && (
+                                                  <div style={{ fontSize: 11, color: "#C0392B", marginBottom: 2 }}>
+                                                    ⏳ {Math.ceil(skillResultData.cer_result.manquants_mois_age_legal / 12 * 10) / 10} an(s) avant l'âge légal ({skillResultData.cer_result.age_legal_ans} ans{skillResultData.cer_result.age_legal_mois_complementaires > 0 ? " et " + skillResultData.cer_result.age_legal_mois_complementaires + " mois" : ""}) — accès estimé : {skillResultData.cer_result.date_cumul_possible}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
                                             {skillCode === "COTISATIONS_MIN" && skillResultData.tns_result && (
                                               <div style={{ marginBottom: 4 }}>
                                                 {skillResultData.tns_result.regime_tns && (
@@ -3314,10 +3780,25 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
 
                     // ── DATES & SIMULATIONS: shows auto-generated dates ──
                     if (expandedPanel === "dates") {
+                      const birthDate = user?.birth_date;
+                      const trimAcquis = Object.values(trimCotState).reduce((s, v) => s + (Number(v) || 0), 0)
+                        + Object.values(trimAssState).reduce((s, v) => s + (Number(v) || 0), 0);
+                      const dateLegale = computeDateLegale(birthDate);
+                      const dateTauxPlein = computeDateTauxPlein(birthDate, trimAcquis);
+                      const date67 = computeDate67(birthDate);
+
                       const dateComments = {
-                        sim_legal: "64 ans atteints le 08/07/2030 → départ le 01/08/2030",
-                        sim_taux_plein: "172 trim. atteints en 11/2032",
-                        sim_auto_67: "67 ans atteints le 08/07/2033 → départ le 01/08/2033",
+                        sim_legal: dateLegale
+                          ? `${dateLegale.ageStr} → départ en ${dateLegale.label}`
+                          : "Date de naissance manquante",
+                        sim_taux_plein: dateTauxPlein
+                          ? dateTauxPlein.trimManquants === 0
+                            ? `${dateTauxPlein.trimRequis} trim. déjà atteints`
+                            : `${dateTauxPlein.trimManquants} trim. manquants → départ en ${dateTauxPlein.label}`
+                          : "Date de naissance manquante",
+                        sim_auto_67: date67
+                          ? `67 ans → départ en ${date67.label}`
+                          : "Date de naissance manquante",
                         sim_date_libre: "Indiquer les dates de simulation souhaitées",
                       };
                       return (
@@ -3332,17 +3813,22 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                           <div style={{ background: "#F7F6F3", border: "1px solid #e8e8e8", borderRadius: 9, padding: "10px 14px", marginBottom: 14 }}>
                             <div style={{ fontSize: 12, fontWeight: 700, color: "#555", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>📊 Données de calcul</div>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 20px", fontSize: 12 }}>
-                              {[
-                                ["SAMB Assurance Retraite / CNAV", "32 586 €", "#1a1a2e"],
-                                ["Points ARRCO-AGIRC au 31/12/25", "28 330 pts", "#0984E3"],
-                                ["Projection jusqu'au départ", "+ 344 pts / an", "#00B894"],
-                                ["Situation jusqu'au départ", "Poursuite d'activité actuelle", "#555"],
-                              ].map(([label, val, color]) => (
-                                <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #eee" }}>
-                                  <span style={{ color: "#555" }}>{label}</span>
-                                  <span style={{ fontWeight: 700, color, fontSize: 12 }}>{val}</span>
-                                </div>
-                              ))}
+                              {(() => {
+                                const samb = computeSAMB(carriereRows);
+                                const { total: arrcoPts, projectionAnnuelle } = computeArrcoPts(carriereRows);
+                                const rows = [
+                                  ["SAMB Assurance Retraite / CNAV", samb > 0 ? `${samb.toLocaleString('fr-FR')} €` : "—", "#1a1a2e"],
+                                  ["Points ARRCO-AGIRC cumulés", arrcoPts > 0 ? `${arrcoPts.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} pts` : "—", "#0984E3"],
+                                  ["Projection annuelle (tendance)", projectionAnnuelle > 0 ? `+ ${projectionAnnuelle.toLocaleString('fr-FR')} pts / an` : "—", "#00B894"],
+                                  ["Situation jusqu'au départ", "Poursuite d'activité actuelle", "#555"],
+                                ];
+                                return rows.map(([label, val, color]) => (
+                                  <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #eee" }}>
+                                    <span style={{ color: "#555" }}>{label}</span>
+                                    <span style={{ fontWeight: 700, color, fontSize: 12 }}>{val}</span>
+                                  </div>
+                                ));
+                              })()}
                             </div>
                           </div>
 
@@ -3353,10 +3839,13 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                 <span>🤖</span> Dates calculées automatiquement depuis les dispositifs activés
                               </div>
                               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                {MOCK_AUTO_DATES.map((d, i) => (
+                                {activatedDispositifs
+                                  .map(dispositifId => computeAutoDateFromDispositif(dispositifId, user?.birth_date, trimCotState, trimAssState))
+                                  .filter(Boolean)
+                                  .map((d, i) => (
                                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 8, background: `${d.color}08`, borderLeft: `3px solid ${d.color}` }}>
                                     <div style={{ textAlign: "center", minWidth: 70 }}>
-                                      <div style={{ fontSize: 15, fontWeight: 700, color: d.color }}>{d.date}</div>
+                                      <div style={{ fontSize: 15, fontWeight: 700, color: d.color }}>{d.dateStr}</div>
                                       <div style={{ fontSize: 12, color: "#555" }}>{d.age}</div>
                                     </div>
                                     <div style={{ flex: 1 }}>
@@ -3448,7 +3937,54 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             })}
                           </div>
 
-                          {selectedAction && (
+                          {selectedAction?.id === "rapport_consultation" && (
+                            <div style={{ marginTop: 14, borderTop: "1px solid #eee", paddingTop: 14 }}>
+                              {!fileToSend && userDocuments.filter(d => (d.filename || "").toLowerCase().endsWith(".pdf")).length === 0 && (
+                                <div style={{ padding: "8px 12px", background: "#FFF3CD", borderRadius: 7, marginBottom: 10, fontSize: 13, color: "#856404", border: "1px solid #FFE08A" }}>
+                                  ⚠ Aucun document PDF trouvé — importez le RIS du client.
+                                </div>
+                              )}
+                              <button
+                                onClick={handleGenerateRapportConsultation}
+                                disabled={isGeneratingReport || (!fileToSend && userDocuments.filter(d => (d.filename || "").toLowerCase().endsWith(".pdf")).length === 0)}
+                                style={{ padding: "10px 20px", borderRadius: 7, border: "none", background: isGeneratingReport ? "#a29bfe" : panel.color, color: "#fff", fontWeight: 700, fontSize: 13, cursor: isGeneratingReport ? "wait" : "pointer", opacity: isGeneratingReport ? 0.7 : 1 }}
+                              >
+                                {isGeneratingReport ? "⏳ Génération en cours…" : "▶ Générer le rapport de consultation retraite"}
+                              </button>
+                            </div>
+                          )}
+
+                          {selectedAction?.id === "simulation_retraite" && (
+                            <div style={{ marginTop: 14, borderTop: "1px solid #eee", paddingTop: 14, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                              <button
+                                onClick={handleGenerateSimulationRetraite}
+                                disabled={isGeneratingSimulation}
+                                style={{ padding: "10px 20px", borderRadius: 7, border: "none", background: isGeneratingSimulation ? "#aaa" : panel.color, color: "#fff", fontWeight: 700, fontSize: 13, cursor: isGeneratingSimulation ? "wait" : "pointer", opacity: isGeneratingSimulation ? 0.7 : 1 }}
+                              >
+                                {isGeneratingSimulation ? "⏳ Génération en cours… (1-2 min)" : "▶ Générer le simulation retraite"}
+                              </button>
+                              {simReportHtml && (
+                                <button
+                                  onClick={() => setSimReportOpen(true)}
+                                  title={simReportDate ? `Généré le ${new Date(simReportDate).toLocaleDateString("fr-FR")}` : ""}
+                                  style={{ padding: "10px 16px", borderRadius: 7, border: "1px solid #021b61", background: "#fff", color: "#021b61", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+                                >
+                                  Voir le rapport{simReportDate ? ` (${new Date(simReportDate).toLocaleDateString("fr-FR")})` : ""}
+                                </button>
+                              )}
+                              {simReportHtml && (
+                                <button
+                                  onClick={handleDeleteSimulationRetraite}
+                                  disabled={isDeletingSimulation}
+                                  style={{ padding: "10px 16px", borderRadius: 7, border: "1px solid #e53e3e", background: "#fff", color: "#e53e3e", fontWeight: 600, fontSize: 13, cursor: "pointer", opacity: isDeletingSimulation ? 0.6 : 1 }}
+                                >
+                                  {isDeletingSimulation ? "…" : "Supprimer"}
+                                </button>
+                              )}
+                            </div>
+                          )}
+
+                          {selectedAction && selectedAction.id !== "rapport_consultation" && selectedAction.id !== "simulation_retraite" && (
                             <div style={{ marginTop: 14, borderTop: "1px solid #eee", paddingTop: 14 }}>
                               <div style={{ background: "#F0EDFF", borderRadius: 7, padding: 10, marginBottom: 10, border: "1px solid #6C5CE720" }}>
                                 <div style={{ fontSize: 11, fontWeight: 700, color: "#6C5CE7", marginBottom: 3 }}>📝 PROMPT STRICT :</div>
@@ -3457,6 +3993,43 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                 </div>
                               </div>
                               <button onClick={() => setExecuted(selectedAction)} style={{ padding: "8px 18px", borderRadius: 7, border: "none", background: panel.color, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>▶ Générer le {selectedAction.label.toLowerCase()}</button>
+                            </div>
+                          )}
+
+                          {generatedDocs.length > 0 && (
+                            <div style={{ marginTop: 18 }}>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "#333", marginBottom: 8 }}>Documents générés</div>
+                              {generatedDocs.map((doc) => (
+                                <div
+                                  key={doc.id}
+                                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 8, border: "1px solid #e8e8e8", background: "#fafafa", marginBottom: 6 }}
+                                >
+                                  <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => setViewingDoc(doc)}>
+                                    <div style={{ fontSize: 13, fontWeight: 600, color: "#333", textDecoration: "underline", textDecorationColor: "#ccc", textUnderlineOffset: 2 }}>📄 {doc.name}</div>
+                                    <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>
+                                      {new Date(doc.createdAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                                    </div>
+                                  </div>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => setViewingDoc(doc)}
+                                      style={{ background: "none", border: "none", color: panel.color, cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
+                                      title="Visualiser"
+                                    >
+                                      <Eye size={16} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setDeleteGenDocId(doc.id)}
+                                      style={{ background: "none", border: "none", color: "#dc3545", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
+                                      title="Supprimer"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           )}
                         </div>
@@ -4035,6 +4608,39 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         </button>
       </div>
 
+      {/* Modal Simulation Retraite */}
+      {simReportOpen && simReportHtml && (
+        <div
+          onClick={() => setSimReportOpen(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 9999, display: "flex", flexDirection: "column" }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: "white", margin: "16px", borderRadius: "8px", flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", maxWidth: "900px", width: "100%", alignSelf: "center" }}
+          >
+            <div style={{ padding: "12px 16px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#021b61", color: "white", borderRadius: "8px 8px 0 0" }}>
+              <strong>Simulation Retraite</strong>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <button
+                  onClick={() => {
+                    const win = window.open("", "_blank");
+                    win.document.write(simReportHtml);
+                    win.document.close();
+                    win.focus();
+                    setTimeout(() => win.print(), 500);
+                  }}
+                  style={{ border: "1px solid rgba(255,255,255,0.5)", background: "transparent", cursor: "pointer", color: "white", fontSize: "12px", padding: "4px 10px", borderRadius: "4px" }}
+                >
+                  ⬇ Télécharger PDF
+                </button>
+                <button onClick={() => setSimReportOpen(false)} style={{ border: "none", background: "transparent", cursor: "pointer", color: "white", fontSize: "20px", lineHeight: 1 }}>×</button>
+              </div>
+            </div>
+            <iframe srcDoc={simReportHtml} title="Simulation Retraite" style={{ flex: 1, border: "none", width: "100%" }} sandbox="" />
+          </div>
+        </div>
+      )}
+
       {/* Modal Signaler une erreur */}
       {reportOpen && (
         <div onClick={() => setReportOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
@@ -4107,6 +4713,41 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       <SweetAlert
         warning
         showCancel
+        confirmBtnText="Supprimer"
+        confirmBtnBsStyle="danger"
+        cancelBtnText="Annuler"
+        cancelBtnBsStyle="primary"
+        title="Supprimer ce document ?"
+        show={!!deleteGenDocId}
+        onConfirm={async () => {
+          const docToDelete = generatedDocs.find((d) => d.id === deleteGenDocId);
+          setGeneratedDocs((prev) => prev.filter((d) => d.id !== deleteGenDocId));
+          setDeleteGenDocId(null);
+          // Supprimer aussi de la base pour ne pas le recharger au F5
+          if (docToDelete?.type === "rapport_consultation") {
+            try {
+              const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+              const report = await axios.get(
+                `${global.config.server_url}/v1/analysis-reports/latest/${id}/RAPPORT_CONSULTATION`,
+                Config,
+              );
+              if (report?.data?.id) {
+                await axios.delete(
+                  `${global.config.server_url}/v1/analysis-reports/${report.data.id}`,
+                  Config,
+                );
+              }
+            } catch { /* 404 = déjà supprimé, on ignore */ }
+          }
+        }}
+        onCancel={() => setDeleteGenDocId(null)}
+      >
+        Cette action est irréversible.
+      </SweetAlert>
+
+      <SweetAlert
+        warning
+        showCancel
         confirmBtnText="Réinitialiser"
         confirmBtnBsStyle="danger"
         cancelBtnText="Annuler"
@@ -4118,7 +4759,265 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       >
         Les données importées seront supprimées définitivement.
       </SweetAlert>
+
+      {viewingDoc && (
+        <ReportViewerModal
+          viewingDoc={viewingDoc}
+          setViewingDoc={setViewingDoc}
+          chatMessage={chatMessage}
+          setChatMessage={setChatMessage}
+          isGenerating={isGeneratingReport}
+          handleSaveDoc={handleSaveReport}
+          handleDownloadHtml={handleDownloadReportHtml}
+          handleDownloadPdf={handleDownloadReportPdf}
+        />
+      )}
     </div>
   );
 
+}
+
+// ── ReportViewerModal ────────────────────────────────────────────────────────
+
+function ReportViewerModal({
+  viewingDoc,
+  setViewingDoc,
+  chatMessage,
+  setChatMessage,
+  isGenerating,
+  handleSaveDoc,
+  handleDownloadHtml,
+  handleDownloadPdf,
+}) {
+  const iframeRef = useRef(null);
+  const [staticHtmlContent, setStaticHtmlContent] = useState(viewingDoc?.htmlContent || "");
+  const [isLoadingEdit, setIsLoadingEdit] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+
+  const docId = viewingDoc?.id;
+  const docUrl = viewingDoc?.url;
+  const docHtmlContent = viewingDoc?.htmlContent;
+
+  useEffect(() => {
+    if (viewingDoc) {
+      setStaticHtmlContent(docHtmlContent || "");
+      setIsEditMode(!!docHtmlContent);
+    }
+  }, [docId, docUrl, docHtmlContent, viewingDoc]);
+
+  const execCmd = (e, command, value = null) => {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    const iframe = iframeRef.current;
+    if (!iframe || !iframe.contentDocument) return;
+    try {
+      iframe.contentDocument.execCommand(command, false, value);
+      iframe.contentWindow.focus();
+    } catch (_) {}
+  };
+
+  const handleIframeLoad = () => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    try {
+      const doc = iframe.contentDocument;
+      if (doc && doc.body) {
+        doc.body.contentEditable = "true";
+        doc.body.style.cursor = "text";
+        const updateContent = () => {
+          const newContent = doc.documentElement.outerHTML;
+          setStaticHtmlContent(newContent);
+          setViewingDoc((prev) => ({ ...prev, htmlContent: newContent }));
+        };
+        doc.body.addEventListener("blur", updateContent);
+      }
+    } catch (_) {}
+  };
+
+  const handleClose = () => {
+    if (isEditMode && viewingDoc?.htmlContent) {
+      setShowCloseConfirm(true);
+    } else {
+      setViewingDoc(null);
+    }
+  };
+
+  const handleEditToggle = async () => {
+    if (isEditMode && viewingDoc?.htmlContent) {
+      await handleSaveDoc(viewingDoc);
+      return;
+    }
+    if (viewingDoc?.htmlContent) {
+      const iframe = iframeRef.current;
+      if (iframe && iframe.contentDocument && iframe.contentDocument.body) {
+        iframe.contentDocument.body.contentEditable = "true";
+        iframe.contentDocument.body.focus();
+      }
+      setIsEditMode(true);
+      return;
+    }
+    if (!viewingDoc?.url) { toast.error("Aucune source disponible pour l'édition."); return; }
+    setIsLoadingEdit(true);
+    try {
+      const res = await axios.post(
+        `${global.config.server_url}/fetch-html`,
+        { url: viewingDoc.url },
+        { headers: { Authorization: "Bearer " + localStorage.getItem("token") } }
+      );
+      if (res.data && res.data.html) {
+        setStaticHtmlContent(res.data.html);
+        setViewingDoc((prev) => ({ ...prev, htmlContent: res.data.html }));
+        setIsEditMode(true);
+      } else {
+        toast.error("Impossible de récupérer le contenu modifiable.");
+      }
+    } catch {
+      toast.error("Erreur lors de l'activation du mode édition.");
+    } finally {
+      setIsLoadingEdit(false);
+    }
+  };
+
+  return (
+    <>
+      <Modal
+        isOpen={!!viewingDoc}
+        toggle={handleClose}
+        className="modal-dialog-centered modal-xl"
+        contentClassName="h-100"
+        style={{ maxWidth: "95vw", height: "90vh" }}
+      >
+        <ModalHeader toggle={handleClose}>{viewingDoc?.name || "Document"}</ModalHeader>
+        <ModalBody className="p-0" style={{ overflow: "hidden", height: "100%" }}>
+          <div className="d-flex h-100">
+            {/* Panneau gauche — Actions */}
+            <div className="d-flex flex-column" style={{ flex: "0 0 320px", backgroundColor: "#f8f9fa", borderRight: "1px solid #dee2e6", overflowY: "auto" }}>
+              <div className="p-4">
+                <h5 className="mb-3" style={{ color: "#495057", fontWeight: 600 }}>Actions</h5>
+
+                <div className="mb-3">
+                  <div className="d-flex" style={{ gap: 10 }}>
+                    <Button color="primary" className="flex-fill d-flex align-items-center justify-content-center" onClick={handleDownloadPdf} style={{ borderRadius: 8, padding: "10px 16px", fontWeight: 500 }}>
+                      <Download size={16} className="mr-1" /> PDF
+                    </Button>
+                    {(viewingDoc?.htmlContent || viewingDoc?.url) && (
+                      <Button color="info" className="flex-fill d-flex align-items-center justify-content-center" onClick={() => handleDownloadHtml(viewingDoc)} style={{ borderRadius: 8, padding: "10px 16px", fontWeight: 500 }}>
+                        <Download size={16} className="mr-1" /> HTML
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {(viewingDoc?.htmlContent || viewingDoc?.url) && (
+                  <Button
+                    color={isEditMode ? "success" : "warning"}
+                    className="w-100 d-flex align-items-center justify-content-center mb-3"
+                    onClick={handleEditToggle}
+                    disabled={isLoadingEdit}
+                    style={{ borderRadius: 8, padding: "12px 16px", fontWeight: 500 }}
+                  >
+                    {isLoadingEdit ? <span className="spinner-border spinner-border-sm mr-2" /> : isEditMode ? <Save size={18} className="mr-2" /> : <Edit2 size={18} className="mr-2" />}
+                    {isLoadingEdit ? "Chargement..." : isEditMode ? "Enregistrer les modifications" : "Modifier le texte"}
+                  </Button>
+                )}
+
+                <hr style={{ borderColor: "#dee2e6", margin: "16px 0" }} />
+
+                <h5 className="mb-3" style={{ color: "#495057", fontWeight: 600 }}>Assistant</h5>
+                <Input
+                  type="textarea"
+                  rows="6"
+                  placeholder="Ex: Refais le calcul avec un départ à 65 ans..."
+                  value={chatMessage}
+                  onChange={(e) => setChatMessage(e.target.value)}
+                  style={{ resize: "none", marginBottom: 12, borderRadius: 8, border: "1px solid #ced4da", padding: 12, fontSize: 14 }}
+                  disabled={isGenerating}
+                />
+                <Button
+                  color="primary"
+                  block
+                  disabled={isGenerating || !chatMessage.trim()}
+                  style={{ borderRadius: 8, padding: "12px 16px", fontWeight: 500, fontSize: 15 }}
+                >
+                  {isGenerating ? "Analyse en cours..." : "Générer un rapport spécifique"}
+                </Button>
+              </div>
+            </div>
+
+            {/* Panneau droit — Prévisualisation */}
+            <div className="flex-grow-1 bg-white position-relative d-flex flex-column">
+              {isEditMode && (
+                <div style={{ padding: "10px 14px", backgroundColor: "#fff", borderBottom: "2px solid #e9ecef", display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                  <div style={{ display: "flex", gap: 4, padding: 4, backgroundColor: "#f8f9fa", borderRadius: 6 }}>
+                    <Button color="light" onMouseDown={(e) => execCmd(e, "bold")} title="Gras" style={{ border: "1px solid #dee2e6", borderRadius: 4, padding: "6px 10px", backgroundColor: "#fff" }}><Bold size={16} /></Button>
+                    <Button color="light" onMouseDown={(e) => execCmd(e, "italic")} title="Italique" style={{ border: "1px solid #dee2e6", borderRadius: 4, padding: "6px 10px", backgroundColor: "#fff" }}><Italic size={16} /></Button>
+                    <Button color="light" onMouseDown={(e) => execCmd(e, "underline")} title="Souligné" style={{ border: "1px solid #dee2e6", borderRadius: 4, padding: "6px 10px", backgroundColor: "#fff" }}><Underline size={16} /></Button>
+                  </div>
+                  <div style={{ width: 1, height: 28, backgroundColor: "#dee2e6" }} />
+                  <UncontrolledDropdown>
+                    <DropdownToggle color="light" caret onMouseDown={(e) => e.preventDefault()} style={{ border: "1px solid #dee2e6", borderRadius: 6, padding: "6px 10px", backgroundColor: "#fff", fontWeight: 500 }}>Taille</DropdownToggle>
+                    <DropdownMenu>
+                      <DropdownItem onMouseDown={(e) => execCmd(e, "fontSize", "1")}><span style={{ fontSize: 12 }}>Petit</span></DropdownItem>
+                      <DropdownItem onMouseDown={(e) => execCmd(e, "fontSize", "3")}><span style={{ fontSize: 14 }}>Normal</span></DropdownItem>
+                      <DropdownItem onMouseDown={(e) => execCmd(e, "fontSize", "5")}><span style={{ fontSize: 18 }}>Grand</span></DropdownItem>
+                      <DropdownItem onMouseDown={(e) => execCmd(e, "fontSize", "7")}><span style={{ fontSize: 24 }}>Très grand</span></DropdownItem>
+                    </DropdownMenu>
+                  </UncontrolledDropdown>
+                  <UncontrolledDropdown>
+                    <DropdownToggle color="light" caret onMouseDown={(e) => e.preventDefault()} style={{ border: "1px solid #dee2e6", borderRadius: 6, padding: "6px 10px", backgroundColor: "#fff", fontWeight: 500 }}>Couleur</DropdownToggle>
+                    <DropdownMenu>
+                      {[["#000000", "Noir"], ["#FF0000", "Rouge"], ["#0000FF", "Bleu"], ["#008000", "Vert"], ["#FFA500", "Orange"]].map(([c, l]) => (
+                        <DropdownItem key={c} onMouseDown={(e) => execCmd(e, "foreColor", c)}><span style={{ color: c, fontWeight: 600 }}>⬤</span> {l}</DropdownItem>
+                      ))}
+                    </DropdownMenu>
+                  </UncontrolledDropdown>
+                  <div style={{ width: 1, height: 28, backgroundColor: "#dee2e6" }} />
+                  <div style={{ display: "flex", gap: 4, padding: 4, backgroundColor: "#f8f9fa", borderRadius: 6 }}>
+                    <Button color="light" onMouseDown={(e) => execCmd(e, "justifyLeft")} style={{ border: "1px solid #dee2e6", borderRadius: 4, padding: "6px 10px", backgroundColor: "#fff" }}><AlignLeft size={16} /></Button>
+                    <Button color="light" onMouseDown={(e) => execCmd(e, "justifyCenter")} style={{ border: "1px solid #dee2e6", borderRadius: 4, padding: "6px 10px", backgroundColor: "#fff" }}><AlignCenter size={16} /></Button>
+                    <Button color="light" onMouseDown={(e) => execCmd(e, "justifyRight")} style={{ border: "1px solid #dee2e6", borderRadius: 4, padding: "6px 10px", backgroundColor: "#fff" }}><AlignRight size={16} /></Button>
+                  </div>
+                  <div style={{ display: "flex", gap: 4, padding: 4, backgroundColor: "#f8f9fa", borderRadius: 6 }}>
+                    <Button color="light" onMouseDown={(e) => execCmd(e, "insertUnorderedList")} style={{ border: "1px solid #dee2e6", borderRadius: 4, padding: "6px 10px", backgroundColor: "#fff" }}><List size={16} /></Button>
+                    <Button color="light" onMouseDown={(e) => execCmd(e, "insertOrderedList")} style={{ border: "1px solid #dee2e6", borderRadius: 4, padding: "6px 10px", backgroundColor: "#fff" }}><span style={{ fontSize: 13, fontWeight: 600 }}>1.</span> <List size={14} /></Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex-grow-1 position-relative">
+                {viewingDoc?.htmlContent ? (
+                  <iframe ref={iframeRef} srcDoc={staticHtmlContent} onLoad={handleIframeLoad} title="Aperçu rapport" style={{ width: "100%", height: "100%", border: "none" }} />
+                ) : viewingDoc?.url ? (
+                  <iframe ref={iframeRef} src={viewingDoc.url} onLoad={handleIframeLoad} title="Aperçu rapport" style={{ width: "100%", height: "100%", border: "none" }} />
+                ) : (
+                  <div className="d-flex align-items-center justify-content-center h-100 text-muted">Aucun aperçu disponible</div>
+                )}
+                {isGenerating && (
+                  <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(255,255,255,0.8)", zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                    <div className="spinner-border text-primary" style={{ width: "2.5rem", height: "2.5rem" }} role="status"><span className="sr-only">Chargement...</span></div>
+                    <p className="mt-2 text-primary font-weight-bold">Nouvelle analyse en cours...</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </ModalBody>
+      </Modal>
+
+      <SweetAlert
+        warning
+        showCancel
+        confirmBtnText="Enregistrer"
+        confirmBtnBsStyle="success"
+        cancelBtnText="Annuler"
+        cancelBtnBsStyle="primary"
+        title="Modifications non enregistrées"
+        show={showCloseConfirm}
+        onConfirm={async () => { setShowCloseConfirm(false); await handleSaveDoc(viewingDoc); setViewingDoc(null); setIsEditMode(false); }}
+        onCancel={() => { setShowCloseConfirm(false); setViewingDoc(null); setIsEditMode(false); }}
+      >
+        Voulez-vous enregistrer vos modifications avant de fermer ?
+      </SweetAlert>
+    </>
+  );
 }

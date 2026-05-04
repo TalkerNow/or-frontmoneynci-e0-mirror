@@ -18,9 +18,14 @@ export const WEBHOOKS = {
   SCRIPT_RCI: `${N8N_BASE}/script-execute-rci-v2-test`,
   SCRIPT_CIPAV: `${N8N_BASE}/script-execute-cipav-v2-test`,
   SCRIPT_RACL:        `${N8N_BASE}/racl-executor-v1-test`,
+  SCRIPT_RP:          `${N8N_BASE}/rp-executor-v1-test`,
+  SCRIPT_CER:         `${N8N_BASE}/cer-executor-v1-test`,
   SCRIPT_TNS:         `${N8N_BASE}/tns-executor-v1-test`,
   SCRIPT_CHOMAGE_IND: `${N8N_BASE}/chomage-indemnise-v1-test`,
-  SCRIPT_ARRET_ACTIVITE: `${N8N_BASE}/arret-activite-executor-v1-test`,
+  SCRIPT_CHOMAGE_NON_IND: `${N8N_BASE}/chomage-non-indemnise-v1-test`,
+  SCRIPT_ARRET_ACTIVITE: `${N8N_BASE}/arret-activite-v1-test`,
+  SCRIPT_VPLR_INCOMPLETE: `${N8N_BASE}/vplr-annee-incomplete-v1-test`,
+  SCRIPT_VPLR_ETUDE: `${N8N_BASE}/vplr-annee-etude-v1-test`,
 };
 
 /**
@@ -178,6 +183,8 @@ export async function saveSkillResult(clientId, skillCode, result) {
       },
       { headers: { Authorization: `Bearer ${token}` } }
     );
+    // Nouvelle analyse sauvegardée — lever le flag de reset
+    localStorage.removeItem(`simulator_reset_${clientId}`);
   } catch (err) {
     console.warn(`saveSkillResult(${skillCode}) failed:`, err?.response?.data || err.message);
   }
@@ -250,10 +257,82 @@ export async function executeRaclScenario(clientId, scenarioParams = {}) {
   );
 
   const data = Array.isArray(response.data) ? response.data[0] : response.data;
+  const raclResult = data.racl_result || {};
+  const manquants = raclResult.duree_requise != null && raclResult.trim_cotises_actuels != null
+    ? Math.max(0, raclResult.duree_requise - raclResult.trim_cotises_actuels)
+    : data.manquants ?? null;
   return {
     ...data,
     eligible: data.racl_eligible ?? data.eligible,
-    raison_eligibilite: data.racl_result?.message || data.message || data.raison_eligibilite,
+    raison_eligibilite: raclResult.raison || raclResult.message || data.message || data.raison_eligibilite || null,
+    manquants,
+    palier: raclResult.palier ?? data.palier ?? null,
+  };
+}
+
+/**
+ * Exécute le calcul Retraite Progressive via le proxy Laravel.
+ * @param {number} clientId
+ * @param {object} [scenarioParams] - { input: "60" } → quotite_travail=0.60 (optionnel)
+ */
+export async function executeRpScenario(clientId, scenarioParams = {}) {
+  const token = localStorage.getItem("token");
+  const userId = parseInt(localStorage.getItem("userid"));
+
+  // Convertit l'input UI (ex: "60") en quotité décimale (0.60)
+  const quotiteTravail = scenarioParams.input
+    ? parseFloat(scenarioParams.input) / 100
+    : null;
+
+  const response = await axios.post(
+    `${global.config.server_url}/script/calculate`,
+    {
+      regime_code: "RP",
+      client_id: clientId,
+      token,
+      user_id: userId,
+      user_context: "Analyse Retraite Progressive",
+      scenario_params: scenarioParams,
+      ...(quotiteTravail !== null && { quotite_travail: quotiteTravail }),
+    },
+    { timeout: 90000, headers: { "Content-Type": "application/json" } }
+  );
+
+  const data = Array.isArray(response.data) ? response.data[0] : response.data;
+  return {
+    ...data,
+    eligible: data.rp_eligible ?? data.eligible,
+    raison_eligibilite: data.rp_result?.message || data.message || data.raison_eligibilite,
+  };
+}
+
+/**
+ * Exécute le calcul Cumul Emploi-Retraite via le proxy Laravel.
+ * @param {number} clientId
+ * @param {object} [scenarioParams]
+ */
+export async function executeCerScenario(clientId, scenarioParams = {}) {
+  const token = localStorage.getItem("token");
+  const userId = parseInt(localStorage.getItem("userid"));
+
+  const response = await axios.post(
+    `${global.config.server_url}/script/calculate`,
+    {
+      regime_code: "CER",
+      client_id: clientId,
+      token,
+      user_id: userId,
+      user_context: "Analyse Cumul Emploi-Retraite",
+      scenario_params: scenarioParams,
+    },
+    { timeout: 90000, headers: { "Content-Type": "application/json" } }
+  );
+
+  const data = Array.isArray(response.data) ? response.data[0] : response.data;
+  return {
+    ...data,
+    eligible: data.cer_eligible ?? data.eligible,
+    raison_eligibilite: data.cer_result?.message || data.message || data.raison_eligibilite,
   };
 }
 
@@ -266,20 +345,16 @@ export async function executeRaclScenario(clientId, scenarioParams = {}) {
 export async function executeChomageIndScenario(clientId, scenarioParams = {}) {
   const token = localStorage.getItem("token");
   const userId = parseInt(localStorage.getItem("userid"));
-  const Config = { headers: { Authorization: "Bearer " + token } };
-
-  const frozenRes = await axios.get(`${global.config.server_url}/frozen_data/${clientId}`, Config);
-  const frozenData = frozenRes.data;
 
   const response = await axios.post(
-    WEBHOOKS.SCRIPT_CHOMAGE_IND,
+    `${global.config.server_url}/script/calculate`,
     {
+      regime_code: "CHOMAGE_INDEMNISE",
       client_id: clientId,
       token,
       user_id: userId,
       user_context: "Analyse chômage indemnisé",
       scenario_params: scenarioParams,
-      frozen_data: frozenData,
     },
     { timeout: 90000, headers: { "Content-Type": "application/json" } }
   );
@@ -297,20 +372,97 @@ export async function executeChomageIndScenario(clientId, scenarioParams = {}) {
 export async function executeArretActiviteScenario(clientId, scenarioParams = {}) {
   const token = localStorage.getItem("token");
   const userId = parseInt(localStorage.getItem("userid"));
-  const Config = { headers: { Authorization: "Bearer " + token } };
-
-  const frozenRes = await axios.get(`${global.config.server_url}/frozen_data/${clientId}`, Config);
-  const frozenData = frozenRes.data;
 
   const response = await axios.post(
-    WEBHOOKS.SCRIPT_ARRET_ACTIVITE,
+    `${global.config.server_url}/script/calculate`,
     {
+      regime_code: "ARRET_ACTIVITE",
       client_id: clientId,
       token,
       user_id: userId,
       user_context: "Analyse arrêt d'activité",
       scenario_params: scenarioParams,
-      frozen_data: frozenData,
+    },
+    { timeout: 90000, headers: { "Content-Type": "application/json" } }
+  );
+
+  const data = Array.isArray(response.data) ? response.data[0] : response.data;
+  return data;
+}
+
+/**
+ * Exécute l'analyse chômage non indemnisé directement via n8n.
+ * @param {number} clientId
+ * @param {object} [scenarioParams] - { periodes: [{ annee, nb_jours }] }
+ * @returns {Promise<object>}
+ */
+export async function executeChomageNonIndScenario(clientId, scenarioParams = {}) {
+  const token = localStorage.getItem("token");
+  const userId = parseInt(localStorage.getItem("userid"));
+
+  const response = await axios.post(
+    `${global.config.server_url}/script/calculate`,
+    {
+      regime_code: "CHOMAGE_NON_INDEMNISE",
+      client_id: clientId,
+      token,
+      user_id: userId,
+      user_context: "Analyse chômage non indemnisé",
+      scenario_params: scenarioParams,
+    },
+    { timeout: 90000, headers: { "Content-Type": "application/json" } }
+  );
+
+  const data = Array.isArray(response.data) ? response.data[0] : response.data;
+  return data;
+}
+
+/**
+ * Exécute l'analyse VPLR année incomplète directement via n8n.
+ * @param {number} clientId
+ * @param {object} [scenarioParams]
+ * @returns {Promise<object>}
+ */
+export async function executeVplrIncompleteScenario(clientId, scenarioParams = {}) {
+  const token = localStorage.getItem("token");
+  const userId = parseInt(localStorage.getItem("userid"));
+
+  const response = await axios.post(
+    `${global.config.server_url}/script/calculate`,
+    {
+      regime_code: "VPLR_INCOMPLETE",
+      client_id: clientId,
+      token,
+      user_id: userId,
+      user_context: "Analyse rachat VPLR année incomplète",
+      scenario_params: scenarioParams,
+    },
+    { timeout: 90000, headers: { "Content-Type": "application/json" } }
+  );
+
+  const data = Array.isArray(response.data) ? response.data[0] : response.data;
+  return data;
+}
+
+/**
+ * Exécute l'analyse VPLR année d'étude directement via n8n.
+ * @param {number} clientId
+ * @param {object} [scenarioParams]
+ * @returns {Promise<object>}
+ */
+export async function executeVplrEtudeScenario(clientId, scenarioParams = {}) {
+  const token = localStorage.getItem("token");
+  const userId = parseInt(localStorage.getItem("userid"));
+
+  const response = await axios.post(
+    `${global.config.server_url}/script/calculate`,
+    {
+      regime_code: "VPLR_ETUDE",
+      client_id: clientId,
+      token,
+      user_id: userId,
+      user_context: "Analyse rachat VPLR année d'étude",
+      scenario_params: scenarioParams,
     },
     { timeout: 90000, headers: { "Content-Type": "application/json" } }
   );
