@@ -36,6 +36,7 @@ import { toast } from "react-toastify";
 import { history } from "../../../../history";
 import Radio from "../../../../components/@vuexy/radio/RadioVuexy";
 import { countryCodes } from "../../../../configs/countryCodes";
+import Select from "react-select";
 
 class UserAccountTab extends React.Component {
   state = {
@@ -966,38 +967,54 @@ class UserAccountTab extends React.Component {
                   <Label for="business_introducer">
                     Responsable commercial
                   </Label>
-                  <CustomInput
-                    type="select"
-                    name="business_introducer"
-                    value={this.state.business_introducer_id || ""}
-                    id="business_introducer"
-                    onChange={(e) => {
+                  <Select
+                    inputId="business_introducer"
+                    placeholder="Choisir..."
+                    isClearable
+                    isSearchable
+                    noOptionsMessage={() => "Aucun résultat"}
+                    value={
+                      this.props.members
+                        ? (this.props.members
+                            .filter(
+                              (m) =>
+                                m.role?.toLowerCase() === "consultant" ||
+                                m.role?.toLowerCase() === "expert" ||
+                                m.role?.toLowerCase() === "admin",
+                            )
+                            .map((m) => ({
+                              value: m.id,
+                              label: (m.first_name || m.last_name) ? `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim() : (m.name ?? ""),
+                            }))
+                            .find(
+                              (opt) =>
+                                String(opt.value) ===
+                                String(this.state.business_introducer_id),
+                            ) || null)
+                        : null
+                    }
+                    options={
+                      this.props.members
+                        ? this.props.members
+                            .filter(
+                              (m) =>
+                                m.role?.toLowerCase() === "consultant" ||
+                                m.role?.toLowerCase() === "expert" ||
+                                m.role?.toLowerCase() === "admin",
+                            )
+                            .map((m) => ({
+                              value: m.id,
+                              label: (m.first_name || m.last_name) ? `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim() : (m.name ?? ""),
+                            }))
+                        : []
+                    }
+                    onChange={(opt) => {
                       this.setState({
-                        business_introducer_id:
-                          e.target.value === "" ? null : e.target.value,
+                        business_introducer_id: opt ? opt.value : null,
                       });
                       this.markDirty();
                     }}
-                  >
-                    {this.props.members &&
-                      [
-                        <option key="none" value="">
-                          Aucun
-                        </option>,
-                      ].concat(
-                        this.props.members
-                          .filter(
-                            (m) =>
-                              m.role?.toLowerCase() === "consultant" ||
-                              m.role?.toLowerCase() === "admin",
-                          )
-                          .map((member, index) => (
-                            <option key={member.id} value={member.id}>
-                              {member.first_name + " " + member.last_name}
-                            </option>
-                          )),
-                      )}
-                  </CustomInput>
+                  />
                 </FormGroup>
               </Col>
               {/* Nombre d’enfants / Nom société */}
@@ -1279,38 +1296,52 @@ class UserAccountTab extends React.Component {
               <Col md="6" sm="12">
                 <FormGroup>
                   <Label for="member">Consultant</Label>
-                  <CustomInput
-                    type="select"
-                    name="member"
-                    value={this.state.parent_id || ""}
-                    id="member"
-                    onChange={(e) => {
-                      this.setState({
-                        parent_id:
-                          e.target.value === "" ? null : e.target.value,
-                      });
+                  <Select
+                    inputId="member"
+                    placeholder="Choisir..."
+                    isClearable
+                    isSearchable
+                    noOptionsMessage={() => "Aucun résultat"}
+                    value={
+                      this.props.members
+                        ? (this.props.members
+                            .filter(
+                              (m) =>
+                                m.role?.toLowerCase() === "consultant" ||
+                                m.role?.toLowerCase() === "expert" ||
+                                m.role?.toLowerCase() === "admin",
+                            )
+                            .map((m) => ({
+                              value: m.id,
+                              label: (m.first_name || m.last_name) ? `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim() : (m.name ?? ""),
+                            }))
+                            .find(
+                              (opt) =>
+                                String(opt.value) ===
+                                String(this.state.parent_id),
+                            ) || null)
+                        : null
+                    }
+                    options={
+                      this.props.members
+                        ? this.props.members
+                            .filter(
+                              (m) =>
+                                m.role?.toLowerCase() === "consultant" ||
+                                m.role?.toLowerCase() === "expert" ||
+                                m.role?.toLowerCase() === "admin",
+                            )
+                            .map((m) => ({
+                              value: m.id,
+                              label: (m.first_name || m.last_name) ? `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim() : (m.name ?? ""),
+                            }))
+                        : []
+                    }
+                    onChange={(opt) => {
+                      this.setState({ parent_id: opt ? opt.value : null });
                       this.markDirty();
                     }}
-                  >
-                    {this.props.members &&
-                      [
-                        <option key="none" value="">
-                          Aucun
-                        </option>,
-                      ].concat(
-                        this.props.members
-                          .filter(
-                            (m) =>
-                              m.role?.toLowerCase() === "consultant" ||
-                              m.role?.toLowerCase() === "admin",
-                          )
-                          .map((member, index) => (
-                            <option key={member.id} value={member.id}>
-                              {member.first_name + " " + member.last_name}
-                            </option>
-                          )),
-                      )}
-                  </CustomInput>
+                  />
                 </FormGroup>
               </Col>
               {/* Rôle de l'utilisateur */}

@@ -73,7 +73,9 @@ export default function UserDetails({
     if (Array.isArray(members) && user.parent_id != null) {
       const m = members.find((m) => String(m.id) === String(user.parent_id));
       if (m) {
-        const s = `${m.first_name || ""} ${m.last_name || ""}`.trim();
+        const s = (m.first_name || m.last_name)
+          ? `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim()
+          : (m.name ?? "");
         if (s) return s;
       }
     }
@@ -343,13 +345,20 @@ export default function UserDetails({
                           .filter(
                             (m) =>
                               m.role?.toLowerCase() === "consultant" ||
+                              m.role?.toLowerCase() === "expert" ||
                               m.role?.toLowerCase() === "admin",
                           )
-                          .map((m) => (
-                            <option key={m.id} value={m.id}>
-                              {m.first_name} {m.last_name}
-                            </option>
-                          ))}
+                          .map((m) => {
+                            const label =
+                              (m.first_name || m.last_name)
+                                ? `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim()
+                                : (m.name ?? "");
+                            return (
+                              <option key={m.id} value={m.id}>
+                                {label}
+                              </option>
+                            );
+                          })}
                       </select>
                       <Button.Ripple
                         color="danger"

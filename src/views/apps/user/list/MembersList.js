@@ -46,12 +46,18 @@ class MembersList extends React.Component {
         width: 140,
         minWidth: 140,
         flex: 1,
-        valueGetter: (params) =>
-          `${params.data?.first_name ?? ""} ${
-            params.data?.last_name ?? ""
-          }`.trim(),
+        valueGetter: (params) => {
+          const fn = params.data?.first_name;
+          const ln = params.data?.last_name;
+          if (fn || ln) return `${fn ?? ""} ${ln ?? ""}`.trim();
+          return params.data?.name ?? "";
+        },
         cellRendererFramework: (params) => {
-          const fullName = `${params.data.first_name} ${params.data.last_name}`;
+          const fn = params.data.first_name;
+          const ln = params.data.last_name;
+          const fullName = (fn || ln)
+            ? `${fn ?? ""} ${ln ?? ""}`.trim()
+            : (params.data.name ?? "");
           const isConsultant = this.state.isConsultant;
 
           // 👉 Les consultants voient juste le nom, pas de clic, pas de cursor-pointer
