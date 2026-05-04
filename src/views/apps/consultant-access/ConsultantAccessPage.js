@@ -1,5 +1,5 @@
 import React from "react"
-import { Button, Card, CardBody, CardHeader, CardTitle } from "reactstrap"
+import { Button, Card, CardBody, CardHeader, CardTitle, Badge } from "reactstrap"
 import { AgGridReact } from "ag-grid-react"
 import { Edit, Trash2, UserPlus, Shield } from "react-feather"
 import SweetAlert from "react-bootstrap-sweetalert"
@@ -22,56 +22,75 @@ class ConsultantAccessPage extends React.Component {
       resizable: true,
       sortable: true,
       flex: 1,
-      minWidth: 100,
+      minWidth: 120,
       filter: false,
     },
     columnDefs: [
-      { headerName: "Nom",    field: "nom",    minWidth: 130 },
-      { headerName: "Prénom", field: "prenom", minWidth: 130 },
       {
-        headerName: "Date de naissance",
-        field: "date_de_naissance",
+        headerName: "Nom",
         minWidth: 150,
-        valueFormatter: (p) => p.value ? p.value.slice(0, 10) : "—",
+        valueGetter: (p) => {
+          const fn = p.data?.first_name
+          const ln = p.data?.last_name
+          return fn || ln ? `${fn ?? ""} ${ln ?? ""}`.trim() : (p.data?.name ?? "")
+        },
       },
+      { headerName: "Email", field: "email", minWidth: 200 },
       {
-        headerName: "Type d'accès",
-        field: "access_type",
+        headerName: "Accès",
+        field: "access_id",
         minWidth: 140,
-        cellRendererFramework: (p) =>
-          p.value === "unlimited_pass"
-            ? <span className="badge badge-success">Pass illimité</span>
-            : <span className="badge badge-info">Crédits</span>,
+        cellRendererFramework: (p) => {
+          if (!p.data?.access_id) return <span className="badge badge-secondary">Aucun accès</span>
+          if (p.data.access_type === "unlimited_pass") return <span className="badge badge-success">Pass illimité</span>
+          return <span className="badge badge-info">Crédits</span>
+        },
       },
       {
         headerName: "Crédits",
         field: "remaining_credits",
         minWidth: 100,
-        valueFormatter: (p) => p.data?.access_type === "credits" ? p.value : "—",
+        valueFormatter: (p) => {
+          if (!p.data?.access_id) return "—"
+          if (p.data.access_type !== "credits") return "—"
+          return p.value ?? 0
+        },
       },
       {
         headerName: "Expiration pass",
         field: "pass_expiration_date",
         minWidth: 150,
-        valueFormatter: (p) =>
-          p.value ? p.value.slice(0, 10) : "—",
+        valueFormatter: (p) => p.value ? p.value.slice(0, 10) : "—",
       },
       {
         headerName: "Actions",
-        minWidth: 120,
+        minWidth: 130,
         sortable: false,
         cellRendererFramework: (p) => (
           <div className="d-flex align-items-center" style={{ gap: 10 }}>
-            <Edit
-              size={16}
-              className="cursor-pointer text-primary"
-              onClick={() => this.openEdit(p.data)}
-            />
-            <Trash2
-              size={16}
-              className="cursor-pointer text-danger"
-              onClick={() => this.setState({ confirmDeleteId: p.data.id })}
-            />
+            {p.data?.access_id ? (
+              <>
+                <Edit
+                  size={16}
+                  className="cursor-pointer text-primary"
+                  title="Modifier"
+                  onClick={() => this.openEdit(p.data)}
+                />
+                <Trash2
+                  size={16}
+                  className="cursor-pointer text-danger"
+                  title="Supprimer l'accès"
+                  onClick={() => this.setState({ confirmDeleteId: p.data.access_id })}
+                />
+              </>
+            ) : (
+              <UserPlus
+                size={16}
+                className="cursor-pointer text-success"
+                title="Ajouter un accès"
+                onClick={() => this.openAdd(p.data)}
+              />
+            )}
           </div>
         ),
       },
@@ -92,12 +111,12 @@ class ConsultantAccessPage extends React.Component {
       const res = await api.get("/v1/consultant-access")
       this.setState({ rowData: res.data, loading: false })
     } catch {
-      toast.error("Impossible de charger les accès consultants.")
+      toast.error("Impossible de charger les consultants.")
       this.setState({ loading: false })
     }
   }
 
-  openAdd = () => this.setState({ formOpen: true, selectedConsultant: null })
+  openAdd  = (c) => this.setState({ formOpen: true, selectedConsultant: c })
   openEdit = (c) => this.setState({ formOpen: true, selectedConsultant: c })
   closeForm = () => this.setState({ formOpen: false, selectedConsultant: null })
 
@@ -118,7 +137,7 @@ class ConsultantAccessPage extends React.Component {
       return <Redirect to="/misc/not-authorized" />
     }
 
-    const { rowData, loading, formOpen, selectedConsultant, confirmDeleteId, columnDefs, defaultColDef } = this.state
+    const { rowData, formOpen, selectedConsultant, confirmDeleteId, columnDefs, defaultColDef } = this.state
 
     return (
       <div className="p-2">
@@ -128,24 +147,16 @@ class ConsultantAccessPage extends React.Component {
               <Shield size={20} className="text-primary" />
               <CardTitle tag="h5" className="mb-0">Gestion des accès consultants</CardTitle>
             </div>
-            <Button color="primary" size="sm" onClick={this.openAdd}>
-              <UserPlus size={14} className="mr-1" />
-              Ajouter un accès
-            </Button>
           </CardHeader>
           <CardBody>
-            <div
-              className="ag-theme-material"
-              style={{ height: 500, width: "100%" }}
-            >
+            <div className="ag-theme-material" style={{ height: 550, width: "100%" }}>
               <AgGridReact
                 columnDefs={columnDefs}
                 rowData={rowData}
                 defaultColDef={defaultColDef}
                 rowHeight={45}
                 headerHeight={40}
-                overlayLoadingTemplate={loading ? "<span>Chargement...</span>" : undefined}
-                overlayNoRowsTemplate="<span>Aucun accès consultant enregistré.</span>"
+                overlayNoRowsTemplate="<span>Aucun consultant trouvé.</span>"
               />
             </div>
           </CardBody>
@@ -165,11 +176,11 @@ class ConsultantAccessPage extends React.Component {
             confirmBtnText="Supprimer"
             cancelBtnText="Annuler"
             confirmBtnBsStyle="danger"
-            title="Confirmer la suppression"
+            title="Supprimer l'accès ?"
             onConfirm={this.handleDelete}
             onCancel={() => this.setState({ confirmDeleteId: null })}
           >
-            Cette action est irréversible.
+            Le consultant n'aura plus accès aux fonctionnalités premium.
           </SweetAlert>
         )}
       </div>

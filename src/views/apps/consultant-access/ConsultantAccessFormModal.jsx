@@ -6,25 +6,21 @@ import {
 import api from "../../../services/api"
 
 const EMPTY_FORM = {
-  nom: "",
-  prenom: "",
-  date_de_naissance: "",
   access_type: "credits",
   remaining_credits: 0,
   pass_expiration_date: "",
 }
 
 function ConsultantAccessFormModal({ isOpen, toggle, onSaved, consultant }) {
-  const [form, setForm]     = useState(EMPTY_FORM)
+  const [form, setForm]       = useState(EMPTY_FORM)
   const [loading, setLoading] = useState(false)
-  const [error, setError]   = useState(null)
+  const [error, setError]     = useState(null)
+
+  const isEdit = Boolean(consultant?.access_id)
 
   useEffect(() => {
-    if (consultant) {
+    if (isEdit) {
       setForm({
-        nom:                  consultant.nom || "",
-        prenom:               consultant.prenom || "",
-        date_de_naissance:    consultant.date_de_naissance || "",
         access_type:          consultant.access_type || "credits",
         remaining_credits:    consultant.remaining_credits ?? 0,
         pass_expiration_date: consultant.pass_expiration_date
@@ -54,10 +50,13 @@ function ConsultantAccessFormModal({ isOpen, toggle, onSaved, consultant }) {
 
     setLoading(true)
     try {
-      if (consultant) {
-        await api.put(`/v1/consultant-access/${consultant.id}`, payload)
+      if (isEdit) {
+        await api.put(`/v1/consultant-access/${consultant.access_id}`, payload)
       } else {
-        await api.post("/v1/consultant-access", payload)
+        await api.post("/v1/consultant-access", {
+          user_id: consultant.user_id,
+          ...payload,
+        })
       }
       onSaved()
       toggle()
@@ -68,34 +67,16 @@ function ConsultantAccessFormModal({ isOpen, toggle, onSaved, consultant }) {
     }
   }
 
+  const fullName = [consultant?.first_name, consultant?.last_name].filter(Boolean).join(" ") || consultant?.name || ""
+
   return (
     <Modal isOpen={isOpen} toggle={toggle} centered>
       <ModalHeader toggle={toggle}>
-        {consultant ? "Modifier l'accès" : "Ajouter un accès consultant"}
+        {isEdit ? "Modifier l'accès" : "Ajouter un accès"} — {fullName}
       </ModalHeader>
       <Form onSubmit={handleSubmit}>
         <ModalBody>
           {error && <Alert color="danger">{error}</Alert>}
-
-          <FormGroup>
-            <Label>Nom</Label>
-            <Input value={form.nom} onChange={(e) => set("nom", e.target.value)} required />
-          </FormGroup>
-
-          <FormGroup>
-            <Label>Prénom</Label>
-            <Input value={form.prenom} onChange={(e) => set("prenom", e.target.value)} required />
-          </FormGroup>
-
-          <FormGroup>
-            <Label>Date de naissance</Label>
-            <Input
-              type="date"
-              value={form.date_de_naissance}
-              onChange={(e) => set("date_de_naissance", e.target.value)}
-              required
-            />
-          </FormGroup>
 
           <FormGroup>
             <Label>Type d'accès</Label>
@@ -111,7 +92,7 @@ function ConsultantAccessFormModal({ isOpen, toggle, onSaved, consultant }) {
 
           {form.access_type === "credits" && (
             <FormGroup>
-              <Label>Crédits restants</Label>
+              <Label>Nombre de crédits</Label>
               <Input
                 type="number"
                 min="0"
@@ -141,7 +122,7 @@ function ConsultantAccessFormModal({ isOpen, toggle, onSaved, consultant }) {
           </Button>
           <Button color="primary" type="submit" disabled={loading}>
             {loading && <Spinner size="sm" className="mr-1" />}
-            {consultant ? "Enregistrer" : "Ajouter"}
+            {isEdit ? "Enregistrer" : "Ajouter"}
           </Button>
         </ModalFooter>
       </Form>
