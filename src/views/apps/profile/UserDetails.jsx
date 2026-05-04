@@ -19,8 +19,9 @@ export default function UserDetails({
   const [confirmDeleted, setConfirmDeleted] = useState(false);
   const [showSelector, setShowSelector] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [parentName, setParentName] = useState(null);
 
-  // --- FETCH des membres (experts) DANS CETTE FONCTION ---
+  // --- FETCH des membres ---
   useEffect(() => {
     let isMounted = true;
     const fetchMembers = async () => {
@@ -33,14 +34,33 @@ export default function UserDetails({
         if (isMounted) setMembers(Array.isArray(data) ? data : []);
       } catch (e) {
         if (isMounted) setMembers([]);
-        // Optionnel: console.warn("Erreur fetch members:", e);
       }
     };
     fetchMembers();
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, []);
+
+  // --- FETCH direct du consultant si parent_id connu ---
+  useEffect(() => {
+    if (!user?.parent_id) return;
+    let isMounted = true;
+    const fetchParent = async () => {
+      try {
+        const Config = {
+          headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+        };
+        const base = (global?.config?.server_url || "").replace(/\/+$/, "");
+        const { data } = await axios.get(`${base}/users/${user.parent_id}`, Config);
+        if (!isMounted) return;
+        const n = (data.first_name || data.last_name)
+          ? `${data.first_name ?? ""} ${data.last_name ?? ""}`.trim()
+          : (data.name ?? null);
+        setParentName(n);
+      } catch (e) {}
+    };
+    fetchParent();
+    return () => { isMounted = false; };
+  }, [user?.parent_id]);
 
   const fullName =
     `${user.first_name || ""} ${user.last_name || ""}`.trim() || "Utilisateur";
@@ -89,13 +109,16 @@ export default function UserDetails({
       if (user.parent.name) return user.parent.name;
     }
 
-    // 3) Fallback via champ direct
+    // 3) Fallback via fetch direct du parent
+    if (parentName) return parentName;
+
+    // 4) Fallback via champ direct
     if (user.expert_name && String(user.expert_name).trim()) {
       return String(user.expert_name).trim();
     }
 
     return "—";
-  }, [user, members]);
+  }, [user, members, parentName]);
 
   const handleSaveConsultant = async (consultantId) => {
     if (!consultantId || consultantId === "null") return;
@@ -328,39 +351,42 @@ export default function UserDetails({
                     </Button.Ripple>
                   ) : (
                     <div className="d-flex align-items-center">
-                      <select
+                      <input
+                        list="consultants-datalist"
                         className="form-control form-control-sm mr-50"
-                        style={{
-                          height: "30px",
-                          fontSize: "0.8rem",
-                          width: "auto",
-                        }}
-                        defaultValue=""
+                        style={{ height: 32, fontSize: "0.85rem", maxWidth: 200 }}
+                        placeholder="Taper un nom..."
                         disabled={isSaving}
-                        onChange={(e) => handleSaveConsultant(e.target.value)}
-                      >
-                        <option value="" disabled>
-                          Choisir...
-                        </option>
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const consultants = members.filter((m) =>
+                            m.role?.toLowerCase() === "consultant" ||
+                            m.role?.toLowerCase() === "expert" ||
+                            m.role?.toLowerCase() === "admin"
+                          );
+                          const match = consultants.find((m) => {
+                            const label = (m.first_name || m.last_name)
+                              ? `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim()
+                              : (m.name ?? "");
+                            return label === val;
+                          });
+                          if (match) handleSaveConsultant(match.id);
+                        }}
+                      />
+                      <datalist id="consultants-datalist">
                         {members
-                          .filter(
-                            (m) =>
-                              m.role?.toLowerCase() === "consultant" ||
-                              m.role?.toLowerCase() === "expert" ||
-                              m.role?.toLowerCase() === "admin",
+                          .filter((m) =>
+                            m.role?.toLowerCase() === "consultant" ||
+                            m.role?.toLowerCase() === "expert" ||
+                            m.role?.toLowerCase() === "admin"
                           )
                           .map((m) => {
-                            const label =
-                              (m.first_name || m.last_name)
-                                ? `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim()
-                                : (m.name ?? "");
-                            return (
-                              <option key={m.id} value={m.id}>
-                                {label}
-                              </option>
-                            );
+                            const label = (m.first_name || m.last_name)
+                              ? `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim()
+                              : (m.name ?? "");
+                            return <option key={m.id} value={label} />;
                           })}
-                      </select>
+                      </datalist>
                       <Button.Ripple
                         color="danger"
                         outline
