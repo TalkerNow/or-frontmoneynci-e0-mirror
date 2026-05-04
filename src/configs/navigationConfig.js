@@ -177,10 +177,19 @@ const items = {
     permissions: ["admin", "Consultant"],
     navLink: "/app/member/memberslist",
   },
+
+  consultantAccess: {
+    id: "consultantAccess",
+    title: "Accès Consultants",
+    type: "item",
+    icon: <Icon.Shield size={20} />,
+    permissions: ["admin"],
+    navLink: "/app/consultant-access",
+  },
 };
 
 // Admin keeps the current order (⚠️ sans "oldUsers")
-const adminOrder = ["dashboard", "users", "kpi", "tasks", "contracts"];
+const adminOrder = ["dashboard", "users", "kpi", "tasks", "contracts", "consultantAccess"];
 
 // Consultant order (⚠️ sans "oldUsers")
 const consultantOrder = ["users", "dashboard", "tasks", "contracts"];
