@@ -1022,15 +1022,6 @@
     }
   }
 
-  &--analyse {
-    grid-auto-rows: auto;
-
-    > div > button:first-child {
-      height: auto;
-      min-height: unset;
-      max-height: unset;
-    }
-  }
 }
 
 /* Livrables 3-col grid */
