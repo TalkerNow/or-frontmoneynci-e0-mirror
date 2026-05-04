@@ -1964,7 +1964,14 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           prenom: user?.first_name || lastRisPayload?.profil?.prenom || "",
           date_naissance: dateNaissanceFinale,
           sexe: nirInfo?.sexe || user?.sexe || null,
-          nombre_enfants: user?.children_number ?? user?.nombre_enfants ?? lastRisPayload?.profil?.nombre_enfants ?? 0,
+          nombre_enfants: parseInt(
+            user?.children_number
+              ?? user?.profil?.children_number
+              ?? user?.nombre_enfants
+              ?? lastRisPayload?.profil?.nombre_enfants
+              ?? 0,
+            10
+          ) || 0,
           nir: nir || null,
           valide_le: new Date().toISOString().split("T")[0],
         },

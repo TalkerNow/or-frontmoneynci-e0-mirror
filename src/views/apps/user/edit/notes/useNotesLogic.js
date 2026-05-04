@@ -1735,7 +1735,13 @@ export const useNotesLogic = (id, perso) => {
           prenom: perso?.first_name || "",
           date_naissance: birthDate,
           sexe: perso?.sexe || null,
-          nombre_enfants: perso?.children_number ?? 0,
+          nombre_enfants: parseInt(
+            perso?.children_number
+              ?? perso?.profil?.children_number
+              ?? perso?.nombre_enfants
+              ?? 0,
+            10
+          ) || 0,
           nir: perso?.secu_social || null,
           valide_le: new Date().toISOString().split("T")[0],
         },
