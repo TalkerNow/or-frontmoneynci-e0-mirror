@@ -418,7 +418,36 @@ export async function executeChomageNonIndScenario(clientId, scenarioParams = {}
 }
 
 /**
+ * Exécute l'analyse VPLR unifiée (incomplete + études en un appel) via le proxy Laravel.
+ * Le workflow n8n unifié calcule les deux dispositifs et gère le plafond légal partagé 12 trim.
+ * @param {number} clientId
+ * @param {object} [scenarioParams] — accepte trimestres_a_racheter (etudes) et tout autre param
+ * @returns {Promise<object>}
+ */
+export async function executeVplrScenario(clientId, scenarioParams = {}) {
+  const token = localStorage.getItem("token");
+  const userId = parseInt(localStorage.getItem("userid"));
+
+  const response = await axios.post(
+    `${global.config.server_url}/script/calculate`,
+    {
+      regime_code: "VPLR",
+      client_id: clientId,
+      token,
+      user_id: userId,
+      user_context: "Analyse rachat VPLR (incomplete + études)",
+      scenario_params: scenarioParams,
+    },
+    { timeout: 90000, headers: { "Content-Type": "application/json" } }
+  );
+
+  const data = Array.isArray(response.data) ? response.data[0] : response.data;
+  return data;
+}
+
+/**
  * Exécute l'analyse VPLR année incomplète directement via n8n.
+ * @deprecated Utiliser executeVplrScenario qui fusionne incomplete + études.
  * @param {number} clientId
  * @param {object} [scenarioParams]
  * @returns {Promise<object>}

@@ -6,7 +6,7 @@ import Dropzone from "react-dropzone";
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button, UncontrolledTooltip, Input, UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem } from "reactstrap";
 import { DownloadCloud, Eye, Download, Edit2, Save, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, Trash2 } from "react-feather";
 import { parseNIR } from "./utils";
-import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrIncompleteScenario, executeVplrEtudeScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6 } from "../risService";
+import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6 } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
@@ -28,8 +28,7 @@ const ACTION_PANELS = {
     desc: "Activez les dispositifs applicables — l'IA en déduit les dates de départ possibles",
     actions: [
       { id: "racl", label: "Carrière longue (RACL)", icon: "⏩", requires: ["ris"], desc: "Départ anticipé si début activité avant 16/18/20/21 ans", generates_date: true },
-      { id: "rachat_incomplete", label: "Rachat VPLR année incomplète", icon: "🧩", requires: ["ris"], desc: "Racheter des trimestres pour années < 4 trimestres" },
-      { id: "rachat_etude", label: "Rachat VPLR année d'étude", icon: "🎓", requires: ["ris"], hasInput: true, inputType: "number", inputLabel: "Nb années études", desc: "Max 12 trimestres rachetables" },
+      { id: "rachat_vplr", label: "Rachat VPLR", icon: "🧩", requires: ["ris"], hasInput: true, inputType: "number", inputLabel: "Nb trim. études (optionnel)", desc: "Années incomplètes auto-détectées + études (plafond légal partagé : 12 trim.)" },
       { id: "retraite_progressive", label: "Retraite progressive", icon: "⚖️", requires: ["ris"], desc: "Temps partiel + pension partielle dès âge légal −2 ans", generates_date: true, hasInput: true, inputType: "number", inputLabel: "Quotité activité (%)" },
       { id: "cumul_emploi", label: "Cumul emploi-retraite", icon: "🔄", requires: ["ris"], desc: "Liquidation puis reprise d'activité, 2e pension (réforme 2023)", generates_date: true },
       { id: "chomage_ind", label: "Chômage indemnisé", icon: "📉", requires: ["ris"], hasInput: true, inputType: "number", inputLabel: "Durée (mois)", desc: "Trim. assimilés, impact sur date taux plein", generates_date: true },
@@ -62,14 +61,14 @@ const SKILL_CODE_LABELS = {
   CHOMAGE_NON_INDEMNISE: "CHÔMAGE NON INDEMNISÉ",
   ARRET_ACTIVITE: "ARRÊT D'ACTIVITÉ",
   COTISATIONS_MIN: "COTISATIONS MINIMALES (TI/TNS)",
+  // Anciens codes conservés pour rétro-compat (rapports déjà stockés en DB)
   VPLR_INCOMPLETE: "RACHAT VPLR (ANNÉE INCOMPLÈTE)",
   VPLR_ETUDE: "RACHAT VPLR (ANNÉE D'ÉTUDE)",
 };
 
 const DISPOSITIF_TO_SKILL_CODE = {
   racl: "RACL",
-  rachat_incomplete: "VPLR_INCOMPLETE",
-  rachat_etude: "VPLR_ETUDE",
+  rachat_vplr: "VPLR",
   retraite_progressive: "RP",
   cumul_emploi: "CER",
   chomage_ind: "CHOMAGE_INDEMNISE",
@@ -226,7 +225,7 @@ function detectDispositifsFromRIS(trimCot, birthDate) {
     .filter(([, t]) => { const v = parseInt(t, 10); return v > 0 && v < 4; })
     .map(([yr]) => yr);
   if (incompletYears.length > 0) {
-    detected.rachat_incomplete = `${incompletYears.length} année(s) incomplète(s) (${incompletYears.slice(0, 3).join(", ")}${incompletYears.length > 3 ? "…" : ""})`;
+    detected.rachat_vplr = `${incompletYears.length} année(s) incomplète(s) (${incompletYears.slice(0, 3).join(", ")}${incompletYears.length > 3 ? "…" : ""})`;
   }
 
   // Retraite progressive — âge légal estimé selon génération (réforme 2023)
@@ -2176,10 +2175,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         ? await executeChomageIndScenario(parseInt(id), scenarioParams)
         : skillCode === "CHOMAGE_NON_INDEMNISE"
         ? await executeChomageNonIndScenario(parseInt(id), scenarioParams)
-        : skillCode === "VPLR_INCOMPLETE"
-        ? await executeVplrIncompleteScenario(parseInt(id), scenarioParams)
-        : skillCode === "VPLR_ETUDE"
-        ? await executeVplrEtudeScenario(parseInt(id), scenarioParams)
+        : skillCode === "VPLR"
+        ? await executeVplrScenario(parseInt(id), scenarioParams)
         : skillCode === "ARRET_ACTIVITE"
         ? await executeArretActiviteScenario(parseInt(id), scenarioParams)
         : await executeSkillGeneric(skillCode, {
@@ -3256,7 +3253,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                           <div className="simu-action-grid">
                             {panel.actions.filter((action) => {
                               const code = DISPOSITIF_TO_SKILL_CODE[action.id];
-                              if (code === "VPLR_INCOMPLETE" || code === "VPLR_ETUDE") return true;
+                              if (code === "VPLR") return true;
                               return scenarioSkillResults[code]?.eligible === true;
                             }).map((action) => {
                               const ok = checkReq(action.requires);
