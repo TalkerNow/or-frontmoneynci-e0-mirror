@@ -429,6 +429,20 @@ export async function executeVplrScenario(clientId, scenarioParams = {}) {
   const token = localStorage.getItem("token");
   const userId = parseInt(localStorage.getItem("userid"));
 
+  // Le workflow n8n vplr-v2-test exige frozen_data dans le payload
+  // (le proxy Laravel le faisait avant — on appelle direct, donc on doit le fournir)
+  let frozen_data = null;
+  try {
+    const fd = await axios.get(
+      `${global.config.server_url}/frozen_data/${clientId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    frozen_data = fd.data;
+  } catch (e) {
+    if (e.response?.status !== 404) throw e;
+    // 404 : pas encore de frozen_data — on laisse n8n renvoyer son erreur métier
+  }
+
   const response = await axios.post(
     WEBHOOKS.SCRIPT_VPLR,
     {
@@ -439,6 +453,7 @@ export async function executeVplrScenario(clientId, scenarioParams = {}) {
       user_id: userId,
       user_context: "Analyse rachat VPLR (incomplete + études)",
       scenario_params: scenarioParams,
+      frozen_data,
     },
     { timeout: 90000, headers: { "Content-Type": "application/json" } }
   );
