@@ -67,7 +67,7 @@ function ConsultantAccessFormModal({ isOpen, toggle, onSaved, consultant }) {
     }
   }
 
-  const fullName = [consultant?.first_name, consultant?.last_name].filter(Boolean).join(" ") || consultant?.name || ""
+  const fullName = consultant?.name || ""
 
   return (
     <Modal isOpen={isOpen} toggle={toggle} centered>
@@ -117,7 +117,7 @@ function ConsultantAccessFormModal({ isOpen, toggle, onSaved, consultant }) {
         </ModalBody>
 
         <ModalFooter>
-          <Button color="secondary" outline onClick={toggle} disabled={loading}>
+          <Button color="danger" onClick={toggle} disabled={loading}>
             Annuler
           </Button>
           <Button color="primary" type="submit" disabled={loading}>
