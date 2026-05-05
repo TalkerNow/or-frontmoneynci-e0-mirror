@@ -9,5 +9,3 @@ module.exports = global.config = {
 	server_url: API_URL
 //   other global config variables you wish
 };
-
-
