@@ -8,7 +8,7 @@ import { DownloadCloud, Eye, Download, Edit2, Save, Bold, Italic, Underline, Ali
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import { parseNIR } from "./utils";
-import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenario, saveChosenScenario, fetchChosenDate, saveChosenDate, updateSimulationHtml } from "../risService";
+import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
@@ -682,14 +682,15 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [scenarioSkillLoading, setScenarioSkillLoading] = useState({});
   const [scenarioSkillErrors, setScenarioSkillErrors] = useState({});
 
-  // ── Scénario retenu par le consultant (persisté dans frozen_data.scenario_choisi) ──
-  // Forme : { dispositif_id, label, skill_code, params, result_summary, chosen_at, chosen_by }
-  const [chosenScenario, setChosenScenario] = useState(null);
+  // ── Scénarios retenus (multi-select, persisté dans frozen_data.scenarios_choisis) ──
+  // Tableau d'items : { dispositif_id, label, skill_code, params, result_summary,
+  //                     last_calc, last_calc_at, chosen_at, chosen_by }
+  const [chosenScenarios, setChosenScenarios] = useState([]);
   const [chosenScenarioSaving, setChosenScenarioSaving] = useState(false);
 
-  // ── Date de départ retenue (persistée dans frozen_data.date_retenue) ──
-  // Forme : { type, label, date (ISO yyyy-mm-dd), info, chosen_at, chosen_by }
-  const [chosenDate, setChosenDate] = useState(null);
+  // ── Dates retenues (multi-select, persisté dans frozen_data.dates_retenues) ──
+  // Tableau d'items : { type, label, date (ISO yyyy-mm-dd), info, chosen_at, chosen_by }
+  const [chosenDates, setChosenDates] = useState([]);
   const [chosenDateSaving, setChosenDateSaving] = useState(false);
   const [dateLibreInput, setDateLibreInput] = useState("");
 
@@ -927,18 +928,29 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         }
       }
 
-      // Recharger le scénario retenu (frozen_data.scenario_choisi)
+      // Recharger les scénarios retenus (frozen_data.scenarios_choisis, multi)
       try {
-        const chosen = await fetchChosenScenario(id);
-        if (chosen) setChosenScenario(chosen);
+        const list = await fetchChosenScenarios(id);
+        if (Array.isArray(list)) setChosenScenarios(list);
+        // Restaurer les inputValues à partir des params persistés
+        const restoredInputs = {};
+        for (const s of list || []) {
+          if (s?.dispositif_id && s?.params?.input != null) {
+            restoredInputs[s.dispositif_id] = String(s.params.input);
+          }
+        }
+        if (Object.keys(restoredInputs).length) {
+          setInputValues(prev => ({ ...restoredInputs, ...prev }));
+        }
       } catch { /* 404 ou pas de carrière, on ignore */ }
 
-      // Recharger la date retenue (frozen_data.date_retenue)
+      // Recharger les dates retenues (frozen_data.dates_retenues, multi)
       try {
-        const dt = await fetchChosenDate(id);
-        if (dt) {
-          setChosenDate(dt);
-          if (dt.type === "date_libre" && dt.date) setDateLibreInput(dt.date);
+        const dates = await fetchChosenDates(id);
+        if (Array.isArray(dates)) {
+          setChosenDates(dates);
+          const libre = dates.find(d => d?.type === "date_libre" && d?.date);
+          if (libre) setDateLibreInput(libre.date);
         }
       } catch { /* 404 ou pas de carrière, on ignore */ }
 
@@ -2498,6 +2510,56 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     }
   };
 
+  // Construit un item de scénario à partir d'une action, de son résultat
+  // (le payload n8n complet) et des params saisis. Centralisé pour pouvoir
+  // ré-utiliser au moment d'un recalcul (snapshot rafraîchi).
+  const buildScenarioItem = useCallback((action, skillResultData, paramsOverride) => {
+    const params = paramsOverride
+      ?? (inputValues[action.id] != null && inputValues[action.id] !== ""
+        ? { input: inputValues[action.id] }
+        : {});
+    return {
+      dispositif_id: action.id,
+      label: action.label,
+      skill_code: DISPOSITIF_TO_SKILL_CODE[action.id] || null,
+      params,
+      result_summary: skillResultData ? {
+        eligible: skillResultData.eligible ?? null,
+        date_depart_estimee: skillResultData.date_depart_estimee
+          || skillResultData.rp_result?.date_debut_rp_possible
+          || skillResultData.cer_result?.date_cumul_possible
+          || null,
+        age_depart_possible: skillResultData.age_depart_possible ?? null,
+        gain_mensuel: skillResultData.impact?.gain_mensuel ?? null,
+      } : null,
+      last_calc: skillResultData ?? null,
+      last_calc_at: skillResultData ? new Date().toISOString() : null,
+    };
+  }, [inputValues]);
+
+  // Met à jour le snapshot (params + résultat) d'un scénario déjà retenu.
+  // Appelé après un recalcul pour persister le résultat le plus récent.
+  // No-op si le dispositif n'est pas dans la liste.
+  const refreshChosenScenarioSnapshot = useCallback(async (action, skillResultData, paramsOverride) => {
+    if (!id) return;
+    if (!chosenScenarios.some(s => s?.dispositif_id === action.id)) return;
+    const next = chosenScenarios.map(s =>
+      s?.dispositif_id === action.id
+        ? buildScenarioItem(action, skillResultData, paramsOverride)
+        : s
+    );
+    const previous = chosenScenarios;
+    setChosenScenarios(next);
+    try {
+      const updated = await saveChosenScenarios(parseInt(id), next);
+      const serverList = updated?.scenarios_choisis;
+      if (Array.isArray(serverList)) setChosenScenarios(serverList);
+    } catch (err) {
+      setChosenScenarios(previous);
+      // silencieux : le résultat reste affiché côté UI, juste pas re-persisté
+    }
+  }, [id, chosenScenarios, buildScenarioItem]);
+
   const handleScenarioSkillExecute = useCallback(async (skillCode, scenarioParams = {}) => {
     if (!id || !carriereValidee) {
       toast.error("Geler la carrière d'abord");
@@ -2529,6 +2591,21 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           });
       setScenarioSkillResults(prev => ({ ...prev, [skillCode]: result }));
       saveSkillResult(id, skillCode, result);
+      // Persistance multi-select : si le dispositif est retenu, mettre à
+      // jour son snapshot (params + résultat complet) en base.
+      const dispId = Object.entries(DISPOSITIF_TO_SKILL_CODE).find(([, v]) => v === skillCode)?.[0];
+      if (dispId) {
+        const action = Object.values(ACTION_PANELS)
+          .flatMap(p => p?.actions || [])
+          .find(a => a.id === dispId);
+        if (action) {
+          const paramsForItem = scenarioParams && Object.keys(scenarioParams).length
+            ? scenarioParams
+            : undefined;
+          // fire-and-forget : ne bloque pas l'affichage des résultats
+          refreshChosenScenarioSnapshot(action, result, paramsForItem);
+        }
+      }
       const skillLabel = result.skill_name || SKILL_CODE_LABELS[skillCode] || skillCode.replace(/_/g, ' ');
       if (result.eligible === true) {
         toast.success(`${skillLabel} : éligible`);
@@ -2542,80 +2619,74 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     } finally {
       setScenarioSkillLoading(prev => ({ ...prev, [skillCode]: false }));
     }
-  }, [id, carriereValidee]);
+  }, [id, carriereValidee, refreshChosenScenarioSnapshot]);
 
-  // ── Choix du scénario retenu — persiste dans frozen_data.scenario_choisi ──
-  // Toggle : cliquer sur le scénario déjà retenu l'efface.
+  // ── Multi-select : toggle d'un scénario dans la liste retenue ──
+  // Persiste l'intégralité de la liste à chaque modification.
   const handleChooseScenario = useCallback(async (action, skillResultData) => {
     if (!id) return;
-    const isSame = chosenScenario?.dispositif_id === action.id;
-    const payload = isSame ? null : {
-      dispositif_id: action.id,
-      label: action.label,
-      skill_code: DISPOSITIF_TO_SKILL_CODE[action.id] || null,
-      params: inputValues[action.id] != null && inputValues[action.id] !== ""
-        ? { input: inputValues[action.id] }
-        : {},
-      result_summary: skillResultData ? {
-        eligible: skillResultData.eligible ?? null,
-        date_depart_estimee: skillResultData.date_depart_estimee
-          || skillResultData.rp_result?.date_debut_rp_possible
-          || skillResultData.cer_result?.date_cumul_possible
-          || null,
-        age_depart_possible: skillResultData.age_depart_possible ?? null,
-        gain_mensuel: skillResultData.impact?.gain_mensuel ?? null,
-      } : null,
-    };
+    const idx = chosenScenarios.findIndex(s => s?.dispositif_id === action.id);
+    const adding = idx === -1;
+    const next = adding
+      ? [...chosenScenarios, buildScenarioItem(action, skillResultData)]
+      : chosenScenarios.filter((_, i) => i !== idx);
+
     setChosenScenarioSaving(true);
-    const previous = chosenScenario;
-    setChosenScenario(payload); // optimistic
+    const previous = chosenScenarios;
+    setChosenScenarios(next); // optimiste
     try {
-      const updated = await saveChosenScenario(parseInt(id), payload);
-      setChosenScenario(updated?.scenario_choisi ?? payload);
-      toast.success(payload ? `Scénario retenu : ${action.label}` : "Choix de scénario effacé");
+      const updated = await saveChosenScenarios(parseInt(id), next);
+      const serverList = updated?.scenarios_choisis;
+      if (Array.isArray(serverList)) setChosenScenarios(serverList);
+      toast.success(adding ? `Scénario ajouté : ${action.label}` : `Scénario retiré : ${action.label}`);
     } catch (err) {
-      setChosenScenario(previous); // rollback
+      setChosenScenarios(previous);
       const msg = err.response?.data?.message || err.message || "Erreur sauvegarde";
       toast.error(`Impossible de sauvegarder : ${msg}`);
     } finally {
       setChosenScenarioSaving(false);
     }
-  }, [id, chosenScenario, inputValues]);
+  }, [id, chosenScenarios, buildScenarioItem]);
 
-  // ── Choix de la date de départ retenue — persisté dans frozen_data.date_retenue ──
-  // Toggle : cliquer sur la date déjà retenue l'efface.
+  // ── Multi-select : toggle d'une date dans la liste retenue ──
+  // Identité : (type, date) — plusieurs `date_libre` distinctes autorisées.
   // Pour "date_libre", `customDate` doit être au format ISO yyyy-mm-dd.
   const handleChooseDate = useCallback(async (typeId, label, dateInfo, customDate = null) => {
     if (!id) return;
-    const isSame = chosenDate?.type === typeId && (typeId !== "date_libre" || chosenDate?.date === customDate);
-    let payload = null;
-    if (!isSame) {
-      let isoDate = customDate;
-      let info = dateInfo?.info || "";
-      if (typeId !== "date_libre" && dateInfo?.date instanceof Date) {
-        const d = dateInfo.date;
-        isoDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      }
-      if (typeId === "date_libre" && customDate) {
-        info = new Date(customDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
-      }
-      payload = { type: typeId, label, date: isoDate, info };
+    let isoDate = customDate;
+    let info = dateInfo?.info || "";
+    if (typeId !== "date_libre" && dateInfo?.date instanceof Date) {
+      const d = dateInfo.date;
+      isoDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     }
+    if (typeId === "date_libre" && customDate) {
+      info = new Date(customDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+    }
+    const candidate = { type: typeId, label, date: isoDate, info };
+    const idx = chosenDates.findIndex(d =>
+      d?.type === typeId && (typeId !== "date_libre" || d?.date === isoDate)
+    );
+    const adding = idx === -1;
+    const next = adding
+      ? [...chosenDates, candidate]
+      : chosenDates.filter((_, i) => i !== idx);
+
     setChosenDateSaving(true);
-    const previous = chosenDate;
-    setChosenDate(payload);
+    const previous = chosenDates;
+    setChosenDates(next);
     try {
-      const updated = await saveChosenDate(parseInt(id), payload);
-      setChosenDate(updated?.date_retenue ?? payload);
-      toast.success(payload ? `Date retenue : ${label}` : "Date effacée");
+      const updated = await saveChosenDates(parseInt(id), next);
+      const serverList = updated?.dates_retenues;
+      if (Array.isArray(serverList)) setChosenDates(serverList);
+      toast.success(adding ? `Date ajoutée : ${label}` : `Date retirée : ${label}`);
     } catch (err) {
-      setChosenDate(previous);
+      setChosenDates(previous);
       const msg = err.response?.data?.message || err.message || "Erreur sauvegarde";
       toast.error(`Impossible de sauvegarder : ${msg}`);
     } finally {
       setChosenDateSaving(false);
     }
-  }, [id, chosenDate]);
+  }, [id, chosenDates]);
 
   useEffect(() => {
     if (!carriereValidee || !autoChainPendingRef.current) return;
@@ -3645,21 +3716,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               <div style={{ fontSize: 13, fontWeight: 700, color: "#0984E3" }}>Dates standard</div>
                               <span style={{ fontSize: 11, color: "#888" }}>— cliquez pour retenir une date</span>
                             </div>
-                            {chosenDate && (
-                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, padding: "8px 12px", borderRadius: 8, background: "#E8F5FE", border: "1px solid #0984E3" }}>
-                                <span style={{ fontSize: 14 }}>📅</span>
-                                <span style={{ fontSize: 12, fontWeight: 700, color: "#055CA8" }}>Date retenue :</span>
-                                <span style={{ fontSize: 12, color: "#333", flex: 1 }}>{chosenDate.label}{chosenDate.info ? ` — ${chosenDate.info}` : ""}</span>
-                                <button
-                                  onClick={() => handleChooseDate(chosenDate.type, chosenDate.label, null, chosenDate.date)}
-                                  disabled={chosenDateSaving}
-                                  title="Effacer le choix"
-                                  style={{ marginLeft: 4, padding: "2px 8px", borderRadius: 4, border: "1px solid #0984E360", background: "#fff", color: "#055CA8", fontWeight: 600, fontSize: 11, cursor: chosenDateSaving ? "wait" : "pointer" }}
-                                >
-                                  ✕
-                                </button>
-                              </div>
-                            )}
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 7 }}>
                               {[
                                 { id: "age_legal", label: "Âge légal", icon: "⚖️", info: dispDateLegale ? `${dispDateLegale.ageStr} → ${dispDateLegale.label}` : "Date de naissance manquante", dateInfo: dispDateLegale, disabled: !dispDateLegale },
@@ -3667,7 +3723,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                 { id: "taux_plein_auto", label: "Taux plein auto (67 ans)", icon: "🔓", info: dispDate67 ? `67 ans → ${dispDate67.label}` : "Date de naissance manquante", dateInfo: dispDate67, disabled: !dispDate67 },
                                 { id: "date_libre", label: "Date libre", icon: "📆", info: "Date de simulation à choisir", dateInfo: null, disabled: false },
                               ].map((d) => {
-                                const isChosen = chosenDate?.type === d.id;
+                                const isChosen = chosenDates.some(cd => cd?.type === d.id && (d.id !== "date_libre" || cd?.date === dateLibreInput));
                                 const handleClick = () => {
                                   if (d.disabled || chosenDateSaving) return;
                                   if (d.id === "date_libre") return; // géré par l'input + bouton dédié
@@ -3722,22 +3778,28 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             <span style={{ fontSize: 11, color: "#888" }}>— éligibles ({Object.values(scenarioSkillResults).filter(r => r?.eligible === true).length}) + rachats VPLR</span>
                           </div>
 
-                          {chosenScenario && (
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, padding: "8px 12px", borderRadius: 8, background: "#FFF8E1", border: "1px solid #F9A825" }}>
+                          {chosenScenarios.length > 0 && (
+                            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginBottom: 10, padding: "8px 12px", borderRadius: 8, background: "#FFF8E1", border: "1px solid #F9A825" }}>
                               <span style={{ fontSize: 14 }}>⭐</span>
-                              <span style={{ fontSize: 12, fontWeight: 700, color: "#8D6E00" }}>Scénario retenu :</span>
-                              <span style={{ fontSize: 12, color: "#333", flex: 1 }}>{chosenScenario.label}</span>
-                              {chosenScenario.result_summary?.date_depart_estimee && (
-                                <span style={{ fontSize: 11, color: "#555" }}>📅 {chosenScenario.result_summary.date_depart_estimee}</span>
-                              )}
-                              <button
-                                onClick={() => handleChooseScenario({ id: chosenScenario.dispositif_id, label: chosenScenario.label }, null)}
-                                disabled={chosenScenarioSaving}
-                                title="Effacer le choix"
-                                style={{ marginLeft: 4, padding: "2px 8px", borderRadius: 4, border: "1px solid #F9A82560", background: "#fff", color: "#8D6E00", fontWeight: 600, fontSize: 11, cursor: chosenScenarioSaving ? "wait" : "pointer" }}
-                              >
-                                ✕
-                              </button>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: "#8D6E00" }}>
+                                {chosenScenarios.length === 1 ? "Scénario retenu :" : `${chosenScenarios.length} scénarios retenus :`}
+                              </span>
+                              {chosenScenarios.map((cs) => (
+                                <span key={cs.dispositif_id} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "2px 8px", borderRadius: 12, background: "#fff", border: "1px solid #F9A82560", fontSize: 11, color: "#333" }}>
+                                  <span style={{ fontWeight: 600, color: "#8D6E00" }}>{cs.label}</span>
+                                  {cs.result_summary?.date_depart_estimee && (
+                                    <span style={{ color: "#555" }}>— 📅 {cs.result_summary.date_depart_estimee}</span>
+                                  )}
+                                  <button
+                                    onClick={() => handleChooseScenario({ id: cs.dispositif_id, label: cs.label }, null)}
+                                    disabled={chosenScenarioSaving}
+                                    title="Retirer ce scénario"
+                                    style={{ marginLeft: 2, padding: "0 6px", borderRadius: 8, border: "none", background: "transparent", color: "#8D6E00", fontWeight: 700, fontSize: 11, cursor: chosenScenarioSaving ? "wait" : "pointer", lineHeight: 1 }}
+                                  >
+                                    ✕
+                                  </button>
+                                </span>
+                              ))}
                             </div>
                           )}
 
@@ -3760,17 +3822,18 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               const skillResultData = skillCode ? scenarioSkillResults[skillCode] : null;
                               const skillErrorMsg = skillCode ? scenarioSkillErrors[skillCode] : null;
                               const isExpanded = !!expandedScenarios[action.id];
-                              const isChosen = chosenScenario?.dispositif_id === action.id;
-                              const eligibilityColor = skillResultData?.eligible === true ? "#00B894"
-                                : skillResultData?.eligible === false ? "#C0392B"
-                                : "#999";
-                              const eligibilityBg = skillResultData?.eligible === true ? "#00B89412"
-                                : skillResultData?.eligible === false ? "#FDEDEC"
+                              const isChosen = chosenScenarios.some(s => s?.dispositif_id === action.id);
+                              // Couleurs carte : retenu=vert, VPLR inéligible=rouge, éligible=gris.
+                              // Les autres scénarios non-éligibles sont filtrés en amont.
+                              const isVPLRIneligible = skillCode === "VPLR" && skillResultData?.eligible !== true;
+                              const eligibilityColor = isChosen ? "#00B894"
+                                : isVPLRIneligible ? "#C0392B"
+                                : "#999999";
+                              const eligibilityBg = isChosen ? "#00B89412"
+                                : isVPLRIneligible ? "#FDEDEC"
                                 : "#fafafa";
-                              const cardBorder = isChosen
-                                ? "2px solid #F9A825"
-                                : `2px solid ${skillResultData ? eligibilityColor + "60" : "#e8e8e8"}`;
-                              const cardBg = isChosen ? "#FFF8E1" : eligibilityBg;
+                              const cardBorder = `2px solid ${isChosen ? eligibilityColor : eligibilityColor + "60"}`;
+                              const cardBg = eligibilityBg;
                               return (
                                 <div key={action.id}>
                                   <div
@@ -3979,7 +4042,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                               cursor: chosenScenarioSaving ? "wait" : "pointer",
                                             }}
                                           >
-                                            {chosenScenarioSaving ? "…" : isChosen ? "⭐ Scénario retenu — cliquer pour annuler" : "☆ Retenir ce scénario"}
+                                            {chosenScenarioSaving ? "…" : isChosen ? "⭐ Scénario retenu — cliquer pour annuler" : "☆ Retenir le scénario"}
                                           </button>
                                         </div>
                                       )}

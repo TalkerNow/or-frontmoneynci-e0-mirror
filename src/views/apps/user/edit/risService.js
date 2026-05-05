@@ -644,6 +644,89 @@ export async function saveChosenScenario(clientId, scenario) {
 }
 
 /**
+ * Multi-select : récupère le tableau des scénarios retenus.
+ * Si la colonne plurielle est vide mais la singulière non, on rebascule
+ * pour garder une rétrocompatibilité de lecture.
+ * @param {number} clientId
+ * @returns {Promise<Array>}
+ */
+export async function fetchChosenScenarios(clientId) {
+  const token = localStorage.getItem("token");
+  try {
+    const response = await axios.get(
+      `${global.config.server_url}/frozen_data/${clientId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const arr = response.data?.scenarios_choisis;
+    if (Array.isArray(arr) && arr.length > 0) return arr;
+    const singular = response.data?.scenario_choisi;
+    return singular && typeof singular === "object" ? [singular] : [];
+  } catch (err) {
+    if (err.response && err.response.status === 404) return [];
+    throw err;
+  }
+}
+
+/**
+ * Multi-select : sauvegarde le tableau complet des scénarios retenus
+ * (sémantique replace). Le backend déduplique par dispositif_id et
+ * normalise chosen_at / chosen_by.
+ * @param {number} clientId
+ * @param {Array} scenarios
+ * @returns {Promise<object>} le frozen_data mis à jour
+ */
+export async function saveChosenScenarios(clientId, scenarios) {
+  const token = localStorage.getItem("token");
+  const response = await axios.post(
+    `${global.config.server_url}/frozen_data/${clientId}/scenarios`,
+    { scenarios: Array.isArray(scenarios) ? scenarios : [] },
+    { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
+  );
+  return response.data;
+}
+
+/**
+ * Multi-select : récupère le tableau des dates retenues, avec fallback
+ * vers la colonne singulière pour rétrocompatibilité.
+ * @param {number} clientId
+ * @returns {Promise<Array>}
+ */
+export async function fetchChosenDates(clientId) {
+  const token = localStorage.getItem("token");
+  try {
+    const response = await axios.get(
+      `${global.config.server_url}/frozen_data/${clientId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const arr = response.data?.dates_retenues;
+    if (Array.isArray(arr) && arr.length > 0) return arr;
+    const singular = response.data?.date_retenue;
+    return singular && typeof singular === "object" ? [singular] : [];
+  } catch (err) {
+    if (err.response && err.response.status === 404) return [];
+    throw err;
+  }
+}
+
+/**
+ * Multi-select : sauvegarde le tableau complet des dates retenues.
+ * Identité backend : (type, date) — plusieurs `date_libre` distinctes
+ * sont autorisées.
+ * @param {number} clientId
+ * @param {Array} dates
+ * @returns {Promise<object>}
+ */
+export async function saveChosenDates(clientId, dates) {
+  const token = localStorage.getItem("token");
+  const response = await axios.post(
+    `${global.config.server_url}/frozen_data/${clientId}/dates`,
+    { dates: Array.isArray(dates) ? dates : [] },
+    { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
+  );
+  return response.data;
+}
+
+/**
  * Récupère la liste des skills disponibles.
  * @param {string} [type] - Filtre optionnel par type
  * @returns {Promise<Array>}
