@@ -45,7 +45,8 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
   const [projectMultiple, setProjectMultiple] = useState(false);
   const [retraiteProgressive, setRetraiteProgressive] = useState(false);
   const [cumulEmploiRetraite, setCumulEmploiRetraite] = useState(false);
-  const [vplrChoice, setVplrChoice] = useState("incomplete");
+  // Rachat VPLR unifié : un seul switch ON/OFF, le workflow n8n traite incomplete + études en un appel.
+  const [vplrEnabled, setVplrEnabled] = useState(false);
   const [vplrEntries, setVplrEntries] = useState([]);
   // Retraite progressive: UI-only fields (date, %, salaire, surcôtisation)
   const [progStartDate, setProgStartDate] = useState("");
@@ -337,14 +338,10 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
   }, [retraiteProgressive, progSurcotisation]);
 
   useEffect(() => {
-    if (
-      vplrChoice !== "etude" &&
-      Array.isArray(vplrEntries) &&
-      vplrEntries.length
-    ) {
+    if (!vplrEnabled && Array.isArray(vplrEntries) && vplrEntries.length) {
       setVplrEntries([]);
     }
-  }, [vplrChoice, vplrEntries]);
+  }, [vplrEnabled, vplrEntries]);
 
   // Sanitize input to digits and a single decimal separator (comma or dot)
   const sanitizeSalaryInput = (val) => {
@@ -1367,7 +1364,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                         </div>
                       </div>
 
-                      {/* Rachat de trimestres (VPLR) */}
+                      {/* Rachat de trimestres (VPLR) — switch unique ON/OFF, le workflow n8n traite incomplete + études */}
                       <div className="hypo-row">
                         <span className="hypo-label">
                           Rachat de trimestres (VPLR)
@@ -1377,20 +1374,12 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                             <div className="vplr-switch-line">
                               <ButtonRadioSwitch
                                 noLabel
-                                className={classnames(
-                                  "vplr-toggle",
-                                  vplrChoice === "etude"
-                                    ? "primary-right"
-                                    : "primary-left"
-                                )}
-                                checked={vplrChoice === "etude"}
+                                checked={vplrEnabled}
                                 onChange={(e) =>
-                                  setVplrChoice(
-                                    e.target.checked ? "etude" : "incomplete"
-                                  )
+                                  setVplrEnabled(e.target.checked)
                                 }
                               />
-                              {vplrChoice === "etude" && (
+                              {vplrEnabled && (
                                 <button
                                   type="button"
                                   className="vplr-add-btn"
@@ -1413,7 +1402,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                                       },
                                     ])
                                   }
-                                  aria-label="Ajouter un rachat d'année d'étude"
+                                  aria-label="Ajouter une année à racheter"
                                 >
                                   +
                                 </button>
@@ -1423,7 +1412,7 @@ export default function SimulatorHub({ id, alignOffset = 0, user = null }) {
                         </div>
                       </div>
 
-                      <Collapse isOpen={vplrChoice === "etude"}>
+                      <Collapse isOpen={vplrEnabled}>
                         <div
                           className="hypo-row"
                           style={{ paddingTop: 0, gap: 0 }}
