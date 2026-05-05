@@ -3253,8 +3253,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                           <div className="simu-action-grid">
                             {panel.actions.filter((action) => {
                               const code = DISPOSITIF_TO_SKILL_CODE[action.id];
-                              if (code === "VPLR") return true;
-                              return scenarioSkillResults[code]?.eligible === true;
+                              const result = scenarioSkillResults[code];
+                              // VPLR : caché tant qu'aucun calcul n'a tourné, puis toujours visible
+                              // (même si non-éligible) — différent des autres dispositifs qui restent
+                              // masqués si non-éligibles.
+                              if (code === "VPLR") return result !== undefined;
+                              return result?.eligible === true;
                             }).map((action) => {
                               const ok = checkReq(action.requires);
                               const miss = getMissing(action.requires);
