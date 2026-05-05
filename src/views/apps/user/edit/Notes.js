@@ -88,8 +88,34 @@ const NotesTab = ({ id, perso = {}, commentsSlot, renderUploadOutside }) => {
     }
   }, []);
 
-  // Masqué : migré dans SimulatorIntegration.js (nouveau simulateur)
-  const uploadSectionElement = null;
+  const uploadSectionElement = !isProspect ? (
+    <>
+      <UploadSection
+        fileToSend={fileToSend}
+        clearFileToSend={clearFileToSend}
+        isUploading={isUploading}
+        onUpload={handleUpload}
+        isGenerating={isGenerating}
+        onCancelGeneration={handleCancelGeneration}
+        userDocuments={userDocuments}
+        isLoadingDocs={isLoadingDocs}
+        onFetchDocuments={fetchUserDocuments}
+        onSelectDocument={selectDocumentFromList}
+        selectedTags={selectedTags}
+        handleTagsChange={handleTagsChange}
+        n8nMessage={n8nMessage}
+        setN8nMessage={setN8nMessage}
+        reportType={reportType}
+        handleGenerateDoc={handleGenerateDoc}
+      />
+      <GeneratedDocsSection
+        generatedDocs={generatedDocs}
+        handleOpenDoc={handleOpenDoc}
+        requestDeleteGenerated={requestDeleteGenerated}
+        handleRenameDoc={handleRenameDoc}
+      />
+    </>
+  ) : null;
 
   const uploadSectionPortal = portalNode && uploadSectionElement
     ? ReactDOM.createPortal(uploadSectionElement, portalNode)

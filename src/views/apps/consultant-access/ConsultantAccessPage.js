@@ -9,7 +9,7 @@ import api from "../../../services/api"
 import ConsultantAccessFormModal from "./ConsultantAccessFormModal"
 import "../../../assets/scss/plugins/tables/_agGridStyleOverride.scss"
 
-const AUTHORIZED_IDS = [4, 1271, 1638]
+const AUTHORIZED_IDS = [1271, 1638]
 
 class ConsultantAccessPage extends React.Component {
   state = {
