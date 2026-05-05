@@ -5,6 +5,8 @@ import { toast } from "react-toastify";
 import Dropzone from "react-dropzone";
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button, UncontrolledTooltip, Input, UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem } from "reactstrap";
 import { DownloadCloud, Eye, Download, Edit2, Save, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, Trash2 } from "react-feather";
+import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
 import { parseNIR } from "./utils";
 import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenario, saveChosenScenario, fetchChosenDate, saveChosenDate, updateSimulationHtml } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif } from '../../../../../utils/calculators';
@@ -1588,13 +1590,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     const htmlBlockMatch = raw.match(/```html\s*([\s\S]*?)```/i);
     if (htmlBlockMatch) return htmlBlockMatch[1].trim();
 
-    // Stratégie 2 : chaîne de pensée avant le premier tag HTML structurel
+    // Stratégie 2 : tout texte avant le premier tag HTML structurel → strip si > 50 chars
     const htmlStartIdx = raw.search(/<(!DOCTYPE|html|div|section|table|h[1-6]|p\s)/i);
-    if (htmlStartIdx > 0) {
-      const before = raw.slice(0, htmlStartIdx);
-      if (/\[(step|étape|etape)\s*\d/i.test(before)) {
-        return raw.slice(htmlStartIdx).trim();
-      }
+    if (htmlStartIdx > 50) {
+      return raw.slice(htmlStartIdx).trim();
     }
 
     // Stratégie 3 : strip les lignes [Step N: / [Étape N:
@@ -1609,7 +1608,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         .trim();
     }
 
-    return raw.trim();
+    // Stratégie 4 : strip balises <scratchpad>...</scratchpad> injectées par certains modèles
+    return raw.replace(/<scratchpad>[\s\S]*?<\/scratchpad>/gi, "").trim();
   }, []);
 
   const handleDownloadReportHtml = useCallback((doc) => {
@@ -1622,9 +1622,88 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     URL.revokeObjectURL(a.href);
   }, []);
 
-  const handleDownloadReportPdf = useCallback(() => {
-    toast.info("Pour exporter en PDF, utilisez l'impression navigateur (Ctrl+P) depuis l'aperçu.");
-  }, []);
+  const handleDownloadReportPdf = useCallback(async () => {
+    if (!viewingDoc) { toast.error("Aucun document sélectionné"); return; }
+
+    const htmlContent = viewingDoc.htmlContent;
+
+    if (htmlContent) {
+      try {
+        toast.info("Génération du PDF en cours...");
+        const container = document.createElement("div");
+        container.style.position = "absolute";
+        container.style.left = "-9999px";
+        container.style.top = "0";
+        container.style.width = "794px";
+        container.style.backgroundColor = "white";
+        container.style.color = "black";
+        container.style.boxSizing = "border-box";
+        container.style.padding = "0";
+        container.style.margin = "0";
+        const resetStyle = `<style>html,body{margin:0;padding:0;background:white;}*{box-sizing:border-box;}</style>`;
+        const headMatch = htmlContent.match(/<head[^>]*>([\s\S]*)<\/head>/i);
+        const bodyMatch = htmlContent.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+        container.innerHTML = resetStyle + (headMatch ? headMatch[1] : "") + (bodyMatch ? bodyMatch[1] : htmlContent);
+        document.body.appendChild(container);
+        const canvas = await html2canvas(container, { scale: 5, useCORS: true, logging: false });
+        const imgData = canvas.toDataURL("image/png");
+        const pdf = new jsPDF("p", "mm", "a4");
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const imgProps = pdf.getImageProperties(imgData);
+        let imgWidth = pdfWidth;
+        let imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        if (imgHeight > pdfHeight) { imgHeight = pdfHeight; imgWidth = (imgProps.width * pdfHeight) / imgProps.height; }
+        pdf.addImage(imgData, "PNG", (pdfWidth - imgWidth) / 2, 0, imgWidth, imgHeight);
+        const safeName = (viewingDoc.name || "rapport").replace(/[^a-zA-Z0-9À-ÿ\s\-_]/g, "").trim();
+        pdf.save(`${safeName}.pdf`);
+        document.body.removeChild(container);
+        toast.success("PDF téléchargé avec succès !");
+      } catch (err) {
+        console.error("Erreur génération PDF:", err);
+        toast.error("Erreur lors de la génération du PDF");
+      }
+      return;
+    }
+
+    if (viewingDoc.url) {
+      try {
+        toast.info("Récupération du document...");
+        const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+        const response = await axios.post(`${global.config.server_url}/fetch-html`, { url: viewingDoc.url }, Config);
+        if (!response.data?.html) throw new Error("Contenu HTML vide");
+        const fetched = response.data.html;
+        toast.info("Génération du PDF...");
+        const container = document.createElement("div");
+        container.style.cssText = "position:absolute;left:-9999px;top:0;width:794px;background:white;color:black;box-sizing:border-box;padding:0;margin:0;";
+        const resetStyle = `<style>html,body{margin:0;padding:0;background:white;}*{box-sizing:border-box;}</style>`;
+        const headMatch = fetched.match(/<head[^>]*>([\s\S]*)<\/head>/i);
+        const bodyMatch = fetched.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+        container.innerHTML = resetStyle + (headMatch ? headMatch[1] : "") + (bodyMatch ? bodyMatch[1] : fetched);
+        document.body.appendChild(container);
+        const canvas = await html2canvas(container, { scale: 3, useCORS: true, logging: false });
+        const imgData = canvas.toDataURL("image/png");
+        const pdf = new jsPDF("p", "mm", "a4");
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const imgProps = pdf.getImageProperties(imgData);
+        let imgWidth = pdfWidth;
+        let imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        if (imgHeight > pdfHeight) { imgHeight = pdfHeight; imgWidth = (imgProps.width * pdfHeight) / imgProps.height; }
+        pdf.addImage(imgData, "PNG", (pdfWidth - imgWidth) / 2, 0, imgWidth, imgHeight);
+        const safeName = (viewingDoc.name || "rapport").replace(/[^a-zA-Z0-9À-ÿ\s\-_]/g, "").trim();
+        pdf.save(`${safeName}.pdf`);
+        document.body.removeChild(container);
+        toast.success("PDF téléchargé avec succès !");
+      } catch (err) {
+        console.error("Erreur téléchargement PDF backend:", err);
+        toast.error("Erreur lors du téléchargement du PDF. Veuillez régénérer le document.");
+      }
+      return;
+    }
+
+    toast.error("Aucun contenu disponible pour générer le PDF.");
+  }, [viewingDoc]);
 
   const handleSaveReport = useCallback(async (doc) => {
     if (!doc?.htmlContent) { toast.error("Aucun contenu à sauvegarder"); return; }
@@ -1709,16 +1788,19 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
 
       const childrenCount = user?.children_number ?? "";
       const birthDate = user?.birth_date ?? "";
+      const nir = user?.secu_social ?? "";
       const message = [
         "Thématiques d'analyse : Rapport de consultation retraite",
         `Nombre d'enfants : ${childrenCount}`,
         `Date de naissance : ${birthDate}`,
+        `NIR : ${nir}`,
       ].join("\n");
 
       const formData = new FormData();
       formData.append("file", risFile);
       formData.append("message", message);
       formData.append("client_id", id);
+      formData.append("nir", nir);
       if (hiddenSystemPrompt) formData.append("system_prompt", hiddenSystemPrompt);
 
       toast.info("Génération du rapport de consultation en cours…");
@@ -1810,6 +1892,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       };
 
       setGeneratedDocs((prev) => [doc, ...prev]);
+      setViewingDoc(doc);
 
       // Persister le rapport en base pour survie au F5
       saveSkillResult(id, "RAPPORT_CONSULTATION", doc);
@@ -1825,6 +1908,109 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       try { localStorage.removeItem(`gen_pending_RAPPORT_CONSULTATION_${id}`); } catch {}
     }
   }, [fileToSend, user, id, hiddenSystemPrompt, cleanChainOfThought, userDocuments, scenarioSkillResults]);
+
+  // ── Rapport spécifique (Assistant — texte libre depuis ReportViewerModal) ────
+  const handleModalGenerate = useCallback(async () => {
+    if (!chatMessage.trim()) return;
+
+    let htmlToSend = viewingDoc?.htmlContent || "";
+
+    if (!htmlToSend && viewingDoc?.url) {
+      try {
+        const res = await axios.post(
+          `${global.config.server_url}/fetch-html`,
+          { url: viewingDoc.url },
+          { headers: { Authorization: "Bearer " + localStorage.getItem("token") } }
+        );
+        if (res.data?.html) htmlToSend = res.data.html;
+      } catch (err) {
+        console.warn("Impossible de récupérer le HTML contextuel:", err);
+      }
+    }
+
+    const childrenCount = user?.children_number ?? "Non renseigné";
+    const birthDate = user?.birth_date ?? "Non renseignée";
+    const finalMessage = `${chatMessage.trim()}\n\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDate}`;
+
+    const formData = new FormData();
+    formData.append("message", finalMessage);
+    if (htmlToSend) formData.append("previous_html", htmlToSend);
+    if (id) formData.append("client_id", id);
+
+    setIsGeneratingReport(true);
+    if (cancelReportRef.current) cancelReportRef.current.cancel();
+    cancelReportRef.current = axios.CancelToken.source();
+
+    try {
+      toast.info("Analyse en cours (Spécifique)…");
+
+      const n8nRes = await axios.post(
+        "https://n8n.srv796541.hstgr.cloud/webhook/99dffa05-bf5f-44f3-884f-e748a968584d",
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" }, cancelToken: cancelReportRef.current.token }
+      );
+
+      const root = Array.isArray(n8nRes.data) ? n8nRes.data[0] : n8nRes.data;
+      let raw = "";
+      if (typeof root === "string") raw = root;
+      else if (root && typeof root === "object") raw = root.html_report || root.output || root.text || root.response || JSON.stringify(root);
+      else raw = String(n8nRes.data);
+
+      const trimmedRaw = raw.trim();
+      if (trimmedRaw.charAt(0) === '"' && trimmedRaw.charAt(trimmedRaw.length - 1) === '"') {
+        try { raw = JSON.parse(trimmedRaw); } catch (_) {}
+      }
+      if (raw.indexOf("\\n") !== -1) raw = raw.split("\\n").join("\n").split("\\t").join("\t").split('\\"').join('"');
+
+      let contentString = cleanChainOfThought(raw);
+      contentString = contentString.replace(/^```html\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+
+      if (!contentString.startsWith("<!DOCTYPE") && !contentString.startsWith("<html") && !/<\/[a-zA-Z]+>/.test(contentString)) {
+        contentString = `<html><body style="font-family:sans-serif;padding:20px">${contentString.replace(/\n/g, "<br>")}</body></html>`;
+      }
+
+      const displayName = user ? `${user.first_name || ""} ${user.last_name || ""}`.trim() : "Client";
+      const fileName = `Rapport_Specifique_${Date.now()}.html`;
+      const blob = new Blob([contentString], { type: "text/html;charset=utf-8" });
+      const uploadForm = new FormData();
+      uploadForm.append("user_id", id);
+      uploadForm.append("photoUpload0", blob, fileName);
+
+      let reportUrl = null;
+      try {
+        const uploadRes = await axios.post(
+          `${global.config.server_url}/uploadFiles`,
+          uploadForm,
+          { headers: { Authorization: "Bearer " + localStorage.getItem("token"), "Content-Type": "multipart/form-data" }, cancelToken: cancelReportRef.current.token }
+        );
+        reportUrl = uploadRes?.data?.files?.[0]?.url || null;
+      } catch (err) {
+        console.error(err);
+        toast.error("Rapport généré mais impossible de le sauvegarder sur le serveur.");
+      }
+
+      const doc = {
+        id: `rs_${Date.now()}`,
+        name: `Rapport spécifique de ${displayName}`,
+        type: "custom",
+        createdAt: new Date().toISOString(),
+        url: reportUrl,
+        htmlContent: contentString,
+      };
+
+      setGeneratedDocs((prev) => [doc, ...prev]);
+      setViewingDoc(doc);
+      setChatMessage("");
+      toast.success("Rapport spécifique généré avec succès");
+    } catch (err) {
+      if (axios.isCancel(err)) return;
+      console.error(err);
+      toast.error("Erreur lors de la génération du rapport spécifique");
+    } finally {
+      setIsGeneratingReport(false);
+      cancelReportRef.current = null;
+    }
+  }, [chatMessage, viewingDoc, user, id, cleanChainOfThought]);
 
   // ── Simulation Retraite (appelle Laravel → n8n → HTML) ──────────────────────
   const handleGenerateSimulationRetraite = useCallback(async () => {
@@ -4589,6 +4775,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           chatMessage={chatMessage}
           setChatMessage={setChatMessage}
           isGenerating={isGeneratingReport}
+          handleModalGenerate={handleModalGenerate}
           handleSaveDoc={handleSaveReport}
           handleDownloadHtml={handleDownloadReportHtml}
           handleDownloadPdf={handleDownloadReportPdf}
@@ -4607,6 +4794,7 @@ function ReportViewerModal({
   chatMessage,
   setChatMessage,
   isGenerating,
+  handleModalGenerate,
   handleSaveDoc,
   handleDownloadHtml,
   handleDownloadPdf,
@@ -4758,6 +4946,7 @@ function ReportViewerModal({
                 <Button
                   color="primary"
                   block
+                  onClick={handleModalGenerate}
                   disabled={isGenerating || !chatMessage.trim()}
                   style={{ borderRadius: 8, padding: "12px 16px", fontWeight: 500, fontSize: 15 }}
                 >
