@@ -327,6 +327,8 @@ class ClientsList extends React.Component {
         valueGetter: (params) => {
           const p = params.data.parent;
           if (!p) return "";
+          const role = (p.role || "").toLowerCase();
+          if (role !== "consultant" && role !== "admin") return "";
           if (p.name) return p.name;
           return [p.first_name, p.last_name].filter(Boolean).join(" ");
         },
