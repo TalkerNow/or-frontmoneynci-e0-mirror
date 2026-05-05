@@ -1515,6 +1515,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // CDC V2 : frontend → backend → n8n (plus d'appel direct n8n depuis le front).
   // Backend forward le PDF à n8n en multipart. n8n inchangé.
   const handleGenerateRapportConsultation = useCallback(async () => {
+    // Guard : exiger qu'au moins un calcul de dispositif ait tourné avant de générer le livrable.
+    // Évite que le consultant produise un rapport sur des données figées sans avoir lancé les calculs.
+    if (!scenarioSkillResults || Object.keys(scenarioSkillResults).length === 0) {
+      toast.error("Lance d'abord les calculs (bouton 🚀 Calculer toutes les pensions) avant de générer le rapport.");
+      return;
+    }
     // Auto-récupération du RIS si fileToSend est vide
     let risFile = fileToSend;
     if (!risFile) {
@@ -1664,12 +1670,17 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       setIsGeneratingReport(false);
       cancelReportRef.current = null;
     }
-  }, [fileToSend, user, id, hiddenSystemPrompt, cleanChainOfThought, userDocuments]);
+  }, [fileToSend, user, id, hiddenSystemPrompt, cleanChainOfThought, userDocuments, scenarioSkillResults]);
 
   // ── Simulation Retraite (appelle Laravel → n8n → HTML) ──────────────────────
   const handleGenerateSimulationRetraite = useCallback(async () => {
     if (!id) {
       toast.error("ID client manquant");
+      return;
+    }
+    // Guard : exiger qu'au moins un calcul de dispositif ait tourné.
+    if (!scenarioSkillResults || Object.keys(scenarioSkillResults).length === 0) {
+      toast.error("Lance d'abord les calculs (bouton 🚀 Calculer toutes les pensions) avant de générer la simulation.");
       return;
     }
     setIsGeneratingSimulation(true);
@@ -1699,7 +1710,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     } finally {
       setIsGeneratingSimulation(false);
     }
-  }, [id]);
+  }, [id, scenarioSkillResults]);
 
   const handleDeleteSimulationRetraite = useCallback(async () => {
     if (!id) return;
