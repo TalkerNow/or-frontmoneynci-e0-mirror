@@ -3823,13 +3823,17 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               const skillErrorMsg = skillCode ? scenarioSkillErrors[skillCode] : null;
                               const isExpanded = !!expandedScenarios[action.id];
                               const isChosen = chosenScenarios.some(s => s?.dispositif_id === action.id);
-                              // Couleurs carte : retenu=vert, VPLR inéligible=rouge, éligible=gris.
-                              // Les autres scénarios non-éligibles sont filtrés en amont.
-                              const isVPLRIneligible = skillCode === "VPLR" && skillResultData?.eligible !== true;
-                              const eligibilityColor = isChosen ? "#00B894"
+                              // Couleurs carte : retenu OU VPLR éligible=vert, VPLR inéligible=rouge,
+                              // autres éligibles=gris. VPLR est traité à part car c'est le seul
+                              // dispositif qui peut basculer ineligible→eligible via un paramètre
+                              // (rachat de trimestres) — la bascule mérite une couleur positive.
+                              const isVPLR = skillCode === "VPLR";
+                              const isVPLRIneligible = isVPLR && skillResultData?.eligible !== true;
+                              const isVPLREligible = isVPLR && skillResultData?.eligible === true;
+                              const eligibilityColor = isChosen || isVPLREligible ? "#00B894"
                                 : isVPLRIneligible ? "#C0392B"
                                 : "#999999";
-                              const eligibilityBg = isChosen ? "#00B89412"
+                              const eligibilityBg = isChosen || isVPLREligible ? "#00B89412"
                                 : isVPLRIneligible ? "#FDEDEC"
                                 : "#fafafa";
                               const cardBorder = `2px solid ${isChosen ? eligibilityColor : eligibilityColor + "60"}`;
