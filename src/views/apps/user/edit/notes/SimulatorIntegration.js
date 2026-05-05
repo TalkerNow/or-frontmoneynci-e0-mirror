@@ -4088,32 +4088,54 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                 <span>Date de naissance manquante dans le profil client.</span>
                               </div>
                             )}
-                            <button
-                              onClick={handleCalculateAllRegimes}
-                              disabled={!carriereValidee || isCalculatingAll || isCarriereEmpty || !user?.birth_date}
-                              title={!carriereValidee ? "Validez d'abord la carrière" : isCarriereEmpty ? "Carrière vide" : !user?.birth_date ? "Date de naissance manquante" : "Lancer le calcul simultané des 5 régimes"}
-                              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", padding: "12px 20px", borderRadius: 8, border: "none", background: carriereValidee && !isCalculatingAll && !isCarriereEmpty && user?.birth_date ? "linear-gradient(135deg, #6C5CE7 0%, #0984E3 100%)" : "#ccc", color: "#fff", fontWeight: 700, fontSize: 15, cursor: carriereValidee && !isCalculatingAll && !isCarriereEmpty && user?.birth_date ? "pointer" : "not-allowed", boxShadow: carriereValidee && !isCalculatingAll && !isCarriereEmpty && user?.birth_date ? "0 4px 14px rgba(108,92,231,0.35)" : "none", transition: "all 0.2s" }}
-                            >
-                              {isCalculatingAll ? (
-                                <>
-                                  <span style={{ display: "inline-block", width: 14, height: 14, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                                  Calculs en cours… (5 régimes)
-                                </>
-                              ) : (
-                                <>
-                                  <span style={{ fontSize: 16 }}>🚀</span>
-                                  Calculer toutes les pensions (5 régimes)
-                                </>
-                              )}
-                            </button>
+                            {(() => {
+                              // Calculs frais : déjà exécutés et carrière toujours gelée → on
+                              // remplace le bouton "lancer les calculs" par un CTA vers les
+                              // livrables pour éviter un reclic inutile (les calculs sont
+                              // identiques tant que la carrière n'a pas été dégelée).
+                              const calcsDone = !!(skillResult || agircResult || ircantecResult || rciResult || cipavResult);
+                              if (carriereValidee && calcsDone && !isCalculatingAll) {
+                                return (
+                                  <button
+                                    onClick={() => { setExpandedPanel("livrables"); setSelectedAction(null); setExecuted(null); }}
+                                    title="Calculs déjà effectués — passer aux livrables. Pour relancer, déverrouillez la carrière."
+                                    style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", padding: "12px 20px", borderRadius: 8, border: "1px solid #ccc", background: "#f3f3f3", color: "#555", fontWeight: 700, fontSize: 15, cursor: "pointer", transition: "all 0.2s" }}
+                                  >
+                                    <span style={{ fontSize: 14, color: "#888" }}>✓ Calculs effectués</span>
+                                    <span style={{ flex: 1, textAlign: "center" }}>Passer aux livrables</span>
+                                    <span style={{ fontSize: 16 }}>→</span>
+                                  </button>
+                                );
+                              }
+                              return (
+                                <button
+                                  onClick={handleCalculateAllRegimes}
+                                  disabled={!carriereValidee || isCalculatingAll || isCarriereEmpty || !user?.birth_date}
+                                  title={!carriereValidee ? "Validez d'abord la carrière" : isCarriereEmpty ? "Carrière vide" : !user?.birth_date ? "Date de naissance manquante" : "Lancer le calcul simultané des 5 régimes"}
+                                  style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", padding: "12px 20px", borderRadius: 8, border: "none", background: carriereValidee && !isCalculatingAll && !isCarriereEmpty && user?.birth_date ? "linear-gradient(135deg, #6C5CE7 0%, #0984E3 100%)" : "#ccc", color: "#fff", fontWeight: 700, fontSize: 15, cursor: carriereValidee && !isCalculatingAll && !isCarriereEmpty && user?.birth_date ? "pointer" : "not-allowed", boxShadow: carriereValidee && !isCalculatingAll && !isCarriereEmpty && user?.birth_date ? "0 4px 14px rgba(108,92,231,0.35)" : "none", transition: "all 0.2s" }}
+                                >
+                                  {isCalculatingAll ? (
+                                    <>
+                                      <span style={{ display: "inline-block", width: 14, height: 14, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                                      Calculs en cours… (5 régimes)
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span style={{ fontSize: 16 }}>🚀</span>
+                                      Calculer toutes les pensions (5 régimes)
+                                    </>
+                                  )}
+                                </button>
+                              );
+                            })()}
                           </div>
 
                           {(skillResult || agircResult || ircantecResult || rciResult || cipavResult) && (
-                            <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end" }}>
+                            <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end" }}>
                               <button
                                 onClick={() => setShowDetailedCalcs(s => !s)}
-                                style={{ padding: "7px 14px", borderRadius: 7, border: "1px solid #6C5CE7", background: showDetailedCalcs ? "#6C5CE712" : "#fff", color: "#6C5CE7", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>
-                                {showDetailedCalcs ? "▼ Masquer les calculs détaillés" : "▶ Afficher les calculs détaillés"}
+                                style={{ padding: "3px 9px", borderRadius: 5, border: "none", background: "transparent", color: "#888", fontWeight: 500, fontSize: 11, cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 3 }}>
+                                {showDetailedCalcs ? "Masquer les calculs détaillés" : "Afficher les calculs détaillés"}
                               </button>
                             </div>
                           )}
