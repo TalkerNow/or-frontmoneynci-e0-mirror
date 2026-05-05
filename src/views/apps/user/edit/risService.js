@@ -532,6 +532,43 @@ export async function executeTnsScenario(clientId, scenarioParams = {}) {
 }
 
 /**
+ * Récupère le scénario retenu pour un client (lit frozen_data.scenario_choisi).
+ * @param {number} clientId
+ * @returns {Promise<object|null>}
+ */
+export async function fetchChosenScenario(clientId) {
+  const token = localStorage.getItem("token");
+  try {
+    const response = await axios.get(
+      `${global.config.server_url}/frozen_data/${clientId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return response.data?.scenario_choisi ?? null;
+  } catch (err) {
+    if (err.response && err.response.status === 404) return null;
+    throw err;
+  }
+}
+
+/**
+ * Sauvegarde le scénario retenu par le consultant pour un client.
+ * Passe `null` pour effacer le choix.
+ * Autorisé même si la carrière est gelée.
+ * @param {number} clientId
+ * @param {object|null} scenario
+ * @returns {Promise<object>} le frozen_data mis à jour
+ */
+export async function saveChosenScenario(clientId, scenario) {
+  const token = localStorage.getItem("token");
+  const response = await axios.post(
+    `${global.config.server_url}/frozen_data/${clientId}/scenario`,
+    { scenario },
+    { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
+  );
+  return response.data;
+}
+
+/**
  * Récupère la liste des skills disponibles.
  * @param {string} [type] - Filtre optionnel par type
  * @returns {Promise<Array>}

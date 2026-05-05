@@ -6,7 +6,7 @@ import Dropzone from "react-dropzone";
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button, UncontrolledTooltip, Input, UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem } from "reactstrap";
 import { DownloadCloud, Eye, Download, Edit2, Save, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, Trash2 } from "react-feather";
 import { parseNIR } from "./utils";
-import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6 } from "../risService";
+import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenario, saveChosenScenario } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
@@ -38,7 +38,7 @@ const ACTION_PANELS = {
     ]
   },
   livrables: {
-    label: "Livrables", icon: "📋", color: "#D63031", order: 3,
+    label: "Livrables", icon: "📋", color: "#00B894", order: 3,
     desc: "Générer le document final — mêmes calculs, niveaux de détail différents",
     actions: [
       { id: "rapport_consultation", label: "Rapport de consultation retraite", icon: "📄", requires: ["ris"], desc: "Synthèse 1 page — entretien client", pages: "~1 page" },
@@ -680,6 +680,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [scenarioSkillLoading, setScenarioSkillLoading] = useState({});
   const [scenarioSkillErrors, setScenarioSkillErrors] = useState({});
 
+  // ── Scénario retenu par le consultant (persisté dans frozen_data.scenario_choisi) ──
+  // Forme : { dispositif_id, label, skill_code, params, result_summary, chosen_at, chosen_by }
+  const [chosenScenario, setChosenScenario] = useState(null);
+  const [chosenScenarioSaving, setChosenScenarioSaving] = useState(false);
+
   // ── Détection automatique des dispositifs applicables ──
   const [detectedDispositifs, setDetectedDispositifs] = useState({});
 
@@ -715,13 +720,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const cancelReportRef = useRef(null);
   const [isGeneratingSimulation, setIsGeneratingSimulation] = useState(false);
-  const [simReportHtml, setSimReportHtml] = useState(null);
-  const [simReportOpen, setSimReportOpen] = useState(false);
-  const [simReportDate, setSimReportDate] = useState(null);
-  const [isDeletingSimulation, setIsDeletingSimulation] = useState(false);
   // const clientNames = useMemo(() => extractClientNames(user), [user]);
 
-  // Charger le dernier rapport simulation depuis la DB au montage
+  // Charger le dernier rapport simulation depuis la DB au montage —
+  // injecté dans generatedDocs pour passer par l'interface unifiée (ReportViewerModal).
   useEffect(() => {
     if (!id) return;
     const token = localStorage.getItem("token") || "";
@@ -730,13 +732,27 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data?.html_report) {
-          setSimReportHtml(data.html_report);
-          setSimReportDate(data.created_at);
-        }
+        if (!data?.html_report) return;
+        const displayName = user
+          ? `${user.first_name || ""} ${user.last_name || ""}`.trim()
+          : "Client";
+        setGeneratedDocs((prev) => {
+          if (prev.some((d) => d.type === "simulation_retraite")) return prev;
+          return [
+            {
+              id: `sim_restored_${Date.now()}`,
+              name: `Simulation retraite de ${displayName}`,
+              type: "simulation_retraite",
+              createdAt: data.created_at || new Date().toISOString(),
+              url: null,
+              htmlContent: data.html_report,
+            },
+            ...prev,
+          ];
+        });
       })
       .catch(() => {});
-  }, [id]);
+  }, [id, user]);
 
   // Persist n8nMessage to sessionStorage
   useEffect(() => {
@@ -798,6 +814,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           });
         }
       }
+
+      // Recharger le scénario retenu (frozen_data.scenario_choisi)
+      try {
+        const chosen = await fetchChosenScenario(id);
+        if (chosen) setChosenScenario(chosen);
+      } catch { /* 404 ou pas de carrière, on ignore */ }
 
       // Recharger le rapport de consultation depuis analysis_reports
       try {
@@ -1701,37 +1723,27 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       }
       const result = await resp.json();
       if (!result.html_report) throw new Error("Rapport vide reçu — vérifiez les données carrière du client");
-      setSimReportHtml(result.html_report);
-      setSimReportDate(new Date().toISOString());
-      setSimReportOpen(true);
+
+      const displayName = user
+        ? `${user.first_name || ""} ${user.last_name || ""}`.trim()
+        : "Client";
+      const doc = {
+        id: `sim_${Date.now()}`,
+        name: `Simulation retraite de ${displayName}`,
+        type: "simulation_retraite",
+        createdAt: new Date().toISOString(),
+        url: null,
+        htmlContent: result.html_report,
+      };
+      // Remplace tout rapport simulation existant (un seul actif à la fois côté backend)
+      setGeneratedDocs((prev) => [doc, ...prev.filter((d) => d.type !== "simulation_retraite")]);
       toast.success("Simulation générée !");
     } catch (err) {
       toast.error(err.message || "Erreur lors de la simulation");
     } finally {
       setIsGeneratingSimulation(false);
     }
-  }, [id, scenarioSkillResults]);
-
-  const handleDeleteSimulationRetraite = useCallback(async () => {
-    if (!id) return;
-    if (!window.confirm("Supprimer le rapport de simulation retraite ?")) return;
-    setIsDeletingSimulation(true);
-    try {
-      const token = localStorage.getItem("token") || "";
-      await fetch(`${global.config.server_url}/v1/simulation-retraite/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-      });
-      setSimReportHtml(null);
-      setSimReportDate(null);
-      setSimReportOpen(false);
-      toast.success("Rapport supprimé");
-    } catch {
-      toast.error("Erreur lors de la suppression");
-    } finally {
-      setIsDeletingSimulation(false);
-    }
-  }, [id]);
+  }, [id, scenarioSkillResults, user]);
 
   // Derive doc availability from real uploaded documents
   const hasDocuments = userDocuments.some((d) => Number(d.dossier) === 10) || !!fileToSend;
@@ -2211,6 +2223,44 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       setScenarioSkillLoading(prev => ({ ...prev, [skillCode]: false }));
     }
   }, [id, carriereValidee]);
+
+  // ── Choix du scénario retenu — persiste dans frozen_data.scenario_choisi ──
+  // Toggle : cliquer sur le scénario déjà retenu l'efface.
+  const handleChooseScenario = useCallback(async (action, skillResultData) => {
+    if (!id) return;
+    const isSame = chosenScenario?.dispositif_id === action.id;
+    const payload = isSame ? null : {
+      dispositif_id: action.id,
+      label: action.label,
+      skill_code: DISPOSITIF_TO_SKILL_CODE[action.id] || null,
+      params: inputValues[action.id] != null && inputValues[action.id] !== ""
+        ? { input: inputValues[action.id] }
+        : {},
+      result_summary: skillResultData ? {
+        eligible: skillResultData.eligible ?? null,
+        date_depart_estimee: skillResultData.date_depart_estimee
+          || skillResultData.rp_result?.date_debut_rp_possible
+          || skillResultData.cer_result?.date_cumul_possible
+          || null,
+        age_depart_possible: skillResultData.age_depart_possible ?? null,
+        gain_mensuel: skillResultData.impact?.gain_mensuel ?? null,
+      } : null,
+    };
+    setChosenScenarioSaving(true);
+    const previous = chosenScenario;
+    setChosenScenario(payload); // optimistic
+    try {
+      const updated = await saveChosenScenario(parseInt(id), payload);
+      setChosenScenario(updated?.scenario_choisi ?? payload);
+      toast.success(payload ? `Scénario retenu : ${action.label}` : "Choix de scénario effacé");
+    } catch (err) {
+      setChosenScenario(previous); // rollback
+      const msg = err.response?.data?.message || err.message || "Erreur sauvegarde";
+      toast.error(`Impossible de sauvegarder : ${msg}`);
+    } finally {
+      setChosenScenarioSaving(false);
+    }
+  }, [id, chosenScenario, inputValues]);
 
   useEffect(() => {
     if (!carriereValidee || !autoChainPendingRef.current) return;
@@ -3261,6 +3311,25 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             <span style={{ fontSize: 11, color: "#888" }}>— éligibles ({Object.values(scenarioSkillResults).filter(r => r?.eligible === true).length}) + rachats VPLR</span>
                           </div>
 
+                          {chosenScenario && (
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, padding: "8px 12px", borderRadius: 8, background: "#FFF8E1", border: "1px solid #F9A825" }}>
+                              <span style={{ fontSize: 14 }}>⭐</span>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: "#8D6E00" }}>Scénario retenu :</span>
+                              <span style={{ fontSize: 12, color: "#333", flex: 1 }}>{chosenScenario.label}</span>
+                              {chosenScenario.result_summary?.date_depart_estimee && (
+                                <span style={{ fontSize: 11, color: "#555" }}>📅 {chosenScenario.result_summary.date_depart_estimee}</span>
+                              )}
+                              <button
+                                onClick={() => handleChooseScenario({ id: chosenScenario.dispositif_id, label: chosenScenario.label }, null)}
+                                disabled={chosenScenarioSaving}
+                                title="Effacer le choix"
+                                style={{ marginLeft: 4, padding: "2px 8px", borderRadius: 4, border: "1px solid #F9A82560", background: "#fff", color: "#8D6E00", fontWeight: 600, fontSize: 11, cursor: chosenScenarioSaving ? "wait" : "pointer" }}
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          )}
+
                           <div className="simu-action-grid">
                             {panel.actions.filter((action) => {
                               const code = DISPOSITIF_TO_SKILL_CODE[action.id];
@@ -3281,20 +3350,28 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               const skillResultData = skillCode ? scenarioSkillResults[skillCode] : null;
                               const skillErrorMsg = skillCode ? scenarioSkillErrors[skillCode] : null;
                               const isExpanded = !!expandedScenarios[action.id];
+                              const isChosen = chosenScenario?.dispositif_id === action.id;
                               const eligibilityColor = skillResultData?.eligible === true ? "#00B894"
                                 : skillResultData?.eligible === false ? "#C0392B"
                                 : "#999";
                               const eligibilityBg = skillResultData?.eligible === true ? "#00B89412"
                                 : skillResultData?.eligible === false ? "#FDEDEC"
                                 : "#fafafa";
+                              const cardBorder = isChosen
+                                ? "2px solid #F9A825"
+                                : `2px solid ${skillResultData ? eligibilityColor + "60" : "#e8e8e8"}`;
+                              const cardBg = isChosen ? "#FFF8E1" : eligibilityBg;
                               return (
                                 <div key={action.id}>
                                   <div
                                     onClick={() => setExpandedScenarios(prev => ({ ...prev, [action.id]: !prev[action.id] }))}
                                     title={skillResultData ? (skillResultData.eligible ? "Éligible" : "Non éligible") : (skillErrorMsg ? "Erreur" : "")}
-                                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 11px", borderRadius: 8, border: `2px solid ${skillResultData ? eligibilityColor + "60" : "#e8e8e8"}`, background: eligibilityBg, cursor: "pointer", opacity: ok ? 1 : 0.45, width: "100%", transition: "all 0.12s" }}>
+                                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 11px", borderRadius: 8, border: cardBorder, background: cardBg, cursor: "pointer", opacity: ok ? 1 : 0.45, width: "100%", transition: "all 0.12s" }}>
                                     <span style={{ fontSize: 15, flexShrink: 0 }}>{action.icon}</span>
                                     <div style={{ fontSize: 13, fontWeight: 600, color: "#333", flex: 1, minWidth: 0 }}>{action.label}</div>
+                                    {isChosen && (
+                                      <span title="Scénario retenu" style={{ fontSize: 13, color: "#F9A825", flexShrink: 0, lineHeight: 1 }}>⭐</span>
+                                    )}
                                     {isSkillRunning && !skillResultData && (
                                       <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #ccc", borderTop: `2px solid ${panel.color}`, borderRadius: "50%", animation: "spin 0.7s linear infinite", flexShrink: 0 }} />
                                     )}
@@ -3475,6 +3552,27 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                           </div>
                                         );
                                       })()}
+
+                                      {skillResultData && (
+                                        <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px dashed #e0e0e0", display: "flex", justifyContent: "flex-end" }}>
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); handleChooseScenario(action, skillResultData); }}
+                                            disabled={chosenScenarioSaving}
+                                            style={{
+                                              padding: "5px 12px",
+                                              borderRadius: 5,
+                                              border: isChosen ? "1px solid #F9A825" : "1px solid #F9A82550",
+                                              background: isChosen ? "#F9A825" : "#fff",
+                                              color: isChosen ? "#fff" : "#8D6E00",
+                                              fontWeight: 700,
+                                              fontSize: 11,
+                                              cursor: chosenScenarioSaving ? "wait" : "pointer",
+                                            }}
+                                          >
+                                            {chosenScenarioSaving ? "…" : isChosen ? "⭐ Scénario retenu — cliquer pour annuler" : "☆ Retenir ce scénario"}
+                                          </button>
+                                        </div>
+                                      )}
                                     </div>
                                   )}
                                   {action.generates_date && skillResultData?.eligible === true && (() => {
@@ -3596,32 +3694,14 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                           )}
 
                           {selectedAction?.id === "simulation_retraite" && (
-                            <div style={{ marginTop: 14, borderTop: "1px solid #eee", paddingTop: 14, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                            <div style={{ marginTop: 14, borderTop: "1px solid #eee", paddingTop: 14 }}>
                               <button
                                 onClick={handleGenerateSimulationRetraite}
                                 disabled={isGeneratingSimulation}
-                                style={{ padding: "10px 20px", borderRadius: 7, border: "none", background: isGeneratingSimulation ? "#aaa" : panel.color, color: "#fff", fontWeight: 700, fontSize: 13, cursor: isGeneratingSimulation ? "wait" : "pointer", opacity: isGeneratingSimulation ? 0.7 : 1 }}
+                                style={{ padding: "10px 20px", borderRadius: 7, border: "none", background: isGeneratingSimulation ? "#9ad9c0" : panel.color, color: "#fff", fontWeight: 700, fontSize: 13, cursor: isGeneratingSimulation ? "wait" : "pointer", opacity: isGeneratingSimulation ? 0.7 : 1 }}
                               >
-                                {isGeneratingSimulation ? "⏳ Génération en cours… (1-2 min)" : "▶ Générer le simulation retraite"}
+                                {isGeneratingSimulation ? "⏳ Génération en cours… (1-2 min)" : "▶ Générer la simulation retraite"}
                               </button>
-                              {simReportHtml && (
-                                <button
-                                  onClick={() => setSimReportOpen(true)}
-                                  title={simReportDate ? `Généré le ${new Date(simReportDate).toLocaleDateString("fr-FR")}` : ""}
-                                  style={{ padding: "10px 16px", borderRadius: 7, border: "1px solid #021b61", background: "#fff", color: "#021b61", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
-                                >
-                                  Voir le rapport{simReportDate ? ` (${new Date(simReportDate).toLocaleDateString("fr-FR")})` : ""}
-                                </button>
-                              )}
-                              {simReportHtml && (
-                                <button
-                                  onClick={handleDeleteSimulationRetraite}
-                                  disabled={isDeletingSimulation}
-                                  style={{ padding: "10px 16px", borderRadius: 7, border: "1px solid #e53e3e", background: "#fff", color: "#e53e3e", fontWeight: 600, fontSize: 13, cursor: "pointer", opacity: isDeletingSimulation ? 0.6 : 1 }}
-                                >
-                                  {isDeletingSimulation ? "…" : "Supprimer"}
-                                </button>
-                              )}
                             </div>
                           )}
 
@@ -3633,7 +3713,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                   [Prompt calibré pour "{selectedAction.label}" — intègre tous les dispositifs activés ({activatedDispositifs.length}), les dates calculées, les résultats automatiques (surcote, minimum contributif, majoration enfants). Niveau de détail : {selectedAction.pages}]
                                 </div>
                               </div>
-                              <button onClick={() => setExecuted(selectedAction)} style={{ padding: "8px 18px", borderRadius: 7, border: "none", background: panel.color, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>▶ Générer le {selectedAction.label.toLowerCase()}</button>
+                              <button onClick={() => setExecuted(selectedAction)} style={{ padding: "8px 18px", borderRadius: 7, border: "none", background: panel.color, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>▶ Générer — {selectedAction.label}</button>
                             </div>
                           )}
 
@@ -4150,38 +4230,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         </button>
       </div>
 
-      {/* Modal Simulation Retraite */}
-      {simReportOpen && simReportHtml && (
-        <div
-          onClick={() => setSimReportOpen(false)}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 9999, display: "flex", flexDirection: "column" }}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{ background: "white", margin: "16px", borderRadius: "8px", flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", maxWidth: "900px", width: "100%", alignSelf: "center" }}
-          >
-            <div style={{ padding: "12px 16px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#021b61", color: "white", borderRadius: "8px 8px 0 0" }}>
-              <strong>Simulation Retraite</strong>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <button
-                  onClick={() => {
-                    const win = window.open("", "_blank");
-                    win.document.write(simReportHtml);
-                    win.document.close();
-                    win.focus();
-                    setTimeout(() => win.print(), 500);
-                  }}
-                  style={{ border: "1px solid rgba(255,255,255,0.5)", background: "transparent", cursor: "pointer", color: "white", fontSize: "12px", padding: "4px 10px", borderRadius: "4px" }}
-                >
-                  ⬇ Télécharger PDF
-                </button>
-                <button onClick={() => setSimReportOpen(false)} style={{ border: "none", background: "transparent", cursor: "pointer", color: "white", fontSize: "20px", lineHeight: 1 }}>×</button>
-              </div>
-            </div>
-            <iframe srcDoc={simReportHtml} title="Simulation Retraite" style={{ flex: 1, border: "none", width: "100%" }} sandbox="" />
-          </div>
-        </div>
-      )}
 
       {/* Modal Signaler une erreur */}
       {reportOpen && (
@@ -4280,6 +4328,14 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                 );
               }
             } catch { /* 404 = déjà supprimé, on ignore */ }
+          } else if (docToDelete?.type === "simulation_retraite") {
+            try {
+              const token = localStorage.getItem("token") || "";
+              await fetch(`${global.config.server_url}/v1/simulation-retraite/${id}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+              });
+            } catch { /* on ignore — l'item est déjà retiré côté UI */ }
           }
         }}
         onCancel={() => setDeleteGenDocId(null)}
