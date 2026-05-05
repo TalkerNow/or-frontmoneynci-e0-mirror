@@ -24,6 +24,7 @@ export const WEBHOOKS = {
   SCRIPT_CHOMAGE_IND: `${N8N_BASE}/chomage-indemnise-v1-test`,
   SCRIPT_CHOMAGE_NON_IND: `${N8N_BASE}/chomage-non-indemnise-v1-test`,
   SCRIPT_ARRET_ACTIVITE: `${N8N_BASE}/arret-activite-v1-test`,
+  SCRIPT_VPLR: `${N8N_BASE}/vplr-v2-test`,
   SCRIPT_VPLR_INCOMPLETE: `${N8N_BASE}/vplr-annee-incomplete-v1-test`,
   SCRIPT_VPLR_ETUDE: `${N8N_BASE}/vplr-annee-etude-v1-test`,
 };
@@ -429,8 +430,9 @@ export async function executeVplrScenario(clientId, scenarioParams = {}) {
   const userId = parseInt(localStorage.getItem("userid"));
 
   const response = await axios.post(
-    `${global.config.server_url}/script/calculate`,
+    WEBHOOKS.SCRIPT_VPLR,
     {
+      skill_code: "VPLR",
       regime_code: "VPLR",
       client_id: clientId,
       token,
