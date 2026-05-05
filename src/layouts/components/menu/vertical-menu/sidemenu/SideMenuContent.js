@@ -201,10 +201,12 @@ class SideMenuContent extends React.Component {
 
   initRender = (parentArr) => {
     const activePath = this.props.activePath || this.props.activeItemState || "";
-    let active_groups = parentArr.slice(0).filter((id) => {
-      if (id === "crm-inbox" && !activePath.includes("/kpi/inbox")) return false;
-      return true;
-    });
+    let active_groups = parentArr.slice(0);
+    if (activePath.includes("/kpi/inbox") && !active_groups.includes("crm-inbox")) {
+      active_groups.push("crm-inbox");
+    } else if (!activePath.includes("/kpi/inbox")) {
+      active_groups = active_groups.filter((id) => id !== "crm-inbox");
+    }
 
     this.setState({
       activeGroups: active_groups,

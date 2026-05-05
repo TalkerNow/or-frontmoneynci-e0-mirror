@@ -20,14 +20,8 @@ const items = {
     navLink: "/kpi/suivi",
     children: [
       {
-        id: "crm-flux-header",
-        groupTitle: "FLUX ENTRANT",
-        type: "groupHeader",
-        permissions: ["admin", "Consultant", "Expert"],
-      },
-      {
         id: "crm-inbox",
-        title: "Boîte de réception",
+        title: "Flux réception",
         type: "collapse",
         icon: <Icon.Inbox size={16} />,
         permissions: ["admin", "Consultant", "Expert"],
@@ -68,24 +62,12 @@ const items = {
         ],
       },
       {
-        id: "crm-sales-header",
-        groupTitle: "VENTES",
-        type: "groupHeader",
-        permissions: ["admin", "Consultant", "Expert"],
-      },
-      {
         id: "crm-opportunities",
         title: "Opportunités",
         type: "item",
         icon: <Icon.Briefcase size={16} />,
         permissions: ["admin", "Consultant", "Expert"],
         navLink: "/kpi/opportunities",
-      },
-      {
-        id: "crm-prod-header",
-        groupTitle: "PRODUCTION",
-        type: "groupHeader",
-        permissions: ["admin", "Consultant", "Expert"],
       },
       {
         id: "crm-suivi",
