@@ -443,7 +443,6 @@ export async function executeVplrScenario(clientId, scenarioParams = {}) {
     // 404 : pas encore de frozen_data — on laisse n8n renvoyer son erreur métier
   }
 
-  // type "both" : workflow unifié calcule incomplete + études (cf. ScriptCalculateController)
   // scenario_params doit être un OBJET sérialisé (pas un tableau vide)
   const params = scenarioParams && Object.keys(scenarioParams).length > 0
     ? scenarioParams
@@ -454,7 +453,6 @@ export async function executeVplrScenario(clientId, scenarioParams = {}) {
     {
       skill_code: "VPLR",
       regime_code: "VPLR",
-      type: "both",
       client_id: clientId,
       token,
       user_id: userId,
