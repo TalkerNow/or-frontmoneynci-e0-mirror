@@ -6,7 +6,7 @@ import Dropzone from "react-dropzone";
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button, UncontrolledTooltip, Input, UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem } from "reactstrap";
 import { DownloadCloud, Eye, Download, Edit2, Save, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, Trash2 } from "react-feather";
 import { parseNIR } from "./utils";
-import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenario, saveChosenScenario } from "../risService";
+import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenario, saveChosenScenario, fetchChosenDate, saveChosenDate, updateSimulationHtml } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
@@ -33,7 +33,7 @@ const ACTION_PANELS = {
       { id: "cumul_emploi", label: "Cumul emploi-retraite", icon: "🔄", requires: ["ris"], desc: "Liquidation puis reprise d'activité, 2e pension (réforme 2023)", generates_date: true },
       { id: "chomage_ind", label: "Chômage indemnisé", icon: "📉", requires: ["ris"], hasInput: true, inputType: "number", inputLabel: "Durée (mois)", desc: "Trim. assimilés, impact sur date taux plein", generates_date: true },
       { id: "chomage_non_ind", label: "Chômage non indemnisé", icon: "⚠️", requires: ["ris"], desc: "Limites spécifiques, exception +55 ans / 20 ans cotisation", generates_date: true },
-      { id: "arret_activite", label: "Arrêt d'activité", icon: "🛑", requires: ["ris"], hasInput: true, inputType: "number", inputLabel: "Âge arrêt", desc: "Cessation totale, droits figés, décote", generates_date: true },
+      { id: "arret_activite", label: "Arrêt d'activité", icon: "🛑", requires: ["ris"], hasInput: true, inputType: "date", inputLabel: "Date arrêt", desc: "Cessation totale, droits figés, décote", generates_date: true },
       { id: "cotisations_min", label: "Cotisations minimales (TI/TNS)", icon: "💰", requires: ["ris"], desc: "Maintien validation 4 trim./an avec revenu minimal" },
     ]
   },
@@ -685,6 +685,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [chosenScenario, setChosenScenario] = useState(null);
   const [chosenScenarioSaving, setChosenScenarioSaving] = useState(false);
 
+  // ── Date de départ retenue (persistée dans frozen_data.date_retenue) ──
+  // Forme : { type, label, date (ISO yyyy-mm-dd), info, chosen_at, chosen_by }
+  const [chosenDate, setChosenDate] = useState(null);
+  const [chosenDateSaving, setChosenDateSaving] = useState(false);
+  const [dateLibreInput, setDateLibreInput] = useState("");
+
   // ── Détection automatique des dispositifs applicables ──
   const [detectedDispositifs, setDetectedDispositifs] = useState({});
 
@@ -761,6 +767,110 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     catch (e) { /* noop */ }
   }, [n8nMessage, id]);
 
+  // ── Polling de génération en cours (EOR-61) ─────────────────────────────
+  // Si un livrable est en cours de génération côté backend (n8n) et que l'utilisateur
+  // a navigué/rechargé entre-temps, on reprend l'attente : spinner + polling de la DB
+  // jusqu'à apparition du livrable, puis cleanup du flag localStorage.
+  // Timeout dur : 8 min (au-delà on abandonne).
+  useEffect(() => {
+    if (!id) return;
+    const PENDING_TIMEOUT_MS = 8 * 60 * 1000;
+    const POLL_INTERVAL_MS = 8000;
+
+    const checkPending = (storageKey) => {
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) return null;
+        const { startedAt } = JSON.parse(raw);
+        if (!startedAt || Date.now() - startedAt > PENDING_TIMEOUT_MS) {
+          localStorage.removeItem(storageKey);
+          return null;
+        }
+        return startedAt;
+      } catch { localStorage.removeItem(storageKey); return null; }
+    };
+
+    const rapportKey = `gen_pending_RAPPORT_CONSULTATION_${id}`;
+    const simKey = `gen_pending_SIMULATION_RETRAITE_${id}`;
+    const rapportPending = checkPending(rapportKey);
+    const simPending = checkPending(simKey);
+
+    if (!rapportPending && !simPending) return;
+
+    if (rapportPending) setIsGeneratingReport(true);
+    if (simPending) setIsGeneratingSimulation(true);
+
+    let cancelled = false;
+    const tick = async () => {
+      if (cancelled) return;
+
+      // Rapport de consultation : vérifie analysis_reports
+      if (checkPending(rapportKey)) {
+        try {
+          const report = await fetchLatestReport(id, "RAPPORT_CONSULTATION");
+          const data = report?.result_json;
+          if (data?.htmlContent) {
+            setGeneratedDocs((prev) => prev.some((d) => d.type === "rapport_consultation")
+              ? prev
+              : [{
+                  id: data.id || `rc_polled_${Date.now()}`,
+                  name: data.name || "Rapport de consultation retraite",
+                  type: "rapport_consultation",
+                  createdAt: data.createdAt || report.created_at || new Date().toISOString(),
+                  url: data.url || null,
+                  htmlContent: data.htmlContent,
+                }, ...prev]);
+            localStorage.removeItem(rapportKey);
+            setIsGeneratingReport(false);
+            toast.success("Rapport de consultation prêt !");
+          }
+        } catch { /* 404 = pas encore prêt, on retentera */ }
+      } else {
+        setIsGeneratingReport(false);
+      }
+
+      // Simulation retraite : vérifie l'endpoint dédié
+      if (checkPending(simKey)) {
+        try {
+          const token = localStorage.getItem("token") || "";
+          const r = await fetch(`${global.config.server_url}/v1/simulation-retraite/${id}`, {
+            headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+          });
+          if (r.ok) {
+            const d = await r.json();
+            if (d?.html_report) {
+              const displayName = user
+                ? `${user.first_name || ""} ${user.last_name || ""}`.trim()
+                : "Client";
+              setGeneratedDocs((prev) => prev.some((dd) => dd.type === "simulation_retraite")
+                ? prev
+                : [{
+                    id: `sim_polled_${Date.now()}`,
+                    name: `Simulation retraite de ${displayName}`,
+                    type: "simulation_retraite",
+                    createdAt: d.created_at || new Date().toISOString(),
+                    url: null,
+                    htmlContent: d.html_report,
+                  }, ...prev]);
+              localStorage.removeItem(simKey);
+              setIsGeneratingSimulation(false);
+              toast.success("Simulation prête !");
+            }
+          }
+        } catch { /* on retente */ }
+      } else {
+        setIsGeneratingSimulation(false);
+      }
+
+      if (!cancelled && (checkPending(rapportKey) || checkPending(simKey))) {
+        setTimeout(tick, POLL_INTERVAL_MS);
+      }
+    };
+
+    setTimeout(tick, POLL_INTERVAL_MS);
+    return () => { cancelled = true; };
+  }, [id, user]);
+
   // Load cached skill results from DB on mount (persist across F5)
   useEffect(() => {
     if (!id) return;
@@ -819,6 +929,15 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       try {
         const chosen = await fetchChosenScenario(id);
         if (chosen) setChosenScenario(chosen);
+      } catch { /* 404 ou pas de carrière, on ignore */ }
+
+      // Recharger la date retenue (frozen_data.date_retenue)
+      try {
+        const dt = await fetchChosenDate(id);
+        if (dt) {
+          setChosenDate(dt);
+          if (dt.type === "date_libre" && dt.date) setDateLibreInput(dt.date);
+        }
       } catch { /* 404 ou pas de carrière, on ignore */ }
 
       // Recharger le rapport de consultation depuis analysis_reports
@@ -1523,6 +1642,16 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       });
       const newUrl = res?.data?.files?.[0]?.url;
       if (!newUrl) throw new Error("Pas d'URL renvoyée");
+
+      // Persistance DB selon le type — assure que les édits survivent à un reload (EOR-61).
+      const updatedDoc = { ...doc, url: newUrl, htmlContent: doc.htmlContent };
+      if (doc.type === "rapport_consultation") {
+        await saveSkillResult(id, "RAPPORT_CONSULTATION", updatedDoc);
+      } else if (doc.type === "simulation_retraite") {
+        try { await updateSimulationHtml(parseInt(id), doc.htmlContent); }
+        catch (e) { console.warn("updateSimulationHtml failed:", e); }
+      }
+
       setGeneratedDocs((prev) =>
         prev.map((d) => d.id === doc.id ? { ...d, url: newUrl, htmlContent: doc.htmlContent } : d)
       );
@@ -1543,6 +1672,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       toast.error("Lance d'abord les calculs (bouton 🚀 Calculer toutes les pensions) avant de générer le rapport.");
       return;
     }
+    // Flag pending — survit à la navigation, repris par le polling au mount (EOR-61)
+    try { localStorage.setItem(`gen_pending_RAPPORT_CONSULTATION_${id}`, JSON.stringify({ startedAt: Date.now() })); } catch {}
     // Auto-récupération du RIS si fileToSend est vide
     let risFile = fileToSend;
     if (!risFile) {
@@ -1691,6 +1822,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     } finally {
       setIsGeneratingReport(false);
       cancelReportRef.current = null;
+      try { localStorage.removeItem(`gen_pending_RAPPORT_CONSULTATION_${id}`); } catch {}
     }
   }, [fileToSend, user, id, hiddenSystemPrompt, cleanChainOfThought, userDocuments, scenarioSkillResults]);
 
@@ -1706,6 +1838,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       return;
     }
     setIsGeneratingSimulation(true);
+    try { localStorage.setItem(`gen_pending_SIMULATION_RETRAITE_${id}`, JSON.stringify({ startedAt: Date.now() })); } catch {}
     try {
       const token = localStorage.getItem("token") || "";
       const resp = await fetch(`${global.config.server_url}/v1/simulation-retraite/generate`, {
@@ -1742,6 +1875,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       toast.error(err.message || "Erreur lors de la simulation");
     } finally {
       setIsGeneratingSimulation(false);
+      try { localStorage.removeItem(`gen_pending_SIMULATION_RETRAITE_${id}`); } catch {}
     }
   }, [id, scenarioSkillResults, user]);
 
@@ -2261,6 +2395,41 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       setChosenScenarioSaving(false);
     }
   }, [id, chosenScenario, inputValues]);
+
+  // ── Choix de la date de départ retenue — persisté dans frozen_data.date_retenue ──
+  // Toggle : cliquer sur la date déjà retenue l'efface.
+  // Pour "date_libre", `customDate` doit être au format ISO yyyy-mm-dd.
+  const handleChooseDate = useCallback(async (typeId, label, dateInfo, customDate = null) => {
+    if (!id) return;
+    const isSame = chosenDate?.type === typeId && (typeId !== "date_libre" || chosenDate?.date === customDate);
+    let payload = null;
+    if (!isSame) {
+      let isoDate = customDate;
+      let info = dateInfo?.info || "";
+      if (typeId !== "date_libre" && dateInfo?.date instanceof Date) {
+        const d = dateInfo.date;
+        isoDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      }
+      if (typeId === "date_libre" && customDate) {
+        info = new Date(customDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+      }
+      payload = { type: typeId, label, date: isoDate, info };
+    }
+    setChosenDateSaving(true);
+    const previous = chosenDate;
+    setChosenDate(payload);
+    try {
+      const updated = await saveChosenDate(parseInt(id), payload);
+      setChosenDate(updated?.date_retenue ?? payload);
+      toast.success(payload ? `Date retenue : ${label}` : "Date effacée");
+    } catch (err) {
+      setChosenDate(previous);
+      const msg = err.response?.data?.message || err.message || "Erreur sauvegarde";
+      toast.error(`Impossible de sauvegarder : ${msg}`);
+    } finally {
+      setChosenDateSaving(false);
+    }
+  }, [id, chosenDate]);
 
   useEffect(() => {
     if (!carriereValidee || !autoChainPendingRef.current) return;
@@ -3286,22 +3455,78 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                           </div>
 
                           <div style={{ marginBottom: 14 }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: "#0984E3", marginBottom: 8 }}>Dates standard</div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "#0984E3" }}>Dates standard</div>
+                              <span style={{ fontSize: 11, color: "#888" }}>— cliquez pour retenir une date</span>
+                            </div>
+                            {chosenDate && (
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, padding: "8px 12px", borderRadius: 8, background: "#E8F5FE", border: "1px solid #0984E3" }}>
+                                <span style={{ fontSize: 14 }}>📅</span>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: "#055CA8" }}>Date retenue :</span>
+                                <span style={{ fontSize: 12, color: "#333", flex: 1 }}>{chosenDate.label}{chosenDate.info ? ` — ${chosenDate.info}` : ""}</span>
+                                <button
+                                  onClick={() => handleChooseDate(chosenDate.type, chosenDate.label, null, chosenDate.date)}
+                                  disabled={chosenDateSaving}
+                                  title="Effacer le choix"
+                                  style={{ marginLeft: 4, padding: "2px 8px", borderRadius: 4, border: "1px solid #0984E360", background: "#fff", color: "#055CA8", fontWeight: 600, fontSize: 11, cursor: chosenDateSaving ? "wait" : "pointer" }}
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            )}
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 7 }}>
                               {[
-                                { id: "sim_legal", label: "Âge légal", icon: "⚖️", info: dispDateLegale ? `${dispDateLegale.ageStr} → ${dispDateLegale.label}` : "Date de naissance manquante" },
-                                { id: "sim_taux_plein", label: "Taux plein (durée)", icon: "🎯", info: dispDateTauxPlein ? (dispDateTauxPlein.trimManquants === 0 ? `${dispDateTauxPlein.trimRequis} trim. atteints` : `${dispDateTauxPlein.trimManquants} trim. manquants → ${dispDateTauxPlein.label}`) : "Date de naissance manquante" },
-                                { id: "sim_auto_67", label: "Taux plein auto (67 ans)", icon: "🔓", info: dispDate67 ? `67 ans → ${dispDate67.label}` : "Date de naissance manquante" },
-                                { id: "sim_date_libre", label: "Date libre", icon: "📆", info: "Date de simulation à choisir" },
-                              ].map((d) => (
-                                <div key={d.id} style={{ display: "flex", flexDirection: "column", gap: 3, padding: "9px 11px", borderRadius: 8, border: "1px solid #e8e8e8", background: "#fafafa" }}>
-                                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                    <span style={{ fontSize: 14 }}>{d.icon}</span>
-                                    <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>{d.label}</div>
+                                { id: "age_legal", label: "Âge légal", icon: "⚖️", info: dispDateLegale ? `${dispDateLegale.ageStr} → ${dispDateLegale.label}` : "Date de naissance manquante", dateInfo: dispDateLegale, disabled: !dispDateLegale },
+                                { id: "taux_plein", label: "Taux plein (durée)", icon: "🎯", info: dispDateTauxPlein ? (dispDateTauxPlein.trimManquants === 0 ? `${dispDateTauxPlein.trimRequis} trim. atteints` : `${dispDateTauxPlein.trimManquants} trim. manquants → ${dispDateTauxPlein.label}`) : "Date de naissance manquante", dateInfo: dispDateTauxPlein, disabled: !dispDateTauxPlein },
+                                { id: "taux_plein_auto", label: "Taux plein auto (67 ans)", icon: "🔓", info: dispDate67 ? `67 ans → ${dispDate67.label}` : "Date de naissance manquante", dateInfo: dispDate67, disabled: !dispDate67 },
+                                { id: "date_libre", label: "Date libre", icon: "📆", info: "Date de simulation à choisir", dateInfo: null, disabled: false },
+                              ].map((d) => {
+                                const isChosen = chosenDate?.type === d.id;
+                                const handleClick = () => {
+                                  if (d.disabled || chosenDateSaving) return;
+                                  if (d.id === "date_libre") return; // géré par l'input + bouton dédié
+                                  handleChooseDate(d.id, d.label, { ...d.dateInfo, info: d.info });
+                                };
+                                return (
+                                  <div
+                                    key={d.id}
+                                    onClick={handleClick}
+                                    style={{
+                                      display: "flex", flexDirection: "column", gap: 3, padding: "9px 11px", borderRadius: 8,
+                                      border: isChosen ? "2px solid #0984E3" : "1px solid #e8e8e8",
+                                      background: isChosen ? "#E8F5FE" : "#fafafa",
+                                      cursor: d.disabled ? "not-allowed" : (d.id === "date_libre" ? "default" : "pointer"),
+                                      opacity: d.disabled ? 0.5 : 1,
+                                      transition: "all 0.12s",
+                                    }}
+                                  >
+                                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                      <span style={{ fontSize: 14 }}>{d.icon}</span>
+                                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333", flex: 1 }}>{d.label}</div>
+                                      {isChosen && <span title="Date retenue" style={{ fontSize: 13, color: "#0984E3" }}>✓</span>}
+                                    </div>
+                                    <div style={{ fontSize: 11, color: "#555", paddingLeft: 22 }}>{d.info}</div>
+                                    {d.id === "date_libre" && (
+                                      <div style={{ display: "flex", gap: 6, marginTop: 4, paddingLeft: 22 }}>
+                                        <input
+                                          type="date"
+                                          value={dateLibreInput}
+                                          onChange={(e) => setDateLibreInput(e.target.value)}
+                                          onClick={(e) => e.stopPropagation()}
+                                          style={{ padding: "3px 6px", borderRadius: 4, border: "1px solid #ccc", fontSize: 12, fontFamily: "inherit" }}
+                                        />
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); if (dateLibreInput) handleChooseDate("date_libre", "Date libre", null, dateLibreInput); }}
+                                          disabled={!dateLibreInput || chosenDateSaving}
+                                          style={{ padding: "3px 9px", borderRadius: 4, border: "none", background: !dateLibreInput || chosenDateSaving ? "#ccc" : "#0984E3", color: "#fff", fontWeight: 600, fontSize: 11, cursor: !dateLibreInput || chosenDateSaving ? "not-allowed" : "pointer" }}
+                                        >
+                                          {chosenDateSaving ? "…" : (isChosen ? "✓ Retenue" : "Retenir")}
+                                        </button>
+                                      </div>
+                                    )}
                                   </div>
-                                  <div style={{ fontSize: 11, color: "#555", paddingLeft: 22 }}>{d.info}</div>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
 

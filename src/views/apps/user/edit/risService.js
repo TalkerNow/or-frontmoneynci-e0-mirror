@@ -532,6 +532,59 @@ export async function executeTnsScenario(clientId, scenarioParams = {}) {
 }
 
 /**
+ * Met à jour le HTML du dernier rapport de simulation retraite d'un client
+ * (utilisé après édition consultant via ReportViewerModal — EOR-61).
+ * @param {number} clientId
+ * @param {string} htmlReport
+ * @returns {Promise<object>}
+ */
+export async function updateSimulationHtml(clientId, htmlReport) {
+  const token = localStorage.getItem("token");
+  const response = await axios.patch(
+    `${global.config.server_url}/v1/simulation-retraite/${clientId}/html`,
+    { html_report: htmlReport },
+    { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
+  );
+  return response.data;
+}
+
+/**
+ * Récupère la date de départ retenue pour un client (lit frozen_data.date_retenue).
+ * @param {number} clientId
+ * @returns {Promise<object|null>}
+ */
+export async function fetchChosenDate(clientId) {
+  const token = localStorage.getItem("token");
+  try {
+    const response = await axios.get(
+      `${global.config.server_url}/frozen_data/${clientId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return response.data?.date_retenue ?? null;
+  } catch (err) {
+    if (err.response && err.response.status === 404) return null;
+    throw err;
+  }
+}
+
+/**
+ * Sauvegarde la date de départ retenue par le consultant.
+ * Passer null pour effacer le choix. Autorisé même si la carrière est gelée.
+ * @param {number} clientId
+ * @param {object|null} date
+ * @returns {Promise<object>}
+ */
+export async function saveChosenDate(clientId, date) {
+  const token = localStorage.getItem("token");
+  const response = await axios.post(
+    `${global.config.server_url}/frozen_data/${clientId}/date`,
+    { date },
+    { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
+  );
+  return response.data;
+}
+
+/**
  * Récupère le scénario retenu pour un client (lit frozen_data.scenario_choisi).
  * @param {number} clientId
  * @returns {Promise<object|null>}
