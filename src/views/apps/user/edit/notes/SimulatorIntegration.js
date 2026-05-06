@@ -2231,7 +2231,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           ...(row.rciPts != null && { points_rci: row.rciPts }),
           ...(cipavRow?.points && { points_cipav_base: parseFloat(cipavRow.points) || 0 }),
           ...(cipavRow?.pointsCompl && { points_cipav_complementaire: parseFloat(cipavRow.pointsCompl) || 0 }),
-          regimes: row.regimes || {},   // forward-compat full régimes map (CARPIMKO, etc.)
+          ...(row.regimes && Object.keys(row.regimes).length > 0 && { regimes: row.regimes }),   // forward-compat full régimes map (CARPIMKO, etc.)
           regimes_concernes: row.regimes_concernes || '',
         };
       });
