@@ -520,6 +520,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     fetchApiSkills();
   }, [fetchApiSkills]);
 
+  const [accessGranted, setAccessGranted] = useState(false);
+  const [identiteReset, setIdentiteReset] = useState(false);
   const [expandedPanel, setExpandedPanel] = useState("carriere");
   const [selectedAction, setSelectedAction] = useState(null);
   const [inputValues, setInputValues] = useState({});
@@ -1214,6 +1216,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       }
       // 404 = pas encore de données en base (import RIS non gelé) → normal
     }
+    setAccessGranted(false);
+    setIdentiteReset(true);
     toast.success("Carrière réinitialisée.");
   }, [id]);
 
@@ -2212,6 +2216,24 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       toast.error("Remplissez au moins une ligne de carrière avant de valider.");
       return;
     }
+
+    const authRole = localStorage.getItem("role");
+    if (authRole === "Consultant" && !accessGranted) {
+      setFrozenLoading(true);
+      try {
+        const verifyRes = await api.post("/v1/consultant-access/verify");
+        if (verifyRes.status === 200) {
+          setAccessGranted(true);
+          setIdentiteReset(false);
+        }
+      } catch (err) {
+        setFrozenLoading(false);
+        const msg = err?.response?.data?.error || "Accès refusé : crédits insuffisants ou pass expiré.";
+        toast.error(msg);
+        return;
+      }
+    }
+
     setFrozenLoading(true);
     try {
       const carriere = carriereRows.map(row => {
@@ -3177,6 +3199,34 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               </button>
                             </div>
                           </div>
+
+                          {/* Identité client */}
+                          {!identiteReset && (user?.first_name || user?.last_name || user?.birth_date) && (
+                            <div style={{ display: "flex", alignItems: "center", gap: 16, background: "#F8F9FA", border: "1px solid #E9ECEF", borderRadius: 8, padding: "10px 14px", marginBottom: 12, flexWrap: "wrap" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ fontSize: 13 }}>👤</span>
+                                <span style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>
+                                  {[user.first_name, user.last_name].filter(Boolean).join(" ") || "—"}
+                                </span>
+                              </div>
+                              {user?.birth_date && (
+                                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                                  <span style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: 600 }}>Né(e) le</span>
+                                  <span style={{ fontSize: 13, fontWeight: 600, color: "#555" }}>
+                                    {new Date(user.birth_date).toLocaleDateString("fr-FR")}
+                                  </span>
+                                </div>
+                              )}
+                              {user?.secu_social && (
+                                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                                  <span style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: 600 }}>NIR</span>
+                                  <span style={{ fontSize: 12, fontWeight: 600, color: "#555", fontFamily: "monospace", letterSpacing: "0.05em" }}>
+                                    {user.secu_social}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          )}
 
                           {/* Légende couleurs régimes */}
                           {/* <div style={{ display: "flex", gap: 12, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
