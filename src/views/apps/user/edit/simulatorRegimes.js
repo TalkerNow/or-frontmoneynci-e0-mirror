@@ -133,3 +133,17 @@ export function migrateRowShape(row) {
   if (rciPts != null) regimes.RCI = rciPts;
   return { ...rest, regimes };
 }
+
+// ---------------------------------------------------------------------------
+// Task 5: buildLegacyMirror
+// ---------------------------------------------------------------------------
+
+export function buildLegacyMirror(row) {
+  const regimes = row?.regimes || {};
+  return {
+    ...row,
+    agircPts: regimes.AGIRC_ARRCO != null ? regimes.AGIRC_ARRCO : null,
+    ircPts:   regimes.IRCANTEC    != null ? regimes.IRCANTEC    : null,
+    rciPts:   regimes.RCI         != null ? regimes.RCI         : null,
+  };
+}

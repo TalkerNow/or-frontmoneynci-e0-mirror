@@ -1,4 +1,4 @@
-import { normalize, resolveRegime, REGIMES, getPoints, setPoints, migrateRowShape } from "./simulatorRegimes";
+import { normalize, resolveRegime, REGIMES, getPoints, setPoints, migrateRowShape, buildLegacyMirror } from "./simulatorRegimes";
 
 describe("normalize", () => {
   it("returns empty string for nullish input", () => {
@@ -170,5 +170,41 @@ describe("migrateRowShape", () => {
     expect(migrateRowShape({ year: 2020, trim: 4 })).toEqual({
       year: 2020, trim: 4, regimes: {},
     });
+  });
+});
+
+describe("buildLegacyMirror", () => {
+  it("mirrors AGIRC_ARRCO/IRCANTEC/RCI to legacy field names", () => {
+    const row = { year: 2020, trim: 4, regimes: { AGIRC_ARRCO: 12, IRCANTEC: 5, RCI: 3 } };
+    expect(buildLegacyMirror(row)).toEqual({
+      year: 2020,
+      trim: 4,
+      regimes: { AGIRC_ARRCO: 12, IRCANTEC: 5, RCI: 3 },
+      agircPts: 12,
+      ircPts: 5,
+      rciPts: 3,
+    });
+  });
+
+  it("writes null for legacy fields when the new key is absent", () => {
+    const row = { year: 2020, regimes: { AGIRC_ARRCO: 12 } };
+    const result = buildLegacyMirror(row);
+    expect(result.agircPts).toBe(12);
+    expect(result.ircPts).toBeNull();
+    expect(result.rciPts).toBeNull();
+  });
+
+  it("ignores non-mirrored régime keys (CARPIMKO etc.)", () => {
+    const row = { regimes: { CARPIMKO: 530.3, AGIRC_ARRCO: 12 } };
+    const result = buildLegacyMirror(row);
+    expect(result.agircPts).toBe(12);
+    expect(result.regimes.CARPIMKO).toBe(530.3);
+    expect(result).not.toHaveProperty("carpimkoPts");
+  });
+
+  it("does not mutate the input row", () => {
+    const row = { regimes: { AGIRC_ARRCO: 12 } };
+    buildLegacyMirror(row);
+    expect(row).toEqual({ regimes: { AGIRC_ARRCO: 12 } });
   });
 });
