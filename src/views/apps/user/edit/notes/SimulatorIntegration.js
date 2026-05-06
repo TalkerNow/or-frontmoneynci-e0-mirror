@@ -8,7 +8,7 @@ import { DownloadCloud, Eye, Download, Edit2, Save, Bold, Italic, Underline, Ali
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import { parseNIR } from "./utils";
-import { REGIMES, migrateRowShape, getPoints, setPoints, resolveRegime } from "../simulatorRegimes";
+import { REGIMES, migrateRowShape, getPoints, setPoints, resolveRegime, computeVisibleRegimes } from "../simulatorRegimes";
 import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
@@ -3140,6 +3140,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                         .slice(0, 25);
                       const samVal = samRows.length ? Math.round(samRows.reduce((s, r) => s + (revaloValues[r.yr] ?? 0), 0) / samRows.length) : 0;
 
+                      const WIRED_REGIME_KEYS = ["CNAV", "AGIRC_ARRCO", "IRCANTEC", "RCI", "CIPAV"];
+                      const dynamicRegimes = computeVisibleRegimes(carriereRows, WIRED_REGIME_KEYS).filter(
+                        (r) => !WIRED_REGIME_KEYS.includes(r.key)
+                      );
+
                       return (
                         <div>
                           {/* Header */}
@@ -3258,6 +3263,28 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                       {cnavplOpen && <span style={{ fontSize: 11, fontWeight: 700 }}>🏥 CIPAV</span>}
                                     </button>
                                   </th>
+                                  {dynamicRegimes.map((regime) => (
+                                    <th
+                                      key={regime.key}
+                                      rowSpan={2}
+                                      title={regime.isUnknown ? "Régime non reconnu — calcul non disponible" : undefined}
+                                      style={{
+                                        padding: "3px 6px",
+                                        textAlign: "center",
+                                        fontWeight: 700,
+                                        color: "#fff",
+                                        background: regime.color,
+                                        borderLeft: "2px solid " + regime.color,
+                                        borderBottom: "1px solid " + regime.color,
+                                        verticalAlign: "bottom",
+                                        whiteSpace: "nowrap",
+                                      }}
+                                    >
+                                      <span style={{ marginRight: 4 }}>{regime.icon}</span>
+                                      {regime.label}
+                                      {regime.isUnknown && <span style={{ marginLeft: 4 }}>⚠️</span>}
+                                    </th>
+                                  ))}
                                 </tr>
                                 <tr style={{ background: "#fafafa" }}>
                                   {[["Sal. SS","r"],["Coeff.","r"],["Revalo.","r"],["Déplaf.","c"],["Trim.","c"],["Ass.","c"],["AR","c"],["Tot.","c"]].map(([h, a], i) => (
@@ -3415,11 +3442,44 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                       ) : (
                                         <td style={{ padding: "3px 5px", width: 24, borderLeft: "2px solid #9B59B630" }}></td>
                                       )}
+                                      {dynamicRegimes.map((regime) => {
+                                        const value = getPoints(row, regime.key);
+                                        return (
+                                          <td
+                                            key={regime.key}
+                                            style={{
+                                              padding: "3px 5px",
+                                              textAlign: "center",
+                                              borderLeft: "2px solid " + regime.color + "30",
+                                              background: regime.isUnknown ? "#F3F4F6" : undefined,
+                                            }}
+                                          >
+                                            <input
+                                              type="number"
+                                              step="0.01"
+                                              value={value ?? ""}
+                                              disabled={true}
+                                              readOnly
+                                              style={{
+                                                width: 72,
+                                                textAlign: "center",
+                                                border: "1px solid " + regime.color + "30",
+                                                borderRadius: 3,
+                                                fontSize: 13,
+                                                padding: "1px 4px",
+                                                color: regime.color,
+                                                fontWeight: 600,
+                                                background: "#fafafa",
+                                              }}
+                                            />
+                                          </td>
+                                        );
+                                      })}
                                     </tr>
                                   );
                                 })}
                                 <tr>
-                                  <td colSpan={cnavplOpen ? 18 : 16} style={{ padding: "4px 8px" }}>
+                                  <td colSpan={(cnavplOpen ? 18 : 16) + dynamicRegimes.length} style={{ padding: "4px 8px" }}>
                                     <button onClick={() => setVisibleRowCount(v => Math.min(v + 1, 65))} style={{ fontSize: 14, padding: "3px 10px", borderRadius: 5, border: "1px dashed #bbb", background: "transparent", color: "#555", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
                                       <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> Ajouter une année ({carriereRows[visibleRowCount] ? carriereRows[visibleRowCount].yr : "—"})
                                     </button>
@@ -3464,10 +3524,33 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                   ) : (
                                     <td style={{ padding: "5px 5px", width: 24, borderLeft: "2px solid #9B59B630" }}></td>
                                   )}
+                                  {dynamicRegimes.map((regime) => {
+                                    const total = carriereRows
+                                      .slice(0, visibleRowCount)
+                                      .reduce((s, r) => s + (Number(getPoints(r, regime.key)) || 0), 0);
+                                    const formatted = total
+                                      ? total.toLocaleString("fr-FR", { maximumFractionDigits: 2 })
+                                      : "—";
+                                    return (
+                                      <td
+                                        key={regime.key}
+                                        style={{
+                                          padding: "5px 5px",
+                                          textAlign: "center",
+                                          fontSize: 15,
+                                          color: regime.color,
+                                          borderLeft: "2px solid " + regime.color + "15",
+                                          fontWeight: 700,
+                                        }}
+                                      >
+                                        {formatted}
+                                      </td>
+                                    );
+                                  })}
                                 </tr>
                                 {samOpen && (
                                   <tr>
-                                    <td colSpan={cnavplOpen ? 18 : 16} style={{ padding: 0, background: "#fff" }}>
+                                    <td colSpan={(cnavplOpen ? 18 : 16) + dynamicRegimes.length} style={{ padding: 0, background: "#fff" }}>
                                       <div style={{ padding: "10px 14px", borderTop: "1px solid #6C5CE720" }}>
                                         <div style={{ fontSize: 12, fontWeight: 700, color: "#6C5CE7", marginBottom: 8 }}>📊 25 meilleures années retenues — salaires revalorisés</div>
                                         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
