@@ -748,7 +748,14 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           ? `${user.first_name || ""} ${user.last_name || ""}`.trim()
           : "Client";
         setGeneratedDocs((prev) => {
-          if (prev.some((d) => d.type === "simulation_retraite")) return prev;
+          const existing = prev.find((d) => d.type === "simulation_retraite");
+          if (existing) {
+            return prev.map((d) =>
+              d.type === "simulation_retraite"
+                ? { ...d, name: `Simulation retraite de ${displayName}`, htmlContent: data.html_report }
+                : d
+            );
+          }
           return [
             {
               id: `sim_restored_${Date.now()}`,
@@ -847,16 +854,20 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
               const displayName = user
                 ? `${user.first_name || ""} ${user.last_name || ""}`.trim()
                 : "Client";
-              setGeneratedDocs((prev) => prev.some((dd) => dd.type === "simulation_retraite")
-                ? prev
-                : [{
-                    id: `sim_polled_${Date.now()}`,
-                    name: `Simulation retraite de ${displayName}`,
-                    type: "simulation_retraite",
-                    createdAt: d.created_at || new Date().toISOString(),
-                    url: null,
-                    htmlContent: d.html_report,
-                  }, ...prev]);
+              setGeneratedDocs((prev) => {
+                const newDoc = {
+                  id: `sim_polled_${Date.now()}`,
+                  name: `Simulation retraite de ${displayName}`,
+                  type: "simulation_retraite",
+                  createdAt: d.created_at || new Date().toISOString(),
+                  url: null,
+                  htmlContent: d.html_report,
+                };
+                if (prev.some((dd) => dd.type === "simulation_retraite")) {
+                  return prev.map((dd) => dd.type === "simulation_retraite" ? { ...dd, name: newDoc.name, htmlContent: newDoc.htmlContent } : dd);
+                }
+                return [newDoc, ...prev];
+              });
               localStorage.removeItem(simKey);
               setIsGeneratingSimulation(false);
               toast.success("Simulation prête !");
