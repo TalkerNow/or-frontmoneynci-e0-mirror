@@ -1,4 +1,4 @@
-import { normalize, resolveRegime, REGIMES, getPoints, setPoints, migrateRowShape, buildLegacyMirror } from "./simulatorRegimes";
+import { normalize, resolveRegime, REGIMES, getPoints, setPoints, migrateRowShape, buildLegacyMirror, computeVisibleRegimes } from "./simulatorRegimes";
 
 describe("normalize", () => {
   it("returns empty string for nullish input", () => {
@@ -206,5 +206,59 @@ describe("buildLegacyMirror", () => {
     const row = { regimes: { AGIRC_ARRCO: 12 } };
     buildLegacyMirror(row);
     expect(row).toEqual({ regimes: { AGIRC_ARRCO: 12 } });
+  });
+});
+
+const DEFAULTS = ["CNAV", "AGIRC_ARRCO", "IRCANTEC", "RCI", "CIPAV"];
+
+describe("computeVisibleRegimes", () => {
+  it("returns the default 5 régimes when no rows have data", () => {
+    const result = computeVisibleRegimes([], DEFAULTS);
+    const keys = result.map((r) => r.key);
+    expect(keys).toEqual(DEFAULTS);
+  });
+
+  it("preserves default order", () => {
+    const rows = [{ regimes: { IRCANTEC: 5 } }];
+    const keys = computeVisibleRegimes(rows, DEFAULTS).map((r) => r.key);
+    expect(keys.slice(0, 5)).toEqual(DEFAULTS);
+  });
+
+  it("appends new régimes from row data after the defaults", () => {
+    const rows = [{ regimes: { CARPIMKO: 530.3, "Caisse XYZ": 7 } }];
+    const keys = computeVisibleRegimes(rows, DEFAULTS).map((r) => r.key);
+    expect(keys).toEqual([...DEFAULTS, "CARPIMKO", "Caisse XYZ"]);
+  });
+
+  it("ignores keys whose values are 0 or null in every row", () => {
+    const rows = [
+      { regimes: { CARPIMKO: 0 } },
+      { regimes: { CARPIMKO: null } },
+    ];
+    const keys = computeVisibleRegimes(rows, DEFAULTS).map((r) => r.key);
+    expect(keys).toEqual(DEFAULTS);
+  });
+
+  it("includes a non-default régime if at least one row has a non-zero value", () => {
+    const rows = [
+      { regimes: { CARPIMKO: 0 } },
+      { regimes: { CARPIMKO: 530.3 } },
+    ];
+    const keys = computeVisibleRegimes(rows, DEFAULTS).map((r) => r.key);
+    expect(keys).toContain("CARPIMKO");
+  });
+
+  it("returns resolved registry entries (with color/icon/hasCalcEngine)", () => {
+    const result = computeVisibleRegimes([], DEFAULTS);
+    const cnav = result.find((r) => r.key === "CNAV");
+    expect(cnav.hasCalcEngine).toBe(true);
+    expect(cnav.color).toBeDefined();
+  });
+
+  it("flags unknown régimes with isUnknown=true", () => {
+    const rows = [{ regimes: { "Caisse Mystère": 7 } }];
+    const result = computeVisibleRegimes(rows, DEFAULTS);
+    const mystery = result.find((r) => r.key === "Caisse Mystère");
+    expect(mystery.isUnknown).toBe(true);
   });
 });

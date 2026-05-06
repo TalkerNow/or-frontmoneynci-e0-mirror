@@ -147,3 +147,34 @@ export function buildLegacyMirror(row) {
     rciPts:   regimes.RCI         != null ? regimes.RCI         : null,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Task 6: computeVisibleRegimes
+// ---------------------------------------------------------------------------
+
+export function computeVisibleRegimes(rows, defaultKeys = []) {
+  const orderedKeys = [...defaultKeys];
+  const seen = new Set(orderedKeys);
+  for (const row of rows || []) {
+    const regimes = row?.regimes || {};
+    for (const key of Object.keys(regimes)) {
+      const val = regimes[key];
+      if (val == null || val === 0) continue;
+      if (!seen.has(key)) {
+        orderedKeys.push(key);
+        seen.add(key);
+      }
+    }
+  }
+  return orderedKeys.map(
+    (key) =>
+      resolveRegime(key) || {
+        key,
+        label: key,
+        isUnknown: true,
+        hasCalcEngine: false,
+        color: "#9CA3AF",
+        icon: "❓",
+      }
+  );
+}
