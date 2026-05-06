@@ -4263,6 +4263,44 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             <RegimeResultCard code="IRCANTEC"    carriereValidee={carriereValidee} loading={ircantecLoading} error={ircantecError} result={ircantecResult} />
                             <RegimeResultCard code="RCI"         carriereValidee={carriereValidee} loading={rciLoading}      error={rciError}      result={rciResult} />
                             <RegimeResultCard code="CIPAV"       carriereValidee={carriereValidee} loading={cipavLoading}    error={cipavError}    result={cipavResult} />
+                            {computeVisibleRegimes(carriereRows, ["CNAV", "AGIRC_ARRCO", "IRCANTEC", "RCI", "CIPAV"]).filter(
+                              (r) => !["CNAV", "AGIRC_ARRCO", "IRCANTEC", "RCI", "CIPAV"].includes(r.key)
+                            ).map((regime) => (
+                              <div
+                                key={regime.key}
+                                style={{
+                                  background: "#F3F4F6",
+                                  border: "1px dashed #D1D5DB",
+                                  padding: 14,
+                                  borderRadius: 8,
+                                  marginTop: 12,
+                                  opacity: 0.92,
+                                }}
+                              >
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                                  <span style={{ fontSize: 18 }}>{regime.icon}</span>
+                                  <span style={{ fontWeight: 700, fontSize: 15, color: "#374151" }}>
+                                    {regime.label}
+                                  </span>
+                                  {regime.isUnknown && (
+                                    <span
+                                      title="Régime détecté automatiquement, calcul non disponible"
+                                      style={{ fontSize: 14 }}
+                                    >
+                                      ⚠️
+                                    </span>
+                                  )}
+                                </div>
+                                <div style={{ fontSize: 13, color: "#6B7280" }}>
+                                  Saisie carrière disponible. Calcul de pension non implémenté pour ce régime.
+                                </div>
+                                {regime.isUnknown && (
+                                  <div style={{ marginTop: 4, fontSize: 12, color: "#9CA3AF", fontStyle: "italic" }}>
+                                    Régime détecté automatiquement depuis le RIS.
+                                  </div>
+                                )}
+                              </div>
+                            ))}
                           </>)}
                         </div>
                       );
