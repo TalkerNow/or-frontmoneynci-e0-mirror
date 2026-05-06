@@ -8,6 +8,7 @@ import { DownloadCloud, Eye, Download, Edit2, Save, Bold, Italic, Underline, Ali
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import { parseNIR } from "./utils";
+import { REGIMES } from "../simulatorRegimes";
 import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
@@ -305,13 +306,17 @@ function _buildDefaultCarriereRows() {
 
 // ─── CIPAV RESULT CARD ──────────────────────────────────────────────────────
 
-const REGIME_THEMES = {
-  CNAV:        { color: "#6C5CE7", icon: "🧮", title: "Pension CNAV",        label: "CNAV" },
-  AGIRC_ARRCO: { color: "#0984E3", icon: "📊", title: "Pension AGIRC-ARRCO", label: "AGIRC-ARRCO" },
-  IRCANTEC:    { color: "#00B894", icon: "🏢", title: "Pension IRCANTEC",    label: "IRCANTEC" },
-  RCI:         { color: "#E17055", icon: "📑", title: "Pension RCI",         label: "RCI" },
-  CIPAV:       { color: "#9B59B6", icon: "🏥", title: "Pension CIPAV",       label: "CIPAV" },
-};
+// Built from the régimes registry. Keep the shape { color, icon, title, label }
+// since legacy code below indexes by uppercase key.
+const REGIME_THEMES = REGIMES.reduce((acc, r) => {
+  acc[r.key] = {
+    color: r.color,
+    icon: r.icon,
+    title: `Pension ${r.label}`,
+    label: r.label,
+  };
+  return acc;
+}, {});
 
 function buildRegimeView(code, po) {
   if (!po) return { hero: [], details: [] };
