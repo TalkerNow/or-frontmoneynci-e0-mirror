@@ -5,6 +5,12 @@ import {
 } from "reactstrap"
 import api from "../../../services/api"
 
+function defaultExpiration() {
+  const d = new Date()
+  d.setFullYear(d.getFullYear() + 1)
+  return d.toISOString().slice(0, 10)
+}
+
 const EMPTY_FORM = {
   access_type: "credits",
   remaining_credits: 0,
@@ -34,7 +40,13 @@ function ConsultantAccessFormModal({ isOpen, toggle, onSaved, consultant }) {
   }, [consultant, isOpen])
 
   function set(field, value) {
-    setForm((prev) => ({ ...prev, [field]: value }))
+    setForm((prev) => {
+      const next = { ...prev, [field]: value }
+      if (field === "access_type" && value === "unlimited_pass" && !prev.pass_expiration_date) {
+        next.pass_expiration_date = defaultExpiration()
+      }
+      return next
+    })
   }
 
   async function handleSubmit(e) {
@@ -105,12 +117,13 @@ function ConsultantAccessFormModal({ isOpen, toggle, onSaved, consultant }) {
 
           {form.access_type === "unlimited_pass" && (
             <FormGroup>
-              <Label>Date d'expiration du pass</Label>
+              <Label>Date d'expiration du pass (JJ/MM/AAAA)</Label>
               <Input
                 type="date"
                 value={form.pass_expiration_date}
                 onChange={(e) => set("pass_expiration_date", e.target.value)}
                 required
+                lang="fr"
               />
             </FormGroup>
           )}
