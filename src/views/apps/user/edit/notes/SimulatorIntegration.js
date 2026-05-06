@@ -1489,7 +1489,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     } finally {
       setIsParsingRIS(false);
     }
-  }, [applyCarriereData, id, onUserUpdate, user?.birth_date, user?.first_name, user?.last_name, user?.secu_social]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [applyCarriereData, id, onUserUpdate, user?.birth_date, user?.first_name, user?.last_name, user?.secu_social, accessGranted]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Select document from list (for analysis report — no RIS parsing) ──
   const handleSelectDocument = useCallback(async (doc) => {
@@ -2433,7 +2433,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       setFrozenLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, carriereRows, revaloValues, deplafValues, trimCotState, trimAssState, user, cnavplRows, droitsSynthese, risCarriereSynthese, isCarriereEmpty]);
+  }, [id, carriereRows, revaloValues, deplafValues, trimCotState, trimAssState, user, cnavplRows, droitsSynthese, risCarriereSynthese, isCarriereEmpty, accessGranted]);
 
   const handleCalculateAllRegimes = async () => {
     if (!carriereValidee) return;
