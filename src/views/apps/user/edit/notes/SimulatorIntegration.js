@@ -8,7 +8,7 @@ import { DownloadCloud, Eye, Download, Edit2, Save, Bold, Italic, Underline, Ali
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import { parseNIR } from "./utils";
-import { REGIMES, migrateRowShape, getPoints, setPoints } from "../simulatorRegimes";
+import { REGIMES, migrateRowShape, getPoints, setPoints, resolveRegime } from "../simulatorRegimes";
 import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
@@ -1336,29 +1336,45 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         if (Object.keys(trimAssN).length) setTrimAssState(prev => ({ ...prev, ...trimAssN }));
         if (Object.keys(arN).length)      setArState(prev => ({ ...prev, ...arN }));
 
-        // 3. Points AGIRC-ARRCO / Ircantec / RCI / CIPAV par année
-        const agircN = {}, ircN = {}, rciN = {}, cipavBaseN = {}, cipavComplN = {};
+        // 3. Points par année — résolus via le registre des régimes
+        //    CIPAV reste à part (split base/complémentaire vers cnavplRows).
+        //    Tout autre régime (connu ou non) atterrit dans row.regimes via resolveRegime.
+        const cipavBaseN = {}, cipavComplN = {};
+        const regimePtsByYear = {}; // { 2020: { AGIRC_ARRCO: 12, CARPIMKO: 530, ... } }
         carriereRaw.forEach(({ annee, points }) => {
           if (!Array.isArray(points)) return;
           points.forEach(({ regime, valeur }) => {
-            const r = (regime || "").toLowerCase();
+            const rawRegime = regime || "";
+            const lower = rawRegime.toLowerCase();
             const pts = parseFloat(valeur) || 0;
             if (!pts) return;
-            if (r.includes("agirc") || r.includes("arrco")) agircN[annee] = (agircN[annee] || 0) + pts;
-            else if (r.includes("ircantec")) ircN[annee] = (ircN[annee] || 0) + pts;
-            else if (r.includes("cipav") && (r.includes("compl") || r.includes("complémentaire"))) cipavComplN[annee] = (cipavComplN[annee] || 0) + pts;
-            else if (r.includes("cipav")) cipavBaseN[annee] = (cipavBaseN[annee] || 0) + pts;
-            else if (r.includes("rci") || r.includes("ssi")) rciN[annee] = (rciN[annee] || 0) + pts;
+            // CIPAV: special-cased, split base/complémentaire, routed to cnavplRows
+            if (lower.includes("cipav")) {
+              if (lower.includes("compl") || lower.includes("complémentaire")) {
+                cipavComplN[annee] = (cipavComplN[annee] || 0) + pts;
+              } else {
+                cipavBaseN[annee] = (cipavBaseN[annee] || 0) + pts;
+              }
+              return;
+            }
+            // All other régimes: resolve via registry → goes into row.regimes
+            const resolved = resolveRegime(rawRegime);
+            if (!resolved) return;
+            if (!regimePtsByYear[annee]) regimePtsByYear[annee] = {};
+            regimePtsByYear[annee][resolved.key] = (regimePtsByYear[annee][resolved.key] || 0) + pts;
           });
         });
-        if (Object.keys(agircN).length || Object.keys(ircN).length || Object.keys(rciN).length) {
+        if (Object.keys(regimePtsByYear).length) {
           setCarriereRows(prev => prev.map(row => {
-            const u = {};
-            if (!u.regimes) u.regimes = { ...(row.regimes || {}) };
-            if (agircN[row.yr] != null) { u.agircPts = agircN[row.yr]; u.regimes.AGIRC_ARRCO = agircN[row.yr]; }
-            if (ircN[row.yr] != null)   { u.ircPts   = ircN[row.yr];   u.regimes.IRCANTEC    = ircN[row.yr];   }
-            if (rciN[row.yr] != null)   { u.rciPts   = rciN[row.yr];   u.regimes.RCI         = rciN[row.yr];   }
-            return Object.keys(u).length ? { ...row, ...u } : row;
+            const yearRegimes = regimePtsByYear[row.yr];
+            if (!yearRegimes) return row;
+            const newRegimes = { ...(row.regimes || {}), ...yearRegimes };
+            const u = { regimes: newRegimes };
+            // Mirror to legacy fields for the 3 mapped keys
+            if (yearRegimes.AGIRC_ARRCO != null) u.agircPts = yearRegimes.AGIRC_ARRCO;
+            if (yearRegimes.IRCANTEC    != null) u.ircPts   = yearRegimes.IRCANTEC;
+            if (yearRegimes.RCI         != null) u.rciPts   = yearRegimes.RCI;
+            return { ...row, ...u };
           }));
         }
         if (Object.keys(cipavBaseN).length || Object.keys(cipavComplN).length) {
@@ -1429,23 +1445,29 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           }
         }
 
-        const agircPtsMap = {}, ircPtsMap = {}, rciPtsMap = {};
+        // Résoudre chaque entrée via le registre des régimes — CARPIMKO et co tombent dans row.regimes
+        const regimePtsByYearLegacy = {};
         detail_annuel.forEach((entry) => {
-          const regime = (entry.regimes_concernes || "").toLowerCase();
           const yr = parseInt(entry.annee, 10);
           const pts = parseFloat(entry.points_acquis) || 0;
           if (!yr || !pts) return;
-          if (regime.includes("agirc") || regime.includes("arrco")) agircPtsMap[yr] = (agircPtsMap[yr] || 0) + pts;
-          else if (regime.includes("ircantec")) ircPtsMap[yr] = (ircPtsMap[yr] || 0) + pts;
-          else if (regime.includes("rci") || regime.includes("ssi")) rciPtsMap[yr] = (rciPtsMap[yr] || 0) + pts;
+          // CIPAV is handled by the cipavEntries block above; skip here to avoid double-counting
+          if ((entry.regimes_concernes || "").toLowerCase().includes("cipav")) return;
+          const resolved = resolveRegime(entry.regimes_concernes || "");
+          if (!resolved) return;
+          if (!regimePtsByYearLegacy[yr]) regimePtsByYearLegacy[yr] = {};
+          regimePtsByYearLegacy[yr][resolved.key] = (regimePtsByYearLegacy[yr][resolved.key] || 0) + pts;
         });
-        if (Object.keys(agircPtsMap).length || Object.keys(ircPtsMap).length || Object.keys(rciPtsMap).length) {
+        if (Object.keys(regimePtsByYearLegacy).length) {
           setCarriereRows(prev => prev.map(row => {
-            const updates = {};
-            if (agircPtsMap[row.yr] != null) updates.agircPts = agircPtsMap[row.yr];
-            if (ircPtsMap[row.yr] != null) updates.ircPts = ircPtsMap[row.yr];
-            if (rciPtsMap[row.yr] != null) updates.rciPts = rciPtsMap[row.yr];
-            return Object.keys(updates).length ? { ...row, ...updates } : row;
+            const yearRegimes = regimePtsByYearLegacy[row.yr];
+            if (!yearRegimes) return row;
+            const newRegimes = { ...(row.regimes || {}), ...yearRegimes };
+            const updates = { regimes: newRegimes };
+            if (yearRegimes.AGIRC_ARRCO != null) updates.agircPts = yearRegimes.AGIRC_ARRCO;
+            if (yearRegimes.IRCANTEC    != null) updates.ircPts   = yearRegimes.IRCANTEC;
+            if (yearRegimes.RCI         != null) updates.rciPts   = yearRegimes.RCI;
+            return { ...row, ...updates };
           }));
         }
 
