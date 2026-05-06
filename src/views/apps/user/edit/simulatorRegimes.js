@@ -17,3 +17,87 @@ export function normalize(s) {
     .replace(/[\s\-_]/g, "")
     .trim();
 }
+
+// ---------------------------------------------------------------------------
+// Task 2: REGIMES registry + resolveRegime
+// ---------------------------------------------------------------------------
+
+const buildAliases = (...names) => names.map(normalize);
+
+export const REGIMES = [
+  // Régimes with a Python calc engine
+  {
+    key: "CNAV",
+    label: "CNAV",
+    color: "#6C5CE7",
+    icon: "🧮",
+    aliases: buildAliases("CNAV", "Assurance Retraite", "assurance_retraite", "Régime général", "regime_general"),
+    hasCalcEngine: true,
+  },
+  {
+    key: "AGIRC_ARRCO",
+    label: "AGIRC-ARRCO",
+    color: "#0984E3",
+    icon: "📊",
+    aliases: buildAliases("AGIRC-ARRCO", "Agirc-Arrco", "agirc_arrco", "AGIRC", "ARRCO"),
+    hasCalcEngine: true,
+  },
+  {
+    key: "IRCANTEC",
+    label: "IRCANTEC",
+    color: "#00B894",
+    icon: "🏢",
+    aliases: buildAliases("IRCANTEC", "Ircantec", "ircantec"),
+    hasCalcEngine: true,
+  },
+  {
+    key: "RCI",
+    label: "RCI",
+    color: "#E17055",
+    icon: "📑",
+    aliases: buildAliases("RCI", "SSI", "RSI", "RCI/SSI"),
+    hasCalcEngine: true,
+  },
+  {
+    key: "CIPAV",
+    label: "CIPAV",
+    color: "#9B59B6",
+    icon: "🏥",
+    aliases: buildAliases("CIPAV", "cipav", "cipav_base", "cipav_complementaire"),
+    hasCalcEngine: true,
+  },
+  // Régimes with carrière input only (no calc engine yet)
+  { key: "CARPIMKO",       label: "CARPIMKO",                color: "#FF6B9D", icon: "💉", aliases: buildAliases("CARPIMKO"),                                                        hasCalcEngine: false },
+  { key: "CARPIMKO_ASV",   label: "CARPIMKO ASV",            color: "#FFA08A", icon: "💉", aliases: buildAliases("CARPIMKO ASV"),                                                    hasCalcEngine: false },
+  { key: "CARPIMKO_COMPL", label: "CARPIMKO Complémentaire", color: "#FFB7B7", icon: "💉", aliases: buildAliases("CARPIMKO Complémentaire", "CARPIMKO_Complementaire"),              hasCalcEngine: false },
+  { key: "CARMF",   label: "CARMF",   color: "#FF7675", icon: "🩺", aliases: buildAliases("CARMF"),   hasCalcEngine: false },
+  { key: "CARCDSF", label: "CARCDSF", color: "#FAB1A0", icon: "🦷", aliases: buildAliases("CARCDSF"), hasCalcEngine: false },
+  { key: "CARPV",   label: "CARPV",   color: "#FFEAA7", icon: "🐾", aliases: buildAliases("CARPV"),   hasCalcEngine: false },
+  { key: "CAVP",    label: "CAVP",    color: "#A29BFE", icon: "💊", aliases: buildAliases("CAVP"),    hasCalcEngine: false },
+  { key: "CNBF",    label: "CNBF",    color: "#74B9FF", icon: "⚖️", aliases: buildAliases("CNBF"),    hasCalcEngine: false },
+  { key: "MSA",     label: "MSA",     color: "#55EFC4", icon: "🌾", aliases: buildAliases("MSA"),     hasCalcEngine: false },
+  { key: "CNRACL",  label: "CNRACL",  color: "#81ECEC", icon: "🏛️", aliases: buildAliases("CNRACL"),  hasCalcEngine: false },
+  { key: "SRE",     label: "SRE",     color: "#B2BEC3", icon: "🏛️", aliases: buildAliases("SRE", "Fonction publique état", "fonction_publique_etat"), hasCalcEngine: false },
+  { key: "CAVAMAC", label: "CAVAMAC", color: "#DFE6E9", icon: "🏢", aliases: buildAliases("CAVAMAC"), hasCalcEngine: false },
+  { key: "CAVOM",   label: "CAVOM",   color: "#DFE6E9", icon: "🏢", aliases: buildAliases("CAVOM"),   hasCalcEngine: false },
+  { key: "CRN",     label: "CRN",     color: "#DFE6E9", icon: "📜", aliases: buildAliases("CRN"),     hasCalcEngine: false },
+];
+
+const UNKNOWN_REGIME_THEME = { color: "#9CA3AF", icon: "❓" };
+
+export function resolveRegime(raw) {
+  const norm = normalize(raw);
+  if (!norm) return null;
+  for (const entry of REGIMES) {
+    if (entry.aliases.includes(norm)) return entry;
+  }
+  return {
+    key: String(raw).trim(),
+    label: String(raw).trim(),
+    color: UNKNOWN_REGIME_THEME.color,
+    icon: UNKNOWN_REGIME_THEME.icon,
+    aliases: [norm],
+    hasCalcEngine: false,
+    isUnknown: true,
+  };
+}
