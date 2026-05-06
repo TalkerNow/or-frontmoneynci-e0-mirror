@@ -8,7 +8,7 @@ import { DownloadCloud, Eye, Download, Edit2, Save, Bold, Italic, Underline, Ali
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import { parseNIR } from "./utils";
-import { REGIMES, migrateRowShape, getPoints, setPoints, resolveRegime, computeVisibleRegimes } from "../simulatorRegimes";
+import { REGIMES, getPoints, resolveRegime, computeVisibleRegimes } from "../simulatorRegimes";
 import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
