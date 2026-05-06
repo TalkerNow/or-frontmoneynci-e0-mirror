@@ -1245,6 +1245,22 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // ── Parse PDF via n8n v6 (direct webhook, SimulatorV6 compatible) ─────────
   const parsePdfAndFillCarriere = useCallback(async (file) => {
     if (!file) return;
+
+    const authRole = localStorage.getItem("role");
+    if (authRole === "Consultant" && !accessGranted) {
+      try {
+        const verifyRes = await api.post("/v1/consultant-access/verify");
+        if (verifyRes.status === 200) {
+          setAccessGranted(true);
+          setIdentiteReset(false);
+        }
+      } catch (err) {
+        const msg = err?.response?.data?.error || "Accès refusé : crédits insuffisants ou pass expiré.";
+        toast.error(msg);
+        return;
+      }
+    }
+
     setIsParsingRIS(true);
     toast.info("Analyse du RIS en cours… (peut prendre 1-2 minutes)", { autoClose: false, toastId: "ris-parsing" });
     try {
