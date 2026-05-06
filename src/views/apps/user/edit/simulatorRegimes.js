@@ -14,8 +14,7 @@ export function normalize(s) {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
-    .replace(/[\s\-_]/g, "")
-    .trim();
+    .replace(/[\s\-_]/g, "");
 }
 
 // ---------------------------------------------------------------------------
@@ -139,7 +138,8 @@ export function migrateRowShape(row) {
 // ---------------------------------------------------------------------------
 
 export function buildLegacyMirror(row) {
-  const regimes = row?.regimes || {};
+  if (!row) return row;
+  const regimes = row.regimes || {};
   return {
     ...row,
     agircPts: regimes.AGIRC_ARRCO != null ? regimes.AGIRC_ARRCO : null,
@@ -166,15 +166,5 @@ export function computeVisibleRegimes(rows, defaultKeys = []) {
       }
     }
   }
-  return orderedKeys.map(
-    (key) =>
-      resolveRegime(key) || {
-        key,
-        label: key,
-        isUnknown: true,
-        hasCalcEngine: false,
-        color: "#9CA3AF",
-        icon: "❓",
-      }
-  );
+  return orderedKeys.map((key) => resolveRegime(key)).filter(Boolean);
 }

@@ -135,6 +135,13 @@ describe("setPoints", () => {
     setPoints(row, "AGIRC_ARRCO", 99);
     expect(row.regimes.AGIRC_ARRCO).toBe(12);
   });
+
+  it("overwrites an existing value at the same key", () => {
+    const row = { regimes: { AGIRC_ARRCO: 12 } };
+    const result = setPoints(row, "AGIRC_ARRCO", 99);
+    expect(result.regimes.AGIRC_ARRCO).toBe(99);
+    expect(row.regimes.AGIRC_ARRCO).toBe(12); // original unchanged
+  });
 });
 
 describe("migrateRowShape", () => {
@@ -206,6 +213,11 @@ describe("buildLegacyMirror", () => {
     const row = { regimes: { AGIRC_ARRCO: 12 } };
     buildLegacyMirror(row);
     expect(row).toEqual({ regimes: { AGIRC_ARRCO: 12 } });
+  });
+
+  it("returns null/undefined unchanged for nullish input", () => {
+    expect(buildLegacyMirror(null)).toBeNull();
+    expect(buildLegacyMirror(undefined)).toBeUndefined();
   });
 });
 
