@@ -8,7 +8,7 @@ import { DownloadCloud, Eye, Download, Edit2, Save, Bold, Italic, Underline, Ali
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import { parseNIR } from "./utils";
-import { REGIMES } from "../simulatorRegimes";
+import { REGIMES, migrateRowShape, getPoints, setPoints } from "../simulatorRegimes";
 import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
@@ -300,7 +300,7 @@ function _buildDefaultCarriereRows() {
   return Array.from({ length: 65 }, (_, i) => {
     const yr = 2026 - i;
     const coeff = REVALO_CNAV[yr] || 1;
-    return { yr, sal: 0, ss: 0, coeff: coeff.toFixed(3), revalo: 0, trim: 0, ar: 0, total: 0, agircPts: 0, ircPts: 0, rciPts: 0 };
+    return { yr, sal: 0, ss: 0, coeff: coeff.toFixed(3), revalo: 0, trim: 0, ar: 0, total: 0, agircPts: 0, ircPts: 0, rciPts: 0, regimes: {} };
   });
 }
 
@@ -1013,11 +1013,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       const pts = {};
       // Backward compatibility for points (supporting both points_ and pts_ prefixes)
       const agirc = entry.points_agirc_arrco ?? entry.pts_agirc_arrco;
-      if (agirc != null) pts.agircPts = agirc;
+      if (!pts.regimes) pts.regimes = {};
+      if (agirc != null) { pts.agircPts = agirc; pts.regimes.AGIRC_ARRCO = agirc; }
       const irc = entry.points_ircantec ?? entry.pts_ircantec;
-      if (irc != null)   pts.ircPts = irc;
+      if (irc != null)   { pts.ircPts   = irc;   pts.regimes.IRCANTEC    = irc;   }
       const rci = entry.points_rci ?? entry.pts_rci;
-      if (rci != null)   pts.rciPts = rci;
+      if (rci != null)   { pts.rciPts   = rci;   pts.regimes.RCI         = rci;   }
       return { ...row, sal: salOriginal, ss, revalo, devise: entry.devise || '€', regimes_concernes: entry.regimes_concernes || '', ...pts };
     }));
     setRevaloValues(prev => {
@@ -1352,9 +1353,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         if (Object.keys(agircN).length || Object.keys(ircN).length || Object.keys(rciN).length) {
           setCarriereRows(prev => prev.map(row => {
             const u = {};
-            if (agircN[row.yr] != null) u.agircPts = agircN[row.yr];
-            if (ircN[row.yr] != null) u.ircPts = ircN[row.yr];
-            if (rciN[row.yr] != null) u.rciPts = rciN[row.yr];
+            if (!u.regimes) u.regimes = { ...(row.regimes || {}) };
+            if (agircN[row.yr] != null) { u.agircPts = agircN[row.yr]; u.regimes.AGIRC_ARRCO = agircN[row.yr]; }
+            if (ircN[row.yr] != null)   { u.ircPts   = ircN[row.yr];   u.regimes.IRCANTEC    = ircN[row.yr];   }
+            if (rciN[row.yr] != null)   { u.rciPts   = rciN[row.yr];   u.regimes.RCI         = rciN[row.yr];   }
             return Object.keys(u).length ? { ...row, ...u } : row;
           }));
         }
@@ -3207,7 +3209,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                           setCarriereRows(prev => prev.map(r => {
                                             if (!r.sal || r.sal <= 0) return r;
                                             const res = calculateArrco(r.yr, r.sal, false);
-                                            return res ? { ...r, agircT1: parseFloat(res.t1.toFixed(2)), agircT2: parseFloat(res.t2.toFixed(2)), agircPts: parseFloat(res.total.toFixed(2)) } : r;
+                                            return res ? { ...r, agircT1: parseFloat(res.t1.toFixed(2)), agircT2: parseFloat(res.t2.toFixed(2)), agircPts: parseFloat(res.total.toFixed(2)), regimes: { ...(r.regimes || {}), AGIRC_ARRCO: parseFloat(res.total.toFixed(2)) } } : r;
                                           }));
                                         }} />
                                         Non-Cadre
@@ -3218,7 +3220,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                           setCarriereRows(prev => prev.map(r => {
                                             if (!r.sal || r.sal <= 0) return r;
                                             const res = calculateArrco(r.yr, r.sal, true);
-                                            return res ? { ...r, agircT1: parseFloat(res.t1.toFixed(2)), agircT2: parseFloat(res.t2.toFixed(2)), agircPts: parseFloat(res.total.toFixed(2)) } : r;
+                                            return res ? { ...r, agircT1: parseFloat(res.t1.toFixed(2)), agircT2: parseFloat(res.t2.toFixed(2)), agircPts: parseFloat(res.total.toFixed(2)), regimes: { ...(r.regimes || {}), AGIRC_ARRCO: parseFloat(res.total.toFixed(2)) } } : r;
                                           }));
                                         }} />
                                         Cadre
@@ -3298,15 +3300,19 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                             const arrcoRes = v > 0 ? calculateArrco(yr, v, isCadreSimu) : null;
                                             const ircRes = v > 0 ? calculateIrcantec(yr, v) : null;
                                             const rciRes = v > 0 ? calculateRci(yr, v) : null;
+                                            const agircV = arrcoRes ? parseFloat(arrcoRes.total.toFixed(2)) : 0;
+                                            const ircV   = ircRes   ? parseFloat(ircRes.total.toFixed(5))   : 0;
+                                            const rciV   = rciRes   ? parseFloat(rciRes.total.toFixed(5))   : 0;
                                             setCarriereRows(prev => prev.map(r => r.yr === yr ? {
                                               ...r,
                                               sal: v,
                                               ss: ssEur,
                                               agircT1: arrcoRes ? parseFloat(arrcoRes.t1.toFixed(2)) : null,
                                               agircT2: arrcoRes ? parseFloat(arrcoRes.t2.toFixed(2)) : null,
-                                              agircPts: arrcoRes ? parseFloat(arrcoRes.total.toFixed(2)) : 0,
-                                              ircPts: ircRes ? parseFloat(ircRes.total.toFixed(5)) : 0,
-                                              rciPts: rciRes ? parseFloat(rciRes.total.toFixed(5)) : 0,
+                                              agircPts: agircV,
+                                              ircPts:   ircV,
+                                              rciPts:   rciV,
+                                              regimes: { ...(r.regimes || {}), AGIRC_ARRCO: agircV, IRCANTEC: ircV, RCI: rciV },
                                             } : r));
                                           }}
                                           style={{ width: 62, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 15, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff" }} />
