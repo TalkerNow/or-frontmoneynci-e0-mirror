@@ -1284,7 +1284,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           }
         }
       } catch (err) {
-        const msg = err?.response?.data?.error || "Accès refusé : crédits insuffisants ou pass expiré.";
+        const backendMsg = err?.response?.data?.error || "Accès refusé : crédits insuffisants ou pass expiré.";
+        const msg = `${backendMsg} Veuillez contacter Jean-François Chauffété pour recharger vos crédits.`;
         toast.error(msg);
         return;
       }
