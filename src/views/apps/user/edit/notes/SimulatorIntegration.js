@@ -1276,6 +1276,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         if (verifyRes.status === 200) {
           setAccessGranted(true);
           setIdentiteReset(false);
+          const { remaining_credits, access_type } = verifyRes.data;
+          if (access_type === "credits" && remaining_credits !== null) {
+            toast.info(`1 crédit consommé — Solde restant : ${remaining_credits} crédit${remaining_credits !== 1 ? "s" : ""}`);
+          } else if (access_type === "unlimited_pass") {
+            toast.info("Accès pass illimité ✓");
+          }
         }
       } catch (err) {
         const msg = err?.response?.data?.error || "Accès refusé : crédits insuffisants ou pass expiré.";
