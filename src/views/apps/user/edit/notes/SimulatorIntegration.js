@@ -1013,11 +1013,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       const pts = {};
       // Backward compatibility for points (supporting both points_ and pts_ prefixes)
       const agirc = entry.points_agirc_arrco ?? entry.pts_agirc_arrco;
-      if (!pts.regimes) pts.regimes = {};
-      if (agirc != null) { pts.agircPts = agirc; pts.regimes.AGIRC_ARRCO = agirc; }
       const irc = entry.points_ircantec ?? entry.pts_ircantec;
-      if (irc != null)   { pts.ircPts   = irc;   pts.regimes.IRCANTEC    = irc;   }
       const rci = entry.points_rci ?? entry.pts_rci;
+      // Preserve existing regimes on the row + merge any regimes map saved on the backend entry
+      pts.regimes = { ...(row.regimes || {}), ...(entry.regimes || {}) };
+      if (agirc != null) { pts.agircPts = agirc; pts.regimes.AGIRC_ARRCO = agirc; }
+      if (irc != null)   { pts.ircPts   = irc;   pts.regimes.IRCANTEC    = irc;   }
       if (rci != null)   { pts.rciPts   = rci;   pts.regimes.RCI         = rci;   }
       return { ...row, sal: salOriginal, ss, revalo, devise: entry.devise || '€', regimes_concernes: entry.regimes_concernes || '', ...pts };
     }));
