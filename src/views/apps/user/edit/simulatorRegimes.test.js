@@ -1,4 +1,4 @@
-import { normalize, resolveRegime, REGIMES, getPoints, setPoints } from "./simulatorRegimes";
+import { normalize, resolveRegime, REGIMES, getPoints, setPoints, migrateRowShape } from "./simulatorRegimes";
 
 describe("normalize", () => {
   it("returns empty string for nullish input", () => {
@@ -134,5 +134,41 @@ describe("setPoints", () => {
     const row = { regimes: { AGIRC_ARRCO: 12 } };
     setPoints(row, "AGIRC_ARRCO", 99);
     expect(row.regimes.AGIRC_ARRCO).toBe(12);
+  });
+});
+
+describe("migrateRowShape", () => {
+  it("returns the row unchanged if regimes map is already present", () => {
+    const row = { year: 2020, regimes: { AGIRC_ARRCO: 12 }, agircPts: 99 };
+    expect(migrateRowShape(row)).toBe(row);
+  });
+
+  it("moves agircPts/ircPts/rciPts into regimes map", () => {
+    const row = { year: 2020, trim: 4, agircPts: 12, ircPts: 5, rciPts: 3 };
+    expect(migrateRowShape(row)).toEqual({
+      year: 2020,
+      trim: 4,
+      regimes: { AGIRC_ARRCO: 12, IRCANTEC: 5, RCI: 3 },
+    });
+  });
+
+  it("omits null/undefined legacy fields", () => {
+    const row = { year: 2020, agircPts: 12, ircPts: null };
+    const result = migrateRowShape(row);
+    expect(result.regimes).toEqual({ AGIRC_ARRCO: 12 });
+  });
+
+  it("preserves all other fields", () => {
+    const row = { year: 2020, salaire: 30000, agircPts: 12, custom: "x" };
+    const result = migrateRowShape(row);
+    expect(result.salaire).toBe(30000);
+    expect(result.custom).toBe("x");
+    expect(result.year).toBe(2020);
+  });
+
+  it("handles a row with no legacy fields at all", () => {
+    expect(migrateRowShape({ year: 2020, trim: 4 })).toEqual({
+      year: 2020, trim: 4, regimes: {},
+    });
   });
 });

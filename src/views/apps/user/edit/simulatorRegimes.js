@@ -118,3 +118,18 @@ export function setPoints(row, key, value) {
     regimes: { ...(row?.regimes || {}), [key]: value },
   };
 }
+
+// ---------------------------------------------------------------------------
+// Task 4: migrateRowShape
+// ---------------------------------------------------------------------------
+
+export function migrateRowShape(row) {
+  if (!row) return row;
+  if (row.regimes) return row;
+  const { agircPts, ircPts, rciPts, ...rest } = row;
+  const regimes = {};
+  if (agircPts != null) regimes.AGIRC_ARRCO = agircPts;
+  if (ircPts != null) regimes.IRCANTEC = ircPts;
+  if (rciPts != null) regimes.RCI = rciPts;
+  return { ...rest, regimes };
+}
