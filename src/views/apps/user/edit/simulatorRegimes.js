@@ -101,3 +101,20 @@ export function resolveRegime(raw) {
     isUnknown: true,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Task 3: getPoints / setPoints
+// ---------------------------------------------------------------------------
+
+export function getPoints(row, key) {
+  if (!row || !row.regimes) return null;
+  const v = row.regimes[key];
+  return v === undefined ? null : v;
+}
+
+export function setPoints(row, key, value) {
+  return {
+    ...row,
+    regimes: { ...(row?.regimes || {}), [key]: value },
+  };
+}

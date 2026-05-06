@@ -1,4 +1,4 @@
-import { normalize, resolveRegime, REGIMES } from "./simulatorRegimes";
+import { normalize, resolveRegime, REGIMES, getPoints, setPoints } from "./simulatorRegimes";
 
 describe("normalize", () => {
   it("returns empty string for nullish input", () => {
@@ -88,5 +88,51 @@ describe("resolveRegime", () => {
     expect(resolveRegime("agirc-arrco").key).toBe("AGIRC_ARRCO");
     expect(resolveRegime("AGIRC ARRCO").key).toBe("AGIRC_ARRCO");
     expect(resolveRegime("Agirc Arrco").key).toBe("AGIRC_ARRCO");
+  });
+});
+
+describe("getPoints", () => {
+  it("returns null when row has no regimes map", () => {
+    expect(getPoints({ year: 2020 }, "AGIRC_ARRCO")).toBeNull();
+  });
+
+  it("returns null when key not present", () => {
+    expect(getPoints({ year: 2020, regimes: {} }, "CARPIMKO")).toBeNull();
+  });
+
+  it("returns the value when present", () => {
+    expect(getPoints({ year: 2020, regimes: { AGIRC_ARRCO: 12.5 } }, "AGIRC_ARRCO")).toBe(12.5);
+  });
+
+  it("returns 0 (not null) when value is 0", () => {
+    expect(getPoints({ regimes: { AGIRC_ARRCO: 0 } }, "AGIRC_ARRCO")).toBe(0);
+  });
+});
+
+describe("setPoints", () => {
+  it("returns a new row with the value set", () => {
+    const row = { year: 2020, regimes: {} };
+    const result = setPoints(row, "CARPIMKO", 530.3);
+    expect(result.regimes.CARPIMKO).toBe(530.3);
+    expect(result).not.toBe(row);
+    expect(result.regimes).not.toBe(row.regimes);
+  });
+
+  it("creates the regimes map if missing", () => {
+    const row = { year: 2020 };
+    const result = setPoints(row, "AGIRC_ARRCO", 12);
+    expect(result.regimes.AGIRC_ARRCO).toBe(12);
+  });
+
+  it("preserves other régime values", () => {
+    const row = { regimes: { AGIRC_ARRCO: 12, IRCANTEC: 5 } };
+    const result = setPoints(row, "CARPIMKO", 530);
+    expect(result.regimes).toEqual({ AGIRC_ARRCO: 12, IRCANTEC: 5, CARPIMKO: 530 });
+  });
+
+  it("does not mutate the original row", () => {
+    const row = { regimes: { AGIRC_ARRCO: 12 } };
+    setPoints(row, "AGIRC_ARRCO", 99);
+    expect(row.regimes.AGIRC_ARRCO).toBe(12);
   });
 });
