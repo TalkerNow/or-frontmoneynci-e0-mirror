@@ -4,11 +4,12 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import Dropzone from "react-dropzone";
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button, UncontrolledTooltip, Input, UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem } from "reactstrap";
-import { DownloadCloud, Eye, Download, Edit2, Save, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, Trash2 } from "react-feather";
+import { DownloadCloud, Eye, Download, Edit2, Save, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, Trash2, Menu } from "react-feather";
+import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import { parseNIR } from "./utils";
-import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml } from "../risService";
+import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml, detectDocumentType } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
@@ -699,6 +700,24 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // ── Détection automatique des dispositifs applicables ──
   const [detectedDispositifs, setDetectedDispositifs] = useState({});
 
+  // ── Détection type document (RIS vs autre) ──
+  // Full detection payloads — not persisted (session only), keyed by filename
+  const docTypePayloads = useRef({});
+  // { [filename]: { loading: bool, is_ris: bool|null, doc_type: string|null } }
+  const [docTypeDetection, setDocTypeDetection] = useState(() => {
+    try {
+      const stored = sessionStorage.getItem(`simu_doc_detection_${id}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Reset any loading=true states left from a previous crash
+        Object.keys(parsed).forEach((k) => { if (parsed[k].loading) parsed[k] = { loading: false, is_ris: null, doc_type: null }; });
+        return parsed;
+      }
+    } catch { /* noop */ }
+    return {};
+  });
+  const [orderedDocs, setOrderedDocs] = useState([]);
+
   // ── RIS — Relevé de carrière du client ──────────────────────────────────────
   // fileToSend     : fichier PDF brut déposé par le consultant (Dropzone)
   // userDocuments  : liste des documents uploadés côté serveur (GET /files?user_id)
@@ -1248,6 +1267,59 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // Fetch documents on mount
   useEffect(() => { fetchUserDocuments(); }, [fetchUserDocuments]);
 
+  // Restore fileToSend from sessionStorage after refresh
+  useEffect(() => {
+    if (!id) return;
+    try {
+      const stored = sessionStorage.getItem(`simu_file_to_send_${id}`);
+      if (!stored) return;
+      const { name, type, dataUrl } = JSON.parse(stored);
+      fetch(dataUrl)
+        .then((r) => r.blob())
+        .then((blob) => {
+          const file = new File([blob], name, { type });
+          setFileToSend(file);
+          // Only detect if not already known (persisted from previous session)
+          const alreadyKnown = (() => { try { const s = sessionStorage.getItem(`simu_doc_detection_${id}`); if (!s) return false; const p = JSON.parse(s); return p[name]?.is_ris !== null && p[name]?.is_ris !== undefined; } catch { return false; } })();
+          if (!alreadyKnown) detectDocType(file);
+        })
+        .catch(() => sessionStorage.removeItem(`simu_file_to_send_${id}`));
+    } catch {
+      sessionStorage.removeItem(`simu_file_to_send_${id}`);
+    }
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist docTypeDetection to sessionStorage (skip loading states)
+  useEffect(() => {
+    if (!id) return;
+    try {
+      const toSave = {};
+      Object.entries(docTypeDetection).forEach(([k, v]) => { if (!v.loading) toSave[k] = v; });
+      sessionStorage.setItem(`simu_doc_detection_${id}`, JSON.stringify(toSave));
+    } catch { /* noop */ }
+  }, [docTypeDetection, id]);
+
+  // Sync orderedDocs when userDocuments changes (preserve existing order, append new)
+  useEffect(() => {
+    const dossier10 = userDocuments.filter((d) => Number(d.dossier) === 10);
+    setOrderedDocs((prev) => {
+      const prevIds = prev.map((d) => d.id);
+      const kept = prev.filter((d) => dossier10.some((x) => x.id === d.id));
+      const added = dossier10.filter((d) => !prevIds.includes(d.id));
+      return [...kept, ...added];
+    });
+  }, [userDocuments]);
+
+  const handleDragEnd = useCallback((result) => {
+    if (!result.destination) return;
+    setOrderedDocs((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(result.source.index, 1);
+      next.splice(result.destination.index, 0, moved);
+      return next;
+    });
+  }, []);
+
   // R4 removed — loadCached useEffect handles all 5 regimes with correct shape
 
   // R5 — Load available skills from API once on mount
@@ -1266,35 +1338,37 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   }, []);
 
   // ── Parse PDF via n8n v6 (direct webhook, SimulatorV6 compatible) ─────────
-  const parsePdfAndFillCarriere = useCallback(async (file) => {
-    if (!file) return;
+  const parsePdfAndFillCarriere = useCallback(async (file, preloadedPayload = null) => {
+    if (!file && !preloadedPayload) return;
 
-    const authRole = localStorage.getItem("role");
-    if (authRole === "Consultant" && !accessGranted) {
-      try {
-        const verifyRes = await api.post("/v1/consultant-access/verify");
-        if (verifyRes.status === 200) {
-          setAccessGranted(true);
-          setIdentiteReset(false);
-          const { remaining_credits, access_type } = verifyRes.data;
-          if (access_type === "credits" && remaining_credits !== null) {
-            toast.info(`1 crédit consommé — Solde restant : ${remaining_credits} crédit${remaining_credits !== 1 ? "s" : ""}`);
-          } else if (access_type === "unlimited_pass") {
-            toast.info("Accès pass illimité ✓");
+    if (!preloadedPayload) {
+      const authRole = localStorage.getItem("role");
+      if (authRole === "Consultant" && !accessGranted) {
+        try {
+          const verifyRes = await api.post("/v1/consultant-access/verify");
+          if (verifyRes.status === 200) {
+            setAccessGranted(true);
+            setIdentiteReset(false);
+            const { remaining_credits, access_type } = verifyRes.data;
+            if (access_type === "credits" && remaining_credits !== null) {
+              toast.info(`1 crédit consommé — Solde restant : ${remaining_credits} crédit${remaining_credits !== 1 ? "s" : ""}`);
+            } else if (access_type === "unlimited_pass") {
+              toast.info("Accès pass illimité ✓");
+            }
           }
+        } catch (err) {
+          const backendMsg = err?.response?.data?.error || "Accès refusé : crédits insuffisants ou pass expiré.";
+          const msg = `${backendMsg} Veuillez contacter Jean-François Chauffété pour recharger vos crédits.`;
+          toast.error(msg);
+          return;
         }
-      } catch (err) {
-        const backendMsg = err?.response?.data?.error || "Accès refusé : crédits insuffisants ou pass expiré.";
-        const msg = `${backendMsg} Veuillez contacter Jean-François Chauffété pour recharger vos crédits.`;
-        toast.error(msg);
-        return;
       }
     }
 
     setIsParsingRIS(true);
-    toast.info("Analyse du RIS en cours… (peut prendre 1-2 minutes)", { autoClose: false, toastId: "ris-parsing" });
+    toast.info(preloadedPayload ? "Application des données extraites…" : "Analyse du RIS en cours… (peut prendre 1-2 minutes)", { autoClose: false, toastId: "ris-parsing" });
     try {
-      const payload = await fetchRISAnalysisV6(file);
+      const payload = preloadedPayload || await fetchRISAnalysisV6(file);
       setLastRisPayload(payload);
 
       // ── Auto-fill user profile from RIS profil (if fields are missing) ──
@@ -1534,21 +1608,80 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     } catch { toast.error("Impossible de charger le document"); }
   }, []);
 
-  // ── Mark a server document as the RIS ──
-  const handleSetDocAsRIS = useCallback(async (doc) => {
-    if (risFileName === doc.filename) {
-      setRisFileName(null);
+  // ── Détecte le type d'un fichier PDF (RIS ou autre) ──
+  const detectDocType = useCallback(async (file) => {
+    const name = file.name.toLowerCase();
+    const supported = name.endsWith(".pdf") || name.endsWith(".png") || name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".webp");
+    if (!file || !supported) return;
+    const filename = file.name;
+    setDocTypeDetection(prev => ({ ...prev, [filename]: { loading: true, is_ris: null, doc_type: null } }));
+    try {
+      const result = await detectDocumentType(file, id);
+      docTypePayloads.current[filename] = result;
+      setDocTypeDetection(prev => ({
+        ...prev,
+        [filename]: { loading: false, is_ris: result.is_ris === true, doc_type: result.doc_type || null },
+      }));
+    } catch {
+      setDocTypeDetection(prev => ({ ...prev, [filename]: { loading: false, is_ris: null, doc_type: null } }));
+    }
+  }, [id]);
+
+  // ── Analyse un document serveur : détecte le type puis extrait la carrière ──
+  const handleAnalyzeDoc = useCallback(async (doc) => {
+    const existing = docTypeDetection[doc.filename];
+    if (existing?.loading) return;
+    const downloadFile = async () => {
+      const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") }, responseType: "blob" };
+      const response = await axios.get(`${global.config.server_url}/downloadFile?file_id=${doc.id}`, Config);
+      return new File([response.data], doc.filename, { type: response.data.type || "application/pdf" });
+    };
+    if (existing?.is_ris === true) {
+      try {
+        const file = await downloadFile();
+        setRisFileName(doc.filename);
+        parsePdfAndFillCarriere(file);
+      } catch { toast.error("Impossible de charger le document"); }
+      return;
+    }
+    if (existing?.is_ris === false) {
+      toast.info(`"${doc.filename}" n'est pas un RIS (${existing.doc_type || "document"}) — application des données extraites...`);
+      const storedPayload = docTypePayloads.current[doc.filename];
+      if (storedPayload) {
+        parsePdfAndFillCarriere(null, storedPayload);
+      } else {
+        try {
+          const file = await downloadFile();
+          parsePdfAndFillCarriere(file);
+        } catch { toast.error("Impossible de charger le document"); }
+      }
       return;
     }
     try {
+      setDocTypeDetection(prev => ({ ...prev, [doc.filename]: { loading: true, is_ris: null, doc_type: null } }));
       const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") }, responseType: "blob" };
       const response = await axios.get(`${global.config.server_url}/downloadFile?file_id=${doc.id}`, Config);
       const blob = response.data;
       const file = new File([blob], doc.filename, { type: blob.type || "application/pdf" });
-      setRisFileName(doc.filename);
-      parsePdfAndFillCarriere(file);
-    } catch { toast.error("Impossible de charger le document RIS"); }
-  }, [risFileName, parsePdfAndFillCarriere]);
+      const detection = await detectDocumentType(file, id);
+      docTypePayloads.current[doc.filename] = detection;
+      const isRisResult = detection.is_ris === true;
+      setDocTypeDetection(prev => ({
+        ...prev,
+        [doc.filename]: { loading: false, is_ris: isRisResult, doc_type: detection.doc_type || null },
+      }));
+      if (isRisResult) {
+        setRisFileName(doc.filename);
+        parsePdfAndFillCarriere(file);
+      } else {
+        toast.info(`"${doc.filename}" n'est pas un RIS (${detection.doc_type || "document"}) — application des données extraites...`);
+        parsePdfAndFillCarriere(null, detection);
+      }
+    } catch {
+      setDocTypeDetection(prev => ({ ...prev, [doc.filename]: { loading: false, is_ris: null, doc_type: null } }));
+      toast.error("Impossible d'analyser le document");
+    }
+  }, [docTypeDetection, id, risFileName, parsePdfAndFillCarriere]);
 
   // Drag & drop ou clic → stocke le fichier RIS en mémoire (fileToSend)
   // ET l'uploade sur le serveur Laravel (/uploadFiles) pour historisation
@@ -1557,6 +1690,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     if (!acceptedFiles || !acceptedFiles.length || !id) return;
     const file = acceptedFiles[0];
     setFileToSend(file);
+    detectDocType(file);
 
     // Persist to sessionStorage
     try {
@@ -2941,91 +3075,74 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                 {/* Liste des documents réels */}
                 {isLoadingDocs ? (
                   <div style={{ fontSize: 12, color: "#555", padding: "6px 0" }}>Chargement des documents…</div>
-                ) : ((userDocuments.filter((d) => Number(d.dossier) === 10).length > 0 || fileToSend)) ? (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-                    {userDocuments.filter((d) => Number(d.dossier) === 10).map((doc) => {
-                      const ext = (doc.filename || "").split(".").pop().toLowerCase();
-                      
-                      // 🟢 Green for PDF
-                      const color = ext === "pdf" ? "#00B894" : ext === "html" ? "#0984E3" : "#6C5CE7";
-                      const isSelected = fileToSend && fileToSend.name === doc.filename;
-                      const isRIS = risFileName === doc.filename;
-
-                      return (
-                        <div key={doc.id} style={{ display: "flex", flexDirection: "column", padding: "6px 12px", borderRadius: 7, background: isSelected ? `${color}18` : `${color}08`, border: `1px solid ${isSelected ? color : `${color}18`}`, fontSize: 13, cursor: "pointer", transition: "all 0.15s", minWidth: 180 }}
-                          onClick={() => {
-                            if (isSelected) return;
-                            handleSelectDocument(doc);
-                          }}
-                          title={isSelected ? "Document sélectionné pour l'analyse" : `Cliquer pour sélectionner "${doc.filename}"`}
-                        >
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <span style={{ fontSize: 15 }}>📄</span>
-                            <span style={{ fontWeight: 600, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 14 }}>{doc.filename}</span>
-                            <span style={{ fontSize: 11, color, fontWeight: 700 }}>{ext.toUpperCase()}</span>
-
-                            <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto", paddingLeft: 4 }}>
-                              {isSelected && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const url = URL.createObjectURL(fileToSend);
-                                    window.open(url, '_blank');
-                                  }}
-                                  style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "2px", display: "flex", alignItems: "center", justifyContent: "center" }}
-                                  title="Visualiser le document"
-                                >
-                                  <Eye size={14} />
-                                </button>
-                              )}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteDocument(doc.id, doc.filename);
-                                }}
-                                style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "2px", fontSize: 14, lineHeight: 1, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}
-                                title="Supprimer le document"
-                              >
-                                ✕
-                              </button>
-                            </div>
+                ) : ((orderedDocs.length > 0 || fileToSend)) ? (
+                  <div>
+                    <DragDropContext onDragEnd={handleDragEnd}>
+                      <Droppable droppableId="docs-list" direction="horizontal">
+                        {(provided) => (
+                          <div ref={provided.innerRef} {...provided.droppableProps} style={{ display: "flex", flexDirection: "row", flexWrap: "nowrap", gap: 7, overflowX: "auto", paddingBottom: 4 }}>
+                            {orderedDocs.map((doc, index) => {
+                              const ext = (doc.filename || "").split(".").pop().toLowerCase();
+                              const color = ext === "pdf" ? "#00B894" : ext === "html" ? "#0984E3" : "#6C5CE7";
+                              const isSelected = fileToSend && fileToSend.name === doc.filename;
+                              const isRIS = risFileName === doc.filename;
+                              return (
+                                <Draggable key={String(doc.id)} draggableId={String(doc.id)} index={index}>
+                                  {(drag, snapshot) => (
+                                    <div
+                                      ref={drag.innerRef}
+                                      {...drag.draggableProps}
+                                      {...drag.dragHandleProps}
+                                      style={{ display: "flex", flexDirection: "column", padding: "6px 12px", borderRadius: 7, background: isSelected ? `${color}18` : snapshot.isDragging ? "#f3f0ff" : `${color}08`, border: `1px solid ${isSelected ? color : snapshot.isDragging ? "#7367f0" : `${color}18`}`, fontSize: 13, cursor: snapshot.isDragging ? "grabbing" : "grab", transition: snapshot.isDragging ? "none" : "all 0.15s", ...drag.draggableProps.style }}
+                                      onClick={() => { if (isSelected) return; handleSelectDocument(doc); }}
+                                      title={isSelected ? "Document sélectionné pour l'analyse" : `Cliquer pour sélectionner "${doc.filename}"`}
+                                    >
+                                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                        <span style={{ fontSize: 15 }}>📄</span>
+                                        <span style={{ fontWeight: 600, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 14 }}>{doc.filename}</span>
+                                        <span style={{ fontSize: 11, color, fontWeight: 700 }}>{ext.toUpperCase()}</span>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto", paddingLeft: 4 }}>
+                                          {isSelected && (
+                                            <button onClick={(e) => { e.stopPropagation(); const url = URL.createObjectURL(fileToSend); window.open(url, '_blank'); }} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "2px", display: "flex", alignItems: "center", justifyContent: "center" }} title="Visualiser le document">
+                                              <Eye size={14} />
+                                            </button>
+                                          )}
+                                          <button onClick={(e) => { e.stopPropagation(); handleDeleteDocument(doc.id, doc.filename); }} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "2px", fontSize: 14, lineHeight: 1, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }} title="Supprimer le document">✕</button>
+                                        </div>
+                                      </div>
+                                      {["pdf", "png", "jpg", "jpeg", "webp"].includes(ext) && (() => {
+                                        const detection = docTypeDetection[doc.filename];
+                                        if (detection?.loading) {
+                                          return (
+                                            <div style={{ marginTop: 6, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, fontSize: 12, color: "#7367f0" }}>
+                                              <span className="spinner-border spinner-border-sm" style={{ width: "0.6rem", height: "0.6rem", borderWidth: "0.15em" }} role="status" />
+                                              Détection…
+                                            </div>
+                                          );
+                                        }
+                                        if (detection?.is_ris === false) {
+                                          return (
+                                            <div style={{ marginTop: 6, textAlign: "center", fontSize: 11, color: "#636e72", padding: "3px 8px", background: "#f5f5f5", borderRadius: 6, fontWeight: 600 }}>
+                                              📄 {detection.doc_type ? detection.doc_type.charAt(0).toUpperCase() + detection.doc_type.slice(1).replace(/_/g, " ") : "Document"}
+                                            </div>
+                                          );
+                                        }
+                                        return (
+                                          <button onClick={(e) => { e.stopPropagation(); handleAnalyzeDoc(doc); }} disabled={isParsingRIS} style={{ marginTop: 6, background: isParsingRIS && isRIS ? "#a29bfe" : "#7367f0", color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 13, fontWeight: 700, cursor: isParsingRIS ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, width: "100%", opacity: isParsingRIS && !isRIS ? 0.5 : 1, transition: "all 0.2s ease" }}>
+                                            {isParsingRIS && isRIS ? (<><span className="spinner-border spinner-border-sm" style={{ width: "0.6rem", height: "0.6rem", borderWidth: "0.15em" }} role="status" />Extraction en cours…</>) : "🚀 Analyser ce RIS"}
+                                          </button>
+                                        );
+                                      })()}
+                                    </div>
+                                  )}
+                                </Draggable>
+                              );
+                            })}
+                            {provided.placeholder}
                           </div>
-                          {ext === "pdf" && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleSetDocAsRIS(doc); }}
-                              disabled={isParsingRIS}
-                              style={{
-                                marginTop: 6,
-                                background: isParsingRIS && isRIS ? "#a29bfe" : "#7367f0",
-                                color: "#fff",
-                                border: "none",
-                                borderRadius: 6,
-                                padding: "5px 10px",
-                                fontSize: 13,
-                                fontWeight: 700,
-                                cursor: isParsingRIS ? "not-allowed" : "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                gap: 5,
-                                width: "100%",
-                                opacity: isParsingRIS && !isRIS ? 0.5 : 1,
-                                transition: "all 0.2s ease",
-                              }}
-                            >
-                              {isParsingRIS && isRIS ? (
-                                <>
-                                  <span className="spinner-border spinner-border-sm" style={{ width: "0.6rem", height: "0.6rem", borderWidth: "0.15em" }} role="status" />
-                                  Extraction en cours…
-                                </>
-                              ) : (
-                                "🚀 Analyser ce RIS"
-                              )}
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
+                        )}
+                      </Droppable>
+                    </DragDropContext>
                     
                     {/* Fichier uploadé manuellement (pas encore dans la liste serveur) */}
                     {fileToSend && !userDocuments.filter((d) => Number(d.dossier) === 10).some((d) => d.filename === fileToSend.name) && (
@@ -3054,43 +3171,62 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             </button>
                           </div>
                         </div>
-                        {fileToSend.name.toLowerCase().endsWith(".pdf") && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setRisFileName(fileToSend.name);
-                              parsePdfAndFillCarriere(fileToSend);
-                            }}
-                            disabled={isParsingRIS}
-                            style={{
-                              marginTop: 6,
-                              background: isParsingRIS && risFileName === fileToSend.name ? "#a29bfe" : "#7367f0",
-                              color: "#fff",
-                              border: "none",
-                              borderRadius: 6,
-                              padding: "5px 10px",
-                              fontSize: 13,
-                              fontWeight: 700,
-                              cursor: isParsingRIS ? "not-allowed" : "pointer",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              gap: 5,
-                              width: "100%",
-                              opacity: isParsingRIS && risFileName !== fileToSend.name ? 0.5 : 1,
-                              transition: "all 0.2s ease",
-                            }}
-                          >
-                            {isParsingRIS && risFileName === fileToSend.name ? (
-                              <>
+                        {(() => { const n = fileToSend.name.toLowerCase(); return n.endsWith(".pdf") || n.endsWith(".png") || n.endsWith(".jpg") || n.endsWith(".jpeg") || n.endsWith(".webp"); })() && (() => {
+                          const detection = docTypeDetection[fileToSend.name];
+                          const isActiveRIS = risFileName === fileToSend.name;
+                          if (detection?.loading) {
+                            return (
+                              <div style={{ marginTop: 6, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, fontSize: 12, color: "#7367f0" }}>
                                 <span className="spinner-border spinner-border-sm" style={{ width: "0.6rem", height: "0.6rem", borderWidth: "0.15em" }} role="status" />
-                                Extraction en cours…
-                              </>
-                            ) : (
-                              "🚀 Analyser ce RIS"
-                            )}
-                          </button>
-                        )}
+                                Détection…
+                              </div>
+                            );
+                          }
+                          if (detection?.is_ris === false) {
+                            return (
+                              <div style={{ marginTop: 6, textAlign: "center", fontSize: 11, color: "#636e72", padding: "3px 8px", background: "#f5f5f5", borderRadius: 6, fontWeight: 600 }}>
+                                📄 {detection.doc_type ? detection.doc_type.charAt(0).toUpperCase() + detection.doc_type.slice(1).replace(/_/g, " ") : "Document"}
+                              </div>
+                            );
+                          }
+                          return (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRisFileName(fileToSend.name);
+                                parsePdfAndFillCarriere(fileToSend);
+                              }}
+                              disabled={isParsingRIS}
+                              style={{
+                                marginTop: 6,
+                                background: isParsingRIS && isActiveRIS ? "#a29bfe" : "#7367f0",
+                                color: "#fff",
+                                border: "none",
+                                borderRadius: 6,
+                                padding: "5px 10px",
+                                fontSize: 13,
+                                fontWeight: 700,
+                                cursor: isParsingRIS ? "not-allowed" : "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: 5,
+                                width: "100%",
+                                opacity: isParsingRIS && !isActiveRIS ? 0.5 : 1,
+                                transition: "all 0.2s ease",
+                              }}
+                            >
+                              {isParsingRIS && isActiveRIS ? (
+                                <>
+                                  <span className="spinner-border spinner-border-sm" style={{ width: "0.6rem", height: "0.6rem", borderWidth: "0.15em" }} role="status" />
+                                  Extraction en cours…
+                                </>
+                              ) : (
+                                "🚀 Analyser ce RIS"
+                              )}
+                            </button>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>
