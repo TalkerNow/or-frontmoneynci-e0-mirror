@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { Card, CardBody, Button, Badge, UncontrolledTooltip } from "reactstrap";
 import { User as UserIcon, Disc, ArrowLeft, Trash2 } from "react-feather";
+import api from "../../../services/api";
 import { history } from "../../../history";
 import SweetAlert from "react-bootstrap-sweetalert";
 import ReactDOM from "react-dom";
@@ -22,6 +23,10 @@ export default function UserDetails({
   const [isSaving, setIsSaving] = useState(false);
   const [parentName, setParentName] = useState(null);
   const [consultantHistory, setConsultantHistory] = useState([]);
+  const [consultantAccess, setConsultantAccess] = useState(null);
+
+  const ADMIN_IDS = [4, 1271, 1638];
+  const currentUserId = parseInt(localStorage.getItem("userid"), 10);
 
   // --- FETCH des membres ---
   useEffect(() => {
@@ -41,6 +46,16 @@ export default function UserDetails({
     fetchMembers();
     return () => { isMounted = false; };
   }, []);
+
+  // --- FETCH accès consultant (visible admins uniquement) ---
+  useEffect(() => {
+    if (!user?.id || user?.role !== "Consultant" || !ADMIN_IDS.includes(currentUserId)) return;
+    let isMounted = true;
+    api.get(`/v1/consultant-access/user/${user.id}`)
+      .then(({ data }) => { if (isMounted) setConsultantAccess(data) })
+      .catch(() => {});
+    return () => { isMounted = false; };
+  }, [user?.id, user?.role]);
 
   // --- FETCH historique consultants ---
   useEffect(() => {
@@ -317,7 +332,7 @@ export default function UserDetails({
               <h5 className="mb-25 text-center">{fullName}</h5>
 
               {user.role ? (
-                <div className="d-flex justify-content-center mb-75">
+                <div className="d-flex justify-content-center align-items-center mb-75" style={{ gap: 6, flexWrap: "wrap" }}>
                   {isProspect ? (
                     <Badge
                       pill
@@ -335,6 +350,31 @@ export default function UserDetails({
                     >
                       {String(user.role).toUpperCase()}
                     </Badge>
+                  )}
+                  {consultantAccess && ADMIN_IDS.includes(currentUserId) && (
+                    !consultantAccess.access_id ? (
+                      <span style={{
+                        background: "#f0f0f0", color: "#6e6b7b",
+                        padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 500,
+                      }}>Aucun accès</span>
+                    ) : consultantAccess.access_type === "unlimited_pass" ? (
+                      <span style={{
+                        background: "#e6f9f0", color: "#1b8a4e",
+                        padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 500,
+                      }}>
+                        Pass illimité
+                        {consultantAccess.pass_expiration_date
+                          ? ` · exp. ${new Date(consultantAccess.pass_expiration_date).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })}`
+                          : ""}
+                      </span>
+                    ) : (
+                      <span style={{
+                        background: "#e8f4fd", color: "#1a73c8",
+                        padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 500,
+                      }}>
+                        {consultantAccess.remaining_credits ?? 0} crédit(s)
+                      </span>
+                    )
                   )}
                 </div>
               ) : null}
