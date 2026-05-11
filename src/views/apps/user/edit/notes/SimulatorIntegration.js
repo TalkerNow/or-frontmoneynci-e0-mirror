@@ -5962,7 +5962,6 @@ function ReportViewerModal({
                   </>
                 )}
 
-                {/* TEMP DESACTIVE — Assistant Rapport Spécifique masqué le temps de stabiliser le pavé prompt IA
                 <hr style={{ borderColor: "#dee2e6", margin: "16px 0" }} />
 
                 <h5 className="mb-3" style={{ color: "#495057", fontWeight: 600 }}>Assistant</h5>
@@ -5984,7 +5983,6 @@ function ReportViewerModal({
                 >
                   {isGenerating ? "Analyse en cours..." : "Générer un rapport spécifique"}
                 </Button>
-                */}
               </div>
             </div>
 
