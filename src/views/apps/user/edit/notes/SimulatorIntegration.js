@@ -550,7 +550,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [expandedScenarios, setExpandedScenarios] = useState({});
   const autoChainPendingRef = useRef(false);
   const [promptText, setPromptText] = useState("");
-  const [commentairesMode, setCommentairesMode] = useState(false);
 
   const openPreentretienEditor = async () => {
     setPreentretienModal({ text: "", loading: true, saving: false });
@@ -2136,7 +2135,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       formData.append("nir", nir);
       if (hiddenSystemPrompt) formData.append("system_prompt", hiddenSystemPrompt);
       const rapportComment = (promptText || "").trim();
-      if (rapportComment) formData.append("user_context", rapportComment);
+      if (rapportComment) {
+        formData.append("user_context", rapportComment);
+        toast.info("💬 Commentaire transmis au Rapport de consultation", { autoClose: 2500 });
+      }
 
       toast.info("Génération du rapport de consultation en cours…");
 
@@ -2360,6 +2362,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     }
     setIsGeneratingSimulation(true);
     try { localStorage.setItem(`gen_pending_SIMULATION_RETRAITE_${id}`, JSON.stringify({ startedAt: Date.now() })); } catch {}
+    if ((promptText || "").trim()) {
+      toast.info("💬 Commentaire transmis à la Simulation retraite", { autoClose: 2500 });
+    }
     try {
       const token = localStorage.getItem("token") || "";
       const resp = await fetch(`${global.config.server_url}/v1/simulation-retraite/generate`, {
@@ -2416,6 +2421,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     try { localStorage.setItem(`gen_pending_AUDIT_RETRAITE_${id}`, JSON.stringify({ startedAt: Date.now() })); } catch {}
     try {
       const auditComment = (promptText || "").trim();
+      if (auditComment) {
+        toast.info("💬 Commentaire transmis à l'Audit retraite", { autoClose: 2500 });
+      }
       const payload = {
         client_id: id,
         user_context: auditComment || "Audit retraite complet",
@@ -3040,6 +3048,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       return;
     }
     const extraContext = (promptText || "").trim();
+    if (extraContext) {
+      toast.info(`💬 Commentaire transmis à ${skillCode}`, { autoClose: 2500 });
+    }
     setScenarioSkillLoading(prev => ({ ...prev, [skillCode]: true }));
     setScenarioSkillErrors(prev => ({ ...prev, [skillCode]: null }));
     try {
@@ -5099,24 +5110,39 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
 
               {/* Pavé prompt IA — visible uniquement dans Scénarios et Livrables (pas en Carrière, FROZEN_DATA pure) */}
               {(expandedPanel === "dispositifs" || expandedPanel === "livrables") && (
-              <div style={{ ...S.card, padding: 14, marginTop: 16 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 3 }}>💬 Système prompt IA</div>
-                <div style={{ fontSize: 13, color: "#555", marginBottom: 10 }}>Commentaire libre transmis à l'IA (injecté dans <code>user_context</code> du prochain dispositif ou livrable lancé).</div>
-                <style>{`.sim-readable-placeholder::placeholder { color: #666 !important; opacity: 1; } .sim-readable-placeholder::-webkit-input-placeholder { color: #666 !important; } .sim-readable-placeholder::-moz-placeholder { color: #666 !important; opacity: 1; }`}</style>
+              <div style={{ ...S.card, padding: 14, marginTop: 16, border: promptText ? "2px solid #6C5CE7" : undefined }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700 }}>💬 Précisions pour l'IA</div>
+                  {promptText && (
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 10, background: "#6C5CE7", color: "#fff", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Actif
+                    </span>
+                  )}
+                  <span id="pavePromptHelpIcon" style={{ marginLeft: "auto", fontSize: 13, color: "#888", cursor: "help" }}>ⓘ</span>
+                  <UncontrolledTooltip placement="left" target="pavePromptHelpIcon">
+                    L'IA utilisera ce commentaire pour adapter ses observations. Les calculs (montants, dates) ne sont pas affectés.
+                  </UncontrolledTooltip>
+                </div>
+                <div style={{ fontSize: 12, color: "#666", marginBottom: 8 }}>
+                  Optionnel. Transmis automatiquement au prochain calcul ou livrable lancé.
+                </div>
+                <style>{`.sim-readable-placeholder::placeholder { color: #888 !important; opacity: 1; white-space: pre-line; } .sim-readable-placeholder::-webkit-input-placeholder { color: #888 !important; white-space: pre-line; } .sim-readable-placeholder::-moz-placeholder { color: #888 !important; opacity: 1; white-space: pre-line; }`}</style>
                 <textarea
                   className="sim-readable-placeholder"
-                  readOnly={!commentairesMode}
                   value={promptText}
-                  onChange={(e) => commentairesMode && setPromptText(e.target.value)}
-                  placeholder="Précisions/contexte pour l'IA…"
-                  style={{ width: "100%", padding: "9px 11px", borderRadius: 7, border: `1px solid ${commentairesMode ? "#6C5CE7" : "#ddd"}`, fontSize: 13, fontFamily: "inherit", resize: "vertical", minHeight: 60, boxSizing: "border-box", background: commentairesMode ? "#FDFCFF" : "#fafafa", color: "#333" }}
+                  onChange={(e) => setPromptText(e.target.value.slice(0, 500))}
+                  placeholder=""
+                  style={{ width: "100%", padding: "9px 11px", borderRadius: 7, border: "1px solid #6C5CE7", fontSize: 13, fontFamily: "inherit", resize: "vertical", minHeight: 80, boxSizing: "border-box", background: "#FDFCFF", color: "#333" }}
                 />
-                <div style={{ display: "flex", gap: 8, marginTop: 8, justifyContent: "flex-end" }}>
-                  <button
-                    onClick={() => setCommentairesMode(!commentairesMode)}
-                    style={{ padding: "8px 14px", borderRadius: 7, border: "1px solid #6C5CE7", background: commentairesMode ? "#6C5CE712" : "transparent", color: "#6C5CE7", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
-                    ✏️ {commentairesMode ? "Fermer" : "Ajouter du contexte"}
-                  </button>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                  <span style={{ fontSize: 11, color: "#888" }}>{promptText.length}/500</span>
+                  {promptText && (
+                    <button
+                      onClick={() => setPromptText("")}
+                      style={{ marginLeft: "auto", padding: "5px 10px", borderRadius: 6, border: "1px solid #ddd", background: "transparent", color: "#666", fontSize: 12, cursor: "pointer" }}>
+                      ✕ Effacer
+                    </button>
+                  )}
                 </div>
               </div>
               )}
