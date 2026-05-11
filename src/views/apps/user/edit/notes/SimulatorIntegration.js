@@ -8,7 +8,7 @@ import { DownloadCloud, Eye, Download, Edit2, Save, Bold, Italic, Underline, Ali
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import { parseNIR } from "./utils";
-import { REGIMES, getPoints, resolveRegime, computeVisibleRegimes } from "../simulatorRegimes";
+import { REGIMES, getPoints, resolveRegime, computeVisibleRegimes, REGIMES_SIMPLES, extractRegimeSimplePoints } from "../simulatorRegimes";
 import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
@@ -440,35 +440,43 @@ function RegimeResultCard({ code, loading, error, result, carriereValidee }) {
   const { hero, details } = buildRegimeView(code, po);
   const visibleDetails = details.filter(([_, v]) => v != null && v !== "");
 
-  return (
-    <div style={{ marginTop: 12, padding: "12px 14px", background: carriereValidee ? `${theme.color}0A` : "#fafafa", borderRadius: 9, border: `1px solid ${carriereValidee ? `${theme.color}30` : "#e8e8e8"}` }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-        <span style={{ fontSize: 16 }}>{theme.icon}</span>
-        <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>Calcul {theme.title.replace("Pension ", "pension ")}</span>
-        {!carriereValidee && (
-          <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 4, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>Validez d'abord la carrière</span>
-        )}
-      </div>
+  // Skip rendering if nothing to show (no loading, no error, no result, no arret)
+  if (!loading && !error && !arret && !po) return null;
+  // Hide cards with 0€ pension (régime applicable mais sans droits effectifs)
+  const pensionMensuelle = Number(po?.pension_mensuelle_brute ?? po?.pension_mensuelle_estimee ?? 0);
+  const pensionAnnuelle = Number(po?.pension_annuelle_brute ?? po?.pension_annuelle_estimee ?? 0);
+  if (!loading && !error && !arret && po && pensionMensuelle === 0 && pensionAnnuelle === 0) return null;
 
+  return (
+    <div style={{ marginTop: 12 }}>
       {loading && (
-        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: theme.color }}>
+        <div style={{ padding: "10px 14px", background: `${theme.color}0A`, borderRadius: 9, border: `1px solid ${theme.color}30`, display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: theme.color }}>
           <span style={{ display: "inline-block", width: 10, height: 10, border: `2px solid ${theme.color}40`, borderTop: `2px solid ${theme.color}`, borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+          <span style={{ fontSize: 16 }}>{theme.icon}</span>
           Calcul {theme.label} en cours…
         </div>
       )}
 
       {error && (
-        <div style={{ marginTop: 8, fontSize: 12, color: "#D63031", background: "#D6303110", padding: "6px 10px", borderRadius: 5 }}>
+        <div style={{ padding: "10px 14px", background: "#D6303110", borderRadius: 9, border: "1px solid #D6303130", fontSize: 12, color: "#D63031" }}>
+          <span style={{ fontSize: 16, marginRight: 6 }}>{theme.icon}</span>
           ⚠ {error}
         </div>
       )}
 
-      {arret && <RegimeArretCritique arret={arret} alertes={alertes} />}
+      {arret && (
+        <div style={{ padding: "10px 14px", background: `${theme.color}0A`, borderRadius: 9, border: `1px solid ${theme.color}30` }}>
+          <RegimeArretCritique arret={arret} alertes={alertes} />
+        </div>
+      )}
 
       {!arret && po && (
-        <div style={{ marginTop: 12, background: "#fff", border: `1px solid ${theme.color}20`, borderRadius: 8, padding: "10px 14px", boxShadow: `0 2px 8px ${theme.color}0A` }}>
+        <div style={{ background: "#fff", border: `1px solid ${theme.color}20`, borderRadius: 8, padding: "10px 14px", boxShadow: `0 2px 8px ${theme.color}0A` }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: theme.color, textTransform: "uppercase", letterSpacing: "0.07em" }}>Résultat {theme.label}</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: theme.color, textTransform: "uppercase", letterSpacing: "0.07em", display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 14 }}>{theme.icon}</span>
+              Résultat {theme.label}
+            </span>
             <span style={{ fontSize: 9, fontWeight: 700, color: theme.color, background: `${theme.color}15`, padding: "2px 7px", borderRadius: 3, letterSpacing: "0.08em" }}>CALCUL BRUT</span>
           </div>
 
@@ -680,6 +688,33 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [cipavLoading, setCipavLoading] = useState(false);
   const [cipavResult, setCipavResult] = useState(null);
   const [cipavError, setCipavError] = useState(null);
+
+  // ── CARPIMKO Debug State (bouton de debug isolé — masqué par défaut) ──
+  // Pour réactiver le bouton debug, passer SHOW_CARPIMKO_DEBUG à true.
+  const SHOW_CARPIMKO_DEBUG = false;
+  const [carpimkoDebugLoading, setCarpimkoDebugLoading] = useState(false);
+  const [carpimkoDebugResult, setCarpimkoDebugResult] = useState(null);
+  const [carpimkoDebugError, setCarpimkoDebugError] = useState(null);
+
+  // ── CARPIMKO State (paramédicaux libéraux : Base + ASV + Complémentaire) ──
+  // Source de vérité unique pour les points par année. Persistée dans frozen_data.carpimko.
+  const [carpimkoOpen, setCarpimkoOpen] = useState(false);
+  const [carpimkoRows, setCarpimkoRows] = useState(() => {
+    const yrs = [2025,2024,2023,2022,2021,2020,2019,2018,2017,2016,2015];
+    return Object.fromEntries(yrs.map(yr => [yr, { points_base: "", points_asv: "", points_compl: "" }]));
+  });
+  // ── CARPIMKO Skill State (résultat du calcul, intégré au flot "Calculer toutes les pensions") ──
+  const [carpimkoLoading, setCarpimkoLoading] = useState(false);
+  const [carpimkoResult, setCarpimkoResult] = useState(null);
+  const [carpimkoError, setCarpimkoError] = useState(null);
+
+  // ── Tier 1 Régimes State (CARMF, CAVP, CARPV, ...) — maps génériques par code régime ──
+  // Forme : { CARMF: {points_base: 1500, points_compl: 800, ...}, CAVP: {...} }
+  const [regimesPoints, setRegimesPoints] = useState({});
+  // Forme : { CARMF: {python_output, alertes, ...}, ... }
+  const [regimesSimplesResults, setRegimesSimplesResults] = useState({});
+  const [regimesSimplesLoading, setRegimesSimplesLoading] = useState({});
+  const [regimesSimplesErrors, setRegimesSimplesErrors] = useState({});
 
   // ── Master "Calculate All" State ──
   const [isCalculatingAll, setIsCalculatingAll] = useState(false);
@@ -897,6 +932,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         ["IRCANTEC",    setIrcantecResult],
         ["RCI",         setRciResult],
         ["CIPAV",       setCipavResult],
+        ["CARPIMKO",    setCarpimkoResult],
       ];
       for (const [code, setter] of skillMap) {
         try {
@@ -908,6 +944,20 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           }
         } catch { /* 404 = pas encore calculé, on ignore */ }
       }
+
+      // Tier 1 régimes : restaurer dans un map unique
+      const tier1Codes = Object.keys(REGIMES_SIMPLES);
+      const restoredSimples = {};
+      for (const code of tier1Codes) {
+        try {
+          const report = await fetchLatestReport(id, code);
+          const result = report?.result_json;
+          if (result?.python_output && result.mode?.startsWith('parallel')) {
+            restoredSimples[code] = result;
+          }
+        } catch { /* ignore 404 */ }
+      }
+      if (Object.keys(restoredSimples).length) setRegimesSimplesResults(restoredSimples);
 
       // Recharger les résultats skills scénarios (RACL, VPLR, etc.)
       const scenarioCodes = Object.values(DISPOSITIF_TO_SKILL_CODE).filter(Boolean);
@@ -1074,6 +1124,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       .then(res => {
         // Restore CIPAV points (from dedicated column or legacy carriere objects)
         const cipav = res.data?.cipav;
+        const carpimko = res.data?.carpimko;
         const carriere = res.data?.carriere;
 
         if (Array.isArray(cipav) && cipav.length) {
@@ -1085,7 +1136,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                 // Support both new points_cipav_* and legacy pts_cipav_* keys
                 const ptsBase = e.points_cipav_base ?? e.pts_cipav_base;
                 const ptsCompl = e.points_cipav_complementaire ?? e.pts_cipav_complementaire;
-                
+
                 next[e.annee] = {
                   ...(next[e.annee] || { revenus: "", revCnavpl: "" }),
                   points: ptsBase ?? (next[e.annee]?.points ?? ""),
@@ -1095,6 +1146,61 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
             });
             return next;
           });
+        }
+
+        // Restore CARPIMKO points (3 piliers : Base + ASV + Complémentaire)
+        if (Array.isArray(carpimko) && carpimko.length) {
+          setCarpimkoOpen(true);
+          setCarpimkoRows(prev => {
+            const next = { ...prev };
+            carpimko.forEach(e => {
+              if (e.annee) {
+                next[e.annee] = {
+                  points_base: e.points_base ?? e.pts_carpimko_base ?? (next[e.annee]?.points_base ?? ""),
+                  points_asv: e.points_asv ?? e.pts_carpimko_asv ?? (next[e.annee]?.points_asv ?? ""),
+                  points_compl: e.points_complementaire ?? e.points_compl ?? e.pts_carpimko_complementaire ?? e.pts_carpimko_compl ?? (next[e.annee]?.points_compl ?? ""),
+                };
+              }
+            });
+            return next;
+          });
+        }
+
+        // Tier 1 : restaurer regimes_points (frozen_data.regimes_points) + fallback carriere[].regimes
+        const persistedRP = res.data?.regimes_points || {};
+        const merged = { ...persistedRP };
+        if (Array.isArray(carriere) && carriere.length) {
+          for (const code of Object.keys(REGIMES_SIMPLES)) {
+            if (merged[code] && Object.keys(merged[code]).length) continue; // déjà persisté
+            const auto = extractRegimeSimplePoints(carriere, code);
+            if (Object.keys(auto).length) merged[code] = auto;
+          }
+        }
+        if (Object.keys(merged).length) setRegimesPoints(merged);
+
+        if (Array.isArray(carriere) && carriere.length && (!Array.isArray(carpimko) || !carpimko.length)) {
+          // Fallback CARPIMKO : auto-extraire depuis carriere[].regimes (parsing RIS automatique)
+          const hasCarpimkoInCarriere = carriere.some(e => {
+            const r = e?.regimes || {};
+            return r.CARPIMKO != null || r.CARPIMKO_ASV != null || r.CARPIMKO_COMPL != null;
+          });
+          if (hasCarpimkoInCarriere) {
+            setCarpimkoOpen(true);
+            setCarpimkoRows(prev => {
+              const next = { ...prev };
+              carriere.forEach(e => {
+                const r = e?.regimes || {};
+                if (e.annee && (r.CARPIMKO != null || r.CARPIMKO_ASV != null || r.CARPIMKO_COMPL != null)) {
+                  next[e.annee] = {
+                    points_base: r.CARPIMKO != null ? String(r.CARPIMKO) : (next[e.annee]?.points_base ?? ""),
+                    points_asv: r.CARPIMKO_ASV != null ? String(r.CARPIMKO_ASV) : (next[e.annee]?.points_asv ?? ""),
+                    points_compl: r.CARPIMKO_COMPL != null ? String(r.CARPIMKO_COMPL) : (next[e.annee]?.points_compl ?? ""),
+                  };
+                }
+              });
+              return next;
+            });
+          }
         }
 
         if (Array.isArray(carriere) && carriere.length) {
@@ -1165,6 +1271,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     setArState(() => { const init = {}; for (let i = 0; i < 65; i++) { init[2026 - i] = 0; } return init; });
     setCnavplRows(Object.fromEntries([2025,2024,2023,2022,2021,2020,2019,2018,2017,2016,2015].map(yr => [yr, { revenus: "", revCnavpl: "", points: "" }])));
     setCnavplOpen(false);
+    setCarpimkoRows(Object.fromEntries([2025,2024,2023,2022,2021,2020,2019,2018,2017,2016,2015].map(yr => [yr, { points_base: "", points_asv: "", points_compl: "" }])));
+    setCarpimkoOpen(false);
     setVisibleRowCount(20);
     setCarriereValidee(false);
     setRisFileName(null);
@@ -1180,6 +1288,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     setRciError(null);
     setCipavResult(null);
     setCipavError(null);
+    setCarpimkoResult(null);
+    setCarpimkoError(null);
+    setRegimesPoints({});
+    setRegimesSimplesResults({});
+    setRegimesSimplesLoading({});
+    setRegimesSimplesErrors({});
     setScenarioSkillResults({});
     setScenarioSkillErrors({});
     setActivatedDispositifs([]);
@@ -2398,6 +2512,17 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
             points_cipav_base: parseFloat(row.points) || 0,
             points_cipav_complementaire: parseFloat(row.pointsCompl) || 0,
           })),
+        // CARPIMKO (paramédicaux libéraux : Base + ASV + Complémentaire)
+        carpimko: Object.entries(carpimkoRows)
+          .filter(([_, row]) => row.points_base || row.points_asv || row.points_compl)
+          .map(([yr, row]) => ({
+            annee: parseInt(yr),
+            points_base: parseFloat(row.points_base) || 0,
+            points_asv: parseFloat(row.points_asv) || 0,
+            points_complementaire: parseFloat(row.points_compl) || 0,
+          })),
+        // Tier 1 régimes (CARMF, CAVP, CARPV, ...) : map générique
+        regimes_points: regimesPoints,
         alertes: [],
         totaux: {
           trimestres_cotises: totalCot,
@@ -2420,6 +2545,14 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
               valeur_point_base: droitsSynthese?.cipav?.valeur_point_base || 0.654,
               points_complementaire: totalPointsCipavCompl,
               valeur_point_complementaire: droitsSynthese?.cipav?.valeur_point_complementaire || 2.89,
+            },
+            carpimko: {
+              points_base: Object.values(carpimkoRows).reduce((s, r) => s + (parseFloat(r.points_base) || 0), 0),
+              valeur_point_base: droitsSynthese?.carpimko?.valeur_point_base || 0.5860,
+              points_asv: Object.values(carpimkoRows).reduce((s, r) => s + (parseFloat(r.points_asv) || 0), 0),
+              valeur_point_asv: droitsSynthese?.carpimko?.valeur_point_asv || 5.4500,
+              points_complementaire: Object.values(carpimkoRows).reduce((s, r) => s + (parseFloat(r.points_compl) || 0), 0),
+              valeur_point_complementaire: droitsSynthese?.carpimko?.valeur_point_complementaire || 11.30,
             },
             ircantec: {
               total_points: totalPointsIrcantec,
@@ -2460,7 +2593,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       setFrozenLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, carriereRows, revaloValues, deplafValues, trimCotState, trimAssState, user, cnavplRows, droitsSynthese, risCarriereSynthese, isCarriereEmpty]);
+  }, [id, carriereRows, revaloValues, deplafValues, trimCotState, trimAssState, user, cnavplRows, carpimkoRows, droitsSynthese, risCarriereSynthese, isCarriereEmpty]);
 
   const handleCalculateAllRegimes = async () => {
     if (!carriereValidee) return;
@@ -2488,14 +2621,42 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     setCipavLoading(true);
     setCipavError(null);
     setCipavResult(null);
+    // CARPIMKO : ne calculer que si le client a effectivement des points (optimisation)
+    const hasCarpimkoPoints = Object.values(carpimkoRows).some(r => r.points_base || r.points_asv || r.points_compl);
+    if (hasCarpimkoPoints) {
+      setCarpimkoLoading(true);
+      setCarpimkoError(null);
+      setCarpimkoResult(null);
+    }
+    // Tier 1 : repérer les régimes simples avec des points (zéro appel si vide)
+    const tier1Active = Object.keys(REGIMES_SIMPLES).filter(code => {
+      const pts = regimesPoints[code] || {};
+      return Object.values(pts).some(v => parseFloat(v) > 0);
+    });
+    if (tier1Active.length) {
+      setRegimesSimplesLoading(prev => ({ ...prev, ...Object.fromEntries(tier1Active.map(c => [c, true])) }));
+      setRegimesSimplesErrors({});
+    }
     try {
-      const [cnavRes, agircRes, ircantecRes, rciRes, cipavRes] = await Promise.allSettled([
+      const carpimkoSums = {
+        points_base: Math.round(Object.values(carpimkoRows).reduce((s, r) => s + (parseFloat(r.points_base) || 0), 0) * 100) / 100,
+        points_asv: Math.round(Object.values(carpimkoRows).reduce((s, r) => s + (parseFloat(r.points_asv) || 0), 0) * 100) / 100,
+        points_complementaire: Math.round(Object.values(carpimkoRows).reduce((s, r) => s + (parseFloat(r.points_compl) || 0), 0) * 100) / 100,
+      };
+      const calls = [
         executeScript("CNAV", id, ""),
         executeScript("AGIRC_ARRCO", id, ""),
         executeScript("IRCANTEC", id, ""),
         executeScript("RCI", id, ""),
         executeScript("CIPAV", id, ""),
-      ]);
+      ];
+      if (hasCarpimkoPoints) calls.push(executeScript("CARPIMKO", id, "Calcul CARPIMKO unifié — base + ASV + complémentaire", carpimkoSums));
+      // Tier 1 : un appel par régime actif, scenario_params = points par pilier
+      for (const code of tier1Active) calls.push(executeScript(code, id, `Calcul ${code}`, regimesPoints[code] || {}));
+      const settled = await Promise.allSettled(calls);
+      const [cnavRes, agircRes, ircantecRes, rciRes, cipavRes, ...rest] = settled;
+      const carpimkoRes = hasCarpimkoPoints ? rest.shift() : null;
+      const tier1Results = rest; // dans l'ordre de tier1Active
 
       if (cnavRes.status === "fulfilled") {
         setSkillResult(cnavRes.value);
@@ -2547,6 +2708,33 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         toast.error("Erreur calcul CIPAV");
       }
 
+      if (hasCarpimkoPoints && carpimkoRes) {
+        if (carpimkoRes.status === "fulfilled") {
+          setCarpimkoResult(carpimkoRes.value);
+          saveSkillResult(id, "CARPIMKO", carpimkoRes.value);
+          if (carpimkoRes.value.success === false && carpimkoRes.value.arret_critique) toast.error(carpimkoRes.value.arret_critique.raison || "Calcul CARPIMKO interrompu");
+        } else {
+          const msg = carpimkoRes.reason?.response?.data?.arret_critique?.raison || carpimkoRes.reason?.message || "Erreur réseau CARPIMKO";
+          setCarpimkoError(msg);
+          toast.error("Erreur calcul CARPIMKO");
+        }
+      }
+
+      // Tier 1 : dispatch des résultats dans les maps génériques
+      tier1Active.forEach((code, idx) => {
+        const res = tier1Results[idx];
+        if (!res) return;
+        if (res.status === "fulfilled") {
+          setRegimesSimplesResults(prev => ({ ...prev, [code]: res.value }));
+          saveSkillResult(id, code, res.value);
+          if (res.value?.arret_critique) toast.error(res.value.arret_critique.raison || `Calcul ${code} interrompu`);
+        } else {
+          const msg = res.reason?.response?.data?.arret_critique?.raison || res.reason?.message || `Erreur réseau ${code}`;
+          setRegimesSimplesErrors(prev => ({ ...prev, [code]: msg }));
+          toast.error(`Erreur calcul ${code}`);
+        }
+      });
+
       const scenarioCodes = ACTION_PANELS.dispositifs.actions
         .map(a => DISPOSITIF_TO_SKILL_CODE[a.id])
         .filter(Boolean);
@@ -2560,6 +2748,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       setIrcantecLoading(false);
       setRciLoading(false);
       setCipavLoading(false);
+      setCarpimkoLoading(false);
+      setRegimesSimplesLoading({});
     }
   };
 
@@ -2634,7 +2824,13 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         : skillCode === "CHOMAGE_NON_INDEMNISE"
         ? await executeChomageNonIndScenario(parseInt(id), scenarioParams)
         : skillCode === "VPLR"
-        ? await executeVplrScenario(parseInt(id), scenarioParams)
+        ? await executeVplrScenario(parseInt(id), {
+            ...scenarioParams,
+            annees_etudes_superieures:
+              user?.higher_education_years != null
+                ? Number(user.higher_education_years)
+                : null,
+          })
         : skillCode === "ARRET_ACTIVITE"
         ? await executeArretActiviteScenario(parseInt(id), scenarioParams)
         : await executeSkillGeneric(skillCode, {
@@ -2702,7 +2898,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   }, [id, chosenScenarios, buildScenarioItem]);
 
   // ── Multi-select : toggle d'une date dans la liste retenue ──
-  // Identité : (type, date) — plusieurs `date_libre` distinctes autorisées.
+  // Identité : (type, date) pour les dates dérivées — une seule "date_libre" à la fois.
+  // Pour "date_libre" : modifier la date remplace l'entrée existante, re-cliquer sur la même date la retire.
   // Pour "date_libre", `customDate` doit être au format ISO yyyy-mm-dd.
   const handleChooseDate = useCallback(async (typeId, label, dateInfo, customDate = null) => {
     if (!id) return;
@@ -2716,13 +2913,29 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       info = new Date(customDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
     }
     const candidate = { type: typeId, label, date: isoDate, info };
-    const idx = chosenDates.findIndex(d =>
-      d?.type === typeId && (typeId !== "date_libre" || d?.date === isoDate)
-    );
-    const adding = idx === -1;
-    const next = adding
-      ? [...chosenDates, candidate]
-      : chosenDates.filter((_, i) => i !== idx);
+
+    let next, adding, replacing = false;
+    if (typeId === "date_libre") {
+      const existingIdx = chosenDates.findIndex(d => d?.type === "date_libre");
+      if (existingIdx !== -1 && chosenDates[existingIdx]?.date === isoDate) {
+        // Même date cliquée deux fois → retirer
+        next = chosenDates.filter((_, i) => i !== existingIdx);
+        adding = false;
+      } else if (existingIdx !== -1) {
+        // Date différente → remplacer l'existante
+        next = chosenDates.map((d, i) => (i === existingIdx ? candidate : d));
+        adding = true;
+        replacing = true;
+      } else {
+        // Aucune date_libre existante → ajouter
+        next = [...chosenDates, candidate];
+        adding = true;
+      }
+    } else {
+      const idx = chosenDates.findIndex(d => d?.type === typeId && d?.date === isoDate);
+      adding = idx === -1;
+      next = adding ? [...chosenDates, candidate] : chosenDates.filter((_, i) => i !== idx);
+    }
 
     setChosenDateSaving(true);
     const previous = chosenDates;
@@ -2731,7 +2944,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       const updated = await saveChosenDates(parseInt(id), next);
       const serverList = updated?.dates_retenues;
       if (Array.isArray(serverList)) setChosenDates(serverList);
-      toast.success(adding ? `Date ajoutée : ${label}` : `Date retirée : ${label}`);
+      const action = adding ? (replacing ? "modifiée" : "ajoutée") : "retirée";
+      toast.success(`Date ${action} : ${label}`);
     } catch (err) {
       setChosenDates(previous);
       const msg = err.response?.data?.message || err.message || "Erreur sauvegarde";
@@ -3314,28 +3528,31 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                       {cnavplOpen && <span style={{ fontSize: 11, fontWeight: 700 }}>🏥 CIPAV</span>}
                                     </button>
                                   </th>
-                                  {dynamicRegimes.map((regime) => (
+                                  {dynamicRegimes.map((regime) => {
+                                    const c = regime.isUnknown ? "#9CA3AF" : regime.color;
+                                    return (
                                     <th
                                       key={regime.key}
-                                      rowSpan={2}
-                                      title={regime.isUnknown ? "Régime non reconnu — calcul non disponible" : undefined}
+                                      title={regime.isUnknown ? "Régime non reconnu — calcul non disponible" : regime.label}
                                       style={{
                                         padding: "3px 6px",
                                         textAlign: "center",
                                         fontWeight: 700,
-                                        color: "#fff",
-                                        background: regime.color,
-                                        borderLeft: "2px solid " + regime.color,
-                                        borderBottom: "1px solid " + regime.color,
+                                        fontSize: 12,
+                                        color: c,
+                                        background: c + "08",
+                                        borderLeft: "2px solid " + c + "30",
+                                        borderBottom: "1px solid " + c + "20",
                                         verticalAlign: "bottom",
                                         whiteSpace: "nowrap",
                                       }}
                                     >
                                       <span style={{ marginRight: 4 }}>{regime.icon}</span>
                                       {regime.label}
-                                      {regime.isUnknown && <span style={{ marginLeft: 4 }}>⚠️</span>}
+                                      {regime.isUnknown && <span style={{ marginLeft: 4, opacity: 0.6 }}>⚠️</span>}
                                     </th>
-                                  ))}
+                                    );
+                                  })}
                                 </tr>
                                 <tr style={{ background: "#fafafa" }}>
                                   {[["Sal. SS","r"],["Coeff.","r"],["Revalo.","r"],["Déplaf.","c"],["Trim.","c"],["Ass.","c"],["AR","c"],["Tot.","c"]].map(([h, a], i) => (
@@ -3355,6 +3572,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                   ) : (
                                     <th style={{ padding: "3px 5px", width: 24, borderBottom: "2px solid #9B59B620", borderLeft: "2px solid #9B59B630" }}></th>
                                   )}
+                                  {dynamicRegimes.map((regime) => {
+                                    const c = regime.isUnknown ? "#9CA3AF" : regime.color;
+                                    return (
+                                      <th key={regime.key} style={{ padding: "3px 5px", textAlign: "center", fontWeight: 600, color: c, borderBottom: "2px solid " + c + "20", borderLeft: "2px solid " + c + "30", whiteSpace: "nowrap" }}>Points</th>
+                                    );
+                                  })}
                                 </tr>
                               </thead>
                               <tbody>
@@ -4261,7 +4484,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               // remplace le bouton "lancer les calculs" par un CTA vers les
                               // livrables pour éviter un reclic inutile (les calculs sont
                               // identiques tant que la carrière n'a pas été dégelée).
-                              const calcsDone = !!(skillResult || agircResult || ircantecResult || rciResult || cipavResult);
+                              const tier1ActiveCodes = Object.keys(REGIMES_SIMPLES).filter(c => Object.values(regimesPoints[c] || {}).some(v => parseFloat(v) > 0));
+                              const hasAnyTier1Result = tier1ActiveCodes.some(c => regimesSimplesResults[c]);
+                              const calcsDone = !!(skillResult || agircResult || ircantecResult || rciResult || cipavResult || carpimkoResult || hasAnyTier1Result);
+                              const hasCarpimkoPoints = Object.values(carpimkoRows).some(r => r.points_base || r.points_asv || r.points_compl);
+                              const totalRegimes = 5 + (hasCarpimkoPoints ? 1 : 0) + tier1ActiveCodes.length;
                               if (carriereValidee && calcsDone && !isCalculatingAll) {
                                 return (
                                   <button
@@ -4279,26 +4506,162 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                 <button
                                   onClick={handleCalculateAllRegimes}
                                   disabled={!carriereValidee || isCalculatingAll || isCarriereEmpty || !user?.birth_date}
-                                  title={!carriereValidee ? "Validez d'abord la carrière" : isCarriereEmpty ? "Carrière vide" : !user?.birth_date ? "Date de naissance manquante" : "Lancer le calcul simultané des 5 régimes"}
+                                  title={!carriereValidee ? "Validez d'abord la carrière" : isCarriereEmpty ? "Carrière vide" : !user?.birth_date ? "Date de naissance manquante" : `Lancer le calcul simultané des ${totalRegimes} régimes`}
                                   style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", padding: "12px 20px", borderRadius: 8, border: "none", background: carriereValidee && !isCalculatingAll && !isCarriereEmpty && user?.birth_date ? "linear-gradient(135deg, #6C5CE7 0%, #0984E3 100%)" : "#ccc", color: "#fff", fontWeight: 700, fontSize: 15, cursor: carriereValidee && !isCalculatingAll && !isCarriereEmpty && user?.birth_date ? "pointer" : "not-allowed", boxShadow: carriereValidee && !isCalculatingAll && !isCarriereEmpty && user?.birth_date ? "0 4px 14px rgba(108,92,231,0.35)" : "none", transition: "all 0.2s" }}
                                 >
                                   {isCalculatingAll ? (
                                     <>
                                       <span style={{ display: "inline-block", width: 14, height: 14, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                                      Calculs en cours… (5 régimes)
+                                      Calculs en cours… ({totalRegimes} régimes)
                                     </>
                                   ) : (
                                     <>
                                       <span style={{ fontSize: 16 }}>🚀</span>
-                                      Calculer toutes les pensions (5 régimes)
+                                      Calculer toutes les pensions ({totalRegimes} régimes)
                                     </>
                                   )}
                                 </button>
                               );
                             })()}
+
+                            {SHOW_CARPIMKO_DEBUG && (() => {
+                              const round2 = n => Math.round((Number(n) || 0) * 100) / 100;
+                              const sumBase = round2(Object.values(carpimkoRows).reduce((s, r) => s + (parseFloat(r.points_base) || 0), 0));
+                              const sumAsv = round2(Object.values(carpimkoRows).reduce((s, r) => s + (parseFloat(r.points_asv) || 0), 0));
+                              const sumCompl = round2(Object.values(carpimkoRows).reduce((s, r) => s + (parseFloat(r.points_compl) || 0), 0));
+                              return (
+                            <div style={{ marginTop: 8, padding: 10, background: "#FFF7ED", border: "1px dashed #FB923C", borderRadius: 6 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: "#9A3412", letterSpacing: 0.3 }}>🏥 CARPIMKO</span>
+                                <button
+                                  onClick={() => setCarpimkoOpen(o => !o)}
+                                  style={{ padding: "3px 9px", borderRadius: 5, border: "1px solid #FB923C50", background: "#FFF", color: "#9A3412", fontSize: 11, fontWeight: 600, cursor: "pointer" }}
+                                >
+                                  {carpimkoOpen ? "▼ Masquer la saisie année par année" : "▶ Afficher la saisie année par année"}
+                                </button>
+                                <span style={{ fontSize: 11, color: "#9A3412", marginLeft: "auto" }}>
+                                  Totaux : <strong>{sumBase}</strong> Base · <strong>{sumAsv}</strong> ASV · <strong>{sumCompl}</strong> Compl
+                                </span>
+                                {SHOW_CARPIMKO_DEBUG && (
+                                <button
+                                  onClick={async () => {
+                                    setCarpimkoDebugLoading(true);
+                                    setCarpimkoDebugError(null);
+                                    setCarpimkoDebugResult(null);
+                                    try {
+                                      const scenarioParams = {
+                                        points_base: sumBase,
+                                        points_asv: sumAsv,
+                                        points_complementaire: sumCompl,
+                                      };
+                                      console.log("[CARPIMKO] sending scenario_params", scenarioParams);
+                                      const res = await executeScript("CARPIMKO", id, "Calcul CARPIMKO unifié — base + ASV + complémentaire", scenarioParams);
+                                      setCarpimkoDebugResult(res);
+                                      console.log("[CARPIMKO] response", res);
+                                      if (res?.arret_critique) toast.error(res.arret_critique.raison || "Calcul CARPIMKO interrompu");
+                                      else toast.success("CARPIMKO : réponse reçue");
+                                    } catch (err) {
+                                      const msg = err?.response?.data?.message || err?.response?.data?.arret_critique?.raison || err?.message || "Erreur réseau CARPIMKO";
+                                      setCarpimkoDebugError(msg);
+                                      console.error("[CARPIMKO] error", err);
+                                      toast.error("CARPIMKO : " + msg);
+                                    } finally {
+                                      setCarpimkoDebugLoading(false);
+                                    }
+                                  }}
+                                  disabled={carpimkoDebugLoading || !id}
+                                  style={{ padding: "5px 12px", borderRadius: 5, border: "1px solid #FB923C", background: carpimkoDebugLoading ? "#FED7AA" : "#FFF", color: "#9A3412", fontWeight: 700, fontSize: 12, cursor: carpimkoDebugLoading ? "wait" : "pointer" }}
+                                >
+                                  {carpimkoDebugLoading ? "⏳ Calcul…" : "🚀 Lancer CARPIMKO (debug)"}
+                                </button>
+                                )}
+                              </div>
+                              {carpimkoOpen && (
+                                <div style={{ marginBottom: 8, background: "#fff", border: "1px solid #FB923C30", borderRadius: 6, padding: 8, maxHeight: 280, overflowY: "auto" }}>
+                                  <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse" }}>
+                                    <thead>
+                                      <tr style={{ background: "#FFF7ED" }}>
+                                        <th style={{ padding: "4px 6px", textAlign: "left", fontWeight: 700, color: "#9A3412" }}>Année</th>
+                                        <th style={{ padding: "4px 6px", textAlign: "center", fontWeight: 700, color: "#9A3412" }}>Pts Base</th>
+                                        <th style={{ padding: "4px 6px", textAlign: "center", fontWeight: 700, color: "#9A3412" }}>Pts ASV</th>
+                                        <th style={{ padding: "4px 6px", textAlign: "center", fontWeight: 700, color: "#9A3412" }}>Pts Compl</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {Object.keys(carpimkoRows).sort((a, b) => parseInt(b) - parseInt(a)).map(yr => {
+                                        const row = carpimkoRows[yr];
+                                        const updateRow = (field, val) => setCarpimkoRows(prev => ({ ...prev, [yr]: { ...prev[yr], [field]: val } }));
+                                        return (
+                                          <tr key={yr} style={{ borderBottom: "1px solid #FB923C15" }}>
+                                            <td style={{ padding: "3px 6px", fontWeight: 600, color: "#374151" }}>{yr}</td>
+                                            <td style={{ padding: "3px 6px", textAlign: "center" }}>
+                                              <input
+                                                type="number"
+                                                value={row.points_base}
+                                                onChange={e => updateRow("points_base", e.target.value)}
+                                                disabled={carriereValidee}
+                                                placeholder="—"
+                                                style={{ width: 70, padding: "2px 4px", border: "1px solid #FB923C40", borderRadius: 3, fontSize: 11, textAlign: "right", background: carriereValidee ? "#f5f5f5" : "#fff" }}
+                                              />
+                                            </td>
+                                            <td style={{ padding: "3px 6px", textAlign: "center" }}>
+                                              <input
+                                                type="number"
+                                                value={row.points_asv}
+                                                onChange={e => updateRow("points_asv", e.target.value)}
+                                                disabled={carriereValidee}
+                                                placeholder="—"
+                                                style={{ width: 70, padding: "2px 4px", border: "1px solid #FB923C40", borderRadius: 3, fontSize: 11, textAlign: "right", background: carriereValidee ? "#f5f5f5" : "#fff" }}
+                                              />
+                                            </td>
+                                            <td style={{ padding: "3px 6px", textAlign: "center" }}>
+                                              <input
+                                                type="number"
+                                                value={row.points_compl}
+                                                onChange={e => updateRow("points_compl", e.target.value)}
+                                                disabled={carriereValidee}
+                                                placeholder="—"
+                                                style={{ width: 70, padding: "2px 4px", border: "1px solid #FB923C40", borderRadius: 3, fontSize: 11, textAlign: "right", background: carriereValidee ? "#f5f5f5" : "#fff" }}
+                                              />
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                  {carriereValidee && (
+                                    <div style={{ marginTop: 6, fontSize: 10, color: "#9A3412", fontStyle: "italic" }}>
+                                      Carrière gelée — déverrouillez pour modifier les points CARPIMKO.
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              {SHOW_CARPIMKO_DEBUG && carpimkoDebugError && (
+                                <div style={{ fontSize: 12, color: "#B91C1C", fontFamily: "monospace", whiteSpace: "pre-wrap" }}>
+                                  Erreur : {carpimkoDebugError}
+                                </div>
+                              )}
+                              {SHOW_CARPIMKO_DEBUG && carpimkoDebugResult && (
+                                <div style={{ fontSize: 12, color: "#374151" }}>
+                                  <div>✓ Pension mensuelle brute : <strong>{carpimkoDebugResult.python_output?.pension_mensuelle_brute ?? "—"}</strong> € · annuelle : <strong>{carpimkoDebugResult.python_output?.pension_annuelle_brute ?? "—"}</strong> €</div>
+                                  <div style={{ marginTop: 4, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                                    <div>Base : {(Math.round((carpimkoDebugResult.python_output?.details_base?.points ?? 0) * 100) / 100)} pts × {carpimkoDebugResult.python_output?.details_base?.valeur_point ?? 0} €</div>
+                                    <div>ASV : {(Math.round((carpimkoDebugResult.python_output?.details_asv?.points ?? 0) * 100) / 100)} pts × {carpimkoDebugResult.python_output?.details_asv?.valeur_point ?? 0} €</div>
+                                    <div>Compl : {(Math.round((carpimkoDebugResult.python_output?.details_complementaire?.points ?? 0) * 100) / 100)} pts × {carpimkoDebugResult.python_output?.details_complementaire?.valeur_point ?? 0} €</div>
+                                  </div>
+                                  {Array.isArray(carpimkoDebugResult.alertes) && carpimkoDebugResult.alertes.length > 0 && (
+                                    <div style={{ marginTop: 6, fontSize: 11, color: "#9A3412" }}>
+                                      {carpimkoDebugResult.alertes.length} alerte(s) — voir console
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                              );
+                            })()}
                           </div>
 
-                          {(skillResult || agircResult || ircantecResult || rciResult || cipavResult) && (
+                          {(skillResult || agircResult || ircantecResult || rciResult || cipavResult || carpimkoResult) && (
                             <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end" }}>
                               <button
                                 onClick={() => setShowDetailedCalcs(s => !s)}
@@ -4314,9 +4677,28 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             <RegimeResultCard code="IRCANTEC"    carriereValidee={carriereValidee} loading={ircantecLoading} error={ircantecError} result={ircantecResult} />
                             <RegimeResultCard code="RCI"         carriereValidee={carriereValidee} loading={rciLoading}      error={rciError}      result={rciResult} />
                             <RegimeResultCard code="CIPAV"       carriereValidee={carriereValidee} loading={cipavLoading}    error={cipavError}    result={cipavResult} />
-                            {computeVisibleRegimes(carriereRows, ["CNAV", "AGIRC_ARRCO", "IRCANTEC", "RCI", "CIPAV"]).filter(
-                              (r) => !["CNAV", "AGIRC_ARRCO", "IRCANTEC", "RCI", "CIPAV"].includes(r.key)
-                            ).map((regime) => (
+                            {(Object.values(carpimkoRows).some(r => r.points_base || r.points_asv || r.points_compl) || carpimkoResult || carpimkoLoading || carpimkoError) && (
+                              <RegimeResultCard code="CARPIMKO"  carriereValidee={carriereValidee} loading={carpimkoLoading} error={carpimkoError} result={carpimkoResult} />
+                            )}
+                            {Object.keys(REGIMES_SIMPLES).map(code => {
+                              const hasPoints = Object.values(regimesPoints[code] || {}).some(v => parseFloat(v) > 0);
+                              const hasState = regimesSimplesResults[code] || regimesSimplesLoading[code] || regimesSimplesErrors[code];
+                              if (!hasPoints && !hasState) return null;
+                              return (
+                                <RegimeResultCard
+                                  key={code}
+                                  code={code}
+                                  carriereValidee={carriereValidee}
+                                  loading={!!regimesSimplesLoading[code]}
+                                  error={regimesSimplesErrors[code] || null}
+                                  result={regimesSimplesResults[code] || null}
+                                />
+                              );
+                            })}
+                            {(() => {
+                              const wired = ["CNAV", "AGIRC_ARRCO", "IRCANTEC", "RCI", "CIPAV", "CARPIMKO", "CARPIMKO_ASV", "CARPIMKO_COMPL", ...Object.keys(REGIMES_SIMPLES)];
+                              return computeVisibleRegimes(carriereRows, wired).filter(r => !wired.includes(r.key));
+                            })().map((regime) => (
                               <div
                                 key={regime.key}
                                 style={{

@@ -27,6 +27,9 @@ export const WEBHOOKS = {
   SCRIPT_VPLR: `${N8N_BASE}/vplr-v2-test`,
   SCRIPT_VPLR_INCOMPLETE: `${N8N_BASE}/vplr-annee-incomplete-v1-test`,
   SCRIPT_VPLR_ETUDE: `${N8N_BASE}/vplr-annee-etude-v1-test`,
+  SCRIPT_CARPIMKO: `${N8N_BASE}/script-execute-carpimko-v1-test`,
+  SCRIPT_CARPIMKO_ASV: `${N8N_BASE}/script-execute-carpimko-v1-test`,
+  SCRIPT_CARPIMKO_COMPL: `${N8N_BASE}/script-execute-carpimko-v1-test`,
 };
 
 /**
@@ -77,7 +80,7 @@ export async function fetchRISAnalysisV6(file) {
  * @param {object} [scenarioParams]
  * @returns {Promise<object>} { python_output, alertes, arret_critique? }
  */
-export async function executeScript(regimeCode, clientId, userContext) {
+export async function executeScript(regimeCode, clientId, userContext, scenarioParams) {
   const token = localStorage.getItem("token");
   const userId = parseInt(localStorage.getItem("userid"));
 
@@ -89,7 +92,7 @@ export async function executeScript(regimeCode, clientId, userContext) {
       token,
       user_id: userId,
       user_context: userContext || "Analyse standard",
-      scenario_params: {},
+      scenario_params: scenarioParams || {},
       frozen_data_id: null,
     },
     { headers: { "Content-Type": "application/json" }, timeout: 180000 }

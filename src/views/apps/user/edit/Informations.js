@@ -62,6 +62,7 @@ class UserAccountTab extends React.Component {
     secu_social: this.props.data.secu_social,
     secu_social_key: this.props.data.secu_social_key,
     military_service: this.props.data.military_service,
+    higher_education_years: this.props.data.higher_education_years,
 
     personal_address: this.props.data.personal_address,
     personal_address_2: this.props.data.personal_address_2,
@@ -311,6 +312,7 @@ class UserAccountTab extends React.Component {
                   : "oui",
               parent_id: information.parent_id,
               business_introducer_id: information.business_introducer_id,
+              higher_education_years: information.higher_education_years,
               notes: information.notes,
             },
             Config,
@@ -1031,6 +1033,39 @@ class UserAccountTab extends React.Component {
                     defaultValue={this.ifExist("children_number")}
                     onChange={(e) => {
                       this.setState({ children_number: e.target.value });
+                      this.markDirty();
+                    }}
+                  />
+                </FormGroup>
+              </Col>
+            </Row>
+
+            <Row className="mt-2">
+              <Col sm="12">
+                <h5 className="mb-1">
+                  <Briefcase className="mr-50" size={16} />
+                  <span className="align-middle">
+                    Informations professionnelles
+                  </span>
+                </h5>
+              </Col>
+              <Col md="6" sm="12">
+                <FormGroup>
+                  <Label for="higher_education_years">
+                    Années d'études supérieures (pour rachat VPLR)
+                  </Label>
+                  <Input
+                    type="number"
+                    id="higher_education_years"
+                    min="0"
+                    max="15"
+                    step="1"
+                    placeholder="Nombre d'années"
+                    defaultValue={this.ifExist("higher_education_years")}
+                    onChange={(e) => {
+                      this.setState({
+                        higher_education_years: e.target.value,
+                      });
                       this.markDirty();
                     }}
                   />
