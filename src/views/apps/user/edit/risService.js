@@ -264,7 +264,12 @@ export async function executeSkillGeneric(skillCode, { clientId, userContext, sc
  * Le backend charge frozen_data depuis la DB et l'injecte dans le payload n8n
  * — n8n n'a donc pas besoin de rappeler le serveur (fonctionne en local).
  */
-export async function executeRaclScenario(clientId, scenarioParams = {}) {
+function withConsultantComment(base, extra) {
+  const t = (extra || "").trim();
+  return t ? `${base}\n\nCommentaire consultant : ${t}` : base;
+}
+
+export async function executeRaclScenario(clientId, scenarioParams = {}, extraContext = "") {
   const token = localStorage.getItem("token");
   const userId = parseInt(localStorage.getItem("userid"));
 
@@ -275,7 +280,7 @@ export async function executeRaclScenario(clientId, scenarioParams = {}) {
       client_id: clientId,
       token,
       user_id: userId,
-      user_context: "Analyse Carrière Longue RACL",
+      user_context: withConsultantComment("Analyse Carrière Longue RACL", extraContext),
       scenario_params: scenarioParams,
     },
     { timeout: 90000, headers: { "Content-Type": "application/json" } }
@@ -300,7 +305,7 @@ export async function executeRaclScenario(clientId, scenarioParams = {}) {
  * @param {number} clientId
  * @param {object} [scenarioParams] - { input: "60" } → quotite_travail=0.60 (optionnel)
  */
-export async function executeRpScenario(clientId, scenarioParams = {}) {
+export async function executeRpScenario(clientId, scenarioParams = {}, extraContext = "") {
   const token = localStorage.getItem("token");
   const userId = parseInt(localStorage.getItem("userid"));
 
@@ -316,7 +321,7 @@ export async function executeRpScenario(clientId, scenarioParams = {}) {
       client_id: clientId,
       token,
       user_id: userId,
-      user_context: "Analyse Retraite Progressive",
+      user_context: withConsultantComment("Analyse Retraite Progressive", extraContext),
       scenario_params: scenarioParams,
       ...(quotiteTravail !== null && { quotite_travail: quotiteTravail }),
     },
@@ -336,7 +341,7 @@ export async function executeRpScenario(clientId, scenarioParams = {}) {
  * @param {number} clientId
  * @param {object} [scenarioParams]
  */
-export async function executeCerScenario(clientId, scenarioParams = {}) {
+export async function executeCerScenario(clientId, scenarioParams = {}, extraContext = "") {
   const token = localStorage.getItem("token");
   const userId = parseInt(localStorage.getItem("userid"));
 
@@ -347,7 +352,7 @@ export async function executeCerScenario(clientId, scenarioParams = {}) {
       client_id: clientId,
       token,
       user_id: userId,
-      user_context: "Analyse Cumul Emploi-Retraite",
+      user_context: withConsultantComment("Analyse Cumul Emploi-Retraite", extraContext),
       scenario_params: scenarioParams,
     },
     { timeout: 90000, headers: { "Content-Type": "application/json" } }
@@ -367,7 +372,7 @@ export async function executeCerScenario(clientId, scenarioParams = {}) {
  * @param {object} [scenarioParams] - { periodes: [{ annee, nb_jours }] }
  * @returns {Promise<object>}
  */
-export async function executeChomageIndScenario(clientId, scenarioParams = {}) {
+export async function executeChomageIndScenario(clientId, scenarioParams = {}, extraContext = "") {
   const token = localStorage.getItem("token");
   const userId = parseInt(localStorage.getItem("userid"));
 
@@ -378,7 +383,7 @@ export async function executeChomageIndScenario(clientId, scenarioParams = {}) {
       client_id: clientId,
       token,
       user_id: userId,
-      user_context: "Analyse chômage indemnisé",
+      user_context: withConsultantComment("Analyse chômage indemnisé", extraContext),
       scenario_params: scenarioParams,
     },
     { timeout: 90000, headers: { "Content-Type": "application/json" } }
@@ -394,7 +399,7 @@ export async function executeChomageIndScenario(clientId, scenarioParams = {}) {
  * @param {object} [scenarioParams] - { age_arret: number, ... }
  * @returns {Promise<object>}
  */
-export async function executeArretActiviteScenario(clientId, scenarioParams = {}) {
+export async function executeArretActiviteScenario(clientId, scenarioParams = {}, extraContext = "") {
   const token = localStorage.getItem("token");
   const userId = parseInt(localStorage.getItem("userid"));
 
@@ -405,7 +410,7 @@ export async function executeArretActiviteScenario(clientId, scenarioParams = {}
       client_id: clientId,
       token,
       user_id: userId,
-      user_context: "Analyse arrêt d'activité",
+      user_context: withConsultantComment("Analyse arrêt d'activité", extraContext),
       scenario_params: scenarioParams,
     },
     { timeout: 90000, headers: { "Content-Type": "application/json" } }
@@ -421,7 +426,7 @@ export async function executeArretActiviteScenario(clientId, scenarioParams = {}
  * @param {object} [scenarioParams] - { periodes: [{ annee, nb_jours }] }
  * @returns {Promise<object>}
  */
-export async function executeChomageNonIndScenario(clientId, scenarioParams = {}) {
+export async function executeChomageNonIndScenario(clientId, scenarioParams = {}, extraContext = "") {
   const token = localStorage.getItem("token");
   const userId = parseInt(localStorage.getItem("userid"));
 
@@ -432,7 +437,7 @@ export async function executeChomageNonIndScenario(clientId, scenarioParams = {}
       client_id: clientId,
       token,
       user_id: userId,
-      user_context: "Analyse chômage non indemnisé",
+      user_context: withConsultantComment("Analyse chômage non indemnisé", extraContext),
       scenario_params: scenarioParams,
     },
     { timeout: 90000, headers: { "Content-Type": "application/json" } }
@@ -449,7 +454,7 @@ export async function executeChomageNonIndScenario(clientId, scenarioParams = {}
  * @param {object} [scenarioParams] — accepte trimestres_a_racheter (etudes) et tout autre param
  * @returns {Promise<object>}
  */
-export async function executeVplrScenario(clientId, scenarioParams = {}) {
+export async function executeVplrScenario(clientId, scenarioParams = {}, extraContext = "") {
   const token = localStorage.getItem("token");
   const userId = parseInt(localStorage.getItem("userid"));
 
@@ -480,7 +485,7 @@ export async function executeVplrScenario(clientId, scenarioParams = {}) {
       client_id: clientId,
       token,
       user_id: userId,
-      user_context: "Analyse rachat VPLR (incomplete + études)",
+      user_context: withConsultantComment("Analyse rachat VPLR (incomplete + études)", extraContext),
       scenario_params: params,
       frozen_data,
     },
@@ -552,7 +557,7 @@ export async function executeVplrEtudeScenario(clientId, scenarioParams = {}) {
  * @param {object} [scenarioParams]
  * @returns {Promise<object>}
  */
-export async function executeTnsScenario(clientId, scenarioParams = {}) {
+export async function executeTnsScenario(clientId, scenarioParams = {}, extraContext = "") {
   const token = localStorage.getItem("token");
   const userId = parseInt(localStorage.getItem("userid"));
 
@@ -563,7 +568,7 @@ export async function executeTnsScenario(clientId, scenarioParams = {}) {
       client_id: clientId,
       token,
       user_id: userId,
-      user_context: "Analyse cotisations minimales TI/TNS",
+      user_context: withConsultantComment("Analyse cotisations minimales TI/TNS", extraContext),
       scenario_params: scenarioParams,
     },
     { timeout: 90000, headers: { "Content-Type": "application/json" } }

@@ -549,6 +549,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [showDetailedCalcs, setShowDetailedCalcs] = useState(false);
   const [expandedScenarios, setExpandedScenarios] = useState({});
   const autoChainPendingRef = useRef(false);
+  const [promptText, setPromptText] = useState("");
+  const [commentairesMode, setCommentairesMode] = useState(false);
 
   const openPreentretienEditor = async () => {
     setPreentretienModal({ text: "", loading: true, saving: false });
@@ -2133,6 +2135,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       formData.append("client_id", id);
       formData.append("nir", nir);
       if (hiddenSystemPrompt) formData.append("system_prompt", hiddenSystemPrompt);
+      const rapportComment = (promptText || "").trim();
+      if (rapportComment) formData.append("user_context", rapportComment);
 
       toast.info("Génération du rapport de consultation en cours…");
 
@@ -2238,7 +2242,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       cancelReportRef.current = null;
       try { localStorage.removeItem(`gen_pending_RAPPORT_CONSULTATION_${id}`); } catch {}
     }
-  }, [fileToSend, user, id, hiddenSystemPrompt, cleanChainOfThought, userDocuments, scenarioSkillResults]);
+  }, [fileToSend, user, id, hiddenSystemPrompt, cleanChainOfThought, userDocuments, scenarioSkillResults, promptText]);
 
   // ── Rapport spécifique (Assistant — texte libre depuis ReportViewerModal) ────
   const handleModalGenerate = useCallback(async () => {
@@ -2365,7 +2369,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           Authorization: `Bearer ${token}`,
           Accept: "application/json",
         },
-        body: JSON.stringify({ client_id: id }),
+        body: JSON.stringify({
+          client_id: id,
+          user_context: (promptText || "").trim() || undefined,
+        }),
       });
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
@@ -2394,7 +2401,60 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       setIsGeneratingSimulation(false);
       try { localStorage.removeItem(`gen_pending_SIMULATION_RETRAITE_${id}`); } catch {}
     }
-  }, [id, scenarioSkillResults, user]);
+  }, [id, scenarioSkillResults, user, promptText]);
+
+  const [isGeneratingAudit, setIsGeneratingAudit] = useState(false);
+
+  // ── Audit Retraite (webhook n8n direct : audit-retraite) ───────────────────
+  const handleGenerateAuditRetraite = useCallback(async () => {
+    if (!id) { toast.error("ID client manquant"); return; }
+    if (!scenarioSkillResults || Object.keys(scenarioSkillResults).length === 0) {
+      toast.error("Lance d'abord les calculs avant de générer l'audit.");
+      return;
+    }
+    setIsGeneratingAudit(true);
+    try { localStorage.setItem(`gen_pending_AUDIT_RETRAITE_${id}`, JSON.stringify({ startedAt: Date.now() })); } catch {}
+    try {
+      const auditComment = (promptText || "").trim();
+      const payload = {
+        client_id: id,
+        user_context: auditComment || "Audit retraite complet",
+      };
+      if (hiddenSystemPrompt) payload.system_prompt = hiddenSystemPrompt;
+      toast.info("Génération de l'audit retraite en cours… (peut prendre plusieurs minutes)");
+      const n8nRes = await axios.post(
+        "https://n8n.srv796541.hstgr.cloud/webhook/audit-retraite",
+        payload,
+        { headers: { "Content-Type": "application/json" }, timeout: 600000 }
+      );
+      const root = Array.isArray(n8nRes.data) ? n8nRes.data[0] : n8nRes.data;
+      let raw = "";
+      if (typeof root === "string") raw = root;
+      else if (root && typeof root === "object") raw = root.html_report || root.output || root.text || root.response || JSON.stringify(root);
+      else raw = String(n8nRes.data);
+      let html = cleanChainOfThought(raw);
+      html = html.replace(/^```html\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+      if (!html.startsWith("<!DOCTYPE") && !html.startsWith("<html") && !/<\/[a-zA-Z]+>/.test(html)) {
+        html = `<html><body style="font-family:sans-serif;padding:20px">${html.replace(/\n/g, "<br>")}</body></html>`;
+      }
+      const displayName = user ? `${user.first_name || ""} ${user.last_name || ""}`.trim() : "Client";
+      const doc = {
+        id: `audit_${Date.now()}`,
+        name: `Audit retraite de ${displayName}`,
+        type: "audit_retraite",
+        createdAt: new Date().toISOString(),
+        url: null,
+        htmlContent: html,
+      };
+      setGeneratedDocs((prev) => [doc, ...prev.filter((d) => d.type !== "audit_retraite")]);
+      toast.success("Audit retraite généré !");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err.message || "Erreur lors de l'audit");
+    } finally {
+      setIsGeneratingAudit(false);
+      try { localStorage.removeItem(`gen_pending_AUDIT_RETRAITE_${id}`); } catch {}
+    }
+  }, [id, scenarioSkillResults, user, promptText, hiddenSystemPrompt, cleanChainOfThought]);
 
   // Derive doc availability from real uploaded documents
   const hasDocuments = userDocuments.some((d) => Number(d.dossier) === 10) || !!fileToSend;
@@ -2979,21 +3039,22 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       toast.error("Geler la carrière d'abord");
       return;
     }
+    const extraContext = (promptText || "").trim();
     setScenarioSkillLoading(prev => ({ ...prev, [skillCode]: true }));
     setScenarioSkillErrors(prev => ({ ...prev, [skillCode]: null }));
     try {
       const result = skillCode === "RACL"
-        ? await executeRaclScenario(parseInt(id), scenarioParams)
+        ? await executeRaclScenario(parseInt(id), scenarioParams, extraContext)
         : skillCode === "RP"
-        ? await executeRpScenario(parseInt(id), scenarioParams)
+        ? await executeRpScenario(parseInt(id), scenarioParams, extraContext)
         : skillCode === "CER"
-        ? await executeCerScenario(parseInt(id), scenarioParams)
+        ? await executeCerScenario(parseInt(id), scenarioParams, extraContext)
         : skillCode === "COTISATIONS_MIN"
-        ? await executeTnsScenario(parseInt(id), scenarioParams)
+        ? await executeTnsScenario(parseInt(id), scenarioParams, extraContext)
         : skillCode === "CHOMAGE_INDEMNISE"
-        ? await executeChomageIndScenario(parseInt(id), scenarioParams)
+        ? await executeChomageIndScenario(parseInt(id), scenarioParams, extraContext)
         : skillCode === "CHOMAGE_NON_INDEMNISE"
-        ? await executeChomageNonIndScenario(parseInt(id), scenarioParams)
+        ? await executeChomageNonIndScenario(parseInt(id), scenarioParams, extraContext)
         : skillCode === "VPLR"
         ? await executeVplrScenario(parseInt(id), {
             ...scenarioParams,
@@ -3013,12 +3074,14 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                     : (inputValues.rachat_vplr != null && inputValues.rachat_vplr !== ""
                         ? parseInt(inputValues.rachat_vplr, 10)
                         : undefined)),
-          })
+          }, extraContext)
         : skillCode === "ARRET_ACTIVITE"
-        ? await executeArretActiviteScenario(parseInt(id), scenarioParams)
+        ? await executeArretActiviteScenario(parseInt(id), scenarioParams, extraContext)
         : await executeSkillGeneric(skillCode, {
             clientId: parseInt(id),
-            userContext: `Analyse dispositif ${skillCode} pour client ${id}`,
+            userContext: extraContext
+              ? `Analyse dispositif ${skillCode} pour client ${id}\n\nCommentaire consultant : ${extraContext}`
+              : `Analyse dispositif ${skillCode} pour client ${id}`,
             scenarioParams,
           });
       setScenarioSkillResults(prev => ({ ...prev, [skillCode]: result }));
@@ -3051,7 +3114,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     } finally {
       setScenarioSkillLoading(prev => ({ ...prev, [skillCode]: false }));
     }
-  }, [id, carriereValidee, refreshChosenScenarioSnapshot, inputValues, user]);
+  }, [id, carriereValidee, refreshChosenScenarioSnapshot, inputValues, user, promptText]);
 
   // ── Multi-select : toggle d'un scénario dans la liste retenue ──
   // Persiste l'intégralité de la liste à chaque modification.
@@ -4977,15 +5040,15 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             </div>
                           )}
 
-                          {selectedAction && selectedAction.id !== "rapport_consultation" && selectedAction.id !== "simulation_retraite" && (
+                          {selectedAction?.id === "audit_retraite" && (
                             <div style={{ marginTop: 14, borderTop: "1px solid #eee", paddingTop: 14 }}>
-                              <div style={{ background: "#F0EDFF", borderRadius: 7, padding: 10, marginBottom: 10, border: "1px solid #6C5CE720" }}>
-                                <div style={{ fontSize: 11, fontWeight: 700, color: "#6C5CE7", marginBottom: 3 }}>📝 PROMPT STRICT :</div>
-                                <div style={{ fontSize: 12, color: "#333", lineHeight: 1.6, ...S.mono }}>
-                                  [Prompt calibré pour "{selectedAction.label}" — intègre tous les dispositifs activés ({activatedDispositifs.length}), les dates calculées, les résultats automatiques (surcote, minimum contributif, majoration enfants). Niveau de détail : {selectedAction.pages}]
-                                </div>
-                              </div>
-                              <button onClick={() => setExecuted(selectedAction)} style={{ padding: "8px 18px", borderRadius: 7, border: "none", background: panel.color, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>▶ Générer — {selectedAction.label}</button>
+                              <button
+                                onClick={handleGenerateAuditRetraite}
+                                disabled={isGeneratingAudit}
+                                style={{ padding: "10px 20px", borderRadius: 7, border: "none", background: isGeneratingAudit ? "#a29bfe" : panel.color, color: "#fff", fontWeight: 700, fontSize: 13, cursor: isGeneratingAudit ? "wait" : "pointer", opacity: isGeneratingAudit ? 0.7 : 1 }}
+                              >
+                                {isGeneratingAudit ? "⏳ Génération en cours… (plusieurs minutes)" : "▶ Générer l'audit retraite"}
+                              </button>
                             </div>
                           )}
 
@@ -5033,6 +5096,31 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                   })()}
                 </div>
               </div>
+
+              {/* Pavé prompt IA — visible uniquement dans Scénarios et Livrables (pas en Carrière, FROZEN_DATA pure) */}
+              {(expandedPanel === "dispositifs" || expandedPanel === "livrables") && (
+              <div style={{ ...S.card, padding: 14, marginTop: 16 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 3 }}>💬 Système prompt IA</div>
+                <div style={{ fontSize: 13, color: "#555", marginBottom: 10 }}>Commentaire libre transmis à l'IA (injecté dans <code>user_context</code> du prochain dispositif ou livrable lancé).</div>
+                <style>{`.sim-readable-placeholder::placeholder { color: #666 !important; opacity: 1; } .sim-readable-placeholder::-webkit-input-placeholder { color: #666 !important; } .sim-readable-placeholder::-moz-placeholder { color: #666 !important; opacity: 1; }`}</style>
+                <textarea
+                  className="sim-readable-placeholder"
+                  readOnly={!commentairesMode}
+                  value={promptText}
+                  onChange={(e) => commentairesMode && setPromptText(e.target.value)}
+                  placeholder="Précisions/contexte pour l'IA…"
+                  style={{ width: "100%", padding: "9px 11px", borderRadius: 7, border: `1px solid ${commentairesMode ? "#6C5CE7" : "#ddd"}`, fontSize: 13, fontFamily: "inherit", resize: "vertical", minHeight: 60, boxSizing: "border-box", background: commentairesMode ? "#FDFCFF" : "#fafafa", color: "#333" }}
+                />
+                <div style={{ display: "flex", gap: 8, marginTop: 8, justifyContent: "flex-end" }}>
+                  <button
+                    onClick={() => setCommentairesMode(!commentairesMode)}
+                    style={{ padding: "8px 14px", borderRadius: 7, border: "1px solid #6C5CE7", background: commentairesMode ? "#6C5CE712" : "transparent", color: "#6C5CE7", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
+                    ✏️ {commentairesMode ? "Fermer" : "Ajouter du contexte"}
+                  </button>
+                </div>
+              </div>
+              )}
+
             </>
           )}
         </div>
