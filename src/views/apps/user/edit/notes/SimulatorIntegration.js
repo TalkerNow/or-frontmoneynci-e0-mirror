@@ -4,13 +4,16 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import Dropzone from "react-dropzone";
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button, UncontrolledTooltip, Input, UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem } from "reactstrap";
-import { DownloadCloud, Eye, Download, Edit2, Save, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, Trash2, Menu } from "react-feather";
+import { DownloadCloud, Eye, Download, Edit2, Save, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, Trash2, Menu, MessageSquare, X as XIcon } from "react-feather";
+import ReportChatPanel from "./ReportChatPanel";
+import HtmlDiffPreview from "./HtmlDiffPreview";
+import VersionHistoryDropdown from "./VersionHistoryDropdown";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import { parseNIR } from "./utils";
 import { REGIMES, getPoints, resolveRegime, computeVisibleRegimes, REGIMES_SIMPLES, extractRegimeSimplePoints } from "../simulatorRegimes";
-import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml, detectDocumentType } from "../risService";
+import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml, detectDocumentType, applyReportChatMessage } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
@@ -2998,6 +3001,18 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
               user?.higher_education_years != null
                 ? Number(user.higher_education_years)
                 : null,
+            // Normaliser l'input UI vers le param attendu par n8n.
+            // Source priorisée : trimestres_a_racheter explicite → input (bouton "Calculer" du dispositif)
+            // → inputValues.rachat_vplr (saisi dans la carte mais "Calculer toutes les pensions" déclenché).
+            // Sans ça, le workflow tombe sur le plafond légal 12 trim. (max études) au lieu du nb saisi.
+            trimestres_a_racheter:
+              scenarioParams.trimestres_a_racheter != null
+                ? scenarioParams.trimestres_a_racheter
+                : (scenarioParams.input != null && scenarioParams.input !== ""
+                    ? parseInt(scenarioParams.input, 10)
+                    : (inputValues.rachat_vplr != null && inputValues.rachat_vplr !== ""
+                        ? parseInt(inputValues.rachat_vplr, 10)
+                        : undefined)),
           })
         : skillCode === "ARRET_ACTIVITE"
         ? await executeArretActiviteScenario(parseInt(id), scenarioParams)
@@ -3036,7 +3051,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     } finally {
       setScenarioSkillLoading(prev => ({ ...prev, [skillCode]: false }));
     }
-  }, [id, carriereValidee, refreshChosenScenarioSnapshot]);
+  }, [id, carriereValidee, refreshChosenScenarioSnapshot, inputValues, user]);
 
   // ── Multi-select : toggle d'un scénario dans la liste retenue ──
   // Persiste l'intégralité de la liste à chaque modification.
@@ -5626,6 +5641,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           handleSaveDoc={handleSaveReport}
           handleDownloadHtml={handleDownloadReportHtml}
           handleDownloadPdf={handleDownloadReportPdf}
+          clientId={id}
         />
       )}
     </div>
@@ -5645,12 +5661,43 @@ function ReportViewerModal({
   handleSaveDoc,
   handleDownloadHtml,
   handleDownloadPdf,
+  clientId,
 }) {
   const iframeRef = useRef(null);
   const [staticHtmlContent, setStaticHtmlContent] = useState(viewingDoc?.htmlContent || "");
   const [isLoadingEdit, setIsLoadingEdit] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+
+  // ── Chat IA ──────────────────────────────────────────────────────────────
+  // Pour v1, l'assistant IA n'est branché que sur les livrables simulation_retraite
+  const aiChatAvailable = viewingDoc?.type === "simulation_retraite" && !!clientId;
+  const [aiChatOpen, setAiChatOpen] = useState(false);
+  const [proposedHtml, setProposedHtml] = useState(null);
+  const [proposedMessageId, setProposedMessageId] = useState(null);
+  const [applyingMessageId, setApplyingMessageId] = useState(null);
+  const [versionsReloadSignal, setVersionsReloadSignal] = useState(0);
+
+  const handleProposedHtml = (html, msgId) => {
+    setProposedHtml(html);
+    setProposedMessageId(msgId);
+  };
+  const handleClearProposed = () => {
+    setProposedHtml(null);
+    setProposedMessageId(null);
+  };
+  const handleApplied = (newHtml) => {
+    setStaticHtmlContent(newHtml);
+    setViewingDoc((prev) => ({ ...prev, htmlContent: newHtml }));
+    setApplyingMessageId(null);
+    handleClearProposed();
+    setVersionsReloadSignal((s) => s + 1);
+  };
+  const handleVersionRestored = (newHtml) => {
+    setStaticHtmlContent(newHtml);
+    setViewingDoc((prev) => ({ ...prev, htmlContent: newHtml }));
+    setVersionsReloadSignal((s) => s + 1);
+  };
 
   const docId = viewingDoc?.id;
   const docUrl = viewingDoc?.url;
@@ -5778,6 +5825,29 @@ function ReportViewerModal({
                   </Button>
                 )}
 
+                {aiChatAvailable && (
+                  <>
+                    <Button
+                      color={aiChatOpen ? "secondary" : "primary"}
+                      outline={!aiChatOpen}
+                      className="w-100 d-flex align-items-center justify-content-center mb-2"
+                      onClick={() => setAiChatOpen((v) => !v)}
+                      style={{ borderRadius: 8, padding: "12px 16px", fontWeight: 500 }}
+                    >
+                      <MessageSquare size={18} className="mr-2" />
+                      {aiChatOpen ? "Masquer l'assistant IA" : "Assistant IA (chat)"}
+                    </Button>
+                    <div className="mb-3 d-flex justify-content-end">
+                      <VersionHistoryDropdown
+                        clientId={clientId}
+                        skillCode="simulation_retraite"
+                        onRestored={handleVersionRestored}
+                        reloadSignal={versionsReloadSignal}
+                      />
+                    </div>
+                  </>
+                )}
+
                 <hr style={{ borderColor: "#dee2e6", margin: "16px 0" }} />
 
                 <h5 className="mb-3" style={{ color: "#495057", fontWeight: 600 }}>Assistant</h5>
@@ -5843,7 +5913,34 @@ function ReportViewerModal({
               )}
 
               <div className="flex-grow-1 position-relative">
-                {viewingDoc?.htmlContent ? (
+                {proposedHtml ? (
+                  <HtmlDiffPreview
+                    beforeHtml={staticHtmlContent}
+                    afterHtml={proposedHtml}
+                    applying={!!applyingMessageId}
+                    onApply={async () => {
+                      if (!proposedMessageId) return;
+                      setApplyingMessageId(proposedMessageId);
+                      try {
+                        const report = await fetchLatestReport(clientId, "simulation_retraite");
+                        if (!report?.id) throw new Error("Rapport introuvable");
+                        const res = await applyReportChatMessage(report.id, proposedMessageId);
+                        const newHtml =
+                          (res.analysis_report?.result_json &&
+                            (typeof res.analysis_report.result_json === "string"
+                              ? res.analysis_report.result_json
+                              : res.analysis_report.result_json.htmlContent)) || "";
+                        handleApplied(newHtml);
+                        toast.success("Modification appliquée — nouvelle version créée.");
+                      } catch (err) {
+                        console.error("apply from diff error:", err);
+                        toast.error(err?.response?.data?.message || "Erreur lors de l'application");
+                        setApplyingMessageId(null);
+                      }
+                    }}
+                    onReject={handleClearProposed}
+                  />
+                ) : viewingDoc?.htmlContent ? (
                   <iframe ref={iframeRef} srcDoc={staticHtmlContent} onLoad={handleIframeLoad} title="Aperçu rapport" style={{ width: "100%", height: "100%", border: "none" }} />
                 ) : viewingDoc?.url ? (
                   <iframe ref={iframeRef} src={viewingDoc.url} onLoad={handleIframeLoad} title="Aperçu rapport" style={{ width: "100%", height: "100%", border: "none" }} />
@@ -5858,6 +5955,40 @@ function ReportViewerModal({
                 )}
               </div>
             </div>
+
+            {/* Panneau IA (chat) — visible quand l'utilisateur l'ouvre */}
+            {aiChatAvailable && aiChatOpen && (
+              <div
+                className="d-flex flex-column"
+                style={{ flex: "0 0 380px", borderLeft: "1px solid #dee2e6", backgroundColor: "#fff" }}
+              >
+                <div
+                  className="d-flex align-items-center justify-content-between px-3 py-2"
+                  style={{ borderBottom: "1px solid #dee2e6", backgroundColor: "#f8f9fa" }}
+                >
+                  <strong style={{ color: "#495057" }}>Édition par IA</strong>
+                  <Button
+                    color="link"
+                    size="sm"
+                    onClick={() => setAiChatOpen(false)}
+                    style={{ padding: 4 }}
+                    title="Fermer"
+                  >
+                    <XIcon size={18} />
+                  </Button>
+                </div>
+                <div className="flex-grow-1" style={{ minHeight: 0 }}>
+                  <ReportChatPanel
+                    clientId={clientId}
+                    skillCode="simulation_retraite"
+                    onProposedHtml={handleProposedHtml}
+                    onApplied={handleApplied}
+                    applyingMessageId={applyingMessageId}
+                    clearProposedSignal={proposedHtml === null ? 1 : 0}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </ModalBody>
       </Modal>

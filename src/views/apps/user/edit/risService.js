@@ -765,3 +765,86 @@ export async function fetchSkillsList(type = null) {
   });
   return response.data;
 }
+
+// ============================================================
+// REPORT CHAT — édition IA d'un livrable AnalysisReport via prompt
+// ============================================================
+
+function authHeaders() {
+  const token = localStorage.getItem("token");
+  return { Authorization: `Bearer ${token}` };
+}
+
+/**
+ * Récupère la session de chat (et l'historique) pour un AnalysisReport donné.
+ * Crée la session côté backend si elle n'existe pas encore.
+ * @param {number|string} reportId
+ * @returns {Promise<{ session_id: number, messages: Array }>}
+ */
+export async function fetchReportChat(reportId) {
+  const response = await axios.get(
+    `${global.config.server_url}/v1/analysis-reports/${reportId}/chat`,
+    { headers: authHeaders() }
+  );
+  return response.data;
+}
+
+/**
+ * Envoie un message utilisateur au chat. Le backend appelle Gemini et renvoie
+ * la réponse assistant (avec proposed_html éventuel — pas encore appliqué).
+ * @param {number|string} reportId
+ * @param {string} content
+ * @returns {Promise<{ user_message: object, assistant_message: object }>}
+ */
+export async function sendReportChatMessage(reportId, content) {
+  const response = await axios.post(
+    `${global.config.server_url}/v1/analysis-reports/${reportId}/chat/message`,
+    { content },
+    { headers: authHeaders(), timeout: 180000 }
+  );
+  return response.data;
+}
+
+/**
+ * Applique le proposed_html d'un message assistant : crée une nouvelle ReportVersion
+ * et met à jour le HTML courant du livrable.
+ * @param {number|string} reportId
+ * @param {number|string} messageId
+ * @returns {Promise<{ version: object, analysis_report: object }>}
+ */
+export async function applyReportChatMessage(reportId, messageId) {
+  const response = await axios.post(
+    `${global.config.server_url}/v1/analysis-reports/${reportId}/chat/messages/${messageId}/apply`,
+    {},
+    { headers: authHeaders() }
+  );
+  return response.data;
+}
+
+/**
+ * Liste les versions du HTML d'un livrable (les plus récentes d'abord).
+ * @param {number|string} reportId
+ * @returns {Promise<Array>}
+ */
+export async function fetchReportVersions(reportId) {
+  const response = await axios.get(
+    `${global.config.server_url}/v1/analysis-reports/${reportId}/versions`,
+    { headers: authHeaders() }
+  );
+  return response.data;
+}
+
+/**
+ * Restaure une ancienne version (en crée une nouvelle pour traçabilité).
+ * @param {number|string} reportId
+ * @param {number|string} versionId
+ * @returns {Promise<{ version: object, analysis_report: object }>}
+ */
+export async function restoreReportVersion(reportId, versionId) {
+  const response = await axios.post(
+    `${global.config.server_url}/v1/analysis-reports/${reportId}/versions/${versionId}/restore`,
+    {},
+    { headers: authHeaders() }
+  );
+  return response.data;
+}
