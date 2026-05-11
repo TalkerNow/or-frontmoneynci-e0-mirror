@@ -99,7 +99,9 @@ class ConsultantAccessPage extends React.Component {
             return `${p.data.remaining_credits ?? 0} crédit(s)`
           }
           if (p.data.pass_expiration_date) {
-            return `Exp. ${p.data.pass_expiration_date.slice(0, 10)}`
+            const d = new Date(p.data.pass_expiration_date)
+            const fr = d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })
+            return `Exp. ${fr}`
           }
           return "Illimité"
         },

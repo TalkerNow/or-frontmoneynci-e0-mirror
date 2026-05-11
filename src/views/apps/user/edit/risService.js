@@ -7,6 +7,7 @@ const N8N_BASE = "https://n8n.srv796541.hstgr.cloud/webhook";
 
 export const WEBHOOKS = {
   PARSE_RIS: RIS_WEBHOOK_URL,
+  DETECT_DOC_TYPE: `${N8N_BASE}/detect-document-type`,
   PARSE_RIS_V6: `${N8N_BASE}/ris-extraction-v6`,
   CALCULATE: `${N8N_BASE}/production-validated-calculate`,
   SKILL_EXECUTE: `${N8N_BASE}/skill-execute`, // ancien v1 — garder pour prod
@@ -66,6 +67,26 @@ export async function fetchRISAnalysisV6(file) {
   const response = await axios.post(WEBHOOKS.PARSE_RIS, formData, {
     headers: { "Content-Type": "multipart/form-data" },
     timeout: 300000, // 5 min — Gemini + extraction PDF peut prendre du temps
+  });
+
+  const data = response.data;
+  return Array.isArray(data) ? data[0] : data;
+}
+
+/**
+ * Détecte si un PDF est un RIS et extrait les données de carrière disponibles.
+ * @param {File} file - Le fichier PDF
+ * @param {string|number} [clientId] - L'ID client (optionnel)
+ * @returns {Promise<{ is_ris: boolean, doc_type: string, carriere: Array, profil: object, synthese: object, meta: object }>}
+ */
+export async function detectDocumentType(file, clientId) {
+  const formData = new FormData();
+  formData.append("file", file);
+  if (clientId) formData.append("client_id", clientId);
+
+  const response = await axios.post(WEBHOOKS.DETECT_DOC_TYPE, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+    timeout: 120000, // 2 min
   });
 
   const data = response.data;

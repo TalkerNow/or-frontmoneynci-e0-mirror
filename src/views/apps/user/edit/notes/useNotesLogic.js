@@ -583,7 +583,7 @@ export const useNotesLogic = (id, perso) => {
 
   // Persister en localStorage comme backup (optionnel)
   useEffect(() => {
-    if (id && generatedDocs.length > 0) {
+    if (id) {
       persistDocs(id, generatedDocs);
     }
   }, [generatedDocs, id]);
@@ -882,6 +882,7 @@ export const useNotesLogic = (id, perso) => {
         let reportData = n8nResponse.data;
 
         let reportUrl = null;
+        let uploadedFileId = null;
 
         // On considère que TOUT ce qui revient du webhook est du contenu (HTML ou Texte)
         let contentString = "";
@@ -969,6 +970,7 @@ export const useNotesLogic = (id, perso) => {
           );
           if (uploadRes?.data?.files?.[0]?.url) {
             reportUrl = uploadRes.data.files[0].url;
+            uploadedFileId = uploadRes.data.files[0].id;
           } else {
             throw new Error(
               "Pas d'URL de fichier renvoyée lors de la sauvegarde",
@@ -981,7 +983,7 @@ export const useNotesLogic = (id, perso) => {
         }
 
         const doc = {
-          id: generateDocId(),
+          id: uploadedFileId || generateDocId(),
           name: `${docLabel} de ${clientNames.displayName}`,
           type: normalizedType,
           createdAt: new Date().toISOString(),
@@ -1039,6 +1041,7 @@ export const useNotesLogic = (id, perso) => {
 
         if (uploadRes?.data?.files?.[0]?.url) {
           const newUrl = uploadRes.data.files[0].url;
+          const newId = uploadRes.data.files[0].id;
 
           // Update local state
           setGeneratedDocs((prev) => {
@@ -1048,6 +1051,7 @@ export const useNotesLogic = (id, perso) => {
               const next = [...safePrev];
               next[idx] = {
                 ...next[idx],
+                id: newId || next[idx].id,
                 url: newUrl,
                 htmlContent: docToSave.htmlContent,
               };
@@ -1060,6 +1064,7 @@ export const useNotesLogic = (id, perso) => {
           if (viewingDoc && viewingDoc.id === docToSave.id) {
             setViewingDoc((prev) => ({
               ...prev,
+              id: newId || prev.id,
               url: newUrl,
               htmlContent: docToSave.htmlContent,
             }));
@@ -1119,17 +1124,24 @@ export const useNotesLogic = (id, perso) => {
     }
   };
 
-  const handleDeleteDoc = useCallback(async (docId) => {
-    try {
-      const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
-      await axios.delete(`${global.config.server_url}/files/${docId}`, Config);
-    } catch (e) {
-      console.error("Erreur suppression document:", e);
-      toast.error("Erreur lors de la suppression du document");
-      return;
+  const handleDeleteDoc = useCallback(async (doc) => {
+    const docId = typeof doc === "object" ? doc.id : doc;
+    const docType = typeof doc === "object" ? doc.type : null;
+
+    // "consult" docs are never persisted to DB — skip API call
+    if (docType !== "consult") {
+      try {
+        const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+        await axios.delete(`${global.config.server_url}/files/${docId}`, Config);
+      } catch (e) {
+        console.error("Erreur suppression document:", e);
+        toast.error("Erreur lors de la suppression du document");
+        return;
+      }
     }
+
     setGeneratedDocs((prev) =>
-      Array.isArray(prev) ? prev.filter((doc) => doc && doc.id !== docId) : [],
+      Array.isArray(prev) ? prev.filter((d) => d && d.id !== docId) : [],
     );
   }, []);
 
@@ -1187,7 +1199,7 @@ export const useNotesLogic = (id, perso) => {
   const confirmDelete = useCallback(() => {
     if (!deleteConfirmTarget) return;
     if (deleteConfirmTarget.type === "generated" && deleteConfirmTarget.doc) {
-      handleDeleteDoc(deleteConfirmTarget.doc.id);
+      handleDeleteDoc(deleteConfirmTarget.doc);
     } else if (
       deleteConfirmTarget.type === "uploaded" &&
       deleteConfirmTarget.doc
