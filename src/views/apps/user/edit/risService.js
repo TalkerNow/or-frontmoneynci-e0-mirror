@@ -790,6 +790,20 @@ export async function fetchReportChat(reportId) {
 }
 
 /**
+ * Récupère le contexte exact (frozen_data, calcul_json, current_html, client, system_prompt)
+ * qui sera passé à l'IA pour ce livrable. Utilisé par la vue debug "Contexte IA".
+ * @param {number|string} reportId
+ * @returns {Promise<{ context: { client: object, frozen_data: any, calcul_json: any, current_html: string }, system_prompt: string }>}
+ */
+export async function fetchReportChatContext(reportId) {
+  const response = await axios.get(
+    `${global.config.server_url}/v1/analysis-reports/${reportId}/chat/context`,
+    { headers: authHeaders() }
+  );
+  return response.data;
+}
+
+/**
  * Envoie un message utilisateur au chat. Le backend appelle Gemini et renvoie
  * la réponse assistant (avec proposed_html éventuel — pas encore appliqué).
  * @param {number|string} reportId

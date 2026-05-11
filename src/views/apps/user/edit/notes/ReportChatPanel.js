@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Send } from "react-feather";
+import { Send, Eye, X } from "react-feather";
 import { toast } from "react-toastify";
 import {
   fetchLatestReport,
   fetchReportChat,
   sendReportChatMessage,
   applyReportChatMessage,
+  fetchReportChatContext,
 } from "../risService";
 
 /**
@@ -35,7 +36,36 @@ const ReportChatPanel = ({
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
+  const [showContext, setShowContext] = useState(false);
+  const [contextData, setContextData] = useState(null);
+  const [contextLoading, setContextLoading] = useState(false);
   const scrollRef = useRef(null);
+
+  const userRole = (
+    (typeof window !== "undefined" && window.localStorage
+      ? window.localStorage.getItem("role")
+      : "") || ""
+  ).toLowerCase();
+  const canSeeContext = userRole === "admin" || userRole === "consultant";
+
+  const handleOpenContext = async () => {
+    if (!reportId) return;
+    setShowContext(true);
+    if (contextData) return;
+    setContextLoading(true);
+    try {
+      const data = await fetchReportChatContext(reportId);
+      setContextData(data);
+    } catch (err) {
+      console.error("fetchReportChatContext error:", err);
+      toast.error(
+        err?.response?.data?.message || "Impossible de charger le contexte IA."
+      );
+      setShowContext(false);
+    } finally {
+      setContextLoading(false);
+    }
+  };
 
   // 1. Résoudre l'AnalysisReport id depuis (clientId, skillCode), puis charger l'historique
   useEffect(() => {
@@ -147,14 +177,35 @@ const ReportChatPanel = ({
       style={{ backgroundColor: "#fff" }}
     >
       <div
-        className="px-3 py-2"
-        style={{ borderBottom: "1px solid #dee2e6", backgroundColor: "#f8f9fa" }}
+        className="px-3 py-2 d-flex justify-content-between align-items-center"
+        style={{ borderBottom: "1px solid #dee2e6", backgroundColor: "#f8f9fa", gap: "8px" }}
       >
-        <strong style={{ color: "#495057" }}>Assistant IA</strong>
-        <div style={{ fontSize: "11px", color: "#868e96" }}>
-          Demandez une modification, l'IA propose un nouveau livrable. Vous validez avant que ça ne s'applique.
+        <div style={{ minWidth: 0 }}>
+          <strong style={{ color: "#495057" }}>Assistant IA</strong>
+          <div style={{ fontSize: "11px", color: "#868e96" }}>
+            Demandez une modification, l'IA propose un nouveau livrable. Vous validez avant que ça ne s'applique.
+          </div>
         </div>
+        {canSeeContext && reportId && (
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-secondary d-flex align-items-center flex-shrink-0"
+            onClick={handleOpenContext}
+            title="Voir le contexte exact envoyé à l'IA"
+            style={{ gap: "4px", fontSize: "11px", whiteSpace: "nowrap" }}
+          >
+            <Eye size={14} /> Contexte IA
+          </button>
+        )}
       </div>
+
+      {showContext && (
+        <ContextModal
+          loading={contextLoading}
+          data={contextData}
+          onClose={() => setShowContext(false)}
+        />
+      )}
 
       <div
         ref={scrollRef}
@@ -260,6 +311,117 @@ const ChatBubble = ({ message, onApply, applying }) => {
         )}
       </div>
     </div>
+  );
+};
+
+const ContextModal = ({ loading, data, onClose }) => {
+  const ctx = data?.context || {};
+  const htmlLen = (ctx.current_html || "").length;
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        backgroundColor: "rgba(0,0,0,0.5)",
+        zIndex: 10000,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "20px",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          backgroundColor: "#fff",
+          borderRadius: "8px",
+          width: "min(1100px, 95vw)",
+          maxHeight: "92vh",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <div
+          className="d-flex justify-content-between align-items-center px-3 py-2"
+          style={{ borderBottom: "1px solid #dee2e6" }}
+        >
+          <div>
+            <strong>Contexte IA — vue debug</strong>
+            <div style={{ fontSize: "11px", color: "#868e96" }}>
+              Données exactes passées à Gemini lors d'un message du chat.
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn btn-sm btn-light d-flex align-items-center"
+            onClick={onClose}
+            title="Fermer"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <div className="px-3 py-2" style={{ overflowY: "auto", flex: 1 }}>
+          {loading && <div className="text-muted small">Chargement…</div>}
+          {!loading && data && (
+            <>
+              <ContextSection title="Client (passé au prompt)" value={ctx.client} />
+              <ContextSection title="FrozenData" value={ctx.frozen_data} />
+              <ContextSection title="calcul_json" value={ctx.calcul_json} />
+              <ContextSection
+                title={`HTML courant — ${htmlLen} caractères`}
+                value={ctx.current_html}
+                isText
+              />
+              <ContextSection
+                title="System prompt résolu"
+                value={data.system_prompt}
+                isText
+              />
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ContextSection = ({ title, value, isText }) => {
+  const display = isText
+    ? value == null
+      ? ""
+      : String(value)
+    : JSON.stringify(value, null, 2);
+  return (
+    <details open style={{ marginBottom: "12px" }}>
+      <summary
+        style={{
+          cursor: "pointer",
+          fontWeight: 600,
+          padding: "4px 0",
+          fontSize: "13px",
+        }}
+      >
+        {title}
+      </summary>
+      <pre
+        style={{
+          background: "#f8f9fa",
+          border: "1px solid #dee2e6",
+          borderRadius: "4px",
+          padding: "8px",
+          fontSize: "11px",
+          maxHeight: "400px",
+          overflow: "auto",
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+          marginTop: "4px",
+        }}
+      >
+        {display}
+      </pre>
+    </details>
   );
 };
 
