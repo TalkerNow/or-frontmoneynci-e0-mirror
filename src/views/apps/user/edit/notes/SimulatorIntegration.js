@@ -5112,7 +5112,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
               {(expandedPanel === "dispositifs" || expandedPanel === "livrables") && (
               <div style={{ ...S.card, padding: 14, marginTop: 16, border: promptText ? "2px solid #6C5CE7" : undefined }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700 }}>💬 Précisions pour l'IA</div>
+                  <div style={{ fontSize: 15, fontWeight: 700 }}>💬 Système prompt IA</div>
                   {promptText && (
                     <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 10, background: "#6C5CE7", color: "#fff", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                       Actif
