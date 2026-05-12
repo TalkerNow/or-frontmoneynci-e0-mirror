@@ -1191,6 +1191,40 @@ export const useNotesLogic = (id, perso) => {
     setDeleteConfirmTarget({ type: "generated", doc });
   }, []);
 
+  const requestDeleteAllGenerated = useCallback(() => {
+    setGeneratedDocs((prev) => {
+      const list = Array.isArray(prev) ? prev : [];
+      if (list.length === 0) return prev;
+      setDeleteConfirmTarget({ type: "generated-all", count: list.length });
+      return prev;
+    });
+  }, []);
+
+  const handleDeleteAllGenerated = useCallback(async () => {
+    const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+    const current = Array.isArray(generatedDocs) ? generatedDocs : [];
+    const toDelete = current.filter((d) => d && d.type !== "consult");
+    const results = await Promise.allSettled(
+      toDelete.map((d) =>
+        axios.delete(`${global.config.server_url}/files/${d.id}`, Config),
+      ),
+    );
+    const failedIds = new Set();
+    results.forEach((r, i) => {
+      if (r.status === "rejected") failedIds.add(toDelete[i].id);
+    });
+    setGeneratedDocs((prev) =>
+      Array.isArray(prev)
+        ? prev.filter((d) => d && failedIds.has(d.id))
+        : [],
+    );
+    if (failedIds.size > 0) {
+      toast.error(`Erreur lors de la suppression de ${failedIds.size} document(s)`);
+    } else {
+      toast.success("Tous les documents générés ont été supprimés");
+    }
+  }, [generatedDocs]);
+
   const requestDeleteUploaded = useCallback((doc) => {
     if (!doc) return;
     setDeleteConfirmTarget({ type: "uploaded", doc });
@@ -1205,9 +1239,11 @@ export const useNotesLogic = (id, perso) => {
       deleteConfirmTarget.doc
     ) {
       handleDeleteUpload(deleteConfirmTarget.doc.id);
+    } else if (deleteConfirmTarget.type === "generated-all") {
+      handleDeleteAllGenerated();
     }
     setDeleteConfirmTarget(null);
-  }, [deleteConfirmTarget, handleDeleteDoc, handleDeleteUpload]);
+  }, [deleteConfirmTarget, handleDeleteDoc, handleDeleteUpload, handleDeleteAllGenerated]);
 
   const handleDownloadPdf = useCallback(async () => {
     if (!viewingDoc) {
@@ -1817,6 +1853,7 @@ export const useNotesLogic = (id, perso) => {
     generatedDocs,
     handleOpenDoc,
     requestDeleteGenerated,
+    requestDeleteAllGenerated,
     requestDeleteUploaded,
     handleRenameDoc,
     deleteConfirmTarget,

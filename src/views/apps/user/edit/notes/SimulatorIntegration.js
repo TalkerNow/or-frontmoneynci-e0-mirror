@@ -13,7 +13,7 @@ import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import { parseNIR } from "./utils";
 import { REGIMES, getPoints, resolveRegime, computeVisibleRegimes, REGIMES_SIMPLES, extractRegimeSimplePoints } from "../simulatorRegimes";
-import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml, detectDocumentType, applyReportChatMessage } from "../risService";
+import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml, detectDocumentType, applyReportChatMessage, fetchPromptNotes, savePromptNote, deletePromptNote } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
@@ -550,6 +550,42 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [expandedScenarios, setExpandedScenarios] = useState({});
   const autoChainPendingRef = useRef(false);
   const [promptText, setPromptText] = useState("");
+  const [promptNotes, setPromptNotes] = useState([]);
+  const [showPromptHistory, setShowPromptHistory] = useState(false);
+
+  const reloadPromptNotes = useCallback(async () => {
+    if (!id) return;
+    try {
+      const data = await fetchPromptNotes(id);
+      setPromptNotes(data.notes || []);
+    } catch (err) {
+      // silencieux : pas bloquant
+    }
+  }, [id]);
+
+  useEffect(() => {
+    reloadPromptNotes();
+  }, [reloadPromptNotes]);
+
+  const persistPromptNote = useCallback(async (text) => {
+    const content = (text || "").trim();
+    if (!content || !id) return;
+    try {
+      await savePromptNote(id, content);
+      reloadPromptNotes();
+    } catch (err) {
+      // silencieux : pas bloquant pour le calcul
+    }
+  }, [id, reloadPromptNotes]);
+
+  const handleDeletePromptNote = useCallback(async (noteId) => {
+    try {
+      await deletePromptNote(noteId);
+      setPromptNotes(prev => prev.filter(n => n.id !== noteId));
+    } catch (err) {
+      toast.error("Impossible de supprimer la note");
+    }
+  }, []);
 
   const openPreentretienEditor = async () => {
     setPreentretienModal({ text: "", loading: true, saving: false });
@@ -2136,7 +2172,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       const rapportComment = (promptText || "").trim();
       if (rapportComment) {
         formData.append("user_context", rapportComment);
-        toast.info("💬 Commentaire transmis au Rapport de consultation", { autoClose: 2500 });
+        toast.success("✓ Votre note sera utilisée pour ce rapport", { autoClose: 2500 });
+        persistPromptNote(rapportComment);
       }
 
       toast.info("Génération du rapport de consultation en cours…");
@@ -2318,7 +2355,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     try {
       const auditComment = (promptText || "").trim();
       if (auditComment) {
-        toast.info("💬 Commentaire transmis à l'Audit retraite", { autoClose: 2500 });
+        toast.success("✓ Votre note sera utilisée pour cet audit", { autoClose: 2500 });
+        persistPromptNote(auditComment);
       }
       const payload = {
         client_id: id,
@@ -2945,7 +2983,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     }
     const extraContext = (promptText || "").trim();
     if (extraContext) {
-      toast.info(`💬 Commentaire transmis à ${skillCode}`, { autoClose: 2500 });
+      toast.success("✓ Votre note sera utilisée pour ce calcul", { autoClose: 2500 });
+      persistPromptNote(extraContext);
     }
     setScenarioSkillLoading(prev => ({ ...prev, [skillCode]: true }));
     setScenarioSkillErrors(prev => ({ ...prev, [skillCode]: null }));
@@ -4413,23 +4452,49 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                       {!ok && <div style={{ fontSize: 11, color: "#D63031", marginBottom: 6 }}>⚠ Manque : {miss.map((m) => DOC_TYPES.find((d) => d.id === m)?.label).join(", ")}</div>}
 
                                       {action.hasInput && skillCode && (
-                                        <div style={{ marginBottom: 6, display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#fafafa", borderRadius: 5, border: "1px solid #eee" }}>
-                                          <label style={{ fontSize: 11, fontWeight: 600, color: "#555", margin: 0 }}>{action.inputLabel} :</label>
-                                          <input
-                                            type={action.inputType === "date" ? "date" : "number"}
-                                            placeholder={action.inputType === "date" ? "" : "Ex: 3"}
-                                            value={inputValues[action.id] || ""}
-                                            onChange={(e) => setInputValues({ ...inputValues, [action.id]: e.target.value })}
-                                            onClick={(e) => e.stopPropagation()}
-                                            style={{ padding: "3px 6px", borderRadius: 4, border: "1px solid #ccc", fontSize: 12, width: action.inputType === "date" ? 130 : 60, fontFamily: "inherit" }}
-                                          />
-                                          <button
-                                            onClick={(e) => { e.stopPropagation(); handleScenarioSkillExecute(skillCode, inputValues[action.id] ? { input: inputValues[action.id] } : {}); }}
-                                            disabled={isSkillRunning || !carriereValidee}
-                                            style={{ marginLeft: "auto", padding: "3px 9px", borderRadius: 4, border: "none", background: isSkillRunning || !carriereValidee ? "#ccc" : panel.color, color: "#fff", fontWeight: 600, fontSize: 11, cursor: isSkillRunning || !carriereValidee ? "not-allowed" : "pointer" }}
-                                          >
-                                            {isSkillRunning ? "…" : "↻ Recalculer"}
-                                          </button>
+                                        <div style={{ marginBottom: 8 }}>
+                                          <label style={{ display: "block", fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#888", marginBottom: 4 }}>
+                                            {action.inputLabel}
+                                          </label>
+                                          <div style={{ display: "flex", alignItems: "stretch", borderRadius: 6, overflow: "hidden", border: "1px solid #e0e0e0", background: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,0.03)" }}>
+                                            <input
+                                              type={action.inputType === "date" ? "date" : "number"}
+                                              placeholder={action.inputType === "date" ? "" : "Ex: 3"}
+                                              value={inputValues[action.id] || ""}
+                                              onChange={(e) => setInputValues({ ...inputValues, [action.id]: e.target.value })}
+                                              onClick={(e) => e.stopPropagation()}
+                                              style={{ flex: 1, minWidth: 0, padding: "6px 10px", border: "none", outline: "none", fontSize: 12, background: "transparent", fontFamily: "inherit", color: "#333" }}
+                                            />
+                                            <button
+                                              type="button"
+                                              title={isSkillRunning ? "Calcul en cours…" : "Recalculer"}
+                                              aria-label="Recalculer"
+                                              onClick={(e) => { e.stopPropagation(); handleScenarioSkillExecute(skillCode, inputValues[action.id] ? { input: inputValues[action.id] } : {}); }}
+                                              disabled={isSkillRunning || !carriereValidee}
+                                              style={{
+                                                display: "inline-flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                gap: 5,
+                                                padding: "0 12px",
+                                                border: "none",
+                                                borderLeft: "1px solid #e0e0e0",
+                                                background: isSkillRunning || !carriereValidee ? "#f5f5f5" : panel.color,
+                                                color: isSkillRunning || !carriereValidee ? "#999" : "#fff",
+                                                fontWeight: 700,
+                                                fontSize: 10,
+                                                letterSpacing: "0.08em",
+                                                textTransform: "uppercase",
+                                                cursor: isSkillRunning || !carriereValidee ? "not-allowed" : "pointer",
+                                                whiteSpace: "nowrap",
+                                                transition: "background 0.15s, color 0.15s",
+                                                flexShrink: 0
+                                              }}
+                                            >
+                                              <span style={{ fontSize: 13, lineHeight: 1, display: "inline-flex" }}>{isSkillRunning ? "…" : "↻"}</span>
+                                              <span>{isSkillRunning ? "" : "Recalculer"}</span>
+                                            </button>
+                                          </div>
                                         </div>
                                       )}
 
@@ -5002,36 +5067,76 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
               {/* Pavé prompt IA — visible uniquement dans Scénarios et Livrables (pas en Carrière, FROZEN_DATA pure) */}
               {(expandedPanel === "dispositifs" || expandedPanel === "livrables") && (
               <div style={{ ...S.card, padding: 14, marginTop: 16, border: promptText ? "2px solid #6C5CE7" : undefined }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700 }}>💬 Système prompt IA</div>
-                  {promptText && (
-                    <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 10, background: "#6C5CE7", color: "#fff", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                      Actif
-                    </span>
-                  )}
-                  <span id="pavePromptHelpIcon" style={{ marginLeft: "auto", fontSize: 13, color: "#888", cursor: "help" }}>ⓘ</span>
-                  <UncontrolledTooltip placement="left" target="pavePromptHelpIcon">
-                    L'IA utilisera ce commentaire pour adapter ses observations. Les calculs (montants, dates) ne sont pas affectés.
-                  </UncontrolledTooltip>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
+                  💬 Note pour l'IA
                 </div>
-                <div style={{ fontSize: 12, color: "#666", marginBottom: 8 }}>
-                  Optionnel. Transmis automatiquement au prochain calcul ou livrable lancé.
+                <div style={{ fontSize: 12, color: "#666", marginBottom: 10 }}>
+                  Écrivez ici toute précision utile pour le client. L'IA en tiendra compte dans le prochain calcul ou rapport.
                 </div>
-                <style>{`.sim-readable-placeholder::placeholder { color: #888 !important; opacity: 1; white-space: pre-line; } .sim-readable-placeholder::-webkit-input-placeholder { color: #888 !important; white-space: pre-line; } .sim-readable-placeholder::-moz-placeholder { color: #888 !important; opacity: 1; white-space: pre-line; }`}</style>
                 <textarea
-                  className="sim-readable-placeholder"
                   value={promptText}
                   onChange={(e) => setPromptText(e.target.value.slice(0, 500))}
-                  placeholder=""
-                  style={{ width: "100%", padding: "9px 11px", borderRadius: 7, border: "1px solid #6C5CE7", fontSize: 13, fontFamily: "inherit", resize: "vertical", minHeight: 80, boxSizing: "border-box", background: "#FDFCFF", color: "#333" }}
+                  placeholder="Exemple : insister sur le maintien des revenus pendant la transition."
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 7, border: "1px solid #ccc", fontSize: 14, fontFamily: "inherit", resize: "vertical", minHeight: 80, boxSizing: "border-box", background: "#fff", color: "#333", lineHeight: 1.5 }}
                 />
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                {promptNotes.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowPromptHistory(v => !v)}
+                      style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 10px", borderRadius: 6, border: "1px solid #6C5CE7", background: showPromptHistory ? "#6C5CE7" : "#fff", color: showPromptHistory ? "#fff" : "#6C5CE7", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+                    >
+                      📋 Mes notes précédentes ({promptNotes.length})
+                      <span style={{ fontSize: 10, transform: showPromptHistory ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>▼</span>
+                    </button>
+                    {showPromptHistory && (
+                      <div style={{ marginTop: 6, border: "1px solid #E0DCFF", borderRadius: 6, background: "#FDFCFF", maxHeight: 220, overflowY: "auto" }}>
+                        {promptNotes.map((note) => (
+                          <div key={note.id} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 10px", borderBottom: "1px solid #EFEBFF" }}>
+                            <button
+                              type="button"
+                              onClick={() => { setPromptText(note.content.slice(0, 500)); setShowPromptHistory(false); }}
+                              title="Réutiliser cette note"
+                              style={{ flex: 1, textAlign: "left", background: "transparent", border: "none", padding: 0, cursor: "pointer", color: "#333", fontSize: 12, lineHeight: 1.45 }}
+                            >
+                              <div style={{ fontSize: 10, color: "#888", marginBottom: 2 }}>
+                                {new Date(note.created_at).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                              </div>
+                              <div>{note.content.length > 120 ? note.content.slice(0, 120) + "…" : note.content}</div>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePromptNote(note.id)}
+                              title="Supprimer"
+                              style={{ background: "transparent", border: "none", color: "#D63031", cursor: "pointer", padding: 2, flexShrink: 0 }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {promptText && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, padding: "8px 12px", background: "#F2F0FF", border: "1px solid #6C5CE7", borderRadius: 6 }}>
+                    <span style={{ fontSize: 16, color: "#6C5CE7", fontWeight: 700 }}>✓</span>
+                    <span style={{ fontSize: 12, color: "#3F2D8A", fontWeight: 600 }}>
+                      Votre note sera transmise à l'IA lors du prochain calcul ou rapport.
+                    </span>
+                  </div>
+                )}
+                <div style={{ display: "flex", alignItems: "center", marginTop: 8 }}>
                   <span style={{ fontSize: 11, color: "#888" }}>{promptText.length}/500</span>
                   {promptText && (
                     <button
                       onClick={() => setPromptText("")}
-                      style={{ marginLeft: "auto", padding: "5px 10px", borderRadius: 6, border: "1px solid #ddd", background: "transparent", color: "#666", fontSize: 12, cursor: "pointer" }}>
-                      ✕ Effacer
+                      style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 6, border: "1.5px solid #D63031", background: "#fff", color: "#D63031", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "#D63031"; e.currentTarget.style.color = "#fff"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = "#D63031"; }}
+                    >
+                      <Trash2 size={14} />
+                      Effacer la note
                     </button>
                   )}
                 </div>
