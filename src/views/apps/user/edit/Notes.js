@@ -66,6 +66,7 @@ const NotesTab = ({ id, perso = {}, commentsSlot, renderUploadOutside }) => {
     generatedDocs,
     handleOpenDoc,
     requestDeleteGenerated,
+    requestDeleteAllGenerated,
     handleRenameDoc,
   } = useNotesLogic(id, perso);
 
@@ -90,7 +91,7 @@ const NotesTab = ({ id, perso = {}, commentsSlot, renderUploadOutside }) => {
 
   const uploadSectionElement = !isProspect ? (
     <>
-      <UploadSection
+      {/* <UploadSection
         fileToSend={fileToSend}
         clearFileToSend={clearFileToSend}
         isUploading={isUploading}
@@ -107,11 +108,12 @@ const NotesTab = ({ id, perso = {}, commentsSlot, renderUploadOutside }) => {
         setN8nMessage={setN8nMessage}
         reportType={reportType}
         handleGenerateDoc={handleGenerateDoc}
-      />
+      /> */}
       <GeneratedDocsSection
         generatedDocs={generatedDocs}
         handleOpenDoc={handleOpenDoc}
         requestDeleteGenerated={requestDeleteGenerated}
+        requestDeleteAllGenerated={requestDeleteAllGenerated}
         handleRenameDoc={handleRenameDoc}
       />
     </>
