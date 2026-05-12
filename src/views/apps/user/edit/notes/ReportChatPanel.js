@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Send, Eye, X } from "react-feather";
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import { Send, Eye, X, Plus } from "react-feather";
 import { toast } from "react-toastify";
 import {
   fetchLatestReport,
@@ -7,6 +7,7 @@ import {
   sendReportChatMessage,
   applyReportChatMessage,
   fetchReportChatContext,
+  fetchSkillsList,
 } from "../risService";
 
 /**
@@ -39,6 +40,13 @@ const ReportChatPanel = ({
   const [showContext, setShowContext] = useState(false);
   const [contextData, setContextData] = useState(null);
   const [contextLoading, setContextLoading] = useState(false);
+  // Skills additionnels attachés au contexte IA pour ce chat.
+  // - extraSkills : codes sélectionnés, envoyés au backend à chaque message
+  // - availableSkills : liste catalogue (chargée à la demande quand on ouvre le picker)
+  const [extraSkillCodes, setExtraSkillCodes] = useState([]);
+  const [availableSkills, setAvailableSkills] = useState([]);
+  const [skillsLoading, setSkillsLoading] = useState(false);
+  const [showSkillPicker, setShowSkillPicker] = useState(false);
   const scrollRef = useRef(null);
 
   const userRole = (
@@ -51,10 +59,10 @@ const ReportChatPanel = ({
   const handleOpenContext = async () => {
     if (!reportId) return;
     setShowContext(true);
-    if (contextData) return;
+    // Toujours refetch : la sélection de skills additionnels modifie le contexte affiché.
     setContextLoading(true);
     try {
-      const data = await fetchReportChatContext(reportId);
+      const data = await fetchReportChatContext(reportId, extraSkillCodes);
       setContextData(data);
     } catch (err) {
       console.error("fetchReportChatContext error:", err);
@@ -65,6 +73,32 @@ const ReportChatPanel = ({
     } finally {
       setContextLoading(false);
     }
+  };
+
+  const ensureSkillsLoaded = useCallback(async () => {
+    if (availableSkills.length || skillsLoading) return;
+    setSkillsLoading(true);
+    try {
+      const list = await fetchSkillsList();
+      setAvailableSkills(Array.isArray(list) ? list : []);
+    } catch (err) {
+      console.error("fetchSkillsList error:", err);
+      toast.error("Impossible de charger la liste des skills.");
+    } finally {
+      setSkillsLoading(false);
+    }
+  }, [availableSkills.length, skillsLoading]);
+
+  const toggleSkillPicker = async () => {
+    const next = !showSkillPicker;
+    setShowSkillPicker(next);
+    if (next) await ensureSkillsLoaded();
+  };
+
+  const toggleSkillCode = (code) => {
+    setExtraSkillCodes((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    );
   };
 
   // 1. Résoudre l'AnalysisReport id depuis (clientId, skillCode), puis charger l'historique
@@ -123,7 +157,7 @@ const ReportChatPanel = ({
     ]);
 
     try {
-      const res = await sendReportChatMessage(reportId, content);
+      const res = await sendReportChatMessage(reportId, content, extraSkillCodes);
       // Remplacer le message temporaire par les vrais (user + assistant)
       setMessages((prev) => {
         const filtered = prev.filter((m) => m.id !== tempId);
@@ -186,18 +220,67 @@ const ReportChatPanel = ({
             Demandez une modification, l'IA propose un nouveau livrable. Vous validez avant que ça ne s'applique.
           </div>
         </div>
-        {canSeeContext && reportId && (
-          <button
-            type="button"
-            className="btn btn-sm btn-outline-secondary d-flex align-items-center flex-shrink-0"
-            onClick={handleOpenContext}
-            title="Voir le contexte exact envoyé à l'IA"
-            style={{ gap: "4px", fontSize: "11px", whiteSpace: "nowrap" }}
-          >
-            <Eye size={14} /> Contexte IA
-          </button>
-        )}
+        <div className="d-flex align-items-center flex-shrink-0" style={{ gap: 6 }}>
+          {reportId && (
+            <div style={{ position: "relative" }}>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-primary d-flex align-items-center"
+                onClick={toggleSkillPicker}
+                title="Ajouter des skills au contexte IA"
+                style={{ gap: "4px", fontSize: "11px", whiteSpace: "nowrap" }}
+              >
+                <Plus size={14} /> Skill{extraSkillCodes.length > 0 ? `s (${extraSkillCodes.length})` : ""}
+              </button>
+              {showSkillPicker && (
+                <SkillPickerDropdown
+                  skills={availableSkills}
+                  loading={skillsLoading}
+                  selected={extraSkillCodes}
+                  onToggle={toggleSkillCode}
+                  onClear={() => setExtraSkillCodes([])}
+                  onClose={() => setShowSkillPicker(false)}
+                />
+              )}
+            </div>
+          )}
+          {canSeeContext && reportId && (
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-secondary d-flex align-items-center"
+              onClick={handleOpenContext}
+              title="Voir le contexte exact envoyé à l'IA"
+              style={{ gap: "4px", fontSize: "11px", whiteSpace: "nowrap" }}
+            >
+              <Eye size={14} /> Contexte IA
+            </button>
+          )}
+        </div>
       </div>
+
+      {extraSkillCodes.length > 0 && (
+        <div className="px-3 py-1 d-flex flex-wrap" style={{ gap: 4, borderBottom: "1px solid #dee2e6", backgroundColor: "#f1f3f5" }}>
+          <span style={{ fontSize: 10, color: "#555", marginRight: 4, alignSelf: "center" }}>Skills attachés :</span>
+          {extraSkillCodes.map((code) => {
+            const meta = availableSkills.find((s) => (s.code || "").toUpperCase() === code.toUpperCase());
+            return (
+              <span
+                key={code}
+                title={meta?.nom || code}
+                style={{ fontSize: 10, padding: "2px 6px", borderRadius: 3, background: "#fff", border: "1px solid #6C5CE7", color: "#6C5CE7", display: "inline-flex", alignItems: "center", gap: 3 }}
+              >
+                {code}
+                <button
+                  type="button"
+                  onClick={() => toggleSkillCode(code)}
+                  style={{ background: "transparent", border: "none", color: "#6C5CE7", cursor: "pointer", padding: 0, lineHeight: 1, fontSize: 12 }}
+                  title="Détacher ce skill"
+                >×</button>
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       {showContext && (
         <ContextModal
@@ -422,6 +505,99 @@ const ContextSection = ({ title, value, isText }) => {
         {display}
       </pre>
     </details>
+  );
+};
+
+/**
+ * Mini dropdown listant les skills disponibles avec cases à cocher.
+ * Positionné en absolute sous le bouton "+ Skill".
+ */
+const SkillPickerDropdown = ({ skills, loading, selected, onToggle, onClear, onClose }) => {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) onClose();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [onClose]);
+
+  // Regroupement léger par type pour aider à scanner la liste
+  const grouped = skills.reduce((acc, s) => {
+    const k = s.type || "autre";
+    (acc[k] = acc[k] || []).push(s);
+    return acc;
+  }, {});
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        position: "absolute",
+        top: "calc(100% + 4px)",
+        right: 0,
+        width: 320,
+        maxHeight: 360,
+        backgroundColor: "#fff",
+        border: "1px solid #dee2e6",
+        borderRadius: 6,
+        boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+        zIndex: 1000,
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <div className="d-flex justify-content-between align-items-center px-2 py-1" style={{ borderBottom: "1px solid #eee", fontSize: 11, fontWeight: 600, color: "#495057" }}>
+        <span>Ajouter des skills au contexte IA</span>
+        <div style={{ display: "flex", gap: 6 }}>
+          {selected.length > 0 && (
+            <button type="button" onClick={onClear} style={{ background: "none", border: "none", color: "#D63031", fontSize: 10, cursor: "pointer", padding: 0 }}>
+              Tout retirer
+            </button>
+          )}
+          <button type="button" onClick={onClose} style={{ background: "none", border: "none", color: "#868e96", cursor: "pointer", padding: 0 }} title="Fermer">
+            <X size={12} />
+          </button>
+        </div>
+      </div>
+      <div style={{ overflowY: "auto", flex: 1 }}>
+        {loading && <div style={{ padding: 8, fontSize: 11, color: "#868e96" }}>Chargement…</div>}
+        {!loading && skills.length === 0 && (
+          <div style={{ padding: 8, fontSize: 11, color: "#868e96" }}>Aucun skill disponible dans le catalogue.</div>
+        )}
+        {!loading && Object.entries(grouped).map(([type, items]) => (
+          <div key={type}>
+            <div style={{ padding: "4px 8px", fontSize: 9, fontWeight: 700, color: "#868e96", textTransform: "uppercase", letterSpacing: "0.05em", background: "#f8f9fa" }}>
+              {type}
+            </div>
+            {items.map((s) => {
+              const isChecked = selected.includes(s.code);
+              return (
+                <label
+                  key={s.id || s.code}
+                  style={{ display: "flex", alignItems: "flex-start", gap: 6, padding: "5px 8px", cursor: "pointer", fontSize: 11, borderTop: "1px solid #f1f3f5", backgroundColor: isChecked ? "#f3f0ff" : "transparent", margin: 0 }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => onToggle(s.code)}
+                    style={{ marginTop: 2 }}
+                  />
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ fontWeight: 600, color: "#495057" }}>{s.code}</span>
+                    <span style={{ color: "#868e96", marginLeft: 4 }}>· {s.nom}</span>
+                    {s.description && (
+                      <div style={{ color: "#868e96", fontSize: 10, marginTop: 1, lineHeight: 1.3 }}>{s.description}</div>
+                    )}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 };
 

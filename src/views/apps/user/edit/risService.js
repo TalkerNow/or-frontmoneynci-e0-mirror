@@ -800,10 +800,14 @@ export async function fetchReportChat(reportId) {
  * @param {number|string} reportId
  * @returns {Promise<{ context: { client: object, frozen_data: any, calcul_json: any, current_html: string }, system_prompt: string }>}
  */
-export async function fetchReportChatContext(reportId) {
+export async function fetchReportChatContext(reportId, extraSkillCodes = []) {
+  const params = {};
+  if (Array.isArray(extraSkillCodes) && extraSkillCodes.length) {
+    params.extra_skill_codes = extraSkillCodes;
+  }
   const response = await axios.get(
     `${global.config.server_url}/v1/analysis-reports/${reportId}/chat/context`,
-    { headers: authHeaders() }
+    { headers: authHeaders(), params }
   );
   return response.data;
 }
@@ -815,10 +819,14 @@ export async function fetchReportChatContext(reportId) {
  * @param {string} content
  * @returns {Promise<{ user_message: object, assistant_message: object }>}
  */
-export async function sendReportChatMessage(reportId, content) {
+export async function sendReportChatMessage(reportId, content, extraSkillCodes = []) {
+  const body = { content };
+  if (Array.isArray(extraSkillCodes) && extraSkillCodes.length) {
+    body.extra_skill_codes = extraSkillCodes;
+  }
   const response = await axios.post(
     `${global.config.server_url}/v1/analysis-reports/${reportId}/chat/message`,
-    { content },
+    body,
     { headers: authHeaders(), timeout: 180000 }
   );
   return response.data;

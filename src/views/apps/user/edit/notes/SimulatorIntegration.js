@@ -19,7 +19,7 @@ import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
 import SkillCreateModal from "./SkillCreateModal";
 import SweetAlert from "react-bootstrap-sweetalert";
-const MD_CONTENT = {};
+import MD_CONTENT from "./adminSkillsContent";
 
 // ─── DATA ───────────────────────────────────────────────────────────────────
 
@@ -93,19 +93,36 @@ const AUTO_RESULTS = [
   { id: "majoration_enfants", label: "Majoration enfants", icon: "👶", desc: "Appliquée automatiquement selon le nombre d'enfants renseigné. CNAV +10% si ≥3, AGIRC-ARRCO +10% à +30%.", color: "#E17055" },
 ];
 
+// Mapping ADMIN_SECTIONS.regles.items[].id → skills_catalog.code
+// Used by the "✏️ Éditer" button to open SkillEditModal with the right skill.
+// Items absent from this map have no backend skill yet (the Edit button stays disabled,
+// and we offer the "Créer le skill" CTA instead).
+const RULE_ID_TO_SKILL_CODE = {
+  cnav_base:   "CNAV",
+  agirc_arrco: "COMPLEMENTAIRES",
+  ircantec:    "COMPLEMENTAIRES",
+  rci:         "COMPLEMENTAIRES",
+  racl:        "RACL",
+  vplr:        "VPLR",
+  progressive: "RETRAITE_PROGRESSIVE",
+  cumul:       "CUMUL_EMPLOI_RETRAITE",
+  conventions: "TRIMESTRES_ETRANGER",
+  // chomage, minimum, majorations → pas de skill seedé pour l'instant
+};
+
 const ADMIN_SECTIONS = {
   regles: {
     label: "Règles métier", icon: "📜", color: "#6C5CE7",
     items: [
       { id: "cnav_base", label: "Régime de base CNAV", icon: "🏛️", file: "circulaire_revalorisation_2025.md", contentKey: "cnav_base", officialUrl: "https://www.lassuranceretraite.fr/", desc: "Calcul pension, SAM, taux, durée d'assurance" },
       { id: "agirc_arrco", label: "AGIRC-ARRCO", icon: "📊", file: "REGIMES-COMPLEMENTAIRE-AGIRC_ARRCO.md", contentKey: "agirc_arrco", officialUrl: "https://www.agirc-arrco.fr/", desc: "Points, valeur de service, coefficients" },
-      { id: "ircantec", label: "Ircantec", icon: "🏢", file: null, contentKey: null, officialUrl: "https://www.ircantec.retraites.fr/", desc: "Points, calcul pension agents non titulaires", missing: true },
+      { id: "ircantec", label: "Ircantec", icon: "🏢", file: "SKILL_complementaires.md", contentKey: "ircantec", officialUrl: "https://www.ircantec.retraites.fr/", desc: "Points, calcul pension agents non titulaires" },
       { id: "rci", label: "RCI / SSI", icon: "📑", file: "circulaire_rci_2025.md", contentKey: "rci", officialUrl: "https://www.lassuranceretraite.fr/portail-info/hors-menu/annexe/travailleurs-independants/retraite-complementaire.html", desc: "Complémentaire indépendants, BIC/BNC" },
       { id: "racl", label: "Carrière longue (RACL)", icon: "⏩", file: "racl-regles-conditions.md", contentKey: "racl", officialUrl: "https://www.service-public.fr/particuliers/vosdroits/F13845", desc: "Conditions, seuils, trimestres retenus" },
       { id: "vplr", label: "Rachat VPLR", icon: "🧩", file: "circulaire_rachat_vplr_2025.md", contentKey: "vplr", officialUrl: "https://www.service-public.fr/particuliers/vosdroits/F15675", desc: "Barèmes, options taux/proratisation" },
       { id: "progressive", label: "Retraite progressive", icon: "⚖️", file: "SKILL_retraite_progressive.md", contentKey: "progressive", officialUrl: "https://www.lassuranceretraite.fr/portail-info/home/actif/je-souhaite-partir-plus-tot/retraite-progressive.html#:~:text=La%20retraite%20progressive%20permet%20de,plusieurs%20activit%C3%A9s%20%C3%A0%20temps%20partiel.", desc: "Conditions, fraction, quotité" },
       { id: "cumul", label: "Cumul emploi-retraite", icon: "🔄", file: "SKILL_cumul_emploi_retraite.md", contentKey: "cumul", officialUrl: "https://www.service-public.fr/particuliers/vosdroits/F13243", desc: "Intégral, plafonné, 2e pension réforme 2023" },
-      { id: "chomage", label: "Chômage et retraite", icon: "📉", file: null, contentKey: null, officialUrl: "https://www.francetravail.fr/candidat/mes-droits-aux-aides-et-allocati/a-chaque-situation-son-allocatio/quelle-est-ma-situation-personne/je-suis-proche-de-la-retraite.html", desc: "Assimilés, non indemnisé, exception +55 ans", missing: true },
+      { id: "chomage", label: "Chômage et retraite", icon: "📉", file: "SKILL_chomage.md", contentKey: "chomage", officialUrl: "https://www.francetravail.fr/candidat/mes-droits-aux-aides-et-allocati/a-chaque-situation-son-allocatio/quelle-est-ma-situation-personne/je-suis-proche-de-la-retraite.html", desc: "Assimilés, non indemnisé, exception +55 ans" },
       { id: "conventions", label: "Conventions internationales", icon: "🌍", file: "SKILL_trimestres_etranger.md", contentKey: "conventions", officialUrl: "https://www.cleiss.fr/", desc: "Bilatérales, UE, totalisation/proratisation" },
       { id: "minimum", label: "Minimum contributif", icon: "🔒", file: null, contentKey: null, officialUrl: "https://www.service-public.fr/particuliers/vosdroits/F15522", desc: "Base, majoré, plafond toutes pensions", missing: true },
       { id: "majorations", label: "Majorations (enfants, handicap…)", icon: "👶", file: null, contentKey: null, officialUrl: "https://www.service-public.fr/particuliers/vosdroits/F14818", desc: "MDA, +10% 3 enfants, tierce personne", missing: true },
@@ -519,6 +536,51 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [apiSkillsLoading, setApiSkillsLoading] = useState(false);
   const [editSkillCode, setEditSkillCode] = useState(null);
   const [createSkillOpen, setCreateSkillOpen] = useState(false);
+  // Admin > Paramètres annuels : overrides persistés en localStorage (per-browser).
+  // Pas de backend dédié à ces paramètres pour l'instant — chaque entrée est
+  // de la forme { value, year, maj } et écrase le défaut codé dans ADMIN_SECTIONS.
+  const PARAM_OVERRIDES_KEY = "admin_param_overrides_v1";
+  const [paramOverrides, setParamOverrides] = useState(() => {
+    try {
+      const raw = localStorage.getItem(PARAM_OVERRIDES_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  });
+  const [editingParamId, setEditingParamId] = useState(null);
+  const [paramDraft, setParamDraft] = useState({ value: "", year: "", maj: "" });
+
+  const persistParamOverrides = useCallback((next) => {
+    setParamOverrides(next);
+    try { localStorage.setItem(PARAM_OVERRIDES_KEY, JSON.stringify(next)); } catch { /* quota */ }
+  }, []);
+
+  const resolveParam = useCallback((param) => {
+    const o = paramOverrides[param.id];
+    if (!o) return param;
+    return { ...param, value: o.value ?? param.value, year: o.year ?? param.year, maj: o.maj ?? param.maj, _overridden: true };
+  }, [paramOverrides]);
+
+  const startEditParam = useCallback((param) => {
+    const cur = resolveParam(param);
+    setEditingParamId(param.id);
+    setParamDraft({ value: cur.value || "", year: cur.year || "", maj: cur.maj || "" });
+  }, [resolveParam]);
+
+  const saveEditParam = useCallback(() => {
+    if (!editingParamId) return;
+    const next = { ...paramOverrides, [editingParamId]: { ...paramDraft } };
+    persistParamOverrides(next);
+    setEditingParamId(null);
+  }, [editingParamId, paramDraft, paramOverrides, persistParamOverrides]);
+
+  const cancelEditParam = useCallback(() => setEditingParamId(null), []);
+
+  const resetParamOverride = useCallback((paramId) => {
+    const next = { ...paramOverrides };
+    delete next[paramId];
+    persistParamOverrides(next);
+    setEditingParamId(null);
+  }, [paramOverrides, persistParamOverrides]);
 
   const fetchApiSkills = useCallback(() => {
     setApiSkillsLoading(true);
@@ -5265,7 +5327,27 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                     <button style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 6, border: "1px solid #0984E3", background: "#0984E308", color: "#0984E3", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>🔗 Site officiel</button>
                                   </a>
                                 )}
-                                <button style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 6, border: "1px solid #00B894", background: "#00B89408", color: "#00B894", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>✏️ Éditer</button>
+                                {(() => {
+                                  const skillCode = RULE_ID_TO_SKILL_CODE[rule.id];
+                                  if (skillCode) {
+                                    return (
+                                      <button
+                                        onClick={() => setEditSkillCode(skillCode)}
+                                        title={`Éditer le skill ${skillCode} (skill_md + regles_json)`}
+                                        style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 6, border: "1px solid #00B894", background: "#00B89408", color: "#00B894", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>
+                                        ✏️ Éditer
+                                      </button>
+                                    );
+                                  }
+                                  return (
+                                    <button
+                                      onClick={() => setCreateSkillOpen(true)}
+                                      title="Aucun skill en base — créer un skill pour cette règle"
+                                      style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 6, border: "1px dashed #888", background: "#88888808", color: "#555", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>
+                                      ➕ Créer le skill
+                                    </button>
+                                  );
+                                })()}
                               </div>
                             </div>
                           )}
@@ -5287,19 +5369,57 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                     <span style={{ fontSize: 12, padding: "3px 8px", borderRadius: 5, background: "#E1705515", color: "#E17055", fontWeight: 700 }}>⚠ À mettre à jour chaque année</span>
                   </div>
                   <div className="simu-params-grid">
-                    {ADMIN_SECTIONS.parametres.items.map((param, i) => (
-                      <div key={param.id} onClick={() => setExpandedParam(expandedParam === i ? null : i)} style={{ borderRadius: 8, border: `1px solid ${expandedParam === i ? "#0984E330" : "#eee"}`, padding: "10px 12px", cursor: "pointer", background: expandedParam === i ? "#0984E306" : "#fafafa" }}>
+                    {ADMIN_SECTIONS.parametres.items.map((rawParam, i) => {
+                      const param = resolveParam(rawParam);
+                      const isEditing = editingParamId === param.id;
+                      return (
+                      <div key={param.id} onClick={() => !isEditing && setExpandedParam(expandedParam === i ? null : i)} style={{ borderRadius: 8, border: `1px solid ${expandedParam === i ? "#0984E330" : "#eee"}`, padding: "10px 12px", cursor: isEditing ? "default" : "pointer", background: expandedParam === i ? "#0984E306" : "#fafafa" }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
                             <span style={{ fontSize: 14 }}>{param.icon}</span>
                             <div>
-                              <div style={{ fontSize: 13, fontWeight: 600 }}>{param.label}</div>
+                              <div style={{ fontSize: 13, fontWeight: 600 }}>
+                                {param.label}
+                                {param._overridden && !isEditing && (
+                                  <span title="Valeur personnalisée (override local)" style={{ marginLeft: 6, fontSize: 10, padding: "1px 6px", borderRadius: 3, background: "#E1705515", color: "#E17055", fontWeight: 700, letterSpacing: "0.04em" }}>ÉDITÉ</span>
+                                )}
+                              </div>
                               <div style={{ fontSize: 11, color: "#555" }}>{param.desc}</div>
                             </div>
                           </div>
-                          <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 10 }}>
-                            <div style={{ fontSize: 15, fontWeight: 700, color: "#0984E3" }}>{param.value}</div>
-                            <div style={{ fontSize: 11, color: "#555" }}>{param.year}{param.maj ? ` · màj ${param.maj}` : ""}</div>
+                          <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 10, minWidth: 220 }}>
+                            {isEditing ? (
+                              <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                <input
+                                  type="text"
+                                  value={paramDraft.value}
+                                  onChange={(e) => setParamDraft({ ...paramDraft, value: e.target.value })}
+                                  placeholder="Valeur"
+                                  style={{ width: "100%", fontSize: 13, fontWeight: 700, color: "#0984E3", padding: "4px 8px", border: "1px solid #0984E3", borderRadius: 4 }}
+                                />
+                                <div style={{ display: "flex", gap: 4 }}>
+                                  <input
+                                    type="text"
+                                    value={paramDraft.year}
+                                    onChange={(e) => setParamDraft({ ...paramDraft, year: e.target.value })}
+                                    placeholder="Année"
+                                    style={{ flex: 1, fontSize: 11, padding: "3px 6px", border: "1px solid #ccc", borderRadius: 4 }}
+                                  />
+                                  <input
+                                    type="text"
+                                    value={paramDraft.maj}
+                                    onChange={(e) => setParamDraft({ ...paramDraft, maj: e.target.value })}
+                                    placeholder="màj (jj/mm/aaaa)"
+                                    style={{ flex: 1, fontSize: 11, padding: "3px 6px", border: "1px solid #ccc", borderRadius: 4 }}
+                                  />
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <div style={{ fontSize: 15, fontWeight: 700, color: "#0984E3" }}>{param.value}</div>
+                                <div style={{ fontSize: 11, color: "#555" }}>{param.year}{param.maj ? ` · màj ${param.maj}` : ""}</div>
+                              </>
+                            )}
                           </div>
                         </div>
 
@@ -5329,13 +5449,29 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                         )}
 
                         {expandedParam === i && (
-                          <div style={{ marginTop: 8, display: "flex", gap: 6 }}>
-                            <button style={{ fontSize: 11, padding: "4px 10px", borderRadius: 5, border: "1px solid #E17055", background: "#E1705508", color: "#E17055", fontWeight: 600, cursor: "pointer" }}>✏️ Modifier</button>
-                            <button style={{ fontSize: 11, padding: "4px 10px", borderRadius: 5, border: "1px solid #888", background: "#88888808", color: "#555", fontWeight: 600, cursor: "pointer" }}>📜 Historique</button>
+                          <div onClick={(e) => e.stopPropagation()} style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            {isEditing ? (
+                              <>
+                                <button onClick={saveEditParam} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 5, border: "1px solid #00B894", background: "#00B894", color: "#fff", fontWeight: 700, cursor: "pointer" }}>💾 Enregistrer</button>
+                                <button onClick={cancelEditParam} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 5, border: "1px solid #888", background: "transparent", color: "#555", fontWeight: 600, cursor: "pointer" }}>Annuler</button>
+                              </>
+                            ) : (
+                              <>
+                                <button onClick={() => startEditParam(rawParam)} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 5, border: "1px solid #E17055", background: "#E1705508", color: "#E17055", fontWeight: 600, cursor: "pointer" }}>✏️ Modifier</button>
+                                {param._overridden && (
+                                  <button onClick={() => resetParamOverride(param.id)} title="Revenir au défaut codé" style={{ fontSize: 11, padding: "4px 10px", borderRadius: 5, border: "1px solid #D63031", background: "#D6303108", color: "#D63031", fontWeight: 600, cursor: "pointer" }}>↩ Réinitialiser</button>
+                                )}
+                                <button title="Pas encore disponible — l'historique nécessitera un backend dédié aux paramètres annuels" disabled style={{ fontSize: 11, padding: "4px 10px", borderRadius: 5, border: "1px solid #ccc", background: "#f5f5f5", color: "#999", fontWeight: 600, cursor: "not-allowed" }}>📜 Historique</button>
+                              </>
+                            )}
                           </div>
                         )}
                       </div>
-                    ))}
+                      );
+                    })}
+                  </div>
+                  <div style={{ marginTop: 10, fontSize: 11, color: "#888", fontStyle: "italic" }}>
+                    Astuce : les modifications sont enregistrées localement dans votre navigateur (localStorage). Un futur backend dédié pourra synchroniser ces valeurs entre utilisateurs.
                   </div>
                 </div>
               )}
