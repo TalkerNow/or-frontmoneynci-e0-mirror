@@ -57,6 +57,7 @@ function ConsultantAccessFormModal({ isOpen, toggle, onSaved, consultant }) {
     if (payload.access_type === "unlimited_pass") {
       payload.remaining_credits = 0
     } else {
+      payload.remaining_credits = parseInt(payload.remaining_credits, 10) || 0
       payload.pass_expiration_date = null
     }
 
@@ -108,8 +109,10 @@ function ConsultantAccessFormModal({ isOpen, toggle, onSaved, consultant }) {
               <Input
                 type="number"
                 min="0"
+                max="100"
                 value={form.remaining_credits}
-                onChange={(e) => set("remaining_credits", parseInt(e.target.value, 10))}
+                onChange={(e) => set("remaining_credits", e.target.value === "" ? "" : parseInt(e.target.value, 10))}
+                onFocus={(e) => e.target.select()}
                 required
               />
             </FormGroup>
