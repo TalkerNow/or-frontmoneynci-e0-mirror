@@ -1873,10 +1873,13 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   }, [id]);
 
   // ── Analyse un document serveur : détecte le type puis extrait la carrière ──
-  const handleAnalyzeDoc = useCallback(async (doc) => {
+  // preloadedFile lets external entry points (e.g. Documents tab "Analyse carrière")
+  // skip the /downloadFile round-trip when the File is already in hand.
+  const handleAnalyzeDoc = useCallback(async (doc, preloadedFile = null) => {
     const existing = docTypeDetection[doc.filename];
     if (existing?.loading) return;
     const downloadFile = async () => {
+      if (preloadedFile) return preloadedFile;
       const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") }, responseType: "blob" };
       const response = await axios.get(`${global.config.server_url}/downloadFile?file_id=${doc.id}`, Config);
       return new File([response.data], doc.filename, { type: response.data.type || "application/pdf" });
@@ -1904,10 +1907,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     }
     try {
       setDocTypeDetection(prev => ({ ...prev, [doc.filename]: { loading: true, is_ris: null, doc_type: null } }));
-      const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") }, responseType: "blob" };
-      const response = await axios.get(`${global.config.server_url}/downloadFile?file_id=${doc.id}`, Config);
-      const blob = response.data;
-      const file = new File([blob], doc.filename, { type: blob.type || "application/pdf" });
+      const file = await downloadFile();
       const detection = await detectDocumentType(file, id);
       docTypePayloads.current[doc.filename] = detection;
       const isRisResult = detection.is_ris === true;
@@ -1927,6 +1927,29 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       toast.error("Impossible d'analyser le document");
     }
   }, [docTypeDetection, id, risFileName, parsePdfAndFillCarriere]);
+
+  // Listen for files routed in from the Documents tab ("Analyse carrière").
+  // Documents.js downloads the file and dispatches `careerAnalysisFileReady` with
+  // its dataUrl — we rebuild the File and feed handleAnalyzeDoc directly so the
+  // carrière grid auto-fills without the user having to click anywhere else.
+  useEffect(() => {
+    if (!id) return;
+    const handler = async (event) => {
+      const { clientId, fileId, fileData } = event.detail || {};
+      if (clientId !== id || !fileData) return;
+      try {
+        const { name, type, dataUrl } = fileData;
+        const response = await fetch(dataUrl);
+        const blob = await response.blob();
+        const file = new File([blob], name, { type });
+        await handleAnalyzeDoc({ id: fileId, filename: name }, file);
+      } catch (e) {
+        console.error("Failed to ingest careerAnalysisFileReady in simulator:", e);
+      }
+    };
+    window.addEventListener("careerAnalysisFileReady", handler);
+    return () => window.removeEventListener("careerAnalysisFileReady", handler);
+  }, [id, handleAnalyzeDoc]);
 
   // Drag & drop ou clic → stocke le fichier RIS en mémoire (fileToSend)
   // ET l'uploade sur le serveur Laravel (/uploadFiles) pour historisation

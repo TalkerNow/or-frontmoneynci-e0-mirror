@@ -249,14 +249,16 @@ class DropzoneBasic extends React.Component {
           `notes_file_to_send_${this.props.id}`,
           JSON.stringify(fileData)
         );
-        // Dispatch custom event to notify Notes component
+        // Dispatch custom event to notify Notes component AND SimulatorIntegration.
+        // fileId lets the simulator key its docTypeDetection cache and fall back
+        // to /downloadFile if it ever needs to refetch.
         window.dispatchEvent(
           new CustomEvent("careerAnalysisFileReady", {
-            detail: { clientId: this.props.id, fileData },
+            detail: { clientId: this.props.id, fileId, fileData },
           })
         );
         toast.success(
-          `"${fileName}" prêt pour l'analyse ! Rendez-vous dans l'onglet Notes.`
+          `"${fileName}" envoyé au simulateur — analyse en cours…`
         );
       };
       reader.onerror = () => {
