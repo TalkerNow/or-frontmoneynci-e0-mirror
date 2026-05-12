@@ -2141,6 +2141,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
 
       toast.info("Génération du rapport de consultation en cours…");
 
+      // Timeout client légèrement supérieur au timeout n8n côté backend (340s)
+      // pour que le backend ait le temps de remonter une erreur explicite si n8n traîne.
       const backendRes = await axios.post(
         `${global.config.server_url}/v1/rapports/consultation`,
         formData,
@@ -2150,8 +2152,13 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
             "Content-Type": "multipart/form-data",
           },
           cancelToken: cancelReportRef.current.token,
+          timeout: 355000,
         }
       );
+
+      if (backendRes.data && backendRes.data.success === false) {
+        throw new Error(backendRes.data.error || "Le rapport n'a pas pu être généré.");
+      }
 
       // Extraction contenu brut depuis réponse backend (data = réponse n8n)
       let raw = "";
@@ -2236,8 +2243,14 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       toast.success("Rapport de consultation généré avec succès");
     } catch (err) {
       if (axios.isCancel(err)) return;
-      console.error(err);
-      toast.error("Erreur lors de la génération du rapport");
+      console.error("rapport_consultation generation failed:", err);
+      const serverMsg = err?.response?.data?.error;
+      const isTimeout = err?.code === "ECONNABORTED" || /timeout/i.test(err?.message || "");
+      const msg = serverMsg
+        || (isTimeout
+            ? "Délai dépassé — le workflow IA est probablement toujours en cours côté n8n. Réessayez dans une minute."
+            : (err?.message || "Erreur lors de la génération du rapport"));
+      toast.error(msg, { autoClose: 8000 });
     } finally {
       setIsGeneratingReport(false);
       cancelReportRef.current = null;
@@ -4241,7 +4254,35 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               {(() => {
                                 const samb = computeSAMB(carriereRows);
                                 const { total: arrcoPts, projectionAnnuelle } = computeArrcoPts(carriereRows);
+                                const trimAr = Object.values(arState).reduce((s, v) => s + (Number(v) || 0), 0);
+                                const trimTotal = Object.values(trimCotState).reduce((s, v) => s + (Number(v) || 0), 0)
+                                  + Object.values(trimAssState).reduce((s, v) => s + (Number(v) || 0), 0)
+                                  + trimAr;
+                                const trimRequis = dispDateTauxPlein?.trimRequis ?? null;
+                                const trimManquants = dispDateTauxPlein?.trimManquants ?? null;
+                                let age = null;
+                                if (dispBirthDate) {
+                                  const b = new Date(dispBirthDate);
+                                  if (!isNaN(b.getTime())) {
+                                    const t = new Date();
+                                    age = t.getFullYear() - b.getFullYear();
+                                    const m = t.getMonth() - b.getMonth();
+                                    if (m < 0 || (m === 0 && t.getDate() < b.getDate())) age--;
+                                  }
+                                }
+                                const childrenCount = user?.children_number ?? user?.profil?.children_number ?? null;
+                                const studyYears = user?.higher_education_years ?? user?.profil?.higher_education_years ?? null;
+                                const anneesActives = Object.keys(trimCotState).filter(yr => (Number(trimCotState[yr]) || 0) + (Number(trimAssState[yr]) || 0) + (Number(arState[yr]) || 0) > 0).length;
+                                const manquantsColor = trimManquants == null ? "#555" : trimManquants === 0 ? "#00B894" : "#C0392B";
                                 const rows = [
+                                  ["Trimestres acquis", trimTotal > 0 ? `${trimTotal} trim.` : "—", "#0984E3"],
+                                  ...(trimAr > 0 ? [["dont rachetés", `${trimAr} trim.`, "#1a1a2e"]] : []),
+                                  ["Trimestres requis (taux plein)", trimRequis != null ? `${trimRequis} trim.` : "—", "#555"],
+                                  ["Trimestres manquants", trimManquants != null ? (trimManquants === 0 ? "✓ atteints" : `${trimManquants} trim.`) : "—", manquantsColor],
+                                  ["Années avec activité", anneesActives > 0 ? `${anneesActives} an${anneesActives > 1 ? "s" : ""}` : "—", "#555"],
+                                  ["Âge actuel", age != null ? `${age} ans` : "—", "#555"],
+                                  ...(childrenCount != null && childrenCount !== "" ? [["Nombre d'enfants", `${childrenCount}`, "#555"]] : []),
+                                  ...(studyYears != null && studyYears !== "" ? [["Années d'études supérieures", `${studyYears} an${Number(studyYears) > 1 ? "s" : ""}`, "#555"]] : []),
                                   ["SAMB Assurance Retraite / CNAV", samb > 0 ? `${samb.toLocaleString('fr-FR')} €` : "—", "#1a1a2e"],
                                   ["Points ARRCO-AGIRC cumulés", arrcoPts > 0 ? `${arrcoPts.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} pts` : "—", "#0984E3"],
                                   ["Projection annuelle (tendance)", projectionAnnuelle > 0 ? `+ ${projectionAnnuelle.toLocaleString('fr-FR')} pts / an` : "—", "#00B894"],
@@ -5669,8 +5710,11 @@ function ReportViewerModal({
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
   // ── Chat IA ──────────────────────────────────────────────────────────────
-  // Pour v1, l'assistant IA n'est branché que sur les livrables simulation_retraite
-  const aiChatAvailable = viewingDoc?.type === "simulation_retraite" && !!clientId;
+  // Skills supportés côté backend par ReportChatService::buildSystemPrompt.
+  // Ajouter ici tout nouveau type de livrable doté de son Prompt class.
+  const AI_CHAT_SUPPORTED_TYPES = ["simulation_retraite", "rapport_consultation"];
+  const aiChatSkillCode = viewingDoc?.type;
+  const aiChatAvailable = AI_CHAT_SUPPORTED_TYPES.includes(aiChatSkillCode) && !!clientId;
   const [aiChatOpen, setAiChatOpen] = useState(false);
   const [proposedHtml, setProposedHtml] = useState(null);
   const [proposedMessageId, setProposedMessageId] = useState(null);
@@ -5839,7 +5883,7 @@ function ReportViewerModal({
                     <div className="mb-3 d-flex justify-content-end">
                       <VersionHistoryDropdown
                         clientId={clientId}
-                        skillCode="simulation_retraite"
+                        skillCode={aiChatSkillCode}
                         onRestored={handleVersionRestored}
                         reloadSignal={versionsReloadSignal}
                       />
@@ -5899,7 +5943,7 @@ function ReportViewerModal({
                       if (!proposedMessageId) return;
                       setApplyingMessageId(proposedMessageId);
                       try {
-                        const report = await fetchLatestReport(clientId, "simulation_retraite");
+                        const report = await fetchLatestReport(clientId, aiChatSkillCode);
                         if (!report?.id) throw new Error("Rapport introuvable");
                         const res = await applyReportChatMessage(report.id, proposedMessageId);
                         const newHtml =
@@ -5957,7 +6001,7 @@ function ReportViewerModal({
                 <div className="flex-grow-1" style={{ minHeight: 0 }}>
                   <ReportChatPanel
                     clientId={clientId}
-                    skillCode="simulation_retraite"
+                    skillCode={aiChatSkillCode}
                     onProposedHtml={handleProposedHtml}
                     onApplied={handleApplied}
                     applyingMessageId={applyingMessageId}
