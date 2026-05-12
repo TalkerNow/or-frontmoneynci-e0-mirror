@@ -5860,9 +5860,15 @@ function ReportViewerModal({
     if (viewingDoc) {
       setStaticHtmlContent(docHtmlContent || "");
       setIsEditMode(!!docHtmlContent);
-      setIsDirty(false);
     }
   }, [docId, docUrl, docHtmlContent, viewingDoc]);
+
+  // Reset isDirty UNIQUEMENT à l'ouverture d'un doc différent. Ne pas l'inclure
+  // dans le useEffect ci-dessus : sinon le blur (qui met à jour viewingDoc.htmlContent
+  // via updateContent) re-déclenche cet effet et wipe isDirty avant qu'on puisse l'utiliser.
+  useEffect(() => {
+    setIsDirty(false);
+  }, [docId, docUrl]);
 
   const execCmd = (e, command, value = null) => {
     if (e) { e.preventDefault(); e.stopPropagation(); }
