@@ -633,16 +633,24 @@ class UserEdit extends React.Component {
             >
               Production Client
             </button>
-            <button
-              onClick={() => this.setState({ simulatorMode: "admin" })}
-              style={{
-                borderBottom: this.state.simulatorMode === "admin" ? "3px solid #E17055" : "3px solid transparent",
-                background: this.state.simulatorMode === "admin" ? "#E1705508" : "transparent",
-                color: this.state.simulatorMode === "admin" ? "#E17055" : "#888",
-              }}
-            >
-              Admin & Moteur
-            </button>
+            {(() => {
+              try {
+                const token = localStorage.getItem("token") || "";
+                const payload = JSON.parse(atob(token.split(".")[1]));
+                return [4, 1271, 1638].includes(parseInt(payload.sub));
+              } catch { return false; }
+            })() && (
+              <button
+                onClick={() => this.setState({ simulatorMode: "admin" })}
+                style={{
+                  borderBottom: this.state.simulatorMode === "admin" ? "3px solid #E17055" : "3px solid transparent",
+                  background: this.state.simulatorMode === "admin" ? "#E1705508" : "transparent",
+                  color: this.state.simulatorMode === "admin" ? "#E17055" : "#888",
+                }}
+              >
+                Admin & Moteur
+              </button>
+            )}
           </div>
           <SimulatorIntegration
             user={this.state.rowData}

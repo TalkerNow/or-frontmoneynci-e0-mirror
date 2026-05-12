@@ -2418,7 +2418,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
 
   const [isGeneratingAudit, setIsGeneratingAudit] = useState(false);
 
-  // ── Audit Retraite (webhook n8n direct : audit-retraite) ───────────────────
+  // ── Audit Retraite (via backend → n8n, même pattern que simulation) ─────────
   const handleGenerateAuditRetraite = useCallback(async () => {
     if (!id) { toast.error("ID client manquant"); return; }
     if (!scenarioSkillResults || Object.keys(scenarioSkillResults).length === 0) {
@@ -2433,27 +2433,27 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         toast.success("✓ Votre note sera utilisée pour cet audit", { autoClose: 2500 });
         persistPromptNote(auditComment);
       }
-      const payload = {
-        client_id: id,
-        user_context: auditComment || "Audit retraite complet",
-      };
-      if (hiddenSystemPrompt) payload.system_prompt = hiddenSystemPrompt;
       toast.info("Génération de l'audit retraite en cours… (peut prendre plusieurs minutes)");
-      const n8nRes = await axios.post(
-        "https://n8n.srv796541.hstgr.cloud/webhook/audit-retraite",
-        payload,
-        { headers: { "Content-Type": "application/json" }, timeout: 600000 }
-      );
-      const root = Array.isArray(n8nRes.data) ? n8nRes.data[0] : n8nRes.data;
-      let raw = "";
-      if (typeof root === "string") raw = root;
-      else if (root && typeof root === "object") raw = root.html_report || root.output || root.text || root.response || JSON.stringify(root);
-      else raw = String(n8nRes.data);
-      let html = cleanChainOfThought(raw);
-      html = html.replace(/^```html\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
-      if (!html.startsWith("<!DOCTYPE") && !html.startsWith("<html") && !/<\/[a-zA-Z]+>/.test(html)) {
-        html = `<html><body style="font-family:sans-serif;padding:20px">${html.replace(/\n/g, "<br>")}</body></html>`;
+      const token = localStorage.getItem("token") || "";
+      const resp = await fetch(`${global.config.server_url}/v1/audit-retraite/generate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          client_id: id,
+          user_context: auditComment || undefined,
+        }),
+        signal: AbortSignal.timeout(900000),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || `Erreur serveur (${resp.status})`);
       }
+      const result = await resp.json();
+      if (!result.html_report) throw new Error("Rapport vide reçu — vérifiez les données carrière du client");
       const displayName = user ? `${user.first_name || ""} ${user.last_name || ""}`.trim() : "Client";
       const doc = {
         id: `audit_${Date.now()}`,
@@ -2461,17 +2461,17 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         type: "audit_retraite",
         createdAt: new Date().toISOString(),
         url: null,
-        htmlContent: html,
+        htmlContent: result.html_report,
       };
       setGeneratedDocs((prev) => [doc, ...prev.filter((d) => d.type !== "audit_retraite")]);
       toast.success("Audit retraite généré !");
     } catch (err) {
-      toast.error(err?.response?.data?.message || err.message || "Erreur lors de l'audit");
+      toast.error(err?.message || "Erreur lors de l'audit");
     } finally {
       setIsGeneratingAudit(false);
       try { localStorage.removeItem(`gen_pending_AUDIT_RETRAITE_${id}`); } catch {}
     }
-  }, [id, scenarioSkillResults, user, promptText, hiddenSystemPrompt, cleanChainOfThought]);
+  }, [id, scenarioSkillResults, user, promptText, persistPromptNote]);
 
   // Derive doc availability from real uploaded documents
   const hasDocuments = userDocuments.some((d) => Number(d.dossier) === 10) || !!fileToSend;
@@ -5170,8 +5170,18 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
               {/* Pavé prompt IA — visible uniquement dans Scénarios et Livrables (pas en Carrière, FROZEN_DATA pure) */}
               {(expandedPanel === "dispositifs" || expandedPanel === "livrables") && (
               <div style={{ ...S.card, padding: 14, marginTop: 16, border: promptText ? "2px solid #6C5CE7" : undefined }}>
-                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
-                  💬 Note pour l'IA
+                <style>{`
+                  @keyframes pavePulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(108,92,231,0.5); } 50% { transform: scale(1.08); box-shadow: 0 0 0 6px rgba(108,92,231,0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(108,92,231,0); } }
+                  .pave-badge-pulse { animation: pavePulse 1.2s ease-out; }
+                `}</style>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700 }}>💬 Note pour l'IA</div>
+                  {promptText && (
+                    <span key={promptText.length} className="pave-badge-pulse" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 10, background: "#6C5CE7", color: "#fff", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff" }} />
+                      Actif
+                    </span>
+                  )}
                 </div>
                 <div style={{ fontSize: 12, color: "#666", marginBottom: 10 }}>
                   Écrivez ici toute précision utile pour le client. L'IA en tiendra compte dans le prochain calcul ou rapport.
@@ -5956,7 +5966,7 @@ function ReportViewerModal({
   // ── Chat IA ──────────────────────────────────────────────────────────────
   // Skills supportés côté backend par ReportChatService::buildSystemPrompt.
   // Ajouter ici tout nouveau type de livrable doté de son Prompt class.
-  const AI_CHAT_SUPPORTED_TYPES = ["simulation_retraite", "rapport_consultation"];
+  const AI_CHAT_SUPPORTED_TYPES = ["simulation_retraite", "rapport_consultation", "audit_retraite"];
   const aiChatSkillCode = viewingDoc?.type;
   const aiChatAvailable = AI_CHAT_SUPPORTED_TYPES.includes(aiChatSkillCode) && !!clientId;
   const [aiChatOpen, setAiChatOpen] = useState(false);
