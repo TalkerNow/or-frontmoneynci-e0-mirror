@@ -5812,6 +5812,9 @@ function ReportViewerModal({
   const [staticHtmlContent, setStaticHtmlContent] = useState(viewingDoc?.htmlContent || "");
   const [isLoadingEdit, setIsLoadingEdit] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  // isDirty = vrai uniquement quand l'utilisateur a réellement édité (event "input" dans l'iframe).
+  // Sans ce flag, handleClose se déclenchait dès l'ouverture car isEditMode passe true dès qu'il y a du HTML.
+  const [isDirty, setIsDirty] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
   // ── Chat IA ──────────────────────────────────────────────────────────────
@@ -5840,11 +5843,13 @@ function ReportViewerModal({
     setApplyingMessageId(null);
     handleClearProposed();
     setVersionsReloadSignal((s) => s + 1);
+    setIsDirty(false);
   };
   const handleVersionRestored = (newHtml) => {
     setStaticHtmlContent(newHtml);
     setViewingDoc((prev) => ({ ...prev, htmlContent: newHtml }));
     setVersionsReloadSignal((s) => s + 1);
+    setIsDirty(false);
   };
 
   const docId = viewingDoc?.id;
@@ -5855,6 +5860,7 @@ function ReportViewerModal({
     if (viewingDoc) {
       setStaticHtmlContent(docHtmlContent || "");
       setIsEditMode(!!docHtmlContent);
+      setIsDirty(false);
     }
   }, [docId, docUrl, docHtmlContent, viewingDoc]);
 
@@ -5882,12 +5888,15 @@ function ReportViewerModal({
           setViewingDoc((prev) => ({ ...prev, htmlContent: newContent }));
         };
         doc.body.addEventListener("blur", updateContent);
+        // input = vraie édition utilisateur (frappe clavier, paste...). Distinct du blur
+        // qui re-sync l'outerHTML même sans modif réelle.
+        doc.body.addEventListener("input", () => setIsDirty(true));
       }
     } catch (_) {}
   };
 
   const handleClose = () => {
-    if (isEditMode && viewingDoc?.htmlContent) {
+    if (isDirty) {
       setShowCloseConfirm(true);
     } else {
       setViewingDoc(null);
@@ -5897,6 +5906,7 @@ function ReportViewerModal({
   const handleEditToggle = async () => {
     if (isEditMode && viewingDoc?.htmlContent) {
       await handleSaveDoc(viewingDoc);
+      setIsDirty(false);
       return;
     }
     if (viewingDoc?.htmlContent) {
@@ -6128,8 +6138,8 @@ function ReportViewerModal({
         cancelBtnBsStyle="primary"
         title="Modifications non enregistrées"
         show={showCloseConfirm}
-        onConfirm={async () => { setShowCloseConfirm(false); await handleSaveDoc(viewingDoc); setViewingDoc(null); setIsEditMode(false); }}
-        onCancel={() => { setShowCloseConfirm(false); setViewingDoc(null); setIsEditMode(false); }}
+        onConfirm={async () => { setShowCloseConfirm(false); await handleSaveDoc(viewingDoc); setIsDirty(false); setViewingDoc(null); setIsEditMode(false); }}
+        onCancel={() => { setShowCloseConfirm(false); setIsDirty(false); setViewingDoc(null); setIsEditMode(false); }}
       >
         Voulez-vous enregistrer vos modifications avant de fermer ?
       </SweetAlert>
