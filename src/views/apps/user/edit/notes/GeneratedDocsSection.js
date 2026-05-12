@@ -6,6 +6,7 @@ const GeneratedDocsSection = ({
     generatedDocs,
     handleOpenDoc,
     requestDeleteGenerated,
+    requestDeleteAllGenerated,
     handleRenameDoc,
 }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -52,6 +53,30 @@ const GeneratedDocsSection = ({
                     </span>
                 </div>
             </button>
+
+            {isOpen && count > 0 && requestDeleteAllGenerated && (
+                <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            requestDeleteAllGenerated();
+                        }}
+                        style={{
+                            background: "none",
+                            border: "1px solid #EA5455",
+                            color: "#EA5455",
+                            borderRadius: 6,
+                            padding: "2px 10px",
+                            fontSize: 11,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                        }}
+                    >
+                        Tout supprimer
+                    </button>
+                </div>
+            )}
 
             {isOpen && (
                 count > 0 ? (

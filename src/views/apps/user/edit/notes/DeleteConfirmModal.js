@@ -16,11 +16,22 @@ const DeleteConfirmModal = ({
                 Confirmation
             </ModalHeader>
             <ModalBody>
-                Êtes-vous sûr de vouloir supprimer{" "}
-                {target?.doc?.name
-                    ? `« ${target.doc.name} »`
-                    : "ce document"}{" "}
-                ?
+                {target?.type === "generated-all" ? (
+                    <>
+                        Êtes-vous sûr de vouloir supprimer{" "}
+                        <strong>tous les {target?.count ?? ""} documents générés</strong> ?
+                        <br />
+                        Cette action est irréversible.
+                    </>
+                ) : (
+                    <>
+                        Êtes-vous sûr de vouloir supprimer{" "}
+                        {target?.doc?.name
+                            ? `« ${target.doc.name} »`
+                            : "ce document"}{" "}
+                        ?
+                    </>
+                )}
             </ModalBody>
             <ModalFooter>
                 <Button color="primary" onClick={onConfirm}>
