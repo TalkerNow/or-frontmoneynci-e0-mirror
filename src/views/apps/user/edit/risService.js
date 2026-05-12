@@ -867,3 +867,44 @@ export async function restoreReportVersion(reportId, versionId) {
   );
   return response.data;
 }
+
+/**
+ * Liste les notes IA précédentes du consultant courant pour ce client (20 dernières).
+ * @param {number|string} clientId
+ * @returns {Promise<{ notes: Array<{id:number, content:string, created_at:string}> }>}
+ */
+export async function fetchPromptNotes(clientId) {
+  const response = await axios.get(
+    `${global.config.server_url}/v1/clients/${clientId}/prompt-notes`,
+    { headers: authHeaders() }
+  );
+  return response.data;
+}
+
+/**
+ * Sauvegarde une note IA pour ce client (déduplique si même contenu existe déjà).
+ * @param {number|string} clientId
+ * @param {string} content
+ * @returns {Promise<{ note: object }>}
+ */
+export async function savePromptNote(clientId, content) {
+  const response = await axios.post(
+    `${global.config.server_url}/v1/clients/${clientId}/prompt-notes`,
+    { content },
+    { headers: authHeaders() }
+  );
+  return response.data;
+}
+
+/**
+ * Supprime une note IA par son id (seulement si appartient au consultant courant).
+ * @param {number|string} noteId
+ * @returns {Promise<{ message: string }>}
+ */
+export async function deletePromptNote(noteId) {
+  const response = await axios.delete(
+    `${global.config.server_url}/v1/prompt-notes/${noteId}`,
+    { headers: authHeaders() }
+  );
+  return response.data;
+}
