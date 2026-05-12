@@ -790,7 +790,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // Persisté via analysis_reports (skill_code = RAPPORT_CONSULTATION) et rechargé au mount.
   const [generatedDocs, setGeneratedDocs] = useState([]);
   const [viewingDoc, setViewingDoc] = useState(null);
-  const [chatMessage, setChatMessage] = useState("");
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const cancelReportRef = useRef(null);
   const [isGeneratingSimulation, setIsGeneratingSimulation] = useState(false);
@@ -2245,109 +2244,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       try { localStorage.removeItem(`gen_pending_RAPPORT_CONSULTATION_${id}`); } catch {}
     }
   }, [fileToSend, user, id, hiddenSystemPrompt, cleanChainOfThought, userDocuments, scenarioSkillResults, promptText]);
-
-  // ── Rapport spécifique (Assistant — texte libre depuis ReportViewerModal) ────
-  const handleModalGenerate = useCallback(async () => {
-    if (!chatMessage.trim()) return;
-
-    let htmlToSend = viewingDoc?.htmlContent || "";
-
-    if (!htmlToSend && viewingDoc?.url) {
-      try {
-        const res = await axios.post(
-          `${global.config.server_url}/fetch-html`,
-          { url: viewingDoc.url },
-          { headers: { Authorization: "Bearer " + localStorage.getItem("token") } }
-        );
-        if (res.data?.html) htmlToSend = res.data.html;
-      } catch (err) {
-        console.warn("Impossible de récupérer le HTML contextuel:", err);
-      }
-    }
-
-    const childrenCount = user?.children_number ?? "Non renseigné";
-    const birthDate = user?.birth_date ?? "Non renseignée";
-    const finalMessage = `${chatMessage.trim()}\n\nNombre d'enfants : ${childrenCount}\nDate de naissance : ${birthDate}`;
-
-    const formData = new FormData();
-    formData.append("message", finalMessage);
-    if (htmlToSend) formData.append("previous_html", htmlToSend);
-    if (id) formData.append("client_id", id);
-
-    setIsGeneratingReport(true);
-    if (cancelReportRef.current) cancelReportRef.current.cancel();
-    cancelReportRef.current = axios.CancelToken.source();
-
-    try {
-      toast.info("Analyse en cours (Spécifique)…");
-
-      const n8nRes = await axios.post(
-        "https://n8n.srv796541.hstgr.cloud/webhook/99dffa05-bf5f-44f3-884f-e748a968584d",
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" }, cancelToken: cancelReportRef.current.token }
-      );
-
-      const root = Array.isArray(n8nRes.data) ? n8nRes.data[0] : n8nRes.data;
-      let raw = "";
-      if (typeof root === "string") raw = root;
-      else if (root && typeof root === "object") raw = root.html_report || root.output || root.text || root.response || JSON.stringify(root);
-      else raw = String(n8nRes.data);
-
-      const trimmedRaw = raw.trim();
-      if (trimmedRaw.charAt(0) === '"' && trimmedRaw.charAt(trimmedRaw.length - 1) === '"') {
-        try { raw = JSON.parse(trimmedRaw); } catch (_) {}
-      }
-      if (raw.indexOf("\\n") !== -1) raw = raw.split("\\n").join("\n").split("\\t").join("\t").split('\\"').join('"');
-
-      let contentString = cleanChainOfThought(raw);
-      contentString = contentString.replace(/^```html\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
-
-      if (!contentString.startsWith("<!DOCTYPE") && !contentString.startsWith("<html") && !/<\/[a-zA-Z]+>/.test(contentString)) {
-        contentString = `<html><body style="font-family:sans-serif;padding:20px">${contentString.replace(/\n/g, "<br>")}</body></html>`;
-      }
-
-      const displayName = user ? `${user.first_name || ""} ${user.last_name || ""}`.trim() : "Client";
-      const fileName = `Rapport_Specifique_${Date.now()}.html`;
-      const blob = new Blob([contentString], { type: "text/html;charset=utf-8" });
-      const uploadForm = new FormData();
-      uploadForm.append("user_id", id);
-      uploadForm.append("photoUpload0", blob, fileName);
-
-      let reportUrl = null;
-      try {
-        const uploadRes = await axios.post(
-          `${global.config.server_url}/uploadFiles`,
-          uploadForm,
-          { headers: { Authorization: "Bearer " + localStorage.getItem("token"), "Content-Type": "multipart/form-data" }, cancelToken: cancelReportRef.current.token }
-        );
-        reportUrl = uploadRes?.data?.files?.[0]?.url || null;
-      } catch (err) {
-        console.error(err);
-        toast.error("Rapport généré mais impossible de le sauvegarder sur le serveur.");
-      }
-
-      const doc = {
-        id: `rs_${Date.now()}`,
-        name: `Rapport spécifique de ${displayName}`,
-        type: "custom",
-        createdAt: new Date().toISOString(),
-        url: reportUrl,
-        htmlContent: contentString,
-      };
-
-      setGeneratedDocs((prev) => [doc, ...prev]);
-      setViewingDoc(doc);
-      setChatMessage("");
-      toast.success("Rapport spécifique généré avec succès");
-    } catch (err) {
-      if (axios.isCancel(err)) return;
-      console.error(err);
-      toast.error("Erreur lors de la génération du rapport spécifique");
-    } finally {
-      setIsGeneratingReport(false);
-      cancelReportRef.current = null;
-    }
-  }, [chatMessage, viewingDoc, user, id, cleanChainOfThought]);
 
   // ── Simulation Retraite (appelle Laravel → n8n → HTML) ──────────────────────
   const handleGenerateSimulationRetraite = useCallback(async () => {
@@ -4473,18 +4369,13 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               const skillErrorMsg = skillCode ? scenarioSkillErrors[skillCode] : null;
                               const isExpanded = !!expandedScenarios[action.id];
                               const isChosen = chosenScenarios.some(s => s?.dispositif_id === action.id);
-                              // Couleurs carte : retenu OU VPLR éligible=vert, VPLR inéligible=rouge,
-                              // autres éligibles=gris. VPLR est traité à part car c'est le seul
-                              // dispositif qui peut basculer ineligible→eligible via un paramètre
-                              // (rachat de trimestres) — la bascule mérite une couleur positive.
-                              const isVPLR = skillCode === "VPLR";
-                              const isVPLRIneligible = isVPLR && skillResultData?.eligible !== true;
-                              const isVPLREligible = isVPLR && skillResultData?.eligible === true;
-                              const eligibilityColor = isChosen || isVPLREligible ? "#00B894"
-                                : isVPLRIneligible ? "#C0392B"
+                              // Couleurs carte : retenu=vert, non éligible=rouge, éligible non retenu=gris.
+                              const isIneligible = skillResultData && skillResultData.eligible !== true;
+                              const eligibilityColor = isChosen ? "#00B894"
+                                : isIneligible ? "#C0392B"
                                 : "#999999";
-                              const eligibilityBg = isChosen || isVPLREligible ? "#00B89412"
-                                : isVPLRIneligible ? "#FDEDEC"
+                              const eligibilityBg = isChosen ? "#00B89412"
+                                : isIneligible ? "#FDEDEC"
                                 : "#fafafa";
                               const cardBorder = `2px solid ${isChosen ? eligibilityColor : eligibilityColor + "60"}`;
                               const cardBg = eligibilityBg;
@@ -5748,10 +5639,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         <ReportViewerModal
           viewingDoc={viewingDoc}
           setViewingDoc={setViewingDoc}
-          chatMessage={chatMessage}
-          setChatMessage={setChatMessage}
           isGenerating={isGeneratingReport}
-          handleModalGenerate={handleModalGenerate}
           handleSaveDoc={handleSaveReport}
           handleDownloadHtml={handleDownloadReportHtml}
           handleDownloadPdf={handleDownloadReportPdf}
@@ -5768,10 +5656,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
 function ReportViewerModal({
   viewingDoc,
   setViewingDoc,
-  chatMessage,
-  setChatMessage,
   isGenerating,
-  handleModalGenerate,
   handleSaveDoc,
   handleDownloadHtml,
   handleDownloadPdf,
@@ -5961,28 +5846,6 @@ function ReportViewerModal({
                     </div>
                   </>
                 )}
-
-                <hr style={{ borderColor: "#dee2e6", margin: "16px 0" }} />
-
-                <h5 className="mb-3" style={{ color: "#495057", fontWeight: 600 }}>Assistant</h5>
-                <Input
-                  type="textarea"
-                  rows="6"
-                  placeholder="Ex: Refais le calcul avec un départ à 65 ans..."
-                  value={chatMessage}
-                  onChange={(e) => setChatMessage(e.target.value)}
-                  style={{ resize: "none", marginBottom: 12, borderRadius: 8, border: "1px solid #ced4da", padding: 12, fontSize: 14 }}
-                  disabled={isGenerating}
-                />
-                <Button
-                  color="primary"
-                  block
-                  onClick={handleModalGenerate}
-                  disabled={isGenerating || !chatMessage.trim()}
-                  style={{ borderRadius: 8, padding: "12px 16px", fontWeight: 500, fontSize: 15 }}
-                >
-                  {isGenerating ? "Analyse en cours..." : "Générer un rapport spécifique"}
-                </Button>
               </div>
             </div>
 
