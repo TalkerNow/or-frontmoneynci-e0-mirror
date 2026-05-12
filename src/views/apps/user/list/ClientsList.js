@@ -86,7 +86,7 @@ class ClientsList extends React.Component {
     rowData: null,
     allRowData: null, // Données brutes complètes (clients + prospects)
     activeTab: "all", // Onglet actif: "all", "client", "prospect"
-    pageSize: 70, // par défaut 70 par page
+    pageSize: 50,
     defaultColDef: {
       resizable: true,
       sortable: true,
