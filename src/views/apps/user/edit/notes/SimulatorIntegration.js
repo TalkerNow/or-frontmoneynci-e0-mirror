@@ -18,6 +18,7 @@ import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeAr
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
 import SkillCreateModal from "./SkillCreateModal";
+import AdminEngineChat from "./AdminEngineChat";
 import SweetAlert from "react-bootstrap-sweetalert";
 import MD_CONTENT from "./adminSkillsContent";
 
@@ -5804,6 +5805,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
               )}
             </div>
           </div>
+          <AdminEngineChat />
         </div>
       )}
 
