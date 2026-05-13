@@ -86,7 +86,7 @@ class ClientsList extends React.Component {
     rowData: null,
     allRowData: null, // Données brutes complètes (clients + prospects)
     activeTab: "all", // Onglet actif: "all", "client", "prospect"
-    pageSize: 70, // par défaut 70 par page
+    pageSize: 50,
     defaultColDef: {
       resizable: true,
       sortable: true,
@@ -490,11 +490,12 @@ class ClientsList extends React.Component {
 
     this.setState({ isConsultant, myFilterId });
 
-    // Récupère clients + prospects (depuis members) + anciens clients + documents en parallèle
+    // Récupère clients (page 1) + prospects + anciens clients + documents en parallèle
     try {
+      const PER_PAGE = 100;
       const [clientsRes, membersRes, oldClientsRes, docsRes] =
         await Promise.all([
-          axios.get(global.config.server_url + "/users?kind=client", Config),
+          axios.get(global.config.server_url + `/users?kind=client&page=1&per_page=${PER_PAGE}`, Config),
           axios.get(global.config.server_url + "/users?kind=member", Config),
           axios.get(global.config.server_url + "/users?kind=oldclient", Config),
           axios.get(global.config.server_url + "/documents", Config),
@@ -522,28 +523,54 @@ class ClientsList extends React.Component {
         parent: { name: oc.expert_name },
       }));
 
-      // Fusionner
-      const allRowData = [
-        ...(clientsRes.data || []),
-        ...prospects,
-        ...oldClients,
-      ];
+      // Réponse paginée : { data, total, last_page } ou tableau direct (compatibilité)
+      const clientsPage1 = Array.isArray(clientsRes.data)
+        ? clientsRes.data
+        : clientsRes.data.data || [];
+      const clientsLastPage = clientsRes.data?.last_page || 1;
+
       const documents = docsRes.data || [];
       const servicesByUserId = this.buildServicesMapFromDocuments(documents);
 
-      // Trier uniquement par date de création décroissante
-      const sortedData = allRowData.sort((a, b) => {
-        return new Date(b.created_at) - new Date(a.created_at);
-      });
+      const buildSorted = (clients) => {
+        const merged = [...clients, ...prospects, ...oldClients];
+        return merged.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      };
 
+      // Afficher page 1 immédiatement
+      const sortedPage1 = buildSorted(clientsPage1);
       this.setState(
-        { allRowData: sortedData, rowData: sortedData, servicesByUserId },
+        { allRowData: sortedPage1, rowData: sortedPage1, servicesByUserId },
         () => {
           if (this.gridApi && this.isExternalFilterPresent()) {
             this.gridApi.onFilterChanged();
           }
         },
       );
+
+      // Charger les pages suivantes en arrière-plan si nécessaire
+      if (clientsLastPage > 1) {
+        const remainingPages = [];
+        for (let p = 2; p <= clientsLastPage; p++) {
+          remainingPages.push(
+            axios.get(global.config.server_url + `/users?kind=client&page=${p}&per_page=${PER_PAGE}`, Config)
+          );
+        }
+        Promise.all(remainingPages).then((responses) => {
+          const extraClients = responses.flatMap((r) =>
+            Array.isArray(r.data) ? r.data : r.data.data || []
+          );
+          const allClients = [...clientsPage1, ...extraClients];
+          const sortedAll = buildSorted(allClients);
+          this.setState({ allRowData: sortedAll, rowData: sortedAll }, () => {
+            if (this.gridApi && this.isExternalFilterPresent()) {
+              this.gridApi.onFilterChanged();
+            }
+          });
+        }).catch((e) => {
+          console.error("Erreur chargement pages clients supplémentaires", e);
+        });
+      }
     } catch (e) {
       console.error("Erreur chargement clients/documents", e);
     }
