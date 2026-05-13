@@ -546,8 +546,8 @@ class UserEdit extends React.Component {
               )}
             </Nav>
           </div>
-          <TabContent activeTab={this.state.activeTab} className="flex-grow-1">
-            <TabPane tabId="notes" className="h-100">
+          <TabContent activeTab={this.state.activeTab}>
+            <TabPane tabId="notes">
               <NotesTab
                 data={this.state.rowData}
                 perso={this.state.rowData}

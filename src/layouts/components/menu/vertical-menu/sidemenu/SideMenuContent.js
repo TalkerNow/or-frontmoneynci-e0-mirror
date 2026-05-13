@@ -672,8 +672,20 @@ class SideMenuContent extends React.Component {
       .then((res) => {
         const contracts = Array.isArray(res.data) ? res.data : [];
 
-        // Count unpaid terminated contracts (same logic as AllContracts.js)
+        const role = (localStorage.getItem("role") || "").toLowerCase();
+        const userId = localStorage.getItem("userid");
+        const isConsultant = role.includes("consultant");
+
         const unpaidCount = contracts.filter((contract) => {
+          if (isConsultant && userId) {
+            const user = contract.user;
+            const linked = user
+              ? [user.parent_id, user.technician_id, user.owner_id].some(
+                  (v) => v !== undefined && v !== null && String(v) === String(userId)
+                )
+              : String(contract.parent_id) === String(userId);
+            if (!linked) return false;
+          }
           const isTerminated = contract.document_state === "Terminé";
           const isNotFullyPaid = contract.status_payment < 2;
           return isTerminated && isNotFullyPaid;

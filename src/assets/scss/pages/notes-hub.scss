@@ -38,7 +38,9 @@
   border-radius: 14px;
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
   display: flex;
-  min-height: 100%;
+  flex-direction: column;
+  min-height: 360px;
+  height: 100%;
   width: 100%;
   overflow: visible;
 }
@@ -132,6 +134,7 @@
 
 .notes-textarea {
   min-height: 280px;
+  max-height: 480px;
   border-radius: 10px;
   margin-top: -0.55rem;
   padding: 1.2rem;
@@ -139,7 +142,7 @@
   flex-direction: column;
   height: 100%;
   flex: 1 1 auto;
-  resize: both;
+  resize: vertical;
   min-width: 100%;
   max-width: calc(100vw - 3rem);
 }

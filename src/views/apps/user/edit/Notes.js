@@ -125,10 +125,10 @@ const NotesTab = ({ id, perso = {}, commentsSlot, renderUploadOutside }) => {
 
   return (
     <>
-      <div className="notes-page h-100">
+      <div className="notes-page">
       <ProspectChatView user={perso} />
 
-      <Row className="match-height flex-grow-1 notes-two-col-row">
+      <Row className="match-height notes-two-col-row align-items-stretch">
         <Col
           md={commentsSlot && !isNotesExpanded ? "6" : "12"}
           sm="12"
