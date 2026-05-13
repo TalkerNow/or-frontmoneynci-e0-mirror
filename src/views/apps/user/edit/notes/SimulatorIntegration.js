@@ -8,6 +8,7 @@ import { DownloadCloud, Eye, Download, Edit2, Save, Bold, Italic, Underline, Ali
 import ReportChatPanel from "./ReportChatPanel";
 import HtmlDiffPreview from "./HtmlDiffPreview";
 import VersionHistoryDropdown from "./VersionHistoryDropdown";
+import RegistreErreurs from "./RegistreErreurs";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
@@ -26,13 +27,13 @@ import MD_CONTENT from "./adminSkillsContent";
 
 const ACTION_PANELS = {
   carriere: {
-    label: "Carrière", icon: "📂", color: "#E17055", order: 1,
+    label: "Carrière", icon: "📂", color: "#7367f0", order: 1,
     navCount: "5 régimes",
     desc: "Données carrière par régime — validation consultant avant simulation",
     actions: [],
   },
   dispositifs: {
-    label: "Scénarios & dates", icon: "🔧", color: "#00B894", order: 2,
+    label: "Scénarios & dates", icon: "🔧", color: "#7367f0", order: 2,
     desc: "Activez les dispositifs applicables — l'IA en déduit les dates de départ possibles",
     actions: [
       { id: "racl", label: "Carrière longue (RACL)", icon: "⏩", requires: ["ris"], desc: "Départ anticipé si début activité avant 16/18/20/21 ans", generates_date: true },
@@ -46,7 +47,7 @@ const ACTION_PANELS = {
     ]
   },
   livrables: {
-    label: "Livrables", icon: "📋", color: "#00B894", order: 3,
+    label: "Livrables", icon: "📋", color: "#7367f0", order: 3,
     desc: "Générer le document final — mêmes calculs, niveaux de détail différents",
     actions: [
       { id: "rapport_consultation", label: "Rapport de consultation retraite", icon: "📄", requires: ["ris"], desc: "Synthèse 1 page — entretien client", pages: "~1 page" },
@@ -170,45 +171,6 @@ const ADMIN_SECTIONS = {
   registre: { label: "Registre d'erreurs", icon: "📚", color: "#D63031", desc: "Règles Gate #2 — auto-apprentissage" },
   flux: { label: "Flux & Architecture", icon: "🔀", color: "#D63031", desc: "Diagramme du flux utilisateur" },
 };
-
-const REGISTRE_ERREURS = [
-  {
-    id: "R001", niveau: "critique",
-    title: "Trimestres enfants attribués à un homme",
-    date: "06/11/2025", prompt: "PROMPT 1 + PROMPT 2",
-    erreur: "Attribution de 8 trimestres pour enfants à un homme.",
-    condition: 'sexe == "H" and trimestres_enfants > 0',
-    message: "❌ ERREUR CRITIQUE : Impossible d'attribuer des trimestres pour enfants à un homme. Les trimestres pour enfants sont réservés aux femmes.",
-    impact: "Bloque automatiquement tout calcul qui attribuerait des majorations enfants à un homme.",
-  },
-  {
-    id: "R002", niveau: "critique",
-    title: "Âge légal inférieur à 62 ans",
-    date: "06/11/2025", prompt: "PROMPT 1 + PROMPT 2",
-    erreur: "Âge légal calculé à 61 ans (impossible depuis réforme 2023).",
-    condition: "age_legal < 62",
-    message: "❌ ERREUR CRITIQUE : Âge légal inférieur à 62 ans impossible. Depuis la réforme 2023, l'âge légal minimum est de 62 ans.",
-    impact: "Empêche les estimations avec un âge légal incohérent.",
-  },
-  {
-    id: "R003", niveau: "critique",
-    title: "Nombre de trimestres supérieur à 200",
-    date: "06/11/2025", prompt: "PROMPT 1 + PROMPT 2",
-    erreur: "Plus de 200 trimestres validés (impossible : max 50 ans de carrière).",
-    condition: "trimestres_total > 200",
-    message: "❌ ERREUR CRITIQUE : Plus de 200 trimestres impossible. Maximum théorique = 50 ans × 4 trimestres = 200 trimestres.",
-    impact: "Détecte les erreurs de saisie ou de calcul de trimestres.",
-  },
-  {
-    id: "R004", niveau: "critique",
-    title: "Enfant né avant le client",
-    date: "06/11/2025", prompt: "PROMPT 1 + PROMPT 2",
-    erreur: "Date de naissance enfant antérieure à la date de naissance du client.",
-    condition: "date_naissance_enfant < date_naissance_client",
-    message: "❌ ERREUR CRITIQUE : Enfant né avant le client. Vérifier les dates de naissance.",
-    impact: "Empêche les incohérences temporelles dans les données familiales.",
-  },
-];
 
 const DOC_TYPES = [
   { id: "ris", label: "RIS", icon: "📋", color: "#6C5CE7" },
@@ -725,10 +687,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [cnavplClosing, setCnavplClosing] = useState(false);
   const [samOpen, setSamOpen] = useState(false);
-  const [accordeonsVisible, setAccordeonsVisible] = useState(true);
+  const [accordeonsVisible, setAccordeonsVisible] = useState(false);
   const [openAccordeons, setOpenAccordeons] = useState([]);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportText, setReportText] = useState("");
+  const [reportSection, setReportSection] = useState("autre");
+  const [reportSending, setReportSending] = useState(false);
   const [revaloValues, setRevaloValues] = useState(() => {
     const init = {};
     for (let i = 0; i < 65; i++) { init[2026 - i] = 0; }
@@ -3657,12 +3621,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                               <span style={{ fontSize: 18 }}>📂</span>
-                              <span style={{ fontSize: 14, fontWeight: 700, color: "#E17055" }}>Carrière</span>
+                              <span style={{ fontSize: 14, fontWeight: 700, color: "#7367f0" }}>Carrière</span>
                               <span style={{ fontSize: 12, color: "#555" }}>— tableau unifié tous régimes</span>
                             </div>
                             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                               <span style={{ fontSize: 12, padding: "3px 8px", borderRadius: 5, background: isParsingRIS ? "#0984E315" : carriereValidee ? "#00B89415" : "#E1705515", color: isParsingRIS ? "#0984E3" : carriereValidee ? "#00B894" : "#E17055", fontWeight: 700 }}>
-                                {isParsingRIS ? "⏳ Analyse en cours…" : carriereValidee ? `🔒 Validée${lockedAt ? ` le ${new Date(lockedAt).toLocaleDateString("fr-FR")}` : ""}` : "📥 Importée OCR"}
+                                {isParsingRIS ? "⏳ Analyse en cours…" : carriereValidee ? `🔒 Validée${lockedAt ? ` le ${new Date(lockedAt).toLocaleDateString("fr-FR")}` : ""}` : ""}
                               </span>
                               <button onClick={async () => {
                                 if (carriereValidee) {
@@ -5642,73 +5606,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
 
               {/* REGISTRE D'ERREURS */}
               {adminSection === "registre" && (
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                    <span style={{ fontSize: 18 }}>📚</span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: "#D63031" }}>Registre d'erreurs</span>
-                  </div>
-                  <div style={{ fontSize: 12, color: "#555", marginBottom: 14 }}>Règles Gate #2 — chaque erreur capturée bloque automatiquement les calculs incohérents</div>
-
-                  {/* Stats */}
-                  <div className="simu-auto-results-strip" style={{ marginBottom: 16 }}>
-                    {[
-                      { label: "Règles actives", val: REGISTRE_ERREURS.length, color: "#D63031" },
-                      { label: "Règles archivées", val: 0, color: "#555" },
-                      { label: "Dernière màj", val: "06/11/2025", color: "#555" },
-                    ].map((s) => (
-                      <div key={s.label} style={{ flex: 1, padding: "8px 12px", borderRadius: 8, background: "#fafafa", border: "1px solid #eee", textAlign: "center" }}>
-                        <div style={{ fontSize: 16, fontWeight: 800, color: s.color }}>{s.val}</div>
-                        <div style={{ fontSize: 11, color: "#555", textTransform: "uppercase", letterSpacing: "0.05em" }}>{s.label}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Liste des règles */}
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#D63031", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>🔴 Règles actives (Gate #2)</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {REGISTRE_ERREURS.map((r) => (
-                      <div key={r.id} style={{ borderRadius: 8, border: "1px solid #D6303120", background: "#fff", overflow: "hidden" }}>
-                        {/* Ligne titre — cliquable → modal */}
-                        <button
-                          onClick={() => setModal({
-                            title: `${r.id} — ${r.title}`,
-                            color: "#D63031",
-                            lines: 10,
-                            content:
-                              `RÈGLE ${r.id} — Gate #2\n` +
-                              `${"─".repeat(50)}\n\n` +
-                              `Titre         : ${r.title}\n` +
-                              `Date d'ajout  : ${r.date}\n` +
-                              `Prompt        : ${r.prompt}\n\n` +
-                              `Erreur        : ${r.erreur}\n\n` +
-                              `Condition     : ${r.condition}\n\n` +
-                              `Message       :\n${r.message}\n\n` +
-                              `Impact        : ${r.impact}\n\n` +
-                              `Statut        : ✅ ACTIF — 🔴 CRITIQUE (bloquant)`
-                          })}
-                          style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 13px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}>
-                          <span style={{ fontSize: 12, fontWeight: 800, color: "#fff", background: "#D63031", borderRadius: 4, padding: "2px 7px", flexShrink: 0 }}>🔴 {r.id}</span>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e", flex: 1 }}>{r.title}</span>
-                          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                            <span style={{ fontSize: 11, color: "#555" }}>{r.date}</span>
-                            <span style={{ fontSize: 11, padding: "1px 6px", borderRadius: 3, background: "#D6303110", color: "#D63031", fontWeight: 700 }}>CRITIQUE</span>
-                            <span style={{ fontSize: 11, color: "#6C5CE7" }}>👁 Voir →</span>
-                          </div>
-                        </button>
-                        {/* Aperçu condition */}
-                        <div style={{ padding: "0 13px 8px 13px", borderTop: "1px solid #f5f5f5" }}>
-                          <code style={{ fontSize: 11, color: "#555", background: "#f5f5f5", padding: "3px 7px", borderRadius: 4, fontFamily: "'IBM Plex Mono', monospace" }}>{r.condition}</code>
-                          <span style={{ fontSize: 11, color: "#555", marginLeft: 8 }}>{r.erreur}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Bouton ajouter */}
-                  <button style={{ marginTop: 12, width: "100%", padding: "9px 0", borderRadius: 8, border: "2px dashed #D6303140", background: "transparent", color: "#D63031", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-                    + Ajouter une règle (PROMPT 3)
-                  </button>
-                </div>
+                <RegistreErreurs />
               )}
 
               {/* FLUX */}
@@ -5815,11 +5713,20 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
             <div style={{ padding: "16px 18px" }}>
               <div style={{ fontSize: 13, color: "#333", fontWeight: 600, marginBottom: 8 }}>Section concernée :</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
-                {["Carrière", "Scénarios & dates", "Livrables", "Autre"].map(s => (
-                  <button key={s} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 5, border: "1px solid #ccc", background: "#fdfdfd", color: "#444", cursor: "pointer", transition: "all 0.15s ease" }}
-                    onMouseOver={e => { e.currentTarget.style.borderColor = "#6C5CE7"; e.currentTarget.style.color = "#6C5CE7"; e.currentTarget.style.background = "#fff"; }}
-                    onMouseOut={e => { e.currentTarget.style.borderColor = "#ccc"; e.currentTarget.style.color = "#444"; e.currentTarget.style.background = "#fdfdfd"; }}>
-                    {s}
+                {[
+                  { label: "Carrière",          val: "carriere" },
+                  { label: "Scénarios & dates", val: "scenarios_dates" },
+                  { label: "Livrables",         val: "livrables" },
+                  { label: "Autre",             val: "autre" },
+                ].map(s => (
+                  <button key={s.val} onClick={() => setReportSection(s.val)}
+                    style={{ fontSize: 12, padding: "4px 10px", borderRadius: 5, cursor: "pointer", transition: "all 0.15s ease",
+                      border: `1px solid ${reportSection === s.val ? "#E17055" : "#ccc"}`,
+                      background: reportSection === s.val ? "#E17055" : "#fdfdfd",
+                      color: reportSection === s.val ? "#fff" : "#444",
+                      fontWeight: reportSection === s.val ? 700 : 400,
+                    }}>
+                    {s.label}
                   </button>
                 ))}
               </div>
@@ -5831,8 +5738,24 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                 style={{ width: "100%", padding: "9px 11px", color: "#444", borderRadius: 8, border: "1px solid #ccc", fontSize: 13, fontFamily: "inherit", resize: "vertical", minHeight: 90, boxSizing: "border-box", outline: "none", lineHeight: 1.6 }} />
             </div>
             <div style={{ padding: "12px 18px", borderTop: "1px solid #eee", display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button onClick={() => setReportOpen(false)} style={{ padding: "7px 16px", borderRadius: 7, border: "1px solid #ccc", background: "#fafafa", color: "#444", fontSize: 13, cursor: "pointer" }}>Annuler</button>
-              <button onClick={() => { setReportOpen(false); setReportText(""); }} style={{ padding: "7px 18px", borderRadius: 7, border: "none", background: "#E17055", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Envoyer</button>
+              <button onClick={() => { setReportOpen(false); setReportText(""); setReportSection("autre"); }} style={{ padding: "7px 16px", borderRadius: 7, border: "1px solid #ccc", background: "#fafafa", color: "#444", fontSize: 13, cursor: "pointer" }}>Annuler</button>
+              <button
+                disabled={reportSending}
+                onClick={() => {
+                  if (!reportText.trim()) { toast.error("Décrivez l'erreur constatée."); return; }
+                  setReportSending(true);
+                  api.post("/v1/admin-chat/registry/report-error", {
+                    client_id: user?.id || null,
+                    section: reportSection,
+                    description: reportText.trim(),
+                  })
+                    .then(() => { toast.success("Erreur signalée. Merci !"); setReportOpen(false); setReportText(""); setReportSection("autre"); })
+                    .catch(() => toast.error("Erreur lors de l'envoi."))
+                    .finally(() => setReportSending(false));
+                }}
+                style={{ padding: "7px 18px", borderRadius: 7, border: "none", background: "#E17055", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", opacity: reportSending ? 0.6 : 1 }}>
+                {reportSending ? "Envoi…" : "Envoyer"}
+              </button>
             </div>
           </div>
         </div>

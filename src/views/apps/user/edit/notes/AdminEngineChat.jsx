@@ -7,6 +7,23 @@ import "./AdminEngineChat.scss";
 const TAB_CHAT   = "chat";
 const TAB_MEMORY = "memory";
 
+const NIVEAU_MAP = { critique: "🔴 CRITIQUE (bloquant)", avertissement: "🟠 AVERTISSEMENT" };
+
+const PILL_LABELS = {
+  carriere: "Carrière", scenarios_dates: "Scénarios & dates", livrables: "Livrables", autre: "Autre",
+  critique: "🔴 Critique (bloquant)", avertissement: "🟠 Avertissement",
+};
+
+const CAPTURE_STEPS = [
+  { key: "title",           label: "Titre de la règle",           type: "text",     placeholder: "ex : Taux de liquidation impossible (> 100%)" },
+  { key: "niveau",          label: "Niveau de criticité",         type: "pills",    options: ["critique", "avertissement"] },
+  { key: "prompt_concerne", label: "Prompt / section concerné",   type: "pills",    options: ["carriere", "scenarios_dates", "livrables", "autre"] },
+  { key: "erreur_detectee", label: "Erreur détectée",             type: "textarea", placeholder: "Décrivez l'erreur constatée…" },
+  { key: "condition_python",label: "Condition Python (optionnel)", type: "code",    placeholder: "ex : data['taux_liquidation'] > 100" },
+  { key: "message_erreur",  label: "Message d'erreur à afficher", type: "text",     placeholder: "ex : Taux de liquidation > 100% impossible" },
+  { key: "impact",          label: "Impact si non bloqué",        type: "textarea", placeholder: "ex : Calcul erroné transmis au client" },
+];
+
 function formatDate(str) {
   if (!str) return "";
   const d = new Date(str);
@@ -26,6 +43,10 @@ export default function AdminEngineChat() {
   const [applying, setApplying]               = useState(null);
   const [reverting, setReverting]             = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [captureStep, setCaptureStep]         = useState(null); // null = inactive, 0-N = step index
+  const [captureAnswers, setCaptureAnswers]   = useState({});
+  const [captureFieldVal, setCaptureFieldVal] = useState("");
+  const [submittingRule, setSubmittingRule]   = useState(false);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -81,14 +102,87 @@ export default function AdminEngineChat() {
 
   const sendMessage = () => {
     if (!sessionId || !input.trim() || sending) return;
+    const text = input.trim();
     setSending(true);
-    api.post(`/v1/admin-chat/sessions/${sessionId}/message`, { content: input.trim() })
+    api.post("/v1/admin-chat/chat/detect-trigger", { message: text })
       .then((res) => {
-        setMessages((prev) => [...prev, res.data.user_message, res.data.assistant_message]);
-        setInput("");
+        if (res.data.triggered) {
+          // Start capture flow instead of forwarding to AI
+          setInput("");
+          setCaptureStep(0);
+          setCaptureAnswers({});
+          setCaptureFieldVal("");
+          setMessages((prev) => [...prev, {
+            id: `capture-intro-${Date.now()}`,
+            role: "assistant",
+            content: `✅ Phrase déclencheur détectée : "${res.data.matched_phrase}"\n\nJe vais vous guider pour formaliser cette nouvelle règle Gate #2. Répondez aux questions ci-dessous.`,
+            created_at: new Date().toISOString(),
+          }]);
+        } else {
+          api.post(`/v1/admin-chat/sessions/${sessionId}/message`, { content: text })
+            .then((r) => {
+              setMessages((prev) => [...prev, r.data.user_message, r.data.assistant_message]);
+              setInput("");
+            })
+            .catch(() => toast.error("Erreur lors de l'envoi du message."))
+            .finally(() => setSending(false));
+          return;
+        }
       })
-      .catch(() => toast.error("Erreur lors de l'envoi du message."))
+      .catch(() => {
+        // detect-trigger failed — proceed normally
+        api.post(`/v1/admin-chat/sessions/${sessionId}/message`, { content: text })
+          .then((r) => {
+            setMessages((prev) => [...prev, r.data.user_message, r.data.assistant_message]);
+            setInput("");
+          })
+          .catch(() => toast.error("Erreur lors de l'envoi du message."))
+          .finally(() => setSending(false));
+        return;
+      })
       .finally(() => setSending(false));
+  };
+
+  const advanceCaptureStep = () => {
+    const step = CAPTURE_STEPS[captureStep];
+    const val  = step.type === "pills" ? (captureAnswers[step.key] || step.options[0]) : captureFieldVal.trim();
+    if (step.type !== "pills" && step.type !== "code" && !val) {
+      toast.error("Ce champ est requis.");
+      return;
+    }
+    const updated = { ...captureAnswers, [step.key]: val };
+    setCaptureAnswers(updated);
+    setCaptureFieldVal("");
+
+    if (captureStep + 1 < CAPTURE_STEPS.length) {
+      setCaptureStep(captureStep + 1);
+    } else {
+      // All steps done — map niveau then submit rule
+      const payload = { ...updated };
+      if (payload.niveau && NIVEAU_MAP[payload.niveau]) payload.niveau = NIVEAU_MAP[payload.niveau];
+      setSubmittingRule(true);
+      api.post("/v1/admin-chat/registry/append-rule", payload)
+        .then((res) => {
+          toast.success(`Règle ${res.data.code} ajoutée au registre.`);
+          window.dispatchEvent(new Event("registre-updated"));
+          setMessages((prev) => [...prev, {
+            id: `capture-done-${Date.now()}`,
+            role: "assistant",
+            content: `✅ Règle **${res.data.code}** — "${updated.title}" ajoutée au registre Gate #2.`,
+            created_at: new Date().toISOString(),
+          }]);
+          setCaptureStep(null);
+          setCaptureAnswers({});
+        })
+        .catch((err) => toast.error(err.response?.data?.error || "Erreur lors de l'ajout."))
+        .finally(() => setSubmittingRule(false));
+    }
+  };
+
+  const cancelCaptureFlow = () => {
+    setCaptureStep(null);
+    setCaptureAnswers({});
+    setCaptureFieldVal("");
   };
 
   const handleKeyDown = (e) => {
@@ -222,18 +316,33 @@ export default function AdminEngineChat() {
                   <div ref={messagesEndRef} />
                 </div>
 
-                <div className="admin-chat-panel__input-area">
-                  <textarea
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Votre message…"
-                    disabled={sending}
+                {captureStep !== null ? (
+                  <CaptureFlowInput
+                    step={CAPTURE_STEPS[captureStep]}
+                    stepIndex={captureStep}
+                    totalSteps={CAPTURE_STEPS.length}
+                    answers={captureAnswers}
+                    fieldVal={captureFieldVal}
+                    onFieldChange={setCaptureFieldVal}
+                    onPillSelect={(key, val) => setCaptureAnswers((prev) => ({ ...prev, [key]: val }))}
+                    onNext={advanceCaptureStep}
+                    onCancel={cancelCaptureFlow}
+                    submitting={submittingRule}
                   />
-                  <button onClick={sendMessage} disabled={sending || !input.trim()}>
-                    {sending ? "…" : "Envoyer"}
-                  </button>
-                </div>
+                ) : (
+                  <div className="admin-chat-panel__input-area">
+                    <textarea
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder="Votre message…"
+                      disabled={sending}
+                    />
+                    <button onClick={sendMessage} disabled={sending || !input.trim()}>
+                      {sending ? "…" : "Envoyer"}
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -262,6 +371,88 @@ export default function AdminEngineChat() {
       )}
     </div>
     </>
+  );
+}
+
+// ── CaptureFlowInput ──────────────────────────────────────────────────────────
+
+function CaptureFlowInput({ step, stepIndex, totalSteps, answers, fieldVal, onFieldChange, onPillSelect, onNext, onCancel, submitting }) {
+  const isLast = stepIndex + 1 === totalSteps;
+  const currentPill = answers[step.key] || (step.options && step.options[0]);
+
+  return (
+    <div style={{ borderTop: "1px solid #eee", padding: "12px 14px", background: "#fafcff" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: "#6C5CE7", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          Nouvelle règle Gate #2 — étape {stepIndex + 1}/{totalSteps}
+        </span>
+        <button onClick={onCancel} style={{ fontSize: 11, color: "#aaa", background: "none", border: "none", cursor: "pointer" }}>
+          Annuler
+        </button>
+      </div>
+      <div style={{ fontSize: 12, fontWeight: 700, color: "#333", marginBottom: 6 }}>{step.label}</div>
+
+      {step.type === "pills" && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+          {step.options.map((opt) => (
+            <button
+              key={opt}
+              onClick={() => onPillSelect(step.key, opt)}
+              style={{
+                padding: "5px 12px", borderRadius: 20,
+                border: `1px solid ${currentPill === opt ? "#6C5CE7" : "#ddd"}`,
+                background: currentPill === opt ? "#6C5CE7" : "#fff",
+                color: currentPill === opt ? "#fff" : "#555",
+                fontSize: 12, fontWeight: 600, cursor: "pointer",
+              }}
+            >
+              {PILL_LABELS[opt] || opt}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {(step.type === "text" || step.type === "code") && (
+        <input
+          value={fieldVal}
+          onChange={(e) => onFieldChange(e.target.value)}
+          placeholder={step.placeholder}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onNext(); } }}
+          style={{
+            width: "100%", border: "1px solid #ddd", borderRadius: 6, padding: "7px 10px",
+            fontSize: step.type === "code" ? 12 : 13,
+            fontFamily: step.type === "code" ? "'IBM Plex Mono', monospace" : "inherit",
+            outline: "none", marginBottom: 8,
+          }}
+        />
+      )}
+
+      {step.type === "textarea" && (
+        <textarea
+          value={fieldVal}
+          onChange={(e) => onFieldChange(e.target.value)}
+          placeholder={step.placeholder}
+          rows={3}
+          style={{
+            width: "100%", border: "1px solid #ddd", borderRadius: 6, padding: "7px 10px",
+            fontSize: 13, fontFamily: "inherit", resize: "vertical", outline: "none", marginBottom: 8,
+          }}
+        />
+      )}
+
+      <div style={{ display: "flex", gap: 8 }}>
+        <button
+          onClick={onNext}
+          disabled={submitting}
+          style={{
+            padding: "7px 18px", borderRadius: 6, border: "none",
+            background: "#6C5CE7", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer",
+          }}
+        >
+          {submitting ? "Envoi…" : isLast ? "✓ Créer la règle" : "Suivant →"}
+        </button>
+      </div>
+    </div>
   );
 }
 
