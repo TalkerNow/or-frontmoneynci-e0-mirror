@@ -71,6 +71,7 @@
   flex-basis: 0 !important;
   max-width: 0 !important;
   min-width: 0 !important;
+  max-height: 0 !important;
   padding-left: 0 !important;
   padding-right: 0 !important;
   overflow: hidden;
@@ -215,22 +216,16 @@
   max-width: 100% !important;
 }
 .user-edit-row .profile-right .tab-content {
-  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
 }
 .user-edit-row .profile-right .tab-content .tab-pane.active {
-  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
 }
 .user-edit-row .profile-right .tab-content .tab-pane.active .notes-page {
-  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-}
-.user-edit-row .profile-right .tab-content .tab-pane.active .notes-page > .row {
-  flex: 1 1 auto;
 }
 .user-edit-row .profile-right .tab-content .tab-pane.active .notes-page > .row > [class*="col"] {
   display: flex;

@@ -73,7 +73,7 @@ const NotesTab = ({ id, perso = {}, commentsSlot, renderUploadOutside }) => {
   const isProspect = String(perso.role).toLowerCase() === "prospect";
 
   const [portalNode, setPortalNode] = useState(null);
-  const [isNotesExpanded, setIsNotesExpanded] = useState(false);
+  const [isNotesExpanded, setIsNotesExpanded] = useState(true);
 
   useEffect(() => {
     // Attempt to find the portal node. It might be available immediately, or shortly after.
@@ -125,10 +125,10 @@ const NotesTab = ({ id, perso = {}, commentsSlot, renderUploadOutside }) => {
 
   return (
     <>
-      <div className="notes-page h-100">
+      <div className="notes-page">
       <ProspectChatView user={perso} />
 
-      <Row className="match-height flex-grow-1 notes-two-col-row">
+      <Row className="match-height notes-two-col-row">
         <Col
           md={commentsSlot && !isNotesExpanded ? "6" : "12"}
           sm="12"
