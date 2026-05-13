@@ -8,7 +8,7 @@ const items = {
     title: "KPI",
     type: "item",
     icon: <Icon.Home size={20} />,
-    permissions: ["admin", "Consultant"],
+    permissions: ["admin"],
     navLink: "/dashboard",
   },
   kpi: {
@@ -174,7 +174,7 @@ const items = {
 const adminOrder = ["dashboard", "users", "kpi", "tasks", "contracts", "consultantAccess"];
 
 // Consultant order (⚠️ sans "oldUsers")
-const consultantOrder = ["users", "dashboard", "tasks", "contracts"];
+const consultantOrder = ["users", "tasks", "contracts"];
 
 const buildMenu = (order) => order.map((key) => items[key]);
 
