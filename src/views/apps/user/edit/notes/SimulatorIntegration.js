@@ -1600,11 +1600,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         const nirFromProfil = profilRIS.numero_secu || profilRIS.numero_securite_sociale || profilRIS.numero_ss;
         const profileUpdates = {};
         if (!user?.secu_social && nirFromProfil) profileUpdates.secu_social = nirFromProfil;
-        if (!user?.birth_date && profilRIS.date_naissance) {
-          profileUpdates.birth_date = profilRIS.date_naissance.length === 7
-            ? profilRIS.date_naissance + "-01"
-            : profilRIS.date_naissance;
-        }
         if (!user?.first_name && profilRIS.prenom) profileUpdates.first_name = profilRIS.prenom;
         if (!user?.last_name && profilRIS.nom) profileUpdates.last_name = profilRIS.nom;
 
@@ -2699,9 +2694,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       };
 
       // ────────────────────────────────────────────────────────
-      // NIR parser : SOURCE OFFICIELLE UNIQUE pour sexe + date naissance
-      // Priorite ABSOLUE au NIR du RIS courant (ignorant user.birth_date
-      // qui peut etre errone / d'un ancien RIS)
+      // NIR parser : utilisé uniquement comme fallback pour le sexe
+      // (la date de naissance vient exclusivement de la fiche client)
       // ────────────────────────────────────────────────────────
       const nir = lastRisPayload?.profil?.numero_securite_sociale
         || lastRisPayload?.profil?.numero_ss
@@ -2709,25 +2703,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         || "";
       const nirInfo = parseNIR(nir);
 
-      // Date naissance : TOUJOURS le NIR si disponible, peu importe user.birth_date
-      let dateNaissanceFinale = null;
-      if (nirInfo?.date_naissance_estimee) {
-        dateNaissanceFinale = nirInfo.date_naissance_estimee;
-        if (user?.birth_date && user.birth_date !== nirInfo.date_naissance_estimee) {
-          console.warn(
-            `[handleGeler] user.birth_date (${user.birth_date}) IGNORE — ` +
-            `utilisation du NIR du RIS courant : ${nirInfo.date_naissance_estimee} (NIR=${nir})`
-          );
-          toast.warning(
-            `Date de naissance corrigée via le NIR du RIS : ${nirInfo.date_naissance_estimee} (fiche client : ${user.birth_date})`,
-            { autoClose: 6000 }
-          );
-        }
-      } else {
-        // Fallback uniquement si aucun NIR disponible
-        dateNaissanceFinale = user?.birth_date || "";
-        console.warn(`[handleGeler] Aucun NIR disponible, fallback sur user.birth_date : ${dateNaissanceFinale}`);
-      }
+      const dateNaissanceFinale = user?.birth_date || "";
 
       const consultantId = parseInt(localStorage.getItem("userid"));
       const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
