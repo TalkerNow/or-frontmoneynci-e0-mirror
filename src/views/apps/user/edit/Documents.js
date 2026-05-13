@@ -438,7 +438,15 @@ class DropzoneBasic extends React.Component {
                   Ouvrir
                 </DropdownItem>
                 <DropdownItem divider />
-                <DropdownItem header>Déplacer vers</DropdownItem>
+                <DropdownItem
+                  onClick={() =>
+                    this.sendToCareerAnalysis(file.id, file.filename, file.url)
+                  }
+                >
+                  Analyse carrière
+                </DropdownItem>
+                <DropdownItem divider />
+                <DropdownItem header style={{ color: "black" }}>Déplacer vers</DropdownItem>
                 {FOLDERS.map((folder) => (
                   <DropdownItem
                     key={folder.id}
@@ -447,15 +455,6 @@ class DropzoneBasic extends React.Component {
                     {folder.name}
                   </DropdownItem>
                 ))}
-                <DropdownItem divider />
-                <DropdownItem
-                  onClick={() =>
-                    this.sendToCareerAnalysis(file.id, file.filename, file.url)
-                  }
-                  style={{ color: "#7367f0", fontWeight: 500 }}
-                >
-                  📊 Analyse carrière
-                </DropdownItem>
                 <DropdownItem divider />
                 <DropdownItem onClick={() => this.download(file.id, file.url)}>
                   Télécharger

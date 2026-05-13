@@ -48,9 +48,9 @@ const NotesForm = ({
                   size="sm"
                   type="button"
                   onClick={onToggleExpand}
-                  title={isExpanded ? "Réduire" : "Élargir le pavé notes"}
+                  title={isExpanded ? "Afficher les notes internes" : "Réduire"}
                 >
-                  {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                  {isExpanded ? <Maximize2 size={16} /> : <Minimize2 size={16} />}
                 </Button>
               )}
             </div>
