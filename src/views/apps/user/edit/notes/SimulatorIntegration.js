@@ -4402,12 +4402,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                     <div style={{ fontSize: 11, color: "#555", paddingLeft: 22 }}>{d.info}</div>
                                     {d.id === "date_libre" && (
                                       <div style={{ display: "flex", gap: 6, marginTop: 4, paddingLeft: 22 }}>
-                                        <input
-                                          type="date"
+                                        <DateInputFR
                                           value={dateLibreInput}
                                           onChange={(e) => setDateLibreInput(e.target.value)}
                                           onClick={(e) => e.stopPropagation()}
-                                          style={{ padding: "3px 6px", borderRadius: 4, border: "1px solid #ccc", fontSize: 12, fontFamily: "inherit" }}
+                                          style={{ padding: "3px 6px", borderRadius: 4, border: "1px solid #ccc", fontSize: 12, fontFamily: "inherit", width: 110 }}
                                         />
                                         <button
                                           onClick={(e) => { e.stopPropagation(); if (dateLibreInput) handleChooseDate("date_libre", "Date libre", null, dateLibreInput); }}
