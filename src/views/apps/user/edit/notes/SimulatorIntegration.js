@@ -20,6 +20,7 @@ import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
 import SkillCreateModal from "./SkillCreateModal";
 import AdminEngineChat from "./AdminEngineChat";
+import DateInputFR from "../DateInputFR";
 import SweetAlert from "react-bootstrap-sweetalert";
 import MD_CONTENT from "./adminSkillsContent";
 
@@ -2165,27 +2166,28 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     }
     // Flag pending — survit à la navigation, repris par le polling au mount (EOR-61)
     try { localStorage.setItem(`gen_pending_RAPPORT_CONSULTATION_${id}`, JSON.stringify({ startedAt: Date.now() })); } catch {}
-    // Auto-récupération du RIS si fileToSend est vide
+    // Auto-récupération du RIS si fileToSend est vide. Si aucun PDF n'existe
+    // côté client, on continue sans fichier : le backend transmettra
+    // frozen_data + calculs via simulateur_context et n8n générera le rapport
+    // depuis les données saisies manuellement.
     let risFile = fileToSend;
     if (!risFile) {
-      // Chercher le premier PDF dans les documents serveur du client
       const pdfDoc = userDocuments.find((d) =>
         (d.filename || "").toLowerCase().endsWith(".pdf")
       );
-      if (!pdfDoc) {
-        toast.error("Aucun document PDF trouvé — importez le RIS du client.");
-        return;
-      }
-      try {
-        toast.info("Récupération automatique du RIS…");
-        const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") }, responseType: "blob" };
-        const response = await axios.get(`${global.config.server_url}/downloadFile?file_id=${pdfDoc.id}`, Config);
-        const blob = response.data;
-        risFile = new File([blob], pdfDoc.filename, { type: blob.type || "application/pdf" });
-        setFileToSend(risFile);
-      } catch {
-        toast.error("Impossible de récupérer le RIS depuis le serveur.");
-        return;
+      if (pdfDoc) {
+        try {
+          toast.info("Récupération automatique du RIS…");
+          const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") }, responseType: "blob" };
+          const response = await axios.get(`${global.config.server_url}/downloadFile?file_id=${pdfDoc.id}`, Config);
+          const blob = response.data;
+          risFile = new File([blob], pdfDoc.filename, { type: blob.type || "application/pdf" });
+          setFileToSend(risFile);
+        } catch {
+          toast.warning("Impossible de récupérer le RIS — génération à partir des données du simulateur.");
+        }
+      } else {
+        toast.info("RIS non détecté — génération à partir des données saisies.");
       }
     }
 
@@ -2209,7 +2211,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       ].join("\n");
 
       const formData = new FormData();
-      formData.append("file", risFile);
+      if (risFile) formData.append("file", risFile);
       formData.append("message", message);
       formData.append("client_id", id);
       formData.append("nir", nir);
@@ -5048,12 +5050,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             <div style={{ marginTop: 14, borderTop: "1px solid #eee", paddingTop: 14 }}>
                               {!fileToSend && userDocuments.filter(d => (d.filename || "").toLowerCase().endsWith(".pdf")).length === 0 && (
                                 <div style={{ padding: "8px 12px", background: "#FFF3CD", borderRadius: 7, marginBottom: 10, fontSize: 13, color: "#856404", border: "1px solid #FFE08A" }}>
-                                  ⚠ Aucun document PDF trouvé — importez le RIS du client.
+                                  ⚠ RIS non détecté — le rapport sera généré à partir des données saisies manuellement.
                                 </div>
                               )}
                               <button
                                 onClick={handleGenerateRapportConsultation}
-                                disabled={isGeneratingReport || (!fileToSend && userDocuments.filter(d => (d.filename || "").toLowerCase().endsWith(".pdf")).length === 0)}
+                                disabled={isGeneratingReport}
                                 style={{ padding: "10px 20px", borderRadius: 7, border: "none", background: isGeneratingReport ? "#a29bfe" : panel.color, color: "#fff", fontWeight: 700, fontSize: 13, cursor: isGeneratingReport ? "wait" : "pointer", opacity: isGeneratingReport ? 0.7 : 1 }}
                               >
                                 {isGeneratingReport ? "⏳ Génération en cours…" : "▶ Générer le rapport de consultation retraite"}
