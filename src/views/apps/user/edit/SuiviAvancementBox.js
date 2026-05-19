@@ -1738,7 +1738,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                 }
                               }
                               const isArTfdGenericEditable =
-                                typeCode === "ar_tfd" && stepNumber !== 4; // Not exactly sure what this was doing before
+                                typeCode === "ar_tfd";
 
                               const canEditDate =
                                 hasDate &&
