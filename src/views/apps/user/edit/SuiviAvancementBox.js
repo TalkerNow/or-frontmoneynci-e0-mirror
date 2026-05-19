@@ -2257,33 +2257,8 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                               </>
                                             ) : (
                                               <>
-                                                {/* Valider uniquement si étape actuelle */}
+                                                {/* Ajouter une date (avec pré-remplissage si sold_dates dispo) */}
                                                 {!step4ChSimuValidated &&
-                                                  step4ChSimuCandidateInput &&
-                                                  isCurrent && (
-                                                    <Button
-                                                      color="primary"
-                                                      className="mr-25"
-                                                      disabled={
-                                                        saving[s.id]?.[4] ===
-                                                        true
-                                                      }
-                                                      onClick={() =>
-                                                        validateStep4PaymentChSimu(
-                                                          s,
-                                                          step4ChSimuCandidateInput,
-                                                        )
-                                                      }
-                                                    >
-                                                      {saving[s.id]?.[4]
-                                                        ? "Validation..."
-                                                        : "Valider"}
-                                                    </Button>
-                                                  )}
-
-                                                {/* Ajouter uniquement si étape actuelle */}
-                                                {!step4ChSimuValidated &&
-                                                  !step4ChSimuCandidateInput &&
                                                   isCurrent && (
                                                     <Button
                                                       color="link"
@@ -2293,7 +2268,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                                         startEditing(
                                                           s.id,
                                                           4,
-                                                          "",
+                                                          step4ChSimuCandidateInput || "",
                                                         )
                                                       }
                                                       title="Ajouter une date"
@@ -2358,6 +2333,25 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                         {isArTfdStep6 &&
                                           !isContractFinished &&
                                           !!s.step4_completed_at && (
+                                            <Button
+                                              color="success"
+                                              size="sm"
+                                              disabled={loading}
+                                              onClick={() =>
+                                                completeContractCH(s)
+                                              }
+                                              title="Valider le dossier"
+                                            >
+                                              {loading
+                                                ? "Validation..."
+                                                : "Valider le dossier"}
+                                            </Button>
+                                          )}
+
+                                        {/* Étape 9 (Crédit d'impôt) - Avancement du dossier - Bouton Valider */}
+                                        {isCreditImpotStep9 &&
+                                          !isContractFinished &&
+                                          !!s.step7_completed_at && (
                                             <Button
                                               color="success"
                                               size="sm"
@@ -2877,34 +2871,8 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                               </>
                                             ) : (
                                               <>
-                                                {/* Valider seulement si étape actuelle */}
+                                                {/* Ajouter une date (avec pré-remplissage si sold_dates dispo) */}
                                                 {!step7Validated &&
-                                                  step7CandidateInput &&
-                                                  isCurrent && (
-                                                    <Button
-                                                      color="primary"
-                                                      className="mr-25"
-                                                      disabled={
-                                                        saving[s.id]?.[8] ===
-                                                        true
-                                                      }
-                                                      onClick={() =>
-                                                        validateStep7Date(
-                                                          s,
-                                                          step7CandidateInput,
-                                                          8, // Visual Step 8
-                                                        )
-                                                      }
-                                                    >
-                                                      {saving[s.id]?.[8]
-                                                        ? "Validation..."
-                                                        : "Valider"}
-                                                    </Button>
-                                                  )}
-
-                                                {/* Ajouter seulement si étape actuelle */}
-                                                {!step7Validated &&
-                                                  !step7CandidateInput &&
                                                   isCurrent && (
                                                     <Button
                                                       color="link"
@@ -2914,7 +2882,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                                         startEditing(
                                                           s.id,
                                                           8,
-                                                          "",
+                                                          step7CandidateInput || "",
                                                         )
                                                       }
                                                       title="Ajouter une date"
