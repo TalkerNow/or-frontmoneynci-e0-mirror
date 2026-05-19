@@ -1093,6 +1093,46 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
     }
   };
 
+  const resetStepDate = async (suivi, dbStepNumber) => {
+    setError(null);
+    try {
+      await axios.delete(
+        `${global.config.server_url}/suivi-avancement/${suivi.id}/steps/${dbStepNumber}`,
+        getConfig()
+      );
+      const newSuivis = await fetchSuivis();
+      setSuivis(newSuivis);
+    } catch (e) {
+      console.error("Erreur reset step", e);
+      setError("Impossible de retirer la date.");
+    }
+  };
+
+  const reopenContract = async (suivi) => {
+    if (!suivi.facture_id) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await axios.put(
+        `${global.config.server_url}/documents/${suivi.facture_id}`,
+        { document_state: "En attente" },
+        getConfig()
+      );
+      const [newContracts, newSuivis] = await Promise.all([
+        fetchContracts(),
+        fetchSuivis(),
+      ]);
+      setContracts(newContracts);
+      setSuivis(newSuivis);
+      if (onContractUpdate) onContractUpdate();
+    } catch (e) {
+      console.error("Erreur réouverture dossier", e);
+      setError("Impossible de réouvrir le dossier.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Step 4 (CH/SIMU/ACTU/RAC) : Paiement du contrat via sold_dates
   const validateStep4PaymentChSimu = async (suivi, dateInput) => {
     const svId = suivi.id;
@@ -1738,7 +1778,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                 }
                               }
                               const isArTfdGenericEditable =
-                                typeCode === "ar_tfd";
+                                typeCode === "ar_tfd" && stepNumber !== 5;
 
                               const canEditDate =
                                 hasDate &&
@@ -2314,6 +2354,25 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                             </Button>
                                           )}
 
+                                        {/* Étape 6 (AR/TFD) - Avancement du dossier - Bouton Valider */}
+                                        {isArTfdStep6 &&
+                                          !isContractFinished &&
+                                          !!s.step4_completed_at && (
+                                            <Button
+                                              color="success"
+                                              size="sm"
+                                              disabled={loading}
+                                              onClick={() =>
+                                                completeContractCH(s)
+                                              }
+                                              title="Valider le dossier"
+                                            >
+                                              {loading
+                                                ? "Validation..."
+                                                : "Valider le dossier"}
+                                            </Button>
+                                          )}
+
                                         {/* Étape 5 (Ex-Step 4) - Création devis */}
                                         {isCreditImpotStep5 && (
                                           <>
@@ -2485,33 +2544,8 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                               </>
                                             ) : (
                                               <>
-                                                {/* Valider seulement si étape actuelle */}
+                                                {/* Ajouter une date (avec pré-remplissage si sold_dates dispo) */}
                                                 {!s.step4_completed_at &&
-                                                  step5ArTfdCandidateInput &&
-                                                  isCurrent && (
-                                                    <Button
-                                                      color="primary"
-                                                      className="mr-25"
-                                                      disabled={
-                                                        saving[s.id]?.[5] ===
-                                                        true
-                                                      }
-                                                      onClick={() =>
-                                                        validateStep4PaymentArTfd(
-                                                          s,
-                                                          step5ArTfdCandidateInput,
-                                                        )
-                                                      }
-                                                    >
-                                                      {saving[s.id]?.[5]
-                                                        ? "Validation..."
-                                                        : "Valider"}
-                                                    </Button>
-                                                  )}
-
-                                                {/* Ajouter seulement si étape actuelle */}
-                                                {!s.step4_completed_at &&
-                                                  !step5ArTfdCandidateInput &&
                                                   isCurrent && (
                                                     <Button
                                                       color="link"
@@ -2521,7 +2555,7 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                                         startEditing(
                                                           s.id,
                                                           5,
-                                                          "",
+                                                          step5ArTfdCandidateInput || "",
                                                         )
                                                       }
                                                       title="Ajouter une date"
@@ -2920,6 +2954,33 @@ const SuiviAvancementBox = ({ clientId, onContractUpdate }) => {
                                               </>
                                             )}
                                           </>
+                                        )}
+
+                                        {/* Retirer la date — universel pour tout step avec date remplie */}
+                                        {hasDate && hasExistingDate && !isAvancementStep && (
+                                          <Button
+                                            color="link"
+                                            size="sm"
+                                            className="p-0 ml-25 text-danger"
+                                            onClick={() => resetStepDate(s, dbStepNumber)}
+                                            title="Retirer la date"
+                                          >
+                                            <RefreshCcw size={14} />
+                                          </Button>
+                                        )}
+
+                                        {/* Réouvrir dossier depuis Terminé */}
+                                        {isAvancementStep && isContractFinished && (
+                                          <Button
+                                            color="link"
+                                            size="sm"
+                                            className="p-0 text-warning"
+                                            disabled={loading}
+                                            onClick={() => reopenContract(s)}
+                                            title="Réouvrir le dossier"
+                                          >
+                                            <RefreshCcw size={14} />
+                                          </Button>
                                         )}
                                       </div>
                                     </div>
