@@ -3655,7 +3655,7 @@ class CreateContract extends React.Component {
                               </Row>
                               <Row style={{ marginBottom: "4px" }}>
                                 <Col md="9" sm="12" style={{ paddingRight: 0 }}>
-                                  <span className="bold-black">Crédit d'impôt avance immédiate :</span>
+                                  <span className="bold-black">Avance immédiate du crédit d'impôt (50%) :</span>
                                 </Col>
                                 <Col md="3" sm="12" style={{ paddingLeft: 0 }}>
                                   <div className="contract-div" style={{ display: "inline-block", width: "90px" }}>
@@ -3676,7 +3676,7 @@ class CreateContract extends React.Component {
                               <Row style={{ marginBottom: "4px" }}>
                                 <Col md="9" sm="12" style={{ paddingRight: 0 }}>
                                   <span className="bold-black">
-                                    {this.state.formValues["table3-subcontent1"] || "Acompte à la commande"} ({this.state.formValues["fp1"]}%) :
+                                    {(this.state.formValues["table3-subcontent1"] || "Acompte à la commande :").replace(/\s*:\s*$/, "").trim()} ({this.state.formValues["fp1"]}%) :
                                   </span>
                                 </Col>
                                 <Col md="3" sm="12" style={{ paddingLeft: 0 }}>
@@ -3688,7 +3688,7 @@ class CreateContract extends React.Component {
                               <Row>
                                 <Col md="9" sm="12" style={{ paddingRight: 0 }}>
                                   <span className="bold-black">
-                                    {this.state.formValues["table3-subcontent2"] || "Solde fin de mission"} ({this.state.formValues["fp2"]}%) :
+                                    {(this.state.formValues["table3-subcontent2"] || "Solde fin de mission :").replace(/\s*:\s*$/, "").trim()} ({this.state.formValues["fp2"]}%) :
                                   </span>
                                 </Col>
                                 <Col md="3" sm="12" style={{ paddingLeft: 0 }}>
@@ -3846,7 +3846,7 @@ class CreateContract extends React.Component {
                             style={{ fontStyle: "italic" }}
                             className="bold-black"
                           >
-                            <u>Date & signature du client :</u>
+                            <u>Signature du client + Date :</u>
                           </div>
                           <br />
                           <br />
