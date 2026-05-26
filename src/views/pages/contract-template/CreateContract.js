@@ -837,10 +837,12 @@ class CreateContract extends React.Component {
 
     var percent1 = input_values["fp1"] / 100;
     var percent2 = 1 - input_values["fp1"] / 100;
-    this.state.formValues["FINAL75"] =
-      Math.trunc(TOTALHT * VTA * percent1) + ".00";
-    this.state.formValues["FINAL25"] =
-      Math.trunc(TOTALHT * VTA * percent2) + ".00";
+    const fullTTC = Math.trunc(TOTALHT * VTA);
+    const baseTotal = input_values["credit_impot_50"]
+      ? Math.trunc(fullTTC * 0.5)
+      : fullTTC;
+    this.state.formValues["FINAL75"] = Math.trunc(baseTotal * percent1) + ".00";
+    this.state.formValues["FINAL25"] = Math.trunc(baseTotal * percent2) + ".00";
 
     this.setState({
       formValues: this.state.formValues,
@@ -3639,6 +3641,65 @@ class CreateContract extends React.Component {
                           >
                             <u>{this.state.formValues["table3-title"]}</u>
                           </div>
+                          {this.state.formValues.credit_impot_50 ? (
+                            <div style={{ marginLeft: "30px", marginTop: "8px" }}>
+                              <Row style={{ marginBottom: "4px" }}>
+                                <Col md="9" sm="12" style={{ paddingRight: 0 }}>
+                                  <span className="bold-black">Total prestation :</span>
+                                </Col>
+                                <Col md="3" sm="12" style={{ paddingLeft: 0 }}>
+                                  <div className="contract-div" style={{ display: "inline-block", width: "90px" }}>
+                                    {this.state.formValues["TOTALTTC"]}.00 €
+                                  </div>
+                                </Col>
+                              </Row>
+                              <Row style={{ marginBottom: "4px" }}>
+                                <Col md="9" sm="12" style={{ paddingRight: 0 }}>
+                                  <span className="bold-black">Avance immédiate du crédit d'impôt (50%) :</span>
+                                </Col>
+                                <Col md="3" sm="12" style={{ paddingLeft: 0 }}>
+                                  <div className="contract-div" style={{ display: "inline-block", width: "90px" }}>
+                                    - {Math.trunc(this.state.formValues["TOTALTTC"] * 0.5)}.00 €
+                                  </div>
+                                </Col>
+                              </Row>
+                              <Row style={{ marginBottom: "10px" }}>
+                                <Col md="9" sm="12" style={{ paddingRight: 0 }}>
+                                  <span className="bold-black" style={{ fontWeight: 700 }}>Reste à charge :</span>
+                                </Col>
+                                <Col md="3" sm="12" style={{ paddingLeft: 0 }}>
+                                  <div className="contract-div" style={{ display: "inline-block", width: "90px", fontWeight: 700 }}>
+                                    {Math.trunc(this.state.formValues["TOTALTTC"] * 0.5)}.00 €
+                                  </div>
+                                </Col>
+                              </Row>
+                              <Row style={{ marginBottom: "4px" }}>
+                                <Col md="9" sm="12" style={{ paddingRight: 0 }}>
+                                  <span className="bold-black">
+                                    {(this.state.formValues["table3-subcontent1"] || "Acompte à la commande :").replace(/\s*:\s*$/, "").trim()} ({this.state.formValues["fp1"]}%) :
+                                  </span>
+                                </Col>
+                                <Col md="3" sm="12" style={{ paddingLeft: 0 }}>
+                                  <div className="contract-div" style={{ display: "inline-block", width: "90px" }}>
+                                    {this.state.formValues["FINAL75"]} €
+                                  </div>
+                                </Col>
+                              </Row>
+                              <Row>
+                                <Col md="9" sm="12" style={{ paddingRight: 0 }}>
+                                  <span className="bold-black">
+                                    {(this.state.formValues["table3-subcontent2"] || "Solde fin de mission :").replace(/\s*:\s*$/, "").trim()} ({this.state.formValues["fp2"]}%) :
+                                  </span>
+                                </Col>
+                                <Col md="3" sm="12" style={{ paddingLeft: 0 }}>
+                                  <div className="contract-div" style={{ display: "inline-block", width: "90px" }}>
+                                    {this.state.formValues["FINAL25"]} €
+                                  </div>
+                                </Col>
+                              </Row>
+                            </div>
+                          ) : (
+                            <>
                           <Row>
                             <Col md="9" sm="12" style={{ paddingRight: 0 }}>
                               <div
@@ -3771,6 +3832,8 @@ class CreateContract extends React.Component {
                               </div>
                             </Col>
                           </Row>
+                            </>
+                          )}
                         </td>
                         <td
                           width="25%"
@@ -3783,7 +3846,7 @@ class CreateContract extends React.Component {
                             style={{ fontStyle: "italic" }}
                             className="bold-black"
                           >
-                            <u>Date & signature du client :</u>
+                            <u>Signature du client + Date :</u>
                           </div>
                           <br />
                           <br />
