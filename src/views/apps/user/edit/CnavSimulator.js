@@ -2,8 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect } from "react";
 import {
   coeffRevalo,
   plafondSS,
-  getRetirementAge,
-  getTrimTauxPlein,
+  getBaremeRetraite,
 } from "./simulatorData";
 import { fetchRISAnalysis } from "./risService";
 // We need to import convertRISToManualRows if we want to use its potentially shared logic,
@@ -113,8 +112,9 @@ export default function CnavSimulator({ user }) {
     const dayAge = Math.floor((diff % 31536000000) / 86400000);
     const monthAge = Math.floor(dayAge / 30);
 
-    const retirementAge = getRetirementAge(year);
-    const trimTauxPlein = getTrimTauxPlein(year);
+    const bareme = getBaremeRetraite(d);
+    const retirementAge = bareme.ageLegalLabel;
+    const trimTauxPlein = bareme.trimRequis;
 
     const restant = 62 - (yearAge + monthAge / 30);
     const anneeRestant = Math.floor(restant);

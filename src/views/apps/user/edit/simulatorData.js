@@ -33,34 +33,71 @@ export const plafondSS = {
   2021: 41136, 2022: 41136, 2023: 43992, 2024: 46368, 2025: 47100, 2026: 48060
 };
 
-export function getRetirementAge(year) {
-  if (year < 1961) return '62 ans';
-  if (year === 1961) return '62 ans et 3 mois';
-  if (year === 1962) return '62 ans et 6 mois';
-  if (year === 1963) return '62 ans et 9 mois';
-  if (year === 1964) return '63 ans';
-  if (year === 1965) return '63 ans et 3 mois';
-  if (year === 1966) return '63 ans et 6 mois';
-  if (year === 1967) return '63 ans et 9 mois';
-  return '64 ans';
-}
+// Barème retraite (âge légal + durée d'assurance taux plein).
+// Source : Circulaire Cnav 2026-07 du 5 mars 2026 (loi n°2025-1403 du 30/12/2025
+// "suspension de la réforme 2023"), pages 4 et 7. S'applique aux retraites
+// prenant effet à compter du 1er septembre 2026.
+//
+// keyMax = clé YYYYMM (année*100 + mois) dernière incluse — permet les
+// sous-découpages mensuels introduits par la circulaire (1951, 1961, 1965).
+const BAREME_TRANCHES = [
+  { keyMax: 194812, ageMonths: 720, ageLabel: '60 ans',           trim: 160 }, // ≤ 1948
+  { keyMax: 194912, ageMonths: 720, ageLabel: '60 ans',           trim: 161 }, // 1949
+  { keyMax: 195012, ageMonths: 720, ageLabel: '60 ans',           trim: 162 }, // 1950
+  { keyMax: 195106, ageMonths: 720, ageLabel: '60 ans',           trim: 163 }, // 1951 jan-juin
+  { keyMax: 195112, ageMonths: 724, ageLabel: '60 ans et 4 mois', trim: 163 }, // 1951 juil-déc
+  { keyMax: 195212, ageMonths: 729, ageLabel: '60 ans et 9 mois', trim: 164 }, // 1952
+  { keyMax: 195312, ageMonths: 734, ageLabel: '61 ans et 2 mois', trim: 165 }, // 1953
+  { keyMax: 195412, ageMonths: 739, ageLabel: '61 ans et 7 mois', trim: 165 }, // 1954
+  { keyMax: 195712, ageMonths: 744, ageLabel: '62 ans',           trim: 166 }, // 1955-1957
+  { keyMax: 196012, ageMonths: 744, ageLabel: '62 ans',           trim: 167 }, // 1958-1960
+  { keyMax: 196108, ageMonths: 744, ageLabel: '62 ans',           trim: 168 }, // 1961 jan-août
+  { keyMax: 196112, ageMonths: 747, ageLabel: '62 ans et 3 mois', trim: 169 }, // 1961 sept-déc
+  { keyMax: 196212, ageMonths: 750, ageLabel: '62 ans et 6 mois', trim: 169 }, // 1962
+  { keyMax: 196312, ageMonths: 753, ageLabel: '62 ans et 9 mois', trim: 170 }, // 1963
+  { keyMax: 196412, ageMonths: 753, ageLabel: '62 ans et 9 mois', trim: 170 }, // 1964
+  { keyMax: 196503, ageMonths: 753, ageLabel: '62 ans et 9 mois', trim: 170 }, // 1965 jan-mars
+  { keyMax: 196512, ageMonths: 756, ageLabel: '63 ans',           trim: 171 }, // 1965 avril-déc
+  { keyMax: 196612, ageMonths: 759, ageLabel: '63 ans et 3 mois', trim: 172 }, // 1966
+  { keyMax: 196712, ageMonths: 762, ageLabel: '63 ans et 6 mois', trim: 172 }, // 1967
+  { keyMax: 196812, ageMonths: 765, ageLabel: '63 ans et 9 mois', trim: 172 }, // 1968
+];
+const BAREME_DEFAULT = { ageMonths: 768, ageLabel: '64 ans', trim: 172 }; // ≥ 1969
 
-export function getTrimTauxPlein(year) {
-  if (year <= 1948) return 160;
-  switch (year) {
-    case 1949: return 161;
-    case 1950: return 162;
-    case 1951: return 163;
-    case 1952: return 164;
-    case 1953: case 1954: return 165;
-    case 1955: case 1956: case 1957: return 166;
-    case 1958: case 1959: case 1960: return 167;
-    case 1961: case 1962: case 1963: return 168;
-    case 1964: case 1965: case 1966: return 169;
-    case 1967: case 1968: case 1969: return 170;
-    case 1970: case 1971: case 1972: return 171;
-    default: return 172;
+/**
+ * Retourne âge légal + durée d'assurance taux plein selon la date de naissance.
+ * Si seule l'année est fournie, le mois est supposé être janvier — ce qui
+ * sous-estime l'âge légal pour les natifs de sept-déc 1961 et avril-déc 1965.
+ *
+ * @param {Date|string|number} input  Date, "YYYY-MM-DD", "DD/MM/YYYY", ou année
+ * @returns {{ ageLegalMois: number, ageLegalLabel: string, trimRequis: number } | null}
+ */
+export function getBaremeRetraite(input) {
+  if (input == null) return null;
+  let year, month;
+  if (input instanceof Date) {
+    if (isNaN(input)) return null;
+    year = input.getFullYear();
+    month = input.getMonth() + 1;
+  } else if (typeof input === 'number') {
+    year = input;
+    month = 1;
+  } else {
+    const s = String(input).trim();
+    let m;
+    if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})/))) {
+      year = +m[1]; month = +m[2];
+    } else if ((m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/))) {
+      year = +m[3]; month = +m[2];
+    } else {
+      const y = +s;
+      if (!Number.isFinite(y)) return null;
+      year = y; month = 1;
+    }
   }
+  const key = year * 100 + month;
+  const t = BAREME_TRANCHES.find(b => key <= b.keyMax) || BAREME_DEFAULT;
+  return { ageLegalMois: t.ageMonths, ageLegalLabel: t.ageLabel, trimRequis: t.trim };
 }
 
 // === ARRCO-AGIRC ===

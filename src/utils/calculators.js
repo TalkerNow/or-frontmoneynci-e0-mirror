@@ -8,7 +8,7 @@ import {
   ircantecTauxDisplay,
   rciPrixAchat,
   rciTauxDisplay,
-  getTrimTauxPlein,
+  getBaremeRetraite,
 } from '../views/apps/user/edit/simulatorData';
 
 const FRF_PER_EUR = 6.556957;
@@ -265,22 +265,6 @@ export function computeArrcoPts(carriereRows) {
 
 // ─── DATES DE DÉPART À LA RETRAITE ──────────────────────────────────────────
 
-// Barème âge légal post-réforme 2023 (Décret n°2023-435 du 3 juin 2023)
-const AGE_LEGAL_BY_BIRTH_YEAR = {
-  1961: { months: 62 * 12 + 3, label: '62 ans et 3 mois' },
-  1962: { months: 62 * 12 + 6, label: '62 ans et 6 mois' },
-  1963: { months: 63 * 12,     label: '63 ans' },
-  1964: { months: 63 * 12 + 3, label: '63 ans et 3 mois' },
-  1965: { months: 63 * 12 + 6, label: '63 ans et 6 mois' },
-  1966: { months: 63 * 12 + 9, label: '63 ans et 9 mois' },
-  1967: { months: 64 * 12,     label: '64 ans' },
-};
-
-function getAgeLegalEntry(birthYear) {
-  if (birthYear < 1961) return { months: 62 * 12, label: '62 ans' };
-  return AGE_LEGAL_BY_BIRTH_YEAR[birthYear] || { months: 64 * 12, label: '64 ans' };
-}
-
 function addMonths(date, n) {
   const totalMonths = date.getFullYear() * 12 + date.getMonth() + n;
   const y = Math.floor(totalMonths / 12);
@@ -298,9 +282,13 @@ function formatDateFR(date) {
 }
 
 function ageLabel(birth, target) {
-  const totalMonths =
+  let totalMonths =
     (target.getFullYear() - birth.getFullYear()) * 12 +
     (target.getMonth() - birth.getMonth());
+  // Si le jour du mois cible n'a pas encore atteint le jour de naissance,
+  // le mois en cours n'est pas révolu.
+  if (target.getDate() < birth.getDate()) totalMonths--;
+  if (totalMonths < 0) totalMonths = 0;
   const y = Math.floor(totalMonths / 12);
   const m = totalMonths % 12;
   return m ? `${y} ans ${m}m` : `${y} ans`;
@@ -342,13 +330,13 @@ export function parseBirthDate(birthDate) {
 export function computeDateLegale(birthDate) {
   const birth = parseBirthDate(birthDate);
   if (!birth) return null;
-  const entry = getAgeLegalEntry(birth.getFullYear());
-  const atAge = addMonths(birth, entry.months);
+  const bareme = getBaremeRetraite(birth);
+  const atAge = addMonths(birth, bareme.ageLegalMois);
   const departure = firstOfNextMonth(atAge);
   return {
     date: departure,
     label: formatDateFR(departure),
-    ageStr: entry.label,
+    ageStr: bareme.ageLegalLabel,
     dateStr: departure.toLocaleDateString('fr-FR'),
   };
 }
@@ -363,7 +351,7 @@ export function computeDateLegale(birthDate) {
 export function computeDateTauxPlein(birthDate, trimAcquis) {
   const birth = parseBirthDate(birthDate);
   if (!birth) return null;
-  const trimRequis = getTrimTauxPlein(birth.getFullYear());
+  const { trimRequis } = getBaremeRetraite(birth);
   const trimManquants = Math.max(0, trimRequis - trimAcquis);
   // Projection : 4 trimestres par an = 1 trimestre par trimestre civil (3 mois)
   const today = new Date();
@@ -443,15 +431,15 @@ export function computeAutoDateFromDispositif(dispositifId, birthDate, trimCotSt
   }
 
   if (dispositifId === 'retraite_progressive') {
-    const entry = getAgeLegalEntry(birthYear);
-    const rpMonths = entry.months - 24; // éligible 2 ans avant l'âge légal
+    const bareme = getBaremeRetraite(birth);
+    const rpMonths = bareme.ageLegalMois - 24; // éligible 2 ans avant l'âge légal
     const atAge = addMonths(birth, rpMonths);
     const departure = firstOfNextMonth(atAge);
     return {
       date: departure,
       dateStr: departure.toLocaleDateString('fr-FR'),
       age: ageLabel(birth, departure),
-      detail: `Éligible dès ${entry.label} − 2 ans (si 150 trimestres atteints)`,
+      detail: `Éligible dès ${bareme.ageLegalLabel} − 2 ans (si 150 trimestres atteints)`,
       color: '#0984E3',
       source: 'Retraite progressive',
     };
