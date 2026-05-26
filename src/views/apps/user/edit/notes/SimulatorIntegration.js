@@ -2726,15 +2726,35 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
             points_cipav_base: parseFloat(row.points) || 0,
             points_cipav_complementaire: parseFloat(row.pointsCompl) || 0,
           })),
-        // CARPIMKO (paramédicaux libéraux : Base + ASV + Complémentaire)
-        carpimko: Object.entries(carpimkoRows)
-          .filter(([_, row]) => row.points_base || row.points_asv || row.points_compl)
-          .map(([yr, row]) => ({
-            annee: parseInt(yr),
-            points_base: parseFloat(row.points_base) || 0,
-            points_asv: parseFloat(row.points_asv) || 0,
-            points_complementaire: parseFloat(row.points_compl) || 0,
-          })),
+        // CARPIMKO (paramédicaux libéraux : Base + ASV + Complémentaire).
+        // Source de vérité : carpimkoRows si rempli manuellement, sinon fallback automatique
+        // sur carriereRows[].regimes.CARPIMKO|_ASV|_COMPL (populé par l'analyse RIS).
+        carpimko: (() => {
+          const fromRows = Object.entries(carpimkoRows)
+            .filter(([_, row]) => row.points_base || row.points_asv || row.points_compl)
+            .map(([yr, row]) => ({
+              annee: parseInt(yr),
+              points_base: parseFloat(row.points_base) || 0,
+              points_asv: parseFloat(row.points_asv) || 0,
+              points_complementaire: parseFloat(row.points_compl) || 0,
+            }));
+          if (fromRows.length) return fromRows;
+          // Fallback : extraire directement de la carrière
+          return carriereRows
+            .filter(row => {
+              const r = row.regimes || {};
+              return (r.CARPIMKO || r.CARPIMKO_ASV || r.CARPIMKO_COMPL);
+            })
+            .map(row => {
+              const r = row.regimes || {};
+              return {
+                annee: parseInt(row.yr ?? row.annee),
+                points_base: parseFloat(r.CARPIMKO) || 0,
+                points_asv: parseFloat(r.CARPIMKO_ASV) || 0,
+                points_complementaire: parseFloat(r.CARPIMKO_COMPL) || 0,
+              };
+            });
+        })(),
         // Tier 1 régimes (CARMF, CAVP, CARPV, ...) : map générique
         regimes_points: regimesPoints,
         alertes: [],
@@ -2760,14 +2780,28 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
               points_complementaire: totalPointsCipavCompl,
               valeur_point_complementaire: droitsSynthese?.cipav?.valeur_point_complementaire || 2.89,
             },
-            carpimko: {
-              points_base: Object.values(carpimkoRows).reduce((s, r) => s + (parseFloat(r.points_base) || 0), 0),
-              valeur_point_base: droitsSynthese?.carpimko?.valeur_point_base || 0.5860,
-              points_asv: Object.values(carpimkoRows).reduce((s, r) => s + (parseFloat(r.points_asv) || 0), 0),
-              valeur_point_asv: droitsSynthese?.carpimko?.valeur_point_asv || 5.4500,
-              points_complementaire: Object.values(carpimkoRows).reduce((s, r) => s + (parseFloat(r.points_compl) || 0), 0),
-              valeur_point_complementaire: droitsSynthese?.carpimko?.valeur_point_complementaire || 11.30,
-            },
+            carpimko: (() => {
+              // Privilégie carpimkoRows (saisie manuelle), sinon fallback sur carriereRows[].regimes
+              let base = Object.values(carpimkoRows).reduce((s, r) => s + (parseFloat(r.points_base) || 0), 0);
+              let asv = Object.values(carpimkoRows).reduce((s, r) => s + (parseFloat(r.points_asv) || 0), 0);
+              let compl = Object.values(carpimkoRows).reduce((s, r) => s + (parseFloat(r.points_compl) || 0), 0);
+              if (base === 0 && asv === 0 && compl === 0) {
+                carriereRows.forEach(row => {
+                  const r = row.regimes || {};
+                  base += parseFloat(r.CARPIMKO) || 0;
+                  asv += parseFloat(r.CARPIMKO_ASV) || 0;
+                  compl += parseFloat(r.CARPIMKO_COMPL) || 0;
+                });
+              }
+              return {
+                points_base: base,
+                valeur_point_base: droitsSynthese?.carpimko?.valeur_point_base || 0.5860,
+                points_asv: asv,
+                valeur_point_asv: droitsSynthese?.carpimko?.valeur_point_asv || 5.4500,
+                points_complementaire: compl,
+                valeur_point_complementaire: droitsSynthese?.carpimko?.valeur_point_complementaire || 11.30,
+              };
+            })(),
             ircantec: {
               total_points: totalPointsIrcantec,
               valeur_point: droitsSynthese?.ircantec?.valeur_point || 0.56357,
@@ -4322,9 +4356,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                 const samb = computeSAMB(carriereRows);
                                 const { total: arrcoPts, projectionAnnuelle } = computeArrcoPts(carriereRows);
                                 const trimAr = Object.values(arState).reduce((s, v) => s + (Number(v) || 0), 0);
+                                // "Trimestres acquis" = cotisés + assimilés. Les rachetés sont
+                                // affichés séparément ("dont rachetés") à titre informatif et ne
+                                // sont pas inclus dans le total pour rester cohérent avec
+                                // computeDateTauxPlein (qui n'utilise que cotisés + assimilés).
                                 const trimTotal = Object.values(trimCotState).reduce((s, v) => s + (Number(v) || 0), 0)
-                                  + Object.values(trimAssState).reduce((s, v) => s + (Number(v) || 0), 0)
-                                  + trimAr;
+                                  + Object.values(trimAssState).reduce((s, v) => s + (Number(v) || 0), 0);
                                 const trimRequis = dispDateTauxPlein?.trimRequis ?? null;
                                 const trimManquants = dispDateTauxPlein?.trimManquants ?? null;
                                 let age = null;
@@ -4341,9 +4378,22 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                 const studyYears = user?.higher_education_years ?? user?.profil?.higher_education_years ?? null;
                                 const anneesActives = Object.keys(trimCotState).filter(yr => (Number(trimCotState[yr]) || 0) + (Number(trimAssState[yr]) || 0) + (Number(arState[yr]) || 0) > 0).length;
                                 const manquantsColor = trimManquants == null ? "#555" : trimManquants === 0 ? "#00B894" : "#C0392B";
+                                // Bonus maternité CNAV : 8 trim/enfant pour la mère (jusqu'à 1 par naissance/adoption/éducation).
+                                // Information uniquement — ne s'ajoute PAS à trimTotal car appliqué automatiquement par la CNAV au moment du calcul.
+                                const civ = String(user?.civility || '').toLowerCase().trim();
+                                const isFemme = civ === 'madame' || civ === 'mme' || civ === 'mlle' || civ === 'mademoiselle'
+                                  || String(user?.sexe || '').toUpperCase() === 'F';
+                                const bonusEnfantsCnav = (isFemme && childrenCount > 0) ? Number(childrenCount) * 8 : 0;
+                                const trimEffectifs = bonusEnfantsCnav > 0 ? trimTotal + bonusEnfantsCnav : null;
+                                const tauxPleinAtteintAvecBonus = trimEffectifs !== null && trimRequis !== null && trimEffectifs >= trimRequis;
                                 const rows = [
                                   ["Trimestres acquis", trimTotal > 0 ? `${trimTotal} trim.` : "—", "#0984E3"],
                                   ...(trimAr > 0 ? [["dont rachetés", `${trimAr} trim.`, "#1a1a2e"]] : []),
+                                  ...(bonusEnfantsCnav > 0 ? [[
+                                    `+ bonus maternité (${childrenCount} enfant${childrenCount > 1 ? 's' : ''} × 8)`,
+                                    `+${bonusEnfantsCnav} trim. → ${trimEffectifs} effectifs${tauxPleinAtteintAvecBonus ? ' ✓ taux plein atteint' : ''}`,
+                                    tauxPleinAtteintAvecBonus ? "#00B894" : "#FF9F43"
+                                  ]] : []),
                                   ["Trimestres requis (taux plein)", trimRequis != null ? `${trimRequis} trim.` : "—", "#555"],
                                   ["Trimestres manquants", trimManquants != null ? (trimManquants === 0 ? "✓ atteints" : `${trimManquants} trim.`) : "—", manquantsColor],
                                   ["Années avec activité", anneesActives > 0 ? `${anneesActives} an${anneesActives > 1 ? "s" : ""}` : "—", "#555"],

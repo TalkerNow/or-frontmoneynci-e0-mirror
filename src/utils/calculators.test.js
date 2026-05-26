@@ -202,29 +202,41 @@ describe('computeDateLegale', () => {
     expect(computeDateLegale(null)).toBeNull();
   });
 
-  test('born 1966 → legal age 63 ans 9 mois', () => {
-    // 1966-07-08 + 63 ans 9 mois = 2030-04-08 → 1er du mois suivant = 2030-05-01
+  test('born 1966 → legal age 63 ans 3 mois (Circulaire Cnav 2026-07)', () => {
+    // 1966-07-08 + 63 ans 3 mois = 2029-10-08 → 1er du mois suivant = 2029-11-01
     const result = computeDateLegale('1966-07-08');
     expect(result).not.toBeNull();
-    expect(result.date.getFullYear()).toBe(2030);
-    expect(result.date.getMonth()).toBe(4); // mai = index 4
+    expect(result.date.getFullYear()).toBe(2029);
+    expect(result.date.getMonth()).toBe(10); // novembre = index 10
+    expect(result.date.getDate()).toBe(1);
+    expect(result.ageStr).toBe('63 ans et 3 mois');
+  });
+
+  test('born 1968 → legal age 63 ans 9 mois (Circulaire Cnav 2026-07)', () => {
+    // 1968-03-15 + 63 ans 9 mois = 2031-12-15 → 1er du mois suivant = 2032-01-01
+    const result = computeDateLegale('1968-03-15');
+    expect(result.date.getFullYear()).toBe(2032);
+    expect(result.date.getMonth()).toBe(0); // janvier
     expect(result.date.getDate()).toBe(1);
     expect(result.ageStr).toBe('63 ans et 9 mois');
   });
 
-  test('born 1968 → legal age 64 ans', () => {
-    // 1968-03-15 + 64 ans = 2032-03-15 → 1er du mois suivant = 2032-04-01
-    const result = computeDateLegale('1968-03-15');
-    expect(result.date.getFullYear()).toBe(2032);
-    expect(result.date.getMonth()).toBe(3);
+  test('born 01/01/1965 → legal age 62 ans 9 mois, no day shift', () => {
+    // 1965-01-01 (tranche jan-mars 1965) + 62 ans 9 mois = 2027-10-01 → already 1st, no shift
+    const result = computeDateLegale('1965-01-01');
+    expect(result.date.getFullYear()).toBe(2027);
+    expect(result.date.getMonth()).toBe(9); // octobre
     expect(result.date.getDate()).toBe(1);
+    expect(result.ageStr).toBe('62 ans et 9 mois');
   });
 
-  test('born on the 1st → departure on same date (no shift)', () => {
-    // 1965-01-01 + 63 ans 6 mois = 2028-07-01 → already 1st, no shift
-    const result = computeDateLegale('1965-01-01');
-    expect(result.date.getMonth()).toBe(6); // juillet
+  test('born 1964 → legal age 62 ans 9 mois (suspension de la réforme 2023)', () => {
+    // 1964-03-10 + 62 ans 9 mois = 2026-12-10 → 1er du mois suivant = 2027-01-01
+    const result = computeDateLegale('1964-03-10');
+    expect(result.date.getFullYear()).toBe(2027);
+    expect(result.date.getMonth()).toBe(0); // janvier
     expect(result.date.getDate()).toBe(1);
+    expect(result.ageStr).toBe('62 ans et 9 mois');
   });
 });
 
@@ -241,10 +253,10 @@ describe('computeDateTauxPlein', () => {
   });
 
   test('correct trimRequis for birth year 1966', () => {
-    // getTrimTauxPlein(1966) = 169 (from simulatorData)
+    // Circulaire Cnav 2026-07 : 1966 → 172 trim
     const result = computeDateTauxPlein('1966-07-08', 100);
-    expect(result.trimRequis).toBe(169);
-    expect(result.trimManquants).toBe(69);
+    expect(result.trimRequis).toBe(172);
+    expect(result.trimManquants).toBe(72);
   });
 });
 
@@ -281,11 +293,11 @@ describe('computeAutoDateFromDispositif', () => {
   });
 
   test('retraite_progressive: 2 years before legal age', () => {
-    // 1966 → age légal 63 ans 9 mois → progressive = 61 ans 9 mois
-    // 1966-07-08 + 61*12+9 mois = 2028-04-08 → 2028-05-01
+    // Circulaire Cnav 2026-07 : 1966 → age légal 63 ans 3 mois → progressive = 61 ans 3 mois
+    // 1966-07-08 + 61*12+3 mois = 2027-10-08 → 2027-11-01
     const result = computeAutoDateFromDispositif('retraite_progressive', '1966-07-08', {}, {});
     expect(result).not.toBeNull();
-    expect(result.date.getFullYear()).toBe(2028);
-    expect(result.date.getMonth()).toBe(4); // mai = index 4
+    expect(result.date.getFullYear()).toBe(2027);
+    expect(result.date.getMonth()).toBe(10); // novembre = index 10
   });
 });

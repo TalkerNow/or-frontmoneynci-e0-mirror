@@ -79,6 +79,7 @@ export const REGIMES = [
   { key: "CAVAMAC", label: "CAVAMAC", color: "#DFE6E9", icon: "🏢", aliases: buildAliases("CAVAMAC"), hasCalcEngine: true },
   { key: "CAVOM",   label: "CAVOM",   color: "#DFE6E9", icon: "🏢", aliases: buildAliases("CAVOM"),   hasCalcEngine: true },
   { key: "CRN",     label: "CRN",     color: "#DFE6E9", icon: "📜", aliases: buildAliases("CRN"),     hasCalcEngine: true },
+  { key: "CAVEC",   label: "CAVEC",   color: "#FDCB6E", icon: "📊", aliases: buildAliases("CAVEC", "CAVEC Base", "CAVEC_BASE"), hasCalcEngine: true },
   // Tier 2 — fonction publique (à câbler séparément, règles spécifiques)
   { key: "CNRACL",  label: "CNRACL",  color: "#81ECEC", icon: "🏛️", aliases: buildAliases("CNRACL"),  hasCalcEngine: false },
   { key: "SRE",     label: "SRE",     color: "#B2BEC3", icon: "🏛️", aliases: buildAliases("SRE", "Fonction publique état", "fonction_publique_etat"), hasCalcEngine: false },
@@ -122,6 +123,10 @@ export const REGIMES_SIMPLES = {
   CRN: { piliers: [
     { key: "base",          label: "Base",          aliases: ["CRN", "CRN_BASE"] },
     { key: "complementaire", label: "Complémentaire", aliases: ["CRN_COMPL", "CRN_RC"] },
+  ]},
+  CAVEC: { piliers: [
+    { key: "base",          label: "Base",          aliases: ["CAVEC", "CAVEC Base", "CAVEC_BASE"] },
+    { key: "complementaire", label: "Complémentaire", aliases: ["CAVEC Complémentaire", "CAVEC_Complementaire", "CAVEC_COMPL", "CAVEC_COMPLEMENTAIRE", "CAVEC_RC"] },
   ]},
   MSA: { piliers: [
     { key: "base", label: "Base", aliases: ["MSA", "MSA_BASE"] },
