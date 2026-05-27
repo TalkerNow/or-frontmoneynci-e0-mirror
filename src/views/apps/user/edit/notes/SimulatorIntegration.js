@@ -494,6 +494,50 @@ function RegimeResultCard({ code, loading, error, result, carriereValidee }) {
 
 // ─── COMPONENT ──────────────────────────────────────────────────────────────
 
+// ── Uncertainty rendering helpers ─────────────────────────────────────────
+// Format d'entrée (côté n8n) : { level: 'low'|'medium'|'high', reason: string }
+const UNCERT_BG = { low: "#f0f9ff", medium: "#fff8e1", high: "#fff3e0" };
+const UNCERT_BORDER = { low: "#bae6fd", medium: "#f9a825", high: "#F39130" };
+const UNCERT_ICON = { low: "ℹ️", medium: "⚠️", high: "🚩" };
+const UNCERT_PREFIX = { low: "Note IA", medium: "À vérifier", high: "Incertain — relire le RIS" };
+
+function getCellUncert(map, year, fieldKey) {
+  if (!map || !year) return null;
+  const byField = map[year] || map[String(year)];
+  if (!byField) return null;
+  const entry = byField[fieldKey];
+  if (!entry || !entry.level || !entry.reason) return null;
+  return entry;
+}
+
+function uncertProps(u) {
+  if (!u) return { tdStyle: null, title: undefined, badge: null };
+  const bg = UNCERT_BG[u.level] || UNCERT_BG.medium;
+  const border = UNCERT_BORDER[u.level] || UNCERT_BORDER.medium;
+  const icon = UNCERT_ICON[u.level] || UNCERT_ICON.medium;
+  const prefix = UNCERT_PREFIX[u.level] || UNCERT_PREFIX.medium;
+  return {
+    tdStyle: { background: bg, boxShadow: `inset 0 0 0 1px ${border}`, position: "relative" },
+    title: `${prefix} (IA) : ${u.reason}`,
+    badge: (
+      <span
+        style={{
+          position: "absolute",
+          top: 1,
+          right: 2,
+          fontSize: 10,
+          lineHeight: 1,
+          pointerEvents: "none",
+          filter: "saturate(1.4)",
+        }}
+        aria-label={prefix}
+      >
+        {icon}
+      </span>
+    ),
+  };
+}
+
 export default function SimulatorV6({ mode = "production", id, user, onUserUpdate }) {
   // ── UI State ──
   const [apiSkills, setApiSkills] = useState([]);
@@ -726,6 +770,13 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     for (let i = 0; i < 65; i++) { init[2026 - i] = 0; }
     return init;
   });
+  // ── Uncertainties (IA "hésitations") par année et par champ ──
+  // Forme : { [year]: { [fieldKey]: { level: 'low'|'medium'|'high', reason: string } } }
+  // fieldKey suit les conventions du workflow n8n : revenu, trimestres_cotises,
+  // trimestres_assimiles, trimestres_ar, points.agirc_arrco, points.ircantec, points.rci.
+  const [uncertaintiesByYear, setUncertaintiesByYear] = useState({});
+  // Synthese-level + profil-level uncertainties (badges sur les totaux)
+  const [syntheseUncertainties, setSyntheseUncertainties] = useState({});
   const [frozenLoading, setFrozenLoading] = useState(false);
   const [isParsingRIS, setIsParsingRIS] = useState(false);
   const [visibleRowCount, setVisibleRowCount] = useState(20);
@@ -1600,6 +1651,22 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           devise: entry.annee < 2002 ? "FRF" : "€",
           regimes_concernes: Array.isArray(entry.regimes) ? entry.regimes.join(', ').toLowerCase() : (entry.regimes_concernes || ''),
         })));
+
+        // 2bis. Uncertainties par année (IA "hésitations") + synthese/profil
+        const uncertByYear = {};
+        carriereRaw.forEach((entry) => {
+          if (!entry || !entry.annee) return;
+          const u = entry.uncertainties;
+          if (u && typeof u === "object" && Object.keys(u).length) {
+            uncertByYear[entry.annee] = u;
+          }
+        });
+        const syntheseU = {
+          ...(payload?.synthese?.uncertainties || {}),
+          ...(payload?.profil?.uncertainties || {}),
+        };
+        setUncertaintiesByYear(uncertByYear);
+        setSyntheseUncertainties(syntheseU);
 
         // 2. Trimestres par année — nouveau format (cotisés/assimilés/rachetés séparés)
         //    avec fallback sur l'ancien format (champ "trimestres" agrégé → tout en cotisés)
@@ -3857,11 +3924,20 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                     revaloVal = getPlafond(row.yr);
                                   }
                                   const isPlafonne = revaloVal >= getPlafond(row.yr) && (row.yr >= 2005 || !deplafValues[row.yr]);
+                                  // ── Incertitudes IA pour chaque cellule de cette année ──
+                                  const uRevenu   = uncertProps(getCellUncert(uncertaintiesByYear, row.yr, "revenu"));
+                                  const uTrimCot  = uncertProps(getCellUncert(uncertaintiesByYear, row.yr, "trimestres_cotises"));
+                                  const uTrimAss  = uncertProps(getCellUncert(uncertaintiesByYear, row.yr, "trimestres_assimiles"));
+                                  const uTrimAr   = uncertProps(getCellUncert(uncertaintiesByYear, row.yr, "trimestres_ar"));
+                                  const uAgirc    = uncertProps(getCellUncert(uncertaintiesByYear, row.yr, "points.agirc_arrco"));
+                                  const uIrc      = uncertProps(getCellUncert(uncertaintiesByYear, row.yr, "points.ircantec"));
+                                  const uRci      = uncertProps(getCellUncert(uncertaintiesByYear, row.yr, "points.rci"));
                                   return (
                                     <tr key={row.yr} style={{ background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
                                       <td style={{ padding: "3px 5px", fontWeight: 700, color: "#333" }}>{row.yr}</td>
-                                      <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "1px solid #eee" }}>
+                                      <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "1px solid #eee", ...(uRevenu.tdStyle || {}) }}>
                                         <input type="number" value={row.sal || ""} disabled={carriereValidee}
+                                          title={uRevenu.title}
                                           onChange={(e) => {
                                             const v = parseInt(e.target.value) || 0;
                                             const yr = row.yr;
@@ -3912,6 +3988,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                         {row.devise === 'FRF' && (
                                           <span style={{ display: "block", fontSize: 10, color: "#E17055", fontWeight: 700, textAlign: "center", marginTop: 1 }}>FRF</span>
                                         )}
+                                        {uRevenu.badge}
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "right", borderLeft: "2px solid #6C5CE715" }}>
                                         <input type="number" value={row.ss || ""} disabled={carriereValidee}
@@ -3941,21 +4018,25 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                             style={{ cursor: carriereValidee ? "default" : "pointer", accentColor: "#6C5CE7", width: 12, height: 12 }} />
                                         )}
                                       </td>
-                                      <td style={{ padding: "3px 5px", textAlign: "center" }}>
+                                      <td style={{ padding: "3px 5px", textAlign: "center", ...(uTrimCot.tdStyle || {}) }}>
                                         <input type="number" value={trimCotState[row.yr] ?? 0} disabled={carriereValidee}
+                                          title={uTrimCot.title}
                                           onChange={(e) => { const v = parseInt(e.target.value) || 0; setTrimCotState(prev => ({ ...prev, [row.yr]: v })); }}
                                           style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 15, padding: "1px" }} />
+                                        {uTrimCot.badge}
                                       </td>
-                                      <td style={{ padding: "3px 5px", textAlign: "center" }}>
+                                      <td style={{ padding: "3px 5px", textAlign: "center", ...(uTrimAss.tdStyle || {}) }}>
                                         <input type="number" value={trimAssState[row.yr] ?? 0} disabled={carriereValidee}
                                           onChange={(e) => { const v = parseInt(e.target.value) || 0; setTrimAssState(prev => ({ ...prev, [row.yr]: v })); }}
-                                          title="Trimestres assimilés (maladie, chômage, maternité…)" style={{ width: 26, textAlign: "center", border: "1px solid #6C5CE730", borderRadius: 3, fontSize: 15, padding: "1px", color: "#6C5CE7" }} />
+                                          title={uTrimAss.title || "Trimestres assimilés (maladie, chômage, maternité…)"} style={{ width: 26, textAlign: "center", border: "1px solid #6C5CE730", borderRadius: 3, fontSize: 15, padding: "1px", color: "#6C5CE7" }} />
+                                        {uTrimAss.badge}
                                       </td>
-                                      <td style={{ padding: "3px 5px", textAlign: "center" }}>
+                                      <td style={{ padding: "3px 5px", textAlign: "center", ...(uTrimAr.tdStyle || {}) }}>
                                         <input type="number" value={arState[row.yr] ?? 0} disabled={carriereValidee}
                                           onChange={(e) => { const v = parseInt(e.target.value) || 0; setArState(prev => ({ ...prev, [row.yr]: v })); }}
-                                          title="Trimestres rachetés (versement pour la retraite)"
+                                          title={uTrimAr.title || "Trimestres rachetés (versement pour la retraite)"}
                                           style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 15, padding: "1px" }} />
+                                        {uTrimAr.badge}
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", fontWeight: 700, color: "#6C5CE7" }}>{tot}</td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #0984E315" }}>
@@ -3964,14 +4045,17 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                       <td style={{ padding: "3px 5px", textAlign: "center" }}>
                                         <input type="number" step="0.01" value={row.agircT2 ?? ""} disabled={carriereValidee} onChange={e => { const v = parseFloat(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircT2: v } : r)); }} style={{ width: 72, textAlign: "center", border: "1px solid #0984E330", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#0984E3", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                       </td>
-                                      <td style={{ padding: "3px 5px", textAlign: "center" }}>
-                                        <input type="number" step="0.01" value={row.agircPts || ""} disabled={carriereValidee} onChange={e => { const v = parseFloat(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircPts: v } : r)); }} style={{ width: 72, textAlign: "center", border: "1px solid #0984E350", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#1a1a2e", fontWeight: 800, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                      <td style={{ padding: "3px 5px", textAlign: "center", ...(uAgirc.tdStyle || {}) }}>
+                                        <input type="number" step="0.01" value={row.agircPts || ""} disabled={carriereValidee} title={uAgirc.title} onChange={e => { const v = parseFloat(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircPts: v } : r)); }} style={{ width: 72, textAlign: "center", border: "1px solid #0984E350", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#1a1a2e", fontWeight: 800, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        {uAgirc.badge}
                                       </td>
-                                      <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #00B89415" }}>
-                                        <input type="number" step="0.01" value={row.ircPts || ""} disabled={carriereValidee} onChange={e => { const v = parseFloat(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, ircPts: v } : r)); }} style={{ width: 72, textAlign: "center", border: "1px solid #00B89430", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#00B894", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                      <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #00B89415", ...(uIrc.tdStyle || {}) }}>
+                                        <input type="number" step="0.01" value={row.ircPts || ""} disabled={carriereValidee} title={uIrc.title} onChange={e => { const v = parseFloat(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, ircPts: v } : r)); }} style={{ width: 72, textAlign: "center", border: "1px solid #00B89430", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#00B894", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        {uIrc.badge}
                                       </td>
-                                      <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #E1705515" }}>
-                                        <input type="number" step="0.01" value={row.rciPts || ""} disabled={carriereValidee} onChange={e => { const v = parseFloat(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, rciPts: v } : r)); }} style={{ width: 72, textAlign: "center", border: "1px solid #E1705530", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#E17055", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                      <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #E1705515", ...(uRci.tdStyle || {}) }}>
+                                        <input type="number" step="0.01" value={row.rciPts || ""} disabled={carriereValidee} title={uRci.title} onChange={e => { const v = parseFloat(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, rciPts: v } : r)); }} style={{ width: 72, textAlign: "center", border: "1px solid #E1705530", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#E17055", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        {uRci.badge}
                                       </td>
                                       {cnavplOpen ? (
                                         <>
