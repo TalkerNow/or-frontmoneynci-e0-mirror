@@ -5279,6 +5279,7 @@ class EditContract extends React.Component {
                                   </div>
                                 </Col>
                               </Row>
+                              <hr style={{ borderTop: "1px solid #d0d0d0", margin: "4px 0 8px 0" }} />
                               <Row style={{ marginBottom: "4px" }}>
                                 <Col md="9" sm="12" style={{ paddingRight: 0 }}>
                                   <span className="bold-black">
