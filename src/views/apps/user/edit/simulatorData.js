@@ -72,6 +72,9 @@ const BAREME_DEFAULT = { ageMonths: 768, ageLabel: '64 ans', trim: 172 }; // ≥
  * @param {Date|string|number} input  Date, "YYYY-MM-DD", "DD/MM/YYYY", ou année
  * @returns {{ ageLegalMois: number, ageLegalLabel: string, trimRequis: number } | null}
  */
+// Cache module-level : null = pas encore chargé, fallback = BAREME_TRANCHES
+let _baremeCache = null;
+
 export function getBaremeRetraite(input) {
   if (input == null) return null;
   let year, month;
@@ -95,9 +98,16 @@ export function getBaremeRetraite(input) {
       year = y; month = 1;
     }
   }
-  const key = year * 100 + month;
-  const t = BAREME_TRANCHES.find(b => key <= b.keyMax) || BAREME_DEFAULT;
+  const key     = year * 100 + month;
+  const tranches = _baremeCache ? _baremeCache.tranches : BAREME_TRANCHES;
+  const def      = _baremeCache ? _baremeCache.default  : BAREME_DEFAULT;
+  const t = tranches.find(b => key <= b.keyMax) || def;
   return { ageLegalMois: t.ageMonths, ageLegalLabel: t.ageLabel, trimRequis: t.trim };
+}
+
+export async function initBareme() {
+  const data = await fetchBaremeFromApi();
+  if (data) _baremeCache = data;
 }
 
 // === ARRCO-AGIRC ===
@@ -238,4 +248,33 @@ export const rciTauxDisplay = {
   2024: { tauxA: "7,00%", tauxB: "8,00%", ref: "20,734 \u20AC" },
   2025: { tauxA: "7,00%", tauxB: "8,00%", ref: "21,532 \u20AC" },
   2026: { tauxA: "7,00%", tauxB: "8,00%", ref: "22,450 \u20AC" }
-};
+}
+
+// \u2500\u2500 Conversion format DB \u2192 format local \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+export function dbRowsToBareme(apiRows) {
+  const tranches = apiRows
+    .filter(r => !r.is_default)
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map(r => ({
+      keyMax:    r.key_max,
+      ageMonths: r.age_months,
+      ageLabel:  r.age_label,
+      trim:      r.trim,
+    }))
+  const defaultRow = apiRows.find(r => r.is_default)
+  const baremeDef  = defaultRow
+    ? { ageMonths: defaultRow.age_months, ageLabel: defaultRow.age_label, trim: defaultRow.trim }
+    : BAREME_DEFAULT
+  return { tranches, default: baremeDef }
+}
+
+// \u2500\u2500 Fetch depuis l'API (renvoie null si indisponible) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+export async function fetchBaremeFromApi() {
+  try {
+    const api = (await import('../../../../services/api')).default
+    const res = await api.get('/v1/departure-rules')
+    return dbRowsToBareme(res.data)
+  } catch {
+    return null
+  }
+}

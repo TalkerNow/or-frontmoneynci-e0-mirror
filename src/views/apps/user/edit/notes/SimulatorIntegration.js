@@ -23,6 +23,7 @@ import AdminEngineChat from "./AdminEngineChat";
 import DateInputFR from "../DateInputFR";
 import SweetAlert from "react-bootstrap-sweetalert";
 import MD_CONTENT from "./adminSkillsContent";
+import BaremeRetraitePage from "../../../bareme-retraite";
 
 // ─── DATA ───────────────────────────────────────────────────────────────────
 
@@ -171,6 +172,7 @@ const ADMIN_SECTIONS = {
   prompts: { label: "Prompts IA", icon: "🤖", color: "#E17055", desc: "26 prompts stricts pré-calibrés" },
   registre: { label: "Registre d'erreurs", icon: "📚", color: "#D63031", desc: "Règles Gate #2 — auto-apprentissage" },
   flux: { label: "Flux & Architecture", icon: "🔀", color: "#D63031", desc: "Diagramme du flux utilisateur" },
+  bareme: { label: "Barème retraite", icon: "📅", color: "#2D3436", desc: "Âge légal et trimestres requis par génération" },
 };
 
 const DOC_TYPES = [
@@ -5658,6 +5660,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
               {/* REGISTRE D'ERREURS */}
               {adminSection === "registre" && (
                 <RegistreErreurs />
+              )}
+
+              {/* BARÈME RETRAITE */}
+              {adminSection === "bareme" && (
+                <BaremeRetraitePage />
               )}
 
               {/* FLUX */}
