@@ -23,6 +23,7 @@ import AdminEngineChat from "./AdminEngineChat";
 import DateInputFR from "../DateInputFR";
 import SweetAlert from "react-bootstrap-sweetalert";
 import MD_CONTENT from "./adminSkillsContent";
+import BaremeRetraitePage from "../../../bareme-retraite";
 
 // ─── DATA ───────────────────────────────────────────────────────────────────
 
@@ -171,6 +172,7 @@ const ADMIN_SECTIONS = {
   prompts: { label: "Prompts IA", icon: "🤖", color: "#E17055", desc: "26 prompts stricts pré-calibrés" },
   registre: { label: "Registre d'erreurs", icon: "📚", color: "#D63031", desc: "Règles Gate #2 — auto-apprentissage" },
   flux: { label: "Flux & Architecture", icon: "🔀", color: "#D63031", desc: "Diagramme du flux utilisateur" },
+  bareme: { label: "Barème retraite", icon: "📅", color: "#2D3436", desc: "Âge légal et trimestres requis par génération" },
 };
 
 const DOC_TYPES = [
@@ -2388,8 +2390,24 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       setGeneratedDocs((prev) => [doc, ...prev]);
       setViewingDoc(doc);
 
-      // Persister le rapport en base pour survie au F5
-      saveSkillResult(id, "RAPPORT_CONSULTATION", doc);
+      // Persister la version post-traitée (chain-of-thought enlevée, fences strippés)
+      // sur la ligne créée par le backend, plutôt que d'en créer une 2ème via POST.
+      // Sans ça, on dupliquait analysis_reports à chaque génération et la suppression
+      // ne nettoyait qu'une seule ligne → le rapport "revient" au F5.
+      const backendReportId = backendRes?.data?.report_id;
+      if (backendReportId) {
+        try {
+          await axios.put(
+            `${global.config.server_url}/v1/analysis-reports/${backendReportId}`,
+            { result_json: doc },
+            { headers: { Authorization: "Bearer " + localStorage.getItem("token") } }
+          );
+        } catch (e) {
+          // Échec rare : la ligne backend garde le rawHtml (chain-of-thought visible au F5).
+          // On ne POST PAS de fallback : créer une 2ème ligne ré-introduirait le bug du doublon.
+          console.warn("rapport_consultation: PUT update failed, F5 affichera la version brute", e?.response?.data || e?.message);
+        }
+      }
 
       toast.success("Rapport de consultation généré avec succès");
     } catch (err) {
@@ -5744,6 +5762,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                 <RegistreErreurs />
               )}
 
+              {/* BARÈME RETRAITE */}
+              {adminSection === "bareme" && (
+                <BaremeRetraitePage />
+              )}
+
               {/* FLUX */}
               {adminSection === "flux" && (
                 <div>
@@ -5941,21 +5964,28 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           const docToDelete = generatedDocs.find((d) => d.id === deleteGenDocId);
           setGeneratedDocs((prev) => prev.filter((d) => d.id !== deleteGenDocId));
           setDeleteGenDocId(null);
-          // Supprimer aussi de la base pour ne pas le recharger au F5
+          // Supprimer aussi de la base pour ne pas le recharger au F5.
+          // On boucle sur /latest jusqu'à 404 : il peut exister plusieurs lignes
+          // historiques (doublons d'un ancien bug de double-save, ou rapports
+          // validés/livrés d'un cycle précédent). Sinon le rapport "revient" au F5.
           if (docToDelete?.type === "rapport_consultation") {
-            try {
-              const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
-              const report = await axios.get(
-                `${global.config.server_url}/v1/analysis-reports/latest/${id}/RAPPORT_CONSULTATION`,
-                Config,
-              );
-              if (report?.data?.id) {
+            const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
+            for (let i = 0; i < 20; i++) {
+              try {
+                const report = await axios.get(
+                  `${global.config.server_url}/v1/analysis-reports/latest/${id}/RAPPORT_CONSULTATION`,
+                  Config,
+                );
+                if (!report?.data?.id) break;
                 await axios.delete(
                   `${global.config.server_url}/v1/analysis-reports/${report.data.id}`,
                   Config,
                 );
+              } catch (e) {
+                // 404 = plus de rapport, on a fini. Toute autre erreur = stop pour éviter une boucle.
+                break;
               }
-            } catch { /* 404 = déjà supprimé, on ignore */ }
+            }
           } else if (docToDelete?.type === "simulation_retraite") {
             try {
               const token = localStorage.getItem("token") || "";

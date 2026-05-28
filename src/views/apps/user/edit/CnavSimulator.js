@@ -3,6 +3,7 @@ import {
   coeffRevalo,
   plafondSS,
   getBaremeRetraite,
+  initBareme,
 } from "./simulatorData";
 import { fetchRISAnalysis } from "./risService";
 // We need to import convertRISToManualRows if we want to use its potentially shared logic,
@@ -464,6 +465,9 @@ export default function CnavSimulator({ user }) {
     },
     [user, handlePrefill],
   );
+
+  // Charge le barème depuis la DB au montage (met à jour le cache de simulatorData)
+  useEffect(() => { initBareme(); }, []);
 
   // Auto-prefill depuis l'import ManualCareerTable (event temps réel + sessionStorage au montage)
   useEffect(() => {
