@@ -2387,6 +2387,15 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         toast.error("Rapport généré mais impossible de le sauvegarder sur le serveur.");
       }
 
+      // Enforcement Gate #2 : alertes / arrêt critique renvoyés par le registre (backend).
+      const rawAlertes = Array.isArray(backendRes.data?.alertes) ? backendRes.data.alertes : [];
+      const displayAlertes = rawAlertes.map((a) => ({
+        code: a.code,
+        message: a.message,
+        niveau: a.niveau === "CRITIQUE" ? "ROUGE" : "ORANGE",
+      }));
+      const arretCritique = backendRes.data?.arret_critique || null;
+
       const doc = {
         id: `rc_${Date.now()}`,
         name: `Rapport de consultation retraite de ${displayName}`,
@@ -2394,6 +2403,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         createdAt: new Date().toISOString(),
         url: reportUrl,
         htmlContent: contentString,
+        alertes: displayAlertes,
+        arretCritique,
       };
 
       setGeneratedDocs((prev) => [doc, ...prev]);
@@ -2418,7 +2429,14 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         }
       }
 
-      toast.success("Rapport de consultation généré avec succès");
+      if (arretCritique) {
+        toast.error(`🚫 Livraison bloquée : ${arretCritique.raison || "incohérence critique détectée par le registre"}`, { autoClose: 8000 });
+      } else if (displayAlertes.length > 0) {
+        toast.warn(`⚠️ ${displayAlertes.length} alerte(s) de cohérence — voir le livrable`, { autoClose: 5000 });
+        toast.success("Rapport de consultation généré avec succès");
+      } else {
+        toast.success("Rapport de consultation généré avec succès");
+      }
     } catch (err) {
       if (axios.isCancel(err)) return;
       console.error("rapport_consultation generation failed:", err);
