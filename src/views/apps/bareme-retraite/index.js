@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button, Spinner } from 'reactstrap'
 import { toast } from 'react-toastify'
 import api from '../../../services/api'
@@ -17,6 +17,18 @@ async function fetchHistory() {
 }
 async function restoreSnapshot(id) {
   const res = await api.post(`/v1/departure-rules/restore/${id}`)
+  return res.data
+}
+async function importPdfBareme(file) {
+  const fd = new FormData()
+  fd.append('pdf', file)
+  // Content-Type à undefined : neutralise le défaut application/json de l'instance
+  // pour que le navigateur pose multipart/form-data avec le bon boundary.
+  // L'extraction IA est lente (~2-3 min) — pas de timeout (timeout: 0).
+  const res = await api.post('/v1/departure-rules/import-pdf', fd, {
+    headers: { 'Content-Type': undefined },
+    timeout: 0,
+  })
   return res.data
 }
 
@@ -46,6 +58,9 @@ export default function BaremeRetraitePage() {
   const [history, setHistory]         = useState([])
   const [histLoading, setHistLoading] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [importing, setImporting]     = useState(false)
+  const [proposal, setProposal]       = useState(null)
+  const fileInputRef                  = useRef(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -123,6 +138,39 @@ export default function BaremeRetraitePage() {
     }
   }
 
+  const handlePickFile = () => fileInputRef.current && fileInputRef.current.click()
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files && e.target.files[0]
+    e.target.value = '' // reset pour pouvoir ré-uploader le même fichier
+    if (!file) return
+    setImporting(true)
+    try {
+      const data = await importPdfBareme(file)
+      setProposal(data)
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.message || "Échec de l'import")
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  const applyProposal = () => {
+    if (!proposal) return
+    const next = {}
+    proposal.proposed.forEach(p => {
+      if (p.changed) next[p.id] = { age_months: p.proposed_age_months, trim: p.proposed_trim }
+    })
+    setEdits(next)
+    setProposal(null)
+    const n = Object.keys(next).length
+    if (n === 0) {
+      toast.info('Aucun changement détecté — le barème est déjà à jour.')
+    } else {
+      toast.info(`${n} ligne${n > 1 ? 's' : ''} chargée${n > 1 ? 's' : ''} — vérifiez le tableau puis cliquez sur Sauvegarder.`)
+    }
+  }
+
   const allTrims  = rows.map(r => r.trim)
   const trimFloor = allTrims.length ? Math.min(...allTrims) : 160
   const trimRange = (allTrims.length ? Math.max(...allTrims) : 172) - trimFloor || 1
@@ -153,6 +201,21 @@ export default function BaremeRetraitePage() {
           )}
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/pdf,.pdf"
+            onChange={handleFileChange}
+            style={{ display: 'none' }}
+          />
+          <button
+            onClick={handlePickFile}
+            disabled={importing}
+            title="Extraire le barème depuis une circulaire CNAV (PDF)"
+            style={{ fontSize: 13, padding: '6px 14px', borderRadius: 6, border: '1px solid #0984E3', background: '#0984E315', color: '#0984E3', fontWeight: 600, cursor: importing ? 'default' : 'pointer', opacity: importing ? 0.7 : 1 }}
+          >
+            {importing ? 'Extraction…' : '📄 Importer un PDF'}
+          </button>
           <button
             onClick={openHistory}
             style={{ fontSize: 13, padding: '6px 14px', borderRadius: 6, border: '1px solid #ccc', background: '#fafafa', color: '#555', fontWeight: 600, cursor: 'pointer' }}
@@ -275,6 +338,98 @@ export default function BaremeRetraitePage() {
         <ModalFooter>
           <Button color="danger" onClick={() => setConfirmOpen(false)}>Annuler</Button>
           <Button color="primary" onClick={handleSave}>Confirmer</Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* ── Import proposal modal ──────────────────────────────── */}
+      <Modal isOpen={!!proposal} toggle={() => setProposal(null)} size="lg">
+        <ModalHeader toggle={() => setProposal(null)}>
+          Proposition d'import {proposal?.source ? `— ${proposal.source}` : ''}
+        </ModalHeader>
+        <ModalBody>
+          {proposal && (() => {
+            const changedRows = proposal.proposed.filter(p => p.changed)
+            return (
+              <div>
+                <div style={{ fontSize: 13, marginBottom: 10 }}>
+                  Extraction <strong>métropole / régime général</strong> uniquement
+                  (Saint-Pierre-et-Miquelon et Mayotte exclus).{' '}
+                  <strong>{proposal.changed_count}</strong> ligne{proposal.changed_count > 1 ? 's' : ''} à modifier.
+                </div>
+
+                {proposal.warnings && proposal.warnings.length > 0 && (
+                  <div style={{ fontSize: 12, color: '#9a6700', background: '#fff8e1', border: '1px solid #ffe08a', borderRadius: 6, padding: '8px 10px', marginBottom: 12 }}>
+                    ⚠️ {proposal.warnings.length} génération{proposal.warnings.length > 1 ? 's' : ''} non trouvée{proposal.warnings.length > 1 ? 's' : ''} dans le PDF — valeur actuelle conservée :
+                    <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+                      {proposal.warnings.map((w, i) => <li key={i}>{w}</li>)}
+                    </ul>
+                  </div>
+                )}
+
+                {changedRows.length === 0 ? (
+                  <p className="text-muted text-center" style={{ margin: '12px 0' }}>
+                    Aucun changement détecté — le barème correspond déjà au PDF.
+                  </p>
+                ) : (
+                  <div style={{ border: '1px solid #eee', borderRadius: 8, overflow: 'hidden' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 150px 150px', padding: '6px 12px', background: '#fafafa', borderBottom: '1px solid #eee', fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' }}>
+                      <div>Génération</div>
+                      <div>Âge légal</div>
+                      <div>Trimestres</div>
+                    </div>
+                    {changedRows.map(p => {
+                      const ageChanged  = p.current_age_months !== p.proposed_age_months
+                      const trimChanged = p.current_trim !== p.proposed_trim
+                      return (
+                        <div key={p.id} style={{ display: 'grid', gridTemplateColumns: '1fr 150px 150px', padding: '6px 12px', borderBottom: '1px solid #f5f5f5', fontSize: 12, alignItems: 'center' }}>
+                          <div style={{ color: '#555' }}>{p.generation}</div>
+                          <div>
+                            {ageChanged ? (
+                              <span>
+                                <span style={{ color: '#bbb', textDecoration: 'line-through' }}>{ageLabelFull(p.current_age_months)}</span>
+                                {' → '}
+                                <span style={{ color: '#0984E3', fontWeight: 700 }}>{ageLabelFull(p.proposed_age_months)}</span>
+                              </span>
+                            ) : (
+                              <span style={{ color: '#999' }}>{ageLabelFull(p.proposed_age_months)}</span>
+                            )}
+                          </div>
+                          <div>
+                            {trimChanged ? (
+                              <span>
+                                <span style={{ color: '#bbb', textDecoration: 'line-through' }}>{p.current_trim}</span>
+                                {' → '}
+                                <span style={{ color: '#0984E3', fontWeight: 700 }}>{p.proposed_trim}</span>
+                              </span>
+                            ) : (
+                              <span style={{ color: '#999' }}>{p.proposed_trim}</span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {proposal.changed_count > 0 && (
+                  <p style={{ fontSize: 11, color: '#888', marginTop: 12, marginBottom: 0 }}>
+                    Les valeurs sont chargées dans le tableau pour relecture. Rien n'est enregistré
+                    tant que vous n'avez pas cliqué sur <strong>Sauvegarder</strong>.
+                  </p>
+                )}
+              </div>
+            )
+          })()}
+        </ModalBody>
+        <ModalFooter>
+          <Button color="secondary" onClick={() => setProposal(null)}>Annuler</Button>
+          <Button
+            color="primary"
+            disabled={!proposal || proposal.changed_count === 0}
+            onClick={applyProposal}
+          >
+            Charger dans le tableau
+          </Button>
         </ModalFooter>
       </Modal>
 
