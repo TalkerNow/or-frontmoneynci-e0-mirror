@@ -23,6 +23,7 @@ const clientTask = lazy(() => import("./views/apps/user/edit/clientTask/Task"));
 const memberTask = lazy(() => import("./views/apps/user/edit/memberTask/Task"));
 const document = lazy(() => import("./views/apps/document"));
 const prompts = lazy(() => import("./views/apps/prompts"));
+const baremeRetraite = lazy(() => import('./views/apps/bareme-retraite'))
 
 const consultantAccess = lazy(() => import("./views/apps/consultant-access/ConsultantAccessPage"))
 
@@ -285,6 +286,12 @@ class AppRouter extends React.Component {
             component={prompts}
             isAuth={{ user }}
             authorisation={reduced_acess}
+          />
+          <ProtectedRoute
+            path="/app/bareme-retraite"
+            component={baremeRetraite}
+            isAuth={{ user }}
+            authorisation={["admin", "Admin"]}
           />
           <ProtectedRoute
             path="/app/contractTemplate"
