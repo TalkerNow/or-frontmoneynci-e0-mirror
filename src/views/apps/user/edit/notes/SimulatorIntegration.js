@@ -924,12 +924,19 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         const displayName = user
           ? `${user.first_name || ""} ${user.last_name || ""}`.trim()
           : "Client";
+        // Enforcement Gate #2 : restaurer alertes / arrêt critique du rapport stocké.
+        const displayAlertes = (Array.isArray(data.alertes) ? data.alertes : []).map((a) => ({
+          code: a.code,
+          message: a.message,
+          niveau: a.niveau === "CRITIQUE" ? "ROUGE" : (a.niveau === "AVERTISSEMENT" ? "ORANGE" : a.niveau),
+        }));
+        const arretCritique = data.arret_critique || null;
         setGeneratedDocs((prev) => {
           const existing = prev.find((d) => d.type === "simulation_retraite");
           if (existing) {
             return prev.map((d) =>
               d.type === "simulation_retraite"
-                ? { ...d, name: `Simulation retraite de ${displayName}`, htmlContent: data.html_report }
+                ? { ...d, name: `Simulation retraite de ${displayName}`, htmlContent: data.html_report, alertes: displayAlertes, arretCritique }
                 : d
             );
           }
@@ -941,6 +948,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
               createdAt: data.created_at || new Date().toISOString(),
               url: null,
               htmlContent: data.html_report,
+              alertes: displayAlertes,
+              arretCritique,
             },
             ...prev,
           ];
@@ -2446,6 +2455,17 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       const result = await resp.json();
       if (!result.html_report) throw new Error("Rapport vide reçu — vérifiez les données carrière du client");
 
+      // Enforcement Gate #2 : alertes / arrêt critique renvoyés par le registre d'erreurs
+      // (évalués par le node VALIDATION GATE de n8n). niveau backend CRITIQUE/AVERTISSEMENT
+      // → ROUGE/ORANGE pour les composants RegimeAlertes/RegimeArretCritique.
+      const rawAlertes = Array.isArray(result.alertes) ? result.alertes : [];
+      const displayAlertes = rawAlertes.map((a) => ({
+        code: a.code,
+        message: a.message,
+        niveau: a.niveau === "CRITIQUE" ? "ROUGE" : "ORANGE",
+      }));
+      const arretCritique = result.arret_critique || null;
+
       const displayName = user
         ? `${user.first_name || ""} ${user.last_name || ""}`.trim()
         : "Client";
@@ -2456,10 +2476,19 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         createdAt: new Date().toISOString(),
         url: null,
         htmlContent: result.html_report,
+        alertes: displayAlertes,
+        arretCritique,
       };
       // Remplace tout rapport simulation existant (un seul actif à la fois côté backend)
       setGeneratedDocs((prev) => [doc, ...prev.filter((d) => d.type !== "simulation_retraite")]);
-      toast.success("Simulation générée !");
+      if (arretCritique) {
+        toast.error(`🚫 Livraison bloquée : ${arretCritique.raison || "incohérence critique détectée par le registre"}`, { autoClose: 8000 });
+      } else if (displayAlertes.length > 0) {
+        toast.warn(`⚠️ ${displayAlertes.length} alerte(s) de cohérence — voir le livrable`, { autoClose: 5000 });
+        toast.success("Simulation générée !");
+      } else {
+        toast.success("Simulation générée !");
+      }
     } catch (err) {
       toast.error(err.message || "Erreur lors de la simulation");
     } finally {
@@ -5227,32 +5256,47 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               {generatedDocs.map((doc) => (
                                 <div
                                   key={doc.id}
-                                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 8, border: "1px solid #e8e8e8", background: "#fafafa", marginBottom: 6 }}
+                                  style={{ display: "flex", flexDirection: "column", padding: "10px 14px", borderRadius: 8, border: doc.arretCritique ? "1px solid #D6303140" : "1px solid #e8e8e8", background: doc.arretCritique ? "#D6303106" : "#fafafa", marginBottom: 6 }}
                                 >
-                                  <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => setViewingDoc(doc)}>
-                                    <div style={{ fontSize: 13, fontWeight: 600, color: "#333", textDecoration: "underline", textDecorationColor: "#ccc", textUnderlineOffset: 2 }}>📄 {doc.name}</div>
-                                    <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>
-                                      {new Date(doc.createdAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                    <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => setViewingDoc(doc)}>
+                                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333", textDecoration: "underline", textDecorationColor: "#ccc", textUnderlineOffset: 2 }}>
+                                        📄 {doc.name}
+                                        {doc.arretCritique && (
+                                          <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 800, color: "#fff", background: "#D63031", borderRadius: 4, padding: "1px 6px", textTransform: "uppercase", letterSpacing: "0.04em" }}>🚫 Livraison bloquée</span>
+                                        )}
+                                        {!doc.arretCritique && doc.alertes && doc.alertes.length > 0 && (
+                                          <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 800, color: "#fff", background: "#E17055", borderRadius: 4, padding: "1px 6px", textTransform: "uppercase", letterSpacing: "0.04em" }}>⚠️ {doc.alertes.length} alerte(s)</span>
+                                        )}
+                                      </div>
+                                      <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>
+                                        {new Date(doc.createdAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                                      </div>
+                                    </div>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                                      <button
+                                        type="button"
+                                        onClick={() => setViewingDoc(doc)}
+                                        style={{ background: "none", border: "none", color: panel.color, cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
+                                        title="Visualiser"
+                                      >
+                                        <Eye size={16} />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setDeleteGenDocId(doc.id)}
+                                        style={{ background: "none", border: "none", color: "#dc3545", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
+                                        title="Supprimer"
+                                      >
+                                        <Trash2 size={16} />
+                                      </button>
                                     </div>
                                   </div>
-                                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                                    <button
-                                      type="button"
-                                      onClick={() => setViewingDoc(doc)}
-                                      style={{ background: "none", border: "none", color: panel.color, cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
-                                      title="Visualiser"
-                                    >
-                                      <Eye size={16} />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setDeleteGenDocId(doc.id)}
-                                      style={{ background: "none", border: "none", color: "#dc3545", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
-                                      title="Supprimer"
-                                    >
-                                      <Trash2 size={16} />
-                                    </button>
-                                  </div>
+                                  {doc.arretCritique ? (
+                                    <RegimeArretCritique arret={doc.arretCritique} alertes={doc.alertes} />
+                                  ) : (doc.alertes && doc.alertes.length > 0 ? (
+                                    <RegimeAlertes alertes={doc.alertes} themeColor="#E17055" />
+                                  ) : null)}
                                 </div>
                               ))}
                             </div>
