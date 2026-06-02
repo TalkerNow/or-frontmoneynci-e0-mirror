@@ -65,14 +65,15 @@ describe('calculateCnav', () => {
 
   test('year 1990 (FRF), returns salSS and revalo in EUR', () => {
     // PASS 1990 euro = 19984.88018, coeff = 1.704
-    // passFrancs = 19984.88018 * 6.556957 ≈ 131043, salary = 100000 FRF < passFrancs
-    // revalo = (100000 * 1.704) / 6.556957, salSS = 100000 / 6.556957
+    // Taux de conversion officiel irrévocable : 1 EUR = 6.55957 FRF
+    // passFrancs = 19984.88018 * 6.55957 ≈ 131089, salary = 100000 FRF < passFrancs
+    // revalo = (100000 * 1.704) / 6.55957, salSS = 100000 / 6.55957
     const result = calculateCnav(1990, 100000);
     expect(result).not.toBeNull();
-    // 100 000 FRF ÷ 6.556957 ≈ 15 250.98 EUR (salSS)
-    // (100 000 × 1.704) ÷ 6.556957 ≈ 25 987.66 EUR (revalo)
-    expect(result.salSS).toBeCloseTo(15251, 0);
-    expect(result.revalo).toBeCloseTo(25988, 0);
+    // 100 000 FRF ÷ 6.55957 ≈ 15 244.95 EUR (salSS)
+    // (100 000 × 1.704) ÷ 6.55957 ≈ 25 977.40 EUR (revalo)
+    expect(result.salSS).toBeCloseTo(15245, 0);
+    expect(result.revalo).toBeCloseTo(25977, 0);
   });
 
   test('trimestres never exceeds 4', () => {

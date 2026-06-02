@@ -11,7 +11,7 @@ import {
   getBaremeRetraite,
 } from '../views/apps/user/edit/simulatorData';
 
-const FRF_PER_EUR = 6.556957;
+const FRF_PER_EUR = 6.55957;
 const FRF_PER_EUR_ARRCO = 6.55957;
 
 /**
