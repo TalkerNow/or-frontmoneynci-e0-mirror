@@ -15,7 +15,7 @@ import html2canvas from "html2canvas";
 import { parseNIR } from "./utils";
 import { REGIMES, getPoints, resolveRegime, computeVisibleRegimes, REGIMES_SIMPLES, extractRegimeSimplePoints } from "../simulatorRegimes";
 import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml, detectDocumentType, applyReportChatMessage, fetchPromptNotes, savePromptNote, deletePromptNote } from "../risService";
-import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif } from '../../../../../utils/calculators';
+import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif, sumTrimestresCapped } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
 import SkillCreateModal from "./SkillCreateModal";
@@ -2737,6 +2737,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
 
       const totalCot = carriere.reduce((s, r) => s + (r.trimestres_cotises || 0), 0);
       const totalAss = carriere.reduce((s, r) => s + (r.trimestres_assimiles || 0), 0);
+      // Durée d'assurance plafonnée à 4 trim/an (écrêtement RIS). Sommer
+      // totalCot + totalAss sans ce plafond sur-compte les parcours mixtes
+      // (salarié + indépendant la même année) et les assimilés empilés
+      // (bug client 1708 : 166 au lieu de 158). Cf. sumTrimestresCapped.
+      const totalAcquisPlafonne = sumTrimestresCapped(carriere);
+      const totalTousRegimesPlafonne = sumTrimestresCapped(carriere, { includeRachetes: true });
 
       // ────────────────────────────────────────────────────────
       // Trimestres par régime :
@@ -2766,7 +2772,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       // Heuristique fallback : compter les trimestres des années où chaque régime est présent
       const heuristicTrim = { cnav: 0, cipav: 0, ircantec: 0, rci: 0 };
       carriere.forEach(row => {
-        const totalTrim = (row.trimestres_cotises || 0) + (row.trimestres_assimiles || 0);
+        const totalTrim = sumTrimestresCapped([row]); // plafonné à 4/an
         const regimesLower = (row.regimes_concernes || '').toLowerCase();
         const isCipavYear = (row.points_cipav_base || 0) > 0 || (row.points_cipav_complementaire || 0) > 0;
         const hasCnav = regimesLower.includes('assurance retraite') || regimesLower.includes('cnav')
@@ -2891,9 +2897,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         totaux: {
           trimestres_cotises: totalCot,
           trimestres_assimiles: totalAss,
-          trimestres_total: totalCot + totalAss,
-          // Trimestres officiels RIS prioritaires sur la somme calculée
-          trimestres_tous_regimes: risTrimTousRegimes ?? (totalCot + totalAss),
+          trimestres_total: totalAcquisPlafonne,
+          // Trimestres officiels RIS prioritaires sur la somme plafonnée calculée
+          trimestres_tous_regimes: risTrimTousRegimes ?? totalTousRegimesPlafonne,
           trimestres_requis: risTrimRequis
             ?? droitsSynthese?.trimestres_requis_taux_plein
             ?? risCarriereSynthese?.trimestres_requis_taux_plein
@@ -4470,8 +4476,15 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                       const analyserTousVisible = activatedDispositifs.some(id => DISPOSITIF_TO_SKILL_CODE[id]);
                       const analyserTousLoading = activatedDispositifs.filter(id => DISPOSITIF_TO_SKILL_CODE[id]).some(id => !!scenarioSkillLoading[DISPOSITIF_TO_SKILL_CODE[id]]);
                       const dispBirthDate = user?.birth_date;
-                      const dispTrimAcquis = Object.values(trimCotState).reduce((s, v) => s + (Number(v) || 0), 0)
-                        + Object.values(trimAssState).reduce((s, v) => s + (Number(v) || 0), 0);
+                      // Durée d'assurance plafonnée à 4 trim/an : pilote la date de
+                      // taux plein (computeDateTauxPlein). Sans plafond, un parcours
+                      // mixte sur-compte et fausse la date de départ (bug 1708).
+                      const dispTrimAcquis = sumTrimestresCapped(
+                        Array.from(new Set([...Object.keys(trimCotState), ...Object.keys(trimAssState)])).map((yr) => ({
+                          trimestres_cotises: Number(trimCotState[yr]) || 0,
+                          trimestres_assimiles: Number(trimAssState[yr]) || 0,
+                        }))
+                      );
                       // Année de référence du décompte = dernière année civile avec des
                       // trimestres validés (les trimestres se valident par année civile).
                       const dispAnneeRef = (() => {
@@ -4521,8 +4534,17 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                 // affichés séparément ("dont rachetés") à titre informatif et ne
                                 // sont pas inclus dans le total pour rester cohérent avec
                                 // computeDateTauxPlein (qui n'utilise que cotisés + assimilés).
-                                const trimTotal = Object.values(trimCotState).reduce((s, v) => s + (Number(v) || 0), 0)
-                                  + Object.values(trimAssState).reduce((s, v) => s + (Number(v) || 0), 0);
+                                // Durée d'assurance plafonnée à 4 trim/an (rachetés exclus,
+                                // cohérent avec computeDateTauxPlein). Sans ce plafond, les
+                                // parcours mixtes et les assimilés empilés sur-comptent
+                                // (bug client 1708 : 166 au lieu de 158).
+                                const trimYearsSet = new Set([...Object.keys(trimCotState), ...Object.keys(trimAssState)]);
+                                const trimTotal = sumTrimestresCapped(
+                                  Array.from(trimYearsSet).map((yr) => ({
+                                    trimestres_cotises: Number(trimCotState[yr]) || 0,
+                                    trimestres_assimiles: Number(trimAssState[yr]) || 0,
+                                  }))
+                                );
                                 const trimRequis = dispDateTauxPlein?.trimRequis ?? null;
                                 const trimManquants = dispDateTauxPlein?.trimManquants ?? null;
                                 let age = null;

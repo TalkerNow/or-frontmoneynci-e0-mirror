@@ -319,3 +319,93 @@ describe('computeAutoDateFromDispositif', () => {
     expect(result.date.getMonth()).toBe(10); // novembre = index 10
   });
 });
+
+import { sumTrimestresCapped } from './calculators';
+
+describe("sumTrimestresCapped — durée d'assurance plafonnée à 4 trim/an", () => {
+  test('returns 0 for empty / nullish input', () => {
+    expect(sumTrimestresCapped([])).toBe(0);
+    expect(sumTrimestresCapped(null)).toBe(0);
+    expect(sumTrimestresCapped(undefined)).toBe(0);
+  });
+
+  test('single régime, years already ≤ 4 → unchanged (cap is a no-op)', () => {
+    expect(sumTrimestresCapped([
+      { trimestres_cotises: 4 },
+      { trimestres_cotises: 4 },
+      { trimestres_cotises: 4 },
+    ])).toBe(12);
+  });
+
+  test('partial years are preserved, not rounded up', () => {
+    expect(sumTrimestresCapped([
+      { trimestres_cotises: 1 },
+      { trimestres_cotises: 1 },
+      { trimestres_cotises: 4 },
+    ])).toBe(6);
+  });
+
+  test('cotisés + assimilés the same year are capped at 4 (the over-count fix)', () => {
+    // 4 cotisés + 2 assimilés la même année = 4 retenus (écrêtement RIS), PAS 6
+    expect(sumTrimestresCapped([
+      { trimestres_cotises: 4, trimestres_assimiles: 2 },
+    ])).toBe(4);
+  });
+
+  test('cotisés + assimilés under 4 are summed normally', () => {
+    expect(sumTrimestresCapped([
+      { trimestres_cotises: 2, trimestres_assimiles: 1 },
+    ])).toBe(3);
+  });
+
+  test('rachetés (AR) excluded by default, included with { includeRachetes: true }', () => {
+    expect(sumTrimestresCapped([{ trimestres_cotises: 2, trimestres_ar: 2 }])).toBe(2);
+    expect(sumTrimestresCapped([{ trimestres_cotises: 2, trimestres_ar: 2 }], { includeRachetes: true })).toBe(4);
+    // le plafond s'applique aussi quand les rachetés poussent l'année au-dessus de 4
+    expect(sumTrimestresCapped([{ trimestres_cotises: 3, trimestres_ar: 3 }], { includeRachetes: true })).toBe(4);
+  });
+
+  test('negative / non-numeric components are floored at 0 per year', () => {
+    expect(sumTrimestresCapped([
+      { trimestres_cotises: -4, trimestres_assimiles: 2 },  // -4+2 = -2 → 0
+      { trimestres_cotises: 'x', trimestres_assimiles: 3 }, // NaN→0, +3 = 3
+    ])).toBe(3);
+  });
+
+  // ── Intégration : client réel 1708 (Christian Vincent), RIS au 01/01/2026 ──
+  // Récapitulatif officiel du RIS = 158 trimestres (170 requis, 12 manquants).
+  // 41 années cotisées 1983–2025 (gaps en 2020 et 2023) ; seules 1983 et 1984
+  // partielles (1 trim) ; toutes les autres à 4. → 39×4 + 2 = 158.
+  const build1708 = (transform = (y, e) => e) => {
+    const c = [];
+    for (let y = 1983; y <= 2025; y++) {
+      if (y === 2020 || y === 2023) continue; // années sans report sur le RIS
+      const base = { trimestres_cotises: (y === 1983 || y === 1984) ? 1 : 4 };
+      c.push(transform(y, base));
+    }
+    return c;
+  };
+
+  test('client 1708 truth: 41 années (1983=1, 1984=1, reste=4) → 158', () => {
+    const carriere = build1708();
+    expect(carriere.length).toBe(41);
+    expect(sumTrimestresCapped(carriere)).toBe(158);
+  });
+
+  test('client 1708 over-count: assimilés empilés + années mixtes salarié/indépendant → toujours 158 (le plafond tient)', () => {
+    // Reproduit le sur-comptage du simulateur (166) : service militaire 1986
+    // empilé (4 cot + 4 ass) et années indépendant 2010-2012 où salarié+indépendant
+    // valident chacun 4 (naïf = 8). La somme naïve dépasse 158 ; plafonnée = 158.
+    const carriere = build1708((y, e) => {
+      if (y === 1986) return { trimestres_cotises: 4, trimestres_assimiles: 4 };
+      if (y >= 2010 && y <= 2012) return { trimestres_cotises: 8 };
+      return e;
+    });
+    const naive = carriere.reduce(
+      (s, e) => s + (Number(e.trimestres_cotises) || 0) + (Number(e.trimestres_assimiles) || 0),
+      0
+    );
+    expect(naive).toBeGreaterThan(158);        // le bug : la somme naïve sur-compte
+    expect(sumTrimestresCapped(carriere)).toBe(158); // le correctif : plafonné = total RIS officiel
+  });
+});

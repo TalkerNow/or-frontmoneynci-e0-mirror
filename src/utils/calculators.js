@@ -463,3 +463,32 @@ export function computeAutoDateFromDispositif(dispositifId, birthDate, trimCotSt
   // non disponibles en JS pur → pas de date calculée ici
   return null;
 }
+
+/**
+ * Durée d'assurance = somme des trimestres validés, PLAFONNÉE à 4 par année civile.
+ *
+ * Sur un relevé de carrière (RIS), une année ne peut jamais valider plus de
+ * 4 trimestres tous régimes confondus (écrêtement). Sommer naïvement les
+ * trimestres cotisés + assimilés (et, pour un parcours mixte, les trimestres
+ * de chaque régime la même année) sans ce plafond sur-compte la durée
+ * d'assurance — c'est le bug du client 1708 (166 affiché vs 158 officiel).
+ *
+ * @param {Array<{trimestres_cotises?: number|string, trimestres_assimiles?: number|string, trimestres_ar?: number|string}>} entries
+ *        Une entrée par année civile.
+ * @param {{ includeRachetes?: boolean }} [opts]
+ *        includeRachetes : inclure les trimestres rachetés (AR) dans le plafond.
+ *        Par défaut false — cohérent avec « Trimestres acquis » (cotisés +
+ *        assimilés) qui alimente computeDateTauxPlein. Mettre true pour la
+ *        durée d'assurance « tous régimes » officielle.
+ * @returns {number} Total des trimestres, chaque année plafonnée à 4.
+ */
+export function sumTrimestresCapped(entries, { includeRachetes = false } = {}) {
+  if (!Array.isArray(entries)) return 0;
+  return entries.reduce((sum, e) => {
+    const tc = Number(e && e.trimestres_cotises) || 0;
+    const ta = Number(e && e.trimestres_assimiles) || 0;
+    const ar = includeRachetes ? (Number(e && e.trimestres_ar) || 0) : 0;
+    const perYear = Math.min(4, Math.max(0, tc + ta + ar));
+    return sum + perYear;
+  }, 0);
+}

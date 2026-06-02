@@ -15,7 +15,7 @@ import {
   wrapPlainTextAsHtml,
 } from "./utils";
 import { fetchRISAnalysis } from "../risService";
-import { calculateCnav, calculateArrco, calculateIrcantec, calculateRci } from '../../../../../utils/calculators';
+import { calculateCnav, calculateArrco, calculateIrcantec, calculateRci, sumTrimestresCapped } from '../../../../../utils/calculators';
 
 const fmtEUR = (num) =>
   new Intl.NumberFormat('fr-FR', {
@@ -1810,8 +1810,10 @@ export const useNotesLogic = (id, perso) => {
         totaux: {
           trimestres_cotises: totalCot,
           trimestres_assimiles: totalAss,
-          trimestres_total: totalCot + totalAss,
-          trimestres_tous_regimes: totalCot + totalAss,
+          // Durée d'assurance plafonnée à 4 trim/an (écrêtement RIS) — évite le
+          // sur-comptage des parcours mixtes / assimilés empilés. Cf. sumTrimestresCapped.
+          trimestres_total: sumTrimestresCapped(carriere),
+          trimestres_tous_regimes: sumTrimestresCapped(carriere),
           trimestres_requis: 172,
           trimestres_par_regime: { cnav: trimCnav, cipav: 0, ircantec: 0, rci: 0, msa: 0 },
         },
