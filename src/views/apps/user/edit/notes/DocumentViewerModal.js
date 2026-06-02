@@ -22,6 +22,7 @@ const DocumentViewerModal = ({
     viewingDoc?.htmlContent || "",
   );
   const [isLoadingEdit, setIsLoadingEdit] = useState(false);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
@@ -35,6 +36,41 @@ const DocumentViewerModal = ({
       setIsEditMode(!!docHtmlContent);
     }
   }, [docId, docUrl, docHtmlContent, viewingDoc]);
+
+  // Aperçu des docs chargés depuis la DB (url /downloadFile sans htmlContent en mémoire).
+  // /downloadFile est sous auth : un iframe src=url brut prend un 401 → aperçu blanc.
+  // On récupère le HTML via le proxy /fetch-html (POST avec token) et on l'injecte en srcDoc.
+  // Les urls statiques (simulateurs, même origine) restent en src plus bas.
+  useEffect(() => {
+    const needsProxy = docUrl && /\/downloadFile/.test(docUrl);
+    if (!needsProxy || docHtmlContent) return;
+
+    let cancelled = false;
+    setIsLoadingPreview(true);
+    (async () => {
+      try {
+        const Config = {
+          headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+        };
+        const response = await axios.post(
+          `${global.config.server_url}/fetch-html`,
+          { url: docUrl },
+          Config,
+        );
+        if (!cancelled && response.data && response.data.html) {
+          setStaticHtmlContent(response.data.html);
+        }
+      } catch (e) {
+        if (!cancelled) console.error("Aperçu indisponible:", e);
+      } finally {
+        if (!cancelled) setIsLoadingPreview(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [docId, docUrl, docHtmlContent]);
 
   // Fonction pour exécuter des commandes d'édition sur l'iframe
   const execCommand = (e, command, value = null) => {
@@ -593,7 +629,7 @@ const DocumentViewerModal = ({
 
             {/* Preview */}
             <div className="flex-grow-1 position-relative">
-            {viewingDoc?.htmlContent ? (
+            {staticHtmlContent ? (
               <iframe
                 ref={iframeRef}
                 id="preview-iframe"
@@ -602,6 +638,11 @@ const DocumentViewerModal = ({
                 title="Document Preview"
                 style={{ width: "100%", height: "100%", border: "none" }}
               />
+            ) : isLoadingPreview ? (
+              <div className="d-flex align-items-center justify-content-center h-100 text-muted">
+                <span className="spinner-border spinner-border-sm mr-2" />
+                Chargement de l'aperçu...
+              </div>
             ) : viewingDoc?.url ? (
               <iframe
                 ref={iframeRef}
