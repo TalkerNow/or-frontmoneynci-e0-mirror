@@ -3577,7 +3577,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                     
                     {/* Fichier uploadé manuellement (pas encore dans la liste serveur) */}
                     {fileToSend && !userDocuments.filter((d) => Number(d.dossier) === 10).some((d) => d.filename === fileToSend.name) && (
-                      <div style={{ display: "flex", flexDirection: "column", padding: "6px 12px", borderRadius: 7, background: "#00B89418", border: "1px solid #00B894", fontSize: 13, minWidth: 180 }}>
+                      <div style={{ display: "flex", flexDirection: "column", padding: "6px 12px", borderRadius: 7, background: "#00B89418", border: "1px solid #00B894", fontSize: 13, minWidth: 180, maxWidth: 320, alignSelf: "flex-start" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <span style={{ fontSize: 15 }}>📄</span>
                           <span style={{ fontWeight: 600, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 14 }}>{fileToSend.name}</span>
@@ -5259,12 +5259,16 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                           )}
 
                           {generatedDocs.length > 0 && (
-                            <div style={{ marginTop: 18 }}>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: "#333", marginBottom: 8 }}>Documents générés</div>
+                            <div style={{ marginTop: 18, background: `${panel.color}08`, border: `1px solid ${panel.color}25`, borderRadius: 10, padding: "12px 14px" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                                <span style={{ fontSize: 16 }}>📄</span>
+                                <span style={{ fontSize: 14, fontWeight: 700, color: panel.color }}>Documents générés</span>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", background: panel.color, borderRadius: 10, padding: "1px 9px", minWidth: 20, textAlign: "center" }}>{generatedDocs.length}</span>
+                              </div>
                               {generatedDocs.map((doc) => (
                                 <div
                                   key={doc.id}
-                                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 8, border: "1px solid #e8e8e8", background: "#fafafa", marginBottom: 6 }}
+                                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 14px", borderRadius: 8, border: "1px solid #e8e8e8", borderLeft: `3px solid ${panel.color}`, background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", marginBottom: 7 }}
                                 >
                                   <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => setViewingDoc(doc)}>
                                     <div style={{ fontSize: 13, fontWeight: 600, color: "#333", textDecoration: "underline", textDecorationColor: "#ccc", textUnderlineOffset: 2 }}>📄 {doc.name}</div>
