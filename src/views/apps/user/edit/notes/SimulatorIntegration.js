@@ -3282,7 +3282,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         adding = true;
       }
     } else {
-      const idx = chosenDates.findIndex(d => d?.type === typeId && d?.date === isoDate);
+      // Toggle sur le type seul (cohérent avec l'indicateur isChosen). Chaque date
+      // standard est unique par type ; matcher aussi sur la date échouait quand le
+      // format renvoyé par le serveur différait de l'isoDate recalculé → impossible
+      // de désélectionner.
+      const idx = chosenDates.findIndex(d => d?.type === typeId);
       adding = idx === -1;
       next = adding ? [...chosenDates, candidate] : chosenDates.filter((_, i) => i !== idx);
     }
