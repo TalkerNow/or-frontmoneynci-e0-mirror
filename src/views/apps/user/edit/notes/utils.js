@@ -377,18 +377,18 @@ function computeCnavSimulator(montantRaw, annee) {
 
   let salairePlafonne = montantRaw;
   if (annee <= 2001) {
-    const passFrancs = passEuro * 6.556957;
+    const passFrancs = passEuro * 6.55957;
     salairePlafonne = Math.min(montantRaw, passFrancs);
   } else {
     salairePlafonne = Math.min(montantRaw, passEuro);
   }
 
   const salaireRevaloriser = annee <= 2001
-    ? (salairePlafonne * coeff) / 6.556957
+    ? (salairePlafonne * coeff) / 6.55957
     : salairePlafonne * coeff;
 
   const seuilTrimestre = annee <= 2001
-    ? (passEuro * 6.556957) / 4
+    ? (passEuro * 6.55957) / 4
     : passEuro / 4;
   const trimestres = Math.min(4, Math.max(0, Math.floor(montantRaw / (seuilTrimestre || Infinity))));
 

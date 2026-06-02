@@ -201,6 +201,11 @@ class UserEdit extends React.Component {
       this.props.match.params.tab;
     this.applyTabFromRoute(tabParam);
 
+    window.addEventListener(
+      "careerAnalysisFileReady",
+      this.handleCareerAnalysisFileNavigate,
+    );
+
     // Utilise les méthodes centralisées
     await this.fetchUser();
     await this.fetchMembers();
@@ -211,6 +216,13 @@ class UserEdit extends React.Component {
       if (this.state.activeTab === "documents") this.computeDocsOffset();
       if (this.state.activeTab === "courriers") this.computeCourriersOffset();
     }, 0);
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener(
+      "careerAnalysisFileReady",
+      this.handleCareerAnalysisFileNavigate,
+    );
   }
 
   componentDidUpdate(prevProps) {
@@ -240,6 +252,20 @@ class UserEdit extends React.Component {
       this.fetchMembers();
     }
   }
+
+  // "Analyse carrière" from the Documents tab dispatches careerAnalysisFileReady.
+  // The simulator that ingests the file only renders on the Notes tab, so bring
+  // the user there and scroll it into view — otherwise the analysis runs off-screen.
+  handleCareerAnalysisFileNavigate = (event) => {
+    const { clientId } = event.detail || {};
+    const { id } = this.props.match.params;
+    if (String(clientId) !== String(id)) return;
+    this.toggle("notes");
+    setTimeout(() => {
+      const el = document.querySelector(".bottom-simulator-section");
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 150);
+  };
 
   toggle = (tab) => {
     if (this.state.activeTab !== tab) {

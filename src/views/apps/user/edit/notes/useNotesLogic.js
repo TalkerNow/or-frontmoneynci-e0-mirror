@@ -1288,12 +1288,12 @@ export const useNotesLogic = (id, perso) => {
         document.body.appendChild(container);
 
         const canvas = await html2canvas(container, {
-          scale: 5,
+          scale: 2,
           useCORS: true,
           logging: false,
         });
 
-        const imgData = canvas.toDataURL("image/png");
+        const imgData = canvas.toDataURL("image/jpeg", 0.92);
         const pdf = new jsPDF("p", "mm", "a4");
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
@@ -1311,7 +1311,7 @@ export const useNotesLogic = (id, perso) => {
         // Centrer l'image si elle est plus petite que la largeur
         const xOffset = (pdfWidth - imgWidth) / 2;
 
-        pdf.addImage(imgData, "PNG", xOffset, 0, imgWidth, imgHeight);
+        pdf.addImage(imgData, "JPEG", xOffset, 0, imgWidth, imgHeight);
 
         const safeName = (viewingDoc.name || "document")
           .replace(/[^a-zA-Z0-9À-ÿ\s-_]/g, "")
@@ -1381,12 +1381,12 @@ export const useNotesLogic = (id, perso) => {
         document.body.appendChild(container);
 
         const canvas = await html2canvas(container, {
-          scale: 3,
+          scale: 2,
           useCORS: true,
           logging: false,
         });
 
-        const imgData = canvas.toDataURL("image/png");
+        const imgData = canvas.toDataURL("image/jpeg", 0.92);
         const pdf = new jsPDF("p", "mm", "a4");
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
@@ -1404,7 +1404,7 @@ export const useNotesLogic = (id, perso) => {
         // Centrer l'image si elle est plus petite que la largeur
         const xOffset = (pdfWidth - imgWidth) / 2;
 
-        pdf.addImage(imgData, "PNG", xOffset, 0, imgWidth, imgHeight);
+        pdf.addImage(imgData, "JPEG", xOffset, 0, imgWidth, imgHeight);
 
         const safeName = (viewingDoc.name || "document")
           .replace(/[^a-zA-Z0-9À-ÿ\s-_]/g, "")

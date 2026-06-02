@@ -24,6 +24,7 @@ import DateInputFR from "../DateInputFR";
 import SweetAlert from "react-bootstrap-sweetalert";
 import MD_CONTENT from "./adminSkillsContent";
 import BaremeRetraitePage from "../../../bareme-retraite";
+import { coeffRevalo } from "../simulatorData";
 
 // ─── DATA ───────────────────────────────────────────────────────────────────
 
@@ -234,17 +235,9 @@ function detectDispositifsFromRIS(trimCot, birthDate) {
 
 // ─── DONNÉES CARRIÈRE ───────────────────────────────────────────────────────
 
-const REVALO_CNAV = {
-  2026:1.009,2025:1.009,2024:1.031,2023:1.085,2022:1.137,2021:1.149,2020:1.153,
-  2019:1.164,2018:1.181,2017:1.190,2016:1.190,2015:1.191,2014:1.191,2013:1.205,
-  2012:1.231,2011:1.246,2010:1.261,2009:1.270,2008:1.290,2007:1.302,2006:1.324,
-  2005:1.348,2004:1.374,2003:1.395,2002:1.418,2001:1.449,2000:1.480,1999:1.487,
-  1998:1.505,1997:1.522,1996:1.538,1995:1.577,1994:1.595,1993:1.623,1992:1.623,
-  1991:1.677,1990:1.704,1989:1.751,1988:1.816,1987:1.803,1986:1.872,1985:1.908,
-  1984:1.959,1983:2.016,1982:2.106,1981:2.249,1980:2.483,1979:2.737,1978:3.010,
-  1977:3.290,1976:3.610,1975:4.015,1974:4.650,1973:5.450,1972:6.280,1971:7.220,
-  1970:8.200,1969:9.180,1968:10.150,1967:11.090,1966:12.040,1965:12.840,
-};
+// Source unique des coefficients de revalorisation : `coeffRevalo` (simulatorData),
+// alignée sur la Circulaire Cnav officielle. L'ancienne table locale REVALO_CNAV
+// (dupliquée et divergente sur 2009-2011 + années < 1988) a été supprimée.
 
 
 const PLAFONDS_SS = {
@@ -286,7 +279,7 @@ const ADMIN_SKILL_PROMPTS = [
 function _buildDefaultCarriereRows() {
   return Array.from({ length: 65 }, (_, i) => {
     const yr = 2026 - i;
-    const coeff = REVALO_CNAV[yr] || 1;
+    const coeff = coeffRevalo[yr] || 1;
     return { yr, sal: 0, ss: 0, coeff: coeff.toFixed(3), revalo: 0, trim: 0, ar: 0, total: 0, agircPts: 0, ircPts: 0, rciPts: 0, regimes: {} };
   });
 }
@@ -1207,10 +1200,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       const salEur = entry.revenu_brut ?? entry.salaire_brut ?? entry.sal_eur ?? 0;
       const salOriginal = entry.revenu_brut ?? entry.salaire_brut ?? entry.sal_original ?? 0;
       const plaf = PLAFONDS_SS[row.yr] || 48060;
-      const coeff = REVALO_CNAV[row.yr] || 1;
+      const coeff = coeffRevalo[row.yr] || 1;
       const calculatedRevalo = Math.round(Math.min(salEur, plaf) * coeff);
-      let uncappedRevalo = entry.salaire_revalo ?? calculatedRevalo;
-      const revalo = Math.min(uncappedRevalo, plaf);
+      // R.351-29 CSS : le plafond PASS s'applique au salaire AVANT revalorisation.
+      // Le salaire revalorisé (plaf × coeff) dépasse normalement le PASS courant
+      // et NE doit PAS être re-plafonné.
+      const revalo = entry.salaire_revalo ?? calculatedRevalo;
       const ss = Math.min(salEur, plaf);
       const pts = {};
       // Backward compatibility for points (supporting both points_ and pts_ prefixes)
@@ -1229,10 +1224,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       carriere.forEach(entry => {
         const salEur = entry.revenu_brut ?? entry.salaire_brut ?? entry.sal_eur ?? 0;
         const plaf = PLAFONDS_SS[entry.annee] || 48060;
-        const coeff = REVALO_CNAV[entry.annee] || 1;
+        const coeff = coeffRevalo[entry.annee] || 1;
         const calculatedRevalo = Math.round(Math.min(salEur, plaf) * coeff);
-        let uncappedRevalo = entry.salaire_revalo ?? calculatedRevalo;
-        next[entry.annee] = Math.min(uncappedRevalo, plaf);
+        // Pas de re-plafond du salaire revalorisé (cf. R.351-29 CSS).
+        next[entry.annee] = entry.salaire_revalo ?? calculatedRevalo;
       });
       return next;
     });
@@ -1255,14 +1250,14 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         return next;
       });
     }
-    // Count years where the revalorized salary hit the PASS ceiling (matches isPlafonne in UI)
+    // Compte les années dont le salaire brut a atteint le PASS (salaire SS = plafond).
+    // Le salaire revalorisé n'est PAS plafonné (R.351-29 CSS) ; ce compteur sert
+    // uniquement à signaler les années au plafond dans l'UI (cellules en rouge).
     return carriere.filter(entry => {
       const salEur = entry.revenu_brut ?? entry.salaire_brut ?? entry.sal_eur ?? 0;
       if (!salEur) return false;
       const plaf = PLAFONDS_SS[entry.annee] || 48060;
-      const coeff = REVALO_CNAV[entry.annee] || 1;
-      const uncappedRevalo = entry.salaire_revalo ?? Math.round(Math.min(salEur, plaf) * coeff);
-      return uncappedRevalo >= plaf;
+      return salEur >= plaf;
     }).length;
   }, []);
 
@@ -1856,7 +1851,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       toast.success("Tableau carrière rempli");
       if (cappedFromRIS > 0) {
         toast.info(
-          `📏 ${cappedFromRIS} an${cappedFromRIS > 1 ? 's' : ''} plafonnée${cappedFromRIS > 1 ? 's' : ''} au PASS — revalo ramenée au max autorisé (cellules en rouge).`,
+          `📏 ${cappedFromRIS} an${cappedFromRIS > 1 ? 's' : ''} au plafond SS (salaire SS = plafond ; revalorisation appliquée — cellules en rouge).`,
           { autoClose: 12000 }
         );
       }
@@ -1972,6 +1967,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         const response = await fetch(dataUrl);
         const blob = await response.blob();
         const file = new File([blob], name, { type });
+        // Mark the file as selected so the workflow panels (career table) render —
+        // hasDocuments is gated on fileToSend, exactly like the manual upload path.
+        setFileToSend(file);
         await handleAnalyzeDoc({ id: fileId, filename: name }, file);
       } catch (e) {
         console.error("Failed to ingest careerAnalysisFileReady in simulator:", e);
@@ -2127,8 +2125,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         const bodyMatch = htmlContent.match(/<body[^>]*>([\s\S]*)<\/body>/i);
         container.innerHTML = resetStyle + (headMatch ? headMatch[1] : "") + (bodyMatch ? bodyMatch[1] : htmlContent);
         document.body.appendChild(container);
-        const canvas = await html2canvas(container, { scale: 5, useCORS: true, logging: false });
-        const imgData = canvas.toDataURL("image/png");
+        const canvas = await html2canvas(container, { scale: 2, useCORS: true, logging: false });
+        const imgData = canvas.toDataURL("image/jpeg", 0.92);
         const pdf = new jsPDF("p", "mm", "a4");
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
@@ -2136,7 +2134,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         let imgWidth = pdfWidth;
         let imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
         if (imgHeight > pdfHeight) { imgHeight = pdfHeight; imgWidth = (imgProps.width * pdfHeight) / imgProps.height; }
-        pdf.addImage(imgData, "PNG", (pdfWidth - imgWidth) / 2, 0, imgWidth, imgHeight);
+        pdf.addImage(imgData, "JPEG", (pdfWidth - imgWidth) / 2, 0, imgWidth, imgHeight);
         const safeName = (viewingDoc.name || "rapport").replace(/[^a-zA-Z0-9À-ÿ\s\-_]/g, "").trim();
         pdf.save(`${safeName}.pdf`);
         document.body.removeChild(container);
@@ -2163,8 +2161,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         const bodyMatch = fetched.match(/<body[^>]*>([\s\S]*)<\/body>/i);
         container.innerHTML = resetStyle + (headMatch ? headMatch[1] : "") + (bodyMatch ? bodyMatch[1] : fetched);
         document.body.appendChild(container);
-        const canvas = await html2canvas(container, { scale: 3, useCORS: true, logging: false });
-        const imgData = canvas.toDataURL("image/png");
+        const canvas = await html2canvas(container, { scale: 2, useCORS: true, logging: false });
+        const imgData = canvas.toDataURL("image/jpeg", 0.92);
         const pdf = new jsPDF("p", "mm", "a4");
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
@@ -2172,7 +2170,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         let imgWidth = pdfWidth;
         let imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
         if (imgHeight > pdfHeight) { imgHeight = pdfHeight; imgWidth = (imgProps.width * pdfHeight) / imgProps.height; }
-        pdf.addImage(imgData, "PNG", (pdfWidth - imgWidth) / 2, 0, imgWidth, imgHeight);
+        pdf.addImage(imgData, "JPEG", (pdfWidth - imgWidth) / 2, 0, imgWidth, imgHeight);
         const safeName = (viewingDoc.name || "rapport").replace(/[^a-zA-Z0-9À-ÿ\s\-_]/g, "").trim();
         pdf.save(`${safeName}.pdf`);
         document.body.removeChild(container);
@@ -2585,15 +2583,15 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     const row = carriereRows.find(r => r.yr === yr);
     const sal = row?.sal || 0;
     if (sal > 0) {
-      const coeff = REVALO_CNAV[yr] || 1;
+      const coeff = coeffRevalo[yr] || 1;
       const passEuro = PLAFONDS_SS[yr] || 48060;
       const isCapped = !checked || yr >= 2005;
       let salPlafonne, revalo, ssEur;
       if (yr <= 2001) {
-        const passFrancs = passEuro * 6.556957;
+        const passFrancs = passEuro * 6.55957;
         salPlafonne = isCapped ? Math.min(sal, passFrancs) : sal;
-        revalo = Math.round((salPlafonne * coeff) / 6.556957);
-        ssEur = Math.round(salPlafonne / 6.556957);
+        revalo = Math.round((salPlafonne * coeff) / 6.55957);
+        ssEur = Math.round(salPlafonne / 6.55957);
       } else {
         salPlafonne = isCapped ? Math.min(sal, passEuro) : sal;
         revalo = Math.round(salPlafonne * coeff);
@@ -2613,7 +2611,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           },
         }));
         // Recalculer les trimestres sur la base du salaire complet
-        const seuilTrimestre = yr <= 2001 ? (passEuro * 6.556957) / 4 : passEuro / 4;
+        const seuilTrimestre = yr <= 2001 ? (passEuro * 6.55957) / 4 : passEuro / 4;
         const trimestres = Math.min(4, Math.max(0, Math.floor(sal / (seuilTrimestre || Infinity))));
         setTrimCotState(prev => ({ ...prev, [yr]: trimestres }));
       } else {
@@ -3284,7 +3282,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         adding = true;
       }
     } else {
-      const idx = chosenDates.findIndex(d => d?.type === typeId && d?.date === isoDate);
+      // Toggle sur le type seul (cohérent avec l'indicateur isChosen). Chaque date
+      // standard est unique par type ; matcher aussi sur la date échouait quand le
+      // format renvoyé par le serveur différait de l'isoDate recalculé → impossible
+      // de désélectionner.
+      const idx = chosenDates.findIndex(d => d?.type === typeId);
       adding = idx === -1;
       next = adding ? [...chosenDates, candidate] : chosenDates.filter((_, i) => i !== idx);
     }
@@ -3937,11 +3939,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               <tbody>
                                 {totalRows.map((row, i) => {
                                   const tot = Math.min(4, (trimCotState[row.yr] ?? 0) + (trimAssState[row.yr] ?? 0) + (arState[row.yr] ?? 0));
-                                  let revaloVal = revaloValues[row.yr] ?? row.revalo;
-                                  if (revaloVal > getPlafond(row.yr) && (row.yr >= 2005 || !deplafValues[row.yr])) {
-                                    revaloVal = getPlafond(row.yr);
-                                  }
-                                  const isPlafonne = revaloVal >= getPlafond(row.yr) && (row.yr >= 2005 || !deplafValues[row.yr]);
+                                  // Salaire revalorisé : jamais re-plafonné (R.351-29 CSS).
+                                  // Le plafond PASS s'applique au salaire SS, pas au revalorisé.
+                                  const revaloVal = revaloValues[row.yr] ?? row.revalo;
+                                  // "Plafonné" = le salaire SS de l'année a atteint le PASS.
+                                  const isPlafonne = (row.ss ?? 0) >= getPlafond(row.yr) && (row.yr >= 2005 || !deplafValues[row.yr]);
                                   // ── Incertitudes IA pour chaque cellule de cette année ──
                                   const uRevenu   = uncertProps(getCellUncert(uncertaintiesByYear, row.yr, "revenu"));
                                   const uTrimCot  = uncertProps(getCellUncert(uncertaintiesByYear, row.yr, "trimestres_cotises"));
@@ -3959,17 +3961,17 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                           onChange={(e) => {
                                             const v = parseInt(e.target.value) || 0;
                                             const yr = row.yr;
-                                            const coeff = REVALO_CNAV[yr] || 1;
+                                            const coeff = coeffRevalo[yr] || 1;
                                             const passEuro = PLAFONDS_SS[yr] || 48060;
                                             const isDeplaf = deplafValues[yr] || false;
                                             const isCapped = !isDeplaf || yr >= 2005;
                                             let salPlafonne, revalo, ssEur;
                                             if (yr <= 2001) {
                                               // Salaire en FRF — réplique exacte CnavSimulator
-                                              const passFrancs = passEuro * 6.556957;
+                                              const passFrancs = passEuro * 6.55957;
                                               salPlafonne = isCapped ? Math.min(v, passFrancs) : v;
-                                              revalo = Math.round((salPlafonne * coeff) / 6.556957);
-                                              ssEur = Math.round(salPlafonne / 6.556957);
+                                              revalo = Math.round((salPlafonne * coeff) / 6.55957);
+                                              ssEur = Math.round(salPlafonne / 6.55957);
                                             } else {
                                               // Salaire en EUR
                                               salPlafonne = isCapped ? Math.min(v, passEuro) : v;
@@ -3978,7 +3980,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                             }
                                             // Trimestres cotisés — réplique exacte CnavSimulator
                                             const seuilTrimestre = yr <= 2001
-                                              ? (passEuro * 6.556957) / 4
+                                              ? (passEuro * 6.55957) / 4
                                               : passEuro / 4;
                                             const trimestres = Math.min(4, Math.max(0, Math.floor(v / (seuilTrimestre || Infinity))));
                                             setRevaloValues(prev => ({ ...prev, [yr]: revalo }));
@@ -4014,7 +4016,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                           style={{ width: 62, textAlign: "right", border: "1px solid #6C5CE730", borderRadius: 3, fontSize: 15, padding: "1px 3px", background: carriereValidee ? "#fafafa" : "#fff", color: "#555" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "right", color: "#0984E3", fontWeight: 600 }}>{row.coeff}</td>
-                                      <td style={{ padding: "3px 5px", textAlign: "right", fontWeight: 700, color: "#6C5CE7" }}>
+                                      <td style={{ padding: "3px 5px", textAlign: "right", fontWeight: 700, color: "#6C5CE7", background: isPlafonne ? "#FDEDEC" : undefined }} title={isPlafonne ? "Année au plafond SS (salaire SS = plafond ; revalorisation appliquée)" : undefined}>
                                         <input
                                           type="number"
                                           value={revaloVal || ""}
@@ -4423,8 +4425,18 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                       const dispBirthDate = user?.birth_date;
                       const dispTrimAcquis = Object.values(trimCotState).reduce((s, v) => s + (Number(v) || 0), 0)
                         + Object.values(trimAssState).reduce((s, v) => s + (Number(v) || 0), 0);
+                      // Année de référence du décompte = dernière année civile avec des
+                      // trimestres validés (les trimestres se valident par année civile).
+                      const dispAnneeRef = (() => {
+                        let max = null;
+                        const scan = (state) => Object.entries(state).forEach(([y, v]) => {
+                          if ((Number(v) || 0) > 0) { const yr = Number(y); if (max === null || yr > max) max = yr; }
+                        });
+                        scan(trimCotState); scan(trimAssState);
+                        return max;
+                      })();
                       const dispDateLegale = computeDateLegale(dispBirthDate);
-                      const dispDateTauxPlein = computeDateTauxPlein(dispBirthDate, dispTrimAcquis);
+                      const dispDateTauxPlein = computeDateTauxPlein(dispBirthDate, dispTrimAcquis, dispAnneeRef);
                       const dispDate67 = computeDate67(dispBirthDate);
                       return (
                         <div>
@@ -4553,7 +4565,14 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                       <div style={{ fontSize: 13, fontWeight: 600, color: "#333", flex: 1 }}>{d.label}</div>
                                       {isChosen && <span title="Date retenue" style={{ fontSize: 13, color: "#0984E3" }}>✓</span>}
                                     </div>
-                                    <div style={{ fontSize: 11, color: "#555", paddingLeft: 22 }}>{d.info}</div>
+                                    <div style={{ fontSize: 11, color: "#555", paddingLeft: 22 }}>
+                                      {d.info.includes(" → ") ? (
+                                        <>
+                                          {d.info.split(" → ")[0]}
+                                          <span style={{ display: "block", whiteSpace: "nowrap", fontWeight: 600, color: "#0984E3" }}>→ {d.info.split(" → ")[1]}</span>
+                                        </>
+                                      ) : d.info}
+                                    </div>
                                     {d.id === "date_libre" && (
                                       <div style={{ display: "flex", gap: 6, marginTop: 4, paddingLeft: 22 }}>
                                         <DateInputFR
