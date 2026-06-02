@@ -4561,7 +4561,14 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                       <div style={{ fontSize: 13, fontWeight: 600, color: "#333", flex: 1 }}>{d.label}</div>
                                       {isChosen && <span title="Date retenue" style={{ fontSize: 13, color: "#0984E3" }}>✓</span>}
                                     </div>
-                                    <div style={{ fontSize: 11, color: "#555", paddingLeft: 22 }}>{d.info}</div>
+                                    <div style={{ fontSize: 11, color: "#555", paddingLeft: 22 }}>
+                                      {d.info.includes(" → ") ? (
+                                        <>
+                                          {d.info.split(" → ")[0]}
+                                          <span style={{ display: "block", whiteSpace: "nowrap", fontWeight: 600, color: "#0984E3" }}>→ {d.info.split(" → ")[1]}</span>
+                                        </>
+                                      ) : d.info}
+                                    </div>
                                     {d.id === "date_libre" && (
                                       <div style={{ display: "flex", gap: 6, marginTop: 4, paddingLeft: 22 }}>
                                         <DateInputFR

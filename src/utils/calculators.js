@@ -278,7 +278,12 @@ function firstOfNextMonth(date) {
 }
 
 function formatDateFR(date) {
-  return date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  // Format "1er janvier 2028" (ou "15 mars 2028"). Les dates de départ tombent
+  // toujours le 1er du mois → "1er", sinon jour numérique.
+  const day = date.getDate();
+  const dayStr = day === 1 ? '1er' : String(day);
+  const monthYear = date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  return `${dayStr} ${monthYear}`;
 }
 
 function ageLabel(birth, target) {
