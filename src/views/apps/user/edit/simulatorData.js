@@ -2,18 +2,24 @@
 
 // === CNAV ===
 
+// Coefficients de revalorisation des salaires portés au compte — millésime 2026.
+// Source officielle : Circulaire Cnav 2025-29 du 22/12/2025 (revalorisation au
+// 1er janvier 2026, coefficient 1,009). Valeurs 1963-1987 corrigées d'après cette
+// circulaire (les anciennes valeurs étaient un millésime legacy erroné, ~3 % trop bas).
 export const coeffRevalo = {
-  1963: 17.704, 1964: 15.946, 1965: 14.916, 1966: 14.095, 1967: 13.344, 1968: 12.3,
-  1969: 10.663, 1970: 9.686, 1971: 8.688, 1972: 7.829, 1973: 7.234, 1974: 6.378,
-  1975: 5.368, 1976: 4.561, 1977: 3.934, 1978: 3.538, 1979: 3.226, 1980: 2.836,
-  1981: 2.502, 1982: 2.235, 1983: 2.108, 1984: 1.999, 1985: 1.915, 1986: 1.872,
-  1987: 1.803, 1988: 1.816, 1989: 1.751, 1990: 1.704, 1991: 1.677, 1992: 1.623,
+  1963: 18.255, 1964: 16.442, 1965: 15.381, 1966: 14.534, 1967: 13.759, 1968: 12.683,
+  1969: 10.995, 1970: 9.988, 1971: 8.958, 1972: 8.073, 1973: 7.459, 1974: 6.576,
+  1975: 5.535, 1976: 4.702, 1977: 4.056, 1978: 3.647, 1979: 3.325, 1980: 2.924,
+  1981: 2.58, 1982: 2.304, 1983: 2.173, 1984: 2.06, 1985: 1.974, 1986: 1.93,
+  1987: 1.858, 1988: 1.816, 1989: 1.751, 1990: 1.704, 1991: 1.677, 1992: 1.623,
   1993: 1.623, 1994: 1.595, 1995: 1.577, 1996: 1.538, 1997: 1.522, 1998: 1.505,
   1999: 1.487, 2000: 1.480, 2001: 1.449, 2002: 1.418, 2003: 1.395, 2004: 1.374,
   2005: 1.348, 2006: 1.324, 2007: 1.302, 2008: 1.290, 2009: 1.279, 2010: 1.267,
   2011: 1.256, 2012: 1.231, 2013: 1.205, 2014: 1.191, 2015: 1.191, 2016: 1.190,
   2017: 1.190, 2018: 1.181, 2019: 1.164, 2020: 1.153, 2021: 1.149, 2022: 1.137,
-  2023: 1.085, 2024: 1.031, 2025: 1.009, 2026: 1.009
+  // 2026 = année de liquidation courante : un salaire de l'année de liquidation
+  // n'est pas revalorisé (la circulaire 2025-29 ne publie aucun coeff 2026) → 1,0.
+  2023: 1.085, 2024: 1.031, 2025: 1.009, 2026: 1.0
 };
 
 export const plafondSS = {
@@ -72,6 +78,9 @@ const BAREME_DEFAULT = { ageMonths: 768, ageLabel: '64 ans', trim: 172 }; // ≥
  * @param {Date|string|number} input  Date, "YYYY-MM-DD", "DD/MM/YYYY", ou année
  * @returns {{ ageLegalMois: number, ageLegalLabel: string, trimRequis: number } | null}
  */
+// Cache module-level : null = pas encore chargé, fallback = BAREME_TRANCHES
+let _baremeCache = null;
+
 export function getBaremeRetraite(input) {
   if (input == null) return null;
   let year, month;
@@ -95,9 +104,16 @@ export function getBaremeRetraite(input) {
       year = y; month = 1;
     }
   }
-  const key = year * 100 + month;
-  const t = BAREME_TRANCHES.find(b => key <= b.keyMax) || BAREME_DEFAULT;
+  const key     = year * 100 + month;
+  const tranches = _baremeCache ? _baremeCache.tranches : BAREME_TRANCHES;
+  const def      = _baremeCache ? _baremeCache.default  : BAREME_DEFAULT;
+  const t = tranches.find(b => key <= b.keyMax) || def;
   return { ageLegalMois: t.ageMonths, ageLegalLabel: t.ageLabel, trimRequis: t.trim };
+}
+
+export async function initBareme() {
+  const data = await fetchBaremeFromApi();
+  if (data) _baremeCache = data;
 }
 
 // === ARRCO-AGIRC ===
@@ -238,4 +254,33 @@ export const rciTauxDisplay = {
   2024: { tauxA: "7,00%", tauxB: "8,00%", ref: "20,734 \u20AC" },
   2025: { tauxA: "7,00%", tauxB: "8,00%", ref: "21,532 \u20AC" },
   2026: { tauxA: "7,00%", tauxB: "8,00%", ref: "22,450 \u20AC" }
-};
+}
+
+// \u2500\u2500 Conversion format DB \u2192 format local \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+export function dbRowsToBareme(apiRows) {
+  const tranches = apiRows
+    .filter(r => !r.is_default)
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map(r => ({
+      keyMax:    r.key_max,
+      ageMonths: r.age_months,
+      ageLabel:  r.age_label,
+      trim:      r.trim,
+    }))
+  const defaultRow = apiRows.find(r => r.is_default)
+  const baremeDef  = defaultRow
+    ? { ageMonths: defaultRow.age_months, ageLabel: defaultRow.age_label, trim: defaultRow.trim }
+    : BAREME_DEFAULT
+  return { tranches, default: baremeDef }
+}
+
+// \u2500\u2500 Fetch depuis l'API (renvoie null si indisponible) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+export async function fetchBaremeFromApi() {
+  try {
+    const api = (await import('../../../../services/api')).default
+    const res = await api.get('/v1/departure-rules')
+    return dbRowsToBareme(res.data)
+  } catch {
+    return null
+  }
+}
