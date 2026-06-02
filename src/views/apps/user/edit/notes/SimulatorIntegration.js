@@ -1209,8 +1209,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       const plaf = PLAFONDS_SS[row.yr] || 48060;
       const coeff = REVALO_CNAV[row.yr] || 1;
       const calculatedRevalo = Math.round(Math.min(salEur, plaf) * coeff);
-      let uncappedRevalo = entry.salaire_revalo ?? calculatedRevalo;
-      const revalo = Math.min(uncappedRevalo, plaf);
+      // R.351-29 CSS : le plafond PASS s'applique au salaire AVANT revalorisation.
+      // Le salaire revalorisé (plaf × coeff) dépasse normalement le PASS courant
+      // et NE doit PAS être re-plafonné.
+      const revalo = entry.salaire_revalo ?? calculatedRevalo;
       const ss = Math.min(salEur, plaf);
       const pts = {};
       // Backward compatibility for points (supporting both points_ and pts_ prefixes)
@@ -1231,8 +1233,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         const plaf = PLAFONDS_SS[entry.annee] || 48060;
         const coeff = REVALO_CNAV[entry.annee] || 1;
         const calculatedRevalo = Math.round(Math.min(salEur, plaf) * coeff);
-        let uncappedRevalo = entry.salaire_revalo ?? calculatedRevalo;
-        next[entry.annee] = Math.min(uncappedRevalo, plaf);
+        // Pas de re-plafond du salaire revalorisé (cf. R.351-29 CSS).
+        next[entry.annee] = entry.salaire_revalo ?? calculatedRevalo;
       });
       return next;
     });
@@ -1255,14 +1257,14 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         return next;
       });
     }
-    // Count years where the revalorized salary hit the PASS ceiling (matches isPlafonne in UI)
+    // Compte les années dont le salaire brut a atteint le PASS (salaire SS = plafond).
+    // Le salaire revalorisé n'est PAS plafonné (R.351-29 CSS) ; ce compteur sert
+    // uniquement à signaler les années au plafond dans l'UI (cellules en rouge).
     return carriere.filter(entry => {
       const salEur = entry.revenu_brut ?? entry.salaire_brut ?? entry.sal_eur ?? 0;
       if (!salEur) return false;
       const plaf = PLAFONDS_SS[entry.annee] || 48060;
-      const coeff = REVALO_CNAV[entry.annee] || 1;
-      const uncappedRevalo = entry.salaire_revalo ?? Math.round(Math.min(salEur, plaf) * coeff);
-      return uncappedRevalo >= plaf;
+      return salEur >= plaf;
     }).length;
   }, []);
 
@@ -1856,7 +1858,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       toast.success("Tableau carrière rempli");
       if (cappedFromRIS > 0) {
         toast.info(
-          `📏 ${cappedFromRIS} an${cappedFromRIS > 1 ? 's' : ''} plafonnée${cappedFromRIS > 1 ? 's' : ''} au PASS — revalo ramenée au max autorisé (cellules en rouge).`,
+          `📏 ${cappedFromRIS} an${cappedFromRIS > 1 ? 's' : ''} au plafond SS (salaire SS = plafond ; revalorisation appliquée — cellules en rouge).`,
           { autoClose: 12000 }
         );
       }
@@ -2127,8 +2129,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         const bodyMatch = htmlContent.match(/<body[^>]*>([\s\S]*)<\/body>/i);
         container.innerHTML = resetStyle + (headMatch ? headMatch[1] : "") + (bodyMatch ? bodyMatch[1] : htmlContent);
         document.body.appendChild(container);
-        const canvas = await html2canvas(container, { scale: 5, useCORS: true, logging: false });
-        const imgData = canvas.toDataURL("image/png");
+        const canvas = await html2canvas(container, { scale: 2, useCORS: true, logging: false });
+        const imgData = canvas.toDataURL("image/jpeg", 0.92);
         const pdf = new jsPDF("p", "mm", "a4");
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
@@ -2136,7 +2138,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         let imgWidth = pdfWidth;
         let imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
         if (imgHeight > pdfHeight) { imgHeight = pdfHeight; imgWidth = (imgProps.width * pdfHeight) / imgProps.height; }
-        pdf.addImage(imgData, "PNG", (pdfWidth - imgWidth) / 2, 0, imgWidth, imgHeight);
+        pdf.addImage(imgData, "JPEG", (pdfWidth - imgWidth) / 2, 0, imgWidth, imgHeight);
         const safeName = (viewingDoc.name || "rapport").replace(/[^a-zA-Z0-9À-ÿ\s\-_]/g, "").trim();
         pdf.save(`${safeName}.pdf`);
         document.body.removeChild(container);
@@ -2163,8 +2165,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         const bodyMatch = fetched.match(/<body[^>]*>([\s\S]*)<\/body>/i);
         container.innerHTML = resetStyle + (headMatch ? headMatch[1] : "") + (bodyMatch ? bodyMatch[1] : fetched);
         document.body.appendChild(container);
-        const canvas = await html2canvas(container, { scale: 3, useCORS: true, logging: false });
-        const imgData = canvas.toDataURL("image/png");
+        const canvas = await html2canvas(container, { scale: 2, useCORS: true, logging: false });
+        const imgData = canvas.toDataURL("image/jpeg", 0.92);
         const pdf = new jsPDF("p", "mm", "a4");
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
@@ -2172,7 +2174,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         let imgWidth = pdfWidth;
         let imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
         if (imgHeight > pdfHeight) { imgHeight = pdfHeight; imgWidth = (imgProps.width * pdfHeight) / imgProps.height; }
-        pdf.addImage(imgData, "PNG", (pdfWidth - imgWidth) / 2, 0, imgWidth, imgHeight);
+        pdf.addImage(imgData, "JPEG", (pdfWidth - imgWidth) / 2, 0, imgWidth, imgHeight);
         const safeName = (viewingDoc.name || "rapport").replace(/[^a-zA-Z0-9À-ÿ\s\-_]/g, "").trim();
         pdf.save(`${safeName}.pdf`);
         document.body.removeChild(container);
@@ -3937,11 +3939,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               <tbody>
                                 {totalRows.map((row, i) => {
                                   const tot = Math.min(4, (trimCotState[row.yr] ?? 0) + (trimAssState[row.yr] ?? 0) + (arState[row.yr] ?? 0));
-                                  let revaloVal = revaloValues[row.yr] ?? row.revalo;
-                                  if (revaloVal > getPlafond(row.yr) && (row.yr >= 2005 || !deplafValues[row.yr])) {
-                                    revaloVal = getPlafond(row.yr);
-                                  }
-                                  const isPlafonne = revaloVal >= getPlafond(row.yr) && (row.yr >= 2005 || !deplafValues[row.yr]);
+                                  // Salaire revalorisé : jamais re-plafonné (R.351-29 CSS).
+                                  // Le plafond PASS s'applique au salaire SS, pas au revalorisé.
+                                  const revaloVal = revaloValues[row.yr] ?? row.revalo;
+                                  // "Plafonné" = le salaire SS de l'année a atteint le PASS.
+                                  const isPlafonne = (row.ss ?? 0) >= getPlafond(row.yr) && (row.yr >= 2005 || !deplafValues[row.yr]);
                                   // ── Incertitudes IA pour chaque cellule de cette année ──
                                   const uRevenu   = uncertProps(getCellUncert(uncertaintiesByYear, row.yr, "revenu"));
                                   const uTrimCot  = uncertProps(getCellUncert(uncertaintiesByYear, row.yr, "trimestres_cotises"));
@@ -4423,8 +4425,18 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                       const dispBirthDate = user?.birth_date;
                       const dispTrimAcquis = Object.values(trimCotState).reduce((s, v) => s + (Number(v) || 0), 0)
                         + Object.values(trimAssState).reduce((s, v) => s + (Number(v) || 0), 0);
+                      // Année de référence du décompte = dernière année civile avec des
+                      // trimestres validés (les trimestres se valident par année civile).
+                      const dispAnneeRef = (() => {
+                        let max = null;
+                        const scan = (state) => Object.entries(state).forEach(([y, v]) => {
+                          if ((Number(v) || 0) > 0) { const yr = Number(y); if (max === null || yr > max) max = yr; }
+                        });
+                        scan(trimCotState); scan(trimAssState);
+                        return max;
+                      })();
                       const dispDateLegale = computeDateLegale(dispBirthDate);
-                      const dispDateTauxPlein = computeDateTauxPlein(dispBirthDate, dispTrimAcquis);
+                      const dispDateTauxPlein = computeDateTauxPlein(dispBirthDate, dispTrimAcquis, dispAnneeRef);
                       const dispDate67 = computeDate67(dispBirthDate);
                       return (
                         <div>

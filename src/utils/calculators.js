@@ -346,16 +346,25 @@ export function computeDateLegale(birthDate) {
  *
  * @param {string|null} birthDate
  * @param {number} trimAcquis  Total trimestres acquis (cotisés + assimilés)
+ * @param {number|null} [anneeReference=null]  Année civile à laquelle le décompte
+ *   `trimAcquis` est arrêté (ex: dernière année du RIS). Les trimestres se valident
+ *   par année civile : la projection démarre au 1er janvier de l'année suivante.
+ *   Si null, fallback sur la date du jour (comportement historique).
  * @returns {{ date: Date, label: string, trimManquants: number, trimRequis: number } | null}
  */
-export function computeDateTauxPlein(birthDate, trimAcquis) {
+export function computeDateTauxPlein(birthDate, trimAcquis, anneeReference = null) {
   const birth = parseBirthDate(birthDate);
   if (!birth) return null;
   const { trimRequis } = getBaremeRetraite(birth);
   const trimManquants = Math.max(0, trimRequis - trimAcquis);
-  // Projection : 4 trimestres par an = 1 trimestre par trimestre civil (3 mois)
-  const today = new Date();
-  const projected = addMonths(today, trimManquants * 3);
+  // Projection : 4 trimestres par an = 1 trimestre par trimestre civil (3 mois).
+  // Les trimestres acquis sont arrêtés au 31/12 de `anneeReference` ; on projette
+  // donc à partir du 1er janvier de l'année suivante (et non de la date du jour,
+  // qui décalait la date à tort — ex: 160 T au 31/12/2025, 8 manquants → 01/01/2028).
+  const base = anneeReference
+    ? new Date(anneeReference + 1, 0, 1)
+    : new Date();
+  const projected = addMonths(base, trimManquants * 3);
   const departure = firstOfNextMonth(projected);
   return { date: departure, label: formatDateFR(departure), trimManquants, trimRequis };
 }
