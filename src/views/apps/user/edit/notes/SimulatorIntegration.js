@@ -1967,6 +1967,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         const response = await fetch(dataUrl);
         const blob = await response.blob();
         const file = new File([blob], name, { type });
+        // Mark the file as selected so the workflow panels (career table) render —
+        // hasDocuments is gated on fileToSend, exactly like the manual upload path.
+        setFileToSend(file);
         await handleAnalyzeDoc({ id: fileId, filename: name }, file);
       } catch (e) {
         console.error("Failed to ingest careerAnalysisFileReady in simulator:", e);
