@@ -65,14 +65,15 @@ describe('calculateCnav', () => {
 
   test('year 1990 (FRF), returns salSS and revalo in EUR', () => {
     // PASS 1990 euro = 19984.88018, coeff = 1.704
-    // passFrancs = 19984.88018 * 6.556957 ≈ 131043, salary = 100000 FRF < passFrancs
-    // revalo = (100000 * 1.704) / 6.556957, salSS = 100000 / 6.556957
+    // Taux de conversion officiel irrévocable : 1 EUR = 6.55957 FRF
+    // passFrancs = 19984.88018 * 6.55957 ≈ 131089, salary = 100000 FRF < passFrancs
+    // revalo = (100000 * 1.704) / 6.55957, salSS = 100000 / 6.55957
     const result = calculateCnav(1990, 100000);
     expect(result).not.toBeNull();
-    // 100 000 FRF ÷ 6.556957 ≈ 15 250.98 EUR (salSS)
-    // (100 000 × 1.704) ÷ 6.556957 ≈ 25 987.66 EUR (revalo)
-    expect(result.salSS).toBeCloseTo(15251, 0);
-    expect(result.revalo).toBeCloseTo(25988, 0);
+    // 100 000 FRF ÷ 6.55957 ≈ 15 244.95 EUR (salSS)
+    // (100 000 × 1.704) ÷ 6.55957 ≈ 25 977.40 EUR (revalo)
+    expect(result.salSS).toBeCloseTo(15245, 0);
+    expect(result.revalo).toBeCloseTo(25977, 0);
   });
 
   test('trimestres never exceeds 4', () => {
@@ -257,6 +258,23 @@ describe('computeDateTauxPlein', () => {
     const result = computeDateTauxPlein('1966-07-08', 100);
     expect(result.trimRequis).toBe(172);
     expect(result.trimManquants).toBe(72);
+  });
+
+  test('projette depuis le 31/12 de l\'année de référence, pas la date du jour (cas Crozier)', () => {
+    // 172 - 164 = 8 trimestres manquants, décompte arrêté au 31/12/2025.
+    // Les trimestres se valident par année civile → 2 années pleines (2026, 2027)
+    // → taux plein le 01/01/2028 (et non +24 mois depuis "aujourd'hui").
+    const result = computeDateTauxPlein('1966-07-08', 164, 2025);
+    expect(result.trimManquants).toBe(8);
+    expect(result.date.getFullYear()).toBe(2028);
+    expect(result.date.getMonth()).toBe(0); // janvier
+    expect(result.date.getDate()).toBe(1);
+  });
+
+  test('sans anneeReference → fallback date du jour (comportement historique préservé)', () => {
+    const result = computeDateTauxPlein('1966-07-08', 164); // 8 manquants
+    expect(result.trimManquants).toBe(8);
+    expect(result.date).toBeDefined();
   });
 });
 

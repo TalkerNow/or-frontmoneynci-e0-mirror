@@ -11,7 +11,7 @@ import {
   getBaremeRetraite,
 } from '../views/apps/user/edit/simulatorData';
 
-const FRF_PER_EUR = 6.556957;
+const FRF_PER_EUR = 6.55957;
 const FRF_PER_EUR_ARRCO = 6.55957;
 
 /**
@@ -278,7 +278,12 @@ function firstOfNextMonth(date) {
 }
 
 function formatDateFR(date) {
-  return date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  // Format "1er janvier 2028" (ou "15 mars 2028"). Les dates de départ tombent
+  // toujours le 1er du mois → "1er", sinon jour numérique.
+  const day = date.getDate();
+  const dayStr = day === 1 ? '1er' : String(day);
+  const monthYear = date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  return `${dayStr} ${monthYear}`;
 }
 
 function ageLabel(birth, target) {
@@ -346,16 +351,25 @@ export function computeDateLegale(birthDate) {
  *
  * @param {string|null} birthDate
  * @param {number} trimAcquis  Total trimestres acquis (cotisés + assimilés)
+ * @param {number|null} [anneeReference=null]  Année civile à laquelle le décompte
+ *   `trimAcquis` est arrêté (ex: dernière année du RIS). Les trimestres se valident
+ *   par année civile : la projection démarre au 1er janvier de l'année suivante.
+ *   Si null, fallback sur la date du jour (comportement historique).
  * @returns {{ date: Date, label: string, trimManquants: number, trimRequis: number } | null}
  */
-export function computeDateTauxPlein(birthDate, trimAcquis) {
+export function computeDateTauxPlein(birthDate, trimAcquis, anneeReference = null) {
   const birth = parseBirthDate(birthDate);
   if (!birth) return null;
   const { trimRequis } = getBaremeRetraite(birth);
   const trimManquants = Math.max(0, trimRequis - trimAcquis);
-  // Projection : 4 trimestres par an = 1 trimestre par trimestre civil (3 mois)
-  const today = new Date();
-  const projected = addMonths(today, trimManquants * 3);
+  // Projection : 4 trimestres par an = 1 trimestre par trimestre civil (3 mois).
+  // Les trimestres acquis sont arrêtés au 31/12 de `anneeReference` ; on projette
+  // donc à partir du 1er janvier de l'année suivante (et non de la date du jour,
+  // qui décalait la date à tort — ex: 160 T au 31/12/2025, 8 manquants → 01/01/2028).
+  const base = anneeReference
+    ? new Date(anneeReference + 1, 0, 1)
+    : new Date();
+  const projected = addMonths(base, trimManquants * 3);
   const departure = firstOfNextMonth(projected);
   return { date: departure, label: formatDateFR(departure), trimManquants, trimRequis };
 }
