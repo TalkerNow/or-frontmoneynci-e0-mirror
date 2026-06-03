@@ -13,6 +13,7 @@ import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import { parseNIR } from "./utils";
+import { parseCarrierePoints } from "./carrierePoints";
 import { REGIMES, getPoints, resolveRegime, computeVisibleRegimes, REGIMES_SIMPLES, extractRegimeSimplePoints } from "../simulatorRegimes";
 import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml, detectDocumentType, applyReportChatMessage, fetchPromptNotes, savePromptNote, deletePromptNote } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif, sumTrimestresCapped } from '../../../../../utils/calculators';
@@ -1700,31 +1701,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         // 3. Points par année — résolus via le registre des régimes
         //    CIPAV reste à part (split base/complémentaire vers cnavplRows).
         //    Tout autre régime (connu ou non) atterrit dans row.regimes via resolveRegime.
-        const cipavBaseN = {}, cipavComplN = {};
-        const regimePtsByYear = {}; // { 2020: { AGIRC_ARRCO: 12, CARPIMKO: 530, ... } }
-        carriereRaw.forEach(({ annee, points }) => {
-          if (!Array.isArray(points)) return;
-          points.forEach(({ regime, valeur }) => {
-            const rawRegime = regime || "";
-            const lower = rawRegime.toLowerCase();
-            const pts = parseFloat(valeur) || 0;
-            if (!pts) return;
-            // CIPAV: special-cased, split base/complémentaire, routed to cnavplRows
-            if (lower.includes("cipav")) {
-              if (lower.includes("compl") || lower.includes("complémentaire")) {
-                cipavComplN[annee] = (cipavComplN[annee] || 0) + pts;
-              } else {
-                cipavBaseN[annee] = (cipavBaseN[annee] || 0) + pts;
-              }
-              return;
-            }
-            // All other régimes: resolve via registry → goes into row.regimes
-            const resolved = resolveRegime(rawRegime);
-            if (!resolved) return;
-            if (!regimePtsByYear[annee]) regimePtsByYear[annee] = {};
-            regimePtsByYear[annee][resolved.key] = (regimePtsByYear[annee][resolved.key] || 0) + pts;
-          });
-        });
+        // n8n renvoie `entry.points` en OBJET ({ agirc_arrco, cipav_base, … }) ;
+        // parseCarrierePoints accepte aussi la forme tableau historique. Cf. bug
+        // COCHIN (1698) : l'ancien code testait Array.isArray(points) et sautait
+        // tout quand points était un objet (points non insérés + trous revenu=0).
+        const { cipavBaseN, cipavComplN, regimePtsByYear } = parseCarrierePoints(carriereRaw);
         if (Object.keys(regimePtsByYear).length) {
           setCarriereRows(prev => prev.map(row => {
             const yearRegimes = regimePtsByYear[row.yr];
