@@ -17,7 +17,7 @@ import html2canvas from "html2canvas";
 import { parseNIR } from "./utils";
 import { parseCarrierePoints } from "./carrierePoints";
 import { REGIMES, getPoints, resolveRegime, computeVisibleRegimes, REGIMES_SIMPLES, extractRegimeSimplePoints } from "../simulatorRegimes";
-import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml, detectDocumentType, applyReportChatMessage, fetchPromptNotes, savePromptNote, deletePromptNote } from "../risService";
+import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml, detectDocumentType, fetchRapprochementConstat, applyReportChatMessage, fetchPromptNotes, savePromptNote, deletePromptNote } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif, sumTrimestresCapped } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
@@ -287,6 +287,65 @@ function _buildDefaultCarriereRows() {
     const coeff = coeffRevalo[yr] || 1;
     return { yr, sal: 0, ss: 0, coeff: coeff.toFixed(3), revalo: 0, trim: 0, ar: 0, total: 0, agircPts: 0, ircPts: 0, rciPts: 0, regimes: {} };
   });
+}
+
+// ─── RAPPROCHEMENT RIS / BULLETIN (déterministe) ────────────────────────────
+// Compare, par année, le salaire reporté au RIS au cumul brut du bulletin plafonné
+// au PASS. Détecte écarts et années non reportées. Calcul pur — l'IA rédige le constat.
+function computeRapprochementRisBulletin(carriereRows, bulletins) {
+  const risByYear = {};
+  (carriereRows || []).forEach((r) => { if (r && r.yr != null) risByYear[r.yr] = r; });
+  // Dernière année réellement reportée au RIS : au-delà, un bulletin n'est pas une anomalie
+  // (année en cours / trop récente, jamais encore au relevé de carrière).
+  const risYears = Object.keys(risByYear).map(Number).filter((y) => (Number(risByYear[y].ss) || Number(risByYear[y].sal) || 0) > 0);
+  const maxRisYear = risYears.length ? Math.max.apply(null, risYears) : null;
+  const ecarts = [];
+  (bulletins || []).forEach((b) => {
+    if (b.annee == null || b.brutAnnuel == null) return;
+    const pass = PLAFONDS_SS[b.annee] != null ? PLAFONDS_SS[b.annee] : null;
+    // Salaire qui DEVRAIT figurer au RIS = brut annuel plafonné au PASS de l'année.
+    const bulletinReporte = pass != null ? Math.min(b.brutAnnuel, pass) : b.brutAnnuel;
+    const row = risByYear[b.annee];
+    const risReporte = row ? (Number(row.ss) || Number(row.sal) || 0) : 0;
+    const present = !!row && risReporte > 0;
+    const ecartEur = Math.round((risReporte - bulletinReporte) * 100) / 100; // < 0 => RIS sous le bulletin
+    const ecartPct = bulletinReporte > 0 ? Math.round((ecartEur / bulletinReporte) * 1000) / 10 : null;
+    const absPct = ecartPct == null ? 0 : Math.abs(ecartPct);
+    const absEur = Math.abs(ecartEur);
+    let niveau; let motif;
+    if (!present) {
+      if (maxRisYear != null && b.annee > maxRisYear) { niveau = "RECENT"; motif = "Année non encore reportée au RIS (trop récente / en cours)"; }
+      else { niveau = "ROUGE"; motif = "Année non reportée au RIS (salaire absent/nul) alors qu'un bulletin l'atteste"; }
+    }
+    else if (absPct >= 10 || absEur >= 1000) { niveau = "ROUGE"; motif = "Écart majeur RIS / bulletin"; }
+    else if (absPct >= 2 || absEur >= 200) { niveau = "ORANGE"; motif = "Écart à vérifier"; }
+    else { niveau = "VERT"; motif = "Cohérent"; }
+    ecarts.push({
+      annee: b.annee, salarie: b.salarie, employeur: b.employeur, periode: b.periode, filename: b.filename,
+      pass, brutBulletin: b.brutAnnuel, bulletinReporte, risReporte, present,
+      ecartEur, ecartPct, niveau, motif, plafonne: pass != null && b.brutAnnuel > pass,
+    });
+  });
+  ecarts.sort((a, b) => b.annee - a.annee);
+  const nbAnomalies = ecarts.filter((e) => e.niveau === "ROUGE" || e.niveau === "ORANGE").length;
+
+  // ── Impact SAM (estimation, lecture seule) ──
+  // SAM officiel via computeSAMB (25 meilleures, plafonné PASS, revalorisé).
+  // Carrière "corrigée" : pour les années ROUGE/ORANGE, on remonte le salaire au brut
+  // du bulletin (computeSAMB re-plafonne au PASS). On ne corrige jamais à la baisse.
+  const corrigeRows = (carriereRows || []).map((r) => {
+    const ec = ecarts.find((e) => e.annee === r.yr && (e.niveau === "ROUGE" || e.niveau === "ORANGE") && e.brutBulletin != null);
+    if (ec) return { ...r, sal: Math.max(Number(r.sal) || 0, ec.brutBulletin) };
+    return r;
+  });
+  const samRis = computeSAMB(carriereRows || []);
+  const samCorrige = computeSAMB(corrigeRows);
+  const deltaSam = samCorrige - samRis;
+  // Estimation pension de base CNAV : ΔSAM × taux plein (50%). Hors prorata/décote.
+  const deltaPensionAnnuelle = Math.round(deltaSam * 0.5);
+  const deltaPensionMensuelle = Math.round((deltaPensionAnnuelle / 12) * 100) / 100;
+
+  return { ecarts, nbAnomalies, nbBulletins: (bulletins || []).length, samRis, samCorrige, deltaSam, deltaPensionAnnuelle, deltaPensionMensuelle };
 }
 
 // ─── CIPAV RESULT CARD ──────────────────────────────────────────────────────
@@ -1046,6 +1105,13 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     } catch { /* noop */ }
     return {};
   });
+  // ── Bulletin de paie — extraction inline (V1 : affichage seul, en mémoire) ──
+  // { [filename]: { loading: bool, data: object|null, error: string|null } }
+  const [bulletinResults, setBulletinResults] = useState({});
+  // ── Rapprochement RIS / bulletin (résultat du calcul déterministe) ──
+  const [rapprochement, setRapprochement] = useState(null);
+  // Confirmation "Appliquer à la carrière" : null ou { corrections: [{annee, oldSal, newSal}] }
+  const [applyConfirm, setApplyConfirm] = useState(null);
   const [orderedDocs, setOrderedDocs] = useState([]);
 
   // ── RIS — Relevé de carrière du client ──────────────────────────────────────
@@ -2067,7 +2133,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     const filename = file.name;
     setDocTypeDetection(prev => ({ ...prev, [filename]: { loading: true, is_ris: null, doc_type: null } }));
     try {
-      const result = await detectDocumentType(file, id);
+      const result = await detectDocumentType(file, id, { nom: user?.last_name, prenom: user?.first_name, secu: user?.secu_social });
       docTypePayloads.current[filename] = result;
       setDocTypeDetection(prev => ({
         ...prev,
@@ -2076,7 +2142,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     } catch {
       setDocTypeDetection(prev => ({ ...prev, [filename]: { loading: false, is_ris: null, doc_type: null } }));
     }
-  }, [id]);
+  }, [id, user?.last_name, user?.first_name, user?.secu_social]);
 
   // ── Analyse un document serveur : détecte le type puis extrait la carrière ──
   // preloadedFile lets external entry points (e.g. Documents tab "Analyse carrière")
@@ -2114,7 +2180,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     try {
       setDocTypeDetection(prev => ({ ...prev, [doc.filename]: { loading: true, is_ris: null, doc_type: null } }));
       const file = await downloadFile();
-      const detection = await detectDocumentType(file, id);
+      const detection = await detectDocumentType(file, id, { nom: user?.last_name, prenom: user?.first_name, secu: user?.secu_social });
       docTypePayloads.current[doc.filename] = detection;
       const isRisResult = detection.is_ris === true;
       setDocTypeDetection(prev => ({
@@ -2133,6 +2199,154 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       toast.error("Impossible d'analyser le document");
     }
   }, [docTypeDetection, id, risFileName, parsePdfAndFillCarriere]);
+
+  // ── Analyse un bulletin de paie : extraction inline (V1 — affichage seul) ──
+  // L'extraction bulletin est fusionnée dans le workflow "Détection Type Document"
+  // (detectDocumentType) : la détection auto au drop renvoie déjà `bulletin`.
+  // Cas normal → lecture instantanée du payload mis en cache. Après un reload (ref
+  // docTypePayloads vidée) → fallback qui relance la détection (= ré-extrait le bulletin).
+  // `source` est soit un File (upload manuel) soit un doc serveur ({ id, filename }).
+  const analyzeBulletin = useCallback(async (filename, source) => {
+    if (bulletinResults[filename]?.loading) return;
+    const cached = docTypePayloads.current[filename];
+    if (cached?.bulletin) {
+      setBulletinResults(prev => ({ ...prev, [filename]: { loading: false, data: cached.bulletin, error: null } }));
+      return;
+    }
+    setBulletinResults(prev => ({ ...prev, [filename]: { loading: true, data: null, error: null } }));
+    toast.info("Analyse du bulletin en cours…", { autoClose: false, toastId: `bulletin-${filename}` });
+    try {
+      let file = source;
+      if (!(source instanceof File)) {
+        const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") }, responseType: "blob" };
+        const response = await axios.get(`${global.config.server_url}/downloadFile?file_id=${source.id}`, Config);
+        file = new File([response.data], source.filename, { type: response.data.type || "application/pdf" });
+      }
+      const payload = await detectDocumentType(file, id, { nom: user?.last_name, prenom: user?.first_name, secu: user?.secu_social });
+      docTypePayloads.current[filename] = payload;
+      const data = payload?.bulletin || null;
+      setBulletinResults(prev => ({ ...prev, [filename]: { loading: false, data, error: data ? null : "Aucune donnée extraite" } }));
+      toast.dismiss(`bulletin-${filename}`);
+      if (data) toast.success(`Bulletin analysé${data.employeur ? ` — ${data.employeur}` : ""}`);
+      else toast.warn("Aucune donnée de bulletin extraite");
+    } catch {
+      setBulletinResults(prev => ({ ...prev, [filename]: { loading: false, data: null, error: "Erreur d'analyse" } }));
+      toast.dismiss(`bulletin-${filename}`);
+      toast.error("Erreur lors de l'analyse du bulletin");
+    }
+  }, [bulletinResults, id, user?.last_name, user?.first_name, user?.secu_social]);
+
+  // ── Rendu de la section bulletin de paie (badge + bouton, ou récap extrait) ──
+  // Mutualisé entre les deux blocs (doc serveur + fichier uploadé manuellement).
+  const renderBulletinSection = useCallback((filename, source) => {
+    const bull = bulletinResults[filename];
+    if (bull?.data) {
+      const d = bull.data;
+      const fmt = (v) => (v || v === 0) ? Number(v).toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : null;
+      const periode = d.periode || [d.mois, d.annee].filter(Boolean).join(" ");
+      const salarieName = d.salarie ? `${d.salarie.prenom || ""} ${d.salarie.nom || ""}`.trim() : "";
+      return (
+        <div style={{ marginTop: 6, fontSize: 11, color: "#2d3436", background: "#7367f014", borderRadius: 6, padding: "5px 8px", lineHeight: 1.5 }}>
+          {salarieName && <div style={{ fontWeight: 700, color: "#7367f0" }}>{salarieName}</div>}
+          {d.employeur && <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.employeur}</div>}
+          {periode && <div>Période : {periode}</div>}
+          {fmt(d.brut) && <div>Brut (mois) : {fmt(d.brut)} €</div>}
+          {fmt(d.net_a_payer) && <div style={{ fontWeight: 700 }}>Net à payer (mois) : {fmt(d.net_a_payer)} €</div>}
+          {d.cumul && fmt(d.cumul.brut_annuel) && <div style={{ marginTop: 2, color: "#636e72" }}>Cumul brut année : {fmt(d.cumul.brut_annuel)} €</div>}
+          {d.cumul && fmt(d.cumul.net_imposable_annuel) && <div style={{ color: "#636e72" }}>Cumul net imposable : {fmt(d.cumul.net_imposable_annuel)} €</div>}
+          {d.nb_bulletins_detectes > 1 && <div style={{ marginTop: 3, color: "#E17055", fontSize: 10, fontWeight: 600 }}>⚠️ {d.nb_bulletins_detectes} bulletins dans le PDF — gardé : {salarieName || "le 1er"}</div>}
+        </div>
+      );
+    }
+    return (
+      <button
+        onClick={(e) => { e.stopPropagation(); analyzeBulletin(filename, source); }}
+        disabled={bull?.loading}
+        style={{ marginTop: 6, background: bull?.loading ? "#a29bfe" : "#7367f0", color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 13, fontWeight: 700, cursor: bull?.loading ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, width: "100%", transition: "all 0.2s ease" }}
+      >
+        {bull?.loading ? (<><span className="spinner-border spinner-border-sm" style={{ width: "0.6rem", height: "0.6rem", borderWidth: "0.15em" }} role="status" />Extraction en cours…</>) : "🚀 Analyser ce bulletin"}
+      </button>
+    );
+  }, [bulletinResults, analyzeBulletin]);
+
+  // ── Rapprochement RIS / bulletin : déclenché par bouton, calcul déterministe ──
+  // Docs réellement présents dans la liste (pas les détections fantômes persistées).
+  const presentDocNames = Array.from(new Set(orderedDocs.map((d) => d.filename).concat(fileToSend ? [fileToSend.name] : [])));
+  // Bulletins ANALYSÉS (clic "Analyser ce bulletin" → bulletinResults), présents dans la liste.
+  const nbBulletinsAnalyses = presentDocNames.filter((n) => bulletinResults[n] && bulletinResults[n].data).length;
+  const risAnalyse = carriereRows.some((r) => (Number(r.ss) || Number(r.sal) || 0) > 0);
+  // Carte affichée seulement quand RIS analysé ET ≥1 bulletin analysé.
+  const canRapprocher = risAnalyse && nbBulletinsAnalyses > 0;
+  const handleRapprocher = useCallback(async () => {
+    const present = Array.from(new Set(orderedDocs.map((d) => d.filename).concat(fileToSend ? [fileToSend.name] : [])));
+    const bulletins = present
+      .filter((n) => bulletinResults[n] && bulletinResults[n].data)
+      .map((n) => {
+        const b = bulletinResults[n].data;
+        return {
+          filename: n,
+          annee: b.annee,
+          brutAnnuel: (b.cumul && b.cumul.brut_annuel != null) ? b.cumul.brut_annuel : null,
+          netImposableAnnuel: (b.cumul && b.cumul.net_imposable_annuel != null) ? b.cumul.net_imposable_annuel : null,
+          salarie: b.salarie,
+          employeur: b.employeur,
+          periode: b.periode,
+        };
+      });
+    const res = computeRapprochementRisBulletin(carriereRows, bulletins);
+    if (!res.ecarts.length) {
+      toast.info("Aucun bulletin avec cumul annuel exploitable.");
+      setRapprochement({ ...res, constat: null, constatLoading: false, constatError: false });
+      return;
+    }
+    setRapprochement({ ...res, constat: null, constatLoading: true, constatError: false });
+    try {
+      const constat = await fetchRapprochementConstat(
+        { ecarts: res.ecarts, client: { nom: user?.last_name, prenom: user?.first_name } },
+        id
+      );
+      setRapprochement({ ...res, constat, constatLoading: false, constatError: false });
+      // Couche 3 (CDC) : persister l'analyse dans analysis_reports (silencieux).
+      saveSkillResult(id, "RAPPROCHEMENT_BULLETIN", { ...res, constat, alertes: res.ecarts.filter((e) => e.niveau === "ROUGE" || e.niveau === "ORANGE") });
+    } catch {
+      setRapprochement({ ...res, constat: null, constatLoading: false, constatError: true });
+      toast.error("Constat IA indisponible.");
+      saveSkillResult(id, "RAPPROCHEMENT_BULLETIN", { ...res, alertes: res.ecarts.filter((e) => e.niveau === "ROUGE" || e.niveau === "ORANGE") });
+    }
+  }, [carriereRows, orderedDocs, fileToSend, bulletinResults, user?.last_name, user?.first_name, id]);
+
+  // ── 2c-B : appliquer les corrections (bulletin) à la carrière ──
+  const handleApplyCorrections = useCallback(() => {
+    if (!rapprochement || !rapprochement.ecarts) return;
+    const corrections = rapprochement.ecarts
+      .filter((e) => (e.niveau === "ROUGE" || e.niveau === "ORANGE") && e.brutBulletin != null)
+      .map((e) => {
+        const row = carriereRows.find((r) => r.yr === e.annee);
+        const oldSal = row ? (Number(row.sal) || 0) : 0;
+        return { annee: e.annee, oldSal, newSal: Math.max(oldSal, e.brutBulletin) };
+      })
+      .filter((c) => c.newSal > c.oldSal);
+    if (!corrections.length) { toast.info("Aucune correction à appliquer."); return; }
+    setApplyConfirm({ corrections });
+  }, [rapprochement, carriereRows]);
+
+  const confirmApplyCorrections = useCallback(() => {
+    const corrections = (applyConfirm && applyConfirm.corrections) || [];
+    const byYear = {};
+    corrections.forEach((c) => { byYear[c.annee] = c.newSal; });
+    setCarriereRows((prev) => prev.map((r) => {
+      if (byYear[r.yr] != null) {
+        const sal = byYear[r.yr];
+        const pass = PLAFONDS_SS[r.yr] != null ? PLAFONDS_SS[r.yr] : sal;
+        return { ...r, sal, ss: Math.min(sal, pass), corrige_bulletin: true };
+      }
+      return r;
+    }));
+    if (carriereValidee) setCarriereValidee(false); // déverrouille la carrière validée
+    setApplyConfirm(null);
+    setRapprochement(null); // le rapprochement devient obsolète après correction
+    toast.success(`Carrière corrigée (${corrections.length} année(s)) et déverrouillée. Re-valider puis relancer le calcul pour le montant exact.`);
+  }, [applyConfirm, carriereValidee]);
 
   // Listen for files routed in from the Documents tab ("Analyse carrière").
   // Documents.js downloads the file and dispatches `careerAnalysisFileReady` with
@@ -2167,7 +2381,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     if (!acceptedFiles || !acceptedFiles.length || !id) return;
     const file = acceptedFiles[0];
     setFileToSend(file);
-    detectDocType(file);
+    // Détecte CHAQUE fichier déposé (multi-drop), pas seulement le 1er — appels n8n en parallèle, état keyé par filename.
+    acceptedFiles.forEach((f) => detectDocType(f));
 
     // Persist to sessionStorage so the file survives a page refresh. Best-effort:
     // a large RIS can blow the ~5MB sessionStorage quota. The catch MUST live
@@ -2924,6 +3139,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           ...(cipavRow?.pointsCompl && { points_cipav_complementaire: parseFloat(cipavRow.pointsCompl) || 0 }),
           ...(row.regimes && Object.keys(row.regimes).length > 0 && { regimes: row.regimes }),   // forward-compat full régimes map (CARPIMKO, etc.)
           regimes_concernes: row.regimes_concernes || '',
+          // Data Barrier (CDC règle 5) : année corrigée depuis un bulletin de paie → tracée.
+          ...(row.corrige_bulletin && { source: "BULLETIN", modifie_par_consultant: true }),
         };
       });
 
@@ -3796,6 +4013,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                             </div>
                                           );
                                         }
+                                        if (detection?.doc_type === "bulletin_salaire") {
+                                          return renderBulletinSection(doc.filename, doc);
+                                        }
                                         if (detection?.is_ris === false) {
                                           return (
                                             <div style={{ marginTop: 6, textAlign: "center", fontSize: 11, color: "#636e72", padding: "3px 8px", background: "#f5f5f5", borderRadius: 6, fontWeight: 600 }}>
@@ -3858,6 +4078,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               </div>
                             );
                           }
+                          if (detection?.doc_type === "bulletin_salaire") {
+                            return renderBulletinSection(fileToSend.name, fileToSend);
+                          }
                           if (detection?.is_ris === false) {
                             return (
                               <div style={{ marginTop: 6, textAlign: "center", fontSize: 11, color: "#636e72", padding: "3px 8px", background: "#f5f5f5", borderRadius: 6, fontWeight: 600 }}>
@@ -3911,6 +4134,90 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                 )}
               </div>
               {/* fin zone documents masquée */}
+
+              {/* ── Rapprochement RIS / bulletin (affichée seulement si RIS analysé + ≥1 bulletin) ── */}
+              {canRapprocher && (
+              <div style={{ ...S.card, padding: 14, marginBottom: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                  <div style={{ fontSize: 15, fontWeight: 700 }}>🔎 Rapprochement RIS / bulletin</div>
+                  <button
+                    onClick={handleRapprocher}
+                    disabled={!canRapprocher}
+                    title={canRapprocher ? "Comparer les salaires RIS et bulletins" : "Analyse un RIS et importe au moins un bulletin"}
+                    style={{ background: canRapprocher ? "#7367f0" : "#c9c6f5", color: "#fff", border: "none", borderRadius: 6, padding: "6px 12px", fontSize: 13, fontWeight: 700, cursor: canRapprocher ? "pointer" : "not-allowed" }}
+                  >
+                    Rapprocher RIS / bulletin
+                  </button>
+                </div>
+                {rapprochement && (
+                  <div style={{ marginTop: 10 }}>
+                    <div style={{ fontSize: 12, color: "#555", marginBottom: 6 }}>
+                      {rapprochement.nbBulletins} bulletin(s) comparé(s) —{" "}
+                      <b style={{ color: rapprochement.nbAnomalies ? "#E17055" : "#00B894" }}>{rapprochement.nbAnomalies} anomalie(s)</b>
+                    </div>
+                    {rapprochement.deltaSam > 0 && (
+                      <div style={{ marginBottom: 8, background: "#00B89412", border: "1px solid #00B89455", borderRadius: 8, padding: "8px 12px", fontSize: 12 }}>
+                        <div style={{ fontWeight: 700, color: "#00875A" }}>💰 Impact estimé de la régularisation</div>
+                        <div style={{ marginTop: 2 }}>SAM : {Number(rapprochement.samRis).toLocaleString("fr-FR")} € → <b>{Number(rapprochement.samCorrige).toLocaleString("fr-FR")} €</b> (+{Number(rapprochement.deltaSam).toLocaleString("fr-FR")} €)</div>
+                        <div>Pension de base CNAV : <b>~ +{Number(rapprochement.deltaPensionMensuelle).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €/mois</b> (+{Number(rapprochement.deltaPensionAnnuelle).toLocaleString("fr-FR")} €/an)</div>
+                        <div style={{ color: "#888", fontSize: 11, marginTop: 2 }}>Estimation à taux plein (50%), hors prorata et décote/surcote. Chiffre exact via recalcul complet de la carrière.</div>
+                      </div>
+                    )}
+                    {rapprochement.nbAnomalies > 0 && (
+                      <button
+                        onClick={handleApplyCorrections}
+                        title="Écrit les salaires des bulletins dans le tableau carrière (déverrouille si validée)"
+                        style={{ marginBottom: 8, background: "#00875A", color: "#fff", border: "none", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                      >
+                        ⚙️ Appliquer les corrections à la carrière
+                      </button>
+                    )}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {rapprochement.ecarts.map((e) => {
+                        const c = e.niveau === "ROUGE" ? "#D63031" : e.niveau === "ORANGE" ? "#E17055" : e.niveau === "RECENT" ? "#636e72" : "#00B894";
+                        const fmtE = (v) => Number(v).toLocaleString("fr-FR", { maximumFractionDigits: 2 });
+                        return (
+                          <div key={e.filename + "-" + e.annee} style={{ borderLeft: `3px solid ${c}`, background: `${c}10`, borderRadius: 6, padding: "6px 10px", fontSize: 12 }}>
+                            <div style={{ fontWeight: 700, color: c }}>{e.annee} — {e.motif}</div>
+                            <div style={{ color: "#2d3436", marginTop: 2 }}>
+                              RIS : {fmtE(e.risReporte)} € · Bulletin (plafonné PASS) : {fmtE(e.bulletinReporte)} €
+                              {e.ecartPct != null && (
+                                <> · Écart : <b>{e.ecartEur > 0 ? "+" : ""}{fmtE(e.ecartEur)} € ({e.ecartPct > 0 ? "+" : ""}{e.ecartPct} %)</b></>
+                              )}
+                            </div>
+                            {e.plafonne && (
+                              <div style={{ color: "#888", fontSize: 11 }}>Brut bulletin {fmtE(e.brutBulletin)} € &gt; PASS {fmtE(e.pass)} € → plafonné</div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {rapprochement.constatLoading && (
+                      <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#7367f0" }}>
+                        <span className="spinner-border spinner-border-sm" style={{ width: "0.7rem", height: "0.7rem", borderWidth: "0.15em" }} role="status" />
+                        Rédaction du constat consultant…
+                      </div>
+                    )}
+                    {rapprochement.constatError && (
+                      <div style={{ marginTop: 10, fontSize: 12, color: "#D63031" }}>Constat IA indisponible — réessaie.</div>
+                    )}
+                    {rapprochement.constat && (
+                      <div style={{ marginTop: 10, background: "#fff", border: "1px solid #eee", borderRadius: 8, padding: "10px 12px" }}>
+                        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>📝 Constat consultant</div>
+                        {rapprochement.constat.synthese && (
+                          <div style={{ fontSize: 12, color: "#2d3436", whiteSpace: "pre-line", lineHeight: 1.5 }}>{rapprochement.constat.synthese}</div>
+                        )}
+                        {Array.isArray(rapprochement.constat.recommandations) && rapprochement.constat.recommandations.length > 0 && (
+                          <ul style={{ margin: "6px 0 0", paddingLeft: 18, fontSize: 12, color: "#2d3436", lineHeight: 1.5 }}>
+                            {rapprochement.constat.recommandations.map((r, i) => <li key={i}>{r}</li>)}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              )}
 
           {/* ── MAIN PANELS ── */}
           {hasDocuments && (
@@ -6229,6 +6536,34 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         onCreated={() => fetchApiSkills()}
         existingTypes={[...new Set(apiSkills.map((s) => s.type))].filter(Boolean)}
       />
+      <style>{`
+        .rappro-confirm-modal .sa-button-container { display: flex !important; flex-direction: row-reverse !important; justify-content: center !important; gap: 10px; }
+        .rappro-confirm-modal .sa-button-container .btn { font-size: 13px !important; padding: 7px 18px !important; margin: 0 !important; min-width: 0 !important; }
+      `}</style>
+      <SweetAlert
+        warning
+        showCancel
+        confirmBtnText="Appliquer & déverrouiller"
+        confirmBtnBsStyle="primary"
+        cancelBtnText="Annuler"
+        cancelBtnBsStyle="danger"
+        customClass="rappro-confirm-modal"
+        title="Corriger la carrière ?"
+        show={!!applyConfirm}
+        onConfirm={confirmApplyCorrections}
+        onCancel={() => setApplyConfirm(null)}
+      >
+        <div style={{ fontSize: 13, textAlign: "left" }}>
+          {carriereValidee && <div style={{ color: "#E17055", marginBottom: 6, fontWeight: 600 }}>⚠️ La carrière est validée — elle sera déverrouillée.</div>}
+          Les salaires suivants seront remplacés par ceux des bulletins (plafonnés PASS) :
+          <ul style={{ marginTop: 6, paddingLeft: 18 }}>
+            {(applyConfirm ? applyConfirm.corrections : []).map((c) => (
+              <li key={c.annee}>{c.annee} : {Number(c.oldSal).toLocaleString("fr-FR")} € → <b>{Number(c.newSal).toLocaleString("fr-FR")} €</b></li>
+            ))}
+          </ul>
+        </div>
+      </SweetAlert>
+
       <SweetAlert
         warning
         showCancel
