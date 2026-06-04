@@ -24,11 +24,20 @@ const UploadCard = ({
             })}
           >
             <input {...getInputProps()} />
-            <DownloadCloud size={42} className='text-primary mb-1' />
-            <p className='mb-1'>{description}</p>
-            <small className='text-muted'>
-              {isUploading ? 'Import en cours…' : 'Glissez et déposez un fichier ou cliquez pour parcourir'}
-            </small>
+            <DownloadCloud size={42} className='notes-dropzone-icon text-primary mb-1' />
+            {isDragActive ? (
+              <>
+                <p className='mb-1 notes-dropzone-drop-title'>Déposez pour importer</p>
+                <small className='text-primary'>Relâchez le fichier ici</small>
+              </>
+            ) : (
+              <>
+                <p className='mb-1'>{description}</p>
+                <small className='text-muted'>
+                  {isUploading ? 'Import en cours…' : 'Glissez et déposez un fichier ou cliquez pour parcourir'}
+                </small>
+              </>
+            )}
           </div>
         )}
       </Dropzone>

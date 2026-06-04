@@ -741,7 +741,7 @@ export const useNotesLogic = (id, perso) => {
             return next;
           });
           toast.success(
-            files.length > 1 ? "Documents importés" : "Relevé importé",
+            files.length > 1 ? "Documents importés" : "Document importé",
           );
         }
       } catch {
