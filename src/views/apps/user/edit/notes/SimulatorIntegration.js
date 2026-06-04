@@ -1,5 +1,6 @@
 /* eslint-disable jsx-a11y/accessible-emoji */
 import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import ReactDOM from "react-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
 import Dropzone from "react-dropzone";
@@ -497,8 +498,18 @@ function RegimeResultCard({ code, loading, error, result, carriereValidee }) {
 // Format d'entrée (côté n8n) : { level: 'low'|'medium'|'high', reason: string }
 const UNCERT_BG = { low: "#f0f9ff", medium: "#fff8e1", high: "#fff3e0" };
 const UNCERT_BORDER = { low: "#bae6fd", medium: "#f9a825", high: "#F39130" };
-const UNCERT_ICON = { low: "ℹ️", medium: "⚠️", high: "🚩" };
-const UNCERT_PREFIX = { low: "Note IA", medium: "À vérifier", high: "Incertain — relire le RIS" };
+
+// Read a persisted uncertainty map from sessionStorage (always returns an object).
+function readPersistedUncert(key) {
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
 
 function getCellUncert(map, year, fieldKey) {
   if (!map || !year) return null;
@@ -513,30 +524,179 @@ function uncertProps(u) {
   if (!u) return { tdStyle: null, title: undefined, badge: null };
   const bg = UNCERT_BG[u.level] || UNCERT_BG.medium;
   const border = UNCERT_BORDER[u.level] || UNCERT_BORDER.medium;
-  const icon = UNCERT_ICON[u.level] || UNCERT_ICON.medium;
-  const prefix = UNCERT_PREFIX[u.level] || UNCERT_PREFIX.medium;
   return {
     tdStyle: { background: bg, boxShadow: `inset 0 0 0 1px ${border}`, position: "relative" },
-    // Note IA affichée au survol du badge "i" uniquement (pas sur toute la case).
+    // Native title intentionally dropped — the reason is now revealed through the
+    // clickable <IaNoteFlag> popover. Call sites keep their own help-text fallback.
     title: undefined,
-    badge: (
-      <span
-        title={`${prefix} (IA) : ${u.reason}`}
-        style={{
-          position: "absolute",
-          top: 1,
-          right: 2,
-          fontSize: 10,
-          lineHeight: 1,
-          cursor: "help",
-          filter: "saturate(1.4)",
-        }}
-        aria-label={prefix}
-      >
-        {icon}
-      </span>
-    ),
+    badge: <IaNoteFlag level={u.level} reason={u.reason} />,
   };
+}
+
+// ── IA note flag: a clickable badge that opens a designed popover with the reason.
+const IA_FLAG_THEME = {
+  low:    { accent: "#0EA5E9", soft: "#E0F2FE", ring: "#7DD3FC", glyph: "ℹ️", label: "Note IA",    tone: "Information" },
+  medium: { accent: "#F59E0B", soft: "#FEF3C7", ring: "#FCD34D", glyph: "⚠️", label: "À vérifier",  tone: "Point d'attention" },
+  high:   { accent: "#F97316", soft: "#FFEDD5", ring: "#FDBA74", glyph: "🚩", label: "Incertain",   tone: "Relire le RIS" },
+};
+
+const IA_FLAG_STYLE_ID = "ia-note-flag-styles";
+function ensureIaFlagStyles() {
+  if (typeof document === "undefined" || document.getElementById(IA_FLAG_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = IA_FLAG_STYLE_ID;
+  el.textContent = `
+@keyframes iaFlagPop { from { opacity: 0; transform: translateY(var(--ia-from, -5px)) scale(.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes iaFlagPulse { 0% { box-shadow: 0 0 0 0 var(--ia-ring); } 70% { box-shadow: 0 0 0 5px rgba(0,0,0,0); } 100% { box-shadow: 0 0 0 0 rgba(0,0,0,0); } }
+.ia-note-flag { transition: transform .15s cubic-bezier(.34,1.56,.64,1), box-shadow .15s ease; box-shadow: 0 1px 2px rgba(15,23,42,.16); }
+.ia-note-flag:hover { transform: scale(1.25); box-shadow: 0 4px 10px rgba(15,23,42,.26); }
+.ia-note-flag:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+.ia-note-flag--active { transform: scale(1.12); }
+.ia-note-flag--high { animation: iaFlagPulse 2.6s ease-out infinite; }
+`;
+  document.head.appendChild(el);
+}
+if (typeof document !== "undefined") ensureIaFlagStyles();
+
+function IaNoteFlag({ level, reason }) {
+  const theme = IA_FLAG_THEME[level] || IA_FLAG_THEME.medium;
+  const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState(null);
+  const [pos, setPos] = useState(null);
+  const btnRef = useRef(null);
+  const popRef = useRef(null);
+
+  const toggle = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setAnchor({ top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width });
+    }
+    setPos(null);
+    setOpen((o) => !o);
+  }, []);
+
+  // Close on outside click, Escape, scroll or resize.
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => {
+      if (popRef.current && popRef.current.contains(e.target)) return;
+      if (btnRef.current && btnRef.current.contains(e.target)) return;
+      setOpen(false);
+    };
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    const onMove = () => setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onMove, true);
+    window.addEventListener("resize", onMove);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onMove, true);
+      window.removeEventListener("resize", onMove);
+    };
+  }, [open]);
+
+  // Position the popover once it is mounted (so its height can be measured).
+  useEffect(() => {
+    if (!open || !anchor || !popRef.current) return;
+    const W = 290;
+    const margin = 8;
+    const h = popRef.current.offsetHeight || 150;
+    const left = Math.max(margin, Math.min(anchor.right - W + 12, window.innerWidth - W - margin));
+    let placement = "bottom";
+    let top = anchor.bottom + 10;
+    if (top + h > window.innerHeight - margin && anchor.top - h - 10 > margin) {
+      placement = "top";
+      top = anchor.top - h - 10;
+    }
+    const caretLeft = Math.max(16, Math.min(W - 16, anchor.left + anchor.width / 2 - left));
+    setPos({ top, left, caretLeft, placement });
+  }, [open, anchor]);
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={toggle}
+        title="Voir la note IA"
+        aria-label={`${theme.label} — note de l'IA`}
+        aria-expanded={open}
+        className={`ia-note-flag${level === "high" ? " ia-note-flag--high" : ""}${open ? " ia-note-flag--active" : ""}`}
+        style={{
+          position: "absolute", top: 1, right: 1, zIndex: 6,
+          width: 17, height: 17, padding: 0, margin: 0,
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          border: `1px solid ${theme.ring}`, borderRadius: 6,
+          background: "#fff", color: theme.accent, cursor: "pointer",
+          fontSize: 10, lineHeight: 1, "--ia-ring": theme.ring,
+        }}
+      >
+        <span aria-hidden="true">{theme.glyph}</span>
+      </button>
+
+      {open && typeof document !== "undefined" && ReactDOM.createPortal(
+        <div
+          ref={popRef}
+          role="dialog"
+          aria-label={`${theme.label} — note de l'IA`}
+          onMouseDown={(e) => e.stopPropagation()}
+          style={{
+            position: "fixed",
+            top: pos ? pos.top : -9999,
+            left: pos ? pos.left : -9999,
+            width: 290,
+            zIndex: 2147483600,
+            visibility: pos ? "visible" : "hidden",
+            background: "#fff",
+            borderRadius: 14,
+            border: "1px solid rgba(15,23,42,0.08)",
+            boxShadow: `inset 4px 0 0 0 ${theme.accent}, 0 18px 48px -12px rgba(15,23,42,.34), 0 4px 14px -6px rgba(15,23,42,.18)`,
+            fontFamily: "inherit",
+            animation: "iaFlagPop .18s cubic-bezier(.16,1,.3,1) both",
+            "--ia-from": pos && pos.placement === "top" ? "5px" : "-5px",
+          }}
+        >
+          <span
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              left: pos ? pos.caretLeft - 6 : -9999,
+              [pos && pos.placement === "top" ? "bottom" : "top"]: -6,
+              width: 12, height: 12, background: "#fff",
+              borderLeft: "1px solid rgba(15,23,42,0.08)",
+              borderTop: "1px solid rgba(15,23,42,0.08)",
+              borderTopLeftRadius: 3,
+              transform: pos && pos.placement === "top" ? "rotate(225deg)" : "rotate(45deg)",
+            }}
+          />
+          <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "13px 14px 11px 18px" }}>
+            <div
+              aria-hidden="true"
+              style={{
+                flex: "0 0 34px", width: 34, height: 34, borderRadius: 10,
+                background: theme.soft, boxShadow: `inset 0 0 0 1px ${theme.ring}`,
+                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17,
+              }}
+            >
+              {theme.glyph}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: theme.accent, letterSpacing: .2, lineHeight: 1.1 }}>{theme.label}</div>
+              <div style={{ fontSize: 9.5, fontWeight: 700, color: "#94A3B8", letterSpacing: .9, textTransform: "uppercase", marginTop: 3 }}>{theme.tone}</div>
+            </div>
+            <span style={{ flex: "0 0 auto", fontSize: 8.5, fontWeight: 800, color: "#fff", background: theme.accent, padding: "3px 7px", borderRadius: 999, letterSpacing: .6 }}>IA</span>
+          </div>
+          <div style={{ height: 1, background: "rgba(15,23,42,0.06)", margin: "0 14px 0 18px" }} />
+          <div style={{ padding: "11px 16px 15px 18px", fontSize: 13, lineHeight: 1.55, color: "#334155" }}>{reason}</div>
+        </div>,
+        document.body
+      )}
+    </>
+  );
 }
 
 export default function SimulatorV6({ mode = "production", id, user, onUserUpdate }) {
@@ -775,9 +935,19 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // Forme : { [year]: { [fieldKey]: { level: 'low'|'medium'|'high', reason: string } } }
   // fieldKey suit les conventions du workflow n8n : revenu, trimestres_cotises,
   // trimestres_assimiles, trimestres_ar, points.agirc_arrco, points.ircantec, points.rci.
-  const [uncertaintiesByYear, setUncertaintiesByYear] = useState({});
+  // Restored from sessionStorage so the flags survive a page reload — the career
+  // grid itself is rehydrated from frozen_data, but uncertainties are not stored there.
+  const [uncertaintiesByYear, setUncertaintiesByYear] = useState(() => readPersistedUncert(`simu_uncert_${id}`));
   // Synthese-level + profil-level uncertainties (badges sur les totaux)
-  const [syntheseUncertainties, setSyntheseUncertainties] = useState({});
+  const [syntheseUncertainties, setSyntheseUncertainties] = useState(() => readPersistedUncert(`simu_uncert_synthese_${id}`));
+  // Reload the right client's flags when the consultant switches client without a
+  // remount (uncertainties are keyed by year, so stale data would mislead otherwise).
+  const [uncertClientId, setUncertClientId] = useState(id);
+  if (id !== uncertClientId) {
+    setUncertClientId(id);
+    setUncertaintiesByYear(readPersistedUncert(`simu_uncert_${id}`));
+    setSyntheseUncertainties(readPersistedUncert(`simu_uncert_synthese_${id}`));
+  }
   const [frozenLoading, setFrozenLoading] = useState(false);
   const [isParsingRIS, setIsParsingRIS] = useState(false);
   const [visibleRowCount, setVisibleRowCount] = useState(20);
@@ -1437,6 +1607,13 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     setCarriereValidee(false);
     setRisFileName(null);
     setLastRisPayload(null);
+    // Vider les notes IA (flags) persistées
+    setUncertaintiesByYear({});
+    setSyntheseUncertainties({});
+    try {
+      sessionStorage.removeItem(`simu_uncert_${id}`);
+      sessionStorage.removeItem(`simu_uncert_synthese_${id}`);
+    } catch { /* noop */ }
     // Vider les résultats des calculs et scénarios
     setSkillResult(null);
     setSkillError(null);
@@ -1549,6 +1726,15 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       sessionStorage.setItem(`simu_doc_detection_${id}`, JSON.stringify(toSave));
     } catch { /* noop */ }
   }, [docTypeDetection, id]);
+
+  // Persist IA uncertainties so the "note IA" flags survive a page reload.
+  useEffect(() => {
+    if (!id || id !== uncertClientId) return;
+    try {
+      sessionStorage.setItem(`simu_uncert_${id}`, JSON.stringify(uncertaintiesByYear));
+      sessionStorage.setItem(`simu_uncert_synthese_${id}`, JSON.stringify(syntheseUncertainties));
+    } catch { /* noop */ }
+  }, [uncertaintiesByYear, syntheseUncertainties, id, uncertClientId]);
 
   // Sync orderedDocs when userDocuments changes (preserve existing order, append new)
   useEffect(() => {
@@ -1983,16 +2169,22 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     setFileToSend(file);
     detectDocType(file);
 
-    // Persist to sessionStorage
-    try {
-      const reader = new FileReader();
-      reader.onload = () => {
+    // Persist to sessionStorage so the file survives a page refresh. Best-effort:
+    // a large RIS can blow the ~5MB sessionStorage quota. The catch MUST live
+    // inside onload — setItem runs async, after the surrounding try has exited.
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
         sessionStorage.setItem(`simu_file_to_send_${id}`, JSON.stringify({
           name: file.name, type: file.type, dataUrl: reader.result,
         }));
-      };
-      reader.readAsDataURL(file);
-    } catch (e) { /* noop */ }
+      } catch (e) {
+        // Quota exceeded (or storage disabled): drop any stale entry so the
+        // post-refresh restore doesn't resurrect an outdated file.
+        try { sessionStorage.removeItem(`simu_file_to_send_${id}`); } catch { /* noop */ }
+      }
+    };
+    reader.readAsDataURL(file);
 
     setIsUploading(true);
     try {
