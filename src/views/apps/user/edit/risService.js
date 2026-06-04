@@ -8,7 +8,9 @@ const N8N_BASE = "https://n8n.srv796541.hstgr.cloud/webhook";
 export const WEBHOOKS = {
   PARSE_RIS: RIS_WEBHOOK_URL,
   DETECT_DOC_TYPE: `${N8N_BASE}/detect-document-type`,
+
   PARSE_RIS_V6: `${N8N_BASE}/ris-extraction-v6`,
+  RAPPROCHEMENT_RIS_BULLETIN: `${N8N_BASE}/rapprochement-ris-bulletin`,
   CALCULATE: `${N8N_BASE}/production-validated-calculate`,
   SKILL_EXECUTE: `${N8N_BASE}/skill-execute`, // ancien v1 — garder pour prod
 
@@ -79,16 +81,40 @@ export async function fetchRISAnalysisV6(file) {
  * @param {string|number} [clientId] - L'ID client (optionnel)
  * @returns {Promise<{ is_ris: boolean, doc_type: string, carriere: Array, profil: object, synthese: object, meta: object }>}
  */
-export async function detectDocumentType(file, clientId) {
+export async function detectDocumentType(file, clientId, target) {
   const formData = new FormData();
   formData.append("file", file);
   if (clientId) formData.append("client_id", clientId);
+  // Identité du client du dossier : sert à sélectionner le bon salarié si le PDF
+  // contient plusieurs bulletins (registre employeur). Vide => 1er bulletin.
+  if (target) {
+    if (target.nom) formData.append("target_nom", target.nom);
+    if (target.prenom) formData.append("target_prenom", target.prenom);
+    if (target.secu) formData.append("target_secu", target.secu);
+  }
 
   const response = await axios.post(WEBHOOKS.DETECT_DOC_TYPE, formData, {
     headers: { "Content-Type": "multipart/form-data" },
     timeout: 120000, // 2 min
   });
 
+  const data = response.data;
+  return Array.isArray(data) ? data[0] : data;
+}
+
+/**
+ * Envoie les écarts RIS/bulletin (déjà calculés côté front) au workflow n8n qui
+ * rédige le constat consultant via Gemini.
+ * @param {{ ecarts: Array, client?: object }} payload
+ * @param {string|number} [clientId]
+ * @returns {Promise<{ synthese: string, recommandations: string[] }>}
+ */
+export async function fetchRapprochementConstat(payload, clientId) {
+  const response = await axios.post(
+    WEBHOOKS.RAPPROCHEMENT_RIS_BULLETIN,
+    { ...payload, client_id: clientId },
+    { headers: { "Content-Type": "application/json" }, timeout: 120000 }
+  );
   const data = response.data;
   return Array.isArray(data) ? data[0] : data;
 }
