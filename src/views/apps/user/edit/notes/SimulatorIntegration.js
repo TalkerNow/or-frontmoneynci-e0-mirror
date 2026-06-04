@@ -3,6 +3,7 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from "react"
 import axios from "axios";
 import { toast } from "react-toastify";
 import Dropzone from "react-dropzone";
+import "../../../../../assets/scss/plugins/extensions/dropzone.scss";
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button, UncontrolledTooltip, Input, UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem } from "reactstrap";
 import { DownloadCloud, Eye, Download, Edit2, Save, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, Trash2, Menu, MessageSquare, X as XIcon } from "react-feather";
 import ReportChatPanel from "./ReportChatPanel";
@@ -24,6 +25,8 @@ import AdminEngineChat from "./AdminEngineChat";
 import DateInputFR from "../DateInputFR";
 import SweetAlert from "react-bootstrap-sweetalert";
 import MD_CONTENT from "./adminSkillsContent";
+import { buildRecapRegimes, buildCipavRecap } from "./recapCarriere";
+import { RegimeRecapVignettes } from "./RecapCarriereParRegime";
 import BaremeRetraitePage from "../../../bareme-retraite";
 import { coeffRevalo } from "../simulatorData";
 
@@ -514,16 +517,18 @@ function uncertProps(u) {
   const prefix = UNCERT_PREFIX[u.level] || UNCERT_PREFIX.medium;
   return {
     tdStyle: { background: bg, boxShadow: `inset 0 0 0 1px ${border}`, position: "relative" },
-    title: `${prefix} (IA) : ${u.reason}`,
+    // Note IA affichée au survol du badge "i" uniquement (pas sur toute la case).
+    title: undefined,
     badge: (
       <span
+        title={`${prefix} (IA) : ${u.reason}`}
         style={{
           position: "absolute",
           top: 1,
           right: 2,
           fontSize: 10,
           lineHeight: 1,
-          pointerEvents: "none",
+          cursor: "help",
           filter: "saturate(1.4)",
         }}
         aria-label={prefix}
@@ -2004,7 +2009,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       const response = await axios.post(`${global.config.server_url}/uploadFiles`, formData, Config);
       const files = Array.isArray(response?.data?.files) ? response.data.files : [];
       if (files.length) {
-        toast.success(files.length > 1 ? "Documents importés" : "Relevé importé");
+        toast.success(files.length > 1 ? "Documents importés" : "Document importé");
         fetchUserDocuments(); // refresh list — dossier=10 filter handles display
       }
     } catch {
@@ -2667,6 +2672,20 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         || (trimCotState[row.yr] > 0) || (trimAssState[row.yr] > 0) || (arState[row.yr] > 0);
     });
   }, [carriereRows, cnavplRows, trimCotState, trimAssState, arState]);
+
+  // Récap carrière par régime (lecture seule) indexé par code, pour injection
+  // dans les accordéons "Détail par régime". Dérivé de l'état existant.
+  const recapByCode = useMemo(() => {
+    const list = buildRecapRegimes(carriereRows, {
+      trimCot: trimCotState,
+      trimAss: trimAssState,
+      ar: arState,
+    });
+    return Object.fromEntries(list.map((r) => [r.code, r]));
+  }, [carriereRows, trimCotState, trimAssState, arState]);
+
+  // Récap CIPAV (vignettes lecture seule) depuis cnavplRows.
+  const cipavRecap = useMemo(() => buildCipavRecap(cnavplRows), [cnavplRows]);
 
   const handleGeler = useCallback(async () => {
     if (!id) return;
@@ -3526,13 +3545,13 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                 {/* Dropzone */}
                 <Dropzone disabled={isUploading} onDrop={handleUpload}>
                   {({ getRootProps, getInputProps, isDragActive }) => (
-                    <div {...getRootProps()} style={{ border: `2px dashed ${isDragActive ? "#6C5CE7" : "#ccc"}`, borderRadius: 9, padding: "16px 14px", textAlign: "center", cursor: isUploading ? "wait" : "pointer", background: isDragActive ? "#6C5CE706" : "#fafafa", transition: "all 0.15s", marginBottom: 10 }}>
+                    <div {...getRootProps()} className={"docs-dropzone" + (isDragActive ? " is-dragging" : "")} style={{ border: "2px dashed #ccc", borderRadius: 9, padding: "16px 14px", textAlign: "center", cursor: isUploading ? "wait" : "pointer", background: "#fafafa", transition: "all 0.15s", marginBottom: 10 }}>
                       <input {...getInputProps()} />
-                      <DownloadCloud size={28} color="#6C5CE7" style={{ marginBottom: 4 }} />
+                      <DownloadCloud size={28} color="#6C5CE7" className="docs-dropzone-icon" style={{ marginBottom: 4 }} />
                       <div style={{ fontWeight: 600, color: "#6C5CE7", fontSize: 13 }}>
-                        {isUploading ? "Import en cours…" : "Déposez tous vos documents ici"}
+                        {isUploading ? "Import en cours…" : isDragActive ? "Déposez pour importer" : "Déposez tous vos documents ici"}
                       </div>
-                      <div style={{ fontSize: 12, color: "#666", marginTop: 3 }}>Glissez-déposez un fichier ou cliquez pour parcourir</div>
+                      <div style={{ fontSize: 12, color: "#666", marginTop: 3 }}>{isDragActive ? "Relâchez le fichier ici" : "Glissez-déposez un fichier ou cliquez pour parcourir"}</div>
                     </div>
                   )}
                 </Dropzone>
@@ -4301,45 +4320,18 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                     </button>
                                     {isOpen && (
                                       <div style={{ padding: "14px 16px", background: "#fff" }}>
-                                        {/* ── CNAV PL : table contrôlée pré-remplie ── */}
+                                        {/* ── CIPAV : vignettes totaux (lecture seule) — saisie via colonne CIPAV du tableau ci-dessus ── */}
                                         {reg.id === "cnavpl_acc" ? (
-                                          <div style={{ overflowX: "auto" }}>
-                                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                                              <thead>
-                                                <tr style={{ background: `${reg.color}08` }}>
-                                                  <th style={{ padding: "4px 8px", textAlign: "left", fontWeight: 700, color: reg.color, borderBottom: `1px solid ${reg.color}20` }}>Année</th>
-                                                  {["Revenus", "Rev. CIPAV", "Points"].map(c => (
-                                                    <th key={c} style={{ padding: "4px 8px", textAlign: "right", fontWeight: 700, color: reg.color, borderBottom: `1px solid ${reg.color}20`, whiteSpace: "nowrap" }}>{c}</th>
-                                                  ))}
-                                                </tr>
-                                              </thead>
-                                              <tbody>
-                                                {Object.entries(cnavplRows).sort(([a],[b]) => b - a).map(([yr, row], i) => (
-                                                  <tr key={yr} style={{ background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
-                                                    <td style={{ padding: "4px 8px", fontWeight: 700, color: "#333" }}>{yr}</td>
-                                                    {[
-                                                      { key: "revenus", val: row.revenus },
-                                                      { key: "revCnavpl", val: row.revCnavpl },
-                                                      { key: "points", val: row.points },
-                                                    ].map(({ key, val }) => (
-                                                      <td key={key} style={{ padding: "4px 8px", textAlign: "right" }}>
-                                                        <input
-                                                          type="number"
-                                                          value={val}
-                                                          disabled={carriereValidee}
-                                                          onChange={e => setCnavplRows(prev => ({ ...prev, [parseInt(yr,10)]: { ...prev[parseInt(yr,10)], [key]: e.target.value } }))}
-                                                          style={{ width: 70, textAlign: "right", border: `1px solid ${val ? reg.color + "60" : reg.color + "30"}`, borderRadius: 3, fontSize: 12, padding: "1px 4px", color: reg.color, fontWeight: 600, background: carriereValidee ? "#fafafa" : val ? `${reg.color}06` : "#fff" }}
-                                                        />
-                                                      </td>
-                                                    ))}
-                                                  </tr>
-                                                ))}
-                                              </tbody>
-                                            </table>
-                                          </div>
+                                          cipavRecap ? (
+                                            <RegimeRecapVignettes recap={cipavRecap} />
+                                          ) : (
+                                            <div style={{ fontSize: 13, color: "#555" }}><em>Données CIPAV — à compléter / importer depuis le RIS.</em></div>
+                                          )
                                         ) : reg.id === "cnav_acc" ? (
-                                          /* ── CNAV : synthèse extraction ── */
-                                          risCarriereSynthese ? (
+                                          /* ── CNAV : vignettes totaux (lecture seule) ou synthèse ── */
+                                          recapByCode.CNAV ? (
+                                            <RegimeRecapVignettes recap={recapByCode.CNAV} sam={skillResult?.python_output?.sam} />
+                                          ) : risCarriereSynthese ? (
                                             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                                               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                                                 {[
@@ -4360,8 +4352,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                             <div style={{ fontSize: 13, color: "#555" }}><em>Données CNAV — à compléter / importer depuis le RIS.</em></div>
                                           )
                                         ) : reg.id === "agirc_acc" ? (
-                                          /* ── AGIRC-ARRCO : total extrait ── */
-                                          droitsSynthese?.agirc_arrco != null ? (
+                                          /* ── AGIRC-ARRCO : vignette total (lecture seule) ou total extrait ── */
+                                          recapByCode.AGIRC_ARRCO ? (
+                                            <RegimeRecapVignettes recap={recapByCode.AGIRC_ARRCO} />
+                                          ) : droitsSynthese?.agirc_arrco != null ? (
                                             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                                               <div style={{ display: "inline-flex", alignItems: "baseline", gap: 6, background: "#0984E308", border: "1px solid #0984E330", borderRadius: 7, padding: "10px 16px", alignSelf: "flex-start" }}>
                                                 <span style={{ fontSize: 22, fontWeight: 800, color: "#0984E3" }}>
@@ -4378,8 +4372,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                             <div style={{ fontSize: 13, color: "#555" }}><em>Données AGIRC-ARRCO — à compléter / importer depuis le RIS.</em></div>
                                           )
                                         ) : reg.id === "irc_acc" ? (
-                                          /* ── IRCANTEC ── */
-                                          droitsSynthese?.ircantec != null ? (
+                                          /* ── IRCANTEC : vignette total (lecture seule) ou total extrait ── */
+                                          recapByCode.IRCANTEC ? (
+                                            <RegimeRecapVignettes recap={recapByCode.IRCANTEC} />
+                                          ) : droitsSynthese?.ircantec != null ? (
                                             droitsSynthese.ircantec.points_total > 0 ? (
                                               <div style={{ display: "inline-flex", alignItems: "baseline", gap: 6, background: "#00B89408", border: "1px solid #00B89430", borderRadius: 7, padding: "10px 16px" }}>
                                                 <span style={{ fontSize: 22, fontWeight: 800, color: "#00B894" }}>{droitsSynthese.ircantec.points_total.toLocaleString("fr-FR")}</span>
@@ -4396,8 +4392,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                             <div style={{ fontSize: 13, color: "#555" }}><em>Données IRCANTEC — à compléter / importer depuis le RIS.</em></div>
                                           )
                                         ) : reg.id === "rci_acc" ? (
-                                          /* ── RCI / SSI ── */
-                                          droitsSynthese?.rci != null ? (
+                                          /* ── RCI / SSI : vignette total (lecture seule) ou total extrait ── */
+                                          recapByCode.RCI ? (
+                                            <RegimeRecapVignettes recap={recapByCode.RCI} />
+                                          ) : droitsSynthese?.rci != null ? (
                                             droitsSynthese.rci.points_total > 0 ? (
                                               <div style={{ display: "inline-flex", alignItems: "baseline", gap: 6, background: "#E1705508", border: "1px solid #E1705530", borderRadius: 7, padding: "10px 16px" }}>
                                                 <span style={{ fontSize: 22, fontWeight: 800, color: "#E17055" }}>{droitsSynthese.rci.points_total.toLocaleString("fr-FR")}</span>

@@ -20,6 +20,69 @@
     outline: 0;
   }
 }
+
+// Dropzone interactive — curseur main + feedback animé au drag
+.docs-dropzone {
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease,
+    box-shadow 0.2s ease, transform 0.2s ease;
+
+  &:hover {
+    border-color: #7367f0 !important;
+    background: #f6f5ff !important;
+  }
+}
+
+.docs-dropzone.is-dragging {
+  border: 2px solid #7367f0 !important;
+  background: #ede9fe !important;
+  transform: scale(1.01);
+  animation: docs-dropzone-pulse 1.2s ease-in-out infinite;
+
+  .docs-dropzone-icon {
+    color: #7367f0;
+    animation: docs-dropzone-bounce 0.9s ease-in-out infinite;
+  }
+}
+
+@keyframes docs-dropzone-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(115, 103, 240, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(115, 103, 240, 0.08);
+  }
+}
+
+@keyframes docs-dropzone-bounce {
+  0%,
+  100% {
+    transform: translateY(0) scale(1.05);
+  }
+  50% {
+    transform: translateY(-8px) scale(1.15);
+  }
+}
+
+// Tuile dossier (vue liste) — highlight animé quand on glisse un fichier dessus
+.docs-folder-card {
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease,
+    box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.docs-folder-card.is-dragover {
+  border-color: #7367f0 !important;
+  background: #ede9fe !important;
+  transform: scale(1.02);
+  animation: docs-dropzone-pulse 1.2s ease-in-out infinite;
+
+  .feather {
+    color: #7367f0;
+    animation: docs-dropzone-bounce 0.9s ease-in-out infinite;
+  }
+}
 .dz-thumb {
   display: inline-flex;
   border-radius: 2px;

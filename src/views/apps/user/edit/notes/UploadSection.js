@@ -86,7 +86,7 @@ const UploadSection = ({
           <div className="upload-section-dropzone">
             <UploadCard
               title={null}
-              description="Glissez et d&eacute;posez des fichiers ici, ou cliquez pour s&eacute;lectionner des fichiers."
+              description="Glissez et déposez des fichiers ici, ou cliquez pour sélectionner des fichiers."
               onDrop={onUpload}
               isUploading={isUploading}
             />
@@ -122,7 +122,7 @@ const UploadSection = ({
                     >
                       &larr;{" "}
                       {selectedFolder === 0
-                        ? "Non class&eacute;s"
+                        ? "Non classés"
                         : FOLDERS.find((f) => f.id === selectedFolder)?.name}
                     </button>
                   ) : (
@@ -322,8 +322,8 @@ const UploadSection = ({
             options={QUICK_TAGS_OPTIONS}
             value={selectedTags}
             onChange={handleTagsChange}
-            placeholder="Cliquez pour s&eacute;lectionner..."
-            noOptionsMessage={() => "Toutes les th&eacute;matiques sont s&eacute;lectionn&eacute;es"}
+            placeholder="Cliquez pour sélectionner..."
+            noOptionsMessage={() => "Toutes les thématiques sont sélectionnées"}
             isDisabled={isGenerating}
             styles={{
               control: (base, state) => ({
