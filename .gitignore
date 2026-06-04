@@ -15,3 +15,9 @@ CLAUDE.md
 .env
 .envexample
 .DS_Store
+
+# Outils agent & specs/plans (non versionnés)
+.superpowers/
+.agents/
+skills-lock.json
+docs/superpowers/
