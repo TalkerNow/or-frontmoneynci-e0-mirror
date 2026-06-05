@@ -570,6 +570,30 @@ function readPersistedUncert(key) {
   }
 }
 
+const CAREER_DRAFT_KEY = (id) => `simu_career_draft_${id}`;
+
+// Read an unvalidated career draft (scanned RIS working state) from localStorage.
+// Returns null if absent/malformed. The draft lets a freshly-scanned RIS survive a
+// refresh without freezing — frozen_data still wins once the career is validated.
+function readCareerDraft(id) {
+  try {
+    const raw = localStorage.getItem(CAREER_DRAFT_KEY(id));
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    return d && typeof d === "object" && Array.isArray(d.carriereRows) ? d : null;
+  } catch {
+    return null;
+  }
+}
+
+// Select the field content on focus so a typed digit replaces the existing value
+// instead of being appended (trimestre cells show "0", which otherwise gives "40"/"04").
+// Deferred a tick so the mouse-click's mouseup doesn't collapse the selection.
+function selectAllOnFocus(e) {
+  const el = e.target;
+  setTimeout(() => { try { el.select(); } catch { /* noop */ } }, 0);
+}
+
 function getCellUncert(map, year, fieldKey) {
   if (!map || !year) return null;
   const byField = map[year] || map[String(year)];
@@ -1069,6 +1093,31 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // ── Master "Calculate All" State ──
   const [isCalculatingAll, setIsCalculatingAll] = useState(false);
 
+  // ── #2: "results stale" detection ──
+  // Pensions are computed server-side off frozen_data, so a manual grid edit isn't
+  // reflected until the career is re-frozen and recomputed. We flag the displayed
+  // results as stale once the grid diverges from the snapshot at the last calc.
+  const [resultsStale, setResultsStale] = useState(false);
+  const [hydrationDone, setHydrationDone] = useState(false);
+  const lastCalcSigRef = useRef(null);
+  const calcInputsSig = useMemo(() => JSON.stringify({
+    c: carriereRows.map(r => [r.yr, r.sal, r.ss, r.agircPts ?? null, r.ircPts ?? null, r.rciPts ?? null, r.agircT1 ?? null, r.agircT2 ?? null]),
+    tc: trimCotState, ta: trimAssState, ar: arState, dp: deplafValues, rv: revaloValues,
+    cn: cnavplRows, ck: carpimkoRows, rp: regimesPoints,
+  }), [carriereRows, trimCotState, trimAssState, arState, deplafValues, revaloValues, cnavplRows, carpimkoRows, regimesPoints]);
+  const calcResultsExist = !!(skillResult || agircResult || ircantecResult || rciResult || cipavResult || carpimkoResult);
+  useEffect(() => {
+    if (!hydrationDone) return; // ignore grid changes during initial mount hydration
+    if (!calcResultsExist) { lastCalcSigRef.current = null; setResultsStale(false); return; }
+    if (lastCalcSigRef.current === null) {
+      // Results just appeared (fresh calc or restored from cache) → baseline the grid.
+      lastCalcSigRef.current = calcInputsSig;
+      setResultsStale(false);
+    } else if (calcInputsSig !== lastCalcSigRef.current) {
+      setResultsStale(true);
+    }
+  }, [hydrationDone, calcResultsExist, calcInputsSig]);
+
   // ── Scénarios — Generic Skill Executor State ──
   const [scenarioSkillResults, setScenarioSkillResults] = useState({});
   const [scenarioSkillLoading, setScenarioSkillLoading] = useState({});
@@ -1512,12 +1561,50 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     }).length;
   }, []);
 
+  // Becomes true once mount hydration (frozen_data or draft) has run, so the
+  // autosave effect below never persists the empty default grid over a good draft.
+  const draftHydratedRef = useRef(false);
+
+  // Restore the full working career from a localStorage draft (see readCareerDraft).
+  const restoreCareerDraft = useCallback((d) => {
+    if (!d) return;
+    if (Array.isArray(d.carriereRows)) setCarriereRows(d.carriereRows);
+    if (d.trimCotState) setTrimCotState(d.trimCotState);
+    if (d.trimAssState) setTrimAssState(d.trimAssState);
+    if (d.arState) setArState(d.arState);
+    if (d.revaloValues) setRevaloValues(d.revaloValues);
+    if (d.deplafValues) setDeplafValues(d.deplafValues);
+    if (d.cnavplRows) setCnavplRows(d.cnavplRows);
+    if (typeof d.cnavplOpen === "boolean") setCnavplOpen(d.cnavplOpen);
+    if (d.carpimkoRows) setCarpimkoRows(d.carpimkoRows);
+    if (typeof d.carpimkoOpen === "boolean") setCarpimkoOpen(d.carpimkoOpen);
+    if (d.regimesPoints) setRegimesPoints(d.regimesPoints);
+    if (d.lastRisPayload) setLastRisPayload(d.lastRisPayload);
+    if (typeof d.visibleRowCount === "number") setVisibleRowCount(d.visibleRowCount);
+    if (d.risFileName) setRisFileName(d.risFileName);
+  }, []);
+
   // Load career data from frozen_data on mount
   useEffect(() => {
     if (!id) return;
+    // Block autosave until this client's hydration finishes (prevents saving the
+    // previous client's grid under the new client's key on a client switch).
+    draftHydratedRef.current = false;
+    setHydrationDone(false);
     const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
     axios.get(`${global.config.server_url}/frozen_data/${id}`, Config)
       .then(res => {
+        // A scanned-but-unvalidated draft takes precedence while the career isn't
+        // frozen, so a refresh restores the working grid without re-running n8n.
+        if (!res.data?.locked_at) {
+          const draft = readCareerDraft(id);
+          if (draft) {
+            restoreCareerDraft(draft);
+            draftHydratedRef.current = true;
+            setHydrationDone(true);
+            return;
+          }
+        }
         // Restore CIPAV points (from dedicated column or legacy carriere objects)
         const cipav = res.data?.cipav;
         const carpimko = res.data?.carpimko;
@@ -1632,9 +1719,38 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           setLockedAt(res.data.locked_at);
           setLockedBy(res.data.locked_by);
         }
+        draftHydratedRef.current = true;
+        setHydrationDone(true);
       })
-      .catch(() => { /* pas de données = normal */ });
-  }, [id, applyCarriereData]);
+      .catch(() => {
+        // No frozen_data on the server — still restore a local draft if present.
+        const draft = readCareerDraft(id);
+        if (draft) restoreCareerDraft(draft);
+        draftHydratedRef.current = true;
+        setHydrationDone(true);
+      });
+  }, [id, applyCarriereData, restoreCareerDraft]);
+
+  // Autosave the working career to localStorage (debounced) so a scanned RIS
+  // survives a refresh without freezing. Skipped while the career is locked
+  // (frozen_data is then authoritative) and until mount hydration has run.
+  useEffect(() => {
+    if (!id || carriereValidee || !draftHydratedRef.current) return undefined;
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(CAREER_DRAFT_KEY(id), JSON.stringify({
+          v: 1,
+          carriereRows, trimCotState, trimAssState, arState,
+          revaloValues, deplafValues,
+          cnavplRows, cnavplOpen, carpimkoRows, carpimkoOpen,
+          regimesPoints, lastRisPayload, visibleRowCount, risFileName,
+        }));
+      } catch { /* quota exceeded or storage disabled: best-effort, skip */ }
+    }, 600);
+    return () => clearTimeout(t);
+  }, [id, carriereValidee, carriereRows, trimCotState, trimAssState, arState,
+      revaloValues, deplafValues, cnavplRows, cnavplOpen, carpimkoRows, carpimkoOpen,
+      regimesPoints, lastRisPayload, visibleRowCount, risFileName]);
 
   // ── Fetch user documents from server ──
   // Charge la liste des documents uploadés pour ce client depuis Laravel
@@ -1673,12 +1789,13 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     setCarriereValidee(false);
     setRisFileName(null);
     setLastRisPayload(null);
-    // Vider les notes IA (flags) persistées
+    // Vider les notes IA (flags) persistées + le brouillon de carrière local
     setUncertaintiesByYear({});
     setSyntheseUncertainties({});
     try {
       sessionStorage.removeItem(`simu_uncert_${id}`);
       sessionStorage.removeItem(`simu_uncert_synthese_${id}`);
+      localStorage.removeItem(CAREER_DRAFT_KEY(id));
     } catch { /* noop */ }
     // Vider les résultats des calculs et scénarios
     setSkillResult(null);
@@ -3367,6 +3484,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       // Lock properly so locked_at is persisted in DB (store() ignores it, lock() saves it)
       await axios.post(`${global.config.server_url}/frozen_data/${parseInt(id)}/lock`, {}, Config);
 
+      // Frozen_data is now the source of truth — drop the local working draft.
+      try { localStorage.removeItem(CAREER_DRAFT_KEY(id)); } catch { /* noop */ }
+
       setLastRisPayload(null);
 
       setCarriereValidee(true);
@@ -4592,6 +4712,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", ...(uTrimCot.tdStyle || {}) }}>
                                         <input type="number" min={0} max={4} value={trimCotState[row.yr] || ""} disabled={carriereValidee}
+                                          onFocus={selectAllOnFocus}
                                           title={uTrimCot.title}
                                           onChange={(e) => { const reste = 4 - ((trimAssState[row.yr] ?? 0) + (arState[row.yr] ?? 0)); const v = Math.max(0, Math.min(parseInt(e.target.value, 10) || 0, Math.max(0, reste))); setTrimCotState(prev => ({ ...prev, [row.yr]: v })); }}
                                           style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 15, padding: "1px" }} />
@@ -4599,12 +4720,14 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", ...(uTrimAss.tdStyle || {}) }}>
                                         <input type="number" min={0} max={4} value={trimAssState[row.yr] || ""} disabled={carriereValidee}
+                                          onFocus={selectAllOnFocus}
                                           onChange={(e) => { const reste = 4 - ((trimCotState[row.yr] ?? 0) + (arState[row.yr] ?? 0)); const v = Math.max(0, Math.min(parseInt(e.target.value, 10) || 0, Math.max(0, reste))); setTrimAssState(prev => ({ ...prev, [row.yr]: v })); }}
                                           title={uTrimAss.title || "Trimestres assimilés (maladie, chômage, maternité…)"} style={{ width: 26, textAlign: "center", border: "1px solid #6C5CE730", borderRadius: 3, fontSize: 15, padding: "1px", color: "#6C5CE7" }} />
                                         {uTrimAss.badge}
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", ...(uTrimAr.tdStyle || {}) }}>
                                         <input type="number" min={0} max={4} value={arState[row.yr] || ""} disabled={carriereValidee}
+                                          onFocus={selectAllOnFocus}
                                           onChange={(e) => { const reste = 4 - ((trimCotState[row.yr] ?? 0) + (trimAssState[row.yr] ?? 0)); const v = Math.max(0, Math.min(parseInt(e.target.value, 10) || 0, Math.max(0, reste))); setArState(prev => ({ ...prev, [row.yr]: v })); }}
                                           title={uTrimAr.title || "Trimestres rachetés (versement pour la retraite)"}
                                           style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 15, padding: "1px" }} />
@@ -4984,6 +5107,25 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                       const dispDateLegale = computeDateLegale(dispBirthDate);
                       const dispDateTauxPlein = computeDateTauxPlein(dispBirthDate, dispTrimAcquis, dispAnneeRef);
                       const dispDate67 = computeDate67(dispBirthDate);
+                      // Complementary figures shown inside each date card so the three
+                      // boxes together expose age-at-date + acquired/required trimestres.
+                      const dispTrimRequis = dispDateTauxPlein?.trimRequis ?? null;
+                      const dispTrimManquants = dispTrimRequis != null ? Math.max(0, dispTrimRequis - dispTrimAcquis) : null;
+                      const dispTauxPleinAtteint = dispTrimRequis != null && dispTrimAcquis >= dispTrimRequis;
+                      const ageAtDispDate = (date) => {
+                        if (!dispBirthDate || !date) return null;
+                        const b = new Date(dispBirthDate);
+                        if (isNaN(b.getTime())) return null;
+                        let years = date.getFullYear() - b.getFullYear();
+                        let months = date.getMonth() - b.getMonth();
+                        if (date.getDate() < b.getDate()) months -= 1;
+                        if (months < 0) { years -= 1; months += 12; }
+                        return months > 0 ? `${years} ans ${months} m` : `${years} ans`;
+                      };
+                      const trimAcquisVal = dispTrimAcquis > 0 ? `${dispTrimAcquis} trim.` : "—";
+                      const trimRequisVal = dispTrimRequis != null ? `${dispTrimRequis} trim.` : "—";
+                      const manquantsVal = dispTrimManquants == null ? "—" : (dispTrimManquants === 0 ? "✓ atteint" : `${dispTrimManquants} trim.`);
+                      const manquantsColorDisp = dispTrimManquants == null ? "#555" : (dispTrimManquants === 0 ? "#00B894" : "#C0392B");
                       return (
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
@@ -5091,10 +5233,24 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             </div>
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 7 }}>
                               {[
-                                { id: "age_legal", label: "Âge légal", icon: "⚖️", info: dispDateLegale ? `${dispDateLegale.ageStr} → ${dispDateLegale.label}` : "Date de naissance manquante", dateInfo: dispDateLegale, disabled: !dispDateLegale, trimAt: dispDateLegale ? computeTrimAtDate(dispTrimAcquis, dispAnneeRef, dispDateLegale.date, dispTrimParAnnee) : null },
-                                { id: "taux_plein", label: "Taux plein (durée)", icon: "🎯", info: dispDateTauxPlein ? (dispDateTauxPlein.trimManquants === 0 ? `${dispDateTauxPlein.ageStr} • ${dispDateTauxPlein.trimRequis} trim. atteints` : `${dispDateTauxPlein.ageStr} • ${dispDateTauxPlein.trimManquants} trim. manquants → ${dispDateTauxPlein.label}`) : "Date de naissance manquante", dateInfo: dispDateTauxPlein, disabled: !dispDateTauxPlein, trimAt: dispDateTauxPlein ? dispDateTauxPlein.trimRequis : null },
-                                { id: "taux_plein_auto", label: "Taux plein auto (67 ans)", icon: "🔓", info: dispDate67 ? `67 ans → ${dispDate67.label}` : "Date de naissance manquante", dateInfo: dispDate67, disabled: !dispDate67, trimAt: dispDate67 ? computeTrimAtDate(dispTrimAcquis, dispAnneeRef, dispDate67.date, dispTrimParAnnee) : null },
-                                { id: "date_libre", label: "Date libre", icon: "📆", info: "Date de simulation à choisir", dateInfo: null, disabled: false, trimAt: null },
+                                { id: "age_legal", label: "Âge légal", icon: "⚖️", info: dispDateLegale ? `${dispDateLegale.ageStr} → ${dispDateLegale.label}` : "Date de naissance manquante", dateInfo: dispDateLegale, disabled: !dispDateLegale, trimAt: dispDateLegale ? computeTrimAtDate(dispTrimAcquis, dispAnneeRef, dispDateLegale.date, dispTrimParAnnee) : null, details: dispDateLegale ? [
+                                  { k: "Âge légal", v: dispDateLegale.ageStr },
+                                  { k: "Trim. acquis", v: trimAcquisVal, color: "#0984E3" },
+                                  { k: "Requis", v: trimRequisVal },
+                                  { k: "Taux plein à cet âge", v: manquantsVal, color: manquantsColorDisp },
+                                ] : null },
+                                { id: "taux_plein", label: "Taux plein (durée)", icon: "🎯", info: dispDateTauxPlein ? (dispDateTauxPlein.trimManquants === 0 ? `${dispDateTauxPlein.ageStr} • ${dispDateTauxPlein.trimRequis} trim. atteints` : `${dispDateTauxPlein.ageStr} • ${dispDateTauxPlein.trimManquants} trim. manquants → ${dispDateTauxPlein.label}`) : "Date de naissance manquante", dateInfo: dispDateTauxPlein, disabled: !dispDateTauxPlein, trimAt: dispDateTauxPlein ? dispDateTauxPlein.trimRequis : null, details: dispDateTauxPlein ? [
+                                  { k: "Âge à cette date", v: ageAtDispDate(dispDateTauxPlein.date) || "—", color: "#0984E3" },
+                                  { k: "Trim. acquis", v: trimAcquisVal },
+                                  { k: "Requis", v: trimRequisVal },
+                                  { k: "Manquants", v: manquantsVal, color: manquantsColorDisp },
+                                ] : null },
+                                { id: "taux_plein_auto", label: "Taux plein auto (67 ans)", icon: "🔓", info: dispDate67 ? `67 ans → ${dispDate67.label}` : "Date de naissance manquante", dateInfo: dispDate67, disabled: !dispDate67, trimAt: dispDate67 ? computeTrimAtDate(dispTrimAcquis, dispAnneeRef, dispDate67.date, dispTrimParAnnee) : null, details: dispDate67 ? [
+                                  { k: "Âge à cette date", v: ageAtDispDate(dispDate67.date) || "67 ans" },
+                                  { k: "Trim. acquis", v: trimAcquisVal, color: "#0984E3" },
+                                  { k: "Décote", v: dispTauxPleinAtteint ? "aucune" : "aucune (taux plein auto)", color: "#00B894" },
+                                ] : null },
+                                { id: "date_libre", label: "Date libre", icon: "📆", info: "Date de simulation à choisir", dateInfo: null, disabled: false, trimAt: null, details: null },
                               ].map((d) => {
                                 const isChosen = chosenDates.some(cd => cd?.type === d.id && (d.id !== "date_libre" || cd?.date === dateLibreInput));
                                 const handleClick = () => {
@@ -5131,6 +5287,16 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                     {d.trimAt != null && (
                                       <div style={{ fontSize: 10, color: "#999", paddingLeft: 22, marginTop: 1 }}>
                                         📊 {d.trimAt} trim. à cette date
+                                      </div>
+                                    )}
+                                    {d.details && (
+                                      <div style={{ paddingLeft: 22, marginTop: 3, display: "grid", gridTemplateColumns: "1fr auto", gap: "2px 8px", fontSize: 10.5 }}>
+                                        {d.details.map((row) => (
+                                          <React.Fragment key={row.k}>
+                                            <span style={{ color: "#8a8a8a" }}>{row.k}</span>
+                                            <span style={{ fontWeight: 700, color: row.color || "#444", textAlign: "right", whiteSpace: "nowrap" }}>{row.v}</span>
+                                          </React.Fragment>
+                                        ))}
                                       </div>
                                     )}
                                     {d.id === "date_libre" && (
@@ -5503,6 +5669,32 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               const calcsDone = !!(skillResult || agircResult || ircantecResult || rciResult || cipavResult || carpimkoResult || hasAnyTier1Result);
                               const hasCarpimkoPoints = Object.values(carpimkoRows).some(r => r.points_base || r.points_asv || r.points_compl);
                               const totalRegimes = 5 + (hasCarpimkoPoints ? 1 : 0) + tier1ActiveCodes.length;
+                              // Career edited since the last calc → results are stale. One click
+                              // re-freezes the edited grid then recomputes (autoChain), so the
+                              // server engine reads the new data.
+                              if (resultsStale && !isCalculatingAll) {
+                                const recalcReady = !isCarriereEmpty && !!user?.birth_date && !frozenLoading;
+                                return (
+                                  <button
+                                    onClick={() => { autoChainPendingRef.current = true; handleGeler(); }}
+                                    disabled={!recalcReady}
+                                    title="La carrière a été modifiée depuis le dernier calcul — recalcule les pensions avec les données actuelles"
+                                    style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", padding: "12px 20px", borderRadius: 8, border: "none", background: recalcReady ? "linear-gradient(135deg, #F59E0B 0%, #EA580C 100%)" : "#ccc", color: "#fff", fontWeight: 700, fontSize: 15, cursor: recalcReady ? "pointer" : "not-allowed", boxShadow: recalcReady ? "0 4px 14px rgba(234,88,12,0.32)" : "none", transition: "all 0.2s" }}
+                                  >
+                                    {frozenLoading ? (
+                                      <>
+                                        <span style={{ display: "inline-block", width: 14, height: 14, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                                        Recalcul en cours…
+                                      </>
+                                    ) : (
+                                      <>
+                                        <span style={{ fontSize: 16 }}>⚠️</span>
+                                        Résultats périmés — Recalculer ({totalRegimes} régimes)
+                                      </>
+                                    )}
+                                  </button>
+                                );
+                              }
                               if (carriereValidee && calcsDone && !isCalculatingAll) {
                                 return (
                                   <button
@@ -5675,6 +5867,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             })()}
                           </div>
 
+                          {resultsStale && (
+                            <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, background: "#FFF7ED", border: "1px solid #FDBA74", color: "#9A3412", fontSize: 12.5, fontWeight: 600 }}>
+                              <span style={{ fontSize: 15 }}>⚠️</span>
+                              <span style={{ flex: 1 }}>Carrière modifiée depuis ces calculs — les montants affichés sont périmés. Cliquez « Recalculer » pour les mettre à jour.</span>
+                            </div>
+                          )}
                           {(skillResult || agircResult || ircantecResult || rciResult || cipavResult || carpimkoResult) && (
                             <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end" }}>
                               <button
