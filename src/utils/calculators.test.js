@@ -176,6 +176,7 @@ import {
   computeDateTauxPlein,
   computeDate67,
   computeAutoDateFromDispositif,
+  computeTrimAtDate,
 } from './calculators';
 
 describe('parseBirthDate', () => {
@@ -275,6 +276,41 @@ describe('computeDateTauxPlein', () => {
     const result = computeDateTauxPlein('1966-07-08', 164); // 8 manquants
     expect(result.trimManquants).toBe(8);
     expect(result.date).toBeDefined();
+  });
+});
+
+describe('computeTrimAtDate', () => {
+  test('returns null for missing targetDate', () => {
+    expect(computeTrimAtDate(150, 2025, null)).toBeNull();
+  });
+
+  test('date antérieure à la base de projection → décompte acquis inchangé', () => {
+    // base = 01/01/2026, cible 01/01/2025 < base → pas de projection
+    expect(computeTrimAtDate(150, 2025, new Date(2025, 0, 1))).toBe(150);
+  });
+
+  test('projette 1 trimestre par trimestre civil (4/an)', () => {
+    // base 01/01/2026 → 01/01/2028 = 24 mois = 8 trimestres
+    expect(computeTrimAtDate(160, 2025, new Date(2028, 0, 1))).toBe(168);
+  });
+
+  test('cohérence avec computeDateTauxPlein : trim. à la date de taux plein = trimRequis', () => {
+    const tp = computeDateTauxPlein('1966-07-08', 164, 2025); // trimRequis 172, date 01/01/2028
+    expect(computeTrimAtDate(164, 2025, tp.date)).toBe(tp.trimRequis);
+  });
+
+  test('date passée + carrière → cumul réel des années révolues (pas le total actuel)', () => {
+    // Carrière 2018-2021 = 4 ans pleins = 16 trim ; total acquis = 148 à 2024.
+    // Date cible 01/02/2023 → on ne compte que les années < 2023 (2018-2021) = 16,
+    // surtout PAS le total actuel 148.
+    const trimParAnnee = { 2018: 4, 2019: 4, 2020: 4, 2021: 4, 2024: 4 };
+    expect(computeTrimAtDate(148, 2024, new Date(2023, 1, 1), trimParAnnee)).toBe(16);
+  });
+
+  test('date future ignore la carrière et projette depuis anneeReference', () => {
+    const trimParAnnee = { 2024: 4 };
+    // base 01/01/2025 → 01/01/2027 = 24 mois = 8 trim → 160 + 8 = 168
+    expect(computeTrimAtDate(160, 2024, new Date(2027, 0, 1), trimParAnnee)).toBe(168);
   });
 });
 

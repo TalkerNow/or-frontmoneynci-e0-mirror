@@ -18,7 +18,7 @@ import { parseNIR } from "./utils";
 import { parseCarrierePoints } from "./carrierePoints";
 import { REGIMES, getPoints, resolveRegime, computeVisibleRegimes, REGIMES_SIMPLES, extractRegimeSimplePoints } from "../simulatorRegimes";
 import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml, detectDocumentType, fetchRapprochementConstat, applyReportChatMessage, fetchPromptNotes, savePromptNote, deletePromptNote } from "../risService";
-import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif, sumTrimestresCapped } from '../../../../../utils/calculators';
+import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif, computeTrimAtDate, sumTrimestresCapped } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
 import SkillCreateModal from "./SkillCreateModal";
@@ -4591,21 +4591,21 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                         )}
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", ...(uTrimCot.tdStyle || {}) }}>
-                                        <input type="number" value={trimCotState[row.yr] ?? 0} disabled={carriereValidee}
+                                        <input type="number" min={0} max={4} value={trimCotState[row.yr] || ""} disabled={carriereValidee}
                                           title={uTrimCot.title}
-                                          onChange={(e) => { const v = parseInt(e.target.value) || 0; setTrimCotState(prev => ({ ...prev, [row.yr]: v })); }}
+                                          onChange={(e) => { const reste = 4 - ((trimAssState[row.yr] ?? 0) + (arState[row.yr] ?? 0)); const v = Math.max(0, Math.min(parseInt(e.target.value, 10) || 0, Math.max(0, reste))); setTrimCotState(prev => ({ ...prev, [row.yr]: v })); }}
                                           style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 15, padding: "1px" }} />
                                         {uTrimCot.badge}
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", ...(uTrimAss.tdStyle || {}) }}>
-                                        <input type="number" value={trimAssState[row.yr] ?? 0} disabled={carriereValidee}
-                                          onChange={(e) => { const v = parseInt(e.target.value) || 0; setTrimAssState(prev => ({ ...prev, [row.yr]: v })); }}
+                                        <input type="number" min={0} max={4} value={trimAssState[row.yr] || ""} disabled={carriereValidee}
+                                          onChange={(e) => { const reste = 4 - ((trimCotState[row.yr] ?? 0) + (arState[row.yr] ?? 0)); const v = Math.max(0, Math.min(parseInt(e.target.value, 10) || 0, Math.max(0, reste))); setTrimAssState(prev => ({ ...prev, [row.yr]: v })); }}
                                           title={uTrimAss.title || "Trimestres assimilés (maladie, chômage, maternité…)"} style={{ width: 26, textAlign: "center", border: "1px solid #6C5CE730", borderRadius: 3, fontSize: 15, padding: "1px", color: "#6C5CE7" }} />
                                         {uTrimAss.badge}
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", ...(uTrimAr.tdStyle || {}) }}>
-                                        <input type="number" value={arState[row.yr] ?? 0} disabled={carriereValidee}
-                                          onChange={(e) => { const v = parseInt(e.target.value) || 0; setArState(prev => ({ ...prev, [row.yr]: v })); }}
+                                        <input type="number" min={0} max={4} value={arState[row.yr] || ""} disabled={carriereValidee}
+                                          onChange={(e) => { const reste = 4 - ((trimCotState[row.yr] ?? 0) + (trimAssState[row.yr] ?? 0)); const v = Math.max(0, Math.min(parseInt(e.target.value, 10) || 0, Math.max(0, reste))); setArState(prev => ({ ...prev, [row.yr]: v })); }}
                                           title={uTrimAr.title || "Trimestres rachetés (versement pour la retraite)"}
                                           style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 15, padding: "1px" }} />
                                         {uTrimAr.badge}
@@ -4973,6 +4973,14 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                         scan(trimCotState); scan(trimAssState);
                         return max;
                       })();
+                      // Trimestres validés par année civile (cotisés + assimilés,
+                      // plafonné 4/an, rachetés exclus — cohérent avec computeDateTauxPlein).
+                      // Sert au décompte historique exact des dates de départ passées.
+                      const dispTrimParAnnee = {};
+                      Array.from(new Set([...Object.keys(trimCotState), ...Object.keys(trimAssState)])).forEach((yr) => {
+                        const v = Math.min(4, (Number(trimCotState[yr]) || 0) + (Number(trimAssState[yr]) || 0));
+                        if (v > 0) dispTrimParAnnee[yr] = v;
+                      });
                       const dispDateLegale = computeDateLegale(dispBirthDate);
                       const dispDateTauxPlein = computeDateTauxPlein(dispBirthDate, dispTrimAcquis, dispAnneeRef);
                       const dispDate67 = computeDate67(dispBirthDate);
@@ -5083,10 +5091,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             </div>
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 7 }}>
                               {[
-                                { id: "age_legal", label: "Âge légal", icon: "⚖️", info: dispDateLegale ? `${dispDateLegale.ageStr} → ${dispDateLegale.label}` : "Date de naissance manquante", dateInfo: dispDateLegale, disabled: !dispDateLegale },
-                                { id: "taux_plein", label: "Taux plein (durée)", icon: "🎯", info: dispDateTauxPlein ? (dispDateTauxPlein.trimManquants === 0 ? `${dispDateTauxPlein.trimRequis} trim. atteints` : `${dispDateTauxPlein.trimManquants} trim. manquants → ${dispDateTauxPlein.label}`) : "Date de naissance manquante", dateInfo: dispDateTauxPlein, disabled: !dispDateTauxPlein },
-                                { id: "taux_plein_auto", label: "Taux plein auto (67 ans)", icon: "🔓", info: dispDate67 ? `67 ans → ${dispDate67.label}` : "Date de naissance manquante", dateInfo: dispDate67, disabled: !dispDate67 },
-                                { id: "date_libre", label: "Date libre", icon: "📆", info: "Date de simulation à choisir", dateInfo: null, disabled: false },
+                                { id: "age_legal", label: "Âge légal", icon: "⚖️", info: dispDateLegale ? `${dispDateLegale.ageStr} → ${dispDateLegale.label}` : "Date de naissance manquante", dateInfo: dispDateLegale, disabled: !dispDateLegale, trimAt: dispDateLegale ? computeTrimAtDate(dispTrimAcquis, dispAnneeRef, dispDateLegale.date, dispTrimParAnnee) : null },
+                                { id: "taux_plein", label: "Taux plein (durée)", icon: "🎯", info: dispDateTauxPlein ? (dispDateTauxPlein.trimManquants === 0 ? `${dispDateTauxPlein.ageStr} • ${dispDateTauxPlein.trimRequis} trim. atteints` : `${dispDateTauxPlein.ageStr} • ${dispDateTauxPlein.trimManquants} trim. manquants → ${dispDateTauxPlein.label}`) : "Date de naissance manquante", dateInfo: dispDateTauxPlein, disabled: !dispDateTauxPlein, trimAt: dispDateTauxPlein ? dispDateTauxPlein.trimRequis : null },
+                                { id: "taux_plein_auto", label: "Taux plein auto (67 ans)", icon: "🔓", info: dispDate67 ? `67 ans → ${dispDate67.label}` : "Date de naissance manquante", dateInfo: dispDate67, disabled: !dispDate67, trimAt: dispDate67 ? computeTrimAtDate(dispTrimAcquis, dispAnneeRef, dispDate67.date, dispTrimParAnnee) : null },
+                                { id: "date_libre", label: "Date libre", icon: "📆", info: "Date de simulation à choisir", dateInfo: null, disabled: false, trimAt: null },
                               ].map((d) => {
                                 const isChosen = chosenDates.some(cd => cd?.type === d.id && (d.id !== "date_libre" || cd?.date === dateLibreInput));
                                 const handleClick = () => {
@@ -5120,6 +5128,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                         </>
                                       ) : d.info}
                                     </div>
+                                    {d.trimAt != null && (
+                                      <div style={{ fontSize: 10, color: "#999", paddingLeft: 22, marginTop: 1 }}>
+                                        📊 {d.trimAt} trim. à cette date
+                                      </div>
+                                    )}
                                     {d.id === "date_libre" && (
                                       <div style={{ display: "flex", gap: 6, marginTop: 4, paddingLeft: 22 }}>
                                         <DateInputFR

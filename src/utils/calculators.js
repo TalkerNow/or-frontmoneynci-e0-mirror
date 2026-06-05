@@ -371,7 +371,46 @@ export function computeDateTauxPlein(birthDate, trimAcquis, anneeReference = nul
     : new Date();
   const projected = addMonths(base, trimManquants * 3);
   const departure = firstOfNextMonth(projected);
-  return { date: departure, label: formatDateFR(departure), trimManquants, trimRequis };
+  return { date: departure, label: formatDateFR(departure), trimManquants, trimRequis, ageStr: ageLabel(birth, departure) };
+}
+
+/**
+ * Nombre de trimestres validés à une date donnée.
+ *
+ * - Date dans le passé (année cible ≤ année de référence) ET carrière fournie :
+ *   cumul RÉEL des trimestres validés sur les années civiles révolues avant la
+ *   date cible (validation par année civile pleine). Aucune projection.
+ * - Sinon (futur, ou carrière absente) : trimestres acquis à `anneeReference`
+ *   + projection de 1 trimestre par trimestre civil (4/an) à partir du 1er janvier
+ *   suivant. Cohérent avec computeDateTauxPlein (même base de projection).
+ *
+ * @param {number} trimAcquis            Trimestres acquis à l'année de référence
+ * @param {number|null} anneeReference   Dernière année civile validée
+ * @param {Date|null} targetDate         Date à laquelle évaluer le décompte
+ * @param {Object<string|number, number>|null} [trimParAnnee=null]  Map année →
+ *   trimestres validés cette année-là (déjà plafonnés 4/an). Requis pour un
+ *   décompte historique exact ; sinon on retombe sur la projection.
+ * @returns {number|null}
+ */
+export function computeTrimAtDate(trimAcquis, anneeReference, targetDate, trimParAnnee = null) {
+  if (!targetDate) return null;
+  const targetYear = targetDate.getFullYear();
+  // Passé connu : cumul réel des années civiles révolues avant la date cible.
+  if (trimParAnnee && anneeReference != null && targetYear <= anneeReference) {
+    let cumul = 0;
+    Object.entries(trimParAnnee).forEach(([y, t]) => {
+      if (Number(y) < targetYear) cumul += Number(t) || 0;
+    });
+    return cumul;
+  }
+  // Futur : acquis à anneeReference + projection 4/an.
+  const base = anneeReference ? new Date(anneeReference + 1, 0, 1) : new Date();
+  if (targetDate <= base) return trimAcquis;
+  const months =
+    (targetDate.getFullYear() - base.getFullYear()) * 12 +
+    (targetDate.getMonth() - base.getMonth());
+  const projetes = Math.max(0, Math.floor(months / 3));
+  return trimAcquis + projetes;
 }
 
 /**
