@@ -30,6 +30,14 @@ import { buildRecapRegimes, buildCipavRecap } from "./recapCarriere";
 import { RegimeRecapVignettes } from "./RecapCarriereParRegime";
 import BaremeRetraitePage from "../../../bareme-retraite";
 import { coeffRevalo } from "../simulatorData";
+import {
+  parseBirthYear,
+  computeTargetYear,
+  findLastRealYear,
+  findLastRealSalary,
+  isProjectedYear,
+  reconcileProjection,
+} from "./careerProjection";
 
 // ─── DATA ───────────────────────────────────────────────────────────────────
 
@@ -280,6 +288,9 @@ const ADMIN_SKILL_PROMPTS = [
 ];
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
+
+// Latest known PASS (plafond annuel SS). Projected future years cap salary here.
+const PASS_LAST = PLAFONDS_SS[2026] || 0;
 
 function _buildDefaultCarriereRows() {
   return Array.from({ length: 65 }, (_, i) => {
@@ -1034,6 +1045,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [frozenLoading, setFrozenLoading] = useState(false);
   const [isParsingRIS, setIsParsingRIS] = useState(false);
   const [visibleRowCount, setVisibleRowCount] = useState(20);
+  // ── Projection fin de carrière ──
+  const [projectionTargetAge, setProjectionTargetAge] = useState(67);
+  const [projectionSurcote, setProjectionSurcote] = useState(0);
+  const [projRegenNonce, setProjRegenNonce] = useState(0);
   const [risFileName, setRisFileName] = useState(null);
   const [droitsSynthese, setDroitsSynthese] = useState(null);
   const [risCarriereSynthese, setRisCarriereSynthese] = useState(null);
@@ -1487,6 +1502,16 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
 
   // ── Apply career rows from backend data ─────────────────────────────────
   // Handles two formats:
+  // Derived projection values (read-only; recomputed from grid + controls + client birthdate).
+  const projBirthYear = useMemo(() => parseBirthYear(user?.birth_date), [user]);
+  const projTargetYear = useMemo(() => computeTargetYear(projBirthYear, projectionTargetAge), [projBirthYear, projectionTargetAge]);
+  const projLastRealYear = useMemo(() => findLastRealYear(carriereRows), [carriereRows]);
+  const projMaxYear = useMemo(() => {
+    if (projLastRealYear == null || projTargetYear == null) return null;
+    return Math.max(projTargetYear, projLastRealYear) + projectionSurcote;
+  }, [projLastRealYear, projTargetYear, projectionSurcote]);
+  const projectionActive = projLastRealYear != null && projTargetYear != null;
+
   //   RIS format  : { annee, sal_original, sal_eur, devise, regimes }
   //   SAISIE format: { annee, salaire_brut, salaire_revalo, trimestres_cotises, trimestres_assimiles }
   const applyCarriereData = useCallback((carriere) => {
