@@ -1,4 +1,5 @@
 import {
+  toNumber,
   parseBirthYear,
   computeTargetYear,
   findLastRealYear,
@@ -17,6 +18,12 @@ function rows(years) {
   return years.map((y) => ({ yr: y.yr, sal: y.sal ?? 0, ss: 0, coeff: "1.000", revalo: 0, trim: 0, ar: 0, total: 0, agircPts: 0, ircPts: 0, rciPts: 0, regimes: {} }));
 }
 
+describe("toNumber", () => {
+  test("passes through finite numbers", () => { expect(toNumber(5)).toBe(5); });
+  test("parses numeric strings", () => { expect(toNumber("12.5")).toBe(12.5); });
+  test("zero for null/garbage/NaN", () => { expect(toNumber(null)).toBe(0); expect(toNumber("abc")).toBe(0); expect(toNumber(NaN)).toBe(0); expect(toNumber(undefined)).toBe(0); });
+});
+
 describe("parseBirthYear", () => {
   test("parses ISO date to UTC year", () => { expect(parseBirthYear("1965-03-10")).toBe(1965); });
   test("null for empty/garbage", () => { expect(parseBirthYear("")).toBeNull(); expect(parseBirthYear("nope")).toBeNull(); expect(parseBirthYear(null)).toBeNull(); });
@@ -25,6 +32,7 @@ describe("parseBirthYear", () => {
 describe("computeTargetYear", () => {
   test("birthYear + age", () => { expect(computeTargetYear(1965, 67)).toBe(2032); });
   test("null when birthYear null", () => { expect(computeTargetYear(null, 67)).toBeNull(); });
+  test("null when age is not finite", () => { expect(computeTargetYear(1965, undefined)).toBeNull(); });
 });
 
 describe("findLastRealYear / findLastRealSalary", () => {
@@ -32,6 +40,14 @@ describe("findLastRealYear / findLastRealSalary", () => {
   test("last year with sal>0", () => { expect(findLastRealYear(r)).toBe(2024); });
   test("salary at that year", () => { expect(findLastRealSalary(r, 2024)).toBe(41000); });
   test("null when no salary anywhere", () => { expect(findLastRealYear(rows([{ yr: 2026 }, { yr: 2025 }]))).toBeNull(); });
+  test("excludes projected rows", () => {
+    const r2 = [
+      { yr: 2027, sal: 48060, projected: true },
+      { yr: 2026, sal: 48060, projected: true },
+      { yr: 2024, sal: 41000 },
+    ];
+    expect(findLastRealYear(r2)).toBe(2024);
+  });
 });
 
 describe("computeProjectedYears", () => {
@@ -107,5 +123,12 @@ describe("reconcileProjection", () => {
     expect(out2.carriereRows.some((r) => r.projected)).toBe(false);
     expect(out2.carriereRows.find((r) => r.yr === 2025)).toMatchObject({ sal: 0, projected: false });
     expect(out2.carriereRows.find((r) => r.yr === 2027)).toBeUndefined();
+  });
+
+  test("does not mutate the input state", () => {
+    const state = baseState();
+    const before = JSON.stringify(state);
+    reconcileProjection(state, { lastRealYear: 2024, targetYear: 2028, surcote: 0, lastRealSalary: 41000, passLast: PASS });
+    expect(JSON.stringify(state)).toBe(before);
   });
 });

@@ -2,6 +2,10 @@
 // Projected years are real carriereRows entries flagged `projected: true`; they ride the
 // existing freeze (handleGeler) → frozen_data → n8n path and every aggregation unchanged.
 
+// Last year present in the seeded historical grid (_buildDefaultCarriereRows: 2026..1962).
+// Projected years <= this already exist as rows; years beyond it are inserted as new rows.
+const LAST_HISTORY_YEAR = 2026;
+
 export function toNumber(v) {
   const n = typeof v === "string" ? parseFloat(v) : v;
   return Number.isFinite(n) ? n : 0;
@@ -16,7 +20,7 @@ export function parseBirthYear(birthDateStr) {
 }
 
 export function computeTargetYear(birthYear, targetAge) {
-  if (birthYear == null) return null;
+  if (birthYear == null || !Number.isFinite(targetAge)) return null;
   return birthYear + targetAge;
 }
 
@@ -24,7 +28,7 @@ export function computeTargetYear(birthYear, targetAge) {
 export function findLastRealYear(carriereRows) {
   let last = null;
   for (const r of carriereRows) {
-    if (toNumber(r.sal) > 0 && (last == null || r.yr > last)) last = r.yr;
+    if (!r.projected && toNumber(r.sal) > 0 && (last == null || r.yr > last)) last = r.yr;
   }
   return last;
 }
@@ -84,7 +88,7 @@ export function reconcileProjection(state, params) {
   for (let i = carriereRows.length - 1; i >= 0; i--) {
     const r = carriereRows[i];
     if (r.projected && !target.has(r.yr)) {
-      if (r.yr > 2026) {
+      if (r.yr > LAST_HISTORY_YEAR) {
         carriereRows.splice(i, 1);
         byYear.delete(r.yr);
       } else {
@@ -102,7 +106,7 @@ export function reconcileProjection(state, params) {
     const existing = byYear.get(y);
     if (existing && existing.projected) continue; // keep edits
     if (existing) {
-      const updated = { ...existing, sal: value.sal, ss: value.sal, coeff: "1.000", revalo: value.revalo, projected: true };
+      const updated = { ...existing, sal: value.sal, ss: value.sal, coeff: "1.000", revalo: value.revalo, trim: 0, projected: true };
       const idx = carriereRows.findIndex((r) => r.yr === y);
       carriereRows[idx] = updated;
       byYear.set(y, updated);
