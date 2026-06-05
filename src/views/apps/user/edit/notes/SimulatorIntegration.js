@@ -1830,6 +1830,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     setCarpimkoRows(Object.fromEntries([2025,2024,2023,2022,2021,2020,2019,2018,2017,2016,2015].map(yr => [yr, { points_base: "", points_asv: "", points_compl: "" }])));
     setCarpimkoOpen(false);
     setVisibleRowCount(20);
+    setProjectionTargetAge(67);
+    setProjectionSurcote(0);
+    try { localStorage.removeItem(`simu_projection_${id}`); } catch { /* noop */ }
     setCarriereValidee(false);
     setRisFileName(null);
     setLastRisPayload(null);
@@ -2291,6 +2294,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
 
       toast.dismiss("ris-parsing");
       toast.success("Tableau carrière rempli");
+      setProjectionSurcote(0);
+      setProjRegenNonce((n) => n + 1);
       if (cappedFromRIS > 0) {
         toast.info(
           `📏 ${cappedFromRIS} an${cappedFromRIS > 1 ? 's' : ''} au plafond SS (salaire SS = plafond ; revalorisation appliquée — cellules en rouge).`,
@@ -4590,6 +4595,44 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               )}
                             </div>
                           )} */}
+
+                          {/* Projection fin de carrière */}
+                          <div style={{ display: "flex", alignItems: "center", gap: 16, background: "#FFF7E6", border: "1px solid #FFE0A3", borderRadius: 8, padding: "8px 14px", marginBottom: 10, flexWrap: "wrap" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <span style={{ fontSize: 16 }}>📈</span>
+                              <label htmlFor="proj_target_age" style={{ fontSize: 13, fontWeight: 600, color: "#343a40" }}>Âge de départ visé</label>
+                              <input
+                                type="number"
+                                id="proj_target_age"
+                                min={60}
+                                max={75}
+                                value={projectionTargetAge}
+                                disabled={carriereValidee}
+                                onChange={(e) => {
+                                  const v = parseInt(e.target.value, 10);
+                                  const clamped = Number.isFinite(v) ? Math.min(75, Math.max(60, v)) : 67;
+                                  setProjectionTargetAge(clamped);
+                                  handleGenerateProjection(clamped, projectionSurcote);
+                                }}
+                                style={{ width: 64, textAlign: "center", border: "1px solid #ddd", borderRadius: 4, fontSize: 14, padding: "2px 4px" }}
+                              />
+                            </div>
+                            {projectionActive && (
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <span style={{ fontSize: 13, fontWeight: 600, color: "#343a40" }}>Surcote</span>
+                                <button type="button" disabled={carriereValidee || projectionSurcote <= 0}
+                                  onClick={() => { const s = Math.max(0, projectionSurcote - 1); setProjectionSurcote(s); handleGenerateProjection(projectionTargetAge, s); }}
+                                  style={{ width: 26, height: 26, borderRadius: 4, border: "1px solid #FF9F43", background: "#fff", color: "#FF9F43", fontWeight: 700, cursor: "pointer" }}>−</button>
+                                <span style={{ fontSize: 13, minWidth: 56, textAlign: "center" }}>{projectionSurcote} an{projectionSurcote > 1 ? "s" : ""}</span>
+                                <button type="button" disabled={carriereValidee}
+                                  onClick={() => { const s = projectionSurcote + 1; setProjectionSurcote(s); handleGenerateProjection(projectionTargetAge, s); }}
+                                  style={{ width: 26, height: 26, borderRadius: 4, border: "1px solid #FF9F43", background: "#fff", color: "#FF9F43", fontWeight: 700, cursor: "pointer" }}>+</button>
+                              </div>
+                            )}
+                            {projLastRealYear != null && !projBirthYear && (
+                              <span style={{ fontSize: 12, color: "#ea5455", fontWeight: 600 }}>Renseignez la date de naissance du client pour projeter jusqu&rsquo;au taux plein.</span>
+                            )}
+                          </div>
 
                           {/* Grand tableau unifié */}
                           <div className="simu-table-wrap" style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
