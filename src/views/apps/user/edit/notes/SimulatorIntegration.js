@@ -35,7 +35,6 @@ import {
   computeTargetYear,
   findLastRealYear,
   findLastRealSalary,
-  isProjectedYear,
   reconcileProjection,
 } from "./careerProjection";
 
@@ -1506,10 +1505,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const projBirthYear = useMemo(() => parseBirthYear(user?.birth_date), [user]);
   const projTargetYear = useMemo(() => computeTargetYear(projBirthYear, projectionTargetAge), [projBirthYear, projectionTargetAge]);
   const projLastRealYear = useMemo(() => findLastRealYear(carriereRows), [carriereRows]);
-  const projMaxYear = useMemo(() => {
-    if (projLastRealYear == null || projTargetYear == null) return null;
-    return Math.max(projTargetYear, projLastRealYear) + projectionSurcote;
-  }, [projLastRealYear, projTargetYear, projectionSurcote]);
   const projectionActive = projLastRealYear != null && projTargetYear != null;
 
   // Reconcile projected rows to the current controls. Thin wrapper over the pure reducer;
