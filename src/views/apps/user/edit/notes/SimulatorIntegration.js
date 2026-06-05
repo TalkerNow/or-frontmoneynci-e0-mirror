@@ -1512,6 +1512,25 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   }, [projLastRealYear, projTargetYear, projectionSurcote]);
   const projectionActive = projLastRealYear != null && projTargetYear != null;
 
+  // Reconcile projected rows to the current controls. Thin wrapper over the pure reducer;
+  // preserves manual edits, bumps visibleRowCount so the projected block (top of grid) shows.
+  const handleGenerateProjection = useCallback((nextAge, nextSurcote) => {
+    const birthYear = parseBirthYear(user?.birth_date);
+    const targetYear = computeTargetYear(birthYear, nextAge);
+    const lastRealYear = findLastRealYear(carriereRows);
+    const lastRealSalary = findLastRealSalary(carriereRows, lastRealYear);
+    const res = reconcileProjection(
+      { carriereRows, revaloValues, trimCotState },
+      { lastRealYear, targetYear, surcote: nextSurcote, lastRealSalary, passLast: PASS_LAST },
+    );
+    setCarriereRows(res.carriereRows);
+    setRevaloValues(res.revaloValues);
+    setTrimCotState(res.trimCotState);
+    if (res.projectedYears.length) {
+      setVisibleRowCount((v) => Math.min(res.carriereRows.length, Math.max(v, res.projectedYears.length + 20)));
+    }
+  }, [carriereRows, revaloValues, trimCotState, user]);
+
   //   RIS format  : { annee, sal_original, sal_eur, devise, regimes }
   //   SAISIE format: { annee, salaire_brut, salaire_revalo, trimestres_cotises, trimestres_assimiles }
   const applyCarriereData = useCallback((carriere) => {
@@ -1889,6 +1908,34 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   }, [carriereValidee]);
 
   // ── Side Effects ──
+
+  // Restore projection controls for this client (rows themselves ride the WIP career draft).
+  useEffect(() => {
+    if (!id) return;
+    try {
+      const raw = localStorage.getItem(`simu_projection_${id}`);
+      if (raw) {
+        const d = JSON.parse(raw);
+        if (Number.isFinite(d.targetAge)) setProjectionTargetAge(d.targetAge);
+        if (Number.isFinite(d.surcote)) setProjectionSurcote(d.surcote);
+      }
+    } catch { /* noop */ }
+  }, [id]);
+
+  // Persist projection controls (best-effort; the projected rows persist via the career draft).
+  useEffect(() => {
+    if (!id) return;
+    try {
+      localStorage.setItem(`simu_projection_${id}`, JSON.stringify({ targetAge: projectionTargetAge, surcote: projectionSurcote }));
+    } catch { /* noop */ }
+  }, [id, projectionTargetAge, projectionSurcote]);
+
+  // After a RIS import bumps projRegenNonce, regenerate the projection once against the
+  // freshly-applied grid. Intentionally keyed only on the nonce (run-on-signal pattern).
+  useEffect(() => {
+    if (projRegenNonce > 0) handleGenerateProjection(projectionTargetAge, projectionSurcote);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projRegenNonce]);
 
   // Reset hydration tracker on client switch
   useEffect(() => {
