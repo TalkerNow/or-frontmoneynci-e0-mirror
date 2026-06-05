@@ -4733,6 +4733,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               <tbody>
                                 {totalRows.map((row, i) => {
                                   const tot = Math.min(4, (trimCotState[row.yr] ?? 0) + (trimAssState[row.yr] ?? 0) + (arState[row.yr] ?? 0));
+                                  // Projection framing. totalRows is descending, so the visual TOP
+                                  // projected row is the highest year and the visual BOTTOM is the
+                                  // lowest. Cap the block's OUTER edges accordingly.
+                                  const isProj = !!row.projected;
+                                  const isFirstProj = isProj && (i === 0 || !totalRows[i - 1].projected);   // visual top
+                                  const isLastProj = isProj && (i === totalRows.length - 1 || !totalRows[i + 1].projected); // visual bottom
                                   // Salaire revalorisé : jamais re-plafonné (R.351-29 CSS).
                                   // Le plafond PASS s'applique au salaire SS, pas au revalorisé.
                                   const revaloVal = revaloValues[row.yr] ?? row.revalo;
@@ -4747,8 +4753,17 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                   const uIrc      = uncertProps(getCellUncert(uncertaintiesByYear, row.yr, "points.ircantec"));
                                   const uRci      = uncertProps(getCellUncert(uncertaintiesByYear, row.yr, "points.rci"));
                                   return (
-                                    <tr key={row.yr} style={{ background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
-                                      <td style={{ padding: "3px 5px", fontWeight: 700, color: "#333" }}>{row.yr}</td>
+                                    <tr key={row.yr} style={{
+                                      background: isProj ? "#FFF7E6" : (i % 2 === 0 ? "#fff" : "#fafafa"),
+                                      ...(isFirstProj && { borderTop: "2px dashed #FF9F43" }),
+                                      ...(isLastProj && { borderBottom: "2px dashed #FF9F43" }),
+                                    }}>
+                                      <td style={{ padding: "3px 5px", fontWeight: 700, color: "#333", ...(isProj && { borderLeft: "3px solid #FF9F43" }) }}>
+                                        {row.yr}
+                                        {isProj && (
+                                          <span style={{ display: "inline-block", marginLeft: 6, padding: "1px 6px", borderRadius: 8, background: "#FF9F43", color: "#fff", fontSize: 9, fontWeight: 700, verticalAlign: "middle" }}>Projection</span>
+                                        )}
+                                      </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "1px solid #eee", ...(uRevenu.tdStyle || {}) }}>
                                         <input type="number" value={row.sal || ""} disabled={carriereValidee}
                                           title={uRevenu.title}
