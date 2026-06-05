@@ -1923,6 +1923,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   }, [id]);
 
   // Persist projection controls (best-effort; the projected rows persist via the career draft).
+  // On mount this fires with defaults before the restore effect's state update lands; the
+  // restore effect corrects it in the same commit cycle (the rows persist independently).
   useEffect(() => {
     if (!id) return;
     try {
@@ -1931,7 +1933,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   }, [id, projectionTargetAge, projectionSurcote]);
 
   // After a RIS import bumps projRegenNonce, regenerate the projection once against the
-  // freshly-applied grid. Intentionally keyed only on the nonce (run-on-signal pattern).
+  // freshly-applied grid. Intentionally keyed ONLY on the nonce (run-on-signal pattern):
+  // do NOT add handleGenerateProjection to the deps — it re-memoizes whenever carriereRows
+  // changes, and because the nonce guard stays > 0 the effect would then re-run on every
+  // grid edit and loop forever (the handler itself calls setCarriereRows). The render that
+  // bumps the nonce already captures a fresh handler reflecting the post-import grid.
   useEffect(() => {
     if (projRegenNonce > 0) handleGenerateProjection(projectionTargetAge, projectionSurcote);
     // eslint-disable-next-line react-hooks/exhaustive-deps
