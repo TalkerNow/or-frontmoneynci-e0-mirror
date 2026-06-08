@@ -4642,38 +4642,82 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                           )} */}
 
                           {/* Projection fin de carrière */}
-                          <div style={{ display: "flex", alignItems: "center", gap: 16, background: "#FFF7E6", border: "1px solid #FFE0A3", borderRadius: 8, padding: "8px 14px", marginBottom: 10, flexWrap: "wrap" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 8, background: "#FFF7E6", border: "1px solid #FFE0A3", borderRadius: 8, padding: "8px 14px", marginBottom: 10 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                               <span style={{ fontSize: 16 }}>📈</span>
-                              <label htmlFor="proj_target_age" style={{ fontSize: 13, fontWeight: 600, color: "#343a40" }}>Âge de départ visé</label>
-                              <input
-                                type="number"
-                                id="proj_target_age"
-                                min={60}
-                                max={75}
-                                value={projectionTargetAge}
-                                disabled={carriereValidee}
-                                onChange={(e) => {
-                                  const v = parseInt(e.target.value, 10);
-                                  const clamped = Number.isFinite(v) ? Math.min(75, Math.max(60, v)) : 67;
-                                  setProjectionTargetAge(clamped);
-                                  handleGenerateProjection(clamped, projectionSurcote);
-                                }}
-                                style={{ width: 64, textAlign: "center", border: "1px solid #ddd", borderRadius: 4, fontSize: 14, padding: "2px 4px" }}
-                              />
+                              <span style={{ fontSize: 13, fontWeight: 600, color: "#343a40" }}>Projeter jusqu&rsquo;à</span>
+                              {[
+                                { id: PROJECTION_MODES.LEGAL,  label: "Âge légal",          needsBirth: true },
+                                { id: PROJECTION_MODES.DUREE,  label: "Taux plein (durée)", needsBirth: true },
+                                { id: PROJECTION_MODES.AUTO67, label: "Taux plein 67 ans",  needsBirth: true },
+                                { id: PROJECTION_MODES.LIBRE,  label: "Âge libre",          needsBirth: false },
+                              ].map((chip) => {
+                                const disabled = carriereValidee || (chip.needsBirth && !projBirthYear);
+                                const active = projectionMode === chip.id;
+                                return (
+                                  <button
+                                    key={chip.id}
+                                    type="button"
+                                    disabled={disabled}
+                                    title={
+                                      carriereValidee ? "Déverrouillez la carrière pour modifier la projection" :
+                                      chip.needsBirth && !projBirthYear ? "Renseignez la date de naissance du client" :
+                                      undefined
+                                    }
+                                    onClick={() => { setProjectionMode(chip.id); handleGenerateProjection(chip.id, projectionTargetAge, projectionSurcote); }}
+                                    style={{ padding: "4px 10px", borderRadius: 14, fontSize: 12, fontWeight: 600, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1, border: active ? "1px solid #FF9F43" : "1px solid #FFD08A", background: active ? "#FF9F43" : "#fff", color: active ? "#fff" : "#B26A00" }}
+                                  >
+                                    {chip.label}
+                                  </button>
+                                );
+                              })}
+                              {projectionMode === PROJECTION_MODES.LIBRE && (
+                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                  <label htmlFor="proj_target_age" style={{ fontSize: 13, fontWeight: 600, color: "#343a40" }}>Âge visé</label>
+                                  <input
+                                    type="number"
+                                    id="proj_target_age"
+                                    min={60}
+                                    max={75}
+                                    value={projectionTargetAge}
+                                    disabled={carriereValidee}
+                                    onChange={(e) => {
+                                      const v = parseInt(e.target.value, 10);
+                                      const clamped = Number.isFinite(v) ? Math.min(75, Math.max(60, v)) : 67;
+                                      setProjectionTargetAge(clamped);
+                                      handleGenerateProjection(PROJECTION_MODES.LIBRE, clamped, projectionSurcote);
+                                    }}
+                                    style={{ width: 64, textAlign: "center", border: "1px solid #ddd", borderRadius: 4, fontSize: 14, padding: "2px 4px" }}
+                                  />
+                                </div>
+                              )}
+                              {projectionActive && (
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                  <span style={{ fontSize: 13, fontWeight: 600, color: "#343a40" }}>Surcote</span>
+                                  <button type="button" disabled={carriereValidee || projectionSurcote <= 0}
+                                    onClick={() => { const s = Math.max(0, projectionSurcote - 1); setProjectionSurcote(s); handleGenerateProjection(projectionMode, projectionTargetAge, s); }}
+                                    style={{ width: 26, height: 26, borderRadius: 4, border: "1px solid #FF9F43", background: "#fff", color: "#FF9F43", fontWeight: 700, cursor: "pointer" }}>−</button>
+                                  <span style={{ fontSize: 13, minWidth: 56, textAlign: "center" }}>{projectionSurcote} an{projectionSurcote > 1 ? "s" : ""}</span>
+                                  <button type="button" disabled={carriereValidee}
+                                    onClick={() => { const s = projectionSurcote + 1; setProjectionSurcote(s); handleGenerateProjection(projectionMode, projectionTargetAge, s); }}
+                                    style={{ width: 26, height: 26, borderRadius: 4, border: "1px solid #FF9F43", background: "#fff", color: "#FF9F43", fontWeight: 700, cursor: "pointer" }}>+</button>
+                                </div>
+                              )}
                             </div>
-                            {projectionActive && (
-                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <span style={{ fontSize: 13, fontWeight: 600, color: "#343a40" }}>Surcote</span>
-                                <button type="button" disabled={carriereValidee || projectionSurcote <= 0}
-                                  onClick={() => { const s = Math.max(0, projectionSurcote - 1); setProjectionSurcote(s); handleGenerateProjection(projectionTargetAge, s); }}
-                                  style={{ width: 26, height: 26, borderRadius: 4, border: "1px solid #FF9F43", background: "#fff", color: "#FF9F43", fontWeight: 700, cursor: "pointer" }}>−</button>
-                                <span style={{ fontSize: 13, minWidth: 56, textAlign: "center" }}>{projectionSurcote} an{projectionSurcote > 1 ? "s" : ""}</span>
-                                <button type="button" disabled={carriereValidee}
-                                  onClick={() => { const s = projectionSurcote + 1; setProjectionSurcote(s); handleGenerateProjection(projectionTargetAge, s); }}
-                                  style={{ width: 26, height: 26, borderRadius: 4, border: "1px solid #FF9F43", background: "#fff", color: "#FF9F43", fontWeight: 700, cursor: "pointer" }}>+</button>
-                              </div>
-                            )}
+                            {projectionMode !== PROJECTION_MODES.LIBRE && projBirthYear && (() => {
+                              const dd = departureDates;
+                              let txt = null;
+                              if (projectionMode === PROJECTION_MODES.LEGAL && dd.legale) {
+                                txt = `📅 Âge légal : ${dd.legale.ageStr} — départ ${dd.legale.label}`;
+                              } else if (projectionMode === PROJECTION_MODES.DUREE && dd.tauxPlein) {
+                                const tp = dd.tauxPlein;
+                                const reste = tp.trimManquants > 0 ? ` (${tp.trimManquants} manquants)` : " ✓";
+                                txt = `📅 Taux plein (durée) : ${tp.ageStr} — départ ${tp.label} · ${dd.trimAcquis}/${tp.trimRequis} trim.${reste}`;
+                              } else if (projectionMode === PROJECTION_MODES.AUTO67 && dd.date67) {
+                                txt = `📅 Taux plein 67 ans — départ ${dd.date67.label}`;
+                              }
+                              return txt ? <span style={{ fontSize: 12, color: "#8a6d3b", fontWeight: 600 }}>{txt}</span> : null;
+                            })()}
                             {projLastRealYear != null && !projBirthYear && (
                               <span style={{ fontSize: 12, color: "#ea5455", fontWeight: 600 }}>Renseignez la date de naissance du client pour projeter jusqu&rsquo;au taux plein.</span>
                             )}
