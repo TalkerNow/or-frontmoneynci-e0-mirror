@@ -1508,6 +1508,39 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const projLastRealYear = useMemo(() => findLastRealYear(carriereRows), [carriereRows]);
   const projectionActive = projLastRealYear != null && projTargetYear != null;
 
+  // Departure dates derived from barème + grid, shared by the projection selector (below)
+  // and the "dispositifs" panel. Each anchor is the object returned by its compute* helper
+  // (or null when not computable, e.g. no birth date). baremeReady is a recompute trigger.
+  const departureDates = useMemo(() => {
+    const birthDate = user?.birth_date;
+    const yearKeys = Array.from(new Set([...Object.keys(trimCotState), ...Object.keys(trimAssState)]));
+    const trimAcquis = sumTrimestresCapped(
+      yearKeys.map((yr) => ({
+        trimestres_cotises: Number(trimCotState[yr]) || 0,
+        trimestres_assimiles: Number(trimAssState[yr]) || 0,
+      }))
+    );
+    let anneeRef = null;
+    const scan = (state) => Object.entries(state).forEach(([y, v]) => {
+      if ((Number(v) || 0) > 0) { const yr = Number(y); if (anneeRef === null || yr > anneeRef) anneeRef = yr; }
+    });
+    scan(trimCotState); scan(trimAssState);
+    const trimParAnnee = {};
+    yearKeys.forEach((yr) => {
+      const v = Math.min(4, (Number(trimCotState[yr]) || 0) + (Number(trimAssState[yr]) || 0));
+      if (v > 0) trimParAnnee[yr] = v;
+    });
+    return {
+      trimAcquis,
+      anneeRef,
+      trimParAnnee,
+      legale: computeDateLegale(birthDate),
+      tauxPlein: computeDateTauxPlein(birthDate, trimAcquis, anneeRef),
+      date67: computeDate67(birthDate),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, trimCotState, trimAssState, baremeReady]);
+
   // Reconcile projected rows to the current controls. Thin wrapper over the pure reducer;
   // preserves manual edits, bumps visibleRowCount so the projected block (top of grid) shows.
   const handleGenerateProjection = useCallback((nextAge, nextSurcote) => {
@@ -5220,36 +5253,16 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                       const analyserTousVisible = activatedDispositifs.some(id => DISPOSITIF_TO_SKILL_CODE[id]);
                       const analyserTousLoading = activatedDispositifs.filter(id => DISPOSITIF_TO_SKILL_CODE[id]).some(id => !!scenarioSkillLoading[DISPOSITIF_TO_SKILL_CODE[id]]);
                       const dispBirthDate = user?.birth_date;
-                      // Durée d'assurance plafonnée à 4 trim/an : pilote la date de
-                      // taux plein (computeDateTauxPlein). Sans plafond, un parcours
-                      // mixte sur-compte et fausse la date de départ (bug 1708).
-                      const dispTrimAcquis = sumTrimestresCapped(
-                        Array.from(new Set([...Object.keys(trimCotState), ...Object.keys(trimAssState)])).map((yr) => ({
-                          trimestres_cotises: Number(trimCotState[yr]) || 0,
-                          trimestres_assimiles: Number(trimAssState[yr]) || 0,
-                        }))
-                      );
-                      // Année de référence du décompte = dernière année civile avec des
-                      // trimestres validés (les trimestres se valident par année civile).
-                      const dispAnneeRef = (() => {
-                        let max = null;
-                        const scan = (state) => Object.entries(state).forEach(([y, v]) => {
-                          if ((Number(v) || 0) > 0) { const yr = Number(y); if (max === null || yr > max) max = yr; }
-                        });
-                        scan(trimCotState); scan(trimAssState);
-                        return max;
-                      })();
-                      // Trimestres validés par année civile (cotisés + assimilés,
-                      // plafonné 4/an, rachetés exclus — cohérent avec computeDateTauxPlein).
-                      // Sert au décompte historique exact des dates de départ passées.
-                      const dispTrimParAnnee = {};
-                      Array.from(new Set([...Object.keys(trimCotState), ...Object.keys(trimAssState)])).forEach((yr) => {
-                        const v = Math.min(4, (Number(trimCotState[yr]) || 0) + (Number(trimAssState[yr]) || 0));
-                        if (v > 0) dispTrimParAnnee[yr] = v;
-                      });
-                      const dispDateLegale = computeDateLegale(dispBirthDate);
-                      const dispDateTauxPlein = computeDateTauxPlein(dispBirthDate, dispTrimAcquis, dispAnneeRef);
-                      const dispDate67 = computeDate67(dispBirthDate);
+                      // Dates de départ + durée d'assurance : calculées une seule fois dans
+                      // le memo departureDates (partagé avec le sélecteur de projection).
+                      const {
+                        trimAcquis: dispTrimAcquis,
+                        anneeRef: dispAnneeRef,
+                        trimParAnnee: dispTrimParAnnee,
+                        legale: dispDateLegale,
+                        tauxPlein: dispDateTauxPlein,
+                        date67: dispDate67,
+                      } = departureDates;
                       // Complementary figures shown inside each date card so the three
                       // boxes together expose age-at-date + acquired/required trimestres.
                       const dispTrimRequis = dispDateTauxPlein?.trimRequis ?? null;
