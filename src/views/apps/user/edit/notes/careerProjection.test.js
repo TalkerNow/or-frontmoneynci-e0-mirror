@@ -11,7 +11,9 @@ import {
   reconcileProjection,
   resolveProjectionTargetYear,
   PROJECTION_MODES,
+  computeRealAssuranceTotals,
 } from "./careerProjection";
+import { computeDateTauxPlein } from "../../../../../utils/calculators";
 
 const PASS = 48060;
 
@@ -165,5 +167,82 @@ describe("resolveProjectionTargetYear", () => {
   });
   test("unknown mode → null", () => {
     expect(resolveProjectionTargetYear({ mode: "bogus", departureDates })).toBeNull();
+  });
+});
+
+describe("computeRealAssuranceTotals", () => {
+  test("excludes projected years from trimAcquis / anneeRef / trimParAnnee", () => {
+    // 2025 & 2026 are PROJECTED (the projection wrote 4 trim into them) → must not count.
+    const trimCotState = { 2023: 4, 2024: 4, 2025: 4, 2026: 4 };
+    const trimAssState = {};
+    const carriereRows = [
+      { yr: 2026, projected: true }, { yr: 2025, projected: true },
+      { yr: 2024 }, { yr: 2023 },
+    ];
+    const t = computeRealAssuranceTotals(trimCotState, trimAssState, carriereRows);
+    expect(t.trimAcquis).toBe(8);          // 2023 + 2024 only
+    expect(t.anneeRef).toBe(2024);         // last REAL year, not 2026
+    expect(t.trimParAnnee).toEqual({ 2023: 4, 2024: 4 });
+  });
+
+  test("with no projected rows, counts every year capped at 4/yr", () => {
+    const t = computeRealAssuranceTotals({ 2023: 3, 2024: 6 }, { 2024: 2 }, [{ yr: 2024 }, { yr: 2023 }]);
+    expect(t.trimAcquis).toBe(7);          // min(4,3)=3 + min(4,6+2)=4
+    expect(t.anneeRef).toBe(2024);
+  });
+
+  test("tolerates null/empty inputs", () => {
+    expect(computeRealAssuranceTotals({}, {}, [])).toEqual({ trimAcquis: 0, anneeRef: null, trimParAnnee: {} });
+    expect(computeRealAssuranceTotals(null, null, null)).toEqual({ trimAcquis: 0, anneeRef: null, trimParAnnee: {} });
+  });
+});
+
+// Regression for the reported bug: in "Taux plein (durée)" mode, adding then removing
+// surcote left the extra year in the grid. Root cause: the duration target was derived
+// from trimestres that INCLUDED the projected years it had just written, so each surcote
+// step drifted the target forward and the reconcile never shrank back. The target must be
+// derived from REAL (non-projected) trimestres so it stays stable across surcote changes.
+describe("DUREE surcote add/remove (feedback-loop regression)", () => {
+  const BIRTH = "1965-06-15"; // trimRequis = 171 (génération 1965, avril-déc)
+
+  // Mirrors the component: derive the duration target from current grid state.
+  function dureeTargetYear(state) {
+    const { trimAcquis, anneeRef } = computeRealAssuranceTotals(state.trimCotState, state.trimAssState, state.carriereRows);
+    const tp = computeDateTauxPlein(BIRTH, trimAcquis, anneeRef);
+    return tp ? tp.date.getFullYear() : null;
+  }
+
+  // Mirrors one user action: retarget from current state, then reconcile once.
+  function applyProjection(state, surcote) {
+    const targetYear = dureeTargetYear(state);
+    const lastRealYear = findLastRealYear(state.carriereRows);
+    const lastRealSalary = findLastRealSalary(state.carriereRows, lastRealYear);
+    const res = reconcileProjection(
+      { carriereRows: state.carriereRows, revaloValues: state.revaloValues, trimCotState: state.trimCotState },
+      { lastRealYear, targetYear, surcote, lastRealSalary, passLast: PASS },
+    );
+    return { ...state, carriereRows: res.carriereRows, revaloValues: res.revaloValues, trimCotState: res.trimCotState };
+  }
+
+  function projectedYears(state) {
+    return state.carriereRows.filter((r) => r.projected).map((r) => r.yr).sort((a, b) => a - b);
+  }
+
+  test("removing surcote returns to the baseline projection", () => {
+    const trimCotState = {};
+    for (let y = 1985; y <= 2024; y++) trimCotState[y] = 4; // 40 real years × 4 = 160 trim
+    const carriereRows = [];
+    for (let y = 2026; y >= 1985; y--) {
+      const real = y <= 2024;
+      carriereRows.push({ yr: y, sal: real ? 40000 : 0, ss: 0, coeff: "1.000", revalo: real ? 40000 : 0, trim: 0, ar: 0, total: 0, agircPts: 0, ircPts: 0, rciPts: 0, regimes: {} });
+    }
+    const init = { carriereRows, revaloValues: {}, trimCotState, trimAssState: {} };
+
+    const baseline = applyProjection(init, 0);
+    const added = applyProjection(baseline, 1);
+    const removed = applyProjection(added, 0);
+
+    expect(projectedYears(added).length).toBe(projectedYears(baseline).length + 1); // surcote added exactly one year
+    expect(projectedYears(removed)).toEqual(projectedYears(baseline));              // and removing it goes back
   });
 });

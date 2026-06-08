@@ -38,6 +38,7 @@ import {
   reconcileProjection,
   resolveProjectionTargetYear,
   PROJECTION_MODES,
+  computeRealAssuranceTotals,
 } from "./careerProjection";
 
 // ─── DATA ───────────────────────────────────────────────────────────────────
@@ -1516,23 +1517,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // (or null when not computable, e.g. no birth date). baremeReady is a recompute trigger.
   const departureDates = useMemo(() => {
     const birthDate = user?.birth_date;
-    const yearKeys = Array.from(new Set([...Object.keys(trimCotState), ...Object.keys(trimAssState)]));
-    const trimAcquis = sumTrimestresCapped(
-      yearKeys.map((yr) => ({
-        trimestres_cotises: Number(trimCotState[yr]) || 0,
-        trimestres_assimiles: Number(trimAssState[yr]) || 0,
-      }))
-    );
-    let anneeRef = null;
-    const scan = (state) => Object.entries(state).forEach(([y, v]) => {
-      if ((Number(v) || 0) > 0) { const yr = Number(y); if (anneeRef === null || yr > anneeRef) anneeRef = yr; }
-    });
-    scan(trimCotState); scan(trimAssState);
-    const trimParAnnee = {};
-    yearKeys.forEach((yr) => {
-      const v = Math.min(4, (Number(trimCotState[yr]) || 0) + (Number(trimAssState[yr]) || 0));
-      if (v > 0) trimParAnnee[yr] = v;
-    });
+    // trimAcquis / anneeRef are computed from REAL (non-projected) years only, so a
+    // duration-based taux-plein target never depends on its own projection — otherwise
+    // adding surcote drifts the target forward and removing it can't shrink the grid back.
+    const { trimAcquis, anneeRef, trimParAnnee } = computeRealAssuranceTotals(trimCotState, trimAssState, carriereRows);
     return {
       trimAcquis,
       anneeRef,
@@ -1542,7 +1530,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       date67: computeDate67(birthDate),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, trimCotState, trimAssState, baremeReady]);
+  }, [user, trimCotState, trimAssState, baremeReady, carriereRows]);
 
   // Reconcile projected rows to the current controls. Thin wrapper over the pure reducer;
   // preserves manual edits, bumps visibleRowCount so the projected block (top of grid) shows.

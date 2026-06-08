@@ -147,3 +147,34 @@ export function resolveProjectionTargetYear({ mode, birthYear, age, departureDat
   if (!(d instanceof Date) || isNaN(d.getTime())) return null;
   return d.getFullYear();
 }
+
+// Real (non-projected) assurance totals from the career grid: trimestres acquired (capped
+// 4/yr, cotisés + assimilés), the reference calendar year, and the per-year validated map —
+// EXCLUDING projected years. The career-end projection writes 4 trimestres into the projected
+// years; counting them here would make a duration-based taux-plein target depend on its own
+// projection (a feedback loop where adding surcote drifts the target so it never shrinks back).
+export function computeRealAssuranceTotals(trimCotState, trimAssState, carriereRows) {
+  const cot = trimCotState || {};
+  const ass = trimAssState || {};
+  const projected = new Set(
+    (Array.isArray(carriereRows) ? carriereRows : [])
+      .filter((r) => r && r.projected)
+      .map((r) => r.yr)
+  );
+  const yearKeys = Array.from(new Set([...Object.keys(cot), ...Object.keys(ass)]))
+    .filter((yr) => !projected.has(Number(yr)));
+  let trimAcquis = 0;
+  let anneeRef = null;
+  const trimParAnnee = {};
+  yearKeys.forEach((yr) => {
+    const sum = (Number(cot[yr]) || 0) + (Number(ass[yr]) || 0);
+    const capped = Math.min(4, Math.max(0, sum));
+    trimAcquis += capped;
+    if (sum > 0) {
+      trimParAnnee[yr] = capped;
+      const y = Number(yr);
+      if (anneeRef === null || y > anneeRef) anneeRef = y;
+    }
+  });
+  return { trimAcquis, anneeRef, trimParAnnee };
+}
