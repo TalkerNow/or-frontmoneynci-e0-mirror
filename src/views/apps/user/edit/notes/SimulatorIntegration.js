@@ -36,6 +36,8 @@ import {
   findLastRealYear,
   findLastRealSalary,
   reconcileProjection,
+  resolveProjectionTargetYear,
+  PROJECTION_MODES,
 } from "./careerProjection";
 
 // ─── DATA ───────────────────────────────────────────────────────────────────
@@ -1048,6 +1050,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [projectionTargetAge, setProjectionTargetAge] = useState(67);
   const [projectionSurcote, setProjectionSurcote] = useState(0);
   const [baremeReady, setBaremeReady] = useState(false);
+  const [projectionMode, setProjectionMode] = useState(PROJECTION_MODES.LIBRE);
   const [projRegenNonce, setProjRegenNonce] = useState(0);
   const [risFileName, setRisFileName] = useState(null);
   const [droitsSynthese, setDroitsSynthese] = useState(null);
@@ -1861,6 +1864,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     setVisibleRowCount(20);
     setProjectionTargetAge(67);
     setProjectionSurcote(0);
+    setProjectionMode(PROJECTION_MODES.LIBRE);
     try { localStorage.removeItem(`simu_projection_${id}`); } catch { /* noop */ }
     setCarriereValidee(false);
     setRisFileName(null);
@@ -1960,6 +1964,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         const d = JSON.parse(raw);
         if (Number.isFinite(d.targetAge)) setProjectionTargetAge(d.targetAge);
         if (Number.isFinite(d.surcote)) setProjectionSurcote(d.surcote);
+        if (typeof d.mode === "string" && Object.values(PROJECTION_MODES).includes(d.mode)) setProjectionMode(d.mode);
       }
     } catch { /* noop */ }
   }, [id]);
@@ -1970,9 +1975,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   useEffect(() => {
     if (!id) return;
     try {
-      localStorage.setItem(`simu_projection_${id}`, JSON.stringify({ targetAge: projectionTargetAge, surcote: projectionSurcote }));
+      localStorage.setItem(`simu_projection_${id}`, JSON.stringify({ targetAge: projectionTargetAge, surcote: projectionSurcote, mode: projectionMode }));
     } catch { /* noop */ }
-  }, [id, projectionTargetAge, projectionSurcote]);
+  }, [id, projectionTargetAge, projectionSurcote, projectionMode]);
 
   // After a RIS import bumps projRegenNonce, regenerate the projection once against the
   // freshly-applied grid. Intentionally keyed ONLY on the nonce (run-on-signal pattern):
