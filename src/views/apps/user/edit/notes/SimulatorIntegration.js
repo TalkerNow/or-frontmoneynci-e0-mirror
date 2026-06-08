@@ -29,7 +29,7 @@ import MD_CONTENT from "./adminSkillsContent";
 import { buildRecapRegimes, buildCipavRecap } from "./recapCarriere";
 import { RegimeRecapVignettes } from "./RecapCarriereParRegime";
 import BaremeRetraitePage from "../../../bareme-retraite";
-import { coeffRevalo } from "../simulatorData";
+import { coeffRevalo, initBareme } from "../simulatorData";
 import {
   parseBirthYear,
   computeTargetYear,
@@ -1047,6 +1047,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // ── Projection fin de carrière ──
   const [projectionTargetAge, setProjectionTargetAge] = useState(67);
   const [projectionSurcote, setProjectionSurcote] = useState(0);
+  const [baremeReady, setBaremeReady] = useState(false);
   const [projRegenNonce, setProjRegenNonce] = useState(0);
   const [risFileName, setRisFileName] = useState(null);
   const [droitsSynthese, setDroitsSynthese] = useState(null);
@@ -1906,6 +1907,16 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   }, [carriereValidee]);
 
   // ── Side Effects ──
+
+  // Load the editable backend barème (/v1/departure-rules) so legal age / required
+  // quarters reflect the latest table (it changes often). Falls back to the hard-coded
+  // BAREME_TRANCHES on failure. baremeReady flips once loaded so the departureDates memo
+  // recomputes (getBaremeRetraite reads a module-level cache React can't observe directly).
+  useEffect(() => {
+    let alive = true;
+    initBareme().then(() => { if (alive) setBaremeReady(true); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   // Restore projection controls for this client (rows themselves ride the WIP career draft).
   useEffect(() => {
