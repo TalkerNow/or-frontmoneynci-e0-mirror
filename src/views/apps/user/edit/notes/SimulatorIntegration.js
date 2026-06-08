@@ -1546,9 +1546,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
 
   // Reconcile projected rows to the current controls. Thin wrapper over the pure reducer;
   // preserves manual edits, bumps visibleRowCount so the projected block (top of grid) shows.
-  const handleGenerateProjection = useCallback((nextAge, nextSurcote) => {
+  const handleGenerateProjection = useCallback((nextMode, nextAge, nextSurcote) => {
     const birthYear = parseBirthYear(user?.birth_date);
-    const targetYear = computeTargetYear(birthYear, nextAge);
+    const targetYear = resolveProjectionTargetYear({ mode: nextMode, birthYear, age: nextAge, departureDates });
     const lastRealYear = findLastRealYear(carriereRows);
     const lastRealSalary = findLastRealSalary(carriereRows, lastRealYear);
     const res = reconcileProjection(
@@ -1561,7 +1561,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     if (res.projectedYears.length) {
       setVisibleRowCount((v) => Math.min(res.carriereRows.length, Math.max(v, res.projectedYears.length + 20)));
     }
-  }, [carriereRows, revaloValues, trimCotState, user]);
+  }, [carriereRows, revaloValues, trimCotState, user, departureDates]);
 
   //   RIS format  : { annee, sal_original, sal_eur, devise, regimes }
   //   SAISIE format: { annee, salaire_brut, salaire_revalo, trimestres_cotises, trimestres_assimiles }
@@ -1986,7 +1986,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // grid edit and loop forever (the handler itself calls setCarriereRows). The render that
   // bumps the nonce already captures a fresh handler reflecting the post-import grid.
   useEffect(() => {
-    if (projRegenNonce > 0) handleGenerateProjection(projectionTargetAge, projectionSurcote);
+    if (projRegenNonce > 0) handleGenerateProjection(projectionMode, projectionTargetAge, projectionSurcote);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projRegenNonce]);
 
