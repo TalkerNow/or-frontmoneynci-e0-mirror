@@ -122,3 +122,28 @@ export function reconcileProjection(state, params) {
   carriereRows.sort((a, b) => b.yr - a.yr);
   return { carriereRows, revaloValues, trimCotState, projectedYears: [...target].sort((a, b) => a - b) };
 }
+
+// Projection mode identifiers used by the "Projection fin de carrière" selector.
+export const PROJECTION_MODES = {
+  LEGAL: "legal",     // âge légal (barème)
+  DUREE: "duree",     // taux plein par la durée d'assurance
+  AUTO67: "auto67",   // taux plein automatique à 67 ans
+  LIBRE: "libre",     // âge saisi librement (champ numérique)
+};
+
+// Resolve the calendar year the projection should fill up to, given the selected mode.
+// `departureDates` carries the objects returned by computeDateLegale / computeDateTauxPlein /
+// computeDate67 (each { date: Date, ... } | null). Returns null when not computable
+// (e.g. no birth date) — which deactivates the projection (reconcileProjection adds no rows).
+export function resolveProjectionTargetYear({ mode, birthYear, age, departureDates }) {
+  if (mode === PROJECTION_MODES.LIBRE) return computeTargetYear(birthYear, age);
+  if (!departureDates) return null;
+  const picked =
+    mode === PROJECTION_MODES.LEGAL ? departureDates.legale :
+    mode === PROJECTION_MODES.DUREE ? departureDates.tauxPlein :
+    mode === PROJECTION_MODES.AUTO67 ? departureDates.date67 :
+    null;
+  const d = picked && picked.date;
+  if (!(d instanceof Date) || isNaN(d.getTime())) return null;
+  return d.getFullYear();
+}

@@ -9,6 +9,8 @@ import {
   projectYearValue,
   buildProjectedRow,
   reconcileProjection,
+  resolveProjectionTargetYear,
+  PROJECTION_MODES,
 } from "./careerProjection";
 
 const PASS = 48060;
@@ -130,5 +132,38 @@ describe("reconcileProjection", () => {
     const before = JSON.stringify(state);
     reconcileProjection(state, { lastRealYear: 2024, targetYear: 2028, surcote: 0, lastRealSalary: 41000, passLast: PASS });
     expect(JSON.stringify(state)).toBe(before);
+  });
+});
+
+describe("resolveProjectionTargetYear", () => {
+  const departureDates = {
+    legale:    { date: new Date(2027, 3, 1), ageStr: "63 ans 9 m", label: "avril 2027" },   // April 2027
+    tauxPlein: { date: new Date(2029, 0, 1), ageStr: "65 ans", label: "janvier 2029", trimRequis: 172, trimManquants: 4 }, // Jan 2029
+    date67:    { date: new Date(2032, 8, 1), label: "septembre 2032" },                       // Sept 2032
+  };
+
+  test("libre: birthYear + age", () => {
+    expect(resolveProjectionTargetYear({ mode: PROJECTION_MODES.LIBRE, birthYear: 1965, age: 63 })).toBe(2028);
+  });
+  test("legal: year of the barème legal date", () => {
+    expect(resolveProjectionTargetYear({ mode: PROJECTION_MODES.LEGAL, departureDates })).toBe(2027);
+  });
+  test("duree: year of the full-rate-by-duration date", () => {
+    expect(resolveProjectionTargetYear({ mode: PROJECTION_MODES.DUREE, departureDates })).toBe(2029);
+  });
+  test("auto67: year of the 67yo date", () => {
+    expect(resolveProjectionTargetYear({ mode: PROJECTION_MODES.AUTO67, departureDates })).toBe(2032);
+  });
+  test("anchor with no departureDates → null", () => {
+    expect(resolveProjectionTargetYear({ mode: PROJECTION_MODES.LEGAL, departureDates: null })).toBeNull();
+  });
+  test("anchor whose date object is null → null", () => {
+    expect(resolveProjectionTargetYear({ mode: PROJECTION_MODES.DUREE, departureDates: { tauxPlein: null } })).toBeNull();
+  });
+  test("libre with null birthYear → null", () => {
+    expect(resolveProjectionTargetYear({ mode: PROJECTION_MODES.LIBRE, birthYear: null, age: 64 })).toBeNull();
+  });
+  test("unknown mode → null", () => {
+    expect(resolveProjectionTargetYear({ mode: "bogus", departureDates })).toBeNull();
   });
 });
