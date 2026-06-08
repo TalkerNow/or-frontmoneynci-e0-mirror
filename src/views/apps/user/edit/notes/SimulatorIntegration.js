@@ -4699,8 +4699,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                 txt = `📅 Âge légal : ${dd.legale.ageStr} — départ ${dd.legale.label}`;
                               } else if (projectionMode === PROJECTION_MODES.DUREE && dd.tauxPlein) {
                                 const tp = dd.tauxPlein;
-                                const reste = tp.trimManquants > 0 ? ` (${tp.trimManquants} manquants)` : " ✓";
-                                txt = `📅 Taux plein (durée) : ${tp.ageStr} — départ ${tp.label} · ${dd.trimAcquis}/${tp.trimRequis} trim.${reste}`;
+                                const atteint = tp.trimManquants > 0 ? "taux plein atteint à cette date" : "taux plein déjà atteint";
+                                txt = `📅 Taux plein (durée) : ${tp.ageStr} — départ ${tp.label} · ${dd.trimAcquis} acquis → ${tp.trimRequis} requis (${atteint})`;
                               } else if (projectionMode === PROJECTION_MODES.AUTO67 && dd.date67) {
                                 txt = `📅 Taux plein 67 ans — départ ${dd.date67.label}`;
                               }
