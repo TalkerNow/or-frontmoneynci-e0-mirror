@@ -4670,6 +4670,17 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                     value={projectionTargetAge}
                                     disabled={carriereValidee}
                                     onChange={(e) => {
+                                      // Free typing: keep the raw value (no per-keystroke clamp, which
+                                      // made multi-digit edits impossible). Project live only when the
+                                      // value is a valid age in range; clamping happens on blur.
+                                      const raw = e.target.value;
+                                      if (raw === "") { setProjectionTargetAge(""); return; }
+                                      const v = parseInt(raw, 10);
+                                      if (!Number.isFinite(v)) return;
+                                      setProjectionTargetAge(v);
+                                      if (v >= 60 && v <= 75) handleGenerateProjection(PROJECTION_MODES.LIBRE, v, projectionSurcote);
+                                    }}
+                                    onBlur={(e) => {
                                       const v = parseInt(e.target.value, 10);
                                       const clamped = Number.isFinite(v) ? Math.min(75, Math.max(60, v)) : 67;
                                       setProjectionTargetAge(clamped);
@@ -4700,7 +4711,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                 head = `Âge légal : ${dd.legale.ageStr}`; date = dd.legale.date;
                               } else if (projectionMode === PROJECTION_MODES.AUTO67 && dd.date67) {
                                 head = "Taux plein 67 ans"; date = dd.date67.date;
-                              } else if (projectionMode === PROJECTION_MODES.LIBRE && birth) {
+                              } else if (projectionMode === PROJECTION_MODES.LIBRE && birth && Number.isFinite(projectionTargetAge)) {
                                 head = `${projectionTargetAge} ans`;
                                 date = new Date(birth.getFullYear() + projectionTargetAge, birth.getMonth(), birth.getDate());
                               } else if (projectionMode === PROJECTION_MODES.DUREE && dd.tauxPlein) {
