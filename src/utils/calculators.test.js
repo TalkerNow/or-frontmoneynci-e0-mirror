@@ -1,4 +1,4 @@
-import { calculateCnav, computeSAMB, computeArrcoPts } from './calculators';
+import { calculateCnav, computeSAMB, computeArrcoPts, departureTrimOutlook } from './calculators';
 
 describe('calculateCnav', () => {
   test('returns null for salary = 0', () => {
@@ -443,5 +443,40 @@ describe("sumTrimestresCapped — durée d'assurance plafonnée à 4 trim/an", (
     );
     expect(naive).toBeGreaterThan(158);        // le bug : la somme naïve sur-compte
     expect(sumTrimestresCapped(carriere)).toBe(158); // le correctif : plafonné = total RIS officiel
+  });
+});
+
+describe('departureTrimOutlook', () => {
+  // birth 1965-06-15 → barème trimRequis = 171 (génération 1965, avril-déc)
+  const BIRTH = '1965-06-15';
+  const base = { birthDate: BIRTH, trimAcquis: 140, anneeRef: 2024, trimParAnnee: null };
+
+  test('décote before 67 when projected trimestres stay below required', () => {
+    const o = departureTrimOutlook({ ...base, departureDate: new Date(2028, 0, 1) });
+    // 140 + projection 4/yr from 2025 (3 yrs → 12) = 152 < 171
+    expect(o.trim).toBe(152);
+    expect(o.trimRequis).toBe(171);
+    expect(o.manquants).toBe(19);
+    expect(o.tauxPlein).toBe(false);
+    expect(o.automatique).toBe(false);
+  });
+
+  test('full rate by duration when projected trimestres reach the requirement', () => {
+    const o = departureTrimOutlook({ birthDate: BIRTH, trimAcquis: 168, anneeRef: 2024, trimParAnnee: null, departureDate: new Date(2026, 0, 1) });
+    expect(o.trim).toBe(172);          // 168 + 4
+    expect(o.tauxPlein).toBe(true);
+    expect(o.automatique).toBe(false); // reached by duration, not by age
+  });
+
+  test('automatic full rate at 67 even when trimestres are short', () => {
+    const o = departureTrimOutlook({ ...base, trimAcquis: 100, departureDate: new Date(2032, 6, 1) }); // age 67
+    expect(o.tauxPlein).toBe(true);
+    expect(o.automatique).toBe(true);  // granted by age, not duration
+    expect(o.trim).toBeLessThan(o.trimRequis);
+  });
+
+  test('null for invalid inputs', () => {
+    expect(departureTrimOutlook({ ...base, departureDate: null })).toBeNull();
+    expect(departureTrimOutlook({ ...base, birthDate: null, departureDate: new Date(2028, 0, 1) })).toBeNull();
   });
 });

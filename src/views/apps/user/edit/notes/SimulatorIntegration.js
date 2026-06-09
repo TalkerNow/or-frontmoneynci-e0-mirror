@@ -18,7 +18,7 @@ import { parseNIR } from "./utils";
 import { parseCarrierePoints } from "./carrierePoints";
 import { REGIMES, getPoints, resolveRegime, computeVisibleRegimes, REGIMES_SIMPLES, extractRegimeSimplePoints } from "../simulatorRegimes";
 import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml, detectDocumentType, fetchRapprochementConstat, applyReportChatMessage, fetchPromptNotes, savePromptNote, deletePromptNote } from "../risService";
-import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif, computeTrimAtDate, sumTrimestresCapped } from '../../../../../utils/calculators';
+import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif, computeTrimAtDate, sumTrimestresCapped, parseBirthDate, departureTrimOutlook } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
 import SkillCreateModal from "./SkillCreateModal";
@@ -4692,19 +4692,34 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                 </div>
                               )}
                             </div>
-                            {projectionMode !== PROJECTION_MODES.LIBRE && projBirthYear && (() => {
+                            {projBirthYear && (() => {
                               const dd = departureDates;
-                              let txt = null;
+                              const birth = parseBirthDate(user?.birth_date);
+                              let head = null, date = null, special = null;
                               if (projectionMode === PROJECTION_MODES.LEGAL && dd.legale) {
-                                txt = `📅 Âge légal : ${dd.legale.ageStr} — départ ${dd.legale.label}`;
+                                head = `Âge légal : ${dd.legale.ageStr}`; date = dd.legale.date;
+                              } else if (projectionMode === PROJECTION_MODES.AUTO67 && dd.date67) {
+                                head = "Taux plein 67 ans"; date = dd.date67.date;
+                              } else if (projectionMode === PROJECTION_MODES.LIBRE && birth) {
+                                head = `${projectionTargetAge} ans`;
+                                date = new Date(birth.getFullYear() + projectionTargetAge, birth.getMonth(), birth.getDate());
                               } else if (projectionMode === PROJECTION_MODES.DUREE && dd.tauxPlein) {
                                 const tp = dd.tauxPlein;
-                                const atteint = tp.trimManquants > 0 ? "taux plein atteint à cette date" : "taux plein déjà atteint";
-                                txt = `📅 Taux plein (durée) : ${tp.ageStr} — départ ${tp.label} · ${dd.trimAcquis} acquis → ${tp.trimRequis} requis (${atteint})`;
-                              } else if (projectionMode === PROJECTION_MODES.AUTO67 && dd.date67) {
-                                txt = `📅 Taux plein 67 ans — départ ${dd.date67.label}`;
+                                head = `Taux plein (durée) : ${tp.ageStr}`; date = tp.date;
+                                special = `${dd.trimAcquis} acquis → ${tp.trimRequis} requis (${tp.trimManquants > 0 ? "taux plein atteint à cette date" : "taux plein déjà atteint"})`;
                               }
-                              return txt ? <span style={{ fontSize: 12, color: "#8a6d3b", fontWeight: 600 }}>{txt}</span> : null;
+                              if (!date) return null;
+                              const departLabel = date.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+                              let tail = special ? ` · ${special}` : "";
+                              if (!special) {
+                                const o = departureTrimOutlook({ birthDate: user?.birth_date, trimAcquis: dd.trimAcquis, anneeRef: dd.anneeRef, trimParAnnee: dd.trimParAnnee, departureDate: date });
+                                if (o) {
+                                  if (o.automatique) tail = ` · ~${o.trim} trim. — taux plein automatique`;
+                                  else if (o.tauxPlein) tail = ` · ~${o.trim}/${o.trimRequis} trim. (taux plein)`;
+                                  else tail = ` · ~${o.trim}/${o.trimRequis} trim. (${o.manquants} manquants → décote)`;
+                                }
+                              }
+                              return <span style={{ fontSize: 12, color: "#8a6d3b", fontWeight: 600 }}>{`📅 ${head} — départ ${departLabel}${tail}`}</span>;
                             })()}
                             {projLastRealYear != null && !projBirthYear && (
                               <span style={{ fontSize: 12, color: "#ea5455", fontWeight: 600 }}>Renseignez la date de naissance du client pour projeter jusqu&rsquo;au taux plein.</span>

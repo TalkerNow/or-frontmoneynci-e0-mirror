@@ -432,6 +432,37 @@ export function computeDate67(birthDate) {
 }
 
 /**
+ * Projection des trimestres validés à une date de départ + statut taux plein.
+ *
+ * Trimestres = computeTrimAtDate (acquis réels + projection 4/an). Taux plein si la durée
+ * requise est atteinte (trim >= requis) OU si l'âge au départ >= 67 ans (annulation de la
+ * décote, automatique). Sinon décote.
+ *
+ * @returns {{ trim: number, trimRequis: number, manquants: number, tauxPlein: boolean, automatique: boolean } | null}
+ */
+export function departureTrimOutlook({ birthDate, trimAcquis, anneeRef, trimParAnnee = null, departureDate }) {
+  const birth = parseBirthDate(birthDate);
+  if (!birth || !(departureDate instanceof Date) || isNaN(departureDate.getTime())) return null;
+  const bareme = getBaremeRetraite(birth);
+  if (!bareme) return null;
+  const trimRequis = bareme.trimRequis;
+  const trim = computeTrimAtDate(trimAcquis, anneeRef, departureDate, trimParAnnee);
+  if (trim == null) return null;
+  let ageYears = departureDate.getFullYear() - birth.getFullYear();
+  const md = departureDate.getMonth() - birth.getMonth();
+  if (md < 0 || (md === 0 && departureDate.getDate() < birth.getDate())) ageYears--;
+  const parDuree = trim >= trimRequis;
+  const automatique = ageYears >= 67 && !parDuree;
+  return {
+    trim,
+    trimRequis,
+    manquants: Math.max(0, trimRequis - trim),
+    tauxPlein: parDuree || ageYears >= 67,
+    automatique,
+  };
+}
+
+/**
  * Calcule la date auto-générée pour un dispositif activé.
  * Retourne null si le dispositif ne génère pas de date calculable en JS.
  *
