@@ -18,7 +18,7 @@ import { parseNIR } from "./utils";
 import { parseCarrierePoints } from "./carrierePoints";
 import { REGIMES, getPoints, resolveRegime, computeVisibleRegimes, REGIMES_SIMPLES, extractRegimeSimplePoints } from "../simulatorRegimes";
 import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml, detectDocumentType, fetchRapprochementConstat, applyReportChatMessage, fetchPromptNotes, savePromptNote, deletePromptNote } from "../risService";
-import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif, computeTrimAtDate, sumTrimestresCapped, parseBirthDate, departureTrimOutlook } from '../../../../../utils/calculators';
+import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif, computeTrimAtDate, sumTrimestresCapped, parseBirthDate, departureTrimOutlook } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
 import SkillCreateModal from "./SkillCreateModal";
@@ -40,6 +40,7 @@ import {
   PROJECTION_MODES,
   computeRealAssuranceTotals,
 } from "./careerProjection";
+import CalculDataPanel from "./CalculDataPanel";
 
 // ─── DATA ───────────────────────────────────────────────────────────────────
 
@@ -5148,6 +5149,20 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             </table>
                           </div>
 
+                          {/* Données de calcul — sous la grille, repliable */}
+                          <div style={{ marginTop: 12 }}>
+                            <CalculDataPanel
+                              carriereRows={carriereRows}
+                              trimCotState={trimCotState}
+                              trimAssState={trimAssState}
+                              arState={arState}
+                              user={user}
+                              departureDates={departureDates}
+                              collapsible
+                              defaultOpen
+                            />
+                          </div>
+
                           {/* Détail par régime */}
                           <div style={{ marginTop: 12, borderTop: "1px solid #f0f0f0", paddingTop: 10 }}>
                             <button onClick={() => setAccordeonsVisible(v => !v)}
@@ -5370,80 +5385,14 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                           </div>
                           <div style={{ fontSize: 13, color: "#555", marginBottom: 14 }}>{panel.desc}</div>
 
-                          <div style={{ background: "#F7F6F3", border: "1px solid #e8e8e8", borderRadius: 9, padding: "10px 14px", marginBottom: 14 }}>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: "#555", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>📊 Données de calcul</div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 20px", fontSize: 12 }}>
-                              {(() => {
-                                const samb = computeSAMB(carriereRows);
-                                const { total: arrcoPts, projectionAnnuelle } = computeArrcoPts(carriereRows);
-                                const trimAr = Object.values(arState).reduce((s, v) => s + (Number(v) || 0), 0);
-                                // "Trimestres acquis" = cotisés + assimilés. Les rachetés sont
-                                // affichés séparément ("dont rachetés") à titre informatif et ne
-                                // sont pas inclus dans le total pour rester cohérent avec
-                                // computeDateTauxPlein (qui n'utilise que cotisés + assimilés).
-                                // Durée d'assurance plafonnée à 4 trim/an (rachetés exclus,
-                                // cohérent avec computeDateTauxPlein). Sans ce plafond, les
-                                // parcours mixtes et les assimilés empilés sur-comptent
-                                // (bug client 1708 : 166 au lieu de 158).
-                                const trimYearsSet = new Set([...Object.keys(trimCotState), ...Object.keys(trimAssState)]);
-                                const trimTotal = sumTrimestresCapped(
-                                  Array.from(trimYearsSet).map((yr) => ({
-                                    trimestres_cotises: Number(trimCotState[yr]) || 0,
-                                    trimestres_assimiles: Number(trimAssState[yr]) || 0,
-                                  }))
-                                );
-                                const trimRequis = dispDateTauxPlein?.trimRequis ?? null;
-                                const trimManquants = dispDateTauxPlein?.trimManquants ?? null;
-                                let age = null;
-                                if (dispBirthDate) {
-                                  const b = new Date(dispBirthDate);
-                                  if (!isNaN(b.getTime())) {
-                                    const t = new Date();
-                                    age = t.getFullYear() - b.getFullYear();
-                                    const m = t.getMonth() - b.getMonth();
-                                    if (m < 0 || (m === 0 && t.getDate() < b.getDate())) age--;
-                                  }
-                                }
-                                const childrenCount = user?.children_number ?? user?.profil?.children_number ?? null;
-                                const studyYears = user?.higher_education_years ?? user?.profil?.higher_education_years ?? null;
-                                const anneesActives = Object.keys(trimCotState).filter(yr => (Number(trimCotState[yr]) || 0) + (Number(trimAssState[yr]) || 0) + (Number(arState[yr]) || 0) > 0).length;
-                                const manquantsColor = trimManquants == null ? "#555" : trimManquants === 0 ? "#00B894" : "#C0392B";
-                                // Bonus maternité CNAV : 8 trim/enfant pour la mère (jusqu'à 1 par naissance/adoption/éducation).
-                                // Information uniquement — ne s'ajoute PAS à trimTotal car appliqué automatiquement par la CNAV au moment du calcul.
-                                const civ = String(user?.civility || '').toLowerCase().trim();
-                                const isFemme = civ === 'madame' || civ === 'mme' || civ === 'mlle' || civ === 'mademoiselle'
-                                  || String(user?.sexe || '').toUpperCase() === 'F';
-                                const bonusEnfantsCnav = (isFemme && childrenCount > 0) ? Number(childrenCount) * 8 : 0;
-                                const trimEffectifs = bonusEnfantsCnav > 0 ? trimTotal + bonusEnfantsCnav : null;
-                                const tauxPleinAtteintAvecBonus = trimEffectifs !== null && trimRequis !== null && trimEffectifs >= trimRequis;
-                                const rows = [
-                                  ["Trimestres acquis", trimTotal > 0 ? `${trimTotal} trim.` : "—", "#0984E3"],
-                                  ...(trimAr > 0 ? [["dont rachetés", `${trimAr} trim.`, "#1a1a2e"]] : []),
-                                  ...(bonusEnfantsCnav > 0 ? [[
-                                    `+ bonus maternité (${childrenCount} enfant${childrenCount > 1 ? 's' : ''} × 8)`,
-                                    `+${bonusEnfantsCnav} trim. → ${trimEffectifs} effectifs${tauxPleinAtteintAvecBonus ? ' ✓ taux plein atteint' : ''}`,
-                                    tauxPleinAtteintAvecBonus ? "#00B894" : "#FF9F43"
-                                  ]] : []),
-                                  ["Trimestres requis (taux plein)", trimRequis != null ? `${trimRequis} trim.` : "—", "#555"],
-                                  ["Trimestres manquants", trimManquants != null ? (trimManquants === 0 ? "✓ atteints" : `${trimManquants} trim.`) : "—", manquantsColor],
-                                  ["Années avec activité", anneesActives > 0 ? `${anneesActives} an${anneesActives > 1 ? "s" : ""}` : "—", "#555"],
-                                  ["Âge actuel", age != null ? `${age} ans` : "—", "#555"],
-                                  ...(childrenCount != null && childrenCount !== "" ? [["Nombre d'enfants", `${childrenCount}`, "#555"]] : []),
-                                  ...(studyYears != null && studyYears !== "" ? [["Années d'études supérieures", `${studyYears} an${Number(studyYears) > 1 ? "s" : ""}`, "#555"]] : []),
-                                  ["SAMB Assurance Retraite / CNAV", samb > 0 ? `${samb.toLocaleString('fr-FR')} €` : "—", "#1a1a2e"],
-                                  ["Points ARRCO-AGIRC cumulés", arrcoPts > 0 ? `${arrcoPts.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} pts` : "—", "#0984E3"],
-                                  ["Projection annuelle (tendance)", projectionAnnuelle > 0 ? `+ ${projectionAnnuelle.toLocaleString('fr-FR')} pts / an` : "—", "#00B894"],
-                                  ["Situation jusqu'au départ", "Poursuite d'activité actuelle", "#555"],
-                                ];
-                                return rows.map(([label, val, color]) => (
-                                  <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #eee" }}>
-                                    <span style={{ color: "#555" }}>{label}</span>
-                                    <span style={{ fontWeight: 700, color, fontSize: 12 }}>{val}</span>
-                                  </div>
-                                ));
-                              })()}
-                            </div>
-                          </div>
+                          <CalculDataPanel
+                            carriereRows={carriereRows}
+                            trimCotState={trimCotState}
+                            trimAssState={trimAssState}
+                            arState={arState}
+                            user={user}
+                            departureDates={departureDates}
+                          />
 
                           <div style={{ marginBottom: 14 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
