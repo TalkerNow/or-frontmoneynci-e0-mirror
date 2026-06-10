@@ -1053,6 +1053,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [projectionSurcote, setProjectionSurcote] = useState(0);
   const [baremeReady, setBaremeReady] = useState(false);
   const [projectionMode, setProjectionMode] = useState(PROJECTION_MODES.LIBRE);
+  const [autoDateSignal, setAutoDateSignal] = useState(0);
   const [projRegenNonce, setProjRegenNonce] = useState(0);
   const [risFileName, setRisFileName] = useState(null);
   const [droitsSynthese, setDroitsSynthese] = useState(null);
@@ -1978,6 +1979,37 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     if (projRegenNonce > 0) handleGenerateProjection(projectionMode, projectionTargetAge, projectionSurcote);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projRegenNonce]);
+
+  // After freezing the career, auto-select in Scénarios the date matching the projection
+  // mode — but only if a projection was actually set (projected rows exist) and that date
+  // isn't already chosen. No projection → leave the choice to the user. Run-on-signal
+  // (keyed only on autoDateSignal) so handleChooseDate / chosenDates are fresh.
+  useEffect(() => {
+    if (autoDateSignal === 0) return;
+    if (!carriereRows.some((r) => r && r.projected)) return; // pas de projection → on ne touche à rien
+    const dd = departureDates;
+    const birth = parseBirthDate(user?.birth_date);
+    let typeId = null, label = null, dateInfo = null, customDate = null;
+    if (projectionMode === PROJECTION_MODES.LEGAL && dd.legale) {
+      typeId = "age_legal"; label = "Âge légal";
+      dateInfo = { date: dd.legale.date, info: `${dd.legale.ageStr} → ${dd.legale.label}` };
+    } else if (projectionMode === PROJECTION_MODES.DUREE && dd.tauxPlein) {
+      const tp = dd.tauxPlein;
+      typeId = "taux_plein"; label = "Taux plein (durée)";
+      dateInfo = { date: tp.date, info: tp.trimManquants === 0 ? `${tp.ageStr} • ${tp.trimRequis} trim. atteints` : `${tp.ageStr} • ${tp.trimManquants} trim. manquants → ${tp.label}` };
+    } else if (projectionMode === PROJECTION_MODES.AUTO67 && dd.date67) {
+      typeId = "taux_plein_auto"; label = "Taux plein auto (67 ans)";
+      dateInfo = { date: dd.date67.date, info: `67 ans → ${dd.date67.label}` };
+    } else if (projectionMode === PROJECTION_MODES.LIBRE && birth && Number.isFinite(projectionTargetAge)) {
+      const d = new Date(birth.getFullYear() + projectionTargetAge, birth.getMonth(), birth.getDate());
+      typeId = "date_libre"; label = "Date libre";
+      customDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    }
+    if (typeId && !chosenDates.some((cd) => cd?.type === typeId)) {
+      handleChooseDate(typeId, label, dateInfo, customDate);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoDateSignal]);
 
   // Reset hydration tracker on client switch
   useEffect(() => {
@@ -3613,6 +3645,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       setExpandedPanel("dispositifs");
       setSelectedAction(null);
       setExecuted(null);
+      setAutoDateSignal((n) => n + 1); // déclenche l'auto-sélection de date si une projection a été posée
     } catch (err) {
       if (err.response?.status === 423) {
         toast.error("Données verrouillées — déverrouillez d'abord");
