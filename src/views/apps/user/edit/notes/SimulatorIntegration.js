@@ -4609,6 +4609,22 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                   </span>
                                 </div>
                               )}
+                              {user?.birth_date && (() => {
+                                const b = new Date(user.birth_date);
+                                if (isNaN(b.getTime())) return null;
+                                const t = new Date();
+                                let years = t.getFullYear() - b.getFullYear();
+                                let months = t.getMonth() - b.getMonth();
+                                if (t.getDate() < b.getDate()) months--;
+                                if (months < 0) { years--; months += 12; }
+                                const label = `${years} ans${months > 0 ? ` ${months} mois` : ""}`;
+                                return (
+                                  <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                                    <span style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: 600 }}>Âge</span>
+                                    <span style={{ fontSize: 13, fontWeight: 600, color: "#555" }}>{label}</span>
+                                  </div>
+                                );
+                              })()}
                               {user?.secu_social && (
                                 <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                                   <span style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: 600 }}>NIR</span>
