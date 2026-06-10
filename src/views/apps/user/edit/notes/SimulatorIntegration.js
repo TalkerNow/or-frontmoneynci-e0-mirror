@@ -1054,6 +1054,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [baremeReady, setBaremeReady] = useState(false);
   const [projectionMode, setProjectionMode] = useState(PROJECTION_MODES.LIBRE);
   const [autoDateSignal, setAutoDateSignal] = useState(0);
+  const lastAutoDateTypeRef = useRef(null); // last date type auto-selected by the projection (for clean replace)
   const [projRegenNonce, setProjRegenNonce] = useState(0);
   const [risFileName, setRisFileName] = useState(null);
   const [droitsSynthese, setDroitsSynthese] = useState(null);
@@ -1980,34 +1981,49 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projRegenNonce]);
 
-  // After freezing the career, auto-select in Scénarios the date matching the projection
-  // mode — but only if a projection was actually set (projected rows exist) and that date
-  // isn't already chosen. No projection → leave the choice to the user. Run-on-signal
-  // (keyed only on autoDateSignal) so handleChooseDate / chosenDates are fresh.
+  // After freezing the career, auto-select in Scénarios the date matching the projection mode.
+  // Anchors (légal / durée / 67) ALWAYS select — even when the date is in the past and the grid
+  // has no projected rows (e.g. a client already at/past legal age). Âge libre selects only when
+  // the user actually projected (projected rows exist), so an untouched default doesn't force a
+  // date. The previous projection-chosen date is replaced on mode change; manual picks are kept.
+  // Run-on-signal (keyed only on autoDateSignal) so chosenDates is fresh.
   useEffect(() => {
-    if (autoDateSignal === 0) return;
-    if (!carriereRows.some((r) => r && r.projected)) return; // pas de projection → on ne touche à rien
+    if (autoDateSignal === 0 || !id) return;
     const dd = departureDates;
     const birth = parseBirthDate(user?.birth_date);
-    let typeId = null, label = null, dateInfo = null, customDate = null;
+    const hasProjectedRows = carriereRows.some((r) => r && r.projected);
+    const toIso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    let typeId = null, label = null, isoDate = null, info = "";
     if (projectionMode === PROJECTION_MODES.LEGAL && dd.legale) {
-      typeId = "age_legal"; label = "Âge légal";
-      dateInfo = { date: dd.legale.date, info: `${dd.legale.ageStr} → ${dd.legale.label}` };
+      typeId = "age_legal"; label = "Âge légal"; isoDate = toIso(dd.legale.date);
+      info = `${dd.legale.ageStr} → ${dd.legale.label}`;
     } else if (projectionMode === PROJECTION_MODES.DUREE && dd.tauxPlein) {
-      const tp = dd.tauxPlein;
-      typeId = "taux_plein"; label = "Taux plein (durée)";
-      dateInfo = { date: tp.date, info: tp.trimManquants === 0 ? `${tp.ageStr} • ${tp.trimRequis} trim. atteints` : `${tp.ageStr} • ${tp.trimManquants} trim. manquants → ${tp.label}` };
+      const tp = dd.tauxPlein; typeId = "taux_plein"; label = "Taux plein (durée)"; isoDate = toIso(tp.date);
+      info = tp.trimManquants === 0 ? `${tp.ageStr} • ${tp.trimRequis} trim. atteints` : `${tp.ageStr} • ${tp.trimManquants} trim. manquants → ${tp.label}`;
     } else if (projectionMode === PROJECTION_MODES.AUTO67 && dd.date67) {
-      typeId = "taux_plein_auto"; label = "Taux plein auto (67 ans)";
-      dateInfo = { date: dd.date67.date, info: `67 ans → ${dd.date67.label}` };
-    } else if (projectionMode === PROJECTION_MODES.LIBRE && birth && Number.isFinite(projectionTargetAge)) {
+      typeId = "taux_plein_auto"; label = "Taux plein auto (67 ans)"; isoDate = toIso(dd.date67.date);
+      info = `67 ans → ${dd.date67.label}`;
+    } else if (projectionMode === PROJECTION_MODES.LIBRE && hasProjectedRows && birth && Number.isFinite(projectionTargetAge)) {
       const d = new Date(birth.getFullYear() + projectionTargetAge, birth.getMonth(), birth.getDate());
-      typeId = "date_libre"; label = "Date libre";
-      customDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      typeId = "date_libre"; label = "Date libre"; isoDate = toIso(d);
+      info = d.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
     }
-    if (typeId && !chosenDates.some((cd) => cd?.type === typeId)) {
-      handleChooseDate(typeId, label, dateInfo, customDate);
+    if (!typeId) return; // aucune projection exploitable → on laisse l'utilisateur choisir
+    const prevAuto = lastAutoDateTypeRef.current;
+    let next = chosenDates, changed = false;
+    if (prevAuto && prevAuto !== typeId && next.some((cd) => cd?.type === prevAuto)) {
+      next = next.filter((cd) => cd?.type !== prevAuto); changed = true;
     }
+    if (!next.some((cd) => cd?.type === typeId)) {
+      next = [...next, { type: typeId, label, date: isoDate, info }]; changed = true;
+    }
+    lastAutoDateTypeRef.current = typeId;
+    if (typeId === "date_libre") setDateLibreInput(isoDate); // garde la carte « Date libre » surlignée
+    if (!changed) return;
+    setChosenDates(next);
+    saveChosenDates(parseInt(id), next)
+      .then((updated) => { if (Array.isArray(updated?.dates_retenues)) setChosenDates(updated.dates_retenues); toast.success(`Date retenue : ${label}`); })
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoDateSignal]);
 
