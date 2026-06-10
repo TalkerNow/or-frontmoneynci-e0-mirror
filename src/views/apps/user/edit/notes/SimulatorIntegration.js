@@ -3882,6 +3882,32 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     }
   }, [id, chosenScenarios, buildScenarioItem]);
 
+  // Persiste la saisie (quotité/date) d'un dispositif DÉJÀ retenu directement
+  // dans son `params`, dès la sortie du champ (onBlur) — indépendamment du
+  // recalcul. Garantit que le livrable affiche toujours le paramètre saisi,
+  // même si le calcul du dispositif échoue. No-op si le dispositif n'est pas retenu.
+  const persistChosenDispositifInput = useCallback(async (action, rawValue) => {
+    if (!id) return;
+    const idx = chosenScenarios.findIndex(s => s?.dispositif_id === action.id);
+    if (idx === -1) return; // pas encore retenu → la saisie sera capturée au moment de retenir
+    const value = (rawValue ?? "").toString().trim();
+    const existing = chosenScenarios[idx];
+    const prevInput = (existing?.params && !Array.isArray(existing.params) ? existing.params.input : undefined) ?? "";
+    if (String(prevInput) === value) return; // inchangé → pas de save inutile
+    const baseParams = (existing?.params && !Array.isArray(existing.params)) ? existing.params : {};
+    const newParams = value !== "" ? { ...baseParams, input: value } : {};
+    const next = chosenScenarios.map((s, i) => (i === idx ? { ...s, params: newParams } : s));
+    const previous = chosenScenarios;
+    setChosenScenarios(next); // optimiste
+    try {
+      const updated = await saveChosenScenarios(parseInt(id), next);
+      const serverList = updated?.scenarios_choisis;
+      if (Array.isArray(serverList)) setChosenScenarios(serverList);
+    } catch (err) {
+      setChosenScenarios(previous); // rollback silencieux
+    }
+  }, [id, chosenScenarios]);
+
   const handleScenarioSkillExecute = useCallback(async (skillCode, scenarioParams = {}) => {
     if (!id || !carriereValidee) {
       toast.error("Geler la carrière d'abord");
@@ -5660,6 +5686,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                               placeholder={action.inputType === "date" ? "" : "Ex: 3"}
                                               value={inputValues[action.id] || ""}
                                               onChange={(e) => setInputValues({ ...inputValues, [action.id]: e.target.value })}
+                                              onBlur={(e) => persistChosenDispositifInput(action, e.target.value)}
                                               onClick={(e) => e.stopPropagation()}
                                               style={{ flex: 1, minWidth: 0, padding: "6px 10px", border: "none", outline: "none", fontSize: 12, background: "transparent", fontFamily: "inherit", color: "#333" }}
                                             />
