@@ -56,7 +56,7 @@ const ACTION_PANELS = {
     desc: "Activez les dispositifs applicables — l'IA en déduit les dates de départ possibles",
     actions: [
       { id: "racl", label: "Carrière longue (RACL)", icon: "⏩", requires: ["ris"], desc: "Départ anticipé si début activité avant 16/18/20/21 ans", generates_date: true },
-      { id: "rachat_vplr", label: "Rachat VPLR", icon: "🧩", requires: ["ris"], hasInput: true, inputType: "number", inputLabel: "Nb trim. études (optionnel)", desc: "Années incomplètes auto-détectées + études (plafond légal partagé : 12 trim.)" },
+      { id: "rachat_vplr", label: "Rachat VPLR", icon: "🧩", requires: ["ris"], hasInput: true, inputType: "number", inputLabel: "Nombre de trimestres à racheter", desc: "Rachat de trimestres (études sup. + années incomplètes) — plafond légal 12 trim." },
       { id: "retraite_progressive", label: "Retraite progressive", icon: "⚖️", requires: ["ris"], desc: "Temps partiel + pension partielle dès âge légal −2 ans", generates_date: true, hasInput: true, inputType: "number", inputLabel: "Quotité activité (%)" },
       { id: "cumul_emploi", label: "Cumul emploi-retraite", icon: "🔄", requires: ["ris"], desc: "Liquidation puis reprise d'activité, 2e pension (réforme 2023)", generates_date: true },
       { id: "chomage_ind", label: "Chômage indemnisé", icon: "📉", requires: ["ris"], hasInput: true, inputType: "number", inputLabel: "Durée (mois)", desc: "Trim. assimilés, impact sur date taux plein", generates_date: true },
