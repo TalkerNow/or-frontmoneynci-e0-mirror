@@ -1514,6 +1514,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const projTargetYear = useMemo(() => computeTargetYear(projBirthYear, projectionTargetAge), [projBirthYear, projectionTargetAge]);
   const projLastRealYear = useMemo(() => findLastRealYear(carriereRows), [carriereRows]);
   const projectionActive = projLastRealYear != null && projTargetYear != null;
+  const projectionOn = useMemo(() => carriereRows.some((r) => r && r.projected), [carriereRows]);
 
   // Departure dates derived from barème + grid, shared by the projection selector (below)
   // and the "dispositifs" panel. Each anchor is the object returned by its compute* helper
@@ -1572,6 +1573,18 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       setVisibleRowCount((v) => Math.min(res.carriereRows.length, Math.max(v, res.projectedYears.length + 20)));
     }
   }, [carriereRows, revaloValues, trimCotState, user, departureDates, isCadreSimu]);
+
+  // Désactive la projection : retire toutes les années projetées (reconcile vers un set vide).
+  const clearProjection = useCallback(() => {
+    const lastRealYear = findLastRealYear(carriereRows);
+    const res = reconcileProjection(
+      { carriereRows, revaloValues, trimCotState },
+      { lastRealYear, targetYear: lastRealYear, surcote: 0, lastRealSalary: 0, passLast: PASS_LAST },
+    );
+    setCarriereRows(res.carriereRows);
+    setRevaloValues(res.revaloValues);
+    setTrimCotState(res.trimCotState);
+  }, [carriereRows, revaloValues, trimCotState]);
 
   //   RIS format  : { annee, sal_original, sal_eur, devise, regimes }
   //   SAISIE format: { annee, salaire_brut, salaire_revalo, trimestres_cotises, trimestres_assimiles }
@@ -4752,7 +4765,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                 { id: PROJECTION_MODES.LIBRE,  label: "Âge libre",          needsBirth: false },
                               ].map((chip) => {
                                 const disabled = carriereValidee || (chip.needsBirth && !projBirthYear);
-                                const active = projectionMode === chip.id;
+                                const active = projectionMode === chip.id && projectionOn;
                                 return (
                                   <button
                                     key={chip.id}
@@ -4761,9 +4774,13 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                     title={
                                       carriereValidee ? "Déverrouillez la carrière pour modifier la projection" :
                                       chip.needsBirth && !projBirthYear ? "Renseignez la date de naissance du client" :
-                                      undefined
+                                      active ? "Recliquez pour désactiver la projection" :
+                                      "Cliquez pour projeter jusqu'à cette cible"
                                     }
-                                    onClick={() => { setProjectionMode(chip.id); handleGenerateProjection(chip.id, projectionTargetAge, projectionSurcote); }}
+                                    onClick={() => {
+                                      if (active) { clearProjection(); }
+                                      else { setProjectionMode(chip.id); handleGenerateProjection(chip.id, projectionTargetAge, projectionSurcote); }
+                                    }}
                                     style={{ padding: "4px 10px", borderRadius: 14, fontSize: 12, fontWeight: 600, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1, border: active ? "1px solid #FF9F43" : "1px solid #FFD08A", background: active ? "#FF9F43" : "#fff", color: active ? "#fff" : "#B26A00" }}
                                   >
                                     {chip.label}
