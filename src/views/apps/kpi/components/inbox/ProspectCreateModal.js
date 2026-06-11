@@ -96,7 +96,7 @@ const ProspectCreateModal = ({
           parent_id: parentId,
           business_introducer_id: businessIntroducerId,
           civility: "Monsieur", // Default
-          martial_status: "Célibataire", // Default
+          martial_status: null, // pas de défaut : vide reste vide
         };
 
         await axios.post(

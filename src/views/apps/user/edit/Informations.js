@@ -283,11 +283,15 @@ class UserAccountTab extends React.Component {
               birth_date: information.dob,
               birth_place: information.birth_place,
               maiden_name: information.maiden_name,
-              martial_status: information.martial_status
-                ? information.martial_status
-                : this.props.data.martial_status
-                  ? this.props.data.martial_status
-                  : "Célibataire",
+              // "" = effacement explicite via le radio "Non renseigné" → null en base
+              martial_status:
+                information.martial_status === ""
+                  ? null
+                  : information.martial_status
+                    ? information.martial_status
+                    : this.props.data.martial_status
+                      ? this.props.data.martial_status
+                      : null,
               children_number: information.children_number,
               secu_social: information.secu_social,
               secu_social_key: information.secu_social_key,
@@ -722,153 +726,89 @@ class UserAccountTab extends React.Component {
                   <span className="align-middle">Statut marital</span>
                 </h5>
                 <FormGroup style={{ marginBottom: "15px", marginTop: "5px" }}>
-                  {this.props.data["martial_status"] !== null ? (
-                    <>
-                      <div className="d-inline-block mr-1">
-                        <Radio
-                          label="Célibataire"
-                          color="primary"
-                          defaultChecked={
-                            this.props.data["martial_status"] == "Célibataire"
-                              ? true
-                              : false
-                          }
-                          name="martial_status"
-                          onChange={() => {
-                            this.setState({ martial_status: "Célibataire" });
-                            this.markDirty();
-                          }}
-                        />
-                      </div>
-                      <div className="d-inline-block mr-1">
-                        <Radio
-                          label="Marié(e)"
-                          color="primary"
-                          defaultChecked={
-                            this.props.data["martial_status"] == "Marié"
-                              ? true
-                              : false
-                          }
-                          name="martial_status"
-                          onChange={() => {
-                            this.setState({ martial_status: "Marié" });
-                            this.markDirty();
-                          }}
-                        />
-                      </div>
-                      <div className="d-inline-block mr-1">
-                        <Radio
-                          label="Divorcé(e)"
-                          color="primary"
-                          defaultChecked={
-                            this.props.data["martial_status"] == "Divorcé"
-                              ? true
-                              : false
-                          }
-                          name="martial_status"
-                          onChange={() => {
-                            this.setState({ martial_status: "Divorcé" });
-                            this.markDirty();
-                          }}
-                        />
-                      </div>
-                      <div className="d-inline-block mr-1">
-                        <Radio
-                          label="Pacsé(e)"
-                          color="primary"
-                          defaultChecked={
-                            this.props.data["martial_status"] == "Pacsé"
-                              ? true
-                              : false
-                          }
-                          name="martial_status"
-                          onChange={() => {
-                            this.setState({ martial_status: "Pacsé" });
-                            this.markDirty();
-                          }}
-                        />
-                      </div>
-                      <div className="d-inline-block mr-1">
-                        <Radio
-                          label="Veuf(ve)"
-                          color="primary"
-                          defaultChecked={
-                            this.props.data["martial_status"] == "Veuf"
-                              ? true
-                              : false
-                          }
-                          name="martial_status"
-                          onChange={() => {
-                            this.setState({ martial_status: "Veuf" });
-                            this.markDirty();
-                          }}
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="d-inline-block mr-1">
-                        <Radio
-                          label="Célibataire"
-                          color="primary"
-                          defaultChecked={true}
-                          name="martial_status"
-                          onChange={() => {
-                            this.setState({ martial_status: "Célibataire" });
-                            this.markDirty();
-                          }}
-                        />
-                      </div>
-                      <div className="d-inline-block mr-1">
-                        <Radio
-                          label="Marié(e)"
-                          color="primary"
-                          defaultChecked={false}
-                          name="martial_status"
-                          onChange={() => {
-                            this.setState({ martial_status: "Marié" });
-                            this.markDirty();
-                          }}
-                        />
-                      </div>
-                      <div className="d-inline-block mr-1">
-                        <Radio
-                          label="Divorcé(e)"
-                          color="primary"
-                          defaultChecked={false}
-                          name="martial_status"
-                          onChange={() => {
-                            this.setState({ martial_status: "Divorcé" });
-                            this.markDirty();
-                          }}
-                        />
-                      </div>
-                      <div className="d-inline-block mr-1">
-                        <Radio
-                          label="Veuf(ve)"
-                          color="primary"
-                          defaultChecked={false}
-                          name="martial_status"
-                          onChange={() => {
-                            this.setState({ martial_status: "Veuf" });
-                            this.markDirty();
-                          }}
-                        />
-                      </div>
-                      <div className="d-inline-block mr-1">
-                        <Radio
-                          label="Pacsé(e)"
-                          color="primary"
-                          defaultChecked={false}
-                          name="martial_status"
-                          onChange={() => {
-                            this.setState({ martial_status: "Pacsé" });
-                            this.markDirty();
-                          }}
-                        />
-                      </div>
-                    </>
-                  )}
+                  <div className="d-inline-block mr-1">
+                    <Radio
+                      label="Non renseigné"
+                      color="primary"
+                      defaultChecked={this.props.data["martial_status"] == null}
+                      name="martial_status"
+                      onChange={() => {
+                        // "" = effacement explicite (≠ null/undefined "jamais touché")
+                        this.setState({ martial_status: "" });
+                        this.markDirty();
+                      }}
+                    />
+                  </div>
+                  <div className="d-inline-block mr-1">
+                    <Radio
+                      label="Célibataire"
+                      color="primary"
+                      defaultChecked={
+                        this.props.data["martial_status"] == "Célibataire"
+                      }
+                      name="martial_status"
+                      onChange={() => {
+                        this.setState({ martial_status: "Célibataire" });
+                        this.markDirty();
+                      }}
+                    />
+                  </div>
+                  <div className="d-inline-block mr-1">
+                    <Radio
+                      label="Marié(e)"
+                      color="primary"
+                      defaultChecked={
+                        this.props.data["martial_status"] == "Marié"
+                      }
+                      name="martial_status"
+                      onChange={() => {
+                        this.setState({ martial_status: "Marié" });
+                        this.markDirty();
+                      }}
+                    />
+                  </div>
+                  <div className="d-inline-block mr-1">
+                    <Radio
+                      label="Divorcé(e)"
+                      color="primary"
+                      defaultChecked={
+                        this.props.data["martial_status"] == "Divorcé"
+                      }
+                      name="martial_status"
+                      onChange={() => {
+                        this.setState({ martial_status: "Divorcé" });
+                        this.markDirty();
+                      }}
+                    />
+                  </div>
+                  <div className="d-inline-block mr-1">
+                    <Radio
+                      label="Pacsé(e)"
+                      color="primary"
+                      defaultChecked={
+                        this.props.data["martial_status"] == "Pacsé"
+                      }
+                      name="martial_status"
+                      onChange={() => {
+                        this.setState({ martial_status: "Pacsé" });
+                        this.markDirty();
+                      }}
+                    />
+                  </div>
+                  <div className="d-inline-block mr-1">
+                    <Radio
+                      label="Veuf(ve)"
+                      color="primary"
+                      defaultChecked={
+                        this.props.data["martial_status"] == "Veuf"
+                      }
+                      name="martial_status"
+                      onChange={() => {
+                        this.setState({ martial_status: "Veuf" });
+                        this.markDirty();
+                      }}
+                    />
+                  </div>
                 </FormGroup>
               </Col>
               <Col md="6" sm="12">

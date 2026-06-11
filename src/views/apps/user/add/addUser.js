@@ -55,7 +55,7 @@ class AddUser extends React.Component {
       role: "Client",
       password: generator.generate({ length: 10, numbers: true }),
       civility: "",
-      martial_status: "Célibataire",
+      martial_status: null,
       children_number: null,
       mobile_number: null,
       office_number: null,
@@ -750,6 +750,19 @@ class AddUser extends React.Component {
                 <span className="align-middle">Statut marital</span>
               </h5>
               <FormGroup style={{ marginBottom: "15px", marginTop: "5px" }}>
+                <div className="d-inline-block mr-1">
+                  <Radio
+                    label="Non renseigné"
+                    color="primary"
+                    defaultChecked={true}
+                    name="martial_status"
+                    onChange={() =>
+                      this.setState({
+                        data: { ...this.state.data, martial_status: null },
+                      })
+                    }
+                  />
+                </div>
                 <div className="d-inline-block mr-1">
                   <Radio
                     label="Célibataire"
