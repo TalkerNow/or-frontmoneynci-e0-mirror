@@ -5769,9 +5769,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                         const color = skillResultData.eligible ? "#00B894" : "#C0392B";
                                         return (
                                           <div>
-                                            {skillResultData.raison_eligibilite && (
-                                              <div style={{ fontSize: 11, color: "#333", marginBottom: 5 }}>{skillResultData.raison_eligibilite}</div>
-                                            )}
                                             {skillCode === "RACL" && skillResultData.eligible && (
                                               <div style={{ marginBottom: 4 }}>
                                                 {skillResultData.age_depart_possible != null && (
@@ -5779,9 +5776,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                                     🗓 Départ possible à {skillResultData.age_depart_possible} ans
                                                     {skillResultData.date_depart_estimee ? ` — ${skillResultData.date_depart_estimee}` : ""}
                                                   </div>
-                                                )}
-                                                {skillResultData.palier?.libelle && (
-                                                  <div style={{ fontSize: 11, color: "#555", marginBottom: 2 }}>Palier : {skillResultData.palier.libelle}</div>
                                                 )}
                                               </div>
                                             )}
@@ -5795,11 +5789,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                                 {skillResultData.rp_result.date_debut_rp_possible && (
                                                   <div style={{ fontSize: 12, fontWeight: 700, color, marginBottom: 2 }}>
                                                     🗓 Début RP possible : {skillResultData.rp_result.date_debut_rp_possible}
-                                                  </div>
-                                                )}
-                                                {skillResultData.rp_result.duree_max_rp_mois != null && (
-                                                  <div style={{ fontSize: 11, color: "#555", marginBottom: 2 }}>
-                                                    Durée max : {skillResultData.rp_result.duree_max_rp_mois} mois (jusqu'à {skillResultData.rp_result.age_retraite_definitive} ans)
                                                   </div>
                                                 )}
                                                 {skillResultData.rp_result.fraction_pension_provisoire_pct != null && (
@@ -5874,23 +5863,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                             {skillResultData.impact?.trimestres_ajoutes > 0 && (
                                               <div style={{ fontSize: 11, color: "#555", marginBottom: 4 }}>
                                                 +{skillResultData.impact.trimestres_ajoutes} trim. assimilés
-                                              </div>
-                                            )}
-                                            {skillResultData.alertes?.length > 0 && (
-                                              <div style={{ marginTop: 6, paddingTop: 6, borderTop: `1px solid ${color}40` }}>
-                                                {skillResultData.alertes.map((a, i) => (
-                                                  <div key={i} style={{ fontSize: 10, color: a.niveau === "ROUGE" ? "#D63031" : a.niveau === "ORANGE" ? "#E17055" : "#00B894", marginBottom: 3 }}>
-                                                    <strong>{a.niveau}</strong> — {a.message}
-                                                  </div>
-                                                ))}
-                                              </div>
-                                            )}
-                                            {skillResultData.recommandations?.length > 0 && (
-                                              <div style={{ marginTop: 6, fontSize: 10, color: "#555" }}>
-                                                <strong>Recommandations :</strong>
-                                                <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
-                                                  {skillResultData.recommandations.slice(0, 3).map((r, i) => <li key={i}>{r}</li>)}
-                                                </ul>
                                               </div>
                                             )}
                                           </div>
