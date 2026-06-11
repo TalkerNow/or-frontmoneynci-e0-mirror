@@ -1546,13 +1546,32 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       { carriereRows, revaloValues, trimCotState },
       { lastRealYear, targetYear, surcote: nextSurcote, lastRealSalary, passLast: PASS_LAST },
     );
-    setCarriereRows(res.carriereRows);
+    // Estimate complementary points on the projected years, derived from each projected
+    // row's salary (same calc as a manual salary edit), gated to the régimes the client
+    // actually has so we never invent points (e.g. IRCANTEC) the career never carried.
+    const hasAgirc = carriereRows.some((r) => !r.projected && (Number(r.agircPts) || 0) > 0);
+    const hasIrc = carriereRows.some((r) => !r.projected && (Number(r.ircPts) || 0) > 0);
+    const hasRci = carriereRows.some((r) => !r.projected && (Number(r.rciPts) || 0) > 0);
+    const PT_YEAR = 2026; // last year with official AGIRC-ARRCO valeur d'achat (20,1877 €, reconduit)
+    const projectedRows = res.carriereRows.map((r) => {
+      if (!r.projected) return r;
+      const sal = Number(r.sal) || 0;
+      if (sal <= 0) return r;
+      const ag = hasAgirc ? (calculateArrco(PT_YEAR, sal, isCadreSimu)?.total || 0) : 0;
+      const ir = hasIrc ? (calculateIrcantec(PT_YEAR, sal)?.total || 0) : 0;
+      const rc = hasRci ? (calculateRci(PT_YEAR, sal)?.total || 0) : 0;
+      const agircPts = parseFloat(ag.toFixed(2));
+      const ircPts = parseFloat(ir.toFixed(5));
+      const rciPts = parseFloat(rc.toFixed(5));
+      return { ...r, agircPts, ircPts, rciPts, regimes: { ...(r.regimes || {}), AGIRC_ARRCO: agircPts, IRCANTEC: ircPts, RCI: rciPts } };
+    });
+    setCarriereRows(projectedRows);
     setRevaloValues(res.revaloValues);
     setTrimCotState(res.trimCotState);
     if (res.projectedYears.length) {
       setVisibleRowCount((v) => Math.min(res.carriereRows.length, Math.max(v, res.projectedYears.length + 20)));
     }
-  }, [carriereRows, revaloValues, trimCotState, user, departureDates]);
+  }, [carriereRows, revaloValues, trimCotState, user, departureDates, isCadreSimu]);
 
   //   RIS format  : { annee, sal_original, sal_eur, devise, regimes }
   //   SAISIE format: { annee, salaire_brut, salaire_revalo, trimestres_cotises, trimestres_assimiles }
