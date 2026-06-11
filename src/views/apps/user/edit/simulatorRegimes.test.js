@@ -89,6 +89,15 @@ describe("resolveRegime", () => {
     expect(resolveRegime("AGIRC ARRCO").key).toBe("AGIRC_ARRCO");
     expect(resolveRegime("Agirc Arrco").key).toBe("AGIRC_ARRCO");
   });
+
+  it("recognizes RAFP (retraite additionnelle fonction publique) as a known régime", () => {
+    // RIS fonction publique (ex. LADARRE 1700) : RAFP doit être un vrai régime,
+    // pas un "inconnu" passthrough — sinon pas de colonne dédiée ni de label propre.
+    const byCode = resolveRegime("RAFP");
+    expect(byCode.key).toBe("RAFP");
+    expect(byCode.isUnknown).toBeFalsy();
+    expect(resolveRegime("Retraite additionnelle de la fonction publique").key).toBe("RAFP");
+  });
 });
 
 describe("getPoints", () => {

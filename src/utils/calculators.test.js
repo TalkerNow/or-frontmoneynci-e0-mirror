@@ -1,4 +1,4 @@
-import { calculateCnav, computeSAMB, computeArrcoPts } from './calculators';
+import { calculateCnav, computeSAMB, computeArrcoPts, departureTrimOutlook } from './calculators';
 
 describe('calculateCnav', () => {
   test('returns null for salary = 0', () => {
@@ -176,6 +176,7 @@ import {
   computeDateTauxPlein,
   computeDate67,
   computeAutoDateFromDispositif,
+  computeTrimAtDate,
 } from './calculators';
 
 describe('parseBirthDate', () => {
@@ -278,6 +279,41 @@ describe('computeDateTauxPlein', () => {
   });
 });
 
+describe('computeTrimAtDate', () => {
+  test('returns null for missing targetDate', () => {
+    expect(computeTrimAtDate(150, 2025, null)).toBeNull();
+  });
+
+  test('date antérieure à la base de projection → décompte acquis inchangé', () => {
+    // base = 01/01/2026, cible 01/01/2025 < base → pas de projection
+    expect(computeTrimAtDate(150, 2025, new Date(2025, 0, 1))).toBe(150);
+  });
+
+  test('projette 1 trimestre par trimestre civil (4/an)', () => {
+    // base 01/01/2026 → 01/01/2028 = 24 mois = 8 trimestres
+    expect(computeTrimAtDate(160, 2025, new Date(2028, 0, 1))).toBe(168);
+  });
+
+  test('cohérence avec computeDateTauxPlein : trim. à la date de taux plein = trimRequis', () => {
+    const tp = computeDateTauxPlein('1966-07-08', 164, 2025); // trimRequis 172, date 01/01/2028
+    expect(computeTrimAtDate(164, 2025, tp.date)).toBe(tp.trimRequis);
+  });
+
+  test('date passée + carrière → cumul réel des années révolues (pas le total actuel)', () => {
+    // Carrière 2018-2021 = 4 ans pleins = 16 trim ; total acquis = 148 à 2024.
+    // Date cible 01/02/2023 → on ne compte que les années < 2023 (2018-2021) = 16,
+    // surtout PAS le total actuel 148.
+    const trimParAnnee = { 2018: 4, 2019: 4, 2020: 4, 2021: 4, 2024: 4 };
+    expect(computeTrimAtDate(148, 2024, new Date(2023, 1, 1), trimParAnnee)).toBe(16);
+  });
+
+  test('date future ignore la carrière et projette depuis anneeReference', () => {
+    const trimParAnnee = { 2024: 4 };
+    // base 01/01/2025 → 01/01/2027 = 24 mois = 8 trim → 160 + 8 = 168
+    expect(computeTrimAtDate(160, 2024, new Date(2027, 0, 1), trimParAnnee)).toBe(168);
+  });
+});
+
 describe('computeDate67', () => {
   test('returns null for missing birthDate', () => {
     expect(computeDate67(null)).toBeNull();
@@ -317,5 +353,130 @@ describe('computeAutoDateFromDispositif', () => {
     expect(result).not.toBeNull();
     expect(result.date.getFullYear()).toBe(2027);
     expect(result.date.getMonth()).toBe(10); // novembre = index 10
+  });
+});
+
+import { sumTrimestresCapped } from './calculators';
+
+describe("sumTrimestresCapped — durée d'assurance plafonnée à 4 trim/an", () => {
+  test('returns 0 for empty / nullish input', () => {
+    expect(sumTrimestresCapped([])).toBe(0);
+    expect(sumTrimestresCapped(null)).toBe(0);
+    expect(sumTrimestresCapped(undefined)).toBe(0);
+  });
+
+  test('single régime, years already ≤ 4 → unchanged (cap is a no-op)', () => {
+    expect(sumTrimestresCapped([
+      { trimestres_cotises: 4 },
+      { trimestres_cotises: 4 },
+      { trimestres_cotises: 4 },
+    ])).toBe(12);
+  });
+
+  test('partial years are preserved, not rounded up', () => {
+    expect(sumTrimestresCapped([
+      { trimestres_cotises: 1 },
+      { trimestres_cotises: 1 },
+      { trimestres_cotises: 4 },
+    ])).toBe(6);
+  });
+
+  test('cotisés + assimilés the same year are capped at 4 (the over-count fix)', () => {
+    // 4 cotisés + 2 assimilés la même année = 4 retenus (écrêtement RIS), PAS 6
+    expect(sumTrimestresCapped([
+      { trimestres_cotises: 4, trimestres_assimiles: 2 },
+    ])).toBe(4);
+  });
+
+  test('cotisés + assimilés under 4 are summed normally', () => {
+    expect(sumTrimestresCapped([
+      { trimestres_cotises: 2, trimestres_assimiles: 1 },
+    ])).toBe(3);
+  });
+
+  test('rachetés (AR) excluded by default, included with { includeRachetes: true }', () => {
+    expect(sumTrimestresCapped([{ trimestres_cotises: 2, trimestres_ar: 2 }])).toBe(2);
+    expect(sumTrimestresCapped([{ trimestres_cotises: 2, trimestres_ar: 2 }], { includeRachetes: true })).toBe(4);
+    // le plafond s'applique aussi quand les rachetés poussent l'année au-dessus de 4
+    expect(sumTrimestresCapped([{ trimestres_cotises: 3, trimestres_ar: 3 }], { includeRachetes: true })).toBe(4);
+  });
+
+  test('negative / non-numeric components are floored at 0 per year', () => {
+    expect(sumTrimestresCapped([
+      { trimestres_cotises: -4, trimestres_assimiles: 2 },  // -4+2 = -2 → 0
+      { trimestres_cotises: 'x', trimestres_assimiles: 3 }, // NaN→0, +3 = 3
+    ])).toBe(3);
+  });
+
+  // ── Intégration : client réel 1708 (Christian Vincent), RIS au 01/01/2026 ──
+  // Récapitulatif officiel du RIS = 158 trimestres (170 requis, 12 manquants).
+  // 41 années cotisées 1983–2025 (gaps en 2020 et 2023) ; seules 1983 et 1984
+  // partielles (1 trim) ; toutes les autres à 4. → 39×4 + 2 = 158.
+  const build1708 = (transform = (y, e) => e) => {
+    const c = [];
+    for (let y = 1983; y <= 2025; y++) {
+      if (y === 2020 || y === 2023) continue; // années sans report sur le RIS
+      const base = { trimestres_cotises: (y === 1983 || y === 1984) ? 1 : 4 };
+      c.push(transform(y, base));
+    }
+    return c;
+  };
+
+  test('client 1708 truth: 41 années (1983=1, 1984=1, reste=4) → 158', () => {
+    const carriere = build1708();
+    expect(carriere.length).toBe(41);
+    expect(sumTrimestresCapped(carriere)).toBe(158);
+  });
+
+  test('client 1708 over-count: assimilés empilés + années mixtes salarié/indépendant → toujours 158 (le plafond tient)', () => {
+    // Reproduit le sur-comptage du simulateur (166) : service militaire 1986
+    // empilé (4 cot + 4 ass) et années indépendant 2010-2012 où salarié+indépendant
+    // valident chacun 4 (naïf = 8). La somme naïve dépasse 158 ; plafonnée = 158.
+    const carriere = build1708((y, e) => {
+      if (y === 1986) return { trimestres_cotises: 4, trimestres_assimiles: 4 };
+      if (y >= 2010 && y <= 2012) return { trimestres_cotises: 8 };
+      return e;
+    });
+    const naive = carriere.reduce(
+      (s, e) => s + (Number(e.trimestres_cotises) || 0) + (Number(e.trimestres_assimiles) || 0),
+      0
+    );
+    expect(naive).toBeGreaterThan(158);        // le bug : la somme naïve sur-compte
+    expect(sumTrimestresCapped(carriere)).toBe(158); // le correctif : plafonné = total RIS officiel
+  });
+});
+
+describe('departureTrimOutlook', () => {
+  // birth 1965-06-15 → barème trimRequis = 171 (génération 1965, avril-déc)
+  const BIRTH = '1965-06-15';
+  const base = { birthDate: BIRTH, trimAcquis: 140, anneeRef: 2024, trimParAnnee: null };
+
+  test('décote before 67 when projected trimestres stay below required', () => {
+    const o = departureTrimOutlook({ ...base, departureDate: new Date(2028, 0, 1) });
+    // 140 + projection 4/yr from 2025 (3 yrs → 12) = 152 < 171
+    expect(o.trim).toBe(152);
+    expect(o.trimRequis).toBe(171);
+    expect(o.manquants).toBe(19);
+    expect(o.tauxPlein).toBe(false);
+    expect(o.automatique).toBe(false);
+  });
+
+  test('full rate by duration when projected trimestres reach the requirement', () => {
+    const o = departureTrimOutlook({ birthDate: BIRTH, trimAcquis: 168, anneeRef: 2024, trimParAnnee: null, departureDate: new Date(2026, 0, 1) });
+    expect(o.trim).toBe(172);          // 168 + 4
+    expect(o.tauxPlein).toBe(true);
+    expect(o.automatique).toBe(false); // reached by duration, not by age
+  });
+
+  test('automatic full rate at 67 even when trimestres are short', () => {
+    const o = departureTrimOutlook({ ...base, trimAcquis: 100, departureDate: new Date(2032, 6, 1) }); // age 67
+    expect(o.tauxPlein).toBe(true);
+    expect(o.automatique).toBe(true);  // granted by age, not duration
+    expect(o.trim).toBeLessThan(o.trimRequis);
+  });
+
+  test('null for invalid inputs', () => {
+    expect(departureTrimOutlook({ ...base, departureDate: null })).toBeNull();
+    expect(departureTrimOutlook({ ...base, birthDate: null, departureDate: new Date(2028, 0, 1) })).toBeNull();
   });
 });

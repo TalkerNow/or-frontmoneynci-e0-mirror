@@ -1,8 +1,10 @@
 /* eslint-disable jsx-a11y/accessible-emoji */
 import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import ReactDOM from "react-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
 import Dropzone from "react-dropzone";
+import "../../../../../assets/scss/plugins/extensions/dropzone.scss";
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button, UncontrolledTooltip, Input, UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem } from "reactstrap";
 import { DownloadCloud, Eye, Download, Edit2, Save, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, Trash2, Menu, MessageSquare, X as XIcon } from "react-feather";
 import ReportChatPanel from "./ReportChatPanel";
@@ -13,9 +15,10 @@ import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import { parseNIR } from "./utils";
+import { parseCarrierePoints } from "./carrierePoints";
 import { REGIMES, getPoints, resolveRegime, computeVisibleRegimes, REGIMES_SIMPLES, extractRegimeSimplePoints } from "../simulatorRegimes";
-import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml, detectDocumentType, applyReportChatMessage, fetchPromptNotes, savePromptNote, deletePromptNote } from "../risService";
-import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeArrcoPts, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif } from '../../../../../utils/calculators';
+import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml, detectDocumentType, fetchRapprochementConstat, applyReportChatMessage, fetchPromptNotes, savePromptNote, deletePromptNote } from "../risService";
+import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif, computeTrimAtDate, sumTrimestresCapped, parseBirthDate, departureTrimOutlook } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
 import SkillCreateModal from "./SkillCreateModal";
@@ -23,8 +26,21 @@ import AdminEngineChat from "./AdminEngineChat";
 import DateInputFR from "../DateInputFR";
 import SweetAlert from "react-bootstrap-sweetalert";
 import MD_CONTENT from "./adminSkillsContent";
+import { buildRecapRegimes, buildCipavRecap } from "./recapCarriere";
+import { RegimeRecapVignettes } from "./RecapCarriereParRegime";
 import BaremeRetraitePage from "../../../bareme-retraite";
-import { coeffRevalo } from "../simulatorData";
+import { coeffRevalo, initBareme } from "../simulatorData";
+import {
+  parseBirthYear,
+  computeTargetYear,
+  findLastRealYear,
+  findLastRealSalary,
+  reconcileProjection,
+  resolveProjectionTargetYear,
+  PROJECTION_MODES,
+  computeRealAssuranceTotals,
+} from "./careerProjection";
+import CalculDataPanel from "./CalculDataPanel";
 
 // ─── DATA ───────────────────────────────────────────────────────────────────
 
@@ -276,12 +292,74 @@ const ADMIN_SKILL_PROMPTS = [
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 
+// Latest known PASS (plafond annuel SS). Projected future years cap salary here.
+const PASS_LAST = PLAFONDS_SS[2026] || 0;
+
 function _buildDefaultCarriereRows() {
   return Array.from({ length: 65 }, (_, i) => {
     const yr = 2026 - i;
     const coeff = coeffRevalo[yr] || 1;
     return { yr, sal: 0, ss: 0, coeff: coeff.toFixed(3), revalo: 0, trim: 0, ar: 0, total: 0, agircPts: 0, ircPts: 0, rciPts: 0, regimes: {} };
   });
+}
+
+// ─── RAPPROCHEMENT RIS / BULLETIN (déterministe) ────────────────────────────
+// Compare, par année, le salaire reporté au RIS au cumul brut du bulletin plafonné
+// au PASS. Détecte écarts et années non reportées. Calcul pur — l'IA rédige le constat.
+function computeRapprochementRisBulletin(carriereRows, bulletins) {
+  const risByYear = {};
+  (carriereRows || []).forEach((r) => { if (r && r.yr != null) risByYear[r.yr] = r; });
+  // Dernière année réellement reportée au RIS : au-delà, un bulletin n'est pas une anomalie
+  // (année en cours / trop récente, jamais encore au relevé de carrière).
+  const risYears = Object.keys(risByYear).map(Number).filter((y) => (Number(risByYear[y].ss) || Number(risByYear[y].sal) || 0) > 0);
+  const maxRisYear = risYears.length ? Math.max.apply(null, risYears) : null;
+  const ecarts = [];
+  (bulletins || []).forEach((b) => {
+    if (b.annee == null || b.brutAnnuel == null) return;
+    const pass = PLAFONDS_SS[b.annee] != null ? PLAFONDS_SS[b.annee] : null;
+    // Salaire qui DEVRAIT figurer au RIS = brut annuel plafonné au PASS de l'année.
+    const bulletinReporte = pass != null ? Math.min(b.brutAnnuel, pass) : b.brutAnnuel;
+    const row = risByYear[b.annee];
+    const risReporte = row ? (Number(row.ss) || Number(row.sal) || 0) : 0;
+    const present = !!row && risReporte > 0;
+    const ecartEur = Math.round((risReporte - bulletinReporte) * 100) / 100; // < 0 => RIS sous le bulletin
+    const ecartPct = bulletinReporte > 0 ? Math.round((ecartEur / bulletinReporte) * 1000) / 10 : null;
+    const absPct = ecartPct == null ? 0 : Math.abs(ecartPct);
+    const absEur = Math.abs(ecartEur);
+    let niveau; let motif;
+    if (!present) {
+      if (maxRisYear != null && b.annee > maxRisYear) { niveau = "RECENT"; motif = "Année non encore reportée au RIS (trop récente / en cours)"; }
+      else { niveau = "ROUGE"; motif = "Année non reportée au RIS (salaire absent/nul) alors qu'un bulletin l'atteste"; }
+    }
+    else if (absPct >= 10 || absEur >= 1000) { niveau = "ROUGE"; motif = "Écart majeur RIS / bulletin"; }
+    else if (absPct >= 2 || absEur >= 200) { niveau = "ORANGE"; motif = "Écart à vérifier"; }
+    else { niveau = "VERT"; motif = "Cohérent"; }
+    ecarts.push({
+      annee: b.annee, salarie: b.salarie, employeur: b.employeur, periode: b.periode, filename: b.filename,
+      pass, brutBulletin: b.brutAnnuel, bulletinReporte, risReporte, present,
+      ecartEur, ecartPct, niveau, motif, plafonne: pass != null && b.brutAnnuel > pass,
+    });
+  });
+  ecarts.sort((a, b) => b.annee - a.annee);
+  const nbAnomalies = ecarts.filter((e) => e.niveau === "ROUGE" || e.niveau === "ORANGE").length;
+
+  // ── Impact SAM (estimation, lecture seule) ──
+  // SAM officiel via computeSAMB (25 meilleures, plafonné PASS, revalorisé).
+  // Carrière "corrigée" : pour les années ROUGE/ORANGE, on remonte le salaire au brut
+  // du bulletin (computeSAMB re-plafonne au PASS). On ne corrige jamais à la baisse.
+  const corrigeRows = (carriereRows || []).map((r) => {
+    const ec = ecarts.find((e) => e.annee === r.yr && (e.niveau === "ROUGE" || e.niveau === "ORANGE") && e.brutBulletin != null);
+    if (ec) return { ...r, sal: Math.max(Number(r.sal) || 0, ec.brutBulletin) };
+    return r;
+  });
+  const samRis = computeSAMB(carriereRows || []);
+  const samCorrige = computeSAMB(corrigeRows);
+  const deltaSam = samCorrige - samRis;
+  // Estimation pension de base CNAV : ΔSAM × taux plein (50%). Hors prorata/décote.
+  const deltaPensionAnnuelle = Math.round(deltaSam * 0.5);
+  const deltaPensionMensuelle = Math.round((deltaPensionAnnuelle / 12) * 100) / 100;
+
+  return { ecarts, nbAnomalies, nbBulletins: (bulletins || []).length, samRis, samCorrige, deltaSam, deltaPensionAnnuelle, deltaPensionMensuelle };
 }
 
 // ─── CIPAV RESULT CARD ──────────────────────────────────────────────────────
@@ -493,8 +571,42 @@ function RegimeResultCard({ code, loading, error, result, carriereValidee }) {
 // Format d'entrée (côté n8n) : { level: 'low'|'medium'|'high', reason: string }
 const UNCERT_BG = { low: "#f0f9ff", medium: "#fff8e1", high: "#fff3e0" };
 const UNCERT_BORDER = { low: "#bae6fd", medium: "#f9a825", high: "#F39130" };
-const UNCERT_ICON = { low: "ℹ️", medium: "⚠️", high: "🚩" };
-const UNCERT_PREFIX = { low: "Note IA", medium: "À vérifier", high: "Incertain — relire le RIS" };
+
+// Read a persisted uncertainty map from sessionStorage (always returns an object).
+function readPersistedUncert(key) {
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+const CAREER_DRAFT_KEY = (id) => `simu_career_draft_${id}`;
+
+// Read an unvalidated career draft (scanned RIS working state) from localStorage.
+// Returns null if absent/malformed. The draft lets a freshly-scanned RIS survive a
+// refresh without freezing — frozen_data still wins once the career is validated.
+function readCareerDraft(id) {
+  try {
+    const raw = localStorage.getItem(CAREER_DRAFT_KEY(id));
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    return d && typeof d === "object" && Array.isArray(d.carriereRows) ? d : null;
+  } catch {
+    return null;
+  }
+}
+
+// Select the field content on focus so a typed digit replaces the existing value
+// instead of being appended (trimestre cells show "0", which otherwise gives "40"/"04").
+// Deferred a tick so the mouse-click's mouseup doesn't collapse the selection.
+function selectAllOnFocus(e) {
+  const el = e.target;
+  setTimeout(() => { try { el.select(); } catch { /* noop */ } }, 0);
+}
 
 function getCellUncert(map, year, fieldKey) {
   if (!map || !year) return null;
@@ -509,28 +621,179 @@ function uncertProps(u) {
   if (!u) return { tdStyle: null, title: undefined, badge: null };
   const bg = UNCERT_BG[u.level] || UNCERT_BG.medium;
   const border = UNCERT_BORDER[u.level] || UNCERT_BORDER.medium;
-  const icon = UNCERT_ICON[u.level] || UNCERT_ICON.medium;
-  const prefix = UNCERT_PREFIX[u.level] || UNCERT_PREFIX.medium;
   return {
     tdStyle: { background: bg, boxShadow: `inset 0 0 0 1px ${border}`, position: "relative" },
-    title: `${prefix} (IA) : ${u.reason}`,
-    badge: (
-      <span
-        style={{
-          position: "absolute",
-          top: 1,
-          right: 2,
-          fontSize: 10,
-          lineHeight: 1,
-          pointerEvents: "none",
-          filter: "saturate(1.4)",
-        }}
-        aria-label={prefix}
-      >
-        {icon}
-      </span>
-    ),
+    // Native title intentionally dropped — the reason is now revealed through the
+    // clickable <IaNoteFlag> popover. Call sites keep their own help-text fallback.
+    title: undefined,
+    badge: <IaNoteFlag level={u.level} reason={u.reason} />,
   };
+}
+
+// ── IA note flag: a clickable badge that opens a designed popover with the reason.
+const IA_FLAG_THEME = {
+  low:    { accent: "#0EA5E9", soft: "#E0F2FE", ring: "#7DD3FC", glyph: "ℹ️", label: "Note IA",    tone: "Information" },
+  medium: { accent: "#F59E0B", soft: "#FEF3C7", ring: "#FCD34D", glyph: "⚠️", label: "À vérifier",  tone: "Point d'attention" },
+  high:   { accent: "#F97316", soft: "#FFEDD5", ring: "#FDBA74", glyph: "🚩", label: "Incertain",   tone: "Relire le RIS" },
+};
+
+const IA_FLAG_STYLE_ID = "ia-note-flag-styles";
+function ensureIaFlagStyles() {
+  if (typeof document === "undefined" || document.getElementById(IA_FLAG_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = IA_FLAG_STYLE_ID;
+  el.textContent = `
+@keyframes iaFlagPop { from { opacity: 0; transform: translateY(var(--ia-from, -5px)) scale(.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes iaFlagPulse { 0% { box-shadow: 0 0 0 0 var(--ia-ring); } 70% { box-shadow: 0 0 0 5px rgba(0,0,0,0); } 100% { box-shadow: 0 0 0 0 rgba(0,0,0,0); } }
+.ia-note-flag { transition: transform .15s cubic-bezier(.34,1.56,.64,1), box-shadow .15s ease; box-shadow: 0 1px 2px rgba(15,23,42,.16); }
+.ia-note-flag:hover { transform: scale(1.25); box-shadow: 0 4px 10px rgba(15,23,42,.26); }
+.ia-note-flag:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+.ia-note-flag--active { transform: scale(1.12); }
+.ia-note-flag--high { animation: iaFlagPulse 2.6s ease-out infinite; }
+`;
+  document.head.appendChild(el);
+}
+if (typeof document !== "undefined") ensureIaFlagStyles();
+
+function IaNoteFlag({ level, reason }) {
+  const theme = IA_FLAG_THEME[level] || IA_FLAG_THEME.medium;
+  const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState(null);
+  const [pos, setPos] = useState(null);
+  const btnRef = useRef(null);
+  const popRef = useRef(null);
+
+  const toggle = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setAnchor({ top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width });
+    }
+    setPos(null);
+    setOpen((o) => !o);
+  }, []);
+
+  // Close on outside click, Escape, scroll or resize.
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => {
+      if (popRef.current && popRef.current.contains(e.target)) return;
+      if (btnRef.current && btnRef.current.contains(e.target)) return;
+      setOpen(false);
+    };
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    const onMove = () => setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onMove, true);
+    window.addEventListener("resize", onMove);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onMove, true);
+      window.removeEventListener("resize", onMove);
+    };
+  }, [open]);
+
+  // Position the popover once it is mounted (so its height can be measured).
+  useEffect(() => {
+    if (!open || !anchor || !popRef.current) return;
+    const W = 290;
+    const margin = 8;
+    const h = popRef.current.offsetHeight || 150;
+    const left = Math.max(margin, Math.min(anchor.right - W + 12, window.innerWidth - W - margin));
+    let placement = "bottom";
+    let top = anchor.bottom + 10;
+    if (top + h > window.innerHeight - margin && anchor.top - h - 10 > margin) {
+      placement = "top";
+      top = anchor.top - h - 10;
+    }
+    const caretLeft = Math.max(16, Math.min(W - 16, anchor.left + anchor.width / 2 - left));
+    setPos({ top, left, caretLeft, placement });
+  }, [open, anchor]);
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={toggle}
+        title="Voir la note IA"
+        aria-label={`${theme.label} — note de l'IA`}
+        aria-expanded={open}
+        className={`ia-note-flag${level === "high" ? " ia-note-flag--high" : ""}${open ? " ia-note-flag--active" : ""}`}
+        style={{
+          position: "absolute", top: 1, right: 1, zIndex: 6,
+          width: 17, height: 17, padding: 0, margin: 0,
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          border: `1px solid ${theme.ring}`, borderRadius: 6,
+          background: "#fff", color: theme.accent, cursor: "pointer",
+          fontSize: 10, lineHeight: 1, "--ia-ring": theme.ring,
+        }}
+      >
+        <span aria-hidden="true">{theme.glyph}</span>
+      </button>
+
+      {open && typeof document !== "undefined" && ReactDOM.createPortal(
+        <div
+          ref={popRef}
+          role="dialog"
+          aria-label={`${theme.label} — note de l'IA`}
+          onMouseDown={(e) => e.stopPropagation()}
+          style={{
+            position: "fixed",
+            top: pos ? pos.top : -9999,
+            left: pos ? pos.left : -9999,
+            width: 290,
+            zIndex: 2147483600,
+            visibility: pos ? "visible" : "hidden",
+            background: "#fff",
+            borderRadius: 14,
+            border: "1px solid rgba(15,23,42,0.08)",
+            boxShadow: `inset 4px 0 0 0 ${theme.accent}, 0 18px 48px -12px rgba(15,23,42,.34), 0 4px 14px -6px rgba(15,23,42,.18)`,
+            fontFamily: "inherit",
+            animation: "iaFlagPop .18s cubic-bezier(.16,1,.3,1) both",
+            "--ia-from": pos && pos.placement === "top" ? "5px" : "-5px",
+          }}
+        >
+          <span
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              left: pos ? pos.caretLeft - 6 : -9999,
+              [pos && pos.placement === "top" ? "bottom" : "top"]: -6,
+              width: 12, height: 12, background: "#fff",
+              borderLeft: "1px solid rgba(15,23,42,0.08)",
+              borderTop: "1px solid rgba(15,23,42,0.08)",
+              borderTopLeftRadius: 3,
+              transform: pos && pos.placement === "top" ? "rotate(225deg)" : "rotate(45deg)",
+            }}
+          />
+          <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "13px 14px 11px 18px" }}>
+            <div
+              aria-hidden="true"
+              style={{
+                flex: "0 0 34px", width: 34, height: 34, borderRadius: 10,
+                background: theme.soft, boxShadow: `inset 0 0 0 1px ${theme.ring}`,
+                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17,
+              }}
+            >
+              {theme.glyph}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: theme.accent, letterSpacing: .2, lineHeight: 1.1 }}>{theme.label}</div>
+              <div style={{ fontSize: 9.5, fontWeight: 700, color: "#94A3B8", letterSpacing: .9, textTransform: "uppercase", marginTop: 3 }}>{theme.tone}</div>
+            </div>
+            <span style={{ flex: "0 0 auto", fontSize: 8.5, fontWeight: 800, color: "#fff", background: theme.accent, padding: "3px 7px", borderRadius: 999, letterSpacing: .6 }}>IA</span>
+          </div>
+          <div style={{ height: 1, background: "rgba(15,23,42,0.06)", margin: "0 14px 0 18px" }} />
+          <div style={{ padding: "11px 16px 15px 18px", fontSize: 13, lineHeight: 1.55, color: "#334155" }}>{reason}</div>
+        </div>,
+        document.body
+      )}
+    </>
+  );
 }
 
 export default function SimulatorV6({ mode = "production", id, user, onUserUpdate }) {
@@ -769,12 +1032,30 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // Forme : { [year]: { [fieldKey]: { level: 'low'|'medium'|'high', reason: string } } }
   // fieldKey suit les conventions du workflow n8n : revenu, trimestres_cotises,
   // trimestres_assimiles, trimestres_ar, points.agirc_arrco, points.ircantec, points.rci.
-  const [uncertaintiesByYear, setUncertaintiesByYear] = useState({});
+  // Restored from sessionStorage so the flags survive a page reload — the career
+  // grid itself is rehydrated from frozen_data, but uncertainties are not stored there.
+  const [uncertaintiesByYear, setUncertaintiesByYear] = useState(() => readPersistedUncert(`simu_uncert_${id}`));
   // Synthese-level + profil-level uncertainties (badges sur les totaux)
-  const [syntheseUncertainties, setSyntheseUncertainties] = useState({});
+  const [syntheseUncertainties, setSyntheseUncertainties] = useState(() => readPersistedUncert(`simu_uncert_synthese_${id}`));
+  // Reload the right client's flags when the consultant switches client without a
+  // remount (uncertainties are keyed by year, so stale data would mislead otherwise).
+  const [uncertClientId, setUncertClientId] = useState(id);
+  if (id !== uncertClientId) {
+    setUncertClientId(id);
+    setUncertaintiesByYear(readPersistedUncert(`simu_uncert_${id}`));
+    setSyntheseUncertainties(readPersistedUncert(`simu_uncert_synthese_${id}`));
+  }
   const [frozenLoading, setFrozenLoading] = useState(false);
   const [isParsingRIS, setIsParsingRIS] = useState(false);
   const [visibleRowCount, setVisibleRowCount] = useState(20);
+  // ── Projection fin de carrière ──
+  const [projectionTargetAge, setProjectionTargetAge] = useState(67);
+  const [projectionSurcote, setProjectionSurcote] = useState(0);
+  const [baremeReady, setBaremeReady] = useState(false);
+  const [projectionMode, setProjectionMode] = useState(PROJECTION_MODES.LIBRE);
+  const [autoDateSignal, setAutoDateSignal] = useState(0);
+  const lastAutoDateTypeRef = useRef(null); // last date type auto-selected by the projection (for clean replace)
+  const [projRegenNonce, setProjRegenNonce] = useState(0);
   const [risFileName, setRisFileName] = useState(null);
   const [droitsSynthese, setDroitsSynthese] = useState(null);
   const [risCarriereSynthese, setRisCarriereSynthese] = useState(null);
@@ -834,6 +1115,31 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // ── Master "Calculate All" State ──
   const [isCalculatingAll, setIsCalculatingAll] = useState(false);
 
+  // ── #2: "results stale" detection ──
+  // Pensions are computed server-side off frozen_data, so a manual grid edit isn't
+  // reflected until the career is re-frozen and recomputed. We flag the displayed
+  // results as stale once the grid diverges from the snapshot at the last calc.
+  const [resultsStale, setResultsStale] = useState(false);
+  const [hydrationDone, setHydrationDone] = useState(false);
+  const lastCalcSigRef = useRef(null);
+  const calcInputsSig = useMemo(() => JSON.stringify({
+    c: carriereRows.map(r => [r.yr, r.sal, r.ss, r.agircPts ?? null, r.ircPts ?? null, r.rciPts ?? null, r.agircT1 ?? null, r.agircT2 ?? null]),
+    tc: trimCotState, ta: trimAssState, ar: arState, dp: deplafValues, rv: revaloValues,
+    cn: cnavplRows, ck: carpimkoRows, rp: regimesPoints,
+  }), [carriereRows, trimCotState, trimAssState, arState, deplafValues, revaloValues, cnavplRows, carpimkoRows, regimesPoints]);
+  const calcResultsExist = !!(skillResult || agircResult || ircantecResult || rciResult || cipavResult || carpimkoResult);
+  useEffect(() => {
+    if (!hydrationDone) return; // ignore grid changes during initial mount hydration
+    if (!calcResultsExist) { lastCalcSigRef.current = null; setResultsStale(false); return; }
+    if (lastCalcSigRef.current === null) {
+      // Results just appeared (fresh calc or restored from cache) → baseline the grid.
+      lastCalcSigRef.current = calcInputsSig;
+      setResultsStale(false);
+    } else if (calcInputsSig !== lastCalcSigRef.current) {
+      setResultsStale(true);
+    }
+  }, [hydrationDone, calcResultsExist, calcInputsSig]);
+
   // ── Scénarios — Generic Skill Executor State ──
   const [scenarioSkillResults, setScenarioSkillResults] = useState({});
   const [scenarioSkillLoading, setScenarioSkillLoading] = useState({});
@@ -870,6 +1176,13 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     } catch { /* noop */ }
     return {};
   });
+  // ── Bulletin de paie — extraction inline (V1 : affichage seul, en mémoire) ──
+  // { [filename]: { loading: bool, data: object|null, error: string|null } }
+  const [bulletinResults, setBulletinResults] = useState({});
+  // ── Rapprochement RIS / bulletin (résultat du calcul déterministe) ──
+  const [rapprochement, setRapprochement] = useState(null);
+  // Confirmation "Appliquer à la carrière" : null ou { corrections: [{annee, oldSal, newSal}] }
+  const [applyConfirm, setApplyConfirm] = useState(null);
   const [orderedDocs, setOrderedDocs] = useState([]);
 
   // ── RIS — Relevé de carrière du client ──────────────────────────────────────
@@ -919,12 +1232,19 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         const displayName = user
           ? `${user.first_name || ""} ${user.last_name || ""}`.trim()
           : "Client";
+        // Enforcement Gate #2 : restaurer alertes / arrêt critique du rapport stocké.
+        const displayAlertes = (Array.isArray(data.alertes) ? data.alertes : []).map((a) => ({
+          code: a.code,
+          message: a.message,
+          niveau: a.niveau === "CRITIQUE" ? "ROUGE" : (a.niveau === "AVERTISSEMENT" ? "ORANGE" : a.niveau),
+        }));
+        const arretCritique = data.arret_critique || null;
         setGeneratedDocs((prev) => {
           const existing = prev.find((d) => d.type === "simulation_retraite");
           if (existing) {
             return prev.map((d) =>
               d.type === "simulation_retraite"
-                ? { ...d, name: `Simulation retraite de ${displayName}`, htmlContent: data.html_report }
+                ? { ...d, name: `Simulation retraite de ${displayName}`, htmlContent: data.html_report, alertes: displayAlertes, arretCritique }
                 : d
             );
           }
@@ -936,6 +1256,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
               createdAt: data.created_at || new Date().toISOString(),
               url: null,
               htmlContent: data.html_report,
+              alertes: displayAlertes,
+              arretCritique,
             },
             ...prev,
           ];
@@ -1187,6 +1509,51 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
 
   // ── Apply career rows from backend data ─────────────────────────────────
   // Handles two formats:
+  // Derived projection values (read-only; recomputed from grid + controls + client birthdate).
+  const projBirthYear = useMemo(() => parseBirthYear(user?.birth_date), [user]);
+  const projTargetYear = useMemo(() => computeTargetYear(projBirthYear, projectionTargetAge), [projBirthYear, projectionTargetAge]);
+  const projLastRealYear = useMemo(() => findLastRealYear(carriereRows), [carriereRows]);
+  const projectionActive = projLastRealYear != null && projTargetYear != null;
+
+  // Departure dates derived from barème + grid, shared by the projection selector (below)
+  // and the "dispositifs" panel. Each anchor is the object returned by its compute* helper
+  // (or null when not computable, e.g. no birth date). baremeReady is a recompute trigger.
+  const departureDates = useMemo(() => {
+    const birthDate = user?.birth_date;
+    // trimAcquis / anneeRef are computed from REAL (non-projected) years only, so a
+    // duration-based taux-plein target never depends on its own projection — otherwise
+    // adding surcote drifts the target forward and removing it can't shrink the grid back.
+    const { trimAcquis, anneeRef, trimParAnnee } = computeRealAssuranceTotals(trimCotState, trimAssState, carriereRows);
+    return {
+      trimAcquis,
+      anneeRef,
+      trimParAnnee,
+      legale: computeDateLegale(birthDate),
+      tauxPlein: computeDateTauxPlein(birthDate, trimAcquis, anneeRef),
+      date67: computeDate67(birthDate),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, trimCotState, trimAssState, baremeReady, carriereRows]);
+
+  // Reconcile projected rows to the current controls. Thin wrapper over the pure reducer;
+  // preserves manual edits, bumps visibleRowCount so the projected block (top of grid) shows.
+  const handleGenerateProjection = useCallback((nextMode, nextAge, nextSurcote) => {
+    const birthYear = parseBirthYear(user?.birth_date);
+    const targetYear = resolveProjectionTargetYear({ mode: nextMode, birthYear, age: nextAge, departureDates });
+    const lastRealYear = findLastRealYear(carriereRows);
+    const lastRealSalary = findLastRealSalary(carriereRows, lastRealYear);
+    const res = reconcileProjection(
+      { carriereRows, revaloValues, trimCotState },
+      { lastRealYear, targetYear, surcote: nextSurcote, lastRealSalary, passLast: PASS_LAST },
+    );
+    setCarriereRows(res.carriereRows);
+    setRevaloValues(res.revaloValues);
+    setTrimCotState(res.trimCotState);
+    if (res.projectedYears.length) {
+      setVisibleRowCount((v) => Math.min(res.carriereRows.length, Math.max(v, res.projectedYears.length + 20)));
+    }
+  }, [carriereRows, revaloValues, trimCotState, user, departureDates]);
+
   //   RIS format  : { annee, sal_original, sal_eur, devise, regimes }
   //   SAISIE format: { annee, salaire_brut, salaire_revalo, trimestres_cotises, trimestres_assimiles }
   const applyCarriereData = useCallback((carriere) => {
@@ -1261,12 +1628,50 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     }).length;
   }, []);
 
+  // Becomes true once mount hydration (frozen_data or draft) has run, so the
+  // autosave effect below never persists the empty default grid over a good draft.
+  const draftHydratedRef = useRef(false);
+
+  // Restore the full working career from a localStorage draft (see readCareerDraft).
+  const restoreCareerDraft = useCallback((d) => {
+    if (!d) return;
+    if (Array.isArray(d.carriereRows)) setCarriereRows(d.carriereRows);
+    if (d.trimCotState) setTrimCotState(d.trimCotState);
+    if (d.trimAssState) setTrimAssState(d.trimAssState);
+    if (d.arState) setArState(d.arState);
+    if (d.revaloValues) setRevaloValues(d.revaloValues);
+    if (d.deplafValues) setDeplafValues(d.deplafValues);
+    if (d.cnavplRows) setCnavplRows(d.cnavplRows);
+    if (typeof d.cnavplOpen === "boolean") setCnavplOpen(d.cnavplOpen);
+    if (d.carpimkoRows) setCarpimkoRows(d.carpimkoRows);
+    if (typeof d.carpimkoOpen === "boolean") setCarpimkoOpen(d.carpimkoOpen);
+    if (d.regimesPoints) setRegimesPoints(d.regimesPoints);
+    if (d.lastRisPayload) setLastRisPayload(d.lastRisPayload);
+    if (typeof d.visibleRowCount === "number") setVisibleRowCount(d.visibleRowCount);
+    if (d.risFileName) setRisFileName(d.risFileName);
+  }, []);
+
   // Load career data from frozen_data on mount
   useEffect(() => {
     if (!id) return;
+    // Block autosave until this client's hydration finishes (prevents saving the
+    // previous client's grid under the new client's key on a client switch).
+    draftHydratedRef.current = false;
+    setHydrationDone(false);
     const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
     axios.get(`${global.config.server_url}/frozen_data/${id}`, Config)
       .then(res => {
+        // A scanned-but-unvalidated draft takes precedence while the career isn't
+        // frozen, so a refresh restores the working grid without re-running n8n.
+        if (!res.data?.locked_at) {
+          const draft = readCareerDraft(id);
+          if (draft) {
+            restoreCareerDraft(draft);
+            draftHydratedRef.current = true;
+            setHydrationDone(true);
+            return;
+          }
+        }
         // Restore CIPAV points (from dedicated column or legacy carriere objects)
         const cipav = res.data?.cipav;
         const carpimko = res.data?.carpimko;
@@ -1381,9 +1786,38 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           setLockedAt(res.data.locked_at);
           setLockedBy(res.data.locked_by);
         }
+        draftHydratedRef.current = true;
+        setHydrationDone(true);
       })
-      .catch(() => { /* pas de données = normal */ });
-  }, [id, applyCarriereData]);
+      .catch(() => {
+        // No frozen_data on the server — still restore a local draft if present.
+        const draft = readCareerDraft(id);
+        if (draft) restoreCareerDraft(draft);
+        draftHydratedRef.current = true;
+        setHydrationDone(true);
+      });
+  }, [id, applyCarriereData, restoreCareerDraft]);
+
+  // Autosave the working career to localStorage (debounced) so a scanned RIS
+  // survives a refresh without freezing. Skipped while the career is locked
+  // (frozen_data is then authoritative) and until mount hydration has run.
+  useEffect(() => {
+    if (!id || carriereValidee || !draftHydratedRef.current) return undefined;
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(CAREER_DRAFT_KEY(id), JSON.stringify({
+          v: 1,
+          carriereRows, trimCotState, trimAssState, arState,
+          revaloValues, deplafValues,
+          cnavplRows, cnavplOpen, carpimkoRows, carpimkoOpen,
+          regimesPoints, lastRisPayload, visibleRowCount, risFileName,
+        }));
+      } catch { /* quota exceeded or storage disabled: best-effort, skip */ }
+    }, 600);
+    return () => clearTimeout(t);
+  }, [id, carriereValidee, carriereRows, trimCotState, trimAssState, arState,
+      revaloValues, deplafValues, cnavplRows, cnavplOpen, carpimkoRows, carpimkoOpen,
+      regimesPoints, lastRisPayload, visibleRowCount, risFileName]);
 
   // ── Fetch user documents from server ──
   // Charge la liste des documents uploadés pour ce client depuis Laravel
@@ -1419,9 +1853,21 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     setCarpimkoRows(Object.fromEntries([2025,2024,2023,2022,2021,2020,2019,2018,2017,2016,2015].map(yr => [yr, { points_base: "", points_asv: "", points_compl: "" }])));
     setCarpimkoOpen(false);
     setVisibleRowCount(20);
+    setProjectionTargetAge(67);
+    setProjectionSurcote(0);
+    setProjectionMode(PROJECTION_MODES.LIBRE);
+    try { localStorage.removeItem(`simu_projection_${id}`); } catch { /* noop */ }
     setCarriereValidee(false);
     setRisFileName(null);
     setLastRisPayload(null);
+    // Vider les notes IA (flags) persistées + le brouillon de carrière local
+    setUncertaintiesByYear({});
+    setSyntheseUncertainties({});
+    try {
+      sessionStorage.removeItem(`simu_uncert_${id}`);
+      sessionStorage.removeItem(`simu_uncert_synthese_${id}`);
+      localStorage.removeItem(CAREER_DRAFT_KEY(id));
+    } catch { /* noop */ }
     // Vider les résultats des calculs et scénarios
     setSkillResult(null);
     setSkillError(null);
@@ -1490,6 +1936,97 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
 
   // ── Side Effects ──
 
+  // Load the editable backend barème (/v1/departure-rules) so legal age / required
+  // quarters reflect the latest table (it changes often). Falls back to the hard-coded
+  // BAREME_TRANCHES on failure. baremeReady flips once loaded so the departureDates memo
+  // recomputes (getBaremeRetraite reads a module-level cache React can't observe directly).
+  useEffect(() => {
+    let alive = true;
+    initBareme().then(() => { if (alive) setBaremeReady(true); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  // Restore projection controls for this client (rows themselves ride the WIP career draft).
+  useEffect(() => {
+    if (!id) return;
+    try {
+      const raw = localStorage.getItem(`simu_projection_${id}`);
+      if (raw) {
+        const d = JSON.parse(raw);
+        if (Number.isFinite(d.targetAge)) setProjectionTargetAge(d.targetAge);
+        if (Number.isFinite(d.surcote)) setProjectionSurcote(d.surcote);
+        if (typeof d.mode === "string" && Object.values(PROJECTION_MODES).includes(d.mode)) setProjectionMode(d.mode);
+      }
+    } catch { /* noop */ }
+  }, [id]);
+
+  // Persist projection controls (best-effort; the projected rows persist via the career draft).
+  // On mount this fires with defaults before the restore effect's state update lands; the
+  // restore effect corrects it in the same commit cycle (the rows persist independently).
+  useEffect(() => {
+    if (!id) return;
+    try {
+      localStorage.setItem(`simu_projection_${id}`, JSON.stringify({ targetAge: projectionTargetAge, surcote: projectionSurcote, mode: projectionMode }));
+    } catch { /* noop */ }
+  }, [id, projectionTargetAge, projectionSurcote, projectionMode]);
+
+  // After a RIS import bumps projRegenNonce, regenerate the projection once against the
+  // freshly-applied grid. Intentionally keyed ONLY on the nonce (run-on-signal pattern):
+  // do NOT add handleGenerateProjection to the deps — it re-memoizes whenever carriereRows
+  // changes, and because the nonce guard stays > 0 the effect would then re-run on every
+  // grid edit and loop forever (the handler itself calls setCarriereRows). The render that
+  // bumps the nonce already captures a fresh handler reflecting the post-import grid.
+  useEffect(() => {
+    if (projRegenNonce > 0) handleGenerateProjection(projectionMode, projectionTargetAge, projectionSurcote);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projRegenNonce]);
+
+  // After freezing the career, auto-select in Scénarios the date matching the projection mode.
+  // Anchors (légal / durée / 67) ALWAYS select — even when the date is in the past and the grid
+  // has no projected rows (e.g. a client already at/past legal age). Âge libre selects only when
+  // the user actually projected (projected rows exist), so an untouched default doesn't force a
+  // date. The previous projection-chosen date is replaced on mode change; manual picks are kept.
+  // Run-on-signal (keyed only on autoDateSignal) so chosenDates is fresh.
+  useEffect(() => {
+    if (autoDateSignal === 0 || !id) return;
+    const dd = departureDates;
+    const birth = parseBirthDate(user?.birth_date);
+    const hasProjectedRows = carriereRows.some((r) => r && r.projected);
+    const toIso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    let typeId = null, label = null, isoDate = null, info = "";
+    if (projectionMode === PROJECTION_MODES.LEGAL && dd.legale) {
+      typeId = "age_legal"; label = "Âge légal"; isoDate = toIso(dd.legale.date);
+      info = `${dd.legale.ageStr} → ${dd.legale.label}`;
+    } else if (projectionMode === PROJECTION_MODES.DUREE && dd.tauxPlein) {
+      const tp = dd.tauxPlein; typeId = "taux_plein"; label = "Taux plein (durée)"; isoDate = toIso(tp.date);
+      info = tp.trimManquants === 0 ? `${tp.ageStr} • ${tp.trimRequis} trim. atteints` : `${tp.ageStr} • ${tp.trimManquants} trim. manquants → ${tp.label}`;
+    } else if (projectionMode === PROJECTION_MODES.AUTO67 && dd.date67) {
+      typeId = "taux_plein_auto"; label = "Taux plein auto (67 ans)"; isoDate = toIso(dd.date67.date);
+      info = `67 ans → ${dd.date67.label}`;
+    } else if (projectionMode === PROJECTION_MODES.LIBRE && hasProjectedRows && birth && Number.isFinite(projectionTargetAge)) {
+      const d = new Date(birth.getFullYear() + projectionTargetAge, birth.getMonth(), birth.getDate());
+      typeId = "date_libre"; label = "Date libre"; isoDate = toIso(d);
+      info = d.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+    }
+    if (!typeId) return; // aucune projection exploitable → on laisse l'utilisateur choisir
+    const prevAuto = lastAutoDateTypeRef.current;
+    let next = chosenDates, changed = false;
+    if (prevAuto && prevAuto !== typeId && next.some((cd) => cd?.type === prevAuto)) {
+      next = next.filter((cd) => cd?.type !== prevAuto); changed = true;
+    }
+    if (!next.some((cd) => cd?.type === typeId)) {
+      next = [...next, { type: typeId, label, date: isoDate, info }]; changed = true;
+    }
+    lastAutoDateTypeRef.current = typeId;
+    if (typeId === "date_libre") setDateLibreInput(isoDate); // garde la carte « Date libre » surlignée
+    if (!changed) return;
+    setChosenDates(next);
+    saveChosenDates(parseInt(id), next)
+      .then((updated) => { if (Array.isArray(updated?.dates_retenues)) setChosenDates(updated.dates_retenues); toast.success(`Date retenue : ${label}`); })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoDateSignal]);
+
   // Reset hydration tracker on client switch
   useEffect(() => {
     hasHydratedRef.current = false;
@@ -1534,6 +2071,15 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       sessionStorage.setItem(`simu_doc_detection_${id}`, JSON.stringify(toSave));
     } catch { /* noop */ }
   }, [docTypeDetection, id]);
+
+  // Persist IA uncertainties so the "note IA" flags survive a page reload.
+  useEffect(() => {
+    if (!id || id !== uncertClientId) return;
+    try {
+      sessionStorage.setItem(`simu_uncert_${id}`, JSON.stringify(uncertaintiesByYear));
+      sessionStorage.setItem(`simu_uncert_synthese_${id}`, JSON.stringify(syntheseUncertainties));
+    } catch { /* noop */ }
+  }, [uncertaintiesByYear, syntheseUncertainties, id, uncertClientId]);
 
   // Sync orderedDocs when userDocuments changes (preserve existing order, append new)
   useEffect(() => {
@@ -1691,31 +2237,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         // 3. Points par année — résolus via le registre des régimes
         //    CIPAV reste à part (split base/complémentaire vers cnavplRows).
         //    Tout autre régime (connu ou non) atterrit dans row.regimes via resolveRegime.
-        const cipavBaseN = {}, cipavComplN = {};
-        const regimePtsByYear = {}; // { 2020: { AGIRC_ARRCO: 12, CARPIMKO: 530, ... } }
-        carriereRaw.forEach(({ annee, points }) => {
-          if (!Array.isArray(points)) return;
-          points.forEach(({ regime, valeur }) => {
-            const rawRegime = regime || "";
-            const lower = rawRegime.toLowerCase();
-            const pts = parseFloat(valeur) || 0;
-            if (!pts) return;
-            // CIPAV: special-cased, split base/complémentaire, routed to cnavplRows
-            if (lower.includes("cipav")) {
-              if (lower.includes("compl") || lower.includes("complémentaire")) {
-                cipavComplN[annee] = (cipavComplN[annee] || 0) + pts;
-              } else {
-                cipavBaseN[annee] = (cipavBaseN[annee] || 0) + pts;
-              }
-              return;
-            }
-            // All other régimes: resolve via registry → goes into row.regimes
-            const resolved = resolveRegime(rawRegime);
-            if (!resolved) return;
-            if (!regimePtsByYear[annee]) regimePtsByYear[annee] = {};
-            regimePtsByYear[annee][resolved.key] = (regimePtsByYear[annee][resolved.key] || 0) + pts;
-          });
-        });
+        // n8n renvoie `entry.points` en OBJET ({ agirc_arrco, cipav_base, … }) ;
+        // parseCarrierePoints accepte aussi la forme tableau historique. Cf. bug
+        // COCHIN (1698) : l'ancien code testait Array.isArray(points) et sautait
+        // tout quand points était un objet (points non insérés + trous revenu=0).
+        const { cipavBaseN, cipavComplN, regimePtsByYear } = parseCarrierePoints(carriereRaw);
         if (Object.keys(regimePtsByYear).length) {
           setCarriereRows(prev => prev.map(row => {
             const yearRegimes = regimePtsByYear[row.yr];
@@ -1849,6 +2375,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
 
       toast.dismiss("ris-parsing");
       toast.success("Tableau carrière rempli");
+      setProjectionSurcote(0);
+      setProjRegenNonce((n) => n + 1);
       if (cappedFromRIS > 0) {
         toast.info(
           `📏 ${cappedFromRIS} an${cappedFromRIS > 1 ? 's' : ''} au plafond SS (salaire SS = plafond ; revalorisation appliquée — cellules en rouge).`,
@@ -1886,7 +2414,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     const filename = file.name;
     setDocTypeDetection(prev => ({ ...prev, [filename]: { loading: true, is_ris: null, doc_type: null } }));
     try {
-      const result = await detectDocumentType(file, id);
+      const result = await detectDocumentType(file, id, { nom: user?.last_name, prenom: user?.first_name, secu: user?.secu_social });
       docTypePayloads.current[filename] = result;
       setDocTypeDetection(prev => ({
         ...prev,
@@ -1895,7 +2423,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     } catch {
       setDocTypeDetection(prev => ({ ...prev, [filename]: { loading: false, is_ris: null, doc_type: null } }));
     }
-  }, [id]);
+  }, [id, user?.last_name, user?.first_name, user?.secu_social]);
 
   // ── Analyse un document serveur : détecte le type puis extrait la carrière ──
   // preloadedFile lets external entry points (e.g. Documents tab "Analyse carrière")
@@ -1933,7 +2461,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     try {
       setDocTypeDetection(prev => ({ ...prev, [doc.filename]: { loading: true, is_ris: null, doc_type: null } }));
       const file = await downloadFile();
-      const detection = await detectDocumentType(file, id);
+      const detection = await detectDocumentType(file, id, { nom: user?.last_name, prenom: user?.first_name, secu: user?.secu_social });
       docTypePayloads.current[doc.filename] = detection;
       const isRisResult = detection.is_ris === true;
       setDocTypeDetection(prev => ({
@@ -1952,6 +2480,154 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       toast.error("Impossible d'analyser le document");
     }
   }, [docTypeDetection, id, risFileName, parsePdfAndFillCarriere]);
+
+  // ── Analyse un bulletin de paie : extraction inline (V1 — affichage seul) ──
+  // L'extraction bulletin est fusionnée dans le workflow "Détection Type Document"
+  // (detectDocumentType) : la détection auto au drop renvoie déjà `bulletin`.
+  // Cas normal → lecture instantanée du payload mis en cache. Après un reload (ref
+  // docTypePayloads vidée) → fallback qui relance la détection (= ré-extrait le bulletin).
+  // `source` est soit un File (upload manuel) soit un doc serveur ({ id, filename }).
+  const analyzeBulletin = useCallback(async (filename, source) => {
+    if (bulletinResults[filename]?.loading) return;
+    const cached = docTypePayloads.current[filename];
+    if (cached?.bulletin) {
+      setBulletinResults(prev => ({ ...prev, [filename]: { loading: false, data: cached.bulletin, error: null } }));
+      return;
+    }
+    setBulletinResults(prev => ({ ...prev, [filename]: { loading: true, data: null, error: null } }));
+    toast.info("Analyse du bulletin en cours…", { autoClose: false, toastId: `bulletin-${filename}` });
+    try {
+      let file = source;
+      if (!(source instanceof File)) {
+        const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") }, responseType: "blob" };
+        const response = await axios.get(`${global.config.server_url}/downloadFile?file_id=${source.id}`, Config);
+        file = new File([response.data], source.filename, { type: response.data.type || "application/pdf" });
+      }
+      const payload = await detectDocumentType(file, id, { nom: user?.last_name, prenom: user?.first_name, secu: user?.secu_social });
+      docTypePayloads.current[filename] = payload;
+      const data = payload?.bulletin || null;
+      setBulletinResults(prev => ({ ...prev, [filename]: { loading: false, data, error: data ? null : "Aucune donnée extraite" } }));
+      toast.dismiss(`bulletin-${filename}`);
+      if (data) toast.success(`Bulletin analysé${data.employeur ? ` — ${data.employeur}` : ""}`);
+      else toast.warn("Aucune donnée de bulletin extraite");
+    } catch {
+      setBulletinResults(prev => ({ ...prev, [filename]: { loading: false, data: null, error: "Erreur d'analyse" } }));
+      toast.dismiss(`bulletin-${filename}`);
+      toast.error("Erreur lors de l'analyse du bulletin");
+    }
+  }, [bulletinResults, id, user?.last_name, user?.first_name, user?.secu_social]);
+
+  // ── Rendu de la section bulletin de paie (badge + bouton, ou récap extrait) ──
+  // Mutualisé entre les deux blocs (doc serveur + fichier uploadé manuellement).
+  const renderBulletinSection = useCallback((filename, source) => {
+    const bull = bulletinResults[filename];
+    if (bull?.data) {
+      const d = bull.data;
+      const fmt = (v) => (v || v === 0) ? Number(v).toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : null;
+      const periode = d.periode || [d.mois, d.annee].filter(Boolean).join(" ");
+      const salarieName = d.salarie ? `${d.salarie.prenom || ""} ${d.salarie.nom || ""}`.trim() : "";
+      return (
+        <div style={{ marginTop: 6, fontSize: 11, color: "#2d3436", background: "#7367f014", borderRadius: 6, padding: "5px 8px", lineHeight: 1.5 }}>
+          {salarieName && <div style={{ fontWeight: 700, color: "#7367f0" }}>{salarieName}</div>}
+          {d.employeur && <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.employeur}</div>}
+          {periode && <div>Période : {periode}</div>}
+          {fmt(d.brut) && <div>Brut (mois) : {fmt(d.brut)} €</div>}
+          {fmt(d.net_a_payer) && <div style={{ fontWeight: 700 }}>Net à payer (mois) : {fmt(d.net_a_payer)} €</div>}
+          {d.cumul && fmt(d.cumul.brut_annuel) && <div style={{ marginTop: 2, color: "#636e72" }}>Cumul brut année : {fmt(d.cumul.brut_annuel)} €</div>}
+          {d.cumul && fmt(d.cumul.net_imposable_annuel) && <div style={{ color: "#636e72" }}>Cumul net imposable : {fmt(d.cumul.net_imposable_annuel)} €</div>}
+          {d.nb_bulletins_detectes > 1 && <div style={{ marginTop: 3, color: "#E17055", fontSize: 10, fontWeight: 600 }}>⚠️ {d.nb_bulletins_detectes} bulletins dans le PDF — gardé : {salarieName || "le 1er"}</div>}
+        </div>
+      );
+    }
+    return (
+      <button
+        onClick={(e) => { e.stopPropagation(); analyzeBulletin(filename, source); }}
+        disabled={bull?.loading}
+        style={{ marginTop: 6, background: bull?.loading ? "#a29bfe" : "#7367f0", color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 13, fontWeight: 700, cursor: bull?.loading ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, width: "100%", transition: "all 0.2s ease" }}
+      >
+        {bull?.loading ? (<><span className="spinner-border spinner-border-sm" style={{ width: "0.6rem", height: "0.6rem", borderWidth: "0.15em" }} role="status" />Extraction en cours…</>) : "🚀 Analyser ce bulletin"}
+      </button>
+    );
+  }, [bulletinResults, analyzeBulletin]);
+
+  // ── Rapprochement RIS / bulletin : déclenché par bouton, calcul déterministe ──
+  // Docs réellement présents dans la liste (pas les détections fantômes persistées).
+  const presentDocNames = Array.from(new Set(orderedDocs.map((d) => d.filename).concat(fileToSend ? [fileToSend.name] : [])));
+  // Bulletins ANALYSÉS (clic "Analyser ce bulletin" → bulletinResults), présents dans la liste.
+  const nbBulletinsAnalyses = presentDocNames.filter((n) => bulletinResults[n] && bulletinResults[n].data).length;
+  const risAnalyse = carriereRows.some((r) => (Number(r.ss) || Number(r.sal) || 0) > 0);
+  // Carte affichée seulement quand RIS analysé ET ≥1 bulletin analysé.
+  const canRapprocher = risAnalyse && nbBulletinsAnalyses > 0;
+  const handleRapprocher = useCallback(async () => {
+    const present = Array.from(new Set(orderedDocs.map((d) => d.filename).concat(fileToSend ? [fileToSend.name] : [])));
+    const bulletins = present
+      .filter((n) => bulletinResults[n] && bulletinResults[n].data)
+      .map((n) => {
+        const b = bulletinResults[n].data;
+        return {
+          filename: n,
+          annee: b.annee,
+          brutAnnuel: (b.cumul && b.cumul.brut_annuel != null) ? b.cumul.brut_annuel : null,
+          netImposableAnnuel: (b.cumul && b.cumul.net_imposable_annuel != null) ? b.cumul.net_imposable_annuel : null,
+          salarie: b.salarie,
+          employeur: b.employeur,
+          periode: b.periode,
+        };
+      });
+    const res = computeRapprochementRisBulletin(carriereRows, bulletins);
+    if (!res.ecarts.length) {
+      toast.info("Aucun bulletin avec cumul annuel exploitable.");
+      setRapprochement({ ...res, constat: null, constatLoading: false, constatError: false });
+      return;
+    }
+    setRapprochement({ ...res, constat: null, constatLoading: true, constatError: false });
+    try {
+      const constat = await fetchRapprochementConstat(
+        { ecarts: res.ecarts, client: { nom: user?.last_name, prenom: user?.first_name } },
+        id
+      );
+      setRapprochement({ ...res, constat, constatLoading: false, constatError: false });
+      // Couche 3 (CDC) : persister l'analyse dans analysis_reports (silencieux).
+      saveSkillResult(id, "RAPPROCHEMENT_BULLETIN", { ...res, constat, alertes: res.ecarts.filter((e) => e.niveau === "ROUGE" || e.niveau === "ORANGE") });
+    } catch {
+      setRapprochement({ ...res, constat: null, constatLoading: false, constatError: true });
+      toast.error("Constat IA indisponible.");
+      saveSkillResult(id, "RAPPROCHEMENT_BULLETIN", { ...res, alertes: res.ecarts.filter((e) => e.niveau === "ROUGE" || e.niveau === "ORANGE") });
+    }
+  }, [carriereRows, orderedDocs, fileToSend, bulletinResults, user?.last_name, user?.first_name, id]);
+
+  // ── 2c-B : appliquer les corrections (bulletin) à la carrière ──
+  const handleApplyCorrections = useCallback(() => {
+    if (!rapprochement || !rapprochement.ecarts) return;
+    const corrections = rapprochement.ecarts
+      .filter((e) => (e.niveau === "ROUGE" || e.niveau === "ORANGE") && e.brutBulletin != null)
+      .map((e) => {
+        const row = carriereRows.find((r) => r.yr === e.annee);
+        const oldSal = row ? (Number(row.sal) || 0) : 0;
+        return { annee: e.annee, oldSal, newSal: Math.max(oldSal, e.brutBulletin) };
+      })
+      .filter((c) => c.newSal > c.oldSal);
+    if (!corrections.length) { toast.info("Aucune correction à appliquer."); return; }
+    setApplyConfirm({ corrections });
+  }, [rapprochement, carriereRows]);
+
+  const confirmApplyCorrections = useCallback(() => {
+    const corrections = (applyConfirm && applyConfirm.corrections) || [];
+    const byYear = {};
+    corrections.forEach((c) => { byYear[c.annee] = c.newSal; });
+    setCarriereRows((prev) => prev.map((r) => {
+      if (byYear[r.yr] != null) {
+        const sal = byYear[r.yr];
+        const pass = PLAFONDS_SS[r.yr] != null ? PLAFONDS_SS[r.yr] : sal;
+        return { ...r, sal, ss: Math.min(sal, pass), corrige_bulletin: true };
+      }
+      return r;
+    }));
+    if (carriereValidee) setCarriereValidee(false); // déverrouille la carrière validée
+    setApplyConfirm(null);
+    setRapprochement(null); // le rapprochement devient obsolète après correction
+    toast.success(`Carrière corrigée (${corrections.length} année(s)) et déverrouillée. Re-valider puis relancer le calcul pour le montant exact.`);
+  }, [applyConfirm, carriereValidee]);
 
   // Listen for files routed in from the Documents tab ("Analyse carrière").
   // Documents.js downloads the file and dispatches `careerAnalysisFileReady` with
@@ -1986,18 +2662,25 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     if (!acceptedFiles || !acceptedFiles.length || !id) return;
     const file = acceptedFiles[0];
     setFileToSend(file);
-    detectDocType(file);
+    // Détecte CHAQUE fichier déposé (multi-drop), pas seulement le 1er — appels n8n en parallèle, état keyé par filename.
+    acceptedFiles.forEach((f) => detectDocType(f));
 
-    // Persist to sessionStorage
-    try {
-      const reader = new FileReader();
-      reader.onload = () => {
+    // Persist to sessionStorage so the file survives a page refresh. Best-effort:
+    // a large RIS can blow the ~5MB sessionStorage quota. The catch MUST live
+    // inside onload — setItem runs async, after the surrounding try has exited.
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
         sessionStorage.setItem(`simu_file_to_send_${id}`, JSON.stringify({
           name: file.name, type: file.type, dataUrl: reader.result,
         }));
-      };
-      reader.readAsDataURL(file);
-    } catch (e) { /* noop */ }
+      } catch (e) {
+        // Quota exceeded (or storage disabled): drop any stale entry so the
+        // post-refresh restore doesn't resurrect an outdated file.
+        try { sessionStorage.removeItem(`simu_file_to_send_${id}`); } catch { /* noop */ }
+      }
+    };
+    reader.readAsDataURL(file);
 
     setIsUploading(true);
     try {
@@ -2014,7 +2697,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       const response = await axios.post(`${global.config.server_url}/uploadFiles`, formData, Config);
       const files = Array.isArray(response?.data?.files) ? response.data.files : [];
       if (files.length) {
-        toast.success(files.length > 1 ? "Documents importés" : "Relevé importé");
+        toast.success(files.length > 1 ? "Documents importés" : "Document importé");
         fetchUserDocuments(); // refresh list — dossier=10 filter handles display
       }
     } catch {
@@ -2376,6 +3059,15 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         toast.error("Rapport généré mais impossible de le sauvegarder sur le serveur.");
       }
 
+      // Enforcement Gate #2 : alertes / arrêt critique renvoyés par le registre (backend).
+      const rawAlertes = Array.isArray(backendRes.data?.alertes) ? backendRes.data.alertes : [];
+      const displayAlertes = rawAlertes.map((a) => ({
+        code: a.code,
+        message: a.message,
+        niveau: a.niveau === "CRITIQUE" ? "ROUGE" : "ORANGE",
+      }));
+      const arretCritique = backendRes.data?.arret_critique || null;
+
       const doc = {
         id: `rc_${Date.now()}`,
         name: `Rapport de consultation retraite de ${displayName}`,
@@ -2383,6 +3075,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         createdAt: new Date().toISOString(),
         url: reportUrl,
         htmlContent: contentString,
+        alertes: displayAlertes,
+        arretCritique,
       };
 
       setGeneratedDocs((prev) => [doc, ...prev]);
@@ -2407,7 +3101,14 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         }
       }
 
-      toast.success("Rapport de consultation généré avec succès");
+      if (arretCritique) {
+        toast.error(`🚫 Livraison bloquée : ${arretCritique.raison || "incohérence critique détectée par le registre"}`, { autoClose: 8000 });
+      } else if (displayAlertes.length > 0) {
+        toast.warn(`⚠️ ${displayAlertes.length} alerte(s) de cohérence — voir le livrable`, { autoClose: 5000 });
+        toast.success("Rapport de consultation généré avec succès");
+      } else {
+        toast.success("Rapport de consultation généré avec succès");
+      }
     } catch (err) {
       if (axios.isCancel(err)) return;
       console.error("rapport_consultation generation failed:", err);
@@ -2462,6 +3163,17 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       const result = await resp.json();
       if (!result.html_report) throw new Error("Rapport vide reçu — vérifiez les données carrière du client");
 
+      // Enforcement Gate #2 : alertes / arrêt critique renvoyés par le registre d'erreurs
+      // (évalués par le node VALIDATION GATE de n8n). niveau backend CRITIQUE/AVERTISSEMENT
+      // → ROUGE/ORANGE pour les composants RegimeAlertes/RegimeArretCritique.
+      const rawAlertes = Array.isArray(result.alertes) ? result.alertes : [];
+      const displayAlertes = rawAlertes.map((a) => ({
+        code: a.code,
+        message: a.message,
+        niveau: a.niveau === "CRITIQUE" ? "ROUGE" : "ORANGE",
+      }));
+      const arretCritique = result.arret_critique || null;
+
       const displayName = user
         ? `${user.first_name || ""} ${user.last_name || ""}`.trim()
         : "Client";
@@ -2472,10 +3184,19 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         createdAt: new Date().toISOString(),
         url: null,
         htmlContent: result.html_report,
+        alertes: displayAlertes,
+        arretCritique,
       };
       // Remplace tout rapport simulation existant (un seul actif à la fois côté backend)
       setGeneratedDocs((prev) => [doc, ...prev.filter((d) => d.type !== "simulation_retraite")]);
-      toast.success("Simulation générée !");
+      if (arretCritique) {
+        toast.error(`🚫 Livraison bloquée : ${arretCritique.raison || "incohérence critique détectée par le registre"}`, { autoClose: 8000 });
+      } else if (displayAlertes.length > 0) {
+        toast.warn(`⚠️ ${displayAlertes.length} alerte(s) de cohérence — voir le livrable`, { autoClose: 5000 });
+        toast.success("Simulation générée !");
+      } else {
+        toast.success("Simulation générée !");
+      }
     } catch (err) {
       toast.error(err.message || "Erreur lors de la simulation");
     } finally {
@@ -2640,6 +3361,20 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     });
   }, [carriereRows, cnavplRows, trimCotState, trimAssState, arState]);
 
+  // Récap carrière par régime (lecture seule) indexé par code, pour injection
+  // dans les accordéons "Détail par régime". Dérivé de l'état existant.
+  const recapByCode = useMemo(() => {
+    const list = buildRecapRegimes(carriereRows, {
+      trimCot: trimCotState,
+      trimAss: trimAssState,
+      ar: arState,
+    });
+    return Object.fromEntries(list.map((r) => [r.code, r]));
+  }, [carriereRows, trimCotState, trimAssState, arState]);
+
+  // Récap CIPAV (vignettes lecture seule) depuis cnavplRows.
+  const cipavRecap = useMemo(() => buildCipavRecap(cnavplRows), [cnavplRows]);
+
   const handleGeler = useCallback(async () => {
     if (!id) return;
     if (isCarriereEmpty) {
@@ -2684,12 +3419,21 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           ...(cipavRow?.points && { points_cipav_base: parseFloat(cipavRow.points) || 0 }),
           ...(cipavRow?.pointsCompl && { points_cipav_complementaire: parseFloat(cipavRow.pointsCompl) || 0 }),
           ...(row.regimes && Object.keys(row.regimes).length > 0 && { regimes: row.regimes }),   // forward-compat full régimes map (CARPIMKO, etc.)
+          ...(row.projected && { projected: true }),   // additive: marks career-end projected years for the deliverable
           regimes_concernes: row.regimes_concernes || '',
+          // Data Barrier (CDC règle 5) : année corrigée depuis un bulletin de paie → tracée.
+          ...(row.corrige_bulletin && { source: "BULLETIN", modifie_par_consultant: true }),
         };
       });
 
       const totalCot = carriere.reduce((s, r) => s + (r.trimestres_cotises || 0), 0);
       const totalAss = carriere.reduce((s, r) => s + (r.trimestres_assimiles || 0), 0);
+      // Durée d'assurance plafonnée à 4 trim/an (écrêtement RIS). Sommer
+      // totalCot + totalAss sans ce plafond sur-compte les parcours mixtes
+      // (salarié + indépendant la même année) et les assimilés empilés
+      // (bug client 1708 : 166 au lieu de 158). Cf. sumTrimestresCapped.
+      const totalAcquisPlafonne = sumTrimestresCapped(carriere);
+      const totalTousRegimesPlafonne = sumTrimestresCapped(carriere, { includeRachetes: true });
 
       // ────────────────────────────────────────────────────────
       // Trimestres par régime :
@@ -2719,7 +3463,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       // Heuristique fallback : compter les trimestres des années où chaque régime est présent
       const heuristicTrim = { cnav: 0, cipav: 0, ircantec: 0, rci: 0 };
       carriere.forEach(row => {
-        const totalTrim = (row.trimestres_cotises || 0) + (row.trimestres_assimiles || 0);
+        const totalTrim = sumTrimestresCapped([row]); // plafonné à 4/an
         const regimesLower = (row.regimes_concernes || '').toLowerCase();
         const isCipavYear = (row.points_cipav_base || 0) > 0 || (row.points_cipav_complementaire || 0) > 0;
         const hasCnav = regimesLower.includes('assurance retraite') || regimesLower.includes('cnav')
@@ -2844,9 +3588,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         totaux: {
           trimestres_cotises: totalCot,
           trimestres_assimiles: totalAss,
-          trimestres_total: totalCot + totalAss,
-          // Trimestres officiels RIS prioritaires sur la somme calculée
-          trimestres_tous_regimes: risTrimTousRegimes ?? (totalCot + totalAss),
+          trimestres_total: totalAcquisPlafonne,
+          // Trimestres officiels RIS prioritaires sur la somme plafonnée calculée
+          trimestres_tous_regimes: risTrimTousRegimes ?? totalTousRegimesPlafonne,
           trimestres_requis: risTrimRequis
             ?? droitsSynthese?.trimestres_requis_taux_plein
             ?? risCarriereSynthese?.trimestres_requis_taux_plein
@@ -2905,6 +3649,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       // Lock properly so locked_at is persisted in DB (store() ignores it, lock() saves it)
       await axios.post(`${global.config.server_url}/frozen_data/${parseInt(id)}/lock`, {}, Config);
 
+      // Frozen_data is now the source of truth — drop the local working draft.
+      try { localStorage.removeItem(CAREER_DRAFT_KEY(id)); } catch { /* noop */ }
+
       setLastRisPayload(null);
 
       setCarriereValidee(true);
@@ -2914,6 +3661,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       setExpandedPanel("dispositifs");
       setSelectedAction(null);
       setExecuted(null);
+      setAutoDateSignal((n) => n + 1); // déclenche l'auto-sélection de date si une projection a été posée
     } catch (err) {
       if (err.response?.status === 423) {
         toast.error("Données verrouillées — déverrouillez d'abord");
@@ -3133,6 +3881,32 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       // silencieux : le résultat reste affiché côté UI, juste pas re-persisté
     }
   }, [id, chosenScenarios, buildScenarioItem]);
+
+  // Persiste la saisie (quotité/date) d'un dispositif DÉJÀ retenu directement
+  // dans son `params`, dès la sortie du champ (onBlur) — indépendamment du
+  // recalcul. Garantit que le livrable affiche toujours le paramètre saisi,
+  // même si le calcul du dispositif échoue. No-op si le dispositif n'est pas retenu.
+  const persistChosenDispositifInput = useCallback(async (action, rawValue) => {
+    if (!id) return;
+    const idx = chosenScenarios.findIndex(s => s?.dispositif_id === action.id);
+    if (idx === -1) return; // pas encore retenu → la saisie sera capturée au moment de retenir
+    const value = (rawValue ?? "").toString().trim();
+    const existing = chosenScenarios[idx];
+    const prevInput = (existing?.params && !Array.isArray(existing.params) ? existing.params.input : undefined) ?? "";
+    if (String(prevInput) === value) return; // inchangé → pas de save inutile
+    const baseParams = (existing?.params && !Array.isArray(existing.params)) ? existing.params : {};
+    const newParams = value !== "" ? { ...baseParams, input: value } : {};
+    const next = chosenScenarios.map((s, i) => (i === idx ? { ...s, params: newParams } : s));
+    const previous = chosenScenarios;
+    setChosenScenarios(next); // optimiste
+    try {
+      const updated = await saveChosenScenarios(parseInt(id), next);
+      const serverList = updated?.scenarios_choisis;
+      if (Array.isArray(serverList)) setChosenScenarios(serverList);
+    } catch (err) {
+      setChosenScenarios(previous); // rollback silencieux
+    }
+  }, [id, chosenScenarios]);
 
   const handleScenarioSkillExecute = useCallback(async (skillCode, scenarioParams = {}) => {
     if (!id || !carriereValidee) {
@@ -3492,13 +4266,13 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                 {/* Dropzone */}
                 <Dropzone disabled={isUploading} onDrop={handleUpload}>
                   {({ getRootProps, getInputProps, isDragActive }) => (
-                    <div {...getRootProps()} style={{ border: `2px dashed ${isDragActive ? "#6C5CE7" : "#ccc"}`, borderRadius: 9, padding: "16px 14px", textAlign: "center", cursor: isUploading ? "wait" : "pointer", background: isDragActive ? "#6C5CE706" : "#fafafa", transition: "all 0.15s", marginBottom: 10 }}>
+                    <div {...getRootProps()} className={"docs-dropzone" + (isDragActive ? " is-dragging" : "")} style={{ border: "2px dashed #ccc", borderRadius: 9, padding: "16px 14px", textAlign: "center", cursor: isUploading ? "wait" : "pointer", background: "#fafafa", transition: "all 0.15s", marginBottom: 10 }}>
                       <input {...getInputProps()} />
-                      <DownloadCloud size={28} color="#6C5CE7" style={{ marginBottom: 4 }} />
+                      <DownloadCloud size={28} color="#6C5CE7" className="docs-dropzone-icon" style={{ marginBottom: 4 }} />
                       <div style={{ fontWeight: 600, color: "#6C5CE7", fontSize: 13 }}>
-                        {isUploading ? "Import en cours…" : "Déposez tous vos documents ici"}
+                        {isUploading ? "Import en cours…" : isDragActive ? "Déposez pour importer" : "Déposez tous vos documents ici"}
                       </div>
-                      <div style={{ fontSize: 12, color: "#666", marginTop: 3 }}>Glissez-déposez un fichier ou cliquez pour parcourir</div>
+                      <div style={{ fontSize: 12, color: "#666", marginTop: 3 }}>{isDragActive ? "Relâchez le fichier ici" : "Glissez-déposez un fichier ou cliquez pour parcourir"}</div>
                     </div>
                   )}
                 </Dropzone>
@@ -3550,6 +4324,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                               Détection…
                                             </div>
                                           );
+                                        }
+                                        if (detection?.doc_type === "bulletin_salaire") {
+                                          return renderBulletinSection(doc.filename, doc);
                                         }
                                         if (detection?.is_ris === false) {
                                           return (
@@ -3613,6 +4390,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               </div>
                             );
                           }
+                          if (detection?.doc_type === "bulletin_salaire") {
+                            return renderBulletinSection(fileToSend.name, fileToSend);
+                          }
                           if (detection?.is_ris === false) {
                             return (
                               <div style={{ marginTop: 6, textAlign: "center", fontSize: 11, color: "#636e72", padding: "3px 8px", background: "#f5f5f5", borderRadius: 6, fontWeight: 600 }}>
@@ -3666,6 +4446,90 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                 )}
               </div>
               {/* fin zone documents masquée */}
+
+              {/* ── Rapprochement RIS / bulletin (affichée seulement si RIS analysé + ≥1 bulletin) ── */}
+              {canRapprocher && (
+              <div style={{ ...S.card, padding: 14, marginBottom: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                  <div style={{ fontSize: 15, fontWeight: 700 }}>🔎 Rapprochement RIS / bulletin</div>
+                  <button
+                    onClick={handleRapprocher}
+                    disabled={!canRapprocher}
+                    title={canRapprocher ? "Comparer les salaires RIS et bulletins" : "Analyse un RIS et importe au moins un bulletin"}
+                    style={{ background: canRapprocher ? "#7367f0" : "#c9c6f5", color: "#fff", border: "none", borderRadius: 6, padding: "6px 12px", fontSize: 13, fontWeight: 700, cursor: canRapprocher ? "pointer" : "not-allowed" }}
+                  >
+                    Rapprocher RIS / bulletin
+                  </button>
+                </div>
+                {rapprochement && (
+                  <div style={{ marginTop: 10 }}>
+                    <div style={{ fontSize: 12, color: "#555", marginBottom: 6 }}>
+                      {rapprochement.nbBulletins} bulletin(s) comparé(s) —{" "}
+                      <b style={{ color: rapprochement.nbAnomalies ? "#E17055" : "#00B894" }}>{rapprochement.nbAnomalies} anomalie(s)</b>
+                    </div>
+                    {rapprochement.deltaSam > 0 && (
+                      <div style={{ marginBottom: 8, background: "#00B89412", border: "1px solid #00B89455", borderRadius: 8, padding: "8px 12px", fontSize: 12 }}>
+                        <div style={{ fontWeight: 700, color: "#00875A" }}>💰 Impact estimé de la régularisation</div>
+                        <div style={{ marginTop: 2 }}>SAM : {Number(rapprochement.samRis).toLocaleString("fr-FR")} € → <b>{Number(rapprochement.samCorrige).toLocaleString("fr-FR")} €</b> (+{Number(rapprochement.deltaSam).toLocaleString("fr-FR")} €)</div>
+                        <div>Pension de base CNAV : <b>~ +{Number(rapprochement.deltaPensionMensuelle).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €/mois</b> (+{Number(rapprochement.deltaPensionAnnuelle).toLocaleString("fr-FR")} €/an)</div>
+                        <div style={{ color: "#888", fontSize: 11, marginTop: 2 }}>Estimation à taux plein (50%), hors prorata et décote/surcote. Chiffre exact via recalcul complet de la carrière.</div>
+                      </div>
+                    )}
+                    {rapprochement.nbAnomalies > 0 && (
+                      <button
+                        onClick={handleApplyCorrections}
+                        title="Écrit les salaires des bulletins dans le tableau carrière (déverrouille si validée)"
+                        style={{ marginBottom: 8, background: "#00875A", color: "#fff", border: "none", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                      >
+                        ⚙️ Appliquer les corrections à la carrière
+                      </button>
+                    )}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {rapprochement.ecarts.map((e) => {
+                        const c = e.niveau === "ROUGE" ? "#D63031" : e.niveau === "ORANGE" ? "#E17055" : e.niveau === "RECENT" ? "#636e72" : "#00B894";
+                        const fmtE = (v) => Number(v).toLocaleString("fr-FR", { maximumFractionDigits: 2 });
+                        return (
+                          <div key={e.filename + "-" + e.annee} style={{ borderLeft: `3px solid ${c}`, background: `${c}10`, borderRadius: 6, padding: "6px 10px", fontSize: 12 }}>
+                            <div style={{ fontWeight: 700, color: c }}>{e.annee} — {e.motif}</div>
+                            <div style={{ color: "#2d3436", marginTop: 2 }}>
+                              RIS : {fmtE(e.risReporte)} € · Bulletin (plafonné PASS) : {fmtE(e.bulletinReporte)} €
+                              {e.ecartPct != null && (
+                                <> · Écart : <b>{e.ecartEur > 0 ? "+" : ""}{fmtE(e.ecartEur)} € ({e.ecartPct > 0 ? "+" : ""}{e.ecartPct} %)</b></>
+                              )}
+                            </div>
+                            {e.plafonne && (
+                              <div style={{ color: "#888", fontSize: 11 }}>Brut bulletin {fmtE(e.brutBulletin)} € &gt; PASS {fmtE(e.pass)} € → plafonné</div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {rapprochement.constatLoading && (
+                      <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#7367f0" }}>
+                        <span className="spinner-border spinner-border-sm" style={{ width: "0.7rem", height: "0.7rem", borderWidth: "0.15em" }} role="status" />
+                        Rédaction du constat consultant…
+                      </div>
+                    )}
+                    {rapprochement.constatError && (
+                      <div style={{ marginTop: 10, fontSize: 12, color: "#D63031" }}>Constat IA indisponible — réessaie.</div>
+                    )}
+                    {rapprochement.constat && (
+                      <div style={{ marginTop: 10, background: "#fff", border: "1px solid #eee", borderRadius: 8, padding: "10px 12px" }}>
+                        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>📝 Constat consultant</div>
+                        {rapprochement.constat.synthese && (
+                          <div style={{ fontSize: 12, color: "#2d3436", whiteSpace: "pre-line", lineHeight: 1.5 }}>{rapprochement.constat.synthese}</div>
+                        )}
+                        {Array.isArray(rapprochement.constat.recommandations) && rapprochement.constat.recommandations.length > 0 && (
+                          <ul style={{ margin: "6px 0 0", paddingLeft: 18, fontSize: 12, color: "#2d3436", lineHeight: 1.5 }}>
+                            {rapprochement.constat.recommandations.map((r, i) => <li key={i}>{r}</li>)}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              )}
 
           {/* ── MAIN PANELS ── */}
           {hasDocuments && (
@@ -3787,6 +4651,22 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                   </span>
                                 </div>
                               )}
+                              {user?.birth_date && (() => {
+                                const b = new Date(user.birth_date);
+                                if (isNaN(b.getTime())) return null;
+                                const t = new Date();
+                                let years = t.getFullYear() - b.getFullYear();
+                                let months = t.getMonth() - b.getMonth();
+                                if (t.getDate() < b.getDate()) months--;
+                                if (months < 0) { years--; months += 12; }
+                                const label = `${years} ans${months > 0 ? ` ${months} mois` : ""}`;
+                                return (
+                                  <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                                    <span style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: 600 }}>Âge</span>
+                                    <span style={{ fontSize: 13, fontWeight: 600, color: "#555" }}>{label}</span>
+                                  </div>
+                                );
+                              })()}
                               {user?.secu_social && (
                                 <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                                   <span style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: 600 }}>NIR</span>
@@ -3840,6 +4720,114 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               )}
                             </div>
                           )} */}
+
+                          {/* Projection fin de carrière */}
+                          <div style={{ display: "flex", flexDirection: "column", gap: 8, background: "#FFF7E6", border: "1px solid #FFE0A3", borderRadius: 8, padding: "8px 14px", marginBottom: 10 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                              <span style={{ fontSize: 16 }}>📈</span>
+                              <span style={{ fontSize: 13, fontWeight: 600, color: "#343a40" }}>Projeter jusqu&rsquo;à</span>
+                              {[
+                                { id: PROJECTION_MODES.LEGAL,  label: "Âge légal",          needsBirth: true },
+                                { id: PROJECTION_MODES.DUREE,  label: "Taux plein (durée)", needsBirth: true },
+                                { id: PROJECTION_MODES.AUTO67, label: "Taux plein 67 ans",  needsBirth: true },
+                                { id: PROJECTION_MODES.LIBRE,  label: "Âge libre",          needsBirth: false },
+                              ].map((chip) => {
+                                const disabled = carriereValidee || (chip.needsBirth && !projBirthYear);
+                                const active = projectionMode === chip.id;
+                                return (
+                                  <button
+                                    key={chip.id}
+                                    type="button"
+                                    disabled={disabled}
+                                    title={
+                                      carriereValidee ? "Déverrouillez la carrière pour modifier la projection" :
+                                      chip.needsBirth && !projBirthYear ? "Renseignez la date de naissance du client" :
+                                      undefined
+                                    }
+                                    onClick={() => { setProjectionMode(chip.id); handleGenerateProjection(chip.id, projectionTargetAge, projectionSurcote); }}
+                                    style={{ padding: "4px 10px", borderRadius: 14, fontSize: 12, fontWeight: 600, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1, border: active ? "1px solid #FF9F43" : "1px solid #FFD08A", background: active ? "#FF9F43" : "#fff", color: active ? "#fff" : "#B26A00" }}
+                                  >
+                                    {chip.label}
+                                  </button>
+                                );
+                              })}
+                              {projectionMode === PROJECTION_MODES.LIBRE && (
+                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                  <label htmlFor="proj_target_age" style={{ fontSize: 13, fontWeight: 600, color: "#343a40" }}>Âge visé</label>
+                                  <input
+                                    type="number"
+                                    id="proj_target_age"
+                                    min={60}
+                                    max={75}
+                                    value={projectionTargetAge}
+                                    disabled={carriereValidee}
+                                    onChange={(e) => {
+                                      // Free typing: keep the raw value (no per-keystroke clamp, which
+                                      // made multi-digit edits impossible). Project live only when the
+                                      // value is a valid age in range; clamping happens on blur.
+                                      const raw = e.target.value;
+                                      if (raw === "") { setProjectionTargetAge(""); return; }
+                                      const v = parseInt(raw, 10);
+                                      if (!Number.isFinite(v)) return;
+                                      setProjectionTargetAge(v);
+                                      if (v >= 60 && v <= 75) handleGenerateProjection(PROJECTION_MODES.LIBRE, v, projectionSurcote);
+                                    }}
+                                    onBlur={(e) => {
+                                      const v = parseInt(e.target.value, 10);
+                                      const clamped = Number.isFinite(v) ? Math.min(75, Math.max(60, v)) : 67;
+                                      setProjectionTargetAge(clamped);
+                                      handleGenerateProjection(PROJECTION_MODES.LIBRE, clamped, projectionSurcote);
+                                    }}
+                                    style={{ width: 64, textAlign: "center", border: "1px solid #ddd", borderRadius: 4, fontSize: 14, padding: "2px 4px" }}
+                                  />
+                                </div>
+                              )}
+                              {projectionActive && (
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                  <span style={{ fontSize: 13, fontWeight: 600, color: "#343a40" }}>Surcote</span>
+                                  <button type="button" disabled={carriereValidee || projectionSurcote <= 0}
+                                    onClick={() => { const s = Math.max(0, projectionSurcote - 1); setProjectionSurcote(s); handleGenerateProjection(projectionMode, projectionTargetAge, s); }}
+                                    style={{ width: 26, height: 26, borderRadius: 4, border: "1px solid #FF9F43", background: "#fff", color: "#FF9F43", fontWeight: 700, cursor: "pointer" }}>−</button>
+                                  <span style={{ fontSize: 13, minWidth: 56, textAlign: "center" }}>{projectionSurcote} an{projectionSurcote > 1 ? "s" : ""}</span>
+                                  <button type="button" disabled={carriereValidee}
+                                    onClick={() => { const s = projectionSurcote + 1; setProjectionSurcote(s); handleGenerateProjection(projectionMode, projectionTargetAge, s); }}
+                                    style={{ width: 26, height: 26, borderRadius: 4, border: "1px solid #FF9F43", background: "#fff", color: "#FF9F43", fontWeight: 700, cursor: "pointer" }}>+</button>
+                                </div>
+                              )}
+                            </div>
+                            {projBirthYear && (() => {
+                              const dd = departureDates;
+                              const birth = parseBirthDate(user?.birth_date);
+                              let head = null, date = null, special = null;
+                              if (projectionMode === PROJECTION_MODES.LEGAL && dd.legale) {
+                                head = `Âge légal : ${dd.legale.ageStr}`; date = dd.legale.date;
+                              } else if (projectionMode === PROJECTION_MODES.AUTO67 && dd.date67) {
+                                head = "Taux plein 67 ans"; date = dd.date67.date;
+                              } else if (projectionMode === PROJECTION_MODES.LIBRE && birth && Number.isFinite(projectionTargetAge)) {
+                                head = `${projectionTargetAge} ans`;
+                                date = new Date(birth.getFullYear() + projectionTargetAge, birth.getMonth(), birth.getDate());
+                              } else if (projectionMode === PROJECTION_MODES.DUREE && dd.tauxPlein) {
+                                const tp = dd.tauxPlein;
+                                head = `Taux plein (durée) : ${tp.ageStr}`; date = tp.date;
+                                special = `${dd.trimAcquis} acquis → ${tp.trimRequis} requis (${tp.trimManquants > 0 ? "taux plein atteint à cette date" : "taux plein déjà atteint"})`;
+                              }
+                              if (!date) return null;
+                              const departLabel = date.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+                              let tail = special ? ` · ${special}` : "";
+                              if (!special) {
+                                const o = departureTrimOutlook({ birthDate: user?.birth_date, trimAcquis: dd.trimAcquis, anneeRef: dd.anneeRef, trimParAnnee: dd.trimParAnnee, departureDate: date });
+                                if (o) {
+                                  if (o.automatique) tail = ` · ~${o.trim} trim. — taux plein automatique`;
+                                  else if (o.tauxPlein) tail = ` · ~${o.trim}/${o.trimRequis} trim. (taux plein)`;
+                                  else tail = ` · ~${o.trim}/${o.trimRequis} trim. (${o.manquants} manquants → décote)`;
+                                }
+                              }
+                              return <span style={{ fontSize: 12, color: "#8a6d3b", fontWeight: 600 }}>{`📅 ${head} — départ ${departLabel}${tail}`}</span>;
+                            })()}
+                            {projLastRealYear != null && !projBirthYear && (
+                              <span style={{ fontSize: 12, color: "#ea5455", fontWeight: 600 }}>Renseignez la date de naissance du client pour projeter jusqu&rsquo;au taux plein.</span>
+                            )}
+                          </div>
 
                           {/* Grand tableau unifié */}
                           <div className="simu-table-wrap" style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
@@ -3939,6 +4927,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               <tbody>
                                 {totalRows.map((row, i) => {
                                   const tot = Math.min(4, (trimCotState[row.yr] ?? 0) + (trimAssState[row.yr] ?? 0) + (arState[row.yr] ?? 0));
+                                  // Projection framing. totalRows is descending, so the visual TOP
+                                  // projected row is the highest year and the visual BOTTOM is the
+                                  // lowest. Cap the block's OUTER edges accordingly.
+                                  const isProj = !!row.projected;
+                                  const isFirstProj = isProj && (i === 0 || !totalRows[i - 1].projected);   // visual top
+                                  const isLastProj = isProj && (i === totalRows.length - 1 || !totalRows[i + 1].projected); // visual bottom
                                   // Salaire revalorisé : jamais re-plafonné (R.351-29 CSS).
                                   // Le plafond PASS s'applique au salaire SS, pas au revalorisé.
                                   const revaloVal = revaloValues[row.yr] ?? row.revalo;
@@ -3953,8 +4947,17 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                   const uIrc      = uncertProps(getCellUncert(uncertaintiesByYear, row.yr, "points.ircantec"));
                                   const uRci      = uncertProps(getCellUncert(uncertaintiesByYear, row.yr, "points.rci"));
                                   return (
-                                    <tr key={row.yr} style={{ background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
-                                      <td style={{ padding: "3px 5px", fontWeight: 700, color: "#333" }}>{row.yr}</td>
+                                    <tr key={row.yr} style={{
+                                      background: isProj ? "#FFF7E6" : (i % 2 === 0 ? "#fff" : "#fafafa"),
+                                      ...(isFirstProj && { borderTop: "2px dashed #FF9F43" }),
+                                      ...(isLastProj && { borderBottom: "2px dashed #FF9F43" }),
+                                    }}>
+                                      <td style={{ padding: "3px 5px", fontWeight: 700, color: "#333", ...(isProj && { borderLeft: "3px solid #FF9F43" }) }}>
+                                        {row.yr}
+                                        {isProj && (
+                                          <span style={{ display: "inline-block", marginLeft: 6, padding: "1px 6px", borderRadius: 8, background: "#FF9F43", color: "#fff", fontSize: 9, fontWeight: 700, verticalAlign: "middle" }}>Projection</span>
+                                        )}
+                                      </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "1px solid #eee", ...(uRevenu.tdStyle || {}) }}>
                                         <input type="number" value={row.sal || ""} disabled={carriereValidee}
                                           title={uRevenu.title}
@@ -4039,21 +5042,24 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                         )}
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", ...(uTrimCot.tdStyle || {}) }}>
-                                        <input type="number" value={trimCotState[row.yr] ?? 0} disabled={carriereValidee}
+                                        <input type="number" min={0} max={4} value={trimCotState[row.yr] || ""} disabled={carriereValidee}
+                                          onFocus={selectAllOnFocus}
                                           title={uTrimCot.title}
-                                          onChange={(e) => { const v = parseInt(e.target.value) || 0; setTrimCotState(prev => ({ ...prev, [row.yr]: v })); }}
+                                          onChange={(e) => { const reste = 4 - ((trimAssState[row.yr] ?? 0) + (arState[row.yr] ?? 0)); const v = Math.max(0, Math.min(parseInt(e.target.value, 10) || 0, Math.max(0, reste))); setTrimCotState(prev => ({ ...prev, [row.yr]: v })); }}
                                           style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 15, padding: "1px" }} />
                                         {uTrimCot.badge}
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", ...(uTrimAss.tdStyle || {}) }}>
-                                        <input type="number" value={trimAssState[row.yr] ?? 0} disabled={carriereValidee}
-                                          onChange={(e) => { const v = parseInt(e.target.value) || 0; setTrimAssState(prev => ({ ...prev, [row.yr]: v })); }}
+                                        <input type="number" min={0} max={4} value={trimAssState[row.yr] || ""} disabled={carriereValidee}
+                                          onFocus={selectAllOnFocus}
+                                          onChange={(e) => { const reste = 4 - ((trimCotState[row.yr] ?? 0) + (arState[row.yr] ?? 0)); const v = Math.max(0, Math.min(parseInt(e.target.value, 10) || 0, Math.max(0, reste))); setTrimAssState(prev => ({ ...prev, [row.yr]: v })); }}
                                           title={uTrimAss.title || "Trimestres assimilés (maladie, chômage, maternité…)"} style={{ width: 26, textAlign: "center", border: "1px solid #6C5CE730", borderRadius: 3, fontSize: 15, padding: "1px", color: "#6C5CE7" }} />
                                         {uTrimAss.badge}
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", ...(uTrimAr.tdStyle || {}) }}>
-                                        <input type="number" value={arState[row.yr] ?? 0} disabled={carriereValidee}
-                                          onChange={(e) => { const v = parseInt(e.target.value) || 0; setArState(prev => ({ ...prev, [row.yr]: v })); }}
+                                        <input type="number" min={0} max={4} value={arState[row.yr] || ""} disabled={carriereValidee}
+                                          onFocus={selectAllOnFocus}
+                                          onChange={(e) => { const reste = 4 - ((trimCotState[row.yr] ?? 0) + (trimAssState[row.yr] ?? 0)); const v = Math.max(0, Math.min(parseInt(e.target.value, 10) || 0, Math.max(0, reste))); setArState(prev => ({ ...prev, [row.yr]: v })); }}
                                           title={uTrimAr.title || "Trimestres rachetés (versement pour la retraite)"}
                                           style={{ width: 26, textAlign: "center", border: "1px solid #ddd", borderRadius: 3, fontSize: 15, padding: "1px" }} />
                                         {uTrimAr.badge}
@@ -4234,6 +5240,20 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             </table>
                           </div>
 
+                          {/* Données de calcul — sous la grille, repliable */}
+                          <div style={{ marginTop: 12 }}>
+                            <CalculDataPanel
+                              carriereRows={carriereRows}
+                              trimCotState={trimCotState}
+                              trimAssState={trimAssState}
+                              arState={arState}
+                              user={user}
+                              departureDates={departureDates}
+                              collapsible
+                              defaultOpen
+                            />
+                          </div>
+
                           {/* Détail par régime */}
                           <div style={{ marginTop: 12, borderTop: "1px solid #f0f0f0", paddingTop: 10 }}>
                             <button onClick={() => setAccordeonsVisible(v => !v)}
@@ -4267,45 +5287,18 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                     </button>
                                     {isOpen && (
                                       <div style={{ padding: "14px 16px", background: "#fff" }}>
-                                        {/* ── CNAV PL : table contrôlée pré-remplie ── */}
+                                        {/* ── CIPAV : vignettes totaux (lecture seule) — saisie via colonne CIPAV du tableau ci-dessus ── */}
                                         {reg.id === "cnavpl_acc" ? (
-                                          <div style={{ overflowX: "auto" }}>
-                                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                                              <thead>
-                                                <tr style={{ background: `${reg.color}08` }}>
-                                                  <th style={{ padding: "4px 8px", textAlign: "left", fontWeight: 700, color: reg.color, borderBottom: `1px solid ${reg.color}20` }}>Année</th>
-                                                  {["Revenus", "Rev. CIPAV", "Points"].map(c => (
-                                                    <th key={c} style={{ padding: "4px 8px", textAlign: "right", fontWeight: 700, color: reg.color, borderBottom: `1px solid ${reg.color}20`, whiteSpace: "nowrap" }}>{c}</th>
-                                                  ))}
-                                                </tr>
-                                              </thead>
-                                              <tbody>
-                                                {Object.entries(cnavplRows).sort(([a],[b]) => b - a).map(([yr, row], i) => (
-                                                  <tr key={yr} style={{ background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
-                                                    <td style={{ padding: "4px 8px", fontWeight: 700, color: "#333" }}>{yr}</td>
-                                                    {[
-                                                      { key: "revenus", val: row.revenus },
-                                                      { key: "revCnavpl", val: row.revCnavpl },
-                                                      { key: "points", val: row.points },
-                                                    ].map(({ key, val }) => (
-                                                      <td key={key} style={{ padding: "4px 8px", textAlign: "right" }}>
-                                                        <input
-                                                          type="number"
-                                                          value={val}
-                                                          disabled={carriereValidee}
-                                                          onChange={e => setCnavplRows(prev => ({ ...prev, [parseInt(yr,10)]: { ...prev[parseInt(yr,10)], [key]: e.target.value } }))}
-                                                          style={{ width: 70, textAlign: "right", border: `1px solid ${val ? reg.color + "60" : reg.color + "30"}`, borderRadius: 3, fontSize: 12, padding: "1px 4px", color: reg.color, fontWeight: 600, background: carriereValidee ? "#fafafa" : val ? `${reg.color}06` : "#fff" }}
-                                                        />
-                                                      </td>
-                                                    ))}
-                                                  </tr>
-                                                ))}
-                                              </tbody>
-                                            </table>
-                                          </div>
+                                          cipavRecap ? (
+                                            <RegimeRecapVignettes recap={cipavRecap} />
+                                          ) : (
+                                            <div style={{ fontSize: 13, color: "#555" }}><em>Données CIPAV — à compléter / importer depuis le RIS.</em></div>
+                                          )
                                         ) : reg.id === "cnav_acc" ? (
-                                          /* ── CNAV : synthèse extraction ── */
-                                          risCarriereSynthese ? (
+                                          /* ── CNAV : vignettes totaux (lecture seule) ou synthèse ── */
+                                          recapByCode.CNAV ? (
+                                            <RegimeRecapVignettes recap={recapByCode.CNAV} sam={skillResult?.python_output?.sam} />
+                                          ) : risCarriereSynthese ? (
                                             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                                               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                                                 {[
@@ -4326,8 +5319,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                             <div style={{ fontSize: 13, color: "#555" }}><em>Données CNAV — à compléter / importer depuis le RIS.</em></div>
                                           )
                                         ) : reg.id === "agirc_acc" ? (
-                                          /* ── AGIRC-ARRCO : total extrait ── */
-                                          droitsSynthese?.agirc_arrco != null ? (
+                                          /* ── AGIRC-ARRCO : vignette total (lecture seule) ou total extrait ── */
+                                          recapByCode.AGIRC_ARRCO ? (
+                                            <RegimeRecapVignettes recap={recapByCode.AGIRC_ARRCO} />
+                                          ) : droitsSynthese?.agirc_arrco != null ? (
                                             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                                               <div style={{ display: "inline-flex", alignItems: "baseline", gap: 6, background: "#0984E308", border: "1px solid #0984E330", borderRadius: 7, padding: "10px 16px", alignSelf: "flex-start" }}>
                                                 <span style={{ fontSize: 22, fontWeight: 800, color: "#0984E3" }}>
@@ -4344,8 +5339,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                             <div style={{ fontSize: 13, color: "#555" }}><em>Données AGIRC-ARRCO — à compléter / importer depuis le RIS.</em></div>
                                           )
                                         ) : reg.id === "irc_acc" ? (
-                                          /* ── IRCANTEC ── */
-                                          droitsSynthese?.ircantec != null ? (
+                                          /* ── IRCANTEC : vignette total (lecture seule) ou total extrait ── */
+                                          recapByCode.IRCANTEC ? (
+                                            <RegimeRecapVignettes recap={recapByCode.IRCANTEC} />
+                                          ) : droitsSynthese?.ircantec != null ? (
                                             droitsSynthese.ircantec.points_total > 0 ? (
                                               <div style={{ display: "inline-flex", alignItems: "baseline", gap: 6, background: "#00B89408", border: "1px solid #00B89430", borderRadius: 7, padding: "10px 16px" }}>
                                                 <span style={{ fontSize: 22, fontWeight: 800, color: "#00B894" }}>{droitsSynthese.ircantec.points_total.toLocaleString("fr-FR")}</span>
@@ -4362,8 +5359,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                             <div style={{ fontSize: 13, color: "#555" }}><em>Données IRCANTEC — à compléter / importer depuis le RIS.</em></div>
                                           )
                                         ) : reg.id === "rci_acc" ? (
-                                          /* ── RCI / SSI ── */
-                                          droitsSynthese?.rci != null ? (
+                                          /* ── RCI / SSI : vignette total (lecture seule) ou total extrait ── */
+                                          recapByCode.RCI ? (
+                                            <RegimeRecapVignettes recap={recapByCode.RCI} />
+                                          ) : droitsSynthese?.rci != null ? (
                                             droitsSynthese.rci.points_total > 0 ? (
                                               <div style={{ display: "inline-flex", alignItems: "baseline", gap: 6, background: "#E1705508", border: "1px solid #E1705530", borderRadius: 7, padding: "10px 16px" }}>
                                                 <span style={{ fontSize: 22, fontWeight: 800, color: "#E17055" }}>{droitsSynthese.rci.points_total.toLocaleString("fr-FR")}</span>
@@ -4423,21 +5422,35 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                       const analyserTousVisible = activatedDispositifs.some(id => DISPOSITIF_TO_SKILL_CODE[id]);
                       const analyserTousLoading = activatedDispositifs.filter(id => DISPOSITIF_TO_SKILL_CODE[id]).some(id => !!scenarioSkillLoading[DISPOSITIF_TO_SKILL_CODE[id]]);
                       const dispBirthDate = user?.birth_date;
-                      const dispTrimAcquis = Object.values(trimCotState).reduce((s, v) => s + (Number(v) || 0), 0)
-                        + Object.values(trimAssState).reduce((s, v) => s + (Number(v) || 0), 0);
-                      // Année de référence du décompte = dernière année civile avec des
-                      // trimestres validés (les trimestres se valident par année civile).
-                      const dispAnneeRef = (() => {
-                        let max = null;
-                        const scan = (state) => Object.entries(state).forEach(([y, v]) => {
-                          if ((Number(v) || 0) > 0) { const yr = Number(y); if (max === null || yr > max) max = yr; }
-                        });
-                        scan(trimCotState); scan(trimAssState);
-                        return max;
-                      })();
-                      const dispDateLegale = computeDateLegale(dispBirthDate);
-                      const dispDateTauxPlein = computeDateTauxPlein(dispBirthDate, dispTrimAcquis, dispAnneeRef);
-                      const dispDate67 = computeDate67(dispBirthDate);
+                      // Dates de départ + durée d'assurance : calculées une seule fois dans
+                      // le memo departureDates (partagé avec le sélecteur de projection).
+                      const {
+                        trimAcquis: dispTrimAcquis,
+                        anneeRef: dispAnneeRef,
+                        trimParAnnee: dispTrimParAnnee,
+                        legale: dispDateLegale,
+                        tauxPlein: dispDateTauxPlein,
+                        date67: dispDate67,
+                      } = departureDates;
+                      // Complementary figures shown inside each date card so the three
+                      // boxes together expose age-at-date + acquired/required trimestres.
+                      const dispTrimRequis = dispDateTauxPlein?.trimRequis ?? null;
+                      const dispTrimManquants = dispTrimRequis != null ? Math.max(0, dispTrimRequis - dispTrimAcquis) : null;
+                      const dispTauxPleinAtteint = dispTrimRequis != null && dispTrimAcquis >= dispTrimRequis;
+                      const ageAtDispDate = (date) => {
+                        if (!dispBirthDate || !date) return null;
+                        const b = new Date(dispBirthDate);
+                        if (isNaN(b.getTime())) return null;
+                        let years = date.getFullYear() - b.getFullYear();
+                        let months = date.getMonth() - b.getMonth();
+                        if (date.getDate() < b.getDate()) months -= 1;
+                        if (months < 0) { years -= 1; months += 12; }
+                        return months > 0 ? `${years} ans ${months} m` : `${years} ans`;
+                      };
+                      const trimAcquisVal = dispTrimAcquis > 0 ? `${dispTrimAcquis} trim.` : "—";
+                      const trimRequisVal = dispTrimRequis != null ? `${dispTrimRequis} trim.` : "—";
+                      const manquantsVal = dispTrimManquants == null ? "—" : (dispTrimManquants === 0 ? "✓ atteint" : `${dispTrimManquants} trim.`);
+                      const manquantsColorDisp = dispTrimManquants == null ? "#555" : (dispTrimManquants === 0 ? "#00B894" : "#C0392B");
                       return (
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
@@ -4463,71 +5476,14 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                           </div>
                           <div style={{ fontSize: 13, color: "#555", marginBottom: 14 }}>{panel.desc}</div>
 
-                          <div style={{ background: "#F7F6F3", border: "1px solid #e8e8e8", borderRadius: 9, padding: "10px 14px", marginBottom: 14 }}>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: "#555", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>📊 Données de calcul</div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 20px", fontSize: 12 }}>
-                              {(() => {
-                                const samb = computeSAMB(carriereRows);
-                                const { total: arrcoPts, projectionAnnuelle } = computeArrcoPts(carriereRows);
-                                const trimAr = Object.values(arState).reduce((s, v) => s + (Number(v) || 0), 0);
-                                // "Trimestres acquis" = cotisés + assimilés. Les rachetés sont
-                                // affichés séparément ("dont rachetés") à titre informatif et ne
-                                // sont pas inclus dans le total pour rester cohérent avec
-                                // computeDateTauxPlein (qui n'utilise que cotisés + assimilés).
-                                const trimTotal = Object.values(trimCotState).reduce((s, v) => s + (Number(v) || 0), 0)
-                                  + Object.values(trimAssState).reduce((s, v) => s + (Number(v) || 0), 0);
-                                const trimRequis = dispDateTauxPlein?.trimRequis ?? null;
-                                const trimManquants = dispDateTauxPlein?.trimManquants ?? null;
-                                let age = null;
-                                if (dispBirthDate) {
-                                  const b = new Date(dispBirthDate);
-                                  if (!isNaN(b.getTime())) {
-                                    const t = new Date();
-                                    age = t.getFullYear() - b.getFullYear();
-                                    const m = t.getMonth() - b.getMonth();
-                                    if (m < 0 || (m === 0 && t.getDate() < b.getDate())) age--;
-                                  }
-                                }
-                                const childrenCount = user?.children_number ?? user?.profil?.children_number ?? null;
-                                const studyYears = user?.higher_education_years ?? user?.profil?.higher_education_years ?? null;
-                                const anneesActives = Object.keys(trimCotState).filter(yr => (Number(trimCotState[yr]) || 0) + (Number(trimAssState[yr]) || 0) + (Number(arState[yr]) || 0) > 0).length;
-                                const manquantsColor = trimManquants == null ? "#555" : trimManquants === 0 ? "#00B894" : "#C0392B";
-                                // Bonus maternité CNAV : 8 trim/enfant pour la mère (jusqu'à 1 par naissance/adoption/éducation).
-                                // Information uniquement — ne s'ajoute PAS à trimTotal car appliqué automatiquement par la CNAV au moment du calcul.
-                                const civ = String(user?.civility || '').toLowerCase().trim();
-                                const isFemme = civ === 'madame' || civ === 'mme' || civ === 'mlle' || civ === 'mademoiselle'
-                                  || String(user?.sexe || '').toUpperCase() === 'F';
-                                const bonusEnfantsCnav = (isFemme && childrenCount > 0) ? Number(childrenCount) * 8 : 0;
-                                const trimEffectifs = bonusEnfantsCnav > 0 ? trimTotal + bonusEnfantsCnav : null;
-                                const tauxPleinAtteintAvecBonus = trimEffectifs !== null && trimRequis !== null && trimEffectifs >= trimRequis;
-                                const rows = [
-                                  ["Trimestres acquis", trimTotal > 0 ? `${trimTotal} trim.` : "—", "#0984E3"],
-                                  ...(trimAr > 0 ? [["dont rachetés", `${trimAr} trim.`, "#1a1a2e"]] : []),
-                                  ...(bonusEnfantsCnav > 0 ? [[
-                                    `+ bonus maternité (${childrenCount} enfant${childrenCount > 1 ? 's' : ''} × 8)`,
-                                    `+${bonusEnfantsCnav} trim. → ${trimEffectifs} effectifs${tauxPleinAtteintAvecBonus ? ' ✓ taux plein atteint' : ''}`,
-                                    tauxPleinAtteintAvecBonus ? "#00B894" : "#FF9F43"
-                                  ]] : []),
-                                  ["Trimestres requis (taux plein)", trimRequis != null ? `${trimRequis} trim.` : "—", "#555"],
-                                  ["Trimestres manquants", trimManquants != null ? (trimManquants === 0 ? "✓ atteints" : `${trimManquants} trim.`) : "—", manquantsColor],
-                                  ["Années avec activité", anneesActives > 0 ? `${anneesActives} an${anneesActives > 1 ? "s" : ""}` : "—", "#555"],
-                                  ["Âge actuel", age != null ? `${age} ans` : "—", "#555"],
-                                  ...(childrenCount != null && childrenCount !== "" ? [["Nombre d'enfants", `${childrenCount}`, "#555"]] : []),
-                                  ...(studyYears != null && studyYears !== "" ? [["Années d'études supérieures", `${studyYears} an${Number(studyYears) > 1 ? "s" : ""}`, "#555"]] : []),
-                                  ["SAMB Assurance Retraite / CNAV", samb > 0 ? `${samb.toLocaleString('fr-FR')} €` : "—", "#1a1a2e"],
-                                  ["Points ARRCO-AGIRC cumulés", arrcoPts > 0 ? `${arrcoPts.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} pts` : "—", "#0984E3"],
-                                  ["Projection annuelle (tendance)", projectionAnnuelle > 0 ? `+ ${projectionAnnuelle.toLocaleString('fr-FR')} pts / an` : "—", "#00B894"],
-                                  ["Situation jusqu'au départ", "Poursuite d'activité actuelle", "#555"],
-                                ];
-                                return rows.map(([label, val, color]) => (
-                                  <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #eee" }}>
-                                    <span style={{ color: "#555" }}>{label}</span>
-                                    <span style={{ fontWeight: 700, color, fontSize: 12 }}>{val}</span>
-                                  </div>
-                                ));
-                              })()}
-                            </div>
-                          </div>
+                          <CalculDataPanel
+                            carriereRows={carriereRows}
+                            trimCotState={trimCotState}
+                            trimAssState={trimAssState}
+                            arState={arState}
+                            user={user}
+                            departureDates={departureDates}
+                          />
 
                           <div style={{ marginBottom: 14 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
@@ -4536,10 +5492,24 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             </div>
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 7 }}>
                               {[
-                                { id: "age_legal", label: "Âge légal", icon: "⚖️", info: dispDateLegale ? `${dispDateLegale.ageStr} → ${dispDateLegale.label}` : "Date de naissance manquante", dateInfo: dispDateLegale, disabled: !dispDateLegale },
-                                { id: "taux_plein", label: "Taux plein (durée)", icon: "🎯", info: dispDateTauxPlein ? (dispDateTauxPlein.trimManquants === 0 ? `${dispDateTauxPlein.trimRequis} trim. atteints` : `${dispDateTauxPlein.trimManquants} trim. manquants → ${dispDateTauxPlein.label}`) : "Date de naissance manquante", dateInfo: dispDateTauxPlein, disabled: !dispDateTauxPlein },
-                                { id: "taux_plein_auto", label: "Taux plein auto (67 ans)", icon: "🔓", info: dispDate67 ? `67 ans → ${dispDate67.label}` : "Date de naissance manquante", dateInfo: dispDate67, disabled: !dispDate67 },
-                                { id: "date_libre", label: "Date libre", icon: "📆", info: "Date de simulation à choisir", dateInfo: null, disabled: false },
+                                { id: "age_legal", label: "Âge légal", icon: "⚖️", info: dispDateLegale ? `${dispDateLegale.ageStr} → ${dispDateLegale.label}` : "Date de naissance manquante", dateInfo: dispDateLegale, disabled: !dispDateLegale, trimAt: dispDateLegale ? computeTrimAtDate(dispTrimAcquis, dispAnneeRef, dispDateLegale.date, dispTrimParAnnee) : null, details: dispDateLegale ? [
+                                  { k: "Âge légal", v: dispDateLegale.ageStr },
+                                  { k: "Trim. acquis", v: trimAcquisVal, color: "#0984E3" },
+                                  { k: "Requis", v: trimRequisVal },
+                                  { k: "Taux plein à cet âge", v: manquantsVal, color: manquantsColorDisp },
+                                ] : null },
+                                { id: "taux_plein", label: "Taux plein (durée)", icon: "🎯", info: dispDateTauxPlein ? (dispDateTauxPlein.trimManquants === 0 ? `${dispDateTauxPlein.ageStr} • ${dispDateTauxPlein.trimRequis} trim. atteints` : `${dispDateTauxPlein.ageStr} • ${dispDateTauxPlein.trimManquants} trim. manquants → ${dispDateTauxPlein.label}`) : "Date de naissance manquante", dateInfo: dispDateTauxPlein, disabled: !dispDateTauxPlein, trimAt: dispDateTauxPlein ? dispDateTauxPlein.trimRequis : null, details: dispDateTauxPlein ? [
+                                  { k: "Âge à cette date", v: ageAtDispDate(dispDateTauxPlein.date) || "—", color: "#0984E3" },
+                                  { k: "Trim. acquis", v: trimAcquisVal },
+                                  { k: "Requis", v: trimRequisVal },
+                                  { k: "Manquants", v: manquantsVal, color: manquantsColorDisp },
+                                ] : null },
+                                { id: "taux_plein_auto", label: "Taux plein auto (67 ans)", icon: "🔓", info: dispDate67 ? `67 ans → ${dispDate67.label}` : "Date de naissance manquante", dateInfo: dispDate67, disabled: !dispDate67, trimAt: dispDate67 ? computeTrimAtDate(dispTrimAcquis, dispAnneeRef, dispDate67.date, dispTrimParAnnee) : null, details: dispDate67 ? [
+                                  { k: "Âge à cette date", v: ageAtDispDate(dispDate67.date) || "67 ans" },
+                                  { k: "Trim. acquis", v: trimAcquisVal, color: "#0984E3" },
+                                  { k: "Décote", v: dispTauxPleinAtteint ? "aucune" : "aucune (taux plein auto)", color: "#00B894" },
+                                ] : null },
+                                { id: "date_libre", label: "Date libre", icon: "📆", info: "Date de simulation à choisir", dateInfo: null, disabled: false, trimAt: null, details: null },
                               ].map((d) => {
                                 const isChosen = chosenDates.some(cd => cd?.type === d.id && (d.id !== "date_libre" || cd?.date === dateLibreInput));
                                 const handleClick = () => {
@@ -4573,6 +5543,21 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                         </>
                                       ) : d.info}
                                     </div>
+                                    {d.trimAt != null && (
+                                      <div style={{ fontSize: 10, color: "#999", paddingLeft: 22, marginTop: 1 }}>
+                                        📊 {d.trimAt} trim. à cette date
+                                      </div>
+                                    )}
+                                    {d.details && (
+                                      <div style={{ paddingLeft: 22, marginTop: 3, display: "grid", gridTemplateColumns: "1fr auto", gap: "2px 8px", fontSize: 10.5 }}>
+                                        {d.details.map((row) => (
+                                          <React.Fragment key={row.k}>
+                                            <span style={{ color: "#8a8a8a" }}>{row.k}</span>
+                                            <span style={{ fontWeight: 700, color: row.color || "#444", textAlign: "right", whiteSpace: "nowrap" }}>{row.v}</span>
+                                          </React.Fragment>
+                                        ))}
+                                      </div>
+                                    )}
                                     {d.id === "date_libre" && (
                                       <div style={{ display: "flex", gap: 6, marginTop: 4, paddingLeft: 22 }}>
                                         <DateInputFR
@@ -4701,6 +5686,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                               placeholder={action.inputType === "date" ? "" : "Ex: 3"}
                                               value={inputValues[action.id] || ""}
                                               onChange={(e) => setInputValues({ ...inputValues, [action.id]: e.target.value })}
+                                              onBlur={(e) => persistChosenDispositifInput(action, e.target.value)}
                                               onClick={(e) => e.stopPropagation()}
                                               style={{ flex: 1, minWidth: 0, padding: "6px 10px", border: "none", outline: "none", fontSize: 12, background: "transparent", fontFamily: "inherit", color: "#333" }}
                                             />
@@ -4943,6 +5929,32 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               const calcsDone = !!(skillResult || agircResult || ircantecResult || rciResult || cipavResult || carpimkoResult || hasAnyTier1Result);
                               const hasCarpimkoPoints = Object.values(carpimkoRows).some(r => r.points_base || r.points_asv || r.points_compl);
                               const totalRegimes = 5 + (hasCarpimkoPoints ? 1 : 0) + tier1ActiveCodes.length;
+                              // Career edited since the last calc → results are stale. One click
+                              // re-freezes the edited grid then recomputes (autoChain), so the
+                              // server engine reads the new data.
+                              if (resultsStale && !isCalculatingAll) {
+                                const recalcReady = !isCarriereEmpty && !!user?.birth_date && !frozenLoading;
+                                return (
+                                  <button
+                                    onClick={() => { autoChainPendingRef.current = true; handleGeler(); }}
+                                    disabled={!recalcReady}
+                                    title="La carrière a été modifiée depuis le dernier calcul — recalcule les pensions avec les données actuelles"
+                                    style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", padding: "12px 20px", borderRadius: 8, border: "none", background: recalcReady ? "linear-gradient(135deg, #F59E0B 0%, #EA580C 100%)" : "#ccc", color: "#fff", fontWeight: 700, fontSize: 15, cursor: recalcReady ? "pointer" : "not-allowed", boxShadow: recalcReady ? "0 4px 14px rgba(234,88,12,0.32)" : "none", transition: "all 0.2s" }}
+                                  >
+                                    {frozenLoading ? (
+                                      <>
+                                        <span style={{ display: "inline-block", width: 14, height: 14, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                                        Recalcul en cours…
+                                      </>
+                                    ) : (
+                                      <>
+                                        <span style={{ fontSize: 16 }}>⚠️</span>
+                                        Résultats périmés — Recalculer ({totalRegimes} régimes)
+                                      </>
+                                    )}
+                                  </button>
+                                );
+                              }
                               if (carriereValidee && calcsDone && !isCalculatingAll) {
                                 return (
                                   <button
@@ -5115,6 +6127,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             })()}
                           </div>
 
+                          {resultsStale && (
+                            <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, background: "#FFF7ED", border: "1px solid #FDBA74", color: "#9A3412", fontSize: 12.5, fontWeight: 600 }}>
+                              <span style={{ fontSize: 15 }}>⚠️</span>
+                              <span style={{ flex: 1 }}>Carrière modifiée depuis ces calculs — les montants affichés sont périmés. Cliquez « Recalculer » pour les mettre à jour.</span>
+                            </div>
+                          )}
                           {(skillResult || agircResult || ircantecResult || rciResult || cipavResult || carpimkoResult) && (
                             <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end" }}>
                               <button
@@ -5268,32 +6286,47 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               {generatedDocs.map((doc) => (
                                 <div
                                   key={doc.id}
-                                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 14px", borderRadius: 8, border: "1px solid #e8e8e8", borderLeft: `3px solid ${panel.color}`, background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", marginBottom: 7 }}
+                                  style={{ display: "flex", flexDirection: "column", padding: "11px 14px", borderRadius: 8, border: doc.arretCritique ? "1px solid #D6303140" : "1px solid #e8e8e8", borderLeft: doc.arretCritique ? "3px solid #D63031" : `3px solid ${panel.color}`, background: doc.arretCritique ? "#D6303106" : "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", marginBottom: 7 }}
                                 >
-                                  <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => setViewingDoc(doc)}>
-                                    <div style={{ fontSize: 13, fontWeight: 600, color: "#333", textDecoration: "underline", textDecorationColor: "#ccc", textUnderlineOffset: 2 }}>📄 {doc.name}</div>
-                                    <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>
-                                      {new Date(doc.createdAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                    <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => setViewingDoc(doc)}>
+                                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333", textDecoration: "underline", textDecorationColor: "#ccc", textUnderlineOffset: 2 }}>
+                                        📄 {doc.name}
+                                        {doc.arretCritique && (
+                                          <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 800, color: "#fff", background: "#D63031", borderRadius: 4, padding: "1px 6px", textTransform: "uppercase", letterSpacing: "0.04em" }}>🚫 Livraison bloquée</span>
+                                        )}
+                                        {!doc.arretCritique && doc.alertes && doc.alertes.length > 0 && (
+                                          <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 800, color: "#fff", background: "#E17055", borderRadius: 4, padding: "1px 6px", textTransform: "uppercase", letterSpacing: "0.04em" }}>⚠️ {doc.alertes.length} alerte(s)</span>
+                                        )}
+                                      </div>
+                                      <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>
+                                        {new Date(doc.createdAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                                      </div>
+                                    </div>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                                      <button
+                                        type="button"
+                                        onClick={() => setViewingDoc(doc)}
+                                        style={{ background: "none", border: "none", color: panel.color, cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
+                                        title="Visualiser"
+                                      >
+                                        <Eye size={16} />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setDeleteGenDocId(doc.id)}
+                                        style={{ background: "none", border: "none", color: "#dc3545", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
+                                        title="Supprimer"
+                                      >
+                                        <Trash2 size={16} />
+                                      </button>
                                     </div>
                                   </div>
-                                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                                    <button
-                                      type="button"
-                                      onClick={() => setViewingDoc(doc)}
-                                      style={{ background: "none", border: "none", color: panel.color, cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
-                                      title="Visualiser"
-                                    >
-                                      <Eye size={16} />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setDeleteGenDocId(doc.id)}
-                                      style={{ background: "none", border: "none", color: "#dc3545", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
-                                      title="Supprimer"
-                                    >
-                                      <Trash2 size={16} />
-                                    </button>
-                                  </div>
+                                  {doc.arretCritique ? (
+                                    <RegimeArretCritique arret={doc.arretCritique} alertes={doc.alertes} />
+                                  ) : (doc.alertes && doc.alertes.length > 0 ? (
+                                    <RegimeAlertes alertes={doc.alertes} themeColor="#E17055" />
+                                  ) : null)}
                                 </div>
                               ))}
                             </div>
@@ -5974,6 +7007,34 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         onCreated={() => fetchApiSkills()}
         existingTypes={[...new Set(apiSkills.map((s) => s.type))].filter(Boolean)}
       />
+      <style>{`
+        .rappro-confirm-modal .sa-button-container { display: flex !important; flex-direction: row-reverse !important; justify-content: center !important; gap: 10px; }
+        .rappro-confirm-modal .sa-button-container .btn { font-size: 13px !important; padding: 7px 18px !important; margin: 0 !important; min-width: 0 !important; }
+      `}</style>
+      <SweetAlert
+        warning
+        showCancel
+        confirmBtnText="Appliquer & déverrouiller"
+        confirmBtnBsStyle="primary"
+        cancelBtnText="Annuler"
+        cancelBtnBsStyle="danger"
+        customClass="rappro-confirm-modal"
+        title="Corriger la carrière ?"
+        show={!!applyConfirm}
+        onConfirm={confirmApplyCorrections}
+        onCancel={() => setApplyConfirm(null)}
+      >
+        <div style={{ fontSize: 13, textAlign: "left" }}>
+          {carriereValidee && <div style={{ color: "#E17055", marginBottom: 6, fontWeight: 600 }}>⚠️ La carrière est validée — elle sera déverrouillée.</div>}
+          Les salaires suivants seront remplacés par ceux des bulletins (plafonnés PASS) :
+          <ul style={{ marginTop: 6, paddingLeft: 18 }}>
+            {(applyConfirm ? applyConfirm.corrections : []).map((c) => (
+              <li key={c.annee}>{c.annee} : {Number(c.oldSal).toLocaleString("fr-FR")} € → <b>{Number(c.newSal).toLocaleString("fr-FR")} €</b></li>
+            ))}
+          </ul>
+        </div>
+      </SweetAlert>
+
       <SweetAlert
         warning
         showCancel

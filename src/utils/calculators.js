@@ -371,7 +371,46 @@ export function computeDateTauxPlein(birthDate, trimAcquis, anneeReference = nul
     : new Date();
   const projected = addMonths(base, trimManquants * 3);
   const departure = firstOfNextMonth(projected);
-  return { date: departure, label: formatDateFR(departure), trimManquants, trimRequis };
+  return { date: departure, label: formatDateFR(departure), trimManquants, trimRequis, ageStr: ageLabel(birth, departure) };
+}
+
+/**
+ * Nombre de trimestres validés à une date donnée.
+ *
+ * - Date dans le passé (année cible ≤ année de référence) ET carrière fournie :
+ *   cumul RÉEL des trimestres validés sur les années civiles révolues avant la
+ *   date cible (validation par année civile pleine). Aucune projection.
+ * - Sinon (futur, ou carrière absente) : trimestres acquis à `anneeReference`
+ *   + projection de 1 trimestre par trimestre civil (4/an) à partir du 1er janvier
+ *   suivant. Cohérent avec computeDateTauxPlein (même base de projection).
+ *
+ * @param {number} trimAcquis            Trimestres acquis à l'année de référence
+ * @param {number|null} anneeReference   Dernière année civile validée
+ * @param {Date|null} targetDate         Date à laquelle évaluer le décompte
+ * @param {Object<string|number, number>|null} [trimParAnnee=null]  Map année →
+ *   trimestres validés cette année-là (déjà plafonnés 4/an). Requis pour un
+ *   décompte historique exact ; sinon on retombe sur la projection.
+ * @returns {number|null}
+ */
+export function computeTrimAtDate(trimAcquis, anneeReference, targetDate, trimParAnnee = null) {
+  if (!targetDate) return null;
+  const targetYear = targetDate.getFullYear();
+  // Passé connu : cumul réel des années civiles révolues avant la date cible.
+  if (trimParAnnee && anneeReference != null && targetYear <= anneeReference) {
+    let cumul = 0;
+    Object.entries(trimParAnnee).forEach(([y, t]) => {
+      if (Number(y) < targetYear) cumul += Number(t) || 0;
+    });
+    return cumul;
+  }
+  // Futur : acquis à anneeReference + projection 4/an.
+  const base = anneeReference ? new Date(anneeReference + 1, 0, 1) : new Date();
+  if (targetDate <= base) return trimAcquis;
+  const months =
+    (targetDate.getFullYear() - base.getFullYear()) * 12 +
+    (targetDate.getMonth() - base.getMonth());
+  const projetes = Math.max(0, Math.floor(months / 3));
+  return trimAcquis + projetes;
 }
 
 /**
@@ -389,6 +428,37 @@ export function computeDate67(birthDate) {
     date: departure,
     label: formatDateFR(departure),
     dateStr: departure.toLocaleDateString('fr-FR'),
+  };
+}
+
+/**
+ * Projection des trimestres validés à une date de départ + statut taux plein.
+ *
+ * Trimestres = computeTrimAtDate (acquis réels + projection 4/an). Taux plein si la durée
+ * requise est atteinte (trim >= requis) OU si l'âge au départ >= 67 ans (annulation de la
+ * décote, automatique). Sinon décote.
+ *
+ * @returns {{ trim: number, trimRequis: number, manquants: number, tauxPlein: boolean, automatique: boolean } | null}
+ */
+export function departureTrimOutlook({ birthDate, trimAcquis, anneeRef, trimParAnnee = null, departureDate }) {
+  const birth = parseBirthDate(birthDate);
+  if (!birth || !(departureDate instanceof Date) || isNaN(departureDate.getTime())) return null;
+  const bareme = getBaremeRetraite(birth);
+  if (!bareme) return null;
+  const trimRequis = bareme.trimRequis;
+  const trim = computeTrimAtDate(trimAcquis, anneeRef, departureDate, trimParAnnee);
+  if (trim == null) return null;
+  let ageYears = departureDate.getFullYear() - birth.getFullYear();
+  const md = departureDate.getMonth() - birth.getMonth();
+  if (md < 0 || (md === 0 && departureDate.getDate() < birth.getDate())) ageYears--;
+  const parDuree = trim >= trimRequis;
+  const automatique = ageYears >= 67 && !parDuree;
+  return {
+    trim,
+    trimRequis,
+    manquants: Math.max(0, trimRequis - trim),
+    tauxPlein: parDuree || ageYears >= 67,
+    automatique,
   };
 }
 
@@ -462,4 +532,33 @@ export function computeAutoDateFromDispositif(dispositifId, birthDate, trimCotSt
   // Les autres dispositifs (chômage, arrêt activité, CER) nécessitent des données
   // non disponibles en JS pur → pas de date calculée ici
   return null;
+}
+
+/**
+ * Durée d'assurance = somme des trimestres validés, PLAFONNÉE à 4 par année civile.
+ *
+ * Sur un relevé de carrière (RIS), une année ne peut jamais valider plus de
+ * 4 trimestres tous régimes confondus (écrêtement). Sommer naïvement les
+ * trimestres cotisés + assimilés (et, pour un parcours mixte, les trimestres
+ * de chaque régime la même année) sans ce plafond sur-compte la durée
+ * d'assurance — c'est le bug du client 1708 (166 affiché vs 158 officiel).
+ *
+ * @param {Array<{trimestres_cotises?: number|string, trimestres_assimiles?: number|string, trimestres_ar?: number|string}>} entries
+ *        Une entrée par année civile.
+ * @param {{ includeRachetes?: boolean }} [opts]
+ *        includeRachetes : inclure les trimestres rachetés (AR) dans le plafond.
+ *        Par défaut false — cohérent avec « Trimestres acquis » (cotisés +
+ *        assimilés) qui alimente computeDateTauxPlein. Mettre true pour la
+ *        durée d'assurance « tous régimes » officielle.
+ * @returns {number} Total des trimestres, chaque année plafonnée à 4.
+ */
+export function sumTrimestresCapped(entries, { includeRachetes = false } = {}) {
+  if (!Array.isArray(entries)) return 0;
+  return entries.reduce((sum, e) => {
+    const tc = Number(e && e.trimestres_cotises) || 0;
+    const ta = Number(e && e.trimestres_assimiles) || 0;
+    const ar = includeRachetes ? (Number(e && e.trimestres_ar) || 0) : 0;
+    const perYear = Math.min(4, Math.max(0, tc + ta + ar));
+    return sum + perYear;
+  }, 0);
 }

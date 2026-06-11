@@ -83,6 +83,7 @@ export const REGIMES = [
   // Tier 2 — fonction publique (à câbler séparément, règles spécifiques)
   { key: "CNRACL",  label: "CNRACL",  color: "#81ECEC", icon: "🏛️", aliases: buildAliases("CNRACL"),  hasCalcEngine: false },
   { key: "SRE",     label: "SRE",     color: "#B2BEC3", icon: "🏛️", aliases: buildAliases("SRE", "Fonction publique état", "fonction_publique_etat"), hasCalcEngine: false },
+  { key: "RAFP",    label: "RAFP",    color: "#A29BFE", icon: "🏛️", aliases: buildAliases("RAFP", "Retraite additionnelle de la fonction publique", "retraite_additionnelle_fonction_publique", "retraite_additionnelle"), hasCalcEngine: false },
 ];
 
 // Registry Tier 1 — utilisé par le simulateur pour itérer sur les régimes

@@ -101,8 +101,16 @@ class DropzoneBasic extends React.Component {
     axios
       .post(global.config.server_url + "/uploadFiles", formData, Config)
       .then((response) => {
-        if (response.data && response.data.success === true) this.loadFiles();
-      });
+        if (response.data && response.data.success === true) {
+          this.loadFiles();
+          toast.success(
+            acceptedFiles.length > 1 ? "Fichiers uploadés" : "Fichier uploadé"
+          );
+        } else {
+          toast.error("Échec de l'upload du fichier.");
+        }
+      })
+      .catch(() => toast.error("Erreur lors de l'upload du fichier."));
   };
 
   // 🔹 Upload depuis la dropzone interne (dans un dossier ouvert)
@@ -507,14 +515,11 @@ class DropzoneBasic extends React.Component {
             onDrop={(e) => this.handleDropOnFolder(folder.id, e)}
             onDragOver={(e) => this.handleDragOverFolder(folder.id, e)}
             onDragLeave={this.handleDragLeaveFolder}
-            className="mb-2"
+            className={"mb-2 docs-folder-card" + (isDragOver ? " is-dragover" : "")}
             style={{
-              cursor: "pointer",
-              transition: "0.15s",
               borderRadius: 8,
-              border: isDragOver ? "1px solid #adb5bd" : "1px solid #e9ecef",
-              backgroundColor: isDragOver ? "#f8f9fa" : "#ffffff",
-              boxShadow: isDragOver ? "0 0 0 2px rgba(0,0,0,0.04)" : "none",
+              border: "1px solid #e9ecef",
+              backgroundColor: "#ffffff",
             }}
           >
             <CardBody className="d-flex align-items-center justify-content-between py-2">
@@ -588,9 +593,13 @@ class DropzoneBasic extends React.Component {
         </div>
 
         <Dropzone onDrop={this.onDrop}>
-          {({ getRootProps, getInputProps }) => (
+          {({ getRootProps, getInputProps, isDragActive }) => (
             <div
-              {...getRootProps({ className: "dropzone text-center mb-2" })}
+              {...getRootProps({
+                className:
+                  "dropzone docs-dropzone text-center mb-2" +
+                  (isDragActive ? " is-dragging" : ""),
+              })}
               style={{
                 padding: "14px",
                 borderRadius: 10,
@@ -599,12 +608,18 @@ class DropzoneBasic extends React.Component {
               }}
             >
               <input {...getInputProps()} />
-              <DownloadCloud size={35} className="mb-1" />
+              <DownloadCloud size={35} className="docs-dropzone-icon mb-1" />
               <p
                 className="mb-0"
-                style={{ fontSize: "13px", color: "#495057" }}
+                style={{
+                  fontSize: "13px",
+                  color: isDragActive ? "#7367f0" : "#495057",
+                  fontWeight: isDragActive ? 700 : 400,
+                }}
               >
-                Glissez vos fichiers ici ou cliquez pour sélectionner
+                {isDragActive
+                  ? "Déposez pour importer"
+                  : "Glissez vos fichiers ici ou cliquez pour sélectionner"}
               </p>
             </div>
           )}
