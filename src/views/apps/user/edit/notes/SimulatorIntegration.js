@@ -18,7 +18,7 @@ import { parseNIR } from "./utils";
 import { parseCarrierePoints } from "./carrierePoints";
 import { REGIMES, getPoints, resolveRegime, computeVisibleRegimes, REGIMES_SIMPLES, extractRegimeSimplePoints } from "../simulatorRegimes";
 import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml, detectDocumentType, fetchRapprochementConstat, applyReportChatMessage, fetchPromptNotes, savePromptNote, deletePromptNote } from "../risService";
-import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif, computeTrimAtDate, sumTrimestresCapped, parseBirthDate, departureTrimOutlook } from '../../../../../utils/calculators';
+import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif, computeTrimAtDate, sumTrimestresCapped, parseBirthDate } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
 import SkillCreateModal from "./SkillCreateModal";
@@ -1050,6 +1050,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [visibleRowCount, setVisibleRowCount] = useState(20);
   // ── Projection fin de carrière ──
   const [projectionTargetAge, setProjectionTargetAge] = useState(67);
+  const [projectionTargetMonths, setProjectionTargetMonths] = useState(0);
   const [projectionSurcote, setProjectionSurcote] = useState(0);
   const [baremeReady, setBaremeReady] = useState(false);
   const [projectionMode, setProjectionMode] = useState(PROJECTION_MODES.LIBRE);
@@ -1538,33 +1539,35 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
 
   // Reconcile projected rows to the current controls. Thin wrapper over the pure reducer;
   // preserves manual edits, bumps visibleRowCount so the projected block (top of grid) shows.
-  const handleGenerateProjection = useCallback((nextMode, nextAge, nextSurcote) => {
+  const handleGenerateProjection = useCallback((nextMode, nextAge, nextSurcote, nextMonths = 0, nextLibreDate = dateLibreInput) => {
     const birthYear = parseBirthYear(user?.birth_date);
-    const targetYear = resolveProjectionTargetYear({ mode: nextMode, birthYear, age: nextAge, departureDates });
+    const _birth = parseBirthDate(user?.birth_date);
+    let targetYear;
+    if (nextMode === PROJECTION_MODES.LIBRE) {
+      // « Date libre » : la cible = l'année de la date choisie (date-picker, plus simple qu'un âge).
+      const _d = nextLibreDate ? new Date(String(nextLibreDate).slice(0, 10) + "T00:00:00") : null;
+      targetYear = (_d && !isNaN(_d.getTime())) ? _d.getFullYear() : null;
+    } else {
+      targetYear = resolveProjectionTargetYear({ mode: nextMode, birthYear, age: nextAge, months: nextMonths, birthMonth: _birth ? _birth.getMonth() : 0, departureDates });
+    }
     const lastRealYear = findLastRealYear(carriereRows);
     const lastRealSalary = findLastRealSalary(carriereRows, lastRealYear);
     const res = reconcileProjection(
       { carriereRows, revaloValues, trimCotState },
       { lastRealYear, targetYear, surcote: nextSurcote, lastRealSalary, passLast: PASS_LAST },
     );
-    // Estimate complementary points on the projected years, derived from each projected
-    // row's salary (same calc as a manual salary edit), gated to the régimes the client
-    // actually has so we never invent points (e.g. IRCANTEC) the career never carried.
-    const hasAgirc = carriereRows.some((r) => !r.projected && (Number(r.agircPts) || 0) > 0);
-    const hasIrc = carriereRows.some((r) => !r.projected && (Number(r.ircPts) || 0) > 0);
-    const hasRci = carriereRows.some((r) => !r.projected && (Number(r.rciPts) || 0) > 0);
-    const PT_YEAR = 2026; // last year with official AGIRC-ARRCO valeur d'achat (20,1877 €, reconduit)
+    // SIMPLE carry-forward: each projected year = a copy of the LAST REAL year. Its salary is
+    // carried by projectYearValue (no PASS cap), and we copy that year's complementary points
+    // verbatim onto every projected row — no recompute from salary, no multi-year heuristic.
+    // What the consultant sees is exactly "next year = same salary AND same points as the last
+    // real year".
+    const lastRealRow = carriereRows.find((r) => r && !r.projected && r.yr === lastRealYear);
+    const baseAgirc = Number(lastRealRow?.agircPts) || 0;
+    const baseIrc = Number(lastRealRow?.ircPts) || 0;
+    const baseRci = Number(lastRealRow?.rciPts) || 0;
     const projectedRows = res.carriereRows.map((r) => {
       if (!r.projected) return r;
-      const sal = Number(r.sal) || 0;
-      if (sal <= 0) return r;
-      const ag = hasAgirc ? (calculateArrco(PT_YEAR, sal, isCadreSimu)?.total || 0) : 0;
-      const ir = hasIrc ? (calculateIrcantec(PT_YEAR, sal)?.total || 0) : 0;
-      const rc = hasRci ? (calculateRci(PT_YEAR, sal)?.total || 0) : 0;
-      const agircPts = parseFloat(ag.toFixed(2));
-      const ircPts = parseFloat(ir.toFixed(5));
-      const rciPts = parseFloat(rc.toFixed(5));
-      return { ...r, agircPts, ircPts, rciPts, regimes: { ...(r.regimes || {}), AGIRC_ARRCO: agircPts, IRCANTEC: ircPts, RCI: rciPts } };
+      return { ...r, agircPts: baseAgirc, ircPts: baseIrc, rciPts: baseRci, regimes: { ...(r.regimes || {}), AGIRC_ARRCO: baseAgirc, IRCANTEC: baseIrc, RCI: baseRci } };
     });
     setCarriereRows(projectedRows);
     setRevaloValues(res.revaloValues);
@@ -1572,7 +1575,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     if (res.projectedYears.length) {
       setVisibleRowCount((v) => Math.min(res.carriereRows.length, Math.max(v, res.projectedYears.length + 20)));
     }
-  }, [carriereRows, revaloValues, trimCotState, user, departureDates, isCadreSimu]);
+  }, [carriereRows, revaloValues, trimCotState, user, departureDates, dateLibreInput]);
 
   // Désactive la projection : retire toutes les années projetées (reconcile vers un set vide).
   const clearProjection = useCallback(() => {
@@ -1592,18 +1595,20 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     if (!Array.isArray(carriere) || !carriere.length) return 0;
     const minYear = Math.min(...carriere.map(r => r.annee));
     setVisibleRowCount(Math.min(Math.max(20, 2026 - minYear + 1), 65));
-    setCarriereRows(prev => prev.map(row => {
-      const entry = carriere.find(r => r.annee === row.yr);
-      if (!entry) return row;
+    // Build a full grid row from a carriere entry. Shared by the in-place update and the
+    // append step below so projected years stored BEYOND the default grid (e.g. 2027+) get
+    // real rows AND keep their `projected` flag — instead of being dropped from carriereRows
+    // while still feeding trimCotState (the desync that made a projection "disappear" from
+    // the grid yet linger in the totals, and made 2026 look like real RIS data with points).
+    const buildRowFromEntry = (row, entry) => {
       // Normalize salary: new format uses revenu_brut, legacy uses salaire_brut, RIS uses sal_eur
       const salEur = entry.revenu_brut ?? entry.salaire_brut ?? entry.sal_eur ?? 0;
       const salOriginal = entry.revenu_brut ?? entry.salaire_brut ?? entry.sal_original ?? 0;
       const plaf = PLAFONDS_SS[row.yr] || 48060;
       const coeff = coeffRevalo[row.yr] || 1;
       const calculatedRevalo = Math.round(Math.min(salEur, plaf) * coeff);
-      // R.351-29 CSS : le plafond PASS s'applique au salaire AVANT revalorisation.
-      // Le salaire revalorisé (plaf × coeff) dépasse normalement le PASS courant
-      // et NE doit PAS être re-plafonné.
+      // R.351-29 CSS : le plafond PASS s'applique au salaire AVANT revalorisation. Le salaire
+      // revalorisé (plaf × coeff) dépasse normalement le PASS courant et NE doit PAS être re-plafonné.
       const revalo = entry.salaire_revalo ?? calculatedRevalo;
       const ss = Math.min(salEur, plaf);
       const pts = {};
@@ -1616,8 +1621,24 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       if (agirc != null) { pts.agircPts = agirc; pts.regimes.AGIRC_ARRCO = agirc; }
       if (irc != null)   { pts.ircPts   = irc;   pts.regimes.IRCANTEC    = irc;   }
       if (rci != null)   { pts.rciPts   = rci;   pts.regimes.RCI         = rci;   }
-      return { ...row, sal: salOriginal, ss, revalo, devise: entry.devise || '€', regimes_concernes: entry.regimes_concernes || '', ...pts };
-    }));
+      return { ...row, sal: salOriginal, ss, revalo, devise: entry.devise || '€', regimes_concernes: entry.regimes_concernes || '', ...pts, projected: !!entry.projected };
+    };
+    setCarriereRows(prev => {
+      const updated = prev.map(row => {
+        const entry = carriere.find(r => r.annee === row.yr);
+        return entry ? buildRowFromEntry(row, entry) : row;
+      });
+      // Append rows for carriere years beyond the existing grid (projected years > newest row),
+      // so carriereRows stays in sync with trimCotState (which is filled for every entry below).
+      const existingYears = new Set(prev.map(r => r.yr));
+      const extras = carriere
+        .filter(e => e && e.annee != null && !existingYears.has(e.annee))
+        .map(e => buildRowFromEntry(
+          { yr: e.annee, sal: 0, ss: 0, coeff: "1.000", revalo: 0, trim: 0, ar: 0, total: 0, agircPts: 0, ircPts: 0, rciPts: 0, regimes: {} },
+          e
+        ));
+      return extras.length ? [...updated, ...extras].sort((a, b) => b.yr - a.yr) : updated;
+    });
     setRevaloValues(prev => {
       const next = { ...prev };
       carriere.forEach(entry => {
@@ -1693,16 +1714,20 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
     axios.get(`${global.config.server_url}/frozen_data/${id}`, Config)
       .then(res => {
-        // A scanned-but-unvalidated draft takes precedence while the career isn't
-        // frozen, so a refresh restores the working grid without re-running n8n.
-        if (!res.data?.locked_at) {
-          const draft = readCareerDraft(id);
-          if (draft) {
-            restoreCareerDraft(draft);
-            draftHydratedRef.current = true;
-            setHydrationDone(true);
-            return;
-          }
+        // A working draft exists ONLY while the career is unlocked — locking removes it
+        // (see the freeze handler). So whenever a draft is present it is the freshest
+        // in-progress grid (e.g. a projection added after UNLOCKING a previously-frozen
+        // career) and must win over the server frozen_data. Gating this on `!locked_at`
+        // was the bug: after a first lock the server keeps locked_at, so unlock → project
+        // → F5 ignored the draft and silently reverted to the frozen snapshot — the
+        // projection "disappeared". Drafts are cleared on lock, so this can't resurrect a
+        // stale grid over a freshly-frozen one.
+        const draft = readCareerDraft(id);
+        if (draft) {
+          restoreCareerDraft(draft);
+          draftHydratedRef.current = true;
+          setHydrationDone(true);
+          return;
         }
         // Restore CIPAV points (from dedicated column or legacy carriere objects)
         const cipav = res.data?.cipav;
@@ -1886,6 +1911,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     setCarpimkoOpen(false);
     setVisibleRowCount(20);
     setProjectionTargetAge(67);
+    setProjectionTargetMonths(0);
     setProjectionSurcote(0);
     setProjectionMode(PROJECTION_MODES.LIBRE);
     try { localStorage.removeItem(`simu_projection_${id}`); } catch { /* noop */ }
@@ -1986,6 +2012,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       if (raw) {
         const d = JSON.parse(raw);
         if (Number.isFinite(d.targetAge)) setProjectionTargetAge(d.targetAge);
+        setProjectionTargetMonths(Number.isFinite(d.targetMonths) ? d.targetMonths : 0);
         if (Number.isFinite(d.surcote)) setProjectionSurcote(d.surcote);
         if (typeof d.mode === "string" && Object.values(PROJECTION_MODES).includes(d.mode)) setProjectionMode(d.mode);
       }
@@ -1998,9 +2025,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   useEffect(() => {
     if (!id) return;
     try {
-      localStorage.setItem(`simu_projection_${id}`, JSON.stringify({ targetAge: projectionTargetAge, surcote: projectionSurcote, mode: projectionMode }));
+      localStorage.setItem(`simu_projection_${id}`, JSON.stringify({ targetAge: projectionTargetAge, targetMonths: projectionTargetMonths, surcote: projectionSurcote, mode: projectionMode }));
     } catch { /* noop */ }
-  }, [id, projectionTargetAge, projectionSurcote, projectionMode]);
+  }, [id, projectionTargetAge, projectionTargetMonths, projectionSurcote, projectionMode]);
 
   // After a RIS import bumps projRegenNonce, regenerate the projection once against the
   // freshly-applied grid. Intentionally keyed ONLY on the nonce (run-on-signal pattern):
@@ -2009,7 +2036,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // grid edit and loop forever (the handler itself calls setCarriereRows). The render that
   // bumps the nonce already captures a fresh handler reflecting the post-import grid.
   useEffect(() => {
-    if (projRegenNonce > 0) handleGenerateProjection(projectionMode, projectionTargetAge, projectionSurcote);
+    if (projRegenNonce > 0) handleGenerateProjection(projectionMode, projectionTargetAge, projectionSurcote, projectionTargetMonths);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projRegenNonce]);
 
@@ -2035,10 +2062,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     } else if (projectionMode === PROJECTION_MODES.AUTO67 && dd.date67) {
       typeId = "taux_plein_auto"; label = "Taux plein auto (67 ans)"; isoDate = toIso(dd.date67.date);
       info = `67 ans → ${dd.date67.label}`;
-    } else if (projectionMode === PROJECTION_MODES.LIBRE && hasProjectedRows && birth && Number.isFinite(projectionTargetAge)) {
-      const d = new Date(birth.getFullYear() + projectionTargetAge, birth.getMonth(), birth.getDate());
-      typeId = "date_libre"; label = "Date libre"; isoDate = toIso(d);
-      info = d.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+    } else if (projectionMode === PROJECTION_MODES.LIBRE && hasProjectedRows && dateLibreInput) {
+      typeId = "date_libre"; label = "Date libre"; isoDate = dateLibreInput;
+      const _d = new Date(dateLibreInput + "T00:00:00");
+      info = !isNaN(_d.getTime()) ? _d.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }) : dateLibreInput;
     }
     if (!typeId) return; // aucune projection exploitable → on laisse l'utilisateur choisir
     const prevAuto = lastAutoDateTypeRef.current;
@@ -4610,15 +4637,22 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
 
                     // ── CARRIÈRE: TABLEAU UNIFIÉ ──
                     if (expandedPanel === "carriere") {
-                      // Utilise carriereRows (état stable, hydraté depuis OCR ou saisie manuelle)
                       const totalRows = carriereRows.slice(0, visibleRowCount);
-                      const totalCotTbl = totalRows.reduce((s, r) => s + (trimCotState[r.yr] ?? 0), 0);
-                      const totalAssTbl = totalRows.reduce((s, r) => s + (trimAssState[r.yr] ?? 0), 0);
-                      const totalArTbl = totalRows.reduce((s, r) => s + (arState[r.yr] ?? 0), 0);
-                      const totalTrimTbl = totalRows.reduce((s, r) => {
-                        const tc = trimCotState[r.yr] ?? 0;
-                        const ta = trimAssState[r.yr] ?? 0;
-                        const ar = arState[r.yr] ?? 0;
+                      // ∑ trimestres : on somme sur TOUTES les années présentes dans trimCotState/
+                      // trimAssState/arState (la source de vérité, identique à « Données de calcul »),
+                      // PAS sur carriereRows — sinon les années projetées >2026 que carriereRows ne
+                      // porte pas (désync grille↔totaux) seraient oubliées → le ∑ sous-comptait (166
+                      // au lieu de 174). On itère les clés directement pour rester cohérent partout.
+                      const _allTrimYears = Array.from(new Set([
+                        ...Object.keys(trimCotState), ...Object.keys(trimAssState), ...Object.keys(arState),
+                      ]));
+                      const totalCotTbl = _allTrimYears.reduce((s, yr) => s + (Number(trimCotState[yr]) || 0), 0);
+                      const totalAssTbl = _allTrimYears.reduce((s, yr) => s + (Number(trimAssState[yr]) || 0), 0);
+                      const totalArTbl = _allTrimYears.reduce((s, yr) => s + (Number(arState[yr]) || 0), 0);
+                      const totalTrimTbl = _allTrimYears.reduce((s, yr) => {
+                        const tc = Number(trimCotState[yr]) || 0;
+                        const ta = Number(trimAssState[yr]) || 0;
+                        const ar = Number(arState[yr]) || 0;
                         return s + Math.min(4, tc + ta + ar);
                       }, 0);
                       // SAM CNAV : uniquement les années avec affiliation CNAV (TC ou TA > 0)
@@ -4762,7 +4796,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                 { id: PROJECTION_MODES.LEGAL,  label: "Âge légal",          needsBirth: true },
                                 { id: PROJECTION_MODES.DUREE,  label: "Taux plein (durée)", needsBirth: true },
                                 { id: PROJECTION_MODES.AUTO67, label: "Taux plein 67 ans",  needsBirth: true },
-                                { id: PROJECTION_MODES.LIBRE,  label: "Âge libre",          needsBirth: false },
+                                { id: PROJECTION_MODES.LIBRE,  label: "Date libre",         needsBirth: false },
                               ].map((chip) => {
                                 const disabled = carriereValidee || (chip.needsBirth && !projBirthYear);
                                 const active = projectionMode === chip.id && projectionOn;
@@ -4779,7 +4813,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                     }
                                     onClick={() => {
                                       if (active) { clearProjection(); }
-                                      else { setProjectionMode(chip.id); handleGenerateProjection(chip.id, projectionTargetAge, projectionSurcote); }
+                                      // Sélectionner un mode repart d'une projection « propre » : on remet les
+                                      // années en plus à 0 (sinon une valeur reportée d'un mode précédent décale
+                                      // la nouvelle cible — ex. projection vide après avoir retiré des années).
+                                      else { setProjectionMode(chip.id); setProjectionSurcote(0); handleGenerateProjection(chip.id, projectionTargetAge, 0, projectionTargetMonths); }
                                     }}
                                     style={{ padding: "4px 10px", borderRadius: 14, fontSize: 12, fontWeight: 600, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1, border: active ? "1px solid #FF9F43" : "1px solid #FFD08A", background: active ? "#FF9F43" : "#fff", color: active ? "#fff" : "#B26A00" }}
                                   >
@@ -4789,44 +4826,25 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               })}
                               {projectionMode === PROJECTION_MODES.LIBRE && (
                                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                  <label htmlFor="proj_target_age" style={{ fontSize: 13, fontWeight: 600, color: "#343a40" }}>Âge visé</label>
-                                  <input
-                                    type="number"
-                                    id="proj_target_age"
-                                    min={60}
-                                    max={75}
-                                    value={projectionTargetAge}
+                                  <label style={{ fontSize: 13, fontWeight: 600, color: "#343a40" }}>Date de départ</label>
+                                  <DateInputFR
+                                    value={dateLibreInput}
                                     disabled={carriereValidee}
-                                    onChange={(e) => {
-                                      // Free typing: keep the raw value (no per-keystroke clamp, which
-                                      // made multi-digit edits impossible). Project live only when the
-                                      // value is a valid age in range; clamping happens on blur.
-                                      const raw = e.target.value;
-                                      if (raw === "") { setProjectionTargetAge(""); return; }
-                                      const v = parseInt(raw, 10);
-                                      if (!Number.isFinite(v)) return;
-                                      setProjectionTargetAge(v);
-                                      if (v >= 60 && v <= 75) handleGenerateProjection(PROJECTION_MODES.LIBRE, v, projectionSurcote);
-                                    }}
-                                    onBlur={(e) => {
-                                      const v = parseInt(e.target.value, 10);
-                                      const clamped = Number.isFinite(v) ? Math.min(75, Math.max(60, v)) : 67;
-                                      setProjectionTargetAge(clamped);
-                                      handleGenerateProjection(PROJECTION_MODES.LIBRE, clamped, projectionSurcote);
-                                    }}
-                                    style={{ width: 64, textAlign: "center", border: "1px solid #ddd", borderRadius: 4, fontSize: 14, padding: "2px 4px" }}
+                                    onChange={(e) => { const v = e.target.value; setDateLibreInput(v); handleGenerateProjection(PROJECTION_MODES.LIBRE, projectionTargetAge, projectionSurcote, projectionTargetMonths, v); }}
+                                    style={{ padding: "3px 6px", borderRadius: 4, border: "1px solid #ddd", fontSize: 14, fontFamily: "inherit", width: 120 }}
                                   />
                                 </div>
                               )}
                               {projectionActive && (
                                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                  <span style={{ fontSize: 13, fontWeight: 600, color: "#343a40" }}>Surcote</span>
-                                  <button type="button" disabled={carriereValidee || projectionSurcote <= 0}
-                                    onClick={() => { const s = Math.max(0, projectionSurcote - 1); setProjectionSurcote(s); handleGenerateProjection(projectionMode, projectionTargetAge, s); }}
-                                    style={{ width: 26, height: 26, borderRadius: 4, border: "1px solid #FF9F43", background: "#fff", color: "#FF9F43", fontWeight: 700, cursor: "pointer" }}>−</button>
-                                  <span style={{ fontSize: 13, minWidth: 56, textAlign: "center" }}>{projectionSurcote} an{projectionSurcote > 1 ? "s" : ""}</span>
+                                  <span style={{ fontSize: 13, fontWeight: 600, color: "#343a40" }}>Ajouter une année sur la projection</span>
+                                  <button type="button" disabled={carriereValidee || !projectionOn}
+                                    title={!projectionOn ? "Aucune année projetée à retirer" : "Retirer une année de la projection"}
+                                    onClick={() => { const s = projectionSurcote - 1; setProjectionSurcote(s); handleGenerateProjection(projectionMode, projectionTargetAge, s, projectionTargetMonths); }}
+                                    style={{ width: 26, height: 26, borderRadius: 4, border: "1px solid #FF9F43", background: "#fff", color: "#FF9F43", fontWeight: 700, cursor: (carriereValidee || !projectionOn) ? "not-allowed" : "pointer" }}>−</button>
+                                  <span style={{ fontSize: 13, minWidth: 56, textAlign: "center" }}>{(() => { const cy = new Date().getFullYear(); const n = carriereRows.filter(r => r && r.projected && r.yr > cy).length; return n + " an" + (n > 1 ? "s" : ""); })()}</span>
                                   <button type="button" disabled={carriereValidee}
-                                    onClick={() => { const s = projectionSurcote + 1; setProjectionSurcote(s); handleGenerateProjection(projectionMode, projectionTargetAge, s); }}
+                                    onClick={() => { const s = projectionSurcote + 1; setProjectionSurcote(s); handleGenerateProjection(projectionMode, projectionTargetAge, s, projectionTargetMonths); }}
                                     style={{ width: 26, height: 26, borderRadius: 4, border: "1px solid #FF9F43", background: "#fff", color: "#FF9F43", fontWeight: 700, cursor: "pointer" }}>+</button>
                                 </div>
                               )}
@@ -4834,30 +4852,31 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             {projBirthYear && (() => {
                               const dd = departureDates;
                               const birth = parseBirthDate(user?.birth_date);
-                              let head = null, date = null, special = null;
+                              let head = null, date = null;
                               if (projectionMode === PROJECTION_MODES.LEGAL && dd.legale) {
                                 head = `Âge légal : ${dd.legale.ageStr}`; date = dd.legale.date;
                               } else if (projectionMode === PROJECTION_MODES.AUTO67 && dd.date67) {
                                 head = "Taux plein 67 ans"; date = dd.date67.date;
-                              } else if (projectionMode === PROJECTION_MODES.LIBRE && birth && Number.isFinite(projectionTargetAge)) {
-                                head = `${projectionTargetAge} ans`;
-                                date = new Date(birth.getFullYear() + projectionTargetAge, birth.getMonth(), birth.getDate());
+                              } else if (projectionMode === PROJECTION_MODES.LIBRE && dateLibreInput) {
+                                const _d = new Date(dateLibreInput + "T00:00:00");
+                                if (!isNaN(_d.getTime())) { head = "Date libre"; date = _d; }
                               } else if (projectionMode === PROJECTION_MODES.DUREE && dd.tauxPlein) {
-                                const tp = dd.tauxPlein;
-                                head = `Taux plein (durée) : ${tp.ageStr}`; date = tp.date;
-                                special = `${dd.trimAcquis} acquis → ${tp.trimRequis} requis (${tp.trimManquants > 0 ? "taux plein atteint à cette date" : "taux plein déjà atteint"})`;
+                                head = `Taux plein (durée) : ${dd.tauxPlein.ageStr}`; date = dd.tauxPlein.date;
                               }
                               if (!date) return null;
                               const departLabel = date.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
-                              let tail = special ? ` · ${special}` : "";
-                              if (!special) {
-                                const o = departureTrimOutlook({ birthDate: user?.birth_date, trimAcquis: dd.trimAcquis, anneeRef: dd.anneeRef, trimParAnnee: dd.trimParAnnee, departureDate: date });
-                                if (o) {
-                                  if (o.automatique) tail = ` · ~${o.trim} trim. — taux plein automatique`;
-                                  else if (o.tauxPlein) tail = ` · ~${o.trim}/${o.trimRequis} trim. (taux plein)`;
-                                  else tail = ` · ~${o.trim}/${o.trimRequis} trim. (${o.manquants} manquants → décote)`;
-                                }
-                              }
+                              // Trimestres affichés = MÊME source unique que le ∑ et « Données de calcul » :
+                              // total réels + projetés (somme des clés trimCotState/trimAssState/arState),
+                              // plus le total SANS projection (années non futures). Fini les 3 nombres qui
+                              // se contredisaient (bandeau 162 / ∑ 166 / Données de calcul 174).
+                              const _curY = new Date().getFullYear();
+                              const _bYears = Array.from(new Set([...Object.keys(trimCotState), ...Object.keys(trimAssState), ...Object.keys(arState)]));
+                              const _capYr = (yr) => Math.min(4, (Number(trimCotState[yr]) || 0) + (Number(trimAssState[yr]) || 0) + (Number(arState[yr]) || 0));
+                              const _bTot = _bYears.reduce((s, yr) => s + _capYr(yr), 0);
+                              const _bReal = _bYears.filter((yr) => Number(yr) <= _curY).reduce((s, yr) => s + _capYr(yr), 0);
+                              const _bReq = (dd.tauxPlein && dd.tauxPlein.trimRequis) || 172;
+                              const _bProj = _bTot - _bReal;
+                              const tail = ` · ${_bReal} acquis${_bProj > 0 ? ` + ${_bProj} projetés = ${_bTot}` : ""} / ${_bReq} requis (${_bTot >= _bReq ? "taux plein" : (_bReq - _bTot) + " manquants → décote"})`;
                               return <span style={{ fontSize: 12, color: "#8a6d3b", fontWeight: 600 }}>{`📅 ${head} — départ ${departLabel}${tail}`}</span>;
                             })()}
                             {projLastRealYear != null && !projBirthYear && (
@@ -5169,9 +5188,34 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                 })}
                                 <tr>
                                   <td colSpan={(cnavplOpen ? 18 : 16) + dynamicRegimes.length} style={{ padding: "4px 8px" }}>
-                                    <button onClick={() => setVisibleRowCount(v => Math.min(v + 1, 65))} style={{ fontSize: 14, padding: "3px 10px", borderRadius: 5, border: "1px dashed #bbb", background: "transparent", color: "#555", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
-                                      <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> Ajouter une année ({carriereRows[visibleRowCount] ? carriereRows[visibleRowCount].yr : "—"})
-                                    </button>
+                                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                      <button onClick={() => setVisibleRowCount(v => Math.min(v + 1, 65))} style={{ fontSize: 14, padding: "3px 10px", borderRadius: 5, border: "1px dashed #bbb", background: "transparent", color: "#555", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                                        <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> Ajouter une année ({carriereRows[visibleRowCount] ? carriereRows[visibleRowCount].yr : "—"})
+                                      </button>
+                                      {(() => {
+                                        const lastYr = carriereRows[visibleRowCount - 1] ? carriereRows[visibleRowCount - 1].yr : null;
+                                        const canRemove = !carriereValidee && visibleRowCount > 1 && lastYr != null;
+                                        return (
+                                          <button
+                                            disabled={!canRemove}
+                                            onClick={() => {
+                                              if (!canRemove) return;
+                                              // Supprime l'année la plus ancienne affichée : on efface ses données
+                                              // (trimestres, salaires, points) ET on la masque, pour qu'elle disparaisse
+                                              // vraiment des totaux (qui somment trimCotState/trimAssState/arState).
+                                              const delKey = (setter) => setter(prev => { const n = { ...prev }; delete n[lastYr]; return n; });
+                                              setCarriereRows(prev => prev.map(r => r.yr === lastYr ? { ...r, sal: 0, ss: 0, revalo: 0, agircT1: 0, agircT2: 0, agircPts: 0, ircPts: 0, rciPts: 0, regimes: {}, projected: false } : r));
+                                              delKey(setTrimCotState); delKey(setTrimAssState); delKey(setArState); delKey(setRevaloValues); delKey(setDeplafValues);
+                                              setVisibleRowCount(v => Math.max(1, v - 1));
+                                            }}
+                                            style={{ fontSize: 14, padding: "3px 10px", borderRadius: 5, border: "1px dashed #d99", background: "transparent", color: canRemove ? "#c0392b" : "#bbb", cursor: canRemove ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 4 }}
+                                            title={carriereValidee ? "Déverrouillez la carrière pour supprimer une année" : ""}
+                                          >
+                                            <span style={{ fontSize: 14, lineHeight: 1 }}>−</span> Retirer une année ({lastYr != null ? lastYr : "—"})
+                                          </button>
+                                        );
+                                      })()}
+                                    </div>
                                   </td>
                                 </tr>
                               </tbody>
