@@ -1569,9 +1569,19 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       if (!r.projected) return r;
       return { ...r, agircPts: baseAgirc, ircPts: baseIrc, rciPts: baseRci, regimes: { ...(r.regimes || {}), AGIRC_ARRCO: baseAgirc, IRCANTEC: baseIrc, RCI: baseRci } };
     });
+    // L'année de départ n'est travaillée qu'en partie : prorata par trimestres civils écoulés
+    // (1 trim = 3 mois ; janvier = 0, avril = 1, juillet = 2, octobre = 3). Sinon la projection
+    // afficherait une année PLEINE (4 trim) même pour un départ au 1er janvier.
+    let trimCotOut = res.trimCotState;
+    if (nextMode === PROJECTION_MODES.LIBRE && nextLibreDate) {
+      const _ld = new Date(String(nextLibreDate).slice(0, 10) + "T00:00:00");
+      if (!isNaN(_ld.getTime())) {
+        trimCotOut = { ...res.trimCotState, [_ld.getFullYear()]: Math.min(4, Math.floor(_ld.getMonth() / 3)) };
+      }
+    }
     setCarriereRows(projectedRows);
     setRevaloValues(res.revaloValues);
-    setTrimCotState(res.trimCotState);
+    setTrimCotState(trimCotOut);
     if (res.projectedYears.length) {
       setVisibleRowCount((v) => Math.min(res.carriereRows.length, Math.max(v, res.projectedYears.length + 20)));
     }
@@ -3698,6 +3708,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
             },
           },
         },
+        // Choix consultant : embarquer les dates/scénarios retenus dans le frozen verrouillé
+        // (sinon le verrouillage crée un snapshot sans dates → le livrable perd les scénarios).
+        dates_retenues: chosenDates,
+        scenarios_choisis: chosenScenarios,
         // Adapt: Set locking fields directly in the store payload
         locked_at: now,
         locked_by: consultantId,
