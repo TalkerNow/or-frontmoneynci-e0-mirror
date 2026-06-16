@@ -3916,9 +3916,13 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         scenarioCodes.map(code => handleScenarioSkillExecute(code, {}))
       );
 
-      // Multi-dates : 1 appel Python par date retenue (age_depart_mois). Calcul = Python, pas JS.
+      // Multi-dates : 1 appel au moteur /simulate (projette les trimestres par date), non-silencieux.
       if (Array.isArray(chosenDates) && chosenDates.length > 0) {
-        await runMultiDateScenarios(id, chosenDates);
+        try {
+          await runMultiDateScenarios(id, chosenDates);
+        } catch (e) {
+          toast.error("Calcul multi-dates (consultation) échoué : " + (e?.response?.data?.message || e?.message || "erreur réseau"));
+        }
       }
     } finally {
       setIsCalculatingAll(false);

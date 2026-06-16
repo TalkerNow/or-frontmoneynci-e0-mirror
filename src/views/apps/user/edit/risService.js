@@ -168,75 +168,108 @@ function monthsBetween(birthISO, targetISO) {
 
 async function saveMultiDateResult(clientId, parDate, frozenDataId) {
   var token = localStorage.getItem("token");
-  try {
-    await axios.post(
-      global.config.server_url + "/v1/analysis-reports",
-      {
-        user_id: parseInt(clientId),
-        skill_id: "rapport_dates",
-        result_json: { par_date: parDate, mode: "parallel_multidate_v1", frozen_data_id: frozenDataId },
-      },
-      { headers: { Authorization: "Bearer " + token } }
-    );
-  } catch (err) {
-    var msg = err && err.response && err.response.data ? err.response.data : err && err.message;
-    console.warn("saveMultiDateResult failed:", msg);
-  }
+  // NON-silencieux : on laisse l'erreur remonter (l'appelant l'affiche en toast) au lieu d'un
+  // console.warn qui transformait un échec de sauvegarde en bug invisible.
+  await axios.post(
+    global.config.server_url + "/v1/analysis-reports",
+    {
+      user_id: parseInt(clientId),
+      skill_id: "rapport_dates",
+      result_json: { par_date: parDate, mode: "simulate_engine_v2", frozen_data_id: frozenDataId },
+    },
+    { headers: { Authorization: "Bearer " + token } }
+  );
 }
 
+// Bug 1 fix : UN SEUL appel au moteur unifié /simulate (qui PROJETTE les trimestres jusqu'à
+// chaque date de départ), via le webhook léger sans Gemini — au lieu de 5×N appels par-régime
+// qui figeaient les trimestres au total gelé (151 partout). La sortie est mappée vers le format
+// par_date que la consultation lit déjà, mais avec les chiffres projetés, cohérents avec le
+// livrable simulation (même moteur). Source unique du calcul = /simulate.
 export async function runMultiDateScenarios(clientId, chosenDates) {
-  var REGIMES = ["CNAV", "AGIRC_ARRCO", "IRCANTEC", "RCI", "CIPAV"];
   if (!Array.isArray(chosenDates) || chosenDates.length === 0) return [];
-
-  // Date de naissance = NIR-derived, lue depuis frozen_data.meta (PAS user.birth_date).
   var token = localStorage.getItem("token");
-  var birthISO = null;
+
+  var fd = null;
   try {
-    var fd = await axios.get(global.config.server_url + "/frozen_data/" + clientId, {
+    fd = await axios.get(global.config.server_url + "/frozen_data/" + clientId, {
       headers: { Authorization: "Bearer " + token },
     });
-    birthISO = fd && fd.data && fd.data.meta && fd.data.meta.date_naissance ? fd.data.meta.date_naissance : null;
   } catch (e) {
     if (!(e && e.response && e.response.status === 404)) throw e;
   }
-  if (!birthISO) return [];
+  if (!fd || !fd.data) return [];
+  var frozen = fd.data;
 
-  var parDate = [];
-  for (var di = 0; di < chosenDates.length; di++) {
-    var d = chosenDates[di];
-    var dateDepart = d && d.date;
-    var ageMois = monthsBetween(birthISO, dateDepart);
-    if (ageMois == null) continue;
+  // Payload au format que le nœud PREP du moteur sait lire : il dérive H1/H2/H3 de
+  // dates_retenues (triées + slice(0,3)), puis /simulate projette les trimestres par date.
+  var payload = {
+    client_id: parseInt(clientId),
+    carriere: frozen.carriere || [],
+    totaux: frozen.totaux || {},
+    dates_retenues: chosenDates.map(function (d) {
+      return { date: d.date, type: d.type, label: d.label };
+    }),
+    scenarios_retenus: [],
+    regimes: {
+      cipav: frozen.cipav || {},
+      carpimko: frozen.carpimko || {},
+      regimes_points: frozen.regimes_points || {},
+    },
+    frozen_data: {
+      meta: frozen.meta || {},
+      totaux: frozen.totaux || {},
+      carriere: frozen.carriere || [],
+      cipav: frozen.cipav || {},
+      carpimko: frozen.carpimko || {},
+      regimes_points: frozen.regimes_points || {},
+      user_id: parseInt(clientId),
+    },
+  };
 
-    var settled = await Promise.allSettled(
-      REGIMES.map(function (r) {
-        return executeScript(r, clientId, "", { age_depart_mois: ageMois });
-      })
-    );
+  var resp = await axios.post(N8N_BASE + "/simulate-multidate-calc", payload, { timeout: 120000 });
+  var scenarios = (resp && resp.data && resp.data.scenarios) || {};
 
-    var regimes = {};
-    var total = 0;
-    var enErreur = [];
-    for (var i = 0; i < REGIMES.length; i++) {
-      var res = settled[i];
-      if (res && res.status === "rejected") enErreur.push(REGIMES[i]); // appel échoué (≠ 0 droit légitime)
-      var po = res && res.status === "fulfilled" && res.value && res.value.python_output ? res.value.python_output : null;
-      regimes[REGIMES[i]] = po;
-      var p = po && po.pension_mensuelle_brute;
-      if (typeof p === "number" && isFinite(p)) total += p;
-    }
+  var byDate = {};
+  chosenDates.forEach(function (d) {
+    if (d && d.date) byDate[String(d.date)] = d;
+  });
 
-    parDate.push({
-      date_depart: dateDepart,
-      label: (d && d.label) || null,
-      age_depart_mois: ageMois,
-      regimes: regimes,
-      total_mensuel_brut: total,
-      regimes_en_erreur: enErreur,
+  // Mappe chaque scénario /simulate vers le format par_date attendu par la consultation.
+  var parDate = Object.keys(scenarios)
+    .map(function (k) {
+      var s = scenarios[k] || {};
+      var src = byDate[String(s.date_depart)] || {};
+      return {
+        date_depart: s.date_depart,
+        label: src.label || null,
+        age_depart_mois:
+          (s.age_depart_annees != null ? s.age_depart_annees * 12 : 0) + (s.age_depart_mois || 0),
+        regimes: {
+          CNAV: {
+            trimestres_valides_tous_regimes: s.trimestres_acquis_tous,
+            trimestres_cotises_rg: s.trimestres_rg_at_depart,
+            taux_liquidation: typeof s.taux_cnav === "number" ? s.taux_cnav / 100 : null,
+            pension_mensuelle_brute: s.pension_cnav_mensuelle,
+          },
+          AGIRC_ARRCO: { pension_mensuelle_brute: s.pension_agirc_mensuelle },
+          IRCANTEC: { pension_mensuelle_brute: s.pension_ircantec_mensuelle },
+          RCI: { pension_mensuelle_brute: s.pension_rci_mensuelle },
+          CIPAV: {
+            pension_mensuelle_brute:
+              (s.pension_cipav_base_mensuelle || 0) + (s.pension_cipav_compl_mensuelle || 0),
+          },
+        },
+        total_mensuel_brut: s.pension_totale_brute,
+        pension_totale_nette: s.pension_totale_nette,
+        regimes_en_erreur: [],
+      };
+    })
+    .sort(function (a, b) {
+      return String(a.date_depart).localeCompare(String(b.date_depart));
     });
-  }
 
-  var fdId = (typeof fd !== "undefined" && fd && fd.data && fd.data.id) ? fd.data.id : null;
+  var fdId = fd && fd.data && fd.data.id ? fd.data.id : null;
   await saveMultiDateResult(clientId, parDate, fdId);
   return parDate;
 }
