@@ -151,6 +151,96 @@ export async function executeScript(regimeCode, clientId, userContext, scenarioP
   return result.response || result;
 }
 
+// =====================================================================
+// MULTI-DATES — appelle le Python 1x par date retenue (age_depart_mois).
+// Zero calcul de pension en JS : le JS appelle, le Python calcule (R006 coherence.py).
+// Ecrit sans optional chaining (compat vieux Babel/eslint du projet).
+// =====================================================================
+function monthsBetween(birthISO, targetISO) {
+  if (!birthISO || !targetISO) return null;
+  var b = new Date(birthISO);
+  var t = new Date(targetISO);
+  if (isNaN(b) || isNaN(t)) return null;
+  var m = (t.getFullYear() - b.getFullYear()) * 12 + (t.getMonth() - b.getMonth());
+  if (t.getDate() < b.getDate()) m -= 1; // anniversaire pas encore passe ce mois
+  return m;
+}
+
+async function saveMultiDateResult(clientId, parDate, frozenDataId) {
+  var token = localStorage.getItem("token");
+  try {
+    await axios.post(
+      global.config.server_url + "/v1/analysis-reports",
+      {
+        user_id: parseInt(clientId),
+        skill_id: "rapport_dates",
+        result_json: { par_date: parDate, mode: "parallel_multidate_v1", frozen_data_id: frozenDataId },
+      },
+      { headers: { Authorization: "Bearer " + token } }
+    );
+  } catch (err) {
+    var msg = err && err.response && err.response.data ? err.response.data : err && err.message;
+    console.warn("saveMultiDateResult failed:", msg);
+  }
+}
+
+export async function runMultiDateScenarios(clientId, chosenDates) {
+  var REGIMES = ["CNAV", "AGIRC_ARRCO", "IRCANTEC", "RCI", "CIPAV"];
+  if (!Array.isArray(chosenDates) || chosenDates.length === 0) return [];
+
+  // Date de naissance = NIR-derived, lue depuis frozen_data.meta (PAS user.birth_date).
+  var token = localStorage.getItem("token");
+  var birthISO = null;
+  try {
+    var fd = await axios.get(global.config.server_url + "/frozen_data/" + clientId, {
+      headers: { Authorization: "Bearer " + token },
+    });
+    birthISO = fd && fd.data && fd.data.meta && fd.data.meta.date_naissance ? fd.data.meta.date_naissance : null;
+  } catch (e) {
+    if (!(e && e.response && e.response.status === 404)) throw e;
+  }
+  if (!birthISO) return [];
+
+  var parDate = [];
+  for (var di = 0; di < chosenDates.length; di++) {
+    var d = chosenDates[di];
+    var dateDepart = d && d.date;
+    var ageMois = monthsBetween(birthISO, dateDepart);
+    if (ageMois == null) continue;
+
+    var settled = await Promise.allSettled(
+      REGIMES.map(function (r) {
+        return executeScript(r, clientId, "", { age_depart_mois: ageMois });
+      })
+    );
+
+    var regimes = {};
+    var total = 0;
+    var enErreur = [];
+    for (var i = 0; i < REGIMES.length; i++) {
+      var res = settled[i];
+      if (res && res.status === "rejected") enErreur.push(REGIMES[i]); // appel échoué (≠ 0 droit légitime)
+      var po = res && res.status === "fulfilled" && res.value && res.value.python_output ? res.value.python_output : null;
+      regimes[REGIMES[i]] = po;
+      var p = po && po.pension_mensuelle_brute;
+      if (typeof p === "number" && isFinite(p)) total += p;
+    }
+
+    parDate.push({
+      date_depart: dateDepart,
+      label: (d && d.label) || null,
+      age_depart_mois: ageMois,
+      regimes: regimes,
+      total_mensuel_brut: total,
+      regimes_en_erreur: enErreur,
+    });
+  }
+
+  var fdId = (typeof fd !== "undefined" && fd && fd.data && fd.data.id) ? fd.data.id : null;
+  await saveMultiDateResult(clientId, parDate, fdId);
+  return parDate;
+}
+
 /**
  * Exécute un skill via le workflow n8n.
  * @param {string} skillCode - ex: "CNAV"

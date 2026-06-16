@@ -17,7 +17,7 @@ import html2canvas from "html2canvas";
 import { parseNIR } from "./utils";
 import { parseCarrierePoints } from "./carrierePoints";
 import { REGIMES, getPoints, resolveRegime, computeVisibleRegimes, REGIMES_SIMPLES, extractRegimeSimplePoints } from "../simulatorRegimes";
-import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml, detectDocumentType, fetchRapprochementConstat, applyReportChatMessage, fetchPromptNotes, savePromptNote, deletePromptNote } from "../risService";
+import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, runMultiDateScenarios, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml, detectDocumentType, fetchRapprochementConstat, applyReportChatMessage, fetchPromptNotes, savePromptNote, deletePromptNote } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif, computeTrimAtDate, sumTrimestresCapped, parseBirthDate } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
@@ -3915,6 +3915,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       await Promise.allSettled(
         scenarioCodes.map(code => handleScenarioSkillExecute(code, {}))
       );
+
+      // Multi-dates : 1 appel Python par date retenue (age_depart_mois). Calcul = Python, pas JS.
+      if (Array.isArray(chosenDates) && chosenDates.length > 0) {
+        await runMultiDateScenarios(id, chosenDates);
+      }
     } finally {
       setIsCalculatingAll(false);
       setSkillLoading(false);
@@ -6074,15 +6079,24 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               }
                               if (carriereValidee && calcsDone && !isCalculatingAll) {
                                 return (
-                                  <button
-                                    onClick={() => { setExpandedPanel("livrables"); setSelectedAction(null); setExecuted(null); }}
-                                    title="Calculs déjà effectués — passer aux livrables. Pour relancer, déverrouillez la carrière."
-                                    style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", padding: "12px 20px", borderRadius: 8, border: "1px solid #ccc", background: "#f3f3f3", color: "#555", fontWeight: 700, fontSize: 15, cursor: "pointer", transition: "all 0.2s" }}
-                                  >
-                                    <span style={{ fontSize: 14, color: "#888" }}>✓ Calculs effectués</span>
-                                    <span style={{ flex: 1, textAlign: "center" }}>Passer aux livrables</span>
-                                    <span style={{ fontSize: 16 }}>→</span>
-                                  </button>
+                                  <div style={{ display: "flex", gap: 8, width: "100%" }}>
+                                    <button
+                                      onClick={handleCalculateAllRegimes}
+                                      title="Relancer le calcul des régimes (multi-dates inclus) avec les données actuelles"
+                                      style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "12px 16px", borderRadius: 8, border: "1px solid #6C5CE7", background: "#fff", color: "#6C5CE7", fontWeight: 700, fontSize: 14, cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.2s" }}
+                                    >
+                                      <span style={{ fontSize: 15 }}>↻</span> Recalculer
+                                    </button>
+                                    <button
+                                      onClick={() => { setExpandedPanel("livrables"); setSelectedAction(null); setExecuted(null); }}
+                                      title="Calculs effectués — passer aux livrables"
+                                      style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, flex: 1, padding: "12px 20px", borderRadius: 8, border: "1px solid #ccc", background: "#f3f3f3", color: "#555", fontWeight: 700, fontSize: 15, cursor: "pointer", transition: "all 0.2s" }}
+                                    >
+                                      <span style={{ fontSize: 14, color: "#888" }}>✓ Calculs effectués</span>
+                                      <span style={{ flex: 1, textAlign: "center" }}>Passer aux livrables</span>
+                                      <span style={{ fontSize: 16 }}>→</span>
+                                    </button>
+                                  </div>
                                 );
                               }
                               return (
