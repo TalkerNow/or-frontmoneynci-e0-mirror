@@ -39,6 +39,7 @@ import {
   resolveProjectionTargetYear,
   PROJECTION_MODES,
   computeRealAssuranceTotals,
+  furthestChosenDate,
 } from "./careerProjection";
 import CalculDataPanel from "./CalculDataPanel";
 
@@ -1056,6 +1057,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [projectionMode, setProjectionMode] = useState(PROJECTION_MODES.LIBRE);
   const [autoDateSignal, setAutoDateSignal] = useState(0);
   const lastAutoDateTypeRef = useRef(null); // last date type auto-selected by the projection (for clean replace)
+  const datesUserTouchedRef = useRef(false); // true once the user toggles a date → enables grid auto-projection to the furthest chosen date
   const [projRegenNonce, setProjRegenNonce] = useState(0);
   const [risFileName, setRisFileName] = useState(null);
   const [droitsSynthese, setDroitsSynthese] = useState(null);
@@ -2050,6 +2052,27 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projRegenNonce]);
 
+  // Multi-dates : la grille se projette toujours jusqu'à la date retenue la PLUS LOINTAINE,
+  // et se nettoie quand il n'y a plus de date. Déclenché par chosenDates, mais SEULEMENT après
+  // une action utilisateur (datesUserTouchedRef) — pas à l'hydratation/au chargement. Ne dépend
+  // QUE de chosenDates (run-on-signal) : l'effet écrit carriereRows, jamais chosenDates → pas de boucle.
+  useEffect(() => {
+    if (!datesUserTouchedRef.current || carriereValidee) return;
+    const furthest = furthestChosenDate(chosenDates);
+    if (!furthest) { clearProjection(); return; }
+    const typeToMode = {
+      age_legal: PROJECTION_MODES.LEGAL,
+      taux_plein: PROJECTION_MODES.DUREE,
+      taux_plein_auto: PROJECTION_MODES.AUTO67,
+      date_libre: PROJECTION_MODES.LIBRE,
+    };
+    const mode = typeToMode[furthest.type] || PROJECTION_MODES.LIBRE;
+    const libreDate = furthest.type === "date_libre" ? furthest.date : dateLibreInput;
+    setProjectionMode(mode);
+    handleGenerateProjection(mode, projectionTargetAge, projectionSurcote, projectionTargetMonths, libreDate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chosenDates]);
+
   // After freezing the career, auto-select in Scénarios the date matching the projection mode.
   // Anchors (légal / durée / 67) ALWAYS select — even when the date is in the past and the grid
   // has no projected rows (e.g. a client already at/past legal age). Âge libre selects only when
@@ -2078,11 +2101,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       info = !isNaN(_d.getTime()) ? _d.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }) : dateLibreInput;
     }
     if (!typeId) return; // aucune projection exploitable → on laisse l'utilisateur choisir
-    const prevAuto = lastAutoDateTypeRef.current;
+    // Multi-sélection : on n'enlève PLUS la date auto précédente (sinon le gel retirerait
+    // une date que l'utilisateur a choisie). On ajoute seulement la date du mode courant si absente.
     let next = chosenDates, changed = false;
-    if (prevAuto && prevAuto !== typeId && next.some((cd) => cd?.type === prevAuto)) {
-      next = next.filter((cd) => cd?.type !== prevAuto); changed = true;
-    }
     if (!next.some((cd) => cd?.type === typeId)) {
       next = [...next, { type: typeId, label, date: isoDate, info }]; changed = true;
     }
@@ -2099,6 +2120,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // Reset hydration tracker on client switch
   useEffect(() => {
     hasHydratedRef.current = false;
+    datesUserTouchedRef.current = false; // nouveau client → pas d'auto-projection tant qu'il n'a pas touché aux dates
   }, [id]);
 
   // Reset RIS payload state on client switch (source of truth = backend frozen_data)
@@ -4100,6 +4122,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // Pour "date_libre", `customDate` doit être au format ISO yyyy-mm-dd.
   const handleChooseDate = useCallback(async (typeId, label, dateInfo, customDate = null) => {
     if (!id) return;
+    datesUserTouchedRef.current = true; // action utilisateur sur les dates → la grille suivra la date la plus lointaine
     let isoDate = customDate;
     let info = dateInfo?.info || "";
     if (typeId !== "date_libre" && dateInfo?.date instanceof Date) {
@@ -4807,30 +4830,37 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               <span style={{ fontSize: 16 }}>📈</span>
                               <span style={{ fontSize: 13, fontWeight: 600, color: "#343a40" }}>Projeter jusqu&rsquo;à</span>
                               {[
-                                { id: PROJECTION_MODES.LEGAL,  label: "Âge légal",          needsBirth: true },
-                                { id: PROJECTION_MODES.DUREE,  label: "Taux plein (durée)", needsBirth: true },
-                                { id: PROJECTION_MODES.AUTO67, label: "Taux plein 67 ans",  needsBirth: true },
-                                { id: PROJECTION_MODES.LIBRE,  label: "Date libre",         needsBirth: false },
+                                { id: PROJECTION_MODES.LEGAL,  label: "Âge légal",          needsBirth: true,  dateType: "age_legal",       getInfo: () => departureDates.legale },
+                                { id: PROJECTION_MODES.DUREE,  label: "Taux plein (durée)", needsBirth: true,  dateType: "taux_plein",      getInfo: () => departureDates.tauxPlein },
+                                { id: PROJECTION_MODES.AUTO67, label: "Taux plein 67 ans",  needsBirth: true,  dateType: "taux_plein_auto", getInfo: () => departureDates.date67 },
+                                { id: PROJECTION_MODES.LIBRE,  label: "Date libre",         needsBirth: false, dateType: "date_libre",      getInfo: () => null },
                               ].map((chip) => {
-                                const disabled = carriereValidee || (chip.needsBirth && !projBirthYear);
-                                const active = projectionMode === chip.id && projectionOn;
+                                const isLibre = chip.id === PROJECTION_MODES.LIBRE;
+                                const info = chip.getInfo();
+                                const disabled = carriereValidee || (chip.needsBirth && !projBirthYear) || (chip.needsBirth && !info);
+                                // Multi-sélection : un bouton est « actif » si sa date figure déjà dans les dates retenues.
+                                const active = Array.isArray(chosenDates) && chosenDates.some((cd) => cd?.type === chip.dateType);
                                 return (
                                   <button
                                     key={chip.id}
                                     type="button"
                                     disabled={disabled}
                                     title={
-                                      carriereValidee ? "Déverrouillez la carrière pour modifier la projection" :
+                                      carriereValidee ? "Déverrouillez la carrière pour modifier les dates" :
                                       chip.needsBirth && !projBirthYear ? "Renseignez la date de naissance du client" :
-                                      active ? "Recliquez pour désactiver la projection" :
-                                      "Cliquez pour projeter jusqu'à cette cible"
+                                      isLibre && !dateLibreInput ? "Choisissez d'abord une date dans le champ ci-contre" :
+                                      active ? "Recliquez pour retirer cette date des dates retenues" :
+                                      "Cliquez pour ajouter cette date aux dates retenues"
                                     }
                                     onClick={() => {
-                                      if (active) { clearProjection(); }
-                                      // Sélectionner un mode repart d'une projection « propre » : on remet les
-                                      // années en plus à 0 (sinon une valeur reportée d'un mode précédent décale
-                                      // la nouvelle cible — ex. projection vide après avoir retiré des années).
-                                      else { setProjectionMode(chip.id); setProjectionSurcote(0); handleGenerateProjection(chip.id, projectionTargetAge, 0, projectionTargetMonths); }
+                                      // Le bouton ajoute / retire la date dans la multi-sélection ;
+                                      // la grille se projette ensuite jusqu'à la date la plus lointaine (effet dédié).
+                                      if (isLibre) {
+                                        if (!dateLibreInput) { setProjectionMode(PROJECTION_MODES.LIBRE); return; }
+                                        handleChooseDate("date_libre", "Date libre", null, dateLibreInput);
+                                      } else {
+                                        handleChooseDate(chip.dateType, chip.label, info);
+                                      }
                                     }}
                                     style={{ padding: "4px 10px", borderRadius: 14, fontSize: 12, fontWeight: 600, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1, border: active ? "1px solid #FF9F43" : "1px solid #FFD08A", background: active ? "#FF9F43" : "#fff", color: active ? "#fff" : "#B26A00" }}
                                   >
@@ -4896,6 +4926,27 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             {projLastRealYear != null && !projBirthYear && (
                               <span style={{ fontSize: 12, color: "#ea5455", fontWeight: 600 }}>Renseignez la date de naissance du client pour projeter jusqu&rsquo;au taux plein.</span>
                             )}
+                            {/* Dates retenues — repère trimestres acquis à chaque date (projection multi-dates) */}
+                            {Array.isArray(chosenDates) && chosenDates.length > 0 && (() => {
+                              const { trimAcquis, anneeRef, trimParAnnee } = departureDates || {};
+                              return (
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", borderTop: "1px dashed #FFE0A3", paddingTop: 8 }}>
+                                  <span style={{ fontSize: 12, color: "#8a6d3b", fontWeight: 700 }}>📍 Dates retenues</span>
+                                  {chosenDates.map((cd, i) => {
+                                    const _d = cd?.date ? new Date(String(cd.date).slice(0, 10) + "T00:00:00") : null;
+                                    const _valid = _d && !isNaN(_d.getTime());
+                                    const trimAt = _valid ? computeTrimAtDate(trimAcquis, anneeRef, _d, trimParAnnee) : null;
+                                    return (
+                                      <span key={cd?.type || i} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, padding: "3px 9px", borderRadius: 12, background: "#fff", border: "1px solid #FFD08A" }}>
+                                        <span style={{ fontWeight: 700, color: "#B26A00" }}>{cd?.label || cd?.type}</span>
+                                        <span style={{ color: "#999" }}>{_valid ? _d.toLocaleDateString("fr-FR") : (cd?.date || "")}</span>
+                                        {trimAt != null && <span style={{ fontWeight: 700, color: "#B26A00" }}>· {trimAt} trim.</span>}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              );
+                            })()}
                           </div>
 
                           {/* Grand tableau unifié */}
@@ -5603,7 +5654,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                   { k: "Trim. acquis", v: trimAcquisVal, color: "#0984E3" },
                                   { k: "Décote", v: dispTauxPleinAtteint ? "aucune" : "aucune (taux plein auto)", color: "#00B894" },
                                 ] : null },
-                                { id: "date_libre", label: "Date libre", icon: "📆", info: "Date de simulation à choisir", dateInfo: null, disabled: false, trimAt: null, details: null },
+                                { id: "date_libre", label: "Date libre", icon: "📆", info: "Date de simulation à choisir", dateInfo: null, disabled: false, trimAt: (dateLibreInput ? computeTrimAtDate(dispTrimAcquis, dispAnneeRef, new Date(String(dateLibreInput).slice(0, 10) + "T00:00:00"), dispTrimParAnnee) : null), details: null },
                               ].map((d) => {
                                 const isChosen = chosenDates.some(cd => cd?.type === d.id && (d.id !== "date_libre" || cd?.date === dateLibreInput));
                                 const handleClick = () => {

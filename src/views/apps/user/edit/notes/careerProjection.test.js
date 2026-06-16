@@ -12,6 +12,8 @@ import {
   resolveProjectionTargetYear,
   PROJECTION_MODES,
   computeRealAssuranceTotals,
+  furthestProjectionYear,
+  furthestChosenDate,
 } from "./careerProjection";
 import { computeDateTauxPlein } from "../../../../../utils/calculators";
 
@@ -260,5 +262,49 @@ describe("DUREE surcote add/remove (feedback-loop regression)", () => {
 
     expect(projectedYears(added).length).toBe(projectedYears(baseline).length + 1); // surcote added exactly one year
     expect(projectedYears(removed)).toEqual(projectedYears(baseline));              // and removing it goes back
+  });
+});
+
+// Multi-dates : la grille doit se projeter jusqu'à la date retenue la PLUS LOINTAINE
+// (et se nettoyer quand il n'y a plus de date). furthestChosenDate renvoie l'entrée
+// gagnante (pour récupérer son type → mode de projection) ; furthestProjectionYear son année.
+describe("furthestProjectionYear / furthestChosenDate", () => {
+  test("returns the latest year among chosen dates", () => {
+    expect(
+      furthestProjectionYear([
+        { type: "date_libre", date: "2026-06-01" },
+        { type: "age_legal", date: "2031-02-01" },
+      ])
+    ).toBe(2031);
+  });
+
+  test("null when empty or invalid input", () => {
+    expect(furthestProjectionYear([])).toBe(null);
+    expect(furthestProjectionYear(null)).toBe(null);
+    expect(furthestProjectionYear(undefined)).toBe(null);
+  });
+
+  test("ignores entries without a valid date", () => {
+    expect(
+      furthestProjectionYear([
+        { type: "a", date: null },
+        { type: "b", date: "2028-01-01" },
+        { type: "c" },
+      ])
+    ).toBe(2028);
+  });
+
+  test("furthestChosenDate returns the winning entry (with its type), not just the year", () => {
+    const d = furthestChosenDate([
+      { type: "date_libre", date: "2026-06-01" },
+      { type: "taux_plein_auto", date: "2031-02-01" },
+    ]);
+    expect(d).not.toBeNull();
+    expect(d.type).toBe("taux_plein_auto");
+  });
+
+  test("furthestChosenDate is null on empty", () => {
+    expect(furthestChosenDate([])).toBeNull();
+    expect(furthestChosenDate(null)).toBeNull();
   });
 });

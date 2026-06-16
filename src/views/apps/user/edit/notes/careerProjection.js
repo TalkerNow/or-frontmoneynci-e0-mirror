@@ -197,3 +197,25 @@ export function computeRealAssuranceTotals(trimCotState, trimAssState, carriereR
   });
   return { trimAcquis, anneeRef, trimParAnnee };
 }
+
+// Furthest chosen departure date (latest calendar year) among the retained dates — used to
+// project the grid far enough to cover EVERY selected scenario, and to shrink it back when
+// dates are removed. Returns the winning entry (its `type` maps to a projection mode) or null
+// when there is no usable date.
+export function furthestChosenDate(chosenDates) {
+  if (!Array.isArray(chosenDates)) return null;
+  let best = null;
+  let bestYear = -Infinity;
+  for (const cd of chosenDates) {
+    const iso = cd && cd.date;
+    if (typeof iso !== "string") continue;
+    const year = parseInt(iso.slice(0, 4), 10);
+    if (Number.isFinite(year) && year > bestYear) { bestYear = year; best = cd; }
+  }
+  return best;
+}
+
+export function furthestProjectionYear(chosenDates) {
+  const d = furthestChosenDate(chosenDates);
+  return d ? parseInt(String(d.date).slice(0, 4), 10) : null;
+}
