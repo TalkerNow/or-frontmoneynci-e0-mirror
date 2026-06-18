@@ -3940,10 +3940,20 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // (le payload n8n complet) et des params saisis. Centralisé pour pouvoir
   // ré-utiliser au moment d'un recalcul (snapshot rafraîchi).
   const buildScenarioItem = useCallback((action, skillResultData, paramsOverride) => {
-    const params = paramsOverride
+    let params = paramsOverride
       ?? (inputValues[action.id] != null && inputValues[action.id] !== ""
         ? { input: inputValues[action.id] }
         : {});
+    // Préserve le ciblage de dates du rachat VPLR (params.dates_cibles) à travers les
+    // recalculs/refresh : sans ça, refreshChosenScenarioSnapshot reconstruirait params={input}
+    // et perdrait les dates cochées.
+    if (action.id === "rachat_vplr") {
+      const _existingVplr = chosenScenarios.find(s => s?.dispositif_id === "rachat_vplr");
+      const _dc = _existingVplr?.params?.dates_cibles;
+      if (Array.isArray(_dc) && _dc.length && !(params && !Array.isArray(params) && params.dates_cibles)) {
+        params = { ...params, dates_cibles: _dc };
+      }
+    }
     return {
       dispositif_id: action.id,
       label: action.label,
@@ -3961,7 +3971,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       last_calc: skillResultData ?? null,
       last_calc_at: skillResultData ? new Date().toISOString() : null,
     };
-  }, [inputValues]);
+  }, [inputValues, chosenScenarios]);
 
   // Met à jour le snapshot (params + résultat) d'un scénario déjà retenu.
   // Appelé après un recalcul pour persister le résultat le plus récent.
@@ -4001,6 +4011,32 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     const baseParams = (existing?.params && !Array.isArray(existing.params)) ? existing.params : {};
     const newParams = value !== "" ? { ...baseParams, input: value } : {};
     const next = chosenScenarios.map((s, i) => (i === idx ? { ...s, params: newParams } : s));
+    const previous = chosenScenarios;
+    setChosenScenarios(next); // optimiste
+    try {
+      const updated = await saveChosenScenarios(parseInt(id), next);
+      const serverList = updated?.scenarios_choisis;
+      if (Array.isArray(serverList)) setChosenScenarios(serverList);
+    } catch (err) {
+      setChosenScenarios(previous); // rollback silencieux
+    }
+  }, [id, chosenScenarios]);
+
+  // Coche/décoche une date de départ cible pour le rachat VPLR (params.dates_cibles).
+  // Le ciblage vit dans l'item retenu ; no-op si le scénario VPLR n'est pas retenu.
+  const toggleVplrDateCible = useCallback(async (dateStr) => {
+    if (!id || !dateStr) return;
+    const idx = chosenScenarios.findIndex(s => s?.dispositif_id === "rachat_vplr");
+    if (idx === -1) { toast.info("Retiens d'abord le scénario Rachat VPLR (⭐)"); return; }
+    const existing = chosenScenarios[idx];
+    const baseParams = (existing?.params && !Array.isArray(existing.params)) ? existing.params : {};
+    const current = Array.isArray(baseParams.dates_cibles) ? baseParams.dates_cibles : [];
+    const nextDates = current.includes(dateStr)
+      ? current.filter(d => d !== dateStr)
+      : [...current, dateStr];
+    const next = chosenScenarios.map((s, i) =>
+      i === idx ? { ...s, params: { ...baseParams, dates_cibles: nextDates } } : s
+    );
     const previous = chosenScenarios;
     setChosenScenarios(next); // optimiste
     try {
@@ -5876,6 +5912,56 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                           </div>
                                         </div>
                                       )}
+
+                                      {action.id === "rachat_vplr" && (() => {
+                                        const vplrScenario = chosenScenarios.find(s => s?.dispositif_id === "rachat_vplr");
+                                        const datesCibles = Array.isArray(vplrScenario?.params?.dates_cibles) ? vplrScenario.params.dates_cibles : [];
+                                        // Max réellement rachetable = gisement des années incomplètes (plafonné à 12 par la loi),
+                                        // calculé par le skill VPLR (impact.total_rachetable). C'est la VRAIE limite (≠ plafond légal 12) :
+                                        // on ne peut pas racheter plus de trimestres incomplets qu'on en a. Lu sur le résultat live,
+                                        // sinon sur le dernier calcul persisté du scénario retenu.
+                                        const _vRes = skillResultData || vplrScenario?.last_calc || null;
+                                        const _maxRach = _vRes
+                                          ? ((_vRes.impact && _vRes.impact.total_rachetable != null) ? _vRes.impact.total_rachetable
+                                             : (_vRes.nb_trimestres != null ? _vRes.nb_trimestres : null))
+                                          : null;
+                                        return (
+                                          <div style={{ marginBottom: 8 }}>
+                                            <div style={{ fontSize: 11, color: "#555", background: "#F9A8250F", border: "1px solid #F9A82530", borderRadius: 5, padding: "6px 9px", marginBottom: 8 }}>
+                                              {typeof _maxRach === "number" ? (
+                                                <>💡 Vous pouvez racheter <strong>{_maxRach} trimestre{_maxRach > 1 ? "s" : ""}</strong> au maximum (vos années incomplètes rachetables{_maxRach < 12 ? ", soit moins que le plafond légal de 12" : " ; plafond légal 12"}). Au-delà, le rachat est sans effet.</>
+                                              ) : (
+                                                <>💡 Cliquez <strong>« Recalculer »</strong> pour connaître le nombre de trimestres réellement rachetables (limité par vos années incomplètes ; plafond légal 12).</>
+                                              )}
+                                            </div>
+                                            <label style={{ display: "block", fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#888", marginBottom: 4 }}>
+                                              Appliquer le rachat aux dates
+                                            </label>
+                                            {!isChosen ? (
+                                              <div style={{ fontSize: 11, color: "#888", fontStyle: "italic" }}>Retiens le scénario (⭐) pour cibler des dates.</div>
+                                            ) : !Array.isArray(chosenDates) || chosenDates.length === 0 ? (
+                                              <div style={{ fontSize: 11, color: "#E17055", fontStyle: "italic" }}>Ajoute d'abord des dates de départ (section Dates).</div>
+                                            ) : (
+                                              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                                {chosenDates.map((d) => {
+                                                  const dval = d?.date;
+                                                  if (!dval) return null;
+                                                  const checked = datesCibles.includes(dval);
+                                                  return (
+                                                    <label key={dval} onClick={(e) => e.stopPropagation()} style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12, color: "#333", cursor: "pointer" }}>
+                                                      <input type="checkbox" checked={checked} onChange={() => toggleVplrDateCible(dval)} style={{ cursor: "pointer" }} />
+                                                      <span>{d.label || dval} <span style={{ color: "#999" }}>· {dval}</span></span>
+                                                    </label>
+                                                  );
+                                                })}
+                                                {datesCibles.length === 0 && (
+                                                  <div style={{ fontSize: 10, color: "#E17055", marginTop: 2 }}>⚠ Aucune date cochée → le rachat n'apparaîtra sur aucun livrable.</div>
+                                                )}
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })()}
 
                                       {skillErrorMsg && (
                                         <div style={{ padding: "7px 10px", background: "#D6303110", border: "1px solid #D63031", borderRadius: 5, fontSize: 12, color: "#D63031" }}>
