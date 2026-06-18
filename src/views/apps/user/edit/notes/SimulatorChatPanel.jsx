@@ -85,7 +85,7 @@ export default function SimulatorChatPanel({ clientId, getContext, pinnedNote, o
         <button className="simulator-chat-panel__bar" onClick={() => setOpen((v) => !v)}>
           <span>💬 Assistant retraite</span>
           <span className="simulator-chat-panel__bar-hint">
-            {open ? "▲ replier" : "▼ poser une question sur le dossier retraite du client"}
+            {open ? "▲ replier" : "▼ Poser une question sur le dossier retraite du client"}
           </span>
         </button>
 

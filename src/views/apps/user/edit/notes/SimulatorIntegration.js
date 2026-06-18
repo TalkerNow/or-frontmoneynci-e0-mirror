@@ -17,7 +17,7 @@ import html2canvas from "html2canvas";
 import { parseNIR } from "./utils";
 import { parseCarrierePoints } from "./carrierePoints";
 import { REGIMES, getPoints, resolveRegime, computeVisibleRegimes, REGIMES_SIMPLES, extractRegimeSimplePoints } from "../simulatorRegimes";
-import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, runMultiDateScenarios, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml, detectDocumentType, fetchRapprochementConstat, applyReportChatMessage, savePromptNote } from "../risService";
+import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, runMultiDateScenarios, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml, detectDocumentType, fetchRapprochementConstat, applyReportChatMessage } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeSamCnav, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif, computeTrimAtDate, sumTrimestresCapped, parseBirthDate } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
@@ -881,18 +881,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [expandedScenarios, setExpandedScenarios] = useState({});
   const autoChainPendingRef = useRef(false);
   // pinnedNote : message du chat « épinglé » → transmis aux payloads rapport/calcul/audit/skill
-  // (remplace l'ancienne « Note pour l'IA »). persistPromptNote conserve l'historique côté serveur.
+  // (remplace l'ancienne « Note pour l'IA »).
   const [pinnedNote, setPinnedNote] = useState("");
-
-  const persistPromptNote = useCallback(async (text) => {
-    const content = (text || "").trim();
-    if (!content || !id) return;
-    try {
-      await savePromptNote(id, content);
-    } catch (err) {
-      // silencieux : pas bloquant pour le calcul
-    }
-  }, [id]);
 
   const openPreentretienEditor = async () => {
     setPreentretienModal({ text: "", loading: true, saving: false });
@@ -3040,7 +3030,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       if (rapportComment) {
         formData.append("user_context", rapportComment);
         toast.success("✓ Votre note sera utilisée pour ce rapport", { autoClose: 2500 });
-        persistPromptNote(rapportComment);
       }
 
       toast.info("Génération du rapport de consultation en cours…");
@@ -3290,7 +3279,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       const auditComment = (pinnedNote || "").trim();
       if (auditComment) {
         toast.success("✓ Votre note sera utilisée pour cet audit", { autoClose: 2500 });
-        persistPromptNote(auditComment);
       }
       toast.info("Génération de l'audit retraite en cours… (peut prendre plusieurs minutes)");
       const token = localStorage.getItem("token") || "";
@@ -3330,7 +3318,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       setIsGeneratingAudit(false);
       try { localStorage.removeItem(`gen_pending_AUDIT_RETRAITE_${id}`); } catch {}
     }
-  }, [id, scenarioSkillResults, user, pinnedNote, persistPromptNote]);
+  }, [id, scenarioSkillResults, user, pinnedNote]);
 
   // Derive doc availability from real uploaded documents
   const hasDocuments = userDocuments.some((d) => Number(d.dossier) === 10) || !!fileToSend;
@@ -4017,7 +4005,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     const extraContext = (pinnedNote || "").trim();
     if (extraContext) {
       toast.success("✓ Votre note sera utilisée pour ce calcul", { autoClose: 2500 });
-      persistPromptNote(extraContext);
     }
     setScenarioSkillLoading(prev => ({ ...prev, [skillCode]: true }));
     setScenarioSkillErrors(prev => ({ ...prev, [skillCode]: null }));
@@ -4638,7 +4625,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
             <SimulatorChatPanel
               clientId={user.id}
               pinnedNote={pinnedNote}
-              onPin={(content) => { setPinnedNote(content); persistPromptNote(content); toast.success("📌 Note épinglée — sera transmise au rapport."); }}
+              onPin={(content) => { setPinnedNote(content); toast.success("📌 Note épinglée — sera transmise au rapport."); }}
               onUnpin={() => { setPinnedNote(""); toast.info("Note retirée du rapport."); }}
               getContext={() => buildSimulatorContext({
                 user,
