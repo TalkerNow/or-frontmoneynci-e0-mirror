@@ -18,7 +18,7 @@ import { parseNIR } from "./utils";
 import { parseCarrierePoints } from "./carrierePoints";
 import { REGIMES, getPoints, resolveRegime, computeVisibleRegimes, REGIMES_SIMPLES, extractRegimeSimplePoints } from "../simulatorRegimes";
 import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, runMultiDateScenarios, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml, detectDocumentType, fetchRapprochementConstat, applyReportChatMessage, fetchPromptNotes, savePromptNote, deletePromptNote } from "../risService";
-import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif, computeTrimAtDate, sumTrimestresCapped, parseBirthDate } from '../../../../../utils/calculators';
+import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeSamCnav, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif, computeTrimAtDate, sumTrimestresCapped, parseBirthDate } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
 import SkillCreateModal from "./SkillCreateModal";
@@ -4737,13 +4737,17 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                         const ar = Number(arState[yr]) || 0;
                         return s + Math.min(4, tc + ta + ar);
                       }, 0);
-                      // SAM CNAV : uniquement les années avec affiliation CNAV (TC ou TA > 0)
-                      // Exclut les années régime complémentaire seul (Agirc-only, CIPAV seul, etc.)
+                      // SAM CNAV : 25 meilleures années CNAV revalorisées.
+                      // - samVal (la valeur) vient de la source unique computeSamCnav,
+                      //   partagée avec le bloc « Données de calcul » (CalculDataPanel) →
+                      //   garantit que les deux affichent le même SAM.
+                      // - samRows ne sert qu'à l'affichage du détail des 25 années retenues
+                      //   (même filtre/tri que computeSamCnav).
                       const samRows = [...carriereRows]
                         .filter(r => ((trimCotState[r.yr] ?? 0) > 0 || (trimAssState[r.yr] ?? 0) > 0) && (revaloValues[r.yr] ?? 0) > 0)
                         .sort((a, b) => (revaloValues[b.yr] ?? 0) - (revaloValues[a.yr] ?? 0))
                         .slice(0, 25);
-                      const samVal = samRows.length ? Math.round(samRows.reduce((s, r) => s + (revaloValues[r.yr] ?? 0), 0) / samRows.length) : 0;
+                      const samVal = computeSamCnav(carriereRows, trimCotState, trimAssState, revaloValues);
 
                       const WIRED_REGIME_KEYS = ["CNAV", "AGIRC_ARRCO", "IRCANTEC", "RCI", "CIPAV"];
                       const dynamicRegimes = computeVisibleRegimes(carriereRows, WIRED_REGIME_KEYS).filter(
@@ -5437,6 +5441,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               trimCotState={trimCotState}
                               trimAssState={trimAssState}
                               arState={arState}
+                              revaloValues={revaloValues}
                               user={user}
                               departureDates={departureDates}
                               collapsible
@@ -5639,6 +5644,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                       };
                       const trimAcquisVal = dispTrimAcquis > 0 ? `${dispTrimAcquis} trim.` : "—";
                       const trimRequisVal = dispTrimRequis != null ? `${dispTrimRequis} trim.` : "—";
+                      // Manquants = déficit RÉEL de durée par rapport au requis
+                      // (requis − acquis, sans projection). Même valeur sur les trois
+                      // cartes (âge légal, taux plein durée, taux plein auto 67 ans) : la
+                      // projection à 67 ans masquait le déficit en affichant « atteint ».
                       const manquantsVal = dispTrimManquants == null ? "—" : (dispTrimManquants === 0 ? "✓ atteint" : `${dispTrimManquants} trim.`);
                       const manquantsColorDisp = dispTrimManquants == null ? "#555" : (dispTrimManquants === 0 ? "#00B894" : "#C0392B");
                       return (
@@ -5671,6 +5680,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             trimCotState={trimCotState}
                             trimAssState={trimAssState}
                             arState={arState}
+                            revaloValues={revaloValues}
                             user={user}
                             departureDates={departureDates}
                           />
@@ -5680,13 +5690,13 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               <div style={{ fontSize: 13, fontWeight: 700, color: "#0984E3" }}>Dates standard</div>
                               <span style={{ fontSize: 11, color: "#888" }}>— cliquez pour retenir une date</span>
                             </div>
-                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 7 }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 7 }}>
                               {[
                                 { id: "age_legal", label: "Âge légal", icon: "⚖️", info: dispDateLegale ? `${dispDateLegale.ageStr} → ${dispDateLegale.label}` : "Date de naissance manquante", dateInfo: dispDateLegale, disabled: !dispDateLegale, trimAt: dispDateLegale ? computeTrimAtDate(dispTrimAcquis, dispAnneeRef, dispDateLegale.date, dispTrimParAnnee) : null, details: dispDateLegale ? [
                                   { k: "Âge légal", v: dispDateLegale.ageStr },
                                   { k: "Trim. acquis", v: trimAcquisVal, color: "#0984E3" },
                                   { k: "Requis", v: trimRequisVal },
-                                  { k: "Taux plein à cet âge", v: manquantsVal, color: manquantsColorDisp },
+                                  { k: "Manquants", v: manquantsVal, color: manquantsColorDisp },
                                 ] : null },
                                 { id: "taux_plein", label: "Taux plein (durée)", icon: "🎯", info: dispDateTauxPlein ? (dispDateTauxPlein.trimManquants === 0 ? `${dispDateTauxPlein.ageStr} • ${dispDateTauxPlein.trimRequis} trim. atteints` : `${dispDateTauxPlein.ageStr} • ${dispDateTauxPlein.trimManquants} trim. manquants → ${dispDateTauxPlein.label}`) : "Date de naissance manquante", dateInfo: dispDateTauxPlein, disabled: !dispDateTauxPlein, trimAt: dispDateTauxPlein ? dispDateTauxPlein.trimRequis : null, details: dispDateTauxPlein ? [
                                   { k: "Âge à cette date", v: ageAtDispDate(dispDateTauxPlein.date) || "—", color: "#0984E3" },
@@ -5697,6 +5707,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                 { id: "taux_plein_auto", label: "Taux plein auto (67 ans)", icon: "🔓", info: dispDate67 ? `67 ans → ${dispDate67.label}` : "Date de naissance manquante", dateInfo: dispDate67, disabled: !dispDate67, trimAt: dispDate67 ? computeTrimAtDate(dispTrimAcquis, dispAnneeRef, dispDate67.date, dispTrimParAnnee) : null, details: dispDate67 ? [
                                   { k: "Âge à cette date", v: ageAtDispDate(dispDate67.date) || "67 ans" },
                                   { k: "Trim. acquis", v: trimAcquisVal, color: "#0984E3" },
+                                  { k: "Requis", v: trimRequisVal },
+                                  { k: "Manquants", v: manquantsVal, color: manquantsColorDisp },
                                   { k: "Décote", v: dispTauxPleinAtteint ? "aucune" : "aucune (taux plein auto)", color: "#00B894" },
                                 ] : null },
                                 { id: "date_libre", label: "Date libre", icon: "📆", info: "Date de simulation à choisir", dateInfo: null, disabled: false, trimAt: (dateLibreInput ? computeTrimAtDate(dispTrimAcquis, dispAnneeRef, new Date(String(dateLibreInput).slice(0, 10) + "T00:00:00"), dispTrimParAnnee) : null), details: null },
