@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { computeSAMB, computeArrcoPts, sumTrimestresCapped } from "../../../../../utils/calculators";
+import { computeSamCnav, computeArrcoPts, sumTrimestresCapped } from "../../../../../utils/calculators";
 
 // "📊 Données de calcul" block, shared by the Scénarios panel and the bottom of the career
 // grid so both stay identical. Pure presentation: every input comes from props.
@@ -10,6 +10,7 @@ export default function CalculDataPanel({
   trimCotState = {},
   trimAssState = {},
   arState = {},
+  revaloValues = {},
   user,
   departureDates,
   collapsible = false,
@@ -17,7 +18,11 @@ export default function CalculDataPanel({
 }) {
   const [open, setOpen] = useState(defaultOpen);
 
-  const samb = computeSAMB(carriereRows);
+  // SAM identique à celui du tableau de carrière : même fonction, mêmes entrées
+  // (années CNAV + salaires revalorisés du tableau). Évite la divergence avec
+  // l'ancien computeSAMB qui recalculait la revalorisation depuis le brut et
+  // n'excluait pas les années hors CNAV.
+  const samb = computeSamCnav(carriereRows, trimCotState, trimAssState, revaloValues);
   const { total: arrcoPts, projectionAnnuelle } = computeArrcoPts(carriereRows);
   const trimAr = Object.values(arState).reduce((s, v) => s + (Number(v) || 0), 0);
   // Durée d'assurance plafonnée à 4 trim/an (rachetés exclus, cohérent avec
@@ -101,7 +106,7 @@ export default function CalculDataPanel({
     ["Âge actuel", age != null ? `${age} ans` : "—", "#555"],
     ...(childrenCount != null && childrenCount !== "" ? [["Nombre d'enfants", `${childrenCount}`, "#555"]] : []),
     ...(studyYears != null && studyYears !== "" ? [["Années d'études supérieures", `${studyYears} an${Number(studyYears) > 1 ? "s" : ""}`, "#555"]] : []),
-    ["SAMB Assurance Retraite / CNAV", samb > 0 ? `${samb.toLocaleString("fr-FR")} €` : "—", "#1a1a2e"],
+    ["SAM CNAV (25 meilleures)", samb > 0 ? `${samb.toLocaleString("fr-FR")} €` : "—", "#1a1a2e"],
     ["Points ARRCO-AGIRC cumulés", arrcoPts > 0 ? `${arrcoPts.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} pts` : "—", "#0984E3"],
     ["Projection annuelle (tendance)", projectionAnnuelle > 0 ? `+ ${projectionAnnuelle.toLocaleString("fr-FR")} pts / an` : "—", "#00B894"],
     ["Situation jusqu'au départ", "Poursuite d'activité actuelle", "#555"],
