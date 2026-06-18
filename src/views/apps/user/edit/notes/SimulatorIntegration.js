@@ -17,7 +17,7 @@ import html2canvas from "html2canvas";
 import { parseNIR } from "./utils";
 import { parseCarrierePoints } from "./carrierePoints";
 import { REGIMES, getPoints, resolveRegime, computeVisibleRegimes, REGIMES_SIMPLES, extractRegimeSimplePoints } from "../simulatorRegimes";
-import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, runMultiDateScenarios, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml, detectDocumentType, fetchRapprochementConstat, applyReportChatMessage, fetchPromptNotes, savePromptNote, deletePromptNote } from "../risService";
+import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, runMultiDateScenarios, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml, detectDocumentType, fetchRapprochementConstat, applyReportChatMessage, savePromptNote } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeSamCnav, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif, computeTrimAtDate, sumTrimestresCapped, parseBirthDate } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
@@ -28,6 +28,8 @@ import SweetAlert from "react-bootstrap-sweetalert";
 import MD_CONTENT from "./adminSkillsContent";
 import { buildRecapRegimes, buildCipavRecap } from "./recapCarriere";
 import { RegimeRecapVignettes } from "./RecapCarriereParRegime";
+import SimulatorChatPanel from "./SimulatorChatPanel";
+import { buildSimulatorContext } from "./simulatorContext";
 import BaremeRetraitePage from "../../../bareme-retraite";
 import { coeffRevalo, initBareme } from "../simulatorData";
 import {
@@ -878,43 +880,19 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [showDetailedCalcs, setShowDetailedCalcs] = useState(false);
   const [expandedScenarios, setExpandedScenarios] = useState({});
   const autoChainPendingRef = useRef(false);
-  const [promptText, setPromptText] = useState("");
-  const [promptNotes, setPromptNotes] = useState([]);
-  const [showPromptHistory, setShowPromptHistory] = useState(false);
-
-  const reloadPromptNotes = useCallback(async () => {
-    if (!id) return;
-    try {
-      const data = await fetchPromptNotes(id);
-      setPromptNotes(data.notes || []);
-    } catch (err) {
-      // silencieux : pas bloquant
-    }
-  }, [id]);
-
-  useEffect(() => {
-    reloadPromptNotes();
-  }, [reloadPromptNotes]);
+  // pinnedNote : message du chat « épinglé » → transmis aux payloads rapport/calcul/audit/skill
+  // (remplace l'ancienne « Note pour l'IA »). persistPromptNote conserve l'historique côté serveur.
+  const [pinnedNote, setPinnedNote] = useState("");
 
   const persistPromptNote = useCallback(async (text) => {
     const content = (text || "").trim();
     if (!content || !id) return;
     try {
       await savePromptNote(id, content);
-      reloadPromptNotes();
     } catch (err) {
       // silencieux : pas bloquant pour le calcul
     }
-  }, [id, reloadPromptNotes]);
-
-  const handleDeletePromptNote = useCallback(async (noteId) => {
-    try {
-      await deletePromptNote(noteId);
-      setPromptNotes(prev => prev.filter(n => n.id !== noteId));
-    } catch (err) {
-      toast.error("Impossible de supprimer la note");
-    }
-  }, []);
+  }, [id]);
 
   const openPreentretienEditor = async () => {
     setPreentretienModal({ text: "", loading: true, saving: false });
@@ -2373,6 +2351,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
             ...(pts.agirc_arrco != null && { agirc_arrco: { points_total: pts.agirc_arrco } }),
             ...(pts.ircantec    != null && { ircantec:    { points_total: pts.ircantec    } }),
             ...(pts.rci         != null && { rci:         { points_total: pts.rci         } }),
+            ...(pts.rafp        != null && { rafp:        { points_total: pts.rafp        } }),
             ...((cipavBase != null || cipavCompl != null) && {
               cipav: {
                 points_base: cipavBase ?? 0,
@@ -3057,7 +3036,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       formData.append("client_id", id);
       formData.append("nir", nir);
       if (hiddenSystemPrompt) formData.append("system_prompt", hiddenSystemPrompt);
-      const rapportComment = (promptText || "").trim();
+      const rapportComment = (pinnedNote || "").trim();
       if (rapportComment) {
         formData.append("user_context", rapportComment);
         toast.success("✓ Votre note sera utilisée pour ce rapport", { autoClose: 2500 });
@@ -3215,7 +3194,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       cancelReportRef.current = null;
       try { localStorage.removeItem(`gen_pending_RAPPORT_CONSULTATION_${id}`); } catch {}
     }
-  }, [fileToSend, user, id, hiddenSystemPrompt, cleanChainOfThought, userDocuments, scenarioSkillResults, promptText]);
+  }, [fileToSend, user, id, hiddenSystemPrompt, cleanChainOfThought, userDocuments, scenarioSkillResults, pinnedNote]);
 
   // ── Simulation Retraite (appelle Laravel → n8n → HTML) ──────────────────────
   const handleGenerateSimulationRetraite = useCallback(async () => {
@@ -3230,7 +3209,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     }
     setIsGeneratingSimulation(true);
     try { localStorage.setItem(`gen_pending_SIMULATION_RETRAITE_${id}`, JSON.stringify({ startedAt: Date.now() })); } catch {}
-    if ((promptText || "").trim()) {
+    if ((pinnedNote || "").trim()) {
       toast.info("💬 Commentaire transmis à la Simulation retraite", { autoClose: 2500 });
     }
     try {
@@ -3244,7 +3223,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         },
         body: JSON.stringify({
           client_id: id,
-          user_context: (promptText || "").trim() || undefined,
+          user_context: (pinnedNote || "").trim() || undefined,
         }),
       });
       if (!resp.ok) {
@@ -3294,7 +3273,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       setIsGeneratingSimulation(false);
       try { localStorage.removeItem(`gen_pending_SIMULATION_RETRAITE_${id}`); } catch {}
     }
-  }, [id, scenarioSkillResults, user, promptText]);
+  }, [id, scenarioSkillResults, user, pinnedNote]);
 
   const [isGeneratingAudit, setIsGeneratingAudit] = useState(false);
 
@@ -3308,7 +3287,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     setIsGeneratingAudit(true);
     try { localStorage.setItem(`gen_pending_AUDIT_RETRAITE_${id}`, JSON.stringify({ startedAt: Date.now() })); } catch {}
     try {
-      const auditComment = (promptText || "").trim();
+      const auditComment = (pinnedNote || "").trim();
       if (auditComment) {
         toast.success("✓ Votre note sera utilisée pour cet audit", { autoClose: 2500 });
         persistPromptNote(auditComment);
@@ -3351,7 +3330,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       setIsGeneratingAudit(false);
       try { localStorage.removeItem(`gen_pending_AUDIT_RETRAITE_${id}`); } catch {}
     }
-  }, [id, scenarioSkillResults, user, promptText, persistPromptNote]);
+  }, [id, scenarioSkillResults, user, pinnedNote, persistPromptNote]);
 
   // Derive doc availability from real uploaded documents
   const hasDocuments = userDocuments.some((d) => Number(d.dossier) === 10) || !!fileToSend;
@@ -3465,6 +3444,24 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
 
   // Récap CIPAV (vignettes lecture seule) depuis cnavplRows.
   const cipavRecap = useMemo(() => buildCipavRecap(cnavplRows), [cnavplRows]);
+
+  // Régimes présents au RIS mais HORS des accordions figés (RAFP, MSA, CARMF…).
+  // Les points atterrissent dans row.regimes via parseCarrierePoints/resolveRegime,
+  // mais l'UI figée ne les affichait pas → ils étaient extraits mais invisibles.
+  // Affichage générique lecture seule (total points), pension non calculée.
+  const extraRegimes = useMemo(() => {
+    const shown = new Set(["CNAV", "AGIRC_ARRCO", "IRCANTEC", "RCI", "CIPAV", "PER"]);
+    return computeVisibleRegimes(carriereRows, [])
+      .filter((r) => r && r.key && !shown.has(r.key))
+      .map((r) => {
+        const total = carriereRows.reduce(
+          (s, row) => s + (parseFloat(row?.regimes?.[r.key]) || 0),
+          0
+        );
+        return { ...r, total: Math.round(total * 100) / 100 };
+      })
+      .filter((r) => r.total > 0);
+  }, [carriereRows]);
 
   const handleGeler = useCallback(async () => {
     if (!id) return;
@@ -4017,7 +4014,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       toast.error("Geler la carrière d'abord");
       return;
     }
-    const extraContext = (promptText || "").trim();
+    const extraContext = (pinnedNote || "").trim();
     if (extraContext) {
       toast.success("✓ Votre note sera utilisée pour ce calcul", { autoClose: 2500 });
       persistPromptNote(extraContext);
@@ -4096,7 +4093,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     } finally {
       setScenarioSkillLoading(prev => ({ ...prev, [skillCode]: false }));
     }
-  }, [id, carriereValidee, refreshChosenScenarioSnapshot, inputValues, user, promptText]);
+  }, [id, carriereValidee, refreshChosenScenarioSnapshot, inputValues, user, pinnedNote]);
 
   // ── Multi-select : toggle d'un scénario dans la liste retenue ──
   // Persiste l'intégralité de la liste à chaque modification.
@@ -4635,6 +4632,24 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                 )}
               </div>
               )}
+
+          {/* ── CHATBOT ASSISTANT CONTEXTUEL (remplace la « Note pour l'IA ») ── */}
+          {user?.id && (
+            <SimulatorChatPanel
+              clientId={user.id}
+              pinnedNote={pinnedNote}
+              onPin={(content) => { setPinnedNote(content); persistPromptNote(content); toast.success("📌 Note épinglée — sera transmise au rapport."); }}
+              onUnpin={() => { setPinnedNote(""); toast.info("Note retirée du rapport."); }}
+              getContext={() => buildSimulatorContext({
+                user,
+                carriereRows,
+                carriereValidee,
+                chosenScenarios,
+                chosenDates,
+                scenarioSkillResults,
+              })}
+            />
+          )}
 
           {/* ── MAIN PANELS ── */}
           {hasDocuments && (
@@ -5546,6 +5561,29 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                   </div>
                                 );
                               })}
+                              {extraRegimes.length > 0 && (
+                                <div style={{ border: "1px solid #eee", borderRadius: 9, overflow: "hidden" }}>
+                                  <div style={{ padding: "10px 14px", background: "#fafafa", display: "flex", alignItems: "center", gap: 8 }}>
+                                    <span style={{ fontSize: 16 }}>📋</span>
+                                    <span style={{ fontSize: 14, fontWeight: 700, color: "#555" }}>Autres régimes du RIS</span>
+                                  </div>
+                                  <div style={{ padding: "14px 16px", background: "#fff", display: "flex", flexDirection: "column", gap: 8 }}>
+                                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                      {extraRegimes.map((r) => (
+                                        <div key={r.key} style={{ background: `${r.color}0A`, border: `1px solid ${r.color}30`, borderRadius: 7, padding: "8px 14px", textAlign: "center", minWidth: 92 }}>
+                                          <div style={{ fontSize: 18, fontWeight: 800, color: r.color, lineHeight: 1.1 }}>
+                                            {r.total.toLocaleString("fr-FR", { maximumFractionDigits: 2 })}
+                                          </div>
+                                          <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>{r.icon} {r.label} — pts</div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <div style={{ fontSize: 11, color: "#9a9aa5", fontStyle: "italic" }}>
+                                      Points extraits du RIS. Pension non calculée pour ces régimes (hors moteur).
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
 
@@ -6487,94 +6525,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                 </div>
               </div>
 
-              {/* Pavé prompt IA — visible uniquement dans Scénarios et Livrables (pas en Carrière, FROZEN_DATA pure) */}
-              {(expandedPanel === "dispositifs" || expandedPanel === "livrables") && (
-              <div style={{ ...S.card, padding: 14, marginTop: 16, border: promptText ? "2px solid #6C5CE7" : undefined }}>
-                <style>{`
-                  @keyframes pavePulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(108,92,231,0.5); } 50% { transform: scale(1.08); box-shadow: 0 0 0 6px rgba(108,92,231,0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(108,92,231,0); } }
-                  .pave-badge-pulse { animation: pavePulse 1.2s ease-out; }
-                `}</style>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700 }}>💬 Note pour l'IA</div>
-                  {promptText && (
-                    <span key={promptText.length} className="pave-badge-pulse" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 10, background: "#6C5CE7", color: "#fff", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff" }} />
-                      Actif
-                    </span>
-                  )}
-                </div>
-                <div style={{ fontSize: 12, color: "#666", marginBottom: 10 }}>
-                  Écrivez ici toute précision utile pour le client. L'IA en tiendra compte dans le prochain calcul ou rapport.
-                </div>
-                <textarea
-                  value={promptText}
-                  onChange={(e) => setPromptText(e.target.value.slice(0, 500))}
-                  placeholder="Exemple : insister sur le maintien des revenus pendant la transition."
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: 7, border: "1px solid #ccc", fontSize: 14, fontFamily: "inherit", resize: "vertical", minHeight: 80, boxSizing: "border-box", background: "#fff", color: "#333", lineHeight: 1.5 }}
-                />
-                {promptNotes.length > 0 && (
-                  <div style={{ marginTop: 8 }}>
-                    <button
-                      type="button"
-                      onClick={() => setShowPromptHistory(v => !v)}
-                      style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 10px", borderRadius: 6, border: "1px solid #6C5CE7", background: showPromptHistory ? "#6C5CE7" : "#fff", color: showPromptHistory ? "#fff" : "#6C5CE7", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-                    >
-                      📋 Mes notes précédentes ({promptNotes.length})
-                      <span style={{ fontSize: 10, transform: showPromptHistory ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>▼</span>
-                    </button>
-                    {showPromptHistory && (
-                      <div style={{ marginTop: 6, border: "1px solid #E0DCFF", borderRadius: 6, background: "#FDFCFF", maxHeight: 220, overflowY: "auto" }}>
-                        {promptNotes.map((note) => (
-                          <div key={note.id} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 10px", borderBottom: "1px solid #EFEBFF" }}>
-                            <button
-                              type="button"
-                              onClick={() => { setPromptText(note.content.slice(0, 500)); setShowPromptHistory(false); }}
-                              title="Réutiliser cette note"
-                              style={{ flex: 1, textAlign: "left", background: "transparent", border: "none", padding: 0, cursor: "pointer", color: "#333", fontSize: 12, lineHeight: 1.45 }}
-                            >
-                              <div style={{ fontSize: 10, color: "#888", marginBottom: 2 }}>
-                                {new Date(note.created_at).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                              </div>
-                              <div>{note.content.length > 120 ? note.content.slice(0, 120) + "…" : note.content}</div>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeletePromptNote(note.id)}
-                              title="Supprimer"
-                              style={{ background: "transparent", border: "none", color: "#D63031", cursor: "pointer", padding: 2, flexShrink: 0 }}
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-                {promptText && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, padding: "8px 12px", background: "#F2F0FF", border: "1px solid #6C5CE7", borderRadius: 6 }}>
-                    <span style={{ fontSize: 16, color: "#6C5CE7", fontWeight: 700 }}>✓</span>
-                    <span style={{ fontSize: 12, color: "#3F2D8A", fontWeight: 600 }}>
-                      Votre note sera transmise à l'IA lors du prochain calcul ou rapport.
-                    </span>
-                  </div>
-                )}
-                <div style={{ display: "flex", alignItems: "center", marginTop: 8 }}>
-                  <span style={{ fontSize: 11, color: "#888" }}>{promptText.length}/500</span>
-                  {promptText && (
-                    <button
-                      onClick={() => setPromptText("")}
-                      style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 6, border: "1.5px solid #D63031", background: "#fff", color: "#D63031", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = "#D63031"; e.currentTarget.style.color = "#fff"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = "#D63031"; }}
-                    >
-                      <Trash2 size={14} />
-                      Effacer la note
-                    </button>
-                  )}
-                </div>
-              </div>
-              )}
 
             </>
           )}
