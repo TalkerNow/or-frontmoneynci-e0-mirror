@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { computeSAMB, computeArrcoPts, sumTrimestresCapped } from "../../../../../utils/calculators";
+import { computeSamCnav, computeArrcoPts, sumTrimestresCapped } from "../../../../../utils/calculators";
 
 // "📊 Données de calcul" block, shared by the Scénarios panel and the bottom of the career
 // grid so both stay identical. Pure presentation: every input comes from props.
@@ -10,6 +10,7 @@ export default function CalculDataPanel({
   trimCotState = {},
   trimAssState = {},
   arState = {},
+  revaloValues = {},
   user,
   departureDates,
   collapsible = false,
@@ -17,19 +18,43 @@ export default function CalculDataPanel({
 }) {
   const [open, setOpen] = useState(defaultOpen);
 
-  const samb = computeSAMB(carriereRows);
+  // SAM identique à celui du tableau de carrière : même fonction, mêmes entrées
+  // (années CNAV + salaires revalorisés du tableau). Évite la divergence avec
+  // l'ancien computeSAMB qui recalculait la revalorisation depuis le brut et
+  // n'excluait pas les années hors CNAV.
+  const samb = computeSamCnav(carriereRows, trimCotState, trimAssState, revaloValues);
   const { total: arrcoPts, projectionAnnuelle } = computeArrcoPts(carriereRows);
   const trimAr = Object.values(arState).reduce((s, v) => s + (Number(v) || 0), 0);
   // Durée d'assurance plafonnée à 4 trim/an (rachetés exclus, cohérent avec
   // computeDateTauxPlein). Sans ce plafond, les parcours mixtes et les assimilés
   // empilés sur-comptent (bug client 1708 : 166 au lieu de 158).
   const trimYearsSet = new Set([...Object.keys(trimCotState), ...Object.keys(trimAssState)]);
-  const trimTotal = sumTrimestresCapped(
-    Array.from(trimYearsSet).map((yr) => ({
-      trimestres_cotises: Number(trimCotState[yr]) || 0,
-      trimestres_assimiles: Number(trimAssState[yr]) || 0,
-    }))
+  // Split acquired (real) vs projected trimestres so "acquis" never silently swallows the
+  // career-end projection (4 trim/yr written onto projected years).
+  // A year counts as projected if it's explicitly flagged on carriereRows OR strictly in the
+  // future: real validated RIS trimestres can never exist for a year beyond the current one.
+  // The future-year fallback is essential because a career reloaded after lock loses the
+  // `projected` flag, yet still keeps the projection's future years in trimCotState (a desync
+  // with carriereRows, whose grid stops at the current year) — without it those ghost years
+  // would silently inflate "acquis".
+  const currentYear = new Date().getFullYear();
+  const flaggedProjected = new Set(
+    (Array.isArray(carriereRows) ? carriereRows : [])
+      .filter((r) => r && r.projected)
+      .map((r) => String(r.yr))
   );
+  const isProjectedYear = (yr) => flaggedProjected.has(String(yr)) || Number(yr) > currentYear;
+  const trimCellFor = (yr) => ({
+    trimestres_cotises: Number(trimCotState[yr]) || 0,
+    trimestres_assimiles: Number(trimAssState[yr]) || 0,
+  });
+  const trimReal = sumTrimestresCapped(
+    Array.from(trimYearsSet).filter((yr) => !isProjectedYear(yr)).map(trimCellFor)
+  );
+  const trimProjete = sumTrimestresCapped(
+    Array.from(trimYearsSet).filter((yr) => isProjectedYear(yr)).map(trimCellFor)
+  );
+  const trimTotal = trimReal + trimProjete; // total at the projected departure date
   const trimRequis = departureDates?.tauxPlein?.trimRequis ?? null;
   const trimManquants = departureDates?.tauxPlein?.trimManquants ?? null;
   const birthDate = user?.birth_date;
@@ -56,11 +81,17 @@ export default function CalculDataPanel({
     civ === "madame" || civ === "mme" || civ === "mlle" || civ === "mademoiselle" ||
     String(user?.sexe || "").toUpperCase() === "F";
   const bonusEnfantsCnav = isFemme && childrenCount > 0 ? Number(childrenCount) * 8 : 0;
-  const trimEffectifs = bonusEnfantsCnav > 0 ? trimTotal + bonusEnfantsCnav : null;
+  // Assess the maternity bonus against REAL acquired trimestres (not the projected total):
+  // the question is whether the bonus alone brings her to taux plein today, which the
+  // career-end projection would otherwise mask by already reaching the requirement.
+  const trimEffectifs = bonusEnfantsCnav > 0 ? trimReal + bonusEnfantsCnav : null;
   const tauxPleinAtteintAvecBonus = trimEffectifs !== null && trimRequis !== null && trimEffectifs >= trimRequis;
 
   const rows = [
-    ["Trimestres acquis", trimTotal > 0 ? `${trimTotal} trim.` : "—", "#0984E3"],
+    ["Trimestres acquis (réels)", trimReal > 0 ? `${trimReal} trim.` : "—", "#0984E3"],
+    ...(trimProjete > 0
+      ? [["+ projetés (poursuite d'activité)", `+${trimProjete} trim. → ${trimTotal} au départ`, "#00B894"]]
+      : []),
     ...(trimAr > 0 ? [["dont rachetés", `${trimAr} trim.`, "#1a1a2e"]] : []),
     ...(bonusEnfantsCnav > 0
       ? [[
@@ -75,7 +106,7 @@ export default function CalculDataPanel({
     ["Âge actuel", age != null ? `${age} ans` : "—", "#555"],
     ...(childrenCount != null && childrenCount !== "" ? [["Nombre d'enfants", `${childrenCount}`, "#555"]] : []),
     ...(studyYears != null && studyYears !== "" ? [["Années d'études supérieures", `${studyYears} an${Number(studyYears) > 1 ? "s" : ""}`, "#555"]] : []),
-    ["SAMB Assurance Retraite / CNAV", samb > 0 ? `${samb.toLocaleString("fr-FR")} €` : "—", "#1a1a2e"],
+    ["SAM CNAV (25 meilleures)", samb > 0 ? `${samb.toLocaleString("fr-FR")} €` : "—", "#1a1a2e"],
     ["Points ARRCO-AGIRC cumulés", arrcoPts > 0 ? `${arrcoPts.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} pts` : "—", "#0984E3"],
     ["Projection annuelle (tendance)", projectionAnnuelle > 0 ? `+ ${projectionAnnuelle.toLocaleString("fr-FR")} pts / an` : "—", "#00B894"],
     ["Situation jusqu'au départ", "Poursuite d'activité actuelle", "#555"],

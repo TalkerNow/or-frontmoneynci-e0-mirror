@@ -248,6 +248,33 @@ export function computeSAMB(carriereRows) {
 }
 
 /**
+ * SAM CNAV tel qu'affiché dans le tableau de carrière : moyenne des 25
+ * meilleures années CNAV revalorisées.
+ *
+ * Diffère de computeSAMB sur deux points (à l'origine de la divergence avec le
+ * bloc « Données de calcul ») :
+ *  1. Ne retient que les années avec AFFILIATION CNAV (trimestres cotisés OU
+ *     assimilés > 0) — exclut les années régime complémentaire seul.
+ *  2. Utilise les salaires revalorisés du tableau (`revaloValues`), déjà
+ *     plafonnés/revalorisés et éventuellement édités, au lieu de recalculer la
+ *     revalorisation depuis le salaire brut.
+ *
+ * @param {Array<{yr: number}>} carriereRows
+ * @param {Object<string|number, number>} trimCotState   Trimestres cotisés par année
+ * @param {Object<string|number, number>} trimAssState   Trimestres assimilés par année
+ * @param {Object<string|number, number>} revaloValues   Salaire revalorisé par année
+ * @returns {number} SAM en EUR (arrondi)
+ */
+export function computeSamCnav(carriereRows, trimCotState = {}, trimAssState = {}, revaloValues = {}) {
+  const samRows = (Array.isArray(carriereRows) ? carriereRows : [])
+    .filter(r => ((trimCotState[r.yr] ?? 0) > 0 || (trimAssState[r.yr] ?? 0) > 0) && (revaloValues[r.yr] ?? 0) > 0)
+    .sort((a, b) => (revaloValues[b.yr] ?? 0) - (revaloValues[a.yr] ?? 0))
+    .slice(0, 25);
+  if (!samRows.length) return 0;
+  return Math.round(samRows.reduce((s, r) => s + (revaloValues[r.yr] ?? 0), 0) / samRows.length);
+}
+
+/**
  * Calcule les points AGIRC-ARRCO totaux et la projection annuelle.
  *
  * @param {Array<{yr: number, agircPts: number}>} carriereRows
