@@ -151,6 +151,129 @@ export async function executeScript(regimeCode, clientId, userContext, scenarioP
   return result.response || result;
 }
 
+// =====================================================================
+// MULTI-DATES — appelle le Python 1x par date retenue (age_depart_mois).
+// Zero calcul de pension en JS : le JS appelle, le Python calcule (R006 coherence.py).
+// Ecrit sans optional chaining (compat vieux Babel/eslint du projet).
+// =====================================================================
+function monthsBetween(birthISO, targetISO) {
+  if (!birthISO || !targetISO) return null;
+  var b = new Date(birthISO);
+  var t = new Date(targetISO);
+  if (isNaN(b) || isNaN(t)) return null;
+  var m = (t.getFullYear() - b.getFullYear()) * 12 + (t.getMonth() - b.getMonth());
+  if (t.getDate() < b.getDate()) m -= 1; // anniversaire pas encore passe ce mois
+  return m;
+}
+
+async function saveMultiDateResult(clientId, parDate, frozenDataId) {
+  var token = localStorage.getItem("token");
+  // NON-silencieux : on laisse l'erreur remonter (l'appelant l'affiche en toast) au lieu d'un
+  // console.warn qui transformait un échec de sauvegarde en bug invisible.
+  await axios.post(
+    global.config.server_url + "/v1/analysis-reports",
+    {
+      user_id: parseInt(clientId),
+      skill_id: "rapport_dates",
+      result_json: { par_date: parDate, mode: "simulate_engine_v2", frozen_data_id: frozenDataId },
+    },
+    { headers: { Authorization: "Bearer " + token } }
+  );
+}
+
+// Bug 1 fix : UN SEUL appel au moteur unifié /simulate (qui PROJETTE les trimestres jusqu'à
+// chaque date de départ), via le webhook léger sans Gemini — au lieu de 5×N appels par-régime
+// qui figeaient les trimestres au total gelé (151 partout). La sortie est mappée vers le format
+// par_date que la consultation lit déjà, mais avec les chiffres projetés, cohérents avec le
+// livrable simulation (même moteur). Source unique du calcul = /simulate.
+export async function runMultiDateScenarios(clientId, chosenDates) {
+  if (!Array.isArray(chosenDates) || chosenDates.length === 0) return [];
+  var token = localStorage.getItem("token");
+
+  var fd = null;
+  try {
+    fd = await axios.get(global.config.server_url + "/frozen_data/" + clientId, {
+      headers: { Authorization: "Bearer " + token },
+    });
+  } catch (e) {
+    if (!(e && e.response && e.response.status === 404)) throw e;
+  }
+  if (!fd || !fd.data) return [];
+  var frozen = fd.data;
+
+  // Payload au format que le nœud PREP du moteur sait lire : il dérive H1/H2/H3 de
+  // dates_retenues (triées + slice(0,3)), puis /simulate projette les trimestres par date.
+  var payload = {
+    client_id: parseInt(clientId),
+    carriere: frozen.carriere || [],
+    totaux: frozen.totaux || {},
+    dates_retenues: chosenDates.map(function (d) {
+      return { date: d.date, type: d.type, label: d.label };
+    }),
+    scenarios_retenus: [],
+    regimes: {
+      cipav: frozen.cipav || {},
+      carpimko: frozen.carpimko || {},
+      regimes_points: frozen.regimes_points || {},
+    },
+    frozen_data: {
+      meta: frozen.meta || {},
+      totaux: frozen.totaux || {},
+      carriere: frozen.carriere || [],
+      cipav: frozen.cipav || {},
+      carpimko: frozen.carpimko || {},
+      regimes_points: frozen.regimes_points || {},
+      user_id: parseInt(clientId),
+    },
+  };
+
+  var resp = await axios.post(N8N_BASE + "/simulate-multidate-calc", payload, { timeout: 120000 });
+  var scenarios = (resp && resp.data && resp.data.scenarios) || {};
+
+  var byDate = {};
+  chosenDates.forEach(function (d) {
+    if (d && d.date) byDate[String(d.date)] = d;
+  });
+
+  // Mappe chaque scénario /simulate vers le format par_date attendu par la consultation.
+  var parDate = Object.keys(scenarios)
+    .map(function (k) {
+      var s = scenarios[k] || {};
+      var src = byDate[String(s.date_depart)] || {};
+      return {
+        date_depart: s.date_depart,
+        label: src.label || null,
+        age_depart_mois:
+          (s.age_depart_annees != null ? s.age_depart_annees * 12 : 0) + (s.age_depart_mois || 0),
+        regimes: {
+          CNAV: {
+            trimestres_valides_tous_regimes: s.trimestres_acquis_tous,
+            trimestres_cotises_rg: s.trimestres_rg_at_depart,
+            taux_liquidation: typeof s.taux_cnav === "number" ? s.taux_cnav / 100 : null,
+            pension_mensuelle_brute: s.pension_cnav_mensuelle,
+          },
+          AGIRC_ARRCO: { pension_mensuelle_brute: s.pension_agirc_mensuelle },
+          IRCANTEC: { pension_mensuelle_brute: s.pension_ircantec_mensuelle },
+          RCI: { pension_mensuelle_brute: s.pension_rci_mensuelle },
+          CIPAV: {
+            pension_mensuelle_brute:
+              (s.pension_cipav_base_mensuelle || 0) + (s.pension_cipav_compl_mensuelle || 0),
+          },
+        },
+        total_mensuel_brut: s.pension_totale_brute,
+        pension_totale_nette: s.pension_totale_nette,
+        regimes_en_erreur: [],
+      };
+    })
+    .sort(function (a, b) {
+      return String(a.date_depart).localeCompare(String(b.date_depart));
+    });
+
+  var fdId = fd && fd.data && fd.data.id ? fd.data.id : null;
+  await saveMultiDateResult(clientId, parDate, fdId);
+  return parDate;
+}
+
 /**
  * Exécute un skill via le workflow n8n.
  * @param {string} skillCode - ex: "CNAV"

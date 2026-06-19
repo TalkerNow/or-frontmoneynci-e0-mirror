@@ -28,7 +28,12 @@ const DateInputFR = ({ value = "", onChange, ...rest }) => {
   const [text, setText] = useState(isoToFr(value));
 
   useEffect(() => {
-    setText(isoToFr(value));
+    // Ne resynchronise le texte depuis la prop que si l'ISO entrant diffère de
+    // la saisie locale courante. Sinon une saisie partielle (ex: "15/03/202",
+    // dont l'ISO est vide) serait écrasée par "" → tout le champ s'effaçait
+    // après une seule touche « supprimer ». setText fonctionnel = pas besoin de
+    // `text` dans les deps (évite le warning react-hooks/exhaustive-deps).
+    setText((prev) => (frToIso(prev) === value ? prev : isoToFr(value)));
   }, [value]);
 
   const handleChange = (e) => {

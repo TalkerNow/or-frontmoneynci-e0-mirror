@@ -17,8 +17,8 @@ import html2canvas from "html2canvas";
 import { parseNIR } from "./utils";
 import { parseCarrierePoints } from "./carrierePoints";
 import { REGIMES, getPoints, resolveRegime, computeVisibleRegimes, REGIMES_SIMPLES, extractRegimeSimplePoints } from "../simulatorRegimes";
-import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml, detectDocumentType, fetchRapprochementConstat, applyReportChatMessage, fetchPromptNotes, savePromptNote, deletePromptNote } from "../risService";
-import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif, computeTrimAtDate, sumTrimestresCapped, parseBirthDate, departureTrimOutlook } from '../../../../../utils/calculators';
+import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, runMultiDateScenarios, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml, detectDocumentType, fetchRapprochementConstat, applyReportChatMessage } from "../risService";
+import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeSamCnav, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif, computeTrimAtDate, sumTrimestresCapped, parseBirthDate } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
 import SkillEditModal from "./SkillEditModal";
 import SkillCreateModal from "./SkillCreateModal";
@@ -28,6 +28,8 @@ import SweetAlert from "react-bootstrap-sweetalert";
 import MD_CONTENT from "./adminSkillsContent";
 import { buildRecapRegimes, buildCipavRecap } from "./recapCarriere";
 import { RegimeRecapVignettes } from "./RecapCarriereParRegime";
+import SimulatorChatPanel from "./SimulatorChatPanel";
+import { buildSimulatorContext } from "./simulatorContext";
 import BaremeRetraitePage from "../../../bareme-retraite";
 import { coeffRevalo, initBareme } from "../simulatorData";
 import {
@@ -39,6 +41,7 @@ import {
   resolveProjectionTargetYear,
   PROJECTION_MODES,
   computeRealAssuranceTotals,
+  furthestChosenDate,
 } from "./careerProjection";
 import CalculDataPanel from "./CalculDataPanel";
 
@@ -56,7 +59,7 @@ const ACTION_PANELS = {
     desc: "Activez les dispositifs applicables — l'IA en déduit les dates de départ possibles",
     actions: [
       { id: "racl", label: "Carrière longue (RACL)", icon: "⏩", requires: ["ris"], desc: "Départ anticipé si début activité avant 16/18/20/21 ans", generates_date: true },
-      { id: "rachat_vplr", label: "Rachat VPLR", icon: "🧩", requires: ["ris"], hasInput: true, inputType: "number", inputLabel: "Nb trim. études (optionnel)", desc: "Années incomplètes auto-détectées + études (plafond légal partagé : 12 trim.)" },
+      { id: "rachat_vplr", label: "Rachat VPLR", icon: "🧩", requires: ["ris"], hasInput: true, inputType: "number", inputLabel: "Nombre de trimestres à racheter", desc: "Rachat de trimestres (études sup. + années incomplètes) — plafond légal 12 trim." },
       { id: "retraite_progressive", label: "Retraite progressive", icon: "⚖️", requires: ["ris"], desc: "Temps partiel + pension partielle dès âge légal −2 ans", generates_date: true, hasInput: true, inputType: "number", inputLabel: "Quotité activité (%)" },
       { id: "cumul_emploi", label: "Cumul emploi-retraite", icon: "🔄", requires: ["ris"], desc: "Liquidation puis reprise d'activité, 2e pension (réforme 2023)", generates_date: true },
       { id: "chomage_ind", label: "Chômage indemnisé", icon: "📉", requires: ["ris"], hasInput: true, inputType: "number", inputLabel: "Durée (mois)", desc: "Trim. assimilés, impact sur date taux plein", generates_date: true },
@@ -877,43 +880,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [showDetailedCalcs, setShowDetailedCalcs] = useState(false);
   const [expandedScenarios, setExpandedScenarios] = useState({});
   const autoChainPendingRef = useRef(false);
-  const [promptText, setPromptText] = useState("");
-  const [promptNotes, setPromptNotes] = useState([]);
-  const [showPromptHistory, setShowPromptHistory] = useState(false);
-
-  const reloadPromptNotes = useCallback(async () => {
-    if (!id) return;
-    try {
-      const data = await fetchPromptNotes(id);
-      setPromptNotes(data.notes || []);
-    } catch (err) {
-      // silencieux : pas bloquant
-    }
-  }, [id]);
-
-  useEffect(() => {
-    reloadPromptNotes();
-  }, [reloadPromptNotes]);
-
-  const persistPromptNote = useCallback(async (text) => {
-    const content = (text || "").trim();
-    if (!content || !id) return;
-    try {
-      await savePromptNote(id, content);
-      reloadPromptNotes();
-    } catch (err) {
-      // silencieux : pas bloquant pour le calcul
-    }
-  }, [id, reloadPromptNotes]);
-
-  const handleDeletePromptNote = useCallback(async (noteId) => {
-    try {
-      await deletePromptNote(noteId);
-      setPromptNotes(prev => prev.filter(n => n.id !== noteId));
-    } catch (err) {
-      toast.error("Impossible de supprimer la note");
-    }
-  }, []);
+  // pinnedNote : message du chat « épinglé » → transmis aux payloads rapport/calcul/audit/skill
+  // (remplace l'ancienne « Note pour l'IA »).
+  const [pinnedNote, setPinnedNote] = useState("");
 
   const openPreentretienEditor = async () => {
     setPreentretienModal({ text: "", loading: true, saving: false });
@@ -1050,11 +1019,13 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [visibleRowCount, setVisibleRowCount] = useState(20);
   // ── Projection fin de carrière ──
   const [projectionTargetAge, setProjectionTargetAge] = useState(67);
+  const [projectionTargetMonths, setProjectionTargetMonths] = useState(0);
   const [projectionSurcote, setProjectionSurcote] = useState(0);
   const [baremeReady, setBaremeReady] = useState(false);
   const [projectionMode, setProjectionMode] = useState(PROJECTION_MODES.LIBRE);
   const [autoDateSignal, setAutoDateSignal] = useState(0);
   const lastAutoDateTypeRef = useRef(null); // last date type auto-selected by the projection (for clean replace)
+  const datesUserTouchedRef = useRef(false); // true once the user toggles a date → enables grid auto-projection to the furthest chosen date
   const [projRegenNonce, setProjRegenNonce] = useState(0);
   const [risFileName, setRisFileName] = useState(null);
   const [droitsSynthese, setDroitsSynthese] = useState(null);
@@ -1514,6 +1485,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const projTargetYear = useMemo(() => computeTargetYear(projBirthYear, projectionTargetAge), [projBirthYear, projectionTargetAge]);
   const projLastRealYear = useMemo(() => findLastRealYear(carriereRows), [carriereRows]);
   const projectionActive = projLastRealYear != null && projTargetYear != null;
+  const projectionOn = useMemo(() => carriereRows.some((r) => r && r.projected), [carriereRows]);
 
   // Departure dates derived from barème + grid, shared by the projection selector (below)
   // and the "dispositifs" panel. Each anchor is the object returned by its compute* helper
@@ -1537,22 +1509,65 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
 
   // Reconcile projected rows to the current controls. Thin wrapper over the pure reducer;
   // preserves manual edits, bumps visibleRowCount so the projected block (top of grid) shows.
-  const handleGenerateProjection = useCallback((nextMode, nextAge, nextSurcote) => {
+  const handleGenerateProjection = useCallback((nextMode, nextAge, nextSurcote, nextMonths = 0, nextLibreDate = dateLibreInput) => {
     const birthYear = parseBirthYear(user?.birth_date);
-    const targetYear = resolveProjectionTargetYear({ mode: nextMode, birthYear, age: nextAge, departureDates });
+    const _birth = parseBirthDate(user?.birth_date);
+    let targetYear;
+    if (nextMode === PROJECTION_MODES.LIBRE) {
+      // « Date libre » : la cible = l'année de la date choisie (date-picker, plus simple qu'un âge).
+      const _d = nextLibreDate ? new Date(String(nextLibreDate).slice(0, 10) + "T00:00:00") : null;
+      targetYear = (_d && !isNaN(_d.getTime())) ? _d.getFullYear() : null;
+    } else {
+      targetYear = resolveProjectionTargetYear({ mode: nextMode, birthYear, age: nextAge, months: nextMonths, birthMonth: _birth ? _birth.getMonth() : 0, departureDates });
+    }
     const lastRealYear = findLastRealYear(carriereRows);
     const lastRealSalary = findLastRealSalary(carriereRows, lastRealYear);
     const res = reconcileProjection(
       { carriereRows, revaloValues, trimCotState },
       { lastRealYear, targetYear, surcote: nextSurcote, lastRealSalary, passLast: PASS_LAST },
     );
-    setCarriereRows(res.carriereRows);
+    // SIMPLE carry-forward: each projected year = a copy of the LAST REAL year. Its salary is
+    // carried by projectYearValue (no PASS cap), and we copy that year's complementary points
+    // verbatim onto every projected row — no recompute from salary, no multi-year heuristic.
+    // What the consultant sees is exactly "next year = same salary AND same points as the last
+    // real year".
+    const lastRealRow = carriereRows.find((r) => r && !r.projected && r.yr === lastRealYear);
+    const baseAgirc = Number(lastRealRow?.agircPts) || 0;
+    const baseIrc = Number(lastRealRow?.ircPts) || 0;
+    const baseRci = Number(lastRealRow?.rciPts) || 0;
+    const projectedRows = res.carriereRows.map((r) => {
+      if (!r.projected) return r;
+      return { ...r, agircPts: baseAgirc, ircPts: baseIrc, rciPts: baseRci, regimes: { ...(r.regimes || {}), AGIRC_ARRCO: baseAgirc, IRCANTEC: baseIrc, RCI: baseRci } };
+    });
+    // L'année de départ n'est travaillée qu'en partie : prorata par trimestres civils écoulés
+    // (1 trim = 3 mois ; janvier = 0, avril = 1, juillet = 2, octobre = 3). Sinon la projection
+    // afficherait une année PLEINE (4 trim) même pour un départ au 1er janvier.
+    let trimCotOut = res.trimCotState;
+    if (nextMode === PROJECTION_MODES.LIBRE && nextLibreDate) {
+      const _ld = new Date(String(nextLibreDate).slice(0, 10) + "T00:00:00");
+      if (!isNaN(_ld.getTime())) {
+        trimCotOut = { ...res.trimCotState, [_ld.getFullYear()]: Math.min(4, Math.floor(_ld.getMonth() / 3)) };
+      }
+    }
+    setCarriereRows(projectedRows);
     setRevaloValues(res.revaloValues);
-    setTrimCotState(res.trimCotState);
+    setTrimCotState(trimCotOut);
     if (res.projectedYears.length) {
       setVisibleRowCount((v) => Math.min(res.carriereRows.length, Math.max(v, res.projectedYears.length + 20)));
     }
-  }, [carriereRows, revaloValues, trimCotState, user, departureDates]);
+  }, [carriereRows, revaloValues, trimCotState, user, departureDates, dateLibreInput]);
+
+  // Désactive la projection : retire toutes les années projetées (reconcile vers un set vide).
+  const clearProjection = useCallback(() => {
+    const lastRealYear = findLastRealYear(carriereRows);
+    const res = reconcileProjection(
+      { carriereRows, revaloValues, trimCotState },
+      { lastRealYear, targetYear: lastRealYear, surcote: 0, lastRealSalary: 0, passLast: PASS_LAST },
+    );
+    setCarriereRows(res.carriereRows);
+    setRevaloValues(res.revaloValues);
+    setTrimCotState(res.trimCotState);
+  }, [carriereRows, revaloValues, trimCotState]);
 
   //   RIS format  : { annee, sal_original, sal_eur, devise, regimes }
   //   SAISIE format: { annee, salaire_brut, salaire_revalo, trimestres_cotises, trimestres_assimiles }
@@ -1560,18 +1575,20 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     if (!Array.isArray(carriere) || !carriere.length) return 0;
     const minYear = Math.min(...carriere.map(r => r.annee));
     setVisibleRowCount(Math.min(Math.max(20, 2026 - minYear + 1), 65));
-    setCarriereRows(prev => prev.map(row => {
-      const entry = carriere.find(r => r.annee === row.yr);
-      if (!entry) return row;
+    // Build a full grid row from a carriere entry. Shared by the in-place update and the
+    // append step below so projected years stored BEYOND the default grid (e.g. 2027+) get
+    // real rows AND keep their `projected` flag — instead of being dropped from carriereRows
+    // while still feeding trimCotState (the desync that made a projection "disappear" from
+    // the grid yet linger in the totals, and made 2026 look like real RIS data with points).
+    const buildRowFromEntry = (row, entry) => {
       // Normalize salary: new format uses revenu_brut, legacy uses salaire_brut, RIS uses sal_eur
       const salEur = entry.revenu_brut ?? entry.salaire_brut ?? entry.sal_eur ?? 0;
       const salOriginal = entry.revenu_brut ?? entry.salaire_brut ?? entry.sal_original ?? 0;
       const plaf = PLAFONDS_SS[row.yr] || 48060;
       const coeff = coeffRevalo[row.yr] || 1;
       const calculatedRevalo = Math.round(Math.min(salEur, plaf) * coeff);
-      // R.351-29 CSS : le plafond PASS s'applique au salaire AVANT revalorisation.
-      // Le salaire revalorisé (plaf × coeff) dépasse normalement le PASS courant
-      // et NE doit PAS être re-plafonné.
+      // R.351-29 CSS : le plafond PASS s'applique au salaire AVANT revalorisation. Le salaire
+      // revalorisé (plaf × coeff) dépasse normalement le PASS courant et NE doit PAS être re-plafonné.
       const revalo = entry.salaire_revalo ?? calculatedRevalo;
       const ss = Math.min(salEur, plaf);
       const pts = {};
@@ -1584,8 +1601,24 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       if (agirc != null) { pts.agircPts = agirc; pts.regimes.AGIRC_ARRCO = agirc; }
       if (irc != null)   { pts.ircPts   = irc;   pts.regimes.IRCANTEC    = irc;   }
       if (rci != null)   { pts.rciPts   = rci;   pts.regimes.RCI         = rci;   }
-      return { ...row, sal: salOriginal, ss, revalo, devise: entry.devise || '€', regimes_concernes: entry.regimes_concernes || '', ...pts };
-    }));
+      return { ...row, sal: salOriginal, ss, revalo, devise: entry.devise || '€', regimes_concernes: entry.regimes_concernes || '', ...pts, projected: !!entry.projected };
+    };
+    setCarriereRows(prev => {
+      const updated = prev.map(row => {
+        const entry = carriere.find(r => r.annee === row.yr);
+        return entry ? buildRowFromEntry(row, entry) : row;
+      });
+      // Append rows for carriere years beyond the existing grid (projected years > newest row),
+      // so carriereRows stays in sync with trimCotState (which is filled for every entry below).
+      const existingYears = new Set(prev.map(r => r.yr));
+      const extras = carriere
+        .filter(e => e && e.annee != null && !existingYears.has(e.annee))
+        .map(e => buildRowFromEntry(
+          { yr: e.annee, sal: 0, ss: 0, coeff: "1.000", revalo: 0, trim: 0, ar: 0, total: 0, agircPts: 0, ircPts: 0, rciPts: 0, regimes: {} },
+          e
+        ));
+      return extras.length ? [...updated, ...extras].sort((a, b) => b.yr - a.yr) : updated;
+    });
     setRevaloValues(prev => {
       const next = { ...prev };
       carriere.forEach(entry => {
@@ -1661,16 +1694,20 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     const Config = { headers: { Authorization: "Bearer " + localStorage.getItem("token") } };
     axios.get(`${global.config.server_url}/frozen_data/${id}`, Config)
       .then(res => {
-        // A scanned-but-unvalidated draft takes precedence while the career isn't
-        // frozen, so a refresh restores the working grid without re-running n8n.
-        if (!res.data?.locked_at) {
-          const draft = readCareerDraft(id);
-          if (draft) {
-            restoreCareerDraft(draft);
-            draftHydratedRef.current = true;
-            setHydrationDone(true);
-            return;
-          }
+        // A working draft exists ONLY while the career is unlocked — locking removes it
+        // (see the freeze handler). So whenever a draft is present it is the freshest
+        // in-progress grid (e.g. a projection added after UNLOCKING a previously-frozen
+        // career) and must win over the server frozen_data. Gating this on `!locked_at`
+        // was the bug: after a first lock the server keeps locked_at, so unlock → project
+        // → F5 ignored the draft and silently reverted to the frozen snapshot — the
+        // projection "disappeared". Drafts are cleared on lock, so this can't resurrect a
+        // stale grid over a freshly-frozen one.
+        const draft = readCareerDraft(id);
+        if (draft) {
+          restoreCareerDraft(draft);
+          draftHydratedRef.current = true;
+          setHydrationDone(true);
+          return;
         }
         // Restore CIPAV points (from dedicated column or legacy carriere objects)
         const cipav = res.data?.cipav;
@@ -1854,6 +1891,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     setCarpimkoOpen(false);
     setVisibleRowCount(20);
     setProjectionTargetAge(67);
+    setProjectionTargetMonths(0);
     setProjectionSurcote(0);
     setProjectionMode(PROJECTION_MODES.LIBRE);
     try { localStorage.removeItem(`simu_projection_${id}`); } catch { /* noop */ }
@@ -1954,6 +1992,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       if (raw) {
         const d = JSON.parse(raw);
         if (Number.isFinite(d.targetAge)) setProjectionTargetAge(d.targetAge);
+        setProjectionTargetMonths(Number.isFinite(d.targetMonths) ? d.targetMonths : 0);
         if (Number.isFinite(d.surcote)) setProjectionSurcote(d.surcote);
         if (typeof d.mode === "string" && Object.values(PROJECTION_MODES).includes(d.mode)) setProjectionMode(d.mode);
       }
@@ -1966,9 +2005,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   useEffect(() => {
     if (!id) return;
     try {
-      localStorage.setItem(`simu_projection_${id}`, JSON.stringify({ targetAge: projectionTargetAge, surcote: projectionSurcote, mode: projectionMode }));
+      localStorage.setItem(`simu_projection_${id}`, JSON.stringify({ targetAge: projectionTargetAge, targetMonths: projectionTargetMonths, surcote: projectionSurcote, mode: projectionMode }));
     } catch { /* noop */ }
-  }, [id, projectionTargetAge, projectionSurcote, projectionMode]);
+  }, [id, projectionTargetAge, projectionTargetMonths, projectionSurcote, projectionMode]);
 
   // After a RIS import bumps projRegenNonce, regenerate the projection once against the
   // freshly-applied grid. Intentionally keyed ONLY on the nonce (run-on-signal pattern):
@@ -1977,9 +2016,30 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // grid edit and loop forever (the handler itself calls setCarriereRows). The render that
   // bumps the nonce already captures a fresh handler reflecting the post-import grid.
   useEffect(() => {
-    if (projRegenNonce > 0) handleGenerateProjection(projectionMode, projectionTargetAge, projectionSurcote);
+    if (projRegenNonce > 0) handleGenerateProjection(projectionMode, projectionTargetAge, projectionSurcote, projectionTargetMonths);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projRegenNonce]);
+
+  // Multi-dates : la grille se projette toujours jusqu'à la date retenue la PLUS LOINTAINE,
+  // et se nettoie quand il n'y a plus de date. Déclenché par chosenDates, mais SEULEMENT après
+  // une action utilisateur (datesUserTouchedRef) — pas à l'hydratation/au chargement. Ne dépend
+  // QUE de chosenDates (run-on-signal) : l'effet écrit carriereRows, jamais chosenDates → pas de boucle.
+  useEffect(() => {
+    if (!datesUserTouchedRef.current || carriereValidee) return;
+    const furthest = furthestChosenDate(chosenDates);
+    if (!furthest) { clearProjection(); return; }
+    const typeToMode = {
+      age_legal: PROJECTION_MODES.LEGAL,
+      taux_plein: PROJECTION_MODES.DUREE,
+      taux_plein_auto: PROJECTION_MODES.AUTO67,
+      date_libre: PROJECTION_MODES.LIBRE,
+    };
+    const mode = typeToMode[furthest.type] || PROJECTION_MODES.LIBRE;
+    const libreDate = furthest.type === "date_libre" ? furthest.date : dateLibreInput;
+    setProjectionMode(mode);
+    handleGenerateProjection(mode, projectionTargetAge, projectionSurcote, projectionTargetMonths, libreDate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chosenDates]);
 
   // After freezing the career, auto-select in Scénarios the date matching the projection mode.
   // Anchors (légal / durée / 67) ALWAYS select — even when the date is in the past and the grid
@@ -2003,17 +2063,15 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     } else if (projectionMode === PROJECTION_MODES.AUTO67 && dd.date67) {
       typeId = "taux_plein_auto"; label = "Taux plein auto (67 ans)"; isoDate = toIso(dd.date67.date);
       info = `67 ans → ${dd.date67.label}`;
-    } else if (projectionMode === PROJECTION_MODES.LIBRE && hasProjectedRows && birth && Number.isFinite(projectionTargetAge)) {
-      const d = new Date(birth.getFullYear() + projectionTargetAge, birth.getMonth(), birth.getDate());
-      typeId = "date_libre"; label = "Date libre"; isoDate = toIso(d);
-      info = d.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+    } else if (projectionMode === PROJECTION_MODES.LIBRE && hasProjectedRows && dateLibreInput) {
+      typeId = "date_libre"; label = "Date libre"; isoDate = dateLibreInput;
+      const _d = new Date(dateLibreInput + "T00:00:00");
+      info = !isNaN(_d.getTime()) ? _d.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }) : dateLibreInput;
     }
     if (!typeId) return; // aucune projection exploitable → on laisse l'utilisateur choisir
-    const prevAuto = lastAutoDateTypeRef.current;
+    // Multi-sélection : on n'enlève PLUS la date auto précédente (sinon le gel retirerait
+    // une date que l'utilisateur a choisie). On ajoute seulement la date du mode courant si absente.
     let next = chosenDates, changed = false;
-    if (prevAuto && prevAuto !== typeId && next.some((cd) => cd?.type === prevAuto)) {
-      next = next.filter((cd) => cd?.type !== prevAuto); changed = true;
-    }
     if (!next.some((cd) => cd?.type === typeId)) {
       next = [...next, { type: typeId, label, date: isoDate, info }]; changed = true;
     }
@@ -2030,6 +2088,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // Reset hydration tracker on client switch
   useEffect(() => {
     hasHydratedRef.current = false;
+    datesUserTouchedRef.current = false; // nouveau client → pas d'auto-projection tant qu'il n'a pas touché aux dates
   }, [id]);
 
   // Reset RIS payload state on client switch (source of truth = backend frozen_data)
@@ -2282,6 +2341,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
             ...(pts.agirc_arrco != null && { agirc_arrco: { points_total: pts.agirc_arrco } }),
             ...(pts.ircantec    != null && { ircantec:    { points_total: pts.ircantec    } }),
             ...(pts.rci         != null && { rci:         { points_total: pts.rci         } }),
+            ...(pts.rafp        != null && { rafp:        { points_total: pts.rafp        } }),
             ...((cipavBase != null || cipavCompl != null) && {
               cipav: {
                 points_base: cipavBase ?? 0,
@@ -2966,11 +3026,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       formData.append("client_id", id);
       formData.append("nir", nir);
       if (hiddenSystemPrompt) formData.append("system_prompt", hiddenSystemPrompt);
-      const rapportComment = (promptText || "").trim();
+      const rapportComment = (pinnedNote || "").trim();
       if (rapportComment) {
         formData.append("user_context", rapportComment);
         toast.success("✓ Votre note sera utilisée pour ce rapport", { autoClose: 2500 });
-        persistPromptNote(rapportComment);
       }
 
       toast.info("Génération du rapport de consultation en cours…");
@@ -3124,7 +3183,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       cancelReportRef.current = null;
       try { localStorage.removeItem(`gen_pending_RAPPORT_CONSULTATION_${id}`); } catch {}
     }
-  }, [fileToSend, user, id, hiddenSystemPrompt, cleanChainOfThought, userDocuments, scenarioSkillResults, promptText]);
+  }, [fileToSend, user, id, hiddenSystemPrompt, cleanChainOfThought, userDocuments, scenarioSkillResults, pinnedNote]);
 
   // ── Simulation Retraite (appelle Laravel → n8n → HTML) ──────────────────────
   const handleGenerateSimulationRetraite = useCallback(async () => {
@@ -3139,7 +3198,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     }
     setIsGeneratingSimulation(true);
     try { localStorage.setItem(`gen_pending_SIMULATION_RETRAITE_${id}`, JSON.stringify({ startedAt: Date.now() })); } catch {}
-    if ((promptText || "").trim()) {
+    if ((pinnedNote || "").trim()) {
       toast.info("💬 Commentaire transmis à la Simulation retraite", { autoClose: 2500 });
     }
     try {
@@ -3153,7 +3212,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         },
         body: JSON.stringify({
           client_id: id,
-          user_context: (promptText || "").trim() || undefined,
+          user_context: (pinnedNote || "").trim() || undefined,
         }),
       });
       if (!resp.ok) {
@@ -3203,7 +3262,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       setIsGeneratingSimulation(false);
       try { localStorage.removeItem(`gen_pending_SIMULATION_RETRAITE_${id}`); } catch {}
     }
-  }, [id, scenarioSkillResults, user, promptText]);
+  }, [id, scenarioSkillResults, user, pinnedNote]);
 
   const [isGeneratingAudit, setIsGeneratingAudit] = useState(false);
 
@@ -3217,10 +3276,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     setIsGeneratingAudit(true);
     try { localStorage.setItem(`gen_pending_AUDIT_RETRAITE_${id}`, JSON.stringify({ startedAt: Date.now() })); } catch {}
     try {
-      const auditComment = (promptText || "").trim();
+      const auditComment = (pinnedNote || "").trim();
       if (auditComment) {
         toast.success("✓ Votre note sera utilisée pour cet audit", { autoClose: 2500 });
-        persistPromptNote(auditComment);
       }
       toast.info("Génération de l'audit retraite en cours… (peut prendre plusieurs minutes)");
       const token = localStorage.getItem("token") || "";
@@ -3260,7 +3318,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       setIsGeneratingAudit(false);
       try { localStorage.removeItem(`gen_pending_AUDIT_RETRAITE_${id}`); } catch {}
     }
-  }, [id, scenarioSkillResults, user, promptText, persistPromptNote]);
+  }, [id, scenarioSkillResults, user, pinnedNote]);
 
   // Derive doc availability from real uploaded documents
   const hasDocuments = userDocuments.some((d) => Number(d.dossier) === 10) || !!fileToSend;
@@ -3374,6 +3432,24 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
 
   // Récap CIPAV (vignettes lecture seule) depuis cnavplRows.
   const cipavRecap = useMemo(() => buildCipavRecap(cnavplRows), [cnavplRows]);
+
+  // Régimes présents au RIS mais HORS des accordions figés (RAFP, MSA, CARMF…).
+  // Les points atterrissent dans row.regimes via parseCarrierePoints/resolveRegime,
+  // mais l'UI figée ne les affichait pas → ils étaient extraits mais invisibles.
+  // Affichage générique lecture seule (total points), pension non calculée.
+  const extraRegimes = useMemo(() => {
+    const shown = new Set(["CNAV", "AGIRC_ARRCO", "IRCANTEC", "RCI", "CIPAV", "PER"]);
+    return computeVisibleRegimes(carriereRows, [])
+      .filter((r) => r && r.key && !shown.has(r.key))
+      .map((r) => {
+        const total = carriereRows.reduce(
+          (s, row) => s + (parseFloat(row?.regimes?.[r.key]) || 0),
+          0
+        );
+        return { ...r, total: Math.round(total * 100) / 100 };
+      })
+      .filter((r) => r.total > 0);
+  }, [carriereRows]);
 
   const handleGeler = useCallback(async () => {
     if (!id) return;
@@ -3639,6 +3715,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
             },
           },
         },
+        // Choix consultant : embarquer les dates/scénarios retenus dans le frozen verrouillé
+        // (sinon le verrouillage crée un snapshot sans dates → le livrable perd les scénarios).
+        dates_retenues: chosenDates,
+        scenarios_choisis: chosenScenarios,
         // Adapt: Set locking fields directly in the store payload
         locked_at: now,
         locked_by: consultantId,
@@ -3820,6 +3900,15 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       await Promise.allSettled(
         scenarioCodes.map(code => handleScenarioSkillExecute(code, {}))
       );
+
+      // Multi-dates : 1 appel au moteur /simulate (projette les trimestres par date), non-silencieux.
+      if (Array.isArray(chosenDates) && chosenDates.length > 0) {
+        try {
+          await runMultiDateScenarios(id, chosenDates);
+        } catch (e) {
+          toast.error("Calcul multi-dates (consultation) échoué : " + (e?.response?.data?.message || e?.message || "erreur réseau"));
+        }
+      }
     } finally {
       setIsCalculatingAll(false);
       setSkillLoading(false);
@@ -3836,10 +3925,20 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // (le payload n8n complet) et des params saisis. Centralisé pour pouvoir
   // ré-utiliser au moment d'un recalcul (snapshot rafraîchi).
   const buildScenarioItem = useCallback((action, skillResultData, paramsOverride) => {
-    const params = paramsOverride
+    let params = paramsOverride
       ?? (inputValues[action.id] != null && inputValues[action.id] !== ""
         ? { input: inputValues[action.id] }
         : {});
+    // Préserve le ciblage de dates du rachat VPLR (params.dates_cibles) à travers les
+    // recalculs/refresh : sans ça, refreshChosenScenarioSnapshot reconstruirait params={input}
+    // et perdrait les dates cochées.
+    if (action.id === "rachat_vplr") {
+      const _existingVplr = chosenScenarios.find(s => s?.dispositif_id === "rachat_vplr");
+      const _dc = _existingVplr?.params?.dates_cibles;
+      if (Array.isArray(_dc) && _dc.length && !(params && !Array.isArray(params) && params.dates_cibles)) {
+        params = { ...params, dates_cibles: _dc };
+      }
+    }
     return {
       dispositif_id: action.id,
       label: action.label,
@@ -3857,7 +3956,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       last_calc: skillResultData ?? null,
       last_calc_at: skillResultData ? new Date().toISOString() : null,
     };
-  }, [inputValues]);
+  }, [inputValues, chosenScenarios]);
 
   // Met à jour le snapshot (params + résultat) d'un scénario déjà retenu.
   // Appelé après un recalcul pour persister le résultat le plus récent.
@@ -3908,15 +4007,40 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     }
   }, [id, chosenScenarios]);
 
+  // Coche/décoche une date de départ cible pour le rachat VPLR (params.dates_cibles).
+  // Le ciblage vit dans l'item retenu ; no-op si le scénario VPLR n'est pas retenu.
+  const toggleVplrDateCible = useCallback(async (dateStr) => {
+    if (!id || !dateStr) return;
+    const idx = chosenScenarios.findIndex(s => s?.dispositif_id === "rachat_vplr");
+    if (idx === -1) { toast.info("Retiens d'abord le scénario Rachat VPLR (⭐)"); return; }
+    const existing = chosenScenarios[idx];
+    const baseParams = (existing?.params && !Array.isArray(existing.params)) ? existing.params : {};
+    const current = Array.isArray(baseParams.dates_cibles) ? baseParams.dates_cibles : [];
+    const nextDates = current.includes(dateStr)
+      ? current.filter(d => d !== dateStr)
+      : [...current, dateStr];
+    const next = chosenScenarios.map((s, i) =>
+      i === idx ? { ...s, params: { ...baseParams, dates_cibles: nextDates } } : s
+    );
+    const previous = chosenScenarios;
+    setChosenScenarios(next); // optimiste
+    try {
+      const updated = await saveChosenScenarios(parseInt(id), next);
+      const serverList = updated?.scenarios_choisis;
+      if (Array.isArray(serverList)) setChosenScenarios(serverList);
+    } catch (err) {
+      setChosenScenarios(previous); // rollback silencieux
+    }
+  }, [id, chosenScenarios]);
+
   const handleScenarioSkillExecute = useCallback(async (skillCode, scenarioParams = {}) => {
     if (!id || !carriereValidee) {
       toast.error("Geler la carrière d'abord");
       return;
     }
-    const extraContext = (promptText || "").trim();
+    const extraContext = (pinnedNote || "").trim();
     if (extraContext) {
       toast.success("✓ Votre note sera utilisée pour ce calcul", { autoClose: 2500 });
-      persistPromptNote(extraContext);
     }
     setScenarioSkillLoading(prev => ({ ...prev, [skillCode]: true }));
     setScenarioSkillErrors(prev => ({ ...prev, [skillCode]: null }));
@@ -3992,7 +4116,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     } finally {
       setScenarioSkillLoading(prev => ({ ...prev, [skillCode]: false }));
     }
-  }, [id, carriereValidee, refreshChosenScenarioSnapshot, inputValues, user, promptText]);
+  }, [id, carriereValidee, refreshChosenScenarioSnapshot, inputValues, user, pinnedNote]);
 
   // ── Multi-select : toggle d'un scénario dans la liste retenue ──
   // Persiste l'intégralité de la liste à chaque modification.
@@ -4027,6 +4151,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // Pour "date_libre", `customDate` doit être au format ISO yyyy-mm-dd.
   const handleChooseDate = useCallback(async (typeId, label, dateInfo, customDate = null) => {
     if (!id) return;
+    datesUserTouchedRef.current = true; // action utilisateur sur les dates → la grille suivra la date la plus lointaine
     let isoDate = customDate;
     let info = dateInfo?.info || "";
     if (typeId !== "date_libre" && dateInfo?.date instanceof Date) {
@@ -4531,6 +4656,24 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
               </div>
               )}
 
+          {/* ── CHATBOT ASSISTANT CONTEXTUEL (remplace la « Note pour l'IA ») ── */}
+          {user?.id && (
+            <SimulatorChatPanel
+              clientId={user.id}
+              pinnedNote={pinnedNote}
+              onPin={(content) => { setPinnedNote(content); toast.success("📌 Note épinglée — sera transmise au rapport."); }}
+              onUnpin={() => { setPinnedNote(""); toast.info("Note retirée du rapport."); }}
+              getContext={() => buildSimulatorContext({
+                user,
+                carriereRows,
+                carriereValidee,
+                chosenScenarios,
+                chosenDates,
+                scenarioSkillResults,
+              })}
+            />
+          )}
+
           {/* ── MAIN PANELS ── */}
           {hasDocuments && (
             <>
@@ -4578,24 +4721,35 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
 
                     // ── CARRIÈRE: TABLEAU UNIFIÉ ──
                     if (expandedPanel === "carriere") {
-                      // Utilise carriereRows (état stable, hydraté depuis OCR ou saisie manuelle)
                       const totalRows = carriereRows.slice(0, visibleRowCount);
-                      const totalCotTbl = totalRows.reduce((s, r) => s + (trimCotState[r.yr] ?? 0), 0);
-                      const totalAssTbl = totalRows.reduce((s, r) => s + (trimAssState[r.yr] ?? 0), 0);
-                      const totalArTbl = totalRows.reduce((s, r) => s + (arState[r.yr] ?? 0), 0);
-                      const totalTrimTbl = totalRows.reduce((s, r) => {
-                        const tc = trimCotState[r.yr] ?? 0;
-                        const ta = trimAssState[r.yr] ?? 0;
-                        const ar = arState[r.yr] ?? 0;
+                      // ∑ trimestres : on somme sur TOUTES les années présentes dans trimCotState/
+                      // trimAssState/arState (la source de vérité, identique à « Données de calcul »),
+                      // PAS sur carriereRows — sinon les années projetées >2026 que carriereRows ne
+                      // porte pas (désync grille↔totaux) seraient oubliées → le ∑ sous-comptait (166
+                      // au lieu de 174). On itère les clés directement pour rester cohérent partout.
+                      const _allTrimYears = Array.from(new Set([
+                        ...Object.keys(trimCotState), ...Object.keys(trimAssState), ...Object.keys(arState),
+                      ]));
+                      const totalCotTbl = _allTrimYears.reduce((s, yr) => s + (Number(trimCotState[yr]) || 0), 0);
+                      const totalAssTbl = _allTrimYears.reduce((s, yr) => s + (Number(trimAssState[yr]) || 0), 0);
+                      const totalArTbl = _allTrimYears.reduce((s, yr) => s + (Number(arState[yr]) || 0), 0);
+                      const totalTrimTbl = _allTrimYears.reduce((s, yr) => {
+                        const tc = Number(trimCotState[yr]) || 0;
+                        const ta = Number(trimAssState[yr]) || 0;
+                        const ar = Number(arState[yr]) || 0;
                         return s + Math.min(4, tc + ta + ar);
                       }, 0);
-                      // SAM CNAV : uniquement les années avec affiliation CNAV (TC ou TA > 0)
-                      // Exclut les années régime complémentaire seul (Agirc-only, CIPAV seul, etc.)
+                      // SAM CNAV : 25 meilleures années CNAV revalorisées.
+                      // - samVal (la valeur) vient de la source unique computeSamCnav,
+                      //   partagée avec le bloc « Données de calcul » (CalculDataPanel) →
+                      //   garantit que les deux affichent le même SAM.
+                      // - samRows ne sert qu'à l'affichage du détail des 25 années retenues
+                      //   (même filtre/tri que computeSamCnav).
                       const samRows = [...carriereRows]
                         .filter(r => ((trimCotState[r.yr] ?? 0) > 0 || (trimAssState[r.yr] ?? 0) > 0) && (revaloValues[r.yr] ?? 0) > 0)
                         .sort((a, b) => (revaloValues[b.yr] ?? 0) - (revaloValues[a.yr] ?? 0))
                         .slice(0, 25);
-                      const samVal = samRows.length ? Math.round(samRows.reduce((s, r) => s + (revaloValues[r.yr] ?? 0), 0) / samRows.length) : 0;
+                      const samVal = computeSamCnav(carriereRows, trimCotState, trimAssState, revaloValues);
 
                       const WIRED_REGIME_KEYS = ["CNAV", "AGIRC_ARRCO", "IRCANTEC", "RCI", "CIPAV"];
                       const dynamicRegimes = computeVisibleRegimes(carriereRows, WIRED_REGIME_KEYS).filter(
@@ -4727,24 +4881,38 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               <span style={{ fontSize: 16 }}>📈</span>
                               <span style={{ fontSize: 13, fontWeight: 600, color: "#343a40" }}>Projeter jusqu&rsquo;à</span>
                               {[
-                                { id: PROJECTION_MODES.LEGAL,  label: "Âge légal",          needsBirth: true },
-                                { id: PROJECTION_MODES.DUREE,  label: "Taux plein (durée)", needsBirth: true },
-                                { id: PROJECTION_MODES.AUTO67, label: "Taux plein 67 ans",  needsBirth: true },
-                                { id: PROJECTION_MODES.LIBRE,  label: "Âge libre",          needsBirth: false },
+                                { id: PROJECTION_MODES.LEGAL,  label: "Âge légal",          needsBirth: true,  dateType: "age_legal",       getInfo: () => departureDates.legale },
+                                { id: PROJECTION_MODES.DUREE,  label: "Taux plein (durée)", needsBirth: true,  dateType: "taux_plein",      getInfo: () => departureDates.tauxPlein },
+                                { id: PROJECTION_MODES.AUTO67, label: "Taux plein 67 ans",  needsBirth: true,  dateType: "taux_plein_auto", getInfo: () => departureDates.date67 },
+                                { id: PROJECTION_MODES.LIBRE,  label: "Date libre",         needsBirth: false, dateType: "date_libre",      getInfo: () => null },
                               ].map((chip) => {
-                                const disabled = carriereValidee || (chip.needsBirth && !projBirthYear);
-                                const active = projectionMode === chip.id;
+                                const isLibre = chip.id === PROJECTION_MODES.LIBRE;
+                                const info = chip.getInfo();
+                                const disabled = carriereValidee || (chip.needsBirth && !projBirthYear) || (chip.needsBirth && !info);
+                                // Multi-sélection : un bouton est « actif » si sa date figure déjà dans les dates retenues.
+                                const active = Array.isArray(chosenDates) && chosenDates.some((cd) => cd?.type === chip.dateType);
                                 return (
                                   <button
                                     key={chip.id}
                                     type="button"
                                     disabled={disabled}
                                     title={
-                                      carriereValidee ? "Déverrouillez la carrière pour modifier la projection" :
+                                      carriereValidee ? "Déverrouillez la carrière pour modifier les dates" :
                                       chip.needsBirth && !projBirthYear ? "Renseignez la date de naissance du client" :
-                                      undefined
+                                      isLibre && !dateLibreInput ? "Choisissez d'abord une date dans le champ ci-contre" :
+                                      active ? "Recliquez pour retirer cette date des dates retenues" :
+                                      "Cliquez pour ajouter cette date aux dates retenues"
                                     }
-                                    onClick={() => { setProjectionMode(chip.id); handleGenerateProjection(chip.id, projectionTargetAge, projectionSurcote); }}
+                                    onClick={() => {
+                                      // Le bouton ajoute / retire la date dans la multi-sélection ;
+                                      // la grille se projette ensuite jusqu'à la date la plus lointaine (effet dédié).
+                                      if (isLibre) {
+                                        if (!dateLibreInput) { setProjectionMode(PROJECTION_MODES.LIBRE); return; }
+                                        handleChooseDate("date_libre", "Date libre", null, dateLibreInput);
+                                      } else {
+                                        handleChooseDate(chip.dateType, chip.label, info);
+                                      }
+                                    }}
                                     style={{ padding: "4px 10px", borderRadius: 14, fontSize: 12, fontWeight: 600, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1, border: active ? "1px solid #FF9F43" : "1px solid #FFD08A", background: active ? "#FF9F43" : "#fff", color: active ? "#fff" : "#B26A00" }}
                                   >
                                     {chip.label}
@@ -4753,44 +4921,25 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               })}
                               {projectionMode === PROJECTION_MODES.LIBRE && (
                                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                  <label htmlFor="proj_target_age" style={{ fontSize: 13, fontWeight: 600, color: "#343a40" }}>Âge visé</label>
-                                  <input
-                                    type="number"
-                                    id="proj_target_age"
-                                    min={60}
-                                    max={75}
-                                    value={projectionTargetAge}
+                                  <label style={{ fontSize: 13, fontWeight: 600, color: "#343a40" }}>Date de départ</label>
+                                  <DateInputFR
+                                    value={dateLibreInput}
                                     disabled={carriereValidee}
-                                    onChange={(e) => {
-                                      // Free typing: keep the raw value (no per-keystroke clamp, which
-                                      // made multi-digit edits impossible). Project live only when the
-                                      // value is a valid age in range; clamping happens on blur.
-                                      const raw = e.target.value;
-                                      if (raw === "") { setProjectionTargetAge(""); return; }
-                                      const v = parseInt(raw, 10);
-                                      if (!Number.isFinite(v)) return;
-                                      setProjectionTargetAge(v);
-                                      if (v >= 60 && v <= 75) handleGenerateProjection(PROJECTION_MODES.LIBRE, v, projectionSurcote);
-                                    }}
-                                    onBlur={(e) => {
-                                      const v = parseInt(e.target.value, 10);
-                                      const clamped = Number.isFinite(v) ? Math.min(75, Math.max(60, v)) : 67;
-                                      setProjectionTargetAge(clamped);
-                                      handleGenerateProjection(PROJECTION_MODES.LIBRE, clamped, projectionSurcote);
-                                    }}
-                                    style={{ width: 64, textAlign: "center", border: "1px solid #ddd", borderRadius: 4, fontSize: 14, padding: "2px 4px" }}
+                                    onChange={(e) => { const v = e.target.value; setDateLibreInput(v); handleGenerateProjection(PROJECTION_MODES.LIBRE, projectionTargetAge, projectionSurcote, projectionTargetMonths, v); }}
+                                    style={{ padding: "3px 6px", borderRadius: 4, border: "1px solid #ddd", fontSize: 14, fontFamily: "inherit", width: 120 }}
                                   />
                                 </div>
                               )}
                               {projectionActive && (
                                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                  <span style={{ fontSize: 13, fontWeight: 600, color: "#343a40" }}>Surcote</span>
-                                  <button type="button" disabled={carriereValidee || projectionSurcote <= 0}
-                                    onClick={() => { const s = Math.max(0, projectionSurcote - 1); setProjectionSurcote(s); handleGenerateProjection(projectionMode, projectionTargetAge, s); }}
-                                    style={{ width: 26, height: 26, borderRadius: 4, border: "1px solid #FF9F43", background: "#fff", color: "#FF9F43", fontWeight: 700, cursor: "pointer" }}>−</button>
-                                  <span style={{ fontSize: 13, minWidth: 56, textAlign: "center" }}>{projectionSurcote} an{projectionSurcote > 1 ? "s" : ""}</span>
+                                  <span style={{ fontSize: 13, fontWeight: 600, color: "#343a40" }}>Ajouter une année sur la projection</span>
+                                  <button type="button" disabled={carriereValidee || !projectionOn}
+                                    title={!projectionOn ? "Aucune année projetée à retirer" : "Retirer une année de la projection"}
+                                    onClick={() => { const s = projectionSurcote - 1; setProjectionSurcote(s); handleGenerateProjection(projectionMode, projectionTargetAge, s, projectionTargetMonths); }}
+                                    style={{ width: 26, height: 26, borderRadius: 4, border: "1px solid #FF9F43", background: "#fff", color: "#FF9F43", fontWeight: 700, cursor: (carriereValidee || !projectionOn) ? "not-allowed" : "pointer" }}>−</button>
+                                  <span style={{ fontSize: 13, minWidth: 56, textAlign: "center" }}>{(() => { const cy = new Date().getFullYear(); const n = carriereRows.filter(r => r && r.projected && r.yr > cy).length; return n + " an" + (n > 1 ? "s" : ""); })()}</span>
                                   <button type="button" disabled={carriereValidee}
-                                    onClick={() => { const s = projectionSurcote + 1; setProjectionSurcote(s); handleGenerateProjection(projectionMode, projectionTargetAge, s); }}
+                                    onClick={() => { const s = projectionSurcote + 1; setProjectionSurcote(s); handleGenerateProjection(projectionMode, projectionTargetAge, s, projectionTargetMonths); }}
                                     style={{ width: 26, height: 26, borderRadius: 4, border: "1px solid #FF9F43", background: "#fff", color: "#FF9F43", fontWeight: 700, cursor: "pointer" }}>+</button>
                                 </div>
                               )}
@@ -4798,35 +4947,57 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             {projBirthYear && (() => {
                               const dd = departureDates;
                               const birth = parseBirthDate(user?.birth_date);
-                              let head = null, date = null, special = null;
+                              let head = null, date = null;
                               if (projectionMode === PROJECTION_MODES.LEGAL && dd.legale) {
                                 head = `Âge légal : ${dd.legale.ageStr}`; date = dd.legale.date;
                               } else if (projectionMode === PROJECTION_MODES.AUTO67 && dd.date67) {
                                 head = "Taux plein 67 ans"; date = dd.date67.date;
-                              } else if (projectionMode === PROJECTION_MODES.LIBRE && birth && Number.isFinite(projectionTargetAge)) {
-                                head = `${projectionTargetAge} ans`;
-                                date = new Date(birth.getFullYear() + projectionTargetAge, birth.getMonth(), birth.getDate());
+                              } else if (projectionMode === PROJECTION_MODES.LIBRE && dateLibreInput) {
+                                const _d = new Date(dateLibreInput + "T00:00:00");
+                                if (!isNaN(_d.getTime())) { head = "Date libre"; date = _d; }
                               } else if (projectionMode === PROJECTION_MODES.DUREE && dd.tauxPlein) {
-                                const tp = dd.tauxPlein;
-                                head = `Taux plein (durée) : ${tp.ageStr}`; date = tp.date;
-                                special = `${dd.trimAcquis} acquis → ${tp.trimRequis} requis (${tp.trimManquants > 0 ? "taux plein atteint à cette date" : "taux plein déjà atteint"})`;
+                                head = `Taux plein (durée) : ${dd.tauxPlein.ageStr}`; date = dd.tauxPlein.date;
                               }
                               if (!date) return null;
                               const departLabel = date.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
-                              let tail = special ? ` · ${special}` : "";
-                              if (!special) {
-                                const o = departureTrimOutlook({ birthDate: user?.birth_date, trimAcquis: dd.trimAcquis, anneeRef: dd.anneeRef, trimParAnnee: dd.trimParAnnee, departureDate: date });
-                                if (o) {
-                                  if (o.automatique) tail = ` · ~${o.trim} trim. — taux plein automatique`;
-                                  else if (o.tauxPlein) tail = ` · ~${o.trim}/${o.trimRequis} trim. (taux plein)`;
-                                  else tail = ` · ~${o.trim}/${o.trimRequis} trim. (${o.manquants} manquants → décote)`;
-                                }
-                              }
+                              // Trimestres affichés = MÊME source unique que le ∑ et « Données de calcul » :
+                              // total réels + projetés (somme des clés trimCotState/trimAssState/arState),
+                              // plus le total SANS projection (années non futures). Fini les 3 nombres qui
+                              // se contredisaient (bandeau 162 / ∑ 166 / Données de calcul 174).
+                              const _curY = new Date().getFullYear();
+                              const _bYears = Array.from(new Set([...Object.keys(trimCotState), ...Object.keys(trimAssState), ...Object.keys(arState)]));
+                              const _capYr = (yr) => Math.min(4, (Number(trimCotState[yr]) || 0) + (Number(trimAssState[yr]) || 0) + (Number(arState[yr]) || 0));
+                              const _bTot = _bYears.reduce((s, yr) => s + _capYr(yr), 0);
+                              const _bReal = _bYears.filter((yr) => Number(yr) <= _curY).reduce((s, yr) => s + _capYr(yr), 0);
+                              const _bReq = (dd.tauxPlein && dd.tauxPlein.trimRequis) || 172;
+                              const _bProj = _bTot - _bReal;
+                              const tail = ` · ${_bReal} acquis${_bProj > 0 ? ` + ${_bProj} projetés = ${_bTot}` : ""} / ${_bReq} requis (${_bTot >= _bReq ? "taux plein" : (_bReq - _bTot) + " manquants → décote"})`;
                               return <span style={{ fontSize: 12, color: "#8a6d3b", fontWeight: 600 }}>{`📅 ${head} — départ ${departLabel}${tail}`}</span>;
                             })()}
                             {projLastRealYear != null && !projBirthYear && (
                               <span style={{ fontSize: 12, color: "#ea5455", fontWeight: 600 }}>Renseignez la date de naissance du client pour projeter jusqu&rsquo;au taux plein.</span>
                             )}
+                            {/* Dates retenues — repère trimestres acquis à chaque date (projection multi-dates) */}
+                            {Array.isArray(chosenDates) && chosenDates.length > 0 && (() => {
+                              const { trimAcquis, anneeRef, trimParAnnee } = departureDates || {};
+                              return (
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", borderTop: "1px dashed #FFE0A3", paddingTop: 8 }}>
+                                  <span style={{ fontSize: 12, color: "#8a6d3b", fontWeight: 700 }}>📍 Dates retenues</span>
+                                  {chosenDates.map((cd, i) => {
+                                    const _d = cd?.date ? new Date(String(cd.date).slice(0, 10) + "T00:00:00") : null;
+                                    const _valid = _d && !isNaN(_d.getTime());
+                                    const trimAt = _valid ? computeTrimAtDate(trimAcquis, anneeRef, _d, trimParAnnee) : null;
+                                    return (
+                                      <span key={cd?.type || i} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, padding: "3px 9px", borderRadius: 12, background: "#fff", border: "1px solid #FFD08A" }}>
+                                        <span style={{ fontWeight: 700, color: "#B26A00" }}>{cd?.label || cd?.type}</span>
+                                        <span style={{ color: "#999" }}>{_valid ? _d.toLocaleDateString("fr-FR") : (cd?.date || "")}</span>
+                                        {trimAt != null && <span style={{ fontWeight: 700, color: "#B26A00" }}>· {trimAt} trim.</span>}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              );
+                            })()}
                           </div>
 
                           {/* Grand tableau unifié */}
@@ -5133,9 +5304,34 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                 })}
                                 <tr>
                                   <td colSpan={(cnavplOpen ? 18 : 16) + dynamicRegimes.length} style={{ padding: "4px 8px" }}>
-                                    <button onClick={() => setVisibleRowCount(v => Math.min(v + 1, 65))} style={{ fontSize: 14, padding: "3px 10px", borderRadius: 5, border: "1px dashed #bbb", background: "transparent", color: "#555", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
-                                      <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> Ajouter une année ({carriereRows[visibleRowCount] ? carriereRows[visibleRowCount].yr : "—"})
-                                    </button>
+                                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                      <button onClick={() => setVisibleRowCount(v => Math.min(v + 1, 65))} style={{ fontSize: 14, padding: "3px 10px", borderRadius: 5, border: "1px dashed #bbb", background: "transparent", color: "#555", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                                        <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> Ajouter une année ({carriereRows[visibleRowCount] ? carriereRows[visibleRowCount].yr : "—"})
+                                      </button>
+                                      {(() => {
+                                        const lastYr = carriereRows[visibleRowCount - 1] ? carriereRows[visibleRowCount - 1].yr : null;
+                                        const canRemove = !carriereValidee && visibleRowCount > 1 && lastYr != null;
+                                        return (
+                                          <button
+                                            disabled={!canRemove}
+                                            onClick={() => {
+                                              if (!canRemove) return;
+                                              // Supprime l'année la plus ancienne affichée : on efface ses données
+                                              // (trimestres, salaires, points) ET on la masque, pour qu'elle disparaisse
+                                              // vraiment des totaux (qui somment trimCotState/trimAssState/arState).
+                                              const delKey = (setter) => setter(prev => { const n = { ...prev }; delete n[lastYr]; return n; });
+                                              setCarriereRows(prev => prev.map(r => r.yr === lastYr ? { ...r, sal: 0, ss: 0, revalo: 0, agircT1: 0, agircT2: 0, agircPts: 0, ircPts: 0, rciPts: 0, regimes: {}, projected: false } : r));
+                                              delKey(setTrimCotState); delKey(setTrimAssState); delKey(setArState); delKey(setRevaloValues); delKey(setDeplafValues);
+                                              setVisibleRowCount(v => Math.max(1, v - 1));
+                                            }}
+                                            style={{ fontSize: 14, padding: "3px 10px", borderRadius: 5, border: "1px dashed #d99", background: "transparent", color: canRemove ? "#c0392b" : "#bbb", cursor: canRemove ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 4 }}
+                                            title={carriereValidee ? "Déverrouillez la carrière pour supprimer une année" : ""}
+                                          >
+                                            <span style={{ fontSize: 14, lineHeight: 1 }}>−</span> Retirer une année ({lastYr != null ? lastYr : "—"})
+                                          </button>
+                                        );
+                                      })()}
+                                    </div>
                                   </td>
                                 </tr>
                               </tbody>
@@ -5247,6 +5443,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               trimCotState={trimCotState}
                               trimAssState={trimAssState}
                               arState={arState}
+                              revaloValues={revaloValues}
                               user={user}
                               departureDates={departureDates}
                               collapsible
@@ -5387,6 +5584,29 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                   </div>
                                 );
                               })}
+                              {extraRegimes.length > 0 && (
+                                <div style={{ border: "1px solid #eee", borderRadius: 9, overflow: "hidden" }}>
+                                  <div style={{ padding: "10px 14px", background: "#fafafa", display: "flex", alignItems: "center", gap: 8 }}>
+                                    <span style={{ fontSize: 16 }}>📋</span>
+                                    <span style={{ fontSize: 14, fontWeight: 700, color: "#555" }}>Autres régimes du RIS</span>
+                                  </div>
+                                  <div style={{ padding: "14px 16px", background: "#fff", display: "flex", flexDirection: "column", gap: 8 }}>
+                                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                      {extraRegimes.map((r) => (
+                                        <div key={r.key} style={{ background: `${r.color}0A`, border: `1px solid ${r.color}30`, borderRadius: 7, padding: "8px 14px", textAlign: "center", minWidth: 92 }}>
+                                          <div style={{ fontSize: 18, fontWeight: 800, color: r.color, lineHeight: 1.1 }}>
+                                            {r.total.toLocaleString("fr-FR", { maximumFractionDigits: 2 })}
+                                          </div>
+                                          <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>{r.icon} {r.label} — pts</div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <div style={{ fontSize: 11, color: "#9a9aa5", fontStyle: "italic" }}>
+                                      Points extraits du RIS. Pension non calculée pour ces régimes (hors moteur).
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
 
@@ -5449,6 +5669,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                       };
                       const trimAcquisVal = dispTrimAcquis > 0 ? `${dispTrimAcquis} trim.` : "—";
                       const trimRequisVal = dispTrimRequis != null ? `${dispTrimRequis} trim.` : "—";
+                      // Manquants = déficit RÉEL de durée par rapport au requis
+                      // (requis − acquis, sans projection). Même valeur sur les trois
+                      // cartes (âge légal, taux plein durée, taux plein auto 67 ans) : la
+                      // projection à 67 ans masquait le déficit en affichant « atteint ».
                       const manquantsVal = dispTrimManquants == null ? "—" : (dispTrimManquants === 0 ? "✓ atteint" : `${dispTrimManquants} trim.`);
                       const manquantsColorDisp = dispTrimManquants == null ? "#555" : (dispTrimManquants === 0 ? "#00B894" : "#C0392B");
                       return (
@@ -5481,6 +5705,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             trimCotState={trimCotState}
                             trimAssState={trimAssState}
                             arState={arState}
+                            revaloValues={revaloValues}
                             user={user}
                             departureDates={departureDates}
                           />
@@ -5490,13 +5715,13 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               <div style={{ fontSize: 13, fontWeight: 700, color: "#0984E3" }}>Dates standard</div>
                               <span style={{ fontSize: 11, color: "#888" }}>— cliquez pour retenir une date</span>
                             </div>
-                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 7 }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 7 }}>
                               {[
                                 { id: "age_legal", label: "Âge légal", icon: "⚖️", info: dispDateLegale ? `${dispDateLegale.ageStr} → ${dispDateLegale.label}` : "Date de naissance manquante", dateInfo: dispDateLegale, disabled: !dispDateLegale, trimAt: dispDateLegale ? computeTrimAtDate(dispTrimAcquis, dispAnneeRef, dispDateLegale.date, dispTrimParAnnee) : null, details: dispDateLegale ? [
                                   { k: "Âge légal", v: dispDateLegale.ageStr },
                                   { k: "Trim. acquis", v: trimAcquisVal, color: "#0984E3" },
                                   { k: "Requis", v: trimRequisVal },
-                                  { k: "Taux plein à cet âge", v: manquantsVal, color: manquantsColorDisp },
+                                  { k: "Manquants", v: manquantsVal, color: manquantsColorDisp },
                                 ] : null },
                                 { id: "taux_plein", label: "Taux plein (durée)", icon: "🎯", info: dispDateTauxPlein ? (dispDateTauxPlein.trimManquants === 0 ? `${dispDateTauxPlein.ageStr} • ${dispDateTauxPlein.trimRequis} trim. atteints` : `${dispDateTauxPlein.ageStr} • ${dispDateTauxPlein.trimManquants} trim. manquants → ${dispDateTauxPlein.label}`) : "Date de naissance manquante", dateInfo: dispDateTauxPlein, disabled: !dispDateTauxPlein, trimAt: dispDateTauxPlein ? dispDateTauxPlein.trimRequis : null, details: dispDateTauxPlein ? [
                                   { k: "Âge à cette date", v: ageAtDispDate(dispDateTauxPlein.date) || "—", color: "#0984E3" },
@@ -5507,9 +5732,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                 { id: "taux_plein_auto", label: "Taux plein auto (67 ans)", icon: "🔓", info: dispDate67 ? `67 ans → ${dispDate67.label}` : "Date de naissance manquante", dateInfo: dispDate67, disabled: !dispDate67, trimAt: dispDate67 ? computeTrimAtDate(dispTrimAcquis, dispAnneeRef, dispDate67.date, dispTrimParAnnee) : null, details: dispDate67 ? [
                                   { k: "Âge à cette date", v: ageAtDispDate(dispDate67.date) || "67 ans" },
                                   { k: "Trim. acquis", v: trimAcquisVal, color: "#0984E3" },
+                                  { k: "Requis", v: trimRequisVal },
+                                  { k: "Manquants", v: manquantsVal, color: manquantsColorDisp },
                                   { k: "Décote", v: dispTauxPleinAtteint ? "aucune" : "aucune (taux plein auto)", color: "#00B894" },
                                 ] : null },
-                                { id: "date_libre", label: "Date libre", icon: "📆", info: "Date de simulation à choisir", dateInfo: null, disabled: false, trimAt: null, details: null },
+                                { id: "date_libre", label: "Date libre", icon: "📆", info: "Date de simulation à choisir", dateInfo: null, disabled: false, trimAt: (dateLibreInput ? computeTrimAtDate(dispTrimAcquis, dispAnneeRef, new Date(String(dateLibreInput).slice(0, 10) + "T00:00:00"), dispTrimParAnnee) : null), details: null },
                               ].map((d) => {
                                 const isChosen = chosenDates.some(cd => cd?.type === d.id && (d.id !== "date_libre" || cd?.date === dateLibreInput));
                                 const handleClick = () => {
@@ -5723,6 +5950,56 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                         </div>
                                       )}
 
+                                      {action.id === "rachat_vplr" && (() => {
+                                        const vplrScenario = chosenScenarios.find(s => s?.dispositif_id === "rachat_vplr");
+                                        const datesCibles = Array.isArray(vplrScenario?.params?.dates_cibles) ? vplrScenario.params.dates_cibles : [];
+                                        // Max réellement rachetable = gisement des années incomplètes (plafonné à 12 par la loi),
+                                        // calculé par le skill VPLR (impact.total_rachetable). C'est la VRAIE limite (≠ plafond légal 12) :
+                                        // on ne peut pas racheter plus de trimestres incomplets qu'on en a. Lu sur le résultat live,
+                                        // sinon sur le dernier calcul persisté du scénario retenu.
+                                        const _vRes = skillResultData || vplrScenario?.last_calc || null;
+                                        const _maxRach = _vRes
+                                          ? ((_vRes.impact && _vRes.impact.total_rachetable != null) ? _vRes.impact.total_rachetable
+                                             : (_vRes.nb_trimestres != null ? _vRes.nb_trimestres : null))
+                                          : null;
+                                        return (
+                                          <div style={{ marginBottom: 8 }}>
+                                            <div style={{ fontSize: 11, color: "#555", background: "#F9A8250F", border: "1px solid #F9A82530", borderRadius: 5, padding: "6px 9px", marginBottom: 8 }}>
+                                              {typeof _maxRach === "number" ? (
+                                                <>💡 Vous pouvez racheter <strong>{_maxRach} trimestre{_maxRach > 1 ? "s" : ""}</strong> au maximum (vos années incomplètes rachetables{_maxRach < 12 ? ", soit moins que le plafond légal de 12" : " ; plafond légal 12"}). Au-delà, le rachat est sans effet.</>
+                                              ) : (
+                                                <>💡 Cliquez <strong>« Recalculer »</strong> pour connaître le nombre de trimestres réellement rachetables (limité par vos années incomplètes ; plafond légal 12).</>
+                                              )}
+                                            </div>
+                                            <label style={{ display: "block", fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#888", marginBottom: 4 }}>
+                                              Appliquer le rachat aux dates
+                                            </label>
+                                            {!isChosen ? (
+                                              <div style={{ fontSize: 11, color: "#888", fontStyle: "italic" }}>Retiens le scénario (⭐) pour cibler des dates.</div>
+                                            ) : !Array.isArray(chosenDates) || chosenDates.length === 0 ? (
+                                              <div style={{ fontSize: 11, color: "#E17055", fontStyle: "italic" }}>Ajoute d'abord des dates de départ (section Dates).</div>
+                                            ) : (
+                                              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                                {chosenDates.map((d) => {
+                                                  const dval = d?.date;
+                                                  if (!dval) return null;
+                                                  const checked = datesCibles.includes(dval);
+                                                  return (
+                                                    <label key={dval} onClick={(e) => e.stopPropagation()} style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12, color: "#333", cursor: "pointer" }}>
+                                                      <input type="checkbox" checked={checked} onChange={() => toggleVplrDateCible(dval)} style={{ cursor: "pointer" }} />
+                                                      <span>{d.label || dval} <span style={{ color: "#999" }}>· {dval}</span></span>
+                                                    </label>
+                                                  );
+                                                })}
+                                                {datesCibles.length === 0 && (
+                                                  <div style={{ fontSize: 10, color: "#E17055", marginTop: 2 }}>⚠ Aucune date cochée → le rachat n'apparaîtra sur aucun livrable.</div>
+                                                )}
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })()}
+
                                       {skillErrorMsg && (
                                         <div style={{ padding: "7px 10px", background: "#D6303110", border: "1px solid #D63031", borderRadius: 5, fontSize: 12, color: "#D63031" }}>
                                           ⚠ {skillErrorMsg}
@@ -5733,9 +6010,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                         const color = skillResultData.eligible ? "#00B894" : "#C0392B";
                                         return (
                                           <div>
-                                            {skillResultData.raison_eligibilite && (
-                                              <div style={{ fontSize: 11, color: "#333", marginBottom: 5 }}>{skillResultData.raison_eligibilite}</div>
-                                            )}
                                             {skillCode === "RACL" && skillResultData.eligible && (
                                               <div style={{ marginBottom: 4 }}>
                                                 {skillResultData.age_depart_possible != null && (
@@ -5743,9 +6017,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                                     🗓 Départ possible à {skillResultData.age_depart_possible} ans
                                                     {skillResultData.date_depart_estimee ? ` — ${skillResultData.date_depart_estimee}` : ""}
                                                   </div>
-                                                )}
-                                                {skillResultData.palier?.libelle && (
-                                                  <div style={{ fontSize: 11, color: "#555", marginBottom: 2 }}>Palier : {skillResultData.palier.libelle}</div>
                                                 )}
                                               </div>
                                             )}
@@ -5759,11 +6030,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                                 {skillResultData.rp_result.date_debut_rp_possible && (
                                                   <div style={{ fontSize: 12, fontWeight: 700, color, marginBottom: 2 }}>
                                                     🗓 Début RP possible : {skillResultData.rp_result.date_debut_rp_possible}
-                                                  </div>
-                                                )}
-                                                {skillResultData.rp_result.duree_max_rp_mois != null && (
-                                                  <div style={{ fontSize: 11, color: "#555", marginBottom: 2 }}>
-                                                    Durée max : {skillResultData.rp_result.duree_max_rp_mois} mois (jusqu'à {skillResultData.rp_result.age_retraite_definitive} ans)
                                                   </div>
                                                 )}
                                                 {skillResultData.rp_result.fraction_pension_provisoire_pct != null && (
@@ -5838,23 +6104,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                             {skillResultData.impact?.trimestres_ajoutes > 0 && (
                                               <div style={{ fontSize: 11, color: "#555", marginBottom: 4 }}>
                                                 +{skillResultData.impact.trimestres_ajoutes} trim. assimilés
-                                              </div>
-                                            )}
-                                            {skillResultData.alertes?.length > 0 && (
-                                              <div style={{ marginTop: 6, paddingTop: 6, borderTop: `1px solid ${color}40` }}>
-                                                {skillResultData.alertes.map((a, i) => (
-                                                  <div key={i} style={{ fontSize: 10, color: a.niveau === "ROUGE" ? "#D63031" : a.niveau === "ORANGE" ? "#E17055" : "#00B894", marginBottom: 3 }}>
-                                                    <strong>{a.niveau}</strong> — {a.message}
-                                                  </div>
-                                                ))}
-                                              </div>
-                                            )}
-                                            {skillResultData.recommandations?.length > 0 && (
-                                              <div style={{ marginTop: 6, fontSize: 10, color: "#555" }}>
-                                                <strong>Recommandations :</strong>
-                                                <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
-                                                  {skillResultData.recommandations.slice(0, 3).map((r, i) => <li key={i}>{r}</li>)}
-                                                </ul>
                                               </div>
                                             )}
                                           </div>
@@ -5957,15 +6206,24 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               }
                               if (carriereValidee && calcsDone && !isCalculatingAll) {
                                 return (
-                                  <button
-                                    onClick={() => { setExpandedPanel("livrables"); setSelectedAction(null); setExecuted(null); }}
-                                    title="Calculs déjà effectués — passer aux livrables. Pour relancer, déverrouillez la carrière."
-                                    style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", padding: "12px 20px", borderRadius: 8, border: "1px solid #ccc", background: "#f3f3f3", color: "#555", fontWeight: 700, fontSize: 15, cursor: "pointer", transition: "all 0.2s" }}
-                                  >
-                                    <span style={{ fontSize: 14, color: "#888" }}>✓ Calculs effectués</span>
-                                    <span style={{ flex: 1, textAlign: "center" }}>Passer aux livrables</span>
-                                    <span style={{ fontSize: 16 }}>→</span>
-                                  </button>
+                                  <div style={{ display: "flex", gap: 8, width: "100%" }}>
+                                    <button
+                                      onClick={handleCalculateAllRegimes}
+                                      title="Relancer le calcul des régimes (multi-dates inclus) avec les données actuelles"
+                                      style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "12px 16px", borderRadius: 8, border: "1px solid #6C5CE7", background: "#fff", color: "#6C5CE7", fontWeight: 700, fontSize: 14, cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.2s" }}
+                                    >
+                                      <span style={{ fontSize: 15 }}>↻</span> Recalculer
+                                    </button>
+                                    <button
+                                      onClick={() => { setExpandedPanel("livrables"); setSelectedAction(null); setExecuted(null); }}
+                                      title="Calculs effectués — passer aux livrables"
+                                      style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, flex: 1, padding: "12px 20px", borderRadius: 8, border: "1px solid #ccc", background: "#f3f3f3", color: "#555", fontWeight: 700, fontSize: 15, cursor: "pointer", transition: "all 0.2s" }}
+                                    >
+                                      <span style={{ fontSize: 14, color: "#888" }}>✓ Calculs effectués</span>
+                                      <span style={{ flex: 1, textAlign: "center" }}>Passer aux livrables</span>
+                                      <span style={{ fontSize: 16 }}>→</span>
+                                    </button>
+                                  </div>
                                 );
                               }
                               return (
@@ -6340,94 +6598,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                 </div>
               </div>
 
-              {/* Pavé prompt IA — visible uniquement dans Scénarios et Livrables (pas en Carrière, FROZEN_DATA pure) */}
-              {(expandedPanel === "dispositifs" || expandedPanel === "livrables") && (
-              <div style={{ ...S.card, padding: 14, marginTop: 16, border: promptText ? "2px solid #6C5CE7" : undefined }}>
-                <style>{`
-                  @keyframes pavePulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(108,92,231,0.5); } 50% { transform: scale(1.08); box-shadow: 0 0 0 6px rgba(108,92,231,0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(108,92,231,0); } }
-                  .pave-badge-pulse { animation: pavePulse 1.2s ease-out; }
-                `}</style>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700 }}>💬 Note pour l'IA</div>
-                  {promptText && (
-                    <span key={promptText.length} className="pave-badge-pulse" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 10, background: "#6C5CE7", color: "#fff", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff" }} />
-                      Actif
-                    </span>
-                  )}
-                </div>
-                <div style={{ fontSize: 12, color: "#666", marginBottom: 10 }}>
-                  Écrivez ici toute précision utile pour le client. L'IA en tiendra compte dans le prochain calcul ou rapport.
-                </div>
-                <textarea
-                  value={promptText}
-                  onChange={(e) => setPromptText(e.target.value.slice(0, 500))}
-                  placeholder="Exemple : insister sur le maintien des revenus pendant la transition."
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: 7, border: "1px solid #ccc", fontSize: 14, fontFamily: "inherit", resize: "vertical", minHeight: 80, boxSizing: "border-box", background: "#fff", color: "#333", lineHeight: 1.5 }}
-                />
-                {promptNotes.length > 0 && (
-                  <div style={{ marginTop: 8 }}>
-                    <button
-                      type="button"
-                      onClick={() => setShowPromptHistory(v => !v)}
-                      style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 10px", borderRadius: 6, border: "1px solid #6C5CE7", background: showPromptHistory ? "#6C5CE7" : "#fff", color: showPromptHistory ? "#fff" : "#6C5CE7", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-                    >
-                      📋 Mes notes précédentes ({promptNotes.length})
-                      <span style={{ fontSize: 10, transform: showPromptHistory ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>▼</span>
-                    </button>
-                    {showPromptHistory && (
-                      <div style={{ marginTop: 6, border: "1px solid #E0DCFF", borderRadius: 6, background: "#FDFCFF", maxHeight: 220, overflowY: "auto" }}>
-                        {promptNotes.map((note) => (
-                          <div key={note.id} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 10px", borderBottom: "1px solid #EFEBFF" }}>
-                            <button
-                              type="button"
-                              onClick={() => { setPromptText(note.content.slice(0, 500)); setShowPromptHistory(false); }}
-                              title="Réutiliser cette note"
-                              style={{ flex: 1, textAlign: "left", background: "transparent", border: "none", padding: 0, cursor: "pointer", color: "#333", fontSize: 12, lineHeight: 1.45 }}
-                            >
-                              <div style={{ fontSize: 10, color: "#888", marginBottom: 2 }}>
-                                {new Date(note.created_at).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                              </div>
-                              <div>{note.content.length > 120 ? note.content.slice(0, 120) + "…" : note.content}</div>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeletePromptNote(note.id)}
-                              title="Supprimer"
-                              style={{ background: "transparent", border: "none", color: "#D63031", cursor: "pointer", padding: 2, flexShrink: 0 }}
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-                {promptText && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, padding: "8px 12px", background: "#F2F0FF", border: "1px solid #6C5CE7", borderRadius: 6 }}>
-                    <span style={{ fontSize: 16, color: "#6C5CE7", fontWeight: 700 }}>✓</span>
-                    <span style={{ fontSize: 12, color: "#3F2D8A", fontWeight: 600 }}>
-                      Votre note sera transmise à l'IA lors du prochain calcul ou rapport.
-                    </span>
-                  </div>
-                )}
-                <div style={{ display: "flex", alignItems: "center", marginTop: 8 }}>
-                  <span style={{ fontSize: 11, color: "#888" }}>{promptText.length}/500</span>
-                  {promptText && (
-                    <button
-                      onClick={() => setPromptText("")}
-                      style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 6, border: "1.5px solid #D63031", background: "#fff", color: "#D63031", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = "#D63031"; e.currentTarget.style.color = "#fff"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = "#D63031"; }}
-                    >
-                      <Trash2 size={14} />
-                      Effacer la note
-                    </button>
-                  )}
-                </div>
-              </div>
-              )}
 
             </>
           )}

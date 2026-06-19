@@ -12,6 +12,8 @@ import {
   resolveProjectionTargetYear,
   PROJECTION_MODES,
   computeRealAssuranceTotals,
+  furthestProjectionYear,
+  furthestChosenDate,
 } from "./careerProjection";
 import { computeDateTauxPlein } from "../../../../../utils/calculators";
 
@@ -70,7 +72,7 @@ describe("isProjectedYear", () => {
 });
 
 describe("projectYearValue", () => {
-  test("caps salary at PASS, coeff 1, 4 trimestres", () => { expect(projectYearValue(50000, PASS)).toEqual({ sal: PASS, revalo: PASS, trimestres: 4 }); });
+  test("carries the last salary forward verbatim (no PASS cap), coeff 1, 4 trimestres", () => { expect(projectYearValue(50000, PASS)).toEqual({ sal: 50000, revalo: 50000, trimestres: 4 }); });
   test("below PASS unchanged", () => { expect(projectYearValue(30000, PASS)).toEqual({ sal: 30000, revalo: 30000, trimestres: 4 }); });
 });
 
@@ -147,11 +149,27 @@ describe("resolveProjectionTargetYear", () => {
   test("libre: birthYear + age", () => {
     expect(resolveProjectionTargetYear({ mode: PROJECTION_MODES.LIBRE, birthYear: 1965, age: 63 })).toBe(2028);
   });
+  test("libre: months within the year don't bump the target year", () => {
+    // born January (birthMonth 0) + 6 months → still same calendar year
+    expect(resolveProjectionTargetYear({ mode: PROJECTION_MODES.LIBRE, birthYear: 1964, age: 67, months: 6, birthMonth: 0 })).toBe(2031);
+  });
+  test("libre: months crossing December roll into the next year", () => {
+    // born October (birthMonth 9) + 4 months → February of the next year
+    expect(resolveProjectionTargetYear({ mode: PROJECTION_MODES.LIBRE, birthYear: 1964, age: 67, months: 4, birthMonth: 9 })).toBe(2032);
+  });
   test("legal: year of the barème legal date", () => {
     expect(resolveProjectionTargetYear({ mode: PROJECTION_MODES.LEGAL, departureDates })).toBe(2027);
   });
-  test("duree: year of the full-rate-by-duration date", () => {
+  test("duree: year of the full-rate-by-duration date (fallback when no anneeRef)", () => {
     expect(resolveProjectionTargetYear({ mode: PROJECTION_MODES.DUREE, departureDates })).toBe(2029);
+  });
+  test("duree: projects exactly enough whole years to reach requis — no overshoot", () => {
+    // 20 missing → 5 whole years from anneeRef (2030), NOT the liquidation date's year (2031) → 170, not 174
+    expect(resolveProjectionTargetYear({ mode: PROJECTION_MODES.DUREE, departureDates: { anneeRef: 2025, tauxPlein: { date: new Date(2031, 1, 1), trimManquants: 20, trimRequis: 170 } } })).toBe(2030);
+  });
+  test("duree: rounds partial missing quarters up to a whole year", () => {
+    // 18 missing → ceil(18/4)=5 years → 2030
+    expect(resolveProjectionTargetYear({ mode: PROJECTION_MODES.DUREE, departureDates: { anneeRef: 2025, tauxPlein: { date: new Date(2031, 1, 1), trimManquants: 18, trimRequis: 170 } } })).toBe(2030);
   });
   test("auto67: year of the 67yo date", () => {
     expect(resolveProjectionTargetYear({ mode: PROJECTION_MODES.AUTO67, departureDates })).toBe(2032);
@@ -244,5 +262,49 @@ describe("DUREE surcote add/remove (feedback-loop regression)", () => {
 
     expect(projectedYears(added).length).toBe(projectedYears(baseline).length + 1); // surcote added exactly one year
     expect(projectedYears(removed)).toEqual(projectedYears(baseline));              // and removing it goes back
+  });
+});
+
+// Multi-dates : la grille doit se projeter jusqu'à la date retenue la PLUS LOINTAINE
+// (et se nettoyer quand il n'y a plus de date). furthestChosenDate renvoie l'entrée
+// gagnante (pour récupérer son type → mode de projection) ; furthestProjectionYear son année.
+describe("furthestProjectionYear / furthestChosenDate", () => {
+  test("returns the latest year among chosen dates", () => {
+    expect(
+      furthestProjectionYear([
+        { type: "date_libre", date: "2026-06-01" },
+        { type: "age_legal", date: "2031-02-01" },
+      ])
+    ).toBe(2031);
+  });
+
+  test("null when empty or invalid input", () => {
+    expect(furthestProjectionYear([])).toBe(null);
+    expect(furthestProjectionYear(null)).toBe(null);
+    expect(furthestProjectionYear(undefined)).toBe(null);
+  });
+
+  test("ignores entries without a valid date", () => {
+    expect(
+      furthestProjectionYear([
+        { type: "a", date: null },
+        { type: "b", date: "2028-01-01" },
+        { type: "c" },
+      ])
+    ).toBe(2028);
+  });
+
+  test("furthestChosenDate returns the winning entry (with its type), not just the year", () => {
+    const d = furthestChosenDate([
+      { type: "date_libre", date: "2026-06-01" },
+      { type: "taux_plein_auto", date: "2031-02-01" },
+    ]);
+    expect(d).not.toBeNull();
+    expect(d.type).toBe("taux_plein_auto");
+  });
+
+  test("furthestChosenDate is null on empty", () => {
+    expect(furthestChosenDate([])).toBeNull();
+    expect(furthestChosenDate(null)).toBeNull();
   });
 });

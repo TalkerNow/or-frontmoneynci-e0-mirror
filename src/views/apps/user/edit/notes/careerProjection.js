@@ -54,10 +54,12 @@ export function isProjectedYear(year, lastRealYear, maxProjectedYear, active) {
   return year > lastRealYear && year <= maxProjectedYear;
 }
 
-// Value carried by one projected year: last real salary capped at the latest PASS,
-// coeff 1 (revalo = sal), 4 cotised trimestres.
-export function projectYearValue(lastSalary, passLast) {
-  const sal = Math.min(toNumber(lastSalary), toNumber(passLast));
+// Value carried by one projected year: the last real salary carried forward verbatim
+// (NOT capped at PASS — the projection mirrors "next year = same as the last real year";
+// the CNAV base re-caps at PASS in its own calc). coeff 1 (revalo = sal), 4 cotised trimestres.
+// `passLast` is kept in the signature for call-site compatibility but no longer used.
+export function projectYearValue(lastSalary, passLast) { // eslint-disable-line no-unused-vars
+  const sal = toNumber(lastSalary);
   return { sal, revalo: sal, trimestres: 4 };
 }
 
@@ -135,12 +137,29 @@ export const PROJECTION_MODES = {
 // `departureDates` carries the objects returned by computeDateLegale / computeDateTauxPlein /
 // computeDate67 (each { date: Date, ... } | null). Returns null when not computable
 // (e.g. no birth date) — which deactivates the projection (reconcileProjection adds no rows).
-export function resolveProjectionTargetYear({ mode, birthYear, age, departureDates }) {
-  if (mode === PROJECTION_MODES.LIBRE) return computeTargetYear(birthYear, age);
+export function resolveProjectionTargetYear({ mode, birthYear, age, months, birthMonth, departureDates }) {
+  if (mode === PROJECTION_MODES.LIBRE) {
+    const base = computeTargetYear(birthYear, age);
+    if (base == null) return null;
+    // Months (0-11) past the birthday can roll the departure into the next calendar year;
+    // extend the projection grid to cover it so the date-precise trimestre count is exact.
+    const m = (Number.isFinite(birthMonth) ? birthMonth : 0) + (Number.isFinite(months) ? months : 0);
+    return base + Math.floor(m / 12);
+  }
   if (!departureDates) return null;
+  // "Taux plein par la durée" : projeter EXACTEMENT assez d'années pleines pour ATTEINDRE
+  // la durée requise, sans déborder. Prendre l'année de la date de liquidation ajoutait une
+  // année de trop — ex. 170 atteints au 01/01/2031 (en travaillant 2026→2030) mais on
+  // remplissait aussi toute l'année 2031 → 174/170 au lieu de 170.
+  if (mode === PROJECTION_MODES.DUREE) {
+    const tp = departureDates.tauxPlein;
+    if (!tp || !(tp.date instanceof Date) || isNaN(tp.date.getTime())) return null;
+    const manquants = Math.max(0, Number(tp.trimManquants) || 0);
+    if (Number.isFinite(departureDates.anneeRef)) return departureDates.anneeRef + Math.ceil(manquants / 4);
+    return tp.date.getFullYear();
+  }
   const picked =
     mode === PROJECTION_MODES.LEGAL ? departureDates.legale :
-    mode === PROJECTION_MODES.DUREE ? departureDates.tauxPlein :
     mode === PROJECTION_MODES.AUTO67 ? departureDates.date67 :
     null;
   const d = picked && picked.date;
@@ -177,4 +196,26 @@ export function computeRealAssuranceTotals(trimCotState, trimAssState, carriereR
     }
   });
   return { trimAcquis, anneeRef, trimParAnnee };
+}
+
+// Furthest chosen departure date (latest calendar year) among the retained dates — used to
+// project the grid far enough to cover EVERY selected scenario, and to shrink it back when
+// dates are removed. Returns the winning entry (its `type` maps to a projection mode) or null
+// when there is no usable date.
+export function furthestChosenDate(chosenDates) {
+  if (!Array.isArray(chosenDates)) return null;
+  let best = null;
+  let bestYear = -Infinity;
+  for (const cd of chosenDates) {
+    const iso = cd && cd.date;
+    if (typeof iso !== "string") continue;
+    const year = parseInt(iso.slice(0, 4), 10);
+    if (Number.isFinite(year) && year > bestYear) { bestYear = year; best = cd; }
+  }
+  return best;
+}
+
+export function furthestProjectionYear(chosenDates) {
+  const d = furthestChosenDate(chosenDates);
+  return d ? parseInt(String(d.date).slice(0, 4), 10) : null;
 }
