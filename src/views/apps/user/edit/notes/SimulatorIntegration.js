@@ -4656,8 +4656,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
               </div>
               )}
 
-          {/* ── CHATBOT ASSISTANT CONTEXTUEL (remplace la « Note pour l'IA ») ── */}
-          {user?.id && (
+          {/* ── CHATBOT ASSISTANT CONTEXTUEL — visible uniquement pour admin/consultant ── */}
+          {user?.id &&
+            ["admin", "consultant"].includes(
+              ((window.localStorage && window.localStorage.getItem("role")) || "").toLowerCase()
+            ) && (
             <SimulatorChatPanel
               clientId={user.id}
               pinnedNote={pinnedNote}
