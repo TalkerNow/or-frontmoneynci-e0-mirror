@@ -1665,7 +1665,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       if (agirc != null) { pts.agircPts = agirc; pts.regimes.AGIRC_ARRCO = agirc; }
       if (irc != null)   { pts.ircPts   = irc;   pts.regimes.IRCANTEC    = irc;   }
       if (rci != null)   { pts.rciPts   = rci;   pts.regimes.RCI         = rci;   }
-      return { ...row, sal: salOriginal, ss, revalo, devise: entry.devise || '€', regimes_concernes: entry.regimes_concernes || '', ...pts, projected: !!entry.projected };
+      return { ...row, sal: salOriginal, ss, revalo, devise: entry.devise || '€', regimes_concernes: entry.regimes_concernes || '', ...pts, projected: !!entry.projected, ...(entry.etranger_pays && { etranger_pays: entry.etranger_pays }) };
     };
     setCarriereRows(prev => {
       const updated = prev.map(row => {
