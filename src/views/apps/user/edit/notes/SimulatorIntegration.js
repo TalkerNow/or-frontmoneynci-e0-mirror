@@ -17,6 +17,7 @@ import html2canvas from "html2canvas";
 import { parseNIR } from "./utils";
 import { parseCarrierePoints } from "./carrierePoints";
 import { REGIMES, getPoints, resolveRegime, computeVisibleRegimes, REGIMES_SIMPLES, extractRegimeSimplePoints } from "../simulatorRegimes";
+import { PAYS_ETRANGER } from "../simulatorEtranger";
 import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, runMultiDateScenarios, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml, detectDocumentType, fetchRapprochementConstat, applyReportChatMessage } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeSamCnav, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif, computeTrimAtDate, sumTrimestresCapped, parseBirthDate } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
@@ -796,6 +797,69 @@ function IaNoteFlag({ level, reason }) {
         document.body
       )}
     </>
+  );
+}
+
+// Sélecteur documentaire « année à l'étranger ». Affiche un bouton 🌍 ; un clic
+// ouvre un petit panneau avec un <select> de pays. Une valeur vide retire le
+// marquage. Purement informatif — n'affecte aucun calcul.
+function EtrangerPicker({ value, disabled, onChange }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => {
+      if (wrapRef.current && wrapRef.current.contains(e.target)) return;
+      setOpen(false);
+    };
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const active = !!value;
+  return (
+    <span ref={wrapRef} style={{ position: "relative", display: "inline-block", marginLeft: 6, verticalAlign: "middle" }}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!disabled) setOpen((o) => !o); }}
+        title={active ? `Année à l'étranger : ${value}` : "Marquer une année à l'étranger"}
+        style={{
+          border: "none", background: "transparent", cursor: disabled ? "default" : "pointer",
+          fontSize: 12, padding: "1px 4px", borderRadius: 8, opacity: disabled ? 0.4 : 1,
+          ...(active && { background: "#E8F4FD" }),
+        }}
+      >
+        {active ? `🌍 ${value}` : "🌍"}
+      </button>
+      {open && (
+        <div
+          style={{
+            position: "absolute", top: "100%", left: 0, zIndex: 1000, marginTop: 4,
+            background: "#fff", border: "1px solid #ddd", borderRadius: 8,
+            boxShadow: "0 4px 14px rgba(0,0,0,0.15)", padding: 8, minWidth: 190,
+          }}
+        >
+          <div style={{ fontSize: 11, color: "#666", marginBottom: 4, fontWeight: 600 }}>
+            Pays (année à l'étranger)
+          </div>
+          <select
+            value={value || ""}
+            onChange={(e) => { onChange(e.target.value || ""); setOpen(false); }}
+            style={{ width: "100%", padding: "4px 6px", fontSize: 12, borderRadius: 6, border: "1px solid #ccc" }}
+          >
+            <option value="">— (aucun)</option>
+            {PAYS_ETRANGER.map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </div>
+      )}
+    </span>
   );
 }
 
