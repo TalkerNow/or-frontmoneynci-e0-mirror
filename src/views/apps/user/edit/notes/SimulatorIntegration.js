@@ -824,20 +824,26 @@ function EtrangerPicker({ value, disabled, onChange }) {
 
   const active = !!value;
   return (
-    <span ref={wrapRef} style={{ position: "relative", display: "inline-block", marginLeft: 6, verticalAlign: "middle" }}>
+    <span ref={wrapRef} style={{ position: "relative", display: "inline-flex", flexDirection: "column", alignItems: "center", verticalAlign: "middle", lineHeight: 1 }}>
       <button
         type="button"
         disabled={disabled}
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!disabled) setOpen((o) => !o); }}
         title={active ? `Année à l'étranger : ${value}` : "Marquer une année à l'étranger"}
         style={{
-          border: "none", background: "transparent", cursor: disabled ? "default" : "pointer",
-          fontSize: 12, padding: "1px 4px", borderRadius: 8, opacity: disabled ? 0.4 : 1,
-          ...(active && { background: "#E8F4FD" }),
+          border: "none", background: active ? "#E8F4FD" : "transparent",
+          cursor: disabled ? "default" : "pointer",
+          fontSize: 13, lineHeight: 1, padding: "1px 3px", borderRadius: 6,
+          opacity: disabled ? 0.4 : (active ? 1 : 0.3),
         }}
       >
-        {active ? `🌍 ${value}` : "🌍"}
+        🌍
       </button>
+      {active && (
+        <span title={value} style={{ marginTop: 1, fontSize: 9, fontWeight: 600, color: "#0984E3", whiteSpace: "nowrap", maxWidth: 58, overflow: "hidden", textOverflow: "ellipsis" }}>
+          {value}
+        </span>
+      )}
       {open && (
         <div
           style={{
@@ -4784,7 +4790,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                 </div>
 
                 {/* Content area */}
-                <div className="simu-content-card" style={{ ...S.card, padding: 16, ...(expandedPanel === "carriere" && !cnavplOpen ? { maxWidth: 1280 } : {}) }}>
+                <div className="simu-content-card" style={{ ...S.card, padding: 16, ...(expandedPanel === "carriere" && !cnavplOpen ? { maxWidth: "none" } : {}) }}>
                   {(() => {
                     const panel = ACTION_PANELS[expandedPanel];
 
@@ -5074,7 +5080,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 15 }}>
                               <thead>
                                 <tr>
-                                  <th rowSpan={2} style={{ padding: "5px 6px", textAlign: "left", fontWeight: 700, color: "#333", borderBottom: "2px solid #ddd", background: "#f8f8f8", verticalAlign: "bottom", width: 36 }}>An.</th>
+                                  <th rowSpan={2} style={{ padding: "5px 6px", textAlign: "left", fontWeight: 700, color: "#333", borderBottom: "2px solid #ddd", background: "#f8f8f8", verticalAlign: "bottom", width: 54 }}>An.</th>
                                   <th rowSpan={2} style={{ padding: "5px 6px", textAlign: "center", fontWeight: 700, color: "#555", borderBottom: "2px solid #ddd", background: "#f8f8f8", borderLeft: "1px solid #ddd", verticalAlign: "bottom" }}>Sal. brut<br/><span style={{ fontWeight: 400, color: "#666", fontSize: 14 }}>/Rému.</span></th>
                                   <th colSpan={8} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#6C5CE7", background: "#6C5CE708", borderLeft: "2px solid #6C5CE730", borderBottom: "1px solid #6C5CE720" }}>🏛️ CNAV</th>
                                   <th colSpan={3} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#0984E3", background: "#0984E308", borderLeft: "2px solid #0984E330", borderBottom: "1px solid #0984E320" }}>
@@ -5192,18 +5198,20 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                       ...(isFirstProj && { borderTop: "2px dashed #FF9F43" }),
                                       ...(isLastProj && { borderBottom: "2px dashed #FF9F43" }),
                                     }}>
-                                      <td style={{ padding: "3px 5px", fontWeight: 700, color: "#333", ...(isProj && { borderLeft: "3px solid #FF9F43" }) }}>
-                                        {row.yr}
-                                        {isProj && (
-                                          <span style={{ display: "inline-block", marginLeft: 6, padding: "1px 6px", borderRadius: 8, background: "#FF9F43", color: "#fff", fontSize: 9, fontWeight: 700, verticalAlign: "middle" }}>Projection</span>
-                                        )}
-                                        <EtrangerPicker
-                                          value={row.etranger_pays || ""}
-                                          disabled={carriereValidee}
-                                          onChange={(pays) => setCarriereRows((prev) =>
-                                            prev.map((r) => r.yr === row.yr ? { ...r, etranger_pays: pays || undefined } : r)
+                                      <td style={{ padding: "3px 5px", fontWeight: 700, color: "#333", whiteSpace: "nowrap", ...(isProj && { borderLeft: "3px solid #FF9F43" }) }}>
+                                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                                          <span>{row.yr}</span>
+                                          {isProj && (
+                                            <span style={{ display: "inline-block", padding: "1px 6px", borderRadius: 8, background: "#FF9F43", color: "#fff", fontSize: 9, fontWeight: 700 }}>Projection</span>
                                           )}
-                                        />
+                                          <EtrangerPicker
+                                            value={row.etranger_pays || ""}
+                                            disabled={carriereValidee}
+                                            onChange={(pays) => setCarriereRows((prev) =>
+                                              prev.map((r) => r.yr === row.yr ? { ...r, etranger_pays: pays || undefined } : r)
+                                            )}
+                                          />
+                                        </span>
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "1px solid #eee", ...(uRevenu.tdStyle || {}) }}>
                                         <input type="number" value={row.sal || ""} disabled={carriereValidee}
