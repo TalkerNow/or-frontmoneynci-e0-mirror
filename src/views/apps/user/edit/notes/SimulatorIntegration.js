@@ -3563,6 +3563,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           regimes_concernes: row.regimes_concernes || '',
           // Data Barrier (CDC règle 5) : année corrigée depuis un bulletin de paie → tracée.
           ...(row.corrige_bulletin && { source: "BULLETIN", modifie_par_consultant: true }),
+          // Marquage documentaire « année à l'étranger » (pays). N'affecte aucun calcul.
+          ...(row.etranger_pays && { etranger_pays: row.etranger_pays }),
         };
       });
 
