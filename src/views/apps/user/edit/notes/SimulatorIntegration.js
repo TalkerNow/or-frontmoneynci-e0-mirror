@@ -805,30 +805,54 @@ function IaNoteFlag({ level, reason }) {
 // marquage. Purement informatif — n'affecte aucun calcul.
 function EtrangerPicker({ value, disabled, onChange }) {
   const [open, setOpen] = useState(false);
-  const wrapRef = useRef(null);
+  const [pos, setPos] = useState(null);
+  const btnRef = useRef(null);
+  const popRef = useRef(null);
 
+  const toggle = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (disabled) return;
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      const W = 210;
+      const margin = 8;
+      const left = Math.max(margin, Math.min(r.left, window.innerWidth - W - margin));
+      setPos({ top: r.bottom + 6, left, width: W });
+    }
+    setOpen((o) => !o);
+  }, [disabled]);
+
+  // Close on outside click, Escape, scroll or resize (the popover is fixed-positioned).
   useEffect(() => {
     if (!open) return undefined;
     const onDown = (e) => {
-      if (wrapRef.current && wrapRef.current.contains(e.target)) return;
+      if (popRef.current && popRef.current.contains(e.target)) return;
+      if (btnRef.current && btnRef.current.contains(e.target)) return;
       setOpen(false);
     };
     const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    const onMove = () => setOpen(false);
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onMove, true);
+    window.addEventListener("resize", onMove);
     return () => {
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onMove, true);
+      window.removeEventListener("resize", onMove);
     };
   }, [open]);
 
   const active = !!value;
   return (
-    <span ref={wrapRef} style={{ position: "relative", display: "inline-flex", flexDirection: "column", alignItems: "center", verticalAlign: "middle", lineHeight: 1 }}>
+    <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", verticalAlign: "middle", lineHeight: 1 }}>
       <button
+        ref={btnRef}
         type="button"
         disabled={disabled}
-        onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!disabled) setOpen((o) => !o); }}
+        onClick={toggle}
         title={active ? `Année à l'étranger : ${value}` : "Marquer une année à l'étranger"}
         style={{
           border: "none", background: active ? "#E8F4FD" : "transparent",
@@ -844,12 +868,19 @@ function EtrangerPicker({ value, disabled, onChange }) {
           {value}
         </span>
       )}
-      {open && (
+      {open && typeof document !== "undefined" && ReactDOM.createPortal(
         <div
+          ref={popRef}
+          onMouseDown={(e) => e.stopPropagation()}
           style={{
-            position: "absolute", top: "100%", left: 0, zIndex: 1000, marginTop: 4,
+            position: "fixed",
+            top: pos ? pos.top : -9999,
+            left: pos ? pos.left : -9999,
+            width: pos ? pos.width : 210,
+            zIndex: 2147483600,
+            visibility: pos ? "visible" : "hidden",
             background: "#fff", border: "1px solid #ddd", borderRadius: 8,
-            boxShadow: "0 4px 14px rgba(0,0,0,0.15)", padding: 8, minWidth: 190,
+            boxShadow: "0 10px 30px -8px rgba(15,23,42,0.3)", padding: 8,
           }}
         >
           <div style={{ fontSize: 11, color: "#666", marginBottom: 4, fontWeight: 600 }}>
@@ -863,7 +894,8 @@ function EtrangerPicker({ value, disabled, onChange }) {
             <option value="">— (aucun)</option>
             {PAYS_ETRANGER.map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
-        </div>
+        </div>,
+        document.body
       )}
     </span>
   );
