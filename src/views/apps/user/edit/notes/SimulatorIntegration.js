@@ -5195,6 +5195,13 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                         {isProj && (
                                           <span style={{ display: "inline-block", marginLeft: 6, padding: "1px 6px", borderRadius: 8, background: "#FF9F43", color: "#fff", fontSize: 9, fontWeight: 700, verticalAlign: "middle" }}>Projection</span>
                                         )}
+                                        <EtrangerPicker
+                                          value={row.etranger_pays || ""}
+                                          disabled={carriereValidee}
+                                          onChange={(pays) => setCarriereRows((prev) =>
+                                            prev.map((r) => r.yr === row.yr ? { ...r, etranger_pays: pays || undefined } : r)
+                                          )}
+                                        />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "1px solid #eee", ...(uRevenu.tdStyle || {}) }}>
                                         <input type="number" value={row.sal || ""} disabled={carriereValidee}
