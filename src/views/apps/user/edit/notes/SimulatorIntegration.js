@@ -4556,7 +4556,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                           );
                                         }
                                         return (
-                                          <button onClick={(e) => { e.stopPropagation(); handleAnalyzeDoc(doc); }} disabled={isParsingRIS} style={{ marginTop: 6, background: isParsingRIS && isRIS ? "#a29bfe" : "#7367f0", color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 13, fontWeight: 700, cursor: isParsingRIS ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, width: "100%", opacity: isParsingRIS && !isRIS ? 0.5 : 1, transition: "all 0.2s ease" }}>
+                                          <button onClick={(e) => { e.stopPropagation(); handleAnalyzeDoc(doc); }} disabled title="Analyse RIS désactivée" style={{ marginTop: 6, background: "#b2b2b2", color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 13, fontWeight: 700, cursor: "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, width: "100%", opacity: 0.6, transition: "all 0.2s ease" }}>
                                             {isParsingRIS && isRIS ? (<><span className="spinner-border spinner-border-sm" style={{ width: "0.6rem", height: "0.6rem", borderWidth: "0.15em" }} role="status" />Extraction en cours…</>) : "🚀 Analyser ce RIS"}
                                           </button>
                                         );
@@ -4627,23 +4627,24 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                 setRisFileName(fileToSend.name);
                                 parsePdfAndFillCarriere(fileToSend);
                               }}
-                              disabled={isParsingRIS}
+                              disabled
+                              title="Analyse RIS désactivée"
                               style={{
                                 marginTop: 6,
-                                background: isParsingRIS && isActiveRIS ? "#a29bfe" : "#7367f0",
+                                background: "#b2b2b2",
                                 color: "#fff",
                                 border: "none",
                                 borderRadius: 6,
                                 padding: "5px 10px",
                                 fontSize: 13,
                                 fontWeight: 700,
-                                cursor: isParsingRIS ? "not-allowed" : "pointer",
+                                cursor: "not-allowed",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
                                 gap: 5,
                                 width: "100%",
-                                opacity: isParsingRIS && !isActiveRIS ? 0.5 : 1,
+                                opacity: 0.6,
                                 transition: "all 0.2s ease",
                               }}
                             >
