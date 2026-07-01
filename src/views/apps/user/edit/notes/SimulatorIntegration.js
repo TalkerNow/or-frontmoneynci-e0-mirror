@@ -2569,23 +2569,14 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   }, []);
 
   // ── Détecte le type d'un fichier PDF (RIS ou autre) ──
-  const detectDocType = useCallback(async (file) => {
-    const name = file.name.toLowerCase();
-    const supported = name.endsWith(".pdf") || name.endsWith(".png") || name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".webp");
-    if (!file || !supported) return;
-    const filename = file.name;
-    setDocTypeDetection(prev => ({ ...prev, [filename]: { loading: true, is_ris: null, doc_type: null } }));
-    try {
-      const result = await detectDocumentType(file, id, { nom: user?.last_name, prenom: user?.first_name, secu: user?.secu_social });
-      docTypePayloads.current[filename] = result;
-      setDocTypeDetection(prev => ({
-        ...prev,
-        [filename]: { loading: false, is_ris: result.is_ris === true, doc_type: result.doc_type || null },
-      }));
-    } catch {
-      setDocTypeDetection(prev => ({ ...prev, [filename]: { loading: false, is_ris: null, doc_type: null } }));
-    }
-  }, [id, user?.last_name, user?.first_name, user?.secu_social]);
+  // Détection automatique du type de document (RIS/bulletin) DÉSACTIVÉE : elle se
+  // déclenchait à chaque dépôt/upload de fichier (appel n8n) et gênait les tests.
+  // Le bouton manuel « Analyser ce RIS » reste actif (il passe par handleAnalyzeDoc,
+  // qui appelle directement detectDocumentType). Pour réactiver la détection auto,
+  // restaurer l'implémentation d'origine (voir l'historique git de ce fichier).
+  const detectDocType = useCallback(async (_file) => {
+    return;
+  }, []);
 
   // ── Analyse un document serveur : détecte le type puis extrait la carrière ──
   // preloadedFile lets external entry points (e.g. Documents tab "Analyse carrière")
