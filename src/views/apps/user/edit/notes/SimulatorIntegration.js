@@ -3757,6 +3757,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         regimes_points: regimesPoints,
         alertes: [],
         totaux: {
+          // SAM gelé = le chiffre AFFICHÉ (source unique computeSamCnav). Le backend
+          // (enrichTotaux) le transmet tel quel au moteur ; son recalcul ne sert plus
+          // que de fallback pour les frozen_data historiques sans ce champ.
+          ...((() => { const s = computeSamCnav(carriereRows, trimCotState, trimAssState, revaloValues); return s > 0 ? { sam: s } : {}; })()),
           trimestres_cotises: totalCot,
           trimestres_assimiles: totalAss,
           trimestres_total: totalAcquisPlafonne,

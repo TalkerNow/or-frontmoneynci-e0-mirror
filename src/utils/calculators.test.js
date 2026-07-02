@@ -1,4 +1,4 @@
-import { calculateCnav, computeSAMB, computeArrcoPts, departureTrimOutlook } from './calculators';
+import { calculateCnav, computeSAMB, computeSamCnav, computeArrcoPts, departureTrimOutlook } from './calculators';
 
 describe('calculateCnav', () => {
   test('returns null for salary = 0', () => {
@@ -138,6 +138,46 @@ describe('computeSAMB', () => {
     ];
     // Only 2024 counts: min(30000, 46368) * 1.031 / 1 = 30930
     expect(computeSAMB(rows)).toBeCloseTo(30930, -2);
+  });
+});
+
+describe('computeSamCnav', () => {
+  // Source unique du SAM affiché ET gelé (frozen_data.totaux.sam) — le moteur
+  // consomme ce chiffre tel quel. Toute régression ici fausse la pension CNAV.
+  const rows = (years) => years.map((yr) => ({ yr }));
+
+  test('returns 0 for empty or missing inputs', () => {
+    expect(computeSamCnav([])).toBe(0);
+    expect(computeSamCnav(null)).toBe(0);
+  });
+
+  test('averages revalued salaries of CNAV-affiliated years only', () => {
+    // 2023 : affilié (trim cotisés) ; 2022 : affilié (assimilés) ; 2021 : revalo
+    // présent mais AUCUN trimestre CNAV (année régime complémentaire seul) → exclue.
+    const sam = computeSamCnav(
+      rows([2023, 2022, 2021]),
+      { 2023: 4 },
+      { 2022: 2 },
+      { 2023: 40000, 2022: 30000, 2021: 99999 }
+    );
+    expect(sam).toBe(35000); // (40000 + 30000) / 2
+  });
+
+  test('excludes affiliated years with no revalued salary', () => {
+    const sam = computeSamCnav(rows([2023, 2022]), { 2023: 4, 2022: 4 }, {}, { 2023: 40000, 2022: 0 });
+    expect(sam).toBe(40000); // 2022 à 0 € : hors moyenne, pas de dilution
+  });
+
+  test('keeps only the top 25 revalued years', () => {
+    const years = Array.from({ length: 30 }, (_, i) => 2026 - i);
+    const trimCot = Object.fromEntries(years.map((y) => [y, 4]));
+    const revalo = Object.fromEntries(years.map((y, i) => [y, i < 25 ? 40000 : 10000]));
+    expect(computeSamCnav(rows(years), trimCot, {}, revalo)).toBe(40000);
+  });
+
+  test('rounds the average', () => {
+    const sam = computeSamCnav(rows([2023, 2022, 2021]), { 2023: 1, 2022: 1, 2021: 1 }, {}, { 2023: 100, 2022: 100, 2021: 101 });
+    expect(sam).toBe(100); // 301/3 = 100,33 → 100
   });
 });
 
