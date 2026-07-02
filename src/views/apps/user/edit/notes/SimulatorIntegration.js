@@ -2451,6 +2451,19 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
               },
             }),
           });
+          // RAFP / SRE — apparition conditionnelle : on ne seme l'état que si
+          // l'extraction a réellement fourni des droits. RAFP entre alors dans le
+          // pipeline Tier-1 (carte + calcul) ; SRE n'est qu'une durée affichée.
+          if ((parseFloat(pts.rafp) || 0) > 0) {
+            setRegimesPoints(prev => ({ ...prev, RAFP: { base: parseFloat(pts.rafp) } }));
+          }
+          const sreSynth = synthese.sre || {};
+          if ((parseFloat(sreSynth.trimestres) || 0) > 0 || (parseFloat(sreSynth.jours) || 0) > 0) {
+            setRegimesPoints(prev => ({ ...prev, SRE: {
+              trimestres: parseFloat(sreSynth.trimestres) || 0,
+              jours: parseFloat(sreSynth.jours) || 0,
+            } }));
+          }
         }
 
       } else {
@@ -6538,7 +6551,31 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               );
                             })}
                             {(() => {
-                              const wired = ["CNAV", "AGIRC_ARRCO", "IRCANTEC", "RCI", "CIPAV", "CARPIMKO", "CARPIMKO_ASV", "CARPIMKO_COMPL", ...Object.keys(REGIMES_SIMPLES)];
+                              // SRE (fonction publique d'État) : durée seulement — pension statutaire
+                              // (traitement indiciaire) non calculable ici. Apparition conditionnelle :
+                              // uniquement si l'extraction RIS (ou un frozen_data) a fourni la durée.
+                              const sre = regimesPoints.SRE || {};
+                              const sreTrim = parseFloat(sre.trimestres) || 0;
+                              const sreJours = parseFloat(sre.jours) || 0;
+                              if (sreTrim <= 0 && sreJours <= 0) return null;
+                              return (
+                                <div style={{ background: "#fff", border: "1px solid #B2BEC3", borderLeft: "4px solid #B2BEC3", padding: 14, borderRadius: 8, marginTop: 12 }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                                    <span style={{ fontSize: 18 }}>🏛️</span>
+                                    <span style={{ fontWeight: 700, fontSize: 15, color: "#374151" }}>SRE — Fonction publique d'État</span>
+                                  </div>
+                                  <div style={{ fontSize: 14, color: "#333" }}>
+                                    Durée de services extraite du RIS : <b>{sreTrim.toLocaleString("fr-FR")} trimestre{sreTrim > 1 ? "s" : ""}</b>
+                                    {sreJours > 0 ? <> et <b>{sreJours.toLocaleString("fr-FR")} jour{sreJours > 1 ? "s" : ""}</b></> : null}
+                                  </div>
+                                  <div style={{ marginTop: 6, fontSize: 12, color: "#6B7280", fontStyle: "italic" }}>
+                                    Pension statutaire non calculée — le traitement indiciaire (6 derniers mois) n'est pas collecté par le simulateur.
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                            {(() => {
+                              const wired = ["CNAV", "AGIRC_ARRCO", "IRCANTEC", "RCI", "CIPAV", "CARPIMKO", "CARPIMKO_ASV", "CARPIMKO_COMPL", "SRE", ...Object.keys(REGIMES_SIMPLES)];
                               return computeVisibleRegimes(carriereRows, wired).filter(r => !wired.includes(r.key));
                             })().map((regime) => (
                               <div
