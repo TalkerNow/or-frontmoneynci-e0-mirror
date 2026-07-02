@@ -157,7 +157,13 @@ const InboxDetail = ({
                 flexWrap: "wrap",
               }}
             >
-              <Badge color={getTypeColor(selectedItem.type)}>
+              <Badge
+                color={
+                  selectedItem.raw?.source === "expert-retraite"
+                    ? "fluo"
+                    : getTypeColor(selectedItem.type)
+                }
+              >
                 {getTypeLabel(selectedItem.type)}
               </Badge>
               {selectedItem.hasMultipleChannels && (
@@ -184,7 +190,10 @@ const InboxDetail = ({
                 </span>
               )}
               <span style={{ fontSize: "12px", color: "#9ca3af" }}>
-                Reçu le {selectedItem.date} • Source: EOR Consultant
+                Reçu le {selectedItem.date} • Source:{" "}
+                {selectedItem.raw?.source === "expert-retraite"
+                  ? "Expert Retraite"
+                  : "EOR Consultant"}
               </span>
             </div>
             <div
