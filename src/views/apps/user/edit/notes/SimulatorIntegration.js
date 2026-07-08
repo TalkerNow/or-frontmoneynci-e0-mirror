@@ -901,6 +901,17 @@ function EtrangerPicker({ value, disabled, onChange }) {
   );
 }
 
+// ── Interrupteur global de l'analyse RIS ──────────────────────────────────
+// Analyse RIS (détection type + extraction n8n) DÉSACTIVÉE pour les tests.
+// Ce flag est LE point de vérité : il coupe TOUS les chemins d'analyse
+//   1. la détection auto au dépôt/upload (detectDocType, no-op),
+//   2. les boutons manuels « Analyser ce RIS » (déjà grisés en dur),
+//   3. handleAnalyzeDoc — le chokepoint appelé aussi par l'événement
+//      inter-onglets `careerAnalysisFileReady` (bouton « Analyse carrière »
+//      de l'onglet Documents), qui contournait la désactivation des boutons.
+// Repasser à `true` réactive tout le pipeline d'analyse.
+const RIS_ANALYSIS_ENABLED = false;
+
 export default function SimulatorV6({ mode = "production", id, user, onUserUpdate }) {
   // ── UI State ──
   const [apiSkills, setApiSkills] = useState([]);
@@ -2584,9 +2595,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // ── Détecte le type d'un fichier PDF (RIS ou autre) ──
   // Détection automatique du type de document (RIS/bulletin) DÉSACTIVÉE : elle se
   // déclenchait à chaque dépôt/upload de fichier (appel n8n) et gênait les tests.
-  // Le bouton manuel « Analyser ce RIS » reste actif (il passe par handleAnalyzeDoc,
-  // qui appelle directement detectDocumentType). Pour réactiver la détection auto,
-  // restaurer l'implémentation d'origine (voir l'historique git de ce fichier).
+  // Pour réactiver la détection auto, restaurer l'implémentation d'origine
+  // (voir l'historique git de ce fichier) et remettre RIS_ANALYSIS_ENABLED à true.
   const detectDocType = useCallback(async (_file) => {
     return;
   }, []);
@@ -2595,6 +2605,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // preloadedFile lets external entry points (e.g. Documents tab "Analyse carrière")
   // skip the /downloadFile round-trip when the File is already in hand.
   const handleAnalyzeDoc = useCallback(async (doc, preloadedFile = null) => {
+    // Chokepoint : toute analyse RIS passe par ici (boutons ET événement
+    // `careerAnalysisFileReady`). Coupé tant que l'analyse est désactivée.
+    if (!RIS_ANALYSIS_ENABLED) { toast.info("Analyse RIS désactivée"); return; }
     const existing = docTypeDetection[doc.filename];
     if (existing?.loading) return;
     const downloadFile = async () => {
@@ -2802,6 +2815,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   useEffect(() => {
     if (!id) return;
     const handler = async (event) => {
+      if (!RIS_ANALYSIS_ENABLED) return; // analyse RIS désactivée : ne pas ingérer
       const { clientId, fileId, fileData } = event.detail || {};
       if (clientId !== id || !fileData) return;
       try {
@@ -5368,15 +5382,15 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                         <input type="number" step="0.01" value={row.agircT2 ?? ""} disabled={carriereValidee} onChange={e => { const v = parseFloat(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircT2: v } : r)); }} style={{ width: 72, textAlign: "center", border: "1px solid #0984E330", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#0984E3", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", ...(uAgirc.tdStyle || {}) }}>
-                                        <input type="number" step="0.01" value={row.agircPts || ""} disabled={carriereValidee} title={uAgirc.title} onChange={e => { const v = parseFloat(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircPts: v } : r)); }} style={{ width: 72, textAlign: "center", border: "1px solid #0984E350", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#1a1a2e", fontWeight: 800, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" step="0.01" value={row.agircPts || ""} disabled={carriereValidee} title={uAgirc.title} onChange={e => { const v = parseFloat(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircPts: v, regimes: { ...(r.regimes || {}), AGIRC_ARRCO: v } } : r)); }} style={{ width: 72, textAlign: "center", border: "1px solid #0984E350", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#1a1a2e", fontWeight: 800, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                         {uAgirc.badge}
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #00B89415", ...(uIrc.tdStyle || {}) }}>
-                                        <input type="number" step="0.01" value={row.ircPts || ""} disabled={carriereValidee} title={uIrc.title} onChange={e => { const v = parseFloat(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, ircPts: v } : r)); }} style={{ width: 72, textAlign: "center", border: "1px solid #00B89430", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#00B894", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" step="0.01" value={row.ircPts || ""} disabled={carriereValidee} title={uIrc.title} onChange={e => { const v = parseFloat(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, ircPts: v, regimes: { ...(r.regimes || {}), IRCANTEC: v } } : r)); }} style={{ width: 72, textAlign: "center", border: "1px solid #00B89430", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#00B894", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                         {uIrc.badge}
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #E1705515", ...(uRci.tdStyle || {}) }}>
-                                        <input type="number" step="0.01" value={row.rciPts || ""} disabled={carriereValidee} title={uRci.title} onChange={e => { const v = parseFloat(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, rciPts: v } : r)); }} style={{ width: 72, textAlign: "center", border: "1px solid #E1705530", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#E17055", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" step="0.01" value={row.rciPts || ""} disabled={carriereValidee} title={uRci.title} onChange={e => { const v = parseFloat(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, rciPts: v, regimes: { ...(r.regimes || {}), RCI: v } } : r)); }} style={{ width: 72, textAlign: "center", border: "1px solid #E1705530", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#E17055", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                         {uRci.badge}
                                       </td>
                                       {cnavplOpen ? (
