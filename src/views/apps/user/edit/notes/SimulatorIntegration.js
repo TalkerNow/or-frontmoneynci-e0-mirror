@@ -32,7 +32,7 @@ import { RegimeRecapVignettes } from "./RecapCarriereParRegime";
 import SimulatorChatPanel from "./SimulatorChatPanel";
 import { buildSimulatorContext } from "./simulatorContext";
 import BaremeRetraitePage from "../../../bareme-retraite";
-import { coeffRevalo, initBareme } from "../simulatorData";
+import { coeffRevalo, initBareme, seuilValidationTrimestre } from "../simulatorData";
 import {
   parseBirthYear,
   computeTargetYear,
@@ -3510,7 +3510,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           },
         }));
         // Recalculer les trimestres sur la base du salaire complet
-        const seuilTrimestre = yr <= 2001 ? (passEuro * 6.55957) / 4 : passEuro / 4;
+        // Seuil légal 150 × SMIC (200 × avant 2014) ; fallback PASS/4 hors table SMIC (< 1970).
+        const seuilTrimestre = seuilValidationTrimestre(yr) ?? (yr <= 2001 ? (passEuro * 6.55957) / 4 : passEuro / 4);
         const trimestres = Math.min(4, Math.max(0, Math.floor(sal / (seuilTrimestre || Infinity))));
         setTrimCotState(prev => ({ ...prev, [yr]: trimestres }));
       } else {
@@ -5291,10 +5292,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                               revalo = Math.round(salPlafonne * coeff);
                                               ssEur = salPlafonne;
                                             }
-                                            // Trimestres cotisés — réplique exacte CnavSimulator
-                                            const seuilTrimestre = yr <= 2001
-                                              ? (passEuro * 6.55957) / 4
-                                              : passEuro / 4;
+                                            // Trimestres cotisés — seuil légal 150 × SMIC
+                                            // (200 × avant 2014) ; fallback PASS/4 hors table SMIC (< 1970).
+                                            const seuilTrimestre =
+                                              seuilValidationTrimestre(yr) ??
+                                              (yr <= 2001 ? (passEuro * 6.55957) / 4 : passEuro / 4);
                                             const trimestres = Math.min(4, Math.max(0, Math.floor(v / (seuilTrimestre || Infinity))));
                                             setRevaloValues(prev => ({ ...prev, [yr]: revalo }));
                                             setTrimCotState(prev => ({ ...prev, [yr]: trimestres }));
