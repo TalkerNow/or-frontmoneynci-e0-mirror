@@ -9,6 +9,7 @@ import {
   rciPrixAchat,
   rciTauxDisplay,
   getBaremeRetraite,
+  seuilValidationTrimestre,
 } from '../views/apps/user/edit/simulatorData';
 
 const FRF_PER_EUR = 6.55957;
@@ -60,8 +61,12 @@ export function calculateCnav(year, grossSalary, isDeplafonner = false) {
   const salSS =
     year <= 2001 ? salairePlafonne / FRF_PER_EUR : salairePlafonne;
 
+  // Validation d'un trimestre : 150 × SMIC horaire (200 × avant 2014), en devise
+  // d'origine de l'année — art. R.351-9 CSS. Fallback ancien (PASS/4) uniquement si
+  // l'année n'est pas couverte par la table SMIC (< 1970, cas non réaliste).
   const seuilTrimestre =
-    year <= 2001 ? (passEuro * FRF_PER_EUR) / 4 : passEuro / 4;
+    seuilValidationTrimestre(year) ??
+    (year <= 2001 ? (passEuro * FRF_PER_EUR) / 4 : passEuro / 4);
 
   const trimestres = Math.min(
     4,

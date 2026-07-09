@@ -17,13 +17,13 @@ describe('calculateCnav', () => {
     expect(calculateCnav(2010, null)).toBeNull();
   });
 
-  test('2010 salary below PASS: not capped, trimestres=3', () => {
-    // PASS 2010 = 34620, coeff = 1.267, seuil = 34620/4 = 8655
-    // 30000 / 8655 = 3.46 → trimestres = 3
+  test('2010 salary below PASS: not capped, trimestres=4', () => {
+    // PASS 2010 = 34620, coeff = 1.267. Seuil trimestre = 200 × SMIC horaire (8,86 €)
+    // = 1772 € (règle légale). 30000 / 1772 = 16.9 → plafonné à 4 trimestres.
     // revalo = 30000 * 1.267 = 38010
     const result = calculateCnav(2010, 30000);
     expect(result).not.toBeNull();
-    expect(result.trimestres).toBe(3);
+    expect(result.trimestres).toBe(4);
     expect(result.salSS).toBeCloseTo(30000, 0);
     expect(result.revalo).toBeCloseTo(38010, 0);
     expect(result.coeff).toBe(1.267);
@@ -82,17 +82,26 @@ describe('calculateCnav', () => {
   });
 
   test('trimestres = 0 for salary below quarterly threshold', () => {
-    // seuil = 34620/4 = 8655. salary = 1000 → floor(1000/8655) = 0
+    // seuil 2010 = 200 × SMIC horaire (8,86 €) = 1772 €. salary 1000 → floor(1000/1772) = 0
     const result = calculateCnav(2010, 1000);
     expect(result.trimestres).toBe(0);
   });
 
   test('accepts French-formatted string input (spaces + comma decimal)', () => {
-    // "30 000,50" is a realistic paste from a French spreadsheet
+    // "30 000,50" is a realistic paste from a French spreadsheet.
+    // seuil 2010 = 1772 € → floor(30000.5/1772) = 16, plafonné à 4 (salaire ≫ seuil).
     const result = calculateCnav(2010, '30 000,50');
     expect(result).not.toBeNull();
-    expect(result.trimestres).toBe(3);
+    expect(result.trimestres).toBe(4);
     expect(result.salSS).toBeCloseTo(30000.50, 0);
+  });
+
+  test('low salary validates quarters via 150×SMIC, not the old PASS/4 bug', () => {
+    // Régression : sous PASS/4 (47100/4 = 11775 €) un salaire 2025 de 8 000 € donnait
+    // 0 trimestre (sous-comptage). Règle légale = 150 × SMIC (11,88 €) = 1 782 € →
+    // floor(8000/1782) = 4 ; 3 000 € → floor(3000/1782) = 1 (0 sous l'ancien seuil).
+    expect(calculateCnav(2025, 8000).trimestres).toBe(4);
+    expect(calculateCnav(2025, 3000).trimestres).toBe(1);
   });
 
   test('returns null for year with no PASS data (e.g. 1950)', () => {

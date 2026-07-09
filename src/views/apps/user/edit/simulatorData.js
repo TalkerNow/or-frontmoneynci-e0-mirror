@@ -39,6 +39,39 @@ export const plafondSS = {
   2021: 41136, 2022: 41136, 2023: 43992, 2024: 46368, 2025: 47100, 2026: 48060
 };
 
+// SMIC horaire brut en vigueur au 1er janvier de chaque année, en DEVISE D'ORIGINE :
+// FRANCS avant 2002, EUROS à partir de 2002 (même devise que les salaires portés au
+// compte pour l'année). Source : historique officiel du SMIC (INSEE). Contrôles :
+// 2025 = 11,88 € et 2026 = 12,02 € (concordent avec le référentiel affiché).
+export const smicHoraire = {
+  1970: 3.36, 1971: 3.63, 1972: 4.10, 1973: 5.20, 1974: 5.60, 1975: 6.95,
+  1976: 7.89, 1977: 9.14, 1978: 10.45, 1979: 11.60, 1980: 13.37, 1981: 15.20,
+  1982: 18.15, 1983: 21.02, 1984: 22.78, 1985: 24.90, 1986: 26.59, 1987: 27.57,
+  1988: 28.48, 1989: 29.36, 1990: 30.51, 1991: 32.66, 1992: 33.31, 1993: 34.83,
+  1994: 35.56, 1995: 36.98, 1996: 37.72, 1997: 39.43, 1998: 40.22, 1999: 40.72,
+  2000: 40.72, 2001: 43.72, // francs (≤ 2001)
+  2002: 6.83, 2003: 7.19, 2004: 7.61, 2005: 8.03, 2006: 8.27, 2007: 8.44,
+  2008: 8.63, 2009: 8.82, 2010: 8.86, 2011: 9.00, 2012: 9.22, 2013: 9.43,
+  2014: 9.53, 2015: 9.61, 2016: 9.67, 2017: 9.76, 2018: 9.88, 2019: 10.03,
+  2020: 10.15, 2021: 10.25, 2022: 10.57, 2023: 11.27, 2024: 11.65, 2025: 11.88,
+  2026: 12.02 // euros (≥ 2002)
+};
+
+/**
+ * Seuil de salaire (devise d'origine de l'année) validant 1 trimestre d'assurance
+ * vieillesse, selon l'art. R.351-9 CSS : 150 × SMIC horaire depuis 2014, 200 × avant.
+ * Renvoie null si l'année n'est pas couverte par la table SMIC (< 1970) — l'appelant
+ * retombe alors sur son fallback historique. Ex. 2026 : 150 × 12,02 = 1 803 €.
+ * @param {number} year
+ * @returns {number|null} seuil en devise d'origine (FRF ≤ 2001, EUR ≥ 2002)
+ */
+export function seuilValidationTrimestre(year) {
+  const smic = smicHoraire[year];
+  if (smic == null) return null;
+  const heures = year >= 2014 ? 150 : 200;
+  return heures * smic;
+}
+
 // Barème retraite (âge légal + durée d'assurance taux plein).
 // Source : Circulaire Cnav 2026-07 du 5 mars 2026 (loi n°2025-1403 du 30/12/2025
 // "suspension de la réforme 2023"), pages 4 et 7. S'applique aux retraites
