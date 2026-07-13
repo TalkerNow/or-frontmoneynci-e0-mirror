@@ -3834,11 +3834,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
             })(),
             ircantec: {
               total_points: totalPointsIrcantec,
-              valeur_point: droitsSynthese?.ircantec?.valeur_point || 0.56357,
+              valeur_point: droitsSynthese?.ircantec?.valeur_point || 0.56053,
             },
             rci: {
               total_points: totalPointsRci,
-              valeur_point: droitsSynthese?.rci?.valeur_point || 1.280,
+              valeur_point: droitsSynthese?.rci?.valeur_point || 1.347,
             },
           },
         },
@@ -5492,10 +5492,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                   <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 15, color: "#6C5CE7" }}>{totalArTbl || "—"}</td>
                                   <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 15, color: "#6C5CE7", fontWeight: 800 }}>{totalTrimTbl || "—"}</td>
                                   {(() => {
-                                    const visRows = carriereRows.slice(0, visibleRowCount);
-                                    const totalT1 = parseFloat(visRows.reduce((s, r) => s + (r.agircT1 ?? 0), 0).toFixed(2));
-                                    const totalT2 = parseFloat(visRows.reduce((s, r) => s + (r.agircT2 ?? 0), 0).toFixed(2));
-                                    const totalPts = parseFloat(visRows.reduce((s, r) => s + (r.agircPts || 0), 0).toFixed(2));
+                                    // Totaux : additionne TOUTES les années (pas seulement les lignes visibles à l'écran).
+                                    const allRows = carriereRows;
+                                    const totalT1 = parseFloat(allRows.reduce((s, r) => s + (r.agircT1 ?? 0), 0).toFixed(2));
+                                    const totalT2 = parseFloat(allRows.reduce((s, r) => s + (r.agircT2 ?? 0), 0).toFixed(2));
+                                    const totalPts = parseFloat(allRows.reduce((s, r) => s + (r.agircPts || 0), 0).toFixed(2));
                                     return (
                                       <>
                                         <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 15, color: "#0984E3", borderLeft: "2px solid #0984E315", fontWeight: 700 }}>{totalT1 ? totalT1.toLocaleString("fr-FR") : "—"}</td>
@@ -5504,12 +5505,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                       </>
                                     );
                                   })()}
-                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 15, color: "#00B894", borderLeft: "2px solid #00B89415", fontWeight: 700 }}>{carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (r.ircPts || 0), 0) || "—"}</td>
-                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 15, color: "#E17055", borderLeft: "2px solid #E1705515", fontWeight: 700 }}>{carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (r.rciPts || 0), 0) || "—"}</td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 15, color: "#00B894", borderLeft: "2px solid #00B89415", fontWeight: 700 }}>{carriereRows.reduce((s, r) => s + (r.ircPts || 0), 0) || "—"}</td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 15, color: "#E17055", borderLeft: "2px solid #E1705515", fontWeight: 700 }}>{carriereRows.reduce((s, r) => s + (r.rciPts || 0), 0) || "—"}</td>
                                   {cnavplOpen ? (
                                     <>
-                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 12, color: "#9B59B6", borderLeft: "2px solid #9B59B630", fontWeight: 800, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>{(total => total ? total.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : "—")(carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (parseFloat(cnavplRows[r.yr]?.points) || 0), 0))}</td>
-                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 12, color: "#9B59B6", fontWeight: 800, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>{(total => total ? total.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : "—")(carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (parseFloat(cnavplRows[r.yr]?.pointsCompl) || 0), 0))}</td>
+                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 12, color: "#9B59B6", borderLeft: "2px solid #9B59B630", fontWeight: 800, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>{(total => total ? total.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : "—")(carriereRows.reduce((s, r) => s + (parseFloat(cnavplRows[r.yr]?.points) || 0), 0))}</td>
+                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 12, color: "#9B59B6", fontWeight: 800, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>{(total => total ? total.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : "—")(carriereRows.reduce((s, r) => s + (parseFloat(cnavplRows[r.yr]?.pointsCompl) || 0), 0))}</td>
                                     </>
                                   ) : (
                                     <td style={{ padding: "5px 5px", width: 24, borderLeft: "2px solid #9B59B630" }}></td>

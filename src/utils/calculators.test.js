@@ -1,4 +1,4 @@
-import { calculateCnav, computeSAMB, computeSamCnav, computeArrcoPts, departureTrimOutlook } from './calculators';
+import { calculateCnav, calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeSamCnav, computeArrcoPts, departureTrimOutlook } from './calculators';
 
 describe('calculateCnav', () => {
   test('returns null for salary = 0', () => {
@@ -147,6 +147,31 @@ describe('computeSAMB', () => {
     ];
     // Only 2024 counts: min(30000, 46368) * 1.031 / 1 = 30930
     expect(computeSAMB(rows)).toBeCloseTo(30930, -2);
+  });
+
+  test('converts pre-2002 FRF salary to EUR before capping at PASS', () => {
+    // row.sal est en FRANCS avant 2002. 60000 FRF ≈ 9147 € (÷6.55957) < PASS 1995
+    // (23782 €), × coeffRevalo 1995 (1.577) ≈ 14424 €. Sans conversion, 60000 traité
+    // comme des euros serait écrêté à 23782 → ×1.577 ≈ 37505 € (le bug FRF/EUR).
+    expect(computeSAMB([{ yr: 1995, sal: 60000 }])).toBeCloseTo(14424, -1);
+  });
+});
+
+describe('calculateArrco/Ircantec/Rci — projection au-delà de 2026', () => {
+  test('year >2026 uses the latest known parameters instead of returning null', () => {
+    // Régression : éditer le salaire d'une année projetée mettait les points à 0
+    // (fonctions renvoyaient null hors table). Elles gèlent désormais les paramètres
+    // de la dernière année connue (2026).
+    expect(calculateArrco(2030, 50000)).not.toBeNull();
+    expect(calculateIrcantec(2030, 50000)).not.toBeNull();
+    expect(calculateRci(2030, 50000)).not.toBeNull();
+    expect(calculateArrco(2030, 50000).total).toBeCloseTo(calculateArrco(2026, 50000).total, 5);
+    expect(calculateRci(2030, 50000).total).toBeCloseTo(calculateRci(2026, 50000).total, 5);
+  });
+
+  test('year before the table still returns null (no fabricated past data)', () => {
+    // arrcoPlafond commence en 1936 ; une année antérieure reste rejetée.
+    expect(calculateArrco(1900, 50000)).toBeNull();
   });
 });
 
