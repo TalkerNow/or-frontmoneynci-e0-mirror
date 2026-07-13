@@ -901,17 +901,6 @@ function EtrangerPicker({ value, disabled, onChange }) {
   );
 }
 
-// ── Interrupteur global de l'analyse RIS ──────────────────────────────────
-// Analyse RIS (détection type + extraction n8n) DÉSACTIVÉE pour les tests.
-// Ce flag est LE point de vérité : il coupe TOUS les chemins d'analyse
-//   1. la détection auto au dépôt/upload (detectDocType, no-op),
-//   2. les boutons manuels « Analyser ce RIS » (déjà grisés en dur),
-//   3. handleAnalyzeDoc — le chokepoint appelé aussi par l'événement
-//      inter-onglets `careerAnalysisFileReady` (bouton « Analyse carrière »
-//      de l'onglet Documents), qui contournait la désactivation des boutons.
-// Repasser à `true` réactive tout le pipeline d'analyse.
-const RIS_ANALYSIS_ENABLED = false;
-
 export default function SimulatorV6({ mode = "production", id, user, onUserUpdate }) {
   // ── UI State ──
   const [apiSkills, setApiSkills] = useState([]);
@@ -2593,10 +2582,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   }, []);
 
   // ── Détecte le type d'un fichier PDF (RIS ou autre) ──
-  // Détection automatique du type de document (RIS/bulletin) DÉSACTIVÉE : elle se
+  // Détection AUTOMATIQUE du type de document (RIS/bulletin) DÉSACTIVÉE : elle se
   // déclenchait à chaque dépôt/upload de fichier (appel n8n) et gênait les tests.
-  // Pour réactiver la détection auto, restaurer l'implémentation d'origine
-  // (voir l'historique git de ce fichier) et remettre RIS_ANALYSIS_ENABLED à true.
+  // L'analyse manuelle reste possible (bouton « Analyse carrière » de l'onglet
+  // Documents → handleAnalyzeDoc). Pour réactiver la détection auto, restaurer
+  // l'implémentation d'origine (voir l'historique git de ce fichier).
   const detectDocType = useCallback(async (_file) => {
     return;
   }, []);
@@ -2605,9 +2595,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // preloadedFile lets external entry points (e.g. Documents tab "Analyse carrière")
   // skip the /downloadFile round-trip when the File is already in hand.
   const handleAnalyzeDoc = useCallback(async (doc, preloadedFile = null) => {
-    // Chokepoint : toute analyse RIS passe par ici (boutons ET événement
-    // `careerAnalysisFileReady`). Coupé tant que l'analyse est désactivée.
-    if (!RIS_ANALYSIS_ENABLED) { toast.info("Analyse RIS désactivée"); return; }
     const existing = docTypeDetection[doc.filename];
     if (existing?.loading) return;
     const downloadFile = async () => {
@@ -2815,7 +2802,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   useEffect(() => {
     if (!id) return;
     const handler = async (event) => {
-      if (!RIS_ANALYSIS_ENABLED) return; // analyse RIS désactivée : ne pas ingérer
       const { clientId, fileId, fileData } = event.detail || {};
       if (clientId !== id || !fileData) return;
       try {
