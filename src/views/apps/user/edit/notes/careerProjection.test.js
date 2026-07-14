@@ -72,13 +72,13 @@ describe("isProjectedYear", () => {
 });
 
 describe("projectYearValue", () => {
-  test("carries the last salary forward verbatim (no PASS cap), coeff 1, 4 trimestres", () => { expect(projectYearValue(50000, PASS)).toEqual({ sal: 50000, revalo: 50000, trimestres: 4 }); });
-  test("below PASS unchanged", () => { expect(projectYearValue(30000, PASS)).toEqual({ sal: 30000, revalo: 30000, trimestres: 4 }); });
+  test("caps ss/revalo at the PASS (a projected salary above PASS must not inflate the SAM), gross carried in sal, coeff 1, 4 trimestres", () => { expect(projectYearValue(50000, PASS)).toEqual({ sal: 50000, ss: 48060, revalo: 48060, trimestres: 4 }); });
+  test("below PASS: ss = revalo = sal", () => { expect(projectYearValue(30000, PASS)).toEqual({ sal: 30000, ss: 30000, revalo: 30000, trimestres: 4 }); });
 });
 
 describe("buildProjectedRow", () => {
   test("future-year row shape with projected flag", () => {
-    expect(buildProjectedRow(2030, { sal: PASS, revalo: PASS, trimestres: 4 })).toEqual({ yr: 2030, sal: PASS, ss: PASS, coeff: "1.000", revalo: PASS, trim: 0, ar: 0, total: 0, agircPts: 0, ircPts: 0, rciPts: 0, regimes: {}, projected: true });
+    expect(buildProjectedRow(2030, { sal: PASS, ss: PASS, revalo: PASS, trimestres: 4 })).toEqual({ yr: 2030, sal: PASS, ss: PASS, coeff: "1.000", revalo: PASS, trim: 0, ar: 0, total: 0, agircPts: 0, ircPts: 0, rciPts: 0, regimes: {}, projected: true });
   });
 });
 
@@ -95,6 +95,16 @@ describe("reconcileProjection", () => {
     expect(out.carriereRows.find((r) => r.yr === 2025)).toMatchObject({ sal: 41000, projected: true });
     expect(out.revaloValues[2027]).toBe(41000);
     expect(out.trimCotState[2026]).toBe(4);
+  });
+
+  test("caps a projected salary above the PASS so the SAM cannot exceed the PASS (regression)", () => {
+    // Salaire projeté 229 054 € (haut revenu). Le brut est conservé dans `sal`, mais ss/revalo —
+    // qui alimentent computeSamCnav via revaloValues — sont plafonnés au PASS. Sans ce plafond,
+    // le SAM CNAV grimpait à 59 265 € (> PASS), impossible.
+    const out = reconcileProjection(baseState(), { lastRealYear: 2024, targetYear: 2027, surcote: 0, lastRealSalary: 229054, passLast: PASS });
+    expect(out.revaloValues[2027]).toBe(PASS);
+    expect(out.revaloValues[2025]).toBe(PASS);
+    expect(out.carriereRows.find((r) => r.yr === 2027)).toMatchObject({ sal: 229054, ss: PASS, revalo: PASS, projected: true });
   });
 
   test("≤2026 projected years fill existing rows in place (no array growth for them)", () => {

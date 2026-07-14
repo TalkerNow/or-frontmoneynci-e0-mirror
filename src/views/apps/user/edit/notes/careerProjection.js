@@ -54,19 +54,23 @@ export function isProjectedYear(year, lastRealYear, maxProjectedYear, active) {
   return year > lastRealYear && year <= maxProjectedYear;
 }
 
-// Value carried by one projected year: the last real salary carried forward verbatim
-// (NOT capped at PASS — the projection mirrors "next year = same as the last real year";
-// the CNAV base re-caps at PASS in its own calc). coeff 1 (revalo = sal), 4 cotised trimestres.
-// `passLast` is kept in the signature for call-site compatibility but no longer used.
-export function projectYearValue(lastSalary, passLast) { // eslint-disable-line no-unused-vars
+// Value carried by one projected year: the last real salary is carried forward as the GROSS
+// (`sal`), but the salaire soumis à cotisations (`ss`) and the revalorised value that feeds the
+// CNAV SAM are CAPPED at the PASS (`passLast` = dernier PASS connu), exactly like real years.
+// Sans ce plafond, un salaire projeté supérieur au PASS remonte tel quel dans computeSamCnav et
+// gonfle le SAM au-dessus du plafond (SAM CNAV > PASS, mathématiquement impossible).
+// coeff 1 (une année future n'est pas revalorisée), 4 trimestres cotisés.
+export function projectYearValue(lastSalary, passLast) {
   const sal = toNumber(lastSalary);
-  return { sal, revalo: sal, trimestres: 4 };
+  const pass = toNumber(passLast);
+  const ss = pass > 0 ? Math.min(sal, pass) : sal;
+  return { sal, ss, revalo: ss, trimestres: 4 };
 }
 
 // Row object for a NEW (>2026) projected year, matching _buildDefaultCarriereRows shape + flag.
 export function buildProjectedRow(year, value) {
   return {
-    yr: year, sal: value.sal, ss: value.sal, coeff: "1.000", revalo: value.revalo,
+    yr: year, sal: value.sal, ss: value.ss, coeff: "1.000", revalo: value.revalo,
     trim: 0, ar: 0, total: 0, agircPts: 0, ircPts: 0, rciPts: 0, regimes: {}, projected: true,
   };
 }
@@ -108,7 +112,7 @@ export function reconcileProjection(state, params) {
     const existing = byYear.get(y);
     if (existing && existing.projected) continue; // keep edits
     if (existing) {
-      const updated = { ...existing, sal: value.sal, ss: value.sal, coeff: "1.000", revalo: value.revalo, trim: 0, projected: true };
+      const updated = { ...existing, sal: value.sal, ss: value.ss, coeff: "1.000", revalo: value.revalo, trim: 0, projected: true };
       const idx = carriereRows.findIndex((r) => r.yr === y);
       carriereRows[idx] = updated;
       byYear.set(y, updated);
