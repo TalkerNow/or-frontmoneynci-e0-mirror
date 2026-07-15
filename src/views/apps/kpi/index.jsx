@@ -529,7 +529,7 @@ const todoSubText = {
   color: "#212529",
 };
 
-function renderTodoCell(next, badge = null) {
+function renderTodoCell(next, badge = null, isLate = false) {
   if (!next) {
     return (
       <span className="text-success" style={{ fontSize: 14 }}>
@@ -542,13 +542,18 @@ function renderTodoCell(next, badge = null) {
   if (next.isDatedStep && !next.date) sub = "À planifier";
   else if (!next.isDatedStep) sub = "Étape de suivi";
 
+  // Si l'échéance est dépassée (date en rouge dans la colonne "Dernière étape"),
+  // on remplace "À planifier" par "En retard" (en rouge).
+  const isOverdue = isLate && sub === "À planifier";
+  if (isOverdue) sub = "En retard";
+
   return (
     <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
       <span style={todoMainText}>{next.label}</span>
       {sub && (
         <>
           <span style={{ color: "#ced4da", margin: "0 5px" }}>·</span>
-          <span style={{ fontSize: 13, color: "#6e6b7b" }}>{sub}</span>
+          <span style={{ fontSize: 13, color: isOverdue ? "#ea5455" : "#6e6b7b" }}>{sub}</span>
         </>
       )}
       {badge && (
@@ -1719,7 +1724,7 @@ export default function KpiPage() {
                                     >
                                       <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "#dc2626" }}>
                                         <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#dc2626", flexShrink: 0 }} />
-                                        Création devis — Urgent
+                                        Création devis
                                       </span>
                                     </td>
                                   </tr>
@@ -1758,7 +1763,7 @@ export default function KpiPage() {
                                           <td>{clientLabel}</td>
 
                                           {/* À faire */}
-                                          <td>{renderTodoCell(next)}</td>
+                                          <td>{renderTodoCell(next, null, isDatePastOrToday(last && last.date))}</td>
 
                                           {/* Dernière étape validée */}
                                           <td>
@@ -2016,6 +2021,7 @@ export default function KpiPage() {
                                               isRdvToday
                                                 ? "Alerte : Jour du RDV"
                                                 : null,
+                                              isDatePastOrToday(last && last.date),
                                             )}
                                           </td>
 
@@ -2147,6 +2153,7 @@ export default function KpiPage() {
                                                 date: null,
                                               },
                                               `Envoyé le ${formatDate(relanceEnvoiDate)}`,
+                                              isDatePastOrToday(last && last.date),
                                             )}
                                           </td>
 
@@ -2267,7 +2274,7 @@ export default function KpiPage() {
                                       <td>{clientLabel}</td>
 
                                       {/* À faire */}
-                                      <td>{renderTodoCell(next)}</td>
+                                      <td>{renderTodoCell(next, null, isDatePastOrToday(last && last.date))}</td>
                                       {/* Dernière étape validée */}
                                       <td>
                                         {last ? (
@@ -2383,7 +2390,7 @@ export default function KpiPage() {
                                           style={{ cursor: "pointer" }}
                                         >
                                           <td>{clientLabel}</td>
-                                          <td>{renderTodoCell(next)}</td>
+                                          <td>{renderTodoCell(next, null, isDatePastOrToday(last && last.date))}</td>
                                           <td>
                                             {last ? (
                                               <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
