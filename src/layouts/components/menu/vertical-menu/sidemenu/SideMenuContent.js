@@ -96,18 +96,6 @@ function getLastAndNextSteps(steps = []) {
   return { last, next };
 }
 
-const parseDateOnly = (dateStr) => {
-  if (!dateStr) return null;
-  let part = String(dateStr);
-  if (part.includes("T")) part = part.split("T")[0];
-  else if (part.includes(" ")) part = part.split(" ")[0];
-  const [y, m, d] = part.split("-");
-  if (y && m && d) {
-    return new Date(Number(y), Number(m) - 1, Number(d)).getTime();
-  }
-  return null;
-};
-
 class SideMenuContent extends React.Component {
   constructor(props) {
     super(props);
@@ -498,144 +486,25 @@ class SideMenuContent extends React.Component {
           ? resSuivis.data.filter((s) => s.client_id)
           : [];
 
-        // Also fetch documents for payment alerts
-        axios
-          .get(global.config.server_url + "/documents", Config)
-          .then((resDocs) => {
-            const docs = Array.isArray(resDocs.data) ? resDocs.data : [];
-            const docsMap = {};
-            docs.forEach((d) => {
-              if (d.id) docsMap[d.id] = d;
-            });
+        // Badge CRM = uniquement les dossiers "Création devis" (Urgent),
+        // pour matcher la section "Création devis — Urgent" du Suivi Administratif.
+        let urgentCount = 0;
+        suivis.forEach((s) => {
+          const contract = s.contract || s;
+          const isTerminated =
+            contract && contract.document_state === "Terminé";
+          if (isTerminated) return;
 
-            const now = new Date();
-            const today = new Date(
-              now.getFullYear(),
-              now.getMonth(),
-              now.getDate(),
-            );
+          const { steps } = buildStepsForSuivi(s);
+          const { next } = getLastAndNextSteps(steps);
 
-            let urgentCount = 0;
+          // Création devis (tous profils)
+          if (next && next.label === "Création devis") {
+            urgentCount++;
+          }
+        });
 
-            suivis.forEach((s) => {
-              // Check contract state
-              const contract = s.contract || s;
-              const isTerminated =
-                contract && contract.document_state === "Terminé";
-              if (isTerminated) return;
-
-              const { steps } = buildStepsForSuivi(s);
-              const { last, next } = getLastAndNextSteps(steps);
-
-              // 1. Check Création devis (tous profils)
-              if (next && next.label === "Création devis") {
-                urgentCount++;
-                return;
-              }
-
-              // 2. Check Facturation Urgent (CH / Simu / etc)
-              if (
-                next &&
-                next.label === "Facturation" &&
-                last &&
-                last.label === "Prise de RDV"
-              ) {
-                if (last.date) {
-                  const rdvTime = parseDateOnly(last.date);
-                  if (rdvTime && rdvTime <= today.getTime()) {
-                    urgentCount++;
-                    return;
-                  }
-                } else {
-                  urgentCount++;
-                  return;
-                }
-              }
-
-              // 3. Check Payment Alerts (2nd+ payment due & unpaid)
-              const docId = s.facture_id || s.document_id || s.contract_id;
-              const doc = docId ? docsMap[docId] : null;
-              if (doc) {
-                let acompteDates = [];
-                try {
-                  acompteDates = Array.isArray(doc.acompte_dates)
-                    ? doc.acompte_dates
-                    : doc.acompte_dates
-                      ? JSON.parse(doc.acompte_dates)
-                      : [];
-                } catch (e) {
-                  acompteDates = [];
-                }
-
-                let soldDates = [];
-                try {
-                  soldDates = Array.isArray(doc.sold_dates)
-                    ? doc.sold_dates
-                    : doc.sold_dates
-                      ? JSON.parse(doc.sold_dates)
-                      : [];
-                } catch (e) {
-                  soldDates = [];
-                }
-
-                const allPayments = [...acompteDates, ...soldDates];
-                if (allPayments.length > 1) {
-                  for (let i = 1; i < allPayments.length; i++) {
-                    const payment = allPayments[i];
-                    const isPaid =
-                      payment.is_paid === true || payment.is_paid === 1;
-                    if (isPaid) continue;
-                    const payTime = parseDateOnly(payment.date);
-                    if (payTime && payTime <= today.getTime()) {
-                      urgentCount++;
-                      break;
-                    }
-                  }
-                }
-              }
-            });
-
-            this.setState({ crmBadge: urgentCount });
-          })
-          .catch((err) => {
-            console.error("Error fetching documents for payment alerts", err);
-            // Still set badge from suivi-only logic
-            const now = new Date();
-            const today = new Date(
-              now.getFullYear(),
-              now.getMonth(),
-              now.getDate(),
-            );
-            let urgentCount = 0;
-            suivis.forEach((s) => {
-              const contract = s.contract || s;
-              if (contract && contract.document_state === "Terminé") return;
-              const { steps } = buildStepsForSuivi(s);
-              const { last, next } = getLastAndNextSteps(steps);
-              if (next && next.label === "Création devis") {
-                urgentCount++;
-                return;
-              }
-              if (
-                next &&
-                next.label === "Facturation" &&
-                last &&
-                last.label === "Prise de RDV"
-              ) {
-                if (last.date) {
-                  const rdvTime = parseDateOnly(last.date);
-                  if (rdvTime && rdvTime <= today.getTime()) {
-                    urgentCount++;
-                    return;
-                  }
-                } else {
-                  urgentCount++;
-                  return;
-                }
-              }
-            });
-            this.setState({ crmBadge: urgentCount });
-          });
+        this.setState({ crmBadge: urgentCount });
       })
       .catch((err) =>
         console.error("Error fetching urgent count for sidebar", err),
