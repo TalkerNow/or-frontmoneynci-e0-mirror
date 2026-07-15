@@ -4,6 +4,7 @@ import {
   plafondSS,
   getBaremeRetraite,
   initBareme,
+  seuilValidationTrimestre,
 } from "./simulatorData";
 import { fetchRISAnalysis } from "./risService";
 // We need to import convertRISToManualRows if we want to use its potentially shared logic,
@@ -169,9 +170,10 @@ export default function CnavSimulator({ user }) {
         ? (salairePlafonne * coeff) / 6.556957
         : salairePlafonne * coeff;
 
-    // Trimestres : comparer le salaire réel au seuil dans la même devise
+    // Trimestres : seuil légal 150 × SMIC (200 × avant 2014), même devise que le salaire ;
+    // fallback PASS/4 uniquement hors table SMIC (< 1970).
     const seuilTrimestre =
-      year <= 2001 ? (passEuro * 6.556957) / 4 : passEuro / 4;
+      seuilValidationTrimestre(year) ?? (year <= 2001 ? (passEuro * 6.55957) / 4 : passEuro / 4);
     const trimestre = Math.min(
       4,
       Math.max(0, Math.floor(salaireAnnuel / (seuilTrimestre || Infinity))),
@@ -394,7 +396,7 @@ export default function CnavSimulator({ user }) {
                 ? (salairePlafonne * coeff) / 6.556957
                 : salairePlafonne * coeff;
             const seuilTrimestre =
-              annee <= 2001 ? (passEuro * 6.556957) / 4 : passEuro / 4;
+              seuilValidationTrimestre(annee) ?? (annee <= 2001 ? (passEuro * 6.55957) / 4 : passEuro / 4);
             const trimestre = Math.min(
               4,
               Math.max(

@@ -17,6 +17,7 @@ import html2canvas from "html2canvas";
 import { parseNIR } from "./utils";
 import { parseCarrierePoints } from "./carrierePoints";
 import { REGIMES, getPoints, resolveRegime, computeVisibleRegimes, REGIMES_SIMPLES, extractRegimeSimplePoints } from "../simulatorRegimes";
+import { PAYS_ETRANGER } from "../simulatorEtranger";
 import { executeScript, executeSkillGeneric, executeRaclScenario, executeRpScenario, executeCerScenario, executeTnsScenario, executeChomageIndScenario, executeChomageNonIndScenario, executeArretActiviteScenario, executeVplrScenario, runMultiDateScenarios, fetchLatestReport, saveSkillResult, fetchSkillsList, fetchRISAnalysisV6, fetchChosenScenarios, saveChosenScenarios, fetchChosenDates, saveChosenDates, updateSimulationHtml, detectDocumentType, fetchRapprochementConstat, applyReportChatMessage } from "../risService";
 import { calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeSamCnav, computeDateLegale, computeDateTauxPlein, computeDate67, computeAutoDateFromDispositif, computeTrimAtDate, sumTrimestresCapped, parseBirthDate } from '../../../../../utils/calculators';
 import api from "../../../../../services/api";
@@ -31,7 +32,7 @@ import { RegimeRecapVignettes } from "./RecapCarriereParRegime";
 import SimulatorChatPanel from "./SimulatorChatPanel";
 import { buildSimulatorContext } from "./simulatorContext";
 import BaremeRetraitePage from "../../../bareme-retraite";
-import { coeffRevalo, initBareme } from "../simulatorData";
+import { coeffRevalo, initBareme, seuilValidationTrimestre } from "../simulatorData";
 import {
   parseBirthYear,
   computeTargetYear,
@@ -796,6 +797,107 @@ function IaNoteFlag({ level, reason }) {
         document.body
       )}
     </>
+  );
+}
+
+// Sélecteur documentaire « année à l'étranger ». Affiche un bouton 🌍 ; un clic
+// ouvre un petit panneau avec un <select> de pays. Une valeur vide retire le
+// marquage. Purement informatif — n'affecte aucun calcul.
+function EtrangerPicker({ value, disabled, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState(null);
+  const btnRef = useRef(null);
+  const popRef = useRef(null);
+
+  const toggle = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (disabled) return;
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      const W = 210;
+      const margin = 8;
+      const left = Math.max(margin, Math.min(r.left, window.innerWidth - W - margin));
+      setPos({ top: r.bottom + 6, left, width: W });
+    }
+    setOpen((o) => !o);
+  }, [disabled]);
+
+  // Close on outside click, Escape, scroll or resize (the popover is fixed-positioned).
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => {
+      if (popRef.current && popRef.current.contains(e.target)) return;
+      if (btnRef.current && btnRef.current.contains(e.target)) return;
+      setOpen(false);
+    };
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    const onMove = () => setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onMove, true);
+    window.addEventListener("resize", onMove);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onMove, true);
+      window.removeEventListener("resize", onMove);
+    };
+  }, [open]);
+
+  const active = !!value;
+  return (
+    <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", verticalAlign: "middle", lineHeight: 1 }}>
+      <button
+        ref={btnRef}
+        type="button"
+        disabled={disabled}
+        onClick={toggle}
+        title={active ? `Année à l'étranger : ${value}` : "Marquer une année à l'étranger"}
+        style={{
+          border: "none", background: active ? "#E8F4FD" : "transparent",
+          cursor: disabled ? "default" : "pointer",
+          fontSize: 13, lineHeight: 1, padding: "1px 3px", borderRadius: 6,
+          opacity: disabled ? 0.4 : (active ? 1 : 0.3),
+        }}
+      >
+        🌍
+      </button>
+      {active && (
+        <span title={value} style={{ marginTop: 1, fontSize: 9, fontWeight: 600, color: "#0984E3", whiteSpace: "nowrap", maxWidth: 58, overflow: "hidden", textOverflow: "ellipsis" }}>
+          {value}
+        </span>
+      )}
+      {open && typeof document !== "undefined" && ReactDOM.createPortal(
+        <div
+          ref={popRef}
+          onMouseDown={(e) => e.stopPropagation()}
+          style={{
+            position: "fixed",
+            top: pos ? pos.top : -9999,
+            left: pos ? pos.left : -9999,
+            width: pos ? pos.width : 210,
+            zIndex: 2147483600,
+            visibility: pos ? "visible" : "hidden",
+            background: "#fff", border: "1px solid #ddd", borderRadius: 8,
+            boxShadow: "0 10px 30px -8px rgba(15,23,42,0.3)", padding: 8,
+          }}
+        >
+          <div style={{ fontSize: 11, color: "#666", marginBottom: 4, fontWeight: 600 }}>
+            Pays (année à l'étranger)
+          </div>
+          <select
+            value={value || ""}
+            onChange={(e) => { onChange(e.target.value || ""); setOpen(false); }}
+            style={{ width: "100%", padding: "4px 6px", fontSize: 12, borderRadius: 6, border: "1px solid #ccc" }}
+          >
+            <option value="">— (aucun)</option>
+            {PAYS_ETRANGER.map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </div>,
+        document.body
+      )}
+    </span>
   );
 }
 
@@ -1601,7 +1703,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       if (agirc != null) { pts.agircPts = agirc; pts.regimes.AGIRC_ARRCO = agirc; }
       if (irc != null)   { pts.ircPts   = irc;   pts.regimes.IRCANTEC    = irc;   }
       if (rci != null)   { pts.rciPts   = rci;   pts.regimes.RCI         = rci;   }
-      return { ...row, sal: salOriginal, ss, revalo, devise: entry.devise || '€', regimes_concernes: entry.regimes_concernes || '', ...pts, projected: !!entry.projected };
+      return { ...row, sal: salOriginal, ss, revalo, devise: entry.devise || '€', regimes_concernes: entry.regimes_concernes || '', ...pts, projected: !!entry.projected, ...(entry.etranger_pays && { etranger_pays: entry.etranger_pays }) };
     };
     setCarriereRows(prev => {
       const updated = prev.map(row => {
@@ -2349,6 +2451,19 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
               },
             }),
           });
+          // RAFP / SRE — apparition conditionnelle : on ne seme l'état que si
+          // l'extraction a réellement fourni des droits. RAFP entre alors dans le
+          // pipeline Tier-1 (carte + calcul) ; SRE n'est qu'une durée affichée.
+          if ((parseFloat(pts.rafp) || 0) > 0) {
+            setRegimesPoints(prev => ({ ...prev, RAFP: { base: parseFloat(pts.rafp) } }));
+          }
+          const sreSynth = synthese.sre || {};
+          if ((parseFloat(sreSynth.trimestres) || 0) > 0 || (parseFloat(sreSynth.jours) || 0) > 0) {
+            setRegimesPoints(prev => ({ ...prev, SRE: {
+              trimestres: parseFloat(sreSynth.trimestres) || 0,
+              jours: parseFloat(sreSynth.jours) || 0,
+            } }));
+          }
         }
 
       } else {
@@ -2467,23 +2582,14 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   }, []);
 
   // ── Détecte le type d'un fichier PDF (RIS ou autre) ──
-  const detectDocType = useCallback(async (file) => {
-    const name = file.name.toLowerCase();
-    const supported = name.endsWith(".pdf") || name.endsWith(".png") || name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".webp");
-    if (!file || !supported) return;
-    const filename = file.name;
-    setDocTypeDetection(prev => ({ ...prev, [filename]: { loading: true, is_ris: null, doc_type: null } }));
-    try {
-      const result = await detectDocumentType(file, id, { nom: user?.last_name, prenom: user?.first_name, secu: user?.secu_social });
-      docTypePayloads.current[filename] = result;
-      setDocTypeDetection(prev => ({
-        ...prev,
-        [filename]: { loading: false, is_ris: result.is_ris === true, doc_type: result.doc_type || null },
-      }));
-    } catch {
-      setDocTypeDetection(prev => ({ ...prev, [filename]: { loading: false, is_ris: null, doc_type: null } }));
-    }
-  }, [id, user?.last_name, user?.first_name, user?.secu_social]);
+  // Détection AUTOMATIQUE du type de document (RIS/bulletin) DÉSACTIVÉE : elle se
+  // déclenchait à chaque dépôt/upload de fichier (appel n8n) et gênait les tests.
+  // L'analyse manuelle reste possible (bouton « Analyse carrière » de l'onglet
+  // Documents → handleAnalyzeDoc). Pour réactiver la détection auto, restaurer
+  // l'implémentation d'origine (voir l'historique git de ce fichier).
+  const detectDocType = useCallback(async (_file) => {
+    return;
+  }, []);
 
   // ── Analyse un document serveur : détecte le type puis extrait la carrière ──
   // preloadedFile lets external entry points (e.g. Documents tab "Analyse carrière")
@@ -3390,7 +3496,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           },
         }));
         // Recalculer les trimestres sur la base du salaire complet
-        const seuilTrimestre = yr <= 2001 ? (passEuro * 6.55957) / 4 : passEuro / 4;
+        // Seuil légal 150 × SMIC (200 × avant 2014) ; fallback PASS/4 hors table SMIC (< 1970).
+        const seuilTrimestre = seuilValidationTrimestre(yr) ?? (yr <= 2001 ? (passEuro * 6.55957) / 4 : passEuro / 4);
         const trimestres = Math.min(4, Math.max(0, Math.floor(sal / (seuilTrimestre || Infinity))));
         setTrimCotState(prev => ({ ...prev, [yr]: trimestres }));
       } else {
@@ -3499,6 +3606,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
           regimes_concernes: row.regimes_concernes || '',
           // Data Barrier (CDC règle 5) : année corrigée depuis un bulletin de paie → tracée.
           ...(row.corrige_bulletin && { source: "BULLETIN", modifie_par_consultant: true }),
+          // Marquage documentaire « année à l'étranger » (pays). N'affecte aucun calcul.
+          ...(row.etranger_pays && { etranger_pays: row.etranger_pays }),
         };
       });
 
@@ -3662,6 +3771,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
         regimes_points: regimesPoints,
         alertes: [],
         totaux: {
+          // SAM gelé = le chiffre AFFICHÉ (source unique computeSamCnav). Le backend
+          // (enrichTotaux) le transmet tel quel au moteur ; son recalcul ne sert plus
+          // que de fallback pour les frozen_data historiques sans ce champ.
+          ...((() => { const s = computeSamCnav(carriereRows, trimCotState, trimAssState, revaloValues); return s > 0 ? { sam: s } : {}; })()),
           trimestres_cotises: totalCot,
           trimestres_assimiles: totalAss,
           trimestres_total: totalAcquisPlafonne,
@@ -3707,11 +3820,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
             })(),
             ircantec: {
               total_points: totalPointsIrcantec,
-              valeur_point: droitsSynthese?.ircantec?.valeur_point || 0.56357,
+              valeur_point: droitsSynthese?.ircantec?.valeur_point || 0.56053,
             },
             rci: {
               total_points: totalPointsRci,
-              valeur_point: droitsSynthese?.rci?.valeur_point || 1.280,
+              valeur_point: droitsSynthese?.rci?.valeur_point || 1.347,
             },
           },
         },
@@ -4718,7 +4831,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                 </div>
 
                 {/* Content area */}
-                <div className="simu-content-card" style={{ ...S.card, padding: 16, ...(expandedPanel === "carriere" && !cnavplOpen ? { maxWidth: 1280 } : {}) }}>
+                <div className="simu-content-card" style={{ ...S.card, padding: 16, ...(expandedPanel === "carriere" && !cnavplOpen ? { maxWidth: "none" } : {}) }}>
                   {(() => {
                     const panel = ACTION_PANELS[expandedPanel];
 
@@ -5008,7 +5121,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 15 }}>
                               <thead>
                                 <tr>
-                                  <th rowSpan={2} style={{ padding: "5px 6px", textAlign: "left", fontWeight: 700, color: "#333", borderBottom: "2px solid #ddd", background: "#f8f8f8", verticalAlign: "bottom", width: 36 }}>An.</th>
+                                  <th rowSpan={2} style={{ padding: "5px 6px", textAlign: "left", fontWeight: 700, color: "#333", borderBottom: "2px solid #ddd", background: "#f8f8f8", verticalAlign: "bottom", width: 54 }}>An.</th>
                                   <th rowSpan={2} style={{ padding: "5px 6px", textAlign: "center", fontWeight: 700, color: "#555", borderBottom: "2px solid #ddd", background: "#f8f8f8", borderLeft: "1px solid #ddd", verticalAlign: "bottom" }}>Sal. brut<br/><span style={{ fontWeight: 400, color: "#666", fontSize: 14 }}>/Rému.</span></th>
                                   <th colSpan={8} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#6C5CE7", background: "#6C5CE708", borderLeft: "2px solid #6C5CE730", borderBottom: "1px solid #6C5CE720" }}>🏛️ CNAV</th>
                                   <th colSpan={3} style={{ padding: "3px 6px", textAlign: "center", fontWeight: 700, color: "#0984E3", background: "#0984E308", borderLeft: "2px solid #0984E330", borderBottom: "1px solid #0984E320" }}>
@@ -5126,11 +5239,20 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                       ...(isFirstProj && { borderTop: "2px dashed #FF9F43" }),
                                       ...(isLastProj && { borderBottom: "2px dashed #FF9F43" }),
                                     }}>
-                                      <td style={{ padding: "3px 5px", fontWeight: 700, color: "#333", ...(isProj && { borderLeft: "3px solid #FF9F43" }) }}>
-                                        {row.yr}
-                                        {isProj && (
-                                          <span style={{ display: "inline-block", marginLeft: 6, padding: "1px 6px", borderRadius: 8, background: "#FF9F43", color: "#fff", fontSize: 9, fontWeight: 700, verticalAlign: "middle" }}>Projection</span>
-                                        )}
+                                      <td style={{ padding: "3px 5px", fontWeight: 700, color: "#333", whiteSpace: "nowrap", ...(isProj && { borderLeft: "3px solid #FF9F43" }) }}>
+                                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                                          <span>{row.yr}</span>
+                                          {isProj && (
+                                            <span style={{ display: "inline-block", padding: "1px 6px", borderRadius: 8, background: "#FF9F43", color: "#fff", fontSize: 9, fontWeight: 700 }}>Projection</span>
+                                          )}
+                                          <EtrangerPicker
+                                            value={row.etranger_pays || ""}
+                                            disabled={carriereValidee}
+                                            onChange={(pays) => setCarriereRows((prev) =>
+                                              prev.map((r) => r.yr === row.yr ? { ...r, etranger_pays: pays || undefined } : r)
+                                            )}
+                                          />
+                                        </span>
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "1px solid #eee", ...(uRevenu.tdStyle || {}) }}>
                                         <input type="number" value={row.sal || ""} disabled={carriereValidee}
@@ -5155,10 +5277,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                               revalo = Math.round(salPlafonne * coeff);
                                               ssEur = salPlafonne;
                                             }
-                                            // Trimestres cotisés — réplique exacte CnavSimulator
-                                            const seuilTrimestre = yr <= 2001
-                                              ? (passEuro * 6.55957) / 4
-                                              : passEuro / 4;
+                                            // Trimestres cotisés — seuil légal 150 × SMIC
+                                            // (200 × avant 2014) ; fallback PASS/4 hors table SMIC (< 1970).
+                                            const seuilTrimestre =
+                                              seuilValidationTrimestre(yr) ??
+                                              (yr <= 2001 ? (passEuro * 6.55957) / 4 : passEuro / 4);
                                             const trimestres = Math.min(4, Math.max(0, Math.floor(v / (seuilTrimestre || Infinity))));
                                             setRevaloValues(prev => ({ ...prev, [yr]: revalo }));
                                             setTrimCotState(prev => ({ ...prev, [yr]: trimestres }));
@@ -5246,15 +5369,15 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                         <input type="number" step="0.01" value={row.agircT2 ?? ""} disabled={carriereValidee} onChange={e => { const v = parseFloat(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircT2: v } : r)); }} style={{ width: 72, textAlign: "center", border: "1px solid #0984E330", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#0984E3", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", ...(uAgirc.tdStyle || {}) }}>
-                                        <input type="number" step="0.01" value={row.agircPts || ""} disabled={carriereValidee} title={uAgirc.title} onChange={e => { const v = parseFloat(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircPts: v } : r)); }} style={{ width: 72, textAlign: "center", border: "1px solid #0984E350", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#1a1a2e", fontWeight: 800, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" step="0.01" value={row.agircPts || ""} disabled={carriereValidee} title={uAgirc.title} onChange={e => { const v = parseFloat(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, agircPts: v, regimes: { ...(r.regimes || {}), AGIRC_ARRCO: v } } : r)); }} style={{ width: 72, textAlign: "center", border: "1px solid #0984E350", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#1a1a2e", fontWeight: 800, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                         {uAgirc.badge}
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #00B89415", ...(uIrc.tdStyle || {}) }}>
-                                        <input type="number" step="0.01" value={row.ircPts || ""} disabled={carriereValidee} title={uIrc.title} onChange={e => { const v = parseFloat(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, ircPts: v } : r)); }} style={{ width: 72, textAlign: "center", border: "1px solid #00B89430", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#00B894", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" step="0.01" value={row.ircPts || ""} disabled={carriereValidee} title={uIrc.title} onChange={e => { const v = parseFloat(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, ircPts: v, regimes: { ...(r.regimes || {}), IRCANTEC: v } } : r)); }} style={{ width: 72, textAlign: "center", border: "1px solid #00B89430", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#00B894", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                         {uIrc.badge}
                                       </td>
                                       <td style={{ padding: "3px 5px", textAlign: "center", borderLeft: "2px solid #E1705515", ...(uRci.tdStyle || {}) }}>
-                                        <input type="number" step="0.01" value={row.rciPts || ""} disabled={carriereValidee} title={uRci.title} onChange={e => { const v = parseFloat(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, rciPts: v } : r)); }} style={{ width: 72, textAlign: "center", border: "1px solid #E1705530", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#E17055", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
+                                        <input type="number" step="0.01" value={row.rciPts || ""} disabled={carriereValidee} title={uRci.title} onChange={e => { const v = parseFloat(e.target.value) || 0; setCarriereRows(prev => prev.map(r => r.yr === row.yr ? { ...r, rciPts: v, regimes: { ...(r.regimes || {}), RCI: v } } : r)); }} style={{ width: 72, textAlign: "center", border: "1px solid #E1705530", borderRadius: 3, fontSize: 13, padding: "1px 4px", color: "#E17055", fontWeight: 600, background: carriereValidee ? "#fafafa" : "#fff" }} />
                                         {uRci.badge}
                                       </td>
                                       {cnavplOpen ? (
@@ -5354,10 +5477,11 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                   <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 15, color: "#6C5CE7" }}>{totalArTbl || "—"}</td>
                                   <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 15, color: "#6C5CE7", fontWeight: 800 }}>{totalTrimTbl || "—"}</td>
                                   {(() => {
-                                    const visRows = carriereRows.slice(0, visibleRowCount);
-                                    const totalT1 = parseFloat(visRows.reduce((s, r) => s + (r.agircT1 ?? 0), 0).toFixed(2));
-                                    const totalT2 = parseFloat(visRows.reduce((s, r) => s + (r.agircT2 ?? 0), 0).toFixed(2));
-                                    const totalPts = parseFloat(visRows.reduce((s, r) => s + (r.agircPts || 0), 0).toFixed(2));
+                                    // Totaux : additionne TOUTES les années (pas seulement les lignes visibles à l'écran).
+                                    const allRows = carriereRows;
+                                    const totalT1 = parseFloat(allRows.reduce((s, r) => s + (r.agircT1 ?? 0), 0).toFixed(2));
+                                    const totalT2 = parseFloat(allRows.reduce((s, r) => s + (r.agircT2 ?? 0), 0).toFixed(2));
+                                    const totalPts = parseFloat(allRows.reduce((s, r) => s + (r.agircPts || 0), 0).toFixed(2));
                                     return (
                                       <>
                                         <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 15, color: "#0984E3", borderLeft: "2px solid #0984E315", fontWeight: 700 }}>{totalT1 ? totalT1.toLocaleString("fr-FR") : "—"}</td>
@@ -5366,12 +5490,12 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                                       </>
                                     );
                                   })()}
-                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 15, color: "#00B894", borderLeft: "2px solid #00B89415", fontWeight: 700 }}>{carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (r.ircPts || 0), 0) || "—"}</td>
-                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 15, color: "#E17055", borderLeft: "2px solid #E1705515", fontWeight: 700 }}>{carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (r.rciPts || 0), 0) || "—"}</td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 15, color: "#00B894", borderLeft: "2px solid #00B89415", fontWeight: 700 }}>{carriereRows.reduce((s, r) => s + (r.ircPts || 0), 0) || "—"}</td>
+                                  <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 15, color: "#E17055", borderLeft: "2px solid #E1705515", fontWeight: 700 }}>{carriereRows.reduce((s, r) => s + (r.rciPts || 0), 0) || "—"}</td>
                                   {cnavplOpen ? (
                                     <>
-                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 12, color: "#9B59B6", borderLeft: "2px solid #9B59B630", fontWeight: 800, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>{(total => total ? total.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : "—")(carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (parseFloat(cnavplRows[r.yr]?.points) || 0), 0))}</td>
-                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 12, color: "#9B59B6", fontWeight: 800, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>{(total => total ? total.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : "—")(carriereRows.slice(0, visibleRowCount).reduce((s, r) => s + (parseFloat(cnavplRows[r.yr]?.pointsCompl) || 0), 0))}</td>
+                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 12, color: "#9B59B6", borderLeft: "2px solid #9B59B630", fontWeight: 800, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>{(total => total ? total.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : "—")(carriereRows.reduce((s, r) => s + (parseFloat(cnavplRows[r.yr]?.points) || 0), 0))}</td>
+                                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 12, color: "#9B59B6", fontWeight: 800, animation: cnavplClosing ? "cnavplFadeOut 0.28s ease forwards" : "cnavplFadeIn 0.3s ease forwards" }}>{(total => total ? total.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : "—")(carriereRows.reduce((s, r) => s + (parseFloat(cnavplRows[r.yr]?.pointsCompl) || 0), 0))}</td>
                                     </>
                                   ) : (
                                     <td style={{ padding: "5px 5px", width: 24, borderLeft: "2px solid #9B59B630" }}></td>
@@ -6429,7 +6553,31 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               );
                             })}
                             {(() => {
-                              const wired = ["CNAV", "AGIRC_ARRCO", "IRCANTEC", "RCI", "CIPAV", "CARPIMKO", "CARPIMKO_ASV", "CARPIMKO_COMPL", ...Object.keys(REGIMES_SIMPLES)];
+                              // SRE (fonction publique d'État) : durée seulement — pension statutaire
+                              // (traitement indiciaire) non calculable ici. Apparition conditionnelle :
+                              // uniquement si l'extraction RIS (ou un frozen_data) a fourni la durée.
+                              const sre = regimesPoints.SRE || {};
+                              const sreTrim = parseFloat(sre.trimestres) || 0;
+                              const sreJours = parseFloat(sre.jours) || 0;
+                              if (sreTrim <= 0 && sreJours <= 0) return null;
+                              return (
+                                <div style={{ background: "#fff", border: "1px solid #B2BEC3", borderLeft: "4px solid #B2BEC3", padding: 14, borderRadius: 8, marginTop: 12 }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                                    <span style={{ fontSize: 18 }}>🏛️</span>
+                                    <span style={{ fontWeight: 700, fontSize: 15, color: "#374151" }}>SRE — Fonction publique d'État</span>
+                                  </div>
+                                  <div style={{ fontSize: 14, color: "#333" }}>
+                                    Durée de services extraite du RIS : <b>{sreTrim.toLocaleString("fr-FR")} trimestre{sreTrim > 1 ? "s" : ""}</b>
+                                    {sreJours > 0 ? <> et <b>{sreJours.toLocaleString("fr-FR")} jour{sreJours > 1 ? "s" : ""}</b></> : null}
+                                  </div>
+                                  <div style={{ marginTop: 6, fontSize: 12, color: "#6B7280", fontStyle: "italic" }}>
+                                    Pension statutaire non calculée — le traitement indiciaire (6 derniers mois) n'est pas collecté par le simulateur.
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                            {(() => {
+                              const wired = ["CNAV", "AGIRC_ARRCO", "IRCANTEC", "RCI", "CIPAV", "CARPIMKO", "CARPIMKO_ASV", "CARPIMKO_COMPL", "SRE", ...Object.keys(REGIMES_SIMPLES)];
                               return computeVisibleRegimes(carriereRows, wired).filter(r => !wired.includes(r.key));
                             })().map((regime) => (
                               <div

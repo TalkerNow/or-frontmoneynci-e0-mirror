@@ -13,6 +13,7 @@ export const Badge = ({ children, color }) => {
     blue: { backgroundColor: "#dbeafe", color: "#1d4ed8" }, // bg-blue-100 text-blue-700
     green: { backgroundColor: "#dcfce7", color: "#15803d" },
     yellow: { backgroundColor: "#fef9c3", color: "#854d0e" },
+    fluo: { backgroundColor: "#FFFF00", color: "#713f12" }, // chatbot expert-retraite.com
     red: { backgroundColor: "#fee2e2", color: "#b91c1c" },
     purple: { backgroundColor: "#f3e8ff", color: "#7e22ce" },
     gray: { backgroundColor: "#f3f4f6", color: "#374151" },
