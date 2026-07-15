@@ -1,4 +1,4 @@
-import { normalize, resolveRegime, REGIMES, getPoints, setPoints, migrateRowShape, buildLegacyMirror, computeVisibleRegimes } from "./simulatorRegimes";
+import { normalize, resolveRegime, REGIMES, getPoints, setPoints, migrateRowShape, buildLegacyMirror, computeVisibleRegimes, REGIMES_SIMPLES, extractRegimeSimplePoints } from "./simulatorRegimes";
 
 describe("normalize", () => {
   it("returns empty string for nullish input", () => {
@@ -281,5 +281,48 @@ describe("computeVisibleRegimes", () => {
     const result = computeVisibleRegimes(rows, DEFAULTS);
     const mystery = result.find((r) => r.key === "Caisse Mystère");
     expect(mystery.isUnknown).toBe(true);
+  });
+});
+
+describe("RAFP — câblage Tier-1 (apparition conditionnelle)", () => {
+  it("is registered in REGIMES_SIMPLES with a single points pilier", () => {
+    expect(REGIMES_SIMPLES.RAFP).toBeDefined();
+    expect(REGIMES_SIMPLES.RAFP.piliers).toHaveLength(1);
+    expect(REGIMES_SIMPLES.RAFP.piliers[0].key).toBe("base");
+    expect(REGIMES_SIMPLES.RAFP.piliers[0].aliases).toContain("RAFP");
+  });
+
+  it("has hasCalcEngine=true in the REGIMES registry", () => {
+    expect(resolveRegime("RAFP").hasCalcEngine).toBe(true);
+  });
+
+  it("extracts RAFP points from carriere[].regimes across years", () => {
+    const carriere = [
+      { annee: 2020, regimes: { RAFP: 250.5, CNAV: 999 } },
+      { annee: 2021, regimes: { RAFP: 300 } },
+      { annee: 2022, regimes: {} },
+    ];
+    expect(extractRegimeSimplePoints(carriere, "RAFP")).toEqual({ base: 550.5 });
+  });
+
+  it("extracts nothing when no RAFP data (conditional display stays hidden)", () => {
+    const carriere = [{ annee: 2020, regimes: { CNAV: 100 } }];
+    expect(extractRegimeSimplePoints(carriere, "RAFP")).toEqual({});
+  });
+});
+
+describe("SRE — durée seulement, jamais dans le pipeline calcul", () => {
+  it("stays OUT of REGIMES_SIMPLES (no generic calc dispatch)", () => {
+    // SRE n'est pas un régime à points : pension statutaire (traitement indiciaire)
+    // non calculable ici. L'inscrire dans REGIMES_SIMPLES déclencherait un appel
+    // executeScript('SRE') vers un calculateur inexistant.
+    expect(REGIMES_SIMPLES.SRE).toBeUndefined();
+  });
+
+  it("remains a known régime without calc engine", () => {
+    const sre = resolveRegime("SRE");
+    expect(sre.key).toBe("SRE");
+    expect(sre.isUnknown).toBeFalsy();
+    expect(sre.hasCalcEngine).toBe(false);
   });
 });

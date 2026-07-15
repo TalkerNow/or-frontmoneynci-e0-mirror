@@ -83,7 +83,7 @@ export const REGIMES = [
   // Tier 2 — fonction publique (à câbler séparément, règles spécifiques)
   { key: "CNRACL",  label: "CNRACL",  color: "#81ECEC", icon: "🏛️", aliases: buildAliases("CNRACL"),  hasCalcEngine: false },
   { key: "SRE",     label: "SRE",     color: "#B2BEC3", icon: "🏛️", aliases: buildAliases("SRE", "Fonction publique état", "fonction_publique_etat"), hasCalcEngine: false },
-  { key: "RAFP",    label: "RAFP",    color: "#A29BFE", icon: "🏛️", aliases: buildAliases("RAFP", "Retraite additionnelle de la fonction publique", "retraite_additionnelle_fonction_publique", "retraite_additionnelle"), hasCalcEngine: false },
+  { key: "RAFP",    label: "RAFP",    color: "#A29BFE", icon: "🏛️", aliases: buildAliases("RAFP", "Retraite additionnelle de la fonction publique", "retraite_additionnelle_fonction_publique", "retraite_additionnelle"), hasCalcEngine: true },
 ];
 
 // Registry Tier 1 — utilisé par le simulateur pour itérer sur les régimes
@@ -131,6 +131,13 @@ export const REGIMES_SIMPLES = {
   ]},
   MSA: { piliers: [
     { key: "base", label: "Base", aliases: ["MSA", "MSA_BASE"] },
+  ]},
+  // RAFP : régime par points (valeur de service côté calculateur Python regime_simple).
+  // Apparition conditionnelle : rien ne s'affiche tant que l'extraction RIS (ou un
+  // frozen_data) ne fournit pas de points. NB : la prestation est versée en capital
+  // sous ~5 125 points (seuil 2026) — l'annotation est produite par le calculateur.
+  RAFP: { piliers: [
+    { key: "base", label: "Points", aliases: ["RAFP", "RAFP_BASE", "RAFP_POINTS"] },
   ]},
 };
 

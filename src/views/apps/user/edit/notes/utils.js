@@ -7,6 +7,7 @@ import {
   plafondSS,
   rciPrixAchat,
   rciTauxDisplay,
+  seuilValidationTrimestre,
 } from "../simulatorData";
 
 // eslint-disable-next-line no-unused-vars
@@ -387,9 +388,11 @@ function computeCnavSimulator(montantRaw, annee) {
     ? (salairePlafonne * coeff) / 6.55957
     : salairePlafonne * coeff;
 
-  const seuilTrimestre = annee <= 2001
-    ? (passEuro * 6.55957) / 4
-    : passEuro / 4;
+  // Validation trimestre : 150 × SMIC horaire (200 × avant 2014), en devise d'origine
+  // — art. R.351-9 CSS. Fallback PASS/4 uniquement hors table SMIC (< 1970).
+  const seuilTrimestre =
+    seuilValidationTrimestre(annee) ??
+    (annee <= 2001 ? (passEuro * 6.55957) / 4 : passEuro / 4);
   const trimestres = Math.min(4, Math.max(0, Math.floor(montantRaw / (seuilTrimestre || Infinity))));
 
   return { revalorise: salaireRevaloriser, trimestres };
@@ -854,6 +857,11 @@ export function convertRISToManualRows(risData, { isCadre = false } = {}) {
     }
 
     // --- Trimestres ---
+    // Le RIS fournit trimestres_retenus (d\u00e9compte officiel CNAV). Il PRIME sur
+    // l'estimation calcul\u00e9e (seuil \u00d7 SMIC) : ann\u00e9es cotis\u00e9es ET assimil\u00e9es utilisent
+    // la donn\u00e9e officielle quand elle existe, sinon fallback sur le calcul.
+    // (Avant : trimestres_retenus n'\u00e9tait lu que pour les ann\u00e9es "assimil\u00e9", d'o\u00f9
+    // un sous-comptage des ann\u00e9es cotis\u00e9es \u00e0 bas salaire \u2014 le calcul primait \u00e0 tort.)
     let trimBase = cnavResult ? cnavResult.trimestres : 0;
     let trimAR = 0;
     const detailEntry = detailByYear.get(anneeStr);
@@ -862,9 +870,12 @@ export function convertRISToManualRows(risData, { isCadre = false } = {}) {
         .toLowerCase()
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "");
+      const retenus = parseInt(detailEntry.trimestres_retenus, 10);
       if (nature === "assimile") {
-        trimAR = parseInt(detailEntry.trimestres_retenus, 10) || 0;
+        trimAR = Number.isFinite(retenus) ? retenus : 0;
         trimBase = 0;
+      } else if (Number.isFinite(retenus)) {
+        trimBase = retenus;
       }
     }
 

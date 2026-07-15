@@ -1,4 +1,4 @@
-import { calculateCnav, computeSAMB, computeArrcoPts, departureTrimOutlook } from './calculators';
+import { calculateCnav, calculateArrco, calculateIrcantec, calculateRci, computeSAMB, computeSamCnav, computeArrcoPts, departureTrimOutlook } from './calculators';
 
 describe('calculateCnav', () => {
   test('returns null for salary = 0', () => {
@@ -17,13 +17,13 @@ describe('calculateCnav', () => {
     expect(calculateCnav(2010, null)).toBeNull();
   });
 
-  test('2010 salary below PASS: not capped, trimestres=3', () => {
-    // PASS 2010 = 34620, coeff = 1.267, seuil = 34620/4 = 8655
-    // 30000 / 8655 = 3.46 → trimestres = 3
+  test('2010 salary below PASS: not capped, trimestres=4', () => {
+    // PASS 2010 = 34620, coeff = 1.267. Seuil trimestre = 200 × SMIC horaire (8,86 €)
+    // = 1772 € (règle légale). 30000 / 1772 = 16.9 → plafonné à 4 trimestres.
     // revalo = 30000 * 1.267 = 38010
     const result = calculateCnav(2010, 30000);
     expect(result).not.toBeNull();
-    expect(result.trimestres).toBe(3);
+    expect(result.trimestres).toBe(4);
     expect(result.salSS).toBeCloseTo(30000, 0);
     expect(result.revalo).toBeCloseTo(38010, 0);
     expect(result.coeff).toBe(1.267);
@@ -82,17 +82,26 @@ describe('calculateCnav', () => {
   });
 
   test('trimestres = 0 for salary below quarterly threshold', () => {
-    // seuil = 34620/4 = 8655. salary = 1000 → floor(1000/8655) = 0
+    // seuil 2010 = 200 × SMIC horaire (8,86 €) = 1772 €. salary 1000 → floor(1000/1772) = 0
     const result = calculateCnav(2010, 1000);
     expect(result.trimestres).toBe(0);
   });
 
   test('accepts French-formatted string input (spaces + comma decimal)', () => {
-    // "30 000,50" is a realistic paste from a French spreadsheet
+    // "30 000,50" is a realistic paste from a French spreadsheet.
+    // seuil 2010 = 1772 € → floor(30000.5/1772) = 16, plafonné à 4 (salaire ≫ seuil).
     const result = calculateCnav(2010, '30 000,50');
     expect(result).not.toBeNull();
-    expect(result.trimestres).toBe(3);
+    expect(result.trimestres).toBe(4);
     expect(result.salSS).toBeCloseTo(30000.50, 0);
+  });
+
+  test('low salary validates quarters via 150×SMIC, not the old PASS/4 bug', () => {
+    // Régression : sous PASS/4 (47100/4 = 11775 €) un salaire 2025 de 8 000 € donnait
+    // 0 trimestre (sous-comptage). Règle légale = 150 × SMIC (11,88 €) = 1 782 € →
+    // floor(8000/1782) = 4 ; 3 000 € → floor(3000/1782) = 1 (0 sous l'ancien seuil).
+    expect(calculateCnav(2025, 8000).trimestres).toBe(4);
+    expect(calculateCnav(2025, 3000).trimestres).toBe(1);
   });
 
   test('returns null for year with no PASS data (e.g. 1950)', () => {
@@ -138,6 +147,71 @@ describe('computeSAMB', () => {
     ];
     // Only 2024 counts: min(30000, 46368) * 1.031 / 1 = 30930
     expect(computeSAMB(rows)).toBeCloseTo(30930, -2);
+  });
+
+  test('converts pre-2002 FRF salary to EUR before capping at PASS', () => {
+    // row.sal est en FRANCS avant 2002. 60000 FRF ≈ 9147 € (÷6.55957) < PASS 1995
+    // (23782 €), × coeffRevalo 1995 (1.577) ≈ 14424 €. Sans conversion, 60000 traité
+    // comme des euros serait écrêté à 23782 → ×1.577 ≈ 37505 € (le bug FRF/EUR).
+    expect(computeSAMB([{ yr: 1995, sal: 60000 }])).toBeCloseTo(14424, -1);
+  });
+});
+
+describe('calculateArrco/Ircantec/Rci — projection au-delà de 2026', () => {
+  test('year >2026 uses the latest known parameters instead of returning null', () => {
+    // Régression : éditer le salaire d'une année projetée mettait les points à 0
+    // (fonctions renvoyaient null hors table). Elles gèlent désormais les paramètres
+    // de la dernière année connue (2026).
+    expect(calculateArrco(2030, 50000)).not.toBeNull();
+    expect(calculateIrcantec(2030, 50000)).not.toBeNull();
+    expect(calculateRci(2030, 50000)).not.toBeNull();
+    expect(calculateArrco(2030, 50000).total).toBeCloseTo(calculateArrco(2026, 50000).total, 5);
+    expect(calculateRci(2030, 50000).total).toBeCloseTo(calculateRci(2026, 50000).total, 5);
+  });
+
+  test('year before the table still returns null (no fabricated past data)', () => {
+    // arrcoPlafond commence en 1936 ; une année antérieure reste rejetée.
+    expect(calculateArrco(1900, 50000)).toBeNull();
+  });
+});
+
+describe('computeSamCnav', () => {
+  // Source unique du SAM affiché ET gelé (frozen_data.totaux.sam) — le moteur
+  // consomme ce chiffre tel quel. Toute régression ici fausse la pension CNAV.
+  const rows = (years) => years.map((yr) => ({ yr }));
+
+  test('returns 0 for empty or missing inputs', () => {
+    expect(computeSamCnav([])).toBe(0);
+    expect(computeSamCnav(null)).toBe(0);
+  });
+
+  test('averages revalued salaries of CNAV-affiliated years only', () => {
+    // 2023 : affilié (trim cotisés) ; 2022 : affilié (assimilés) ; 2021 : revalo
+    // présent mais AUCUN trimestre CNAV (année régime complémentaire seul) → exclue.
+    const sam = computeSamCnav(
+      rows([2023, 2022, 2021]),
+      { 2023: 4 },
+      { 2022: 2 },
+      { 2023: 40000, 2022: 30000, 2021: 99999 }
+    );
+    expect(sam).toBe(35000); // (40000 + 30000) / 2
+  });
+
+  test('excludes affiliated years with no revalued salary', () => {
+    const sam = computeSamCnav(rows([2023, 2022]), { 2023: 4, 2022: 4 }, {}, { 2023: 40000, 2022: 0 });
+    expect(sam).toBe(40000); // 2022 à 0 € : hors moyenne, pas de dilution
+  });
+
+  test('keeps only the top 25 revalued years', () => {
+    const years = Array.from({ length: 30 }, (_, i) => 2026 - i);
+    const trimCot = Object.fromEntries(years.map((y) => [y, 4]));
+    const revalo = Object.fromEntries(years.map((y, i) => [y, i < 25 ? 40000 : 10000]));
+    expect(computeSamCnav(rows(years), trimCot, {}, revalo)).toBe(40000);
+  });
+
+  test('rounds the average', () => {
+    const sam = computeSamCnav(rows([2023, 2022, 2021]), { 2023: 1, 2022: 1, 2021: 1 }, {}, { 2023: 100, 2022: 100, 2021: 101 });
+    expect(sam).toBe(100); // 301/3 = 100,33 → 100
   });
 });
 

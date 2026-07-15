@@ -9,6 +9,7 @@ import {
   rciPrixAchat,
   rciTauxDisplay,
   getBaremeRetraite,
+  seuilValidationTrimestre,
 } from '../views/apps/user/edit/simulatorData';
 
 const FRF_PER_EUR = 6.55957;
@@ -60,8 +61,12 @@ export function calculateCnav(year, grossSalary, isDeplafonner = false) {
   const salSS =
     year <= 2001 ? salairePlafonne / FRF_PER_EUR : salairePlafonne;
 
+  // Validation d'un trimestre : 150 × SMIC horaire (200 × avant 2014), en devise
+  // d'origine de l'année — art. R.351-9 CSS. Fallback ancien (PASS/4) uniquement si
+  // l'année n'est pas couverte par la table SMIC (< 1970, cas non réaliste).
   const seuilTrimestre =
-    year <= 2001 ? (passEuro * FRF_PER_EUR) / 4 : passEuro / 4;
+    seuilValidationTrimestre(year) ??
+    (year <= 2001 ? (passEuro * FRF_PER_EUR) / 4 : passEuro / 4);
 
   const trimestres = Math.min(
     4,
@@ -91,7 +96,10 @@ export function calculateArrco(year, grossSalary, isCadre = false) {
   let annuelBrut = salaireRaw;
   if (year <= 2001) annuelBrut = annuelBrut / FRF_PER_EUR_ARRCO;
 
-  const x = arrcoPlafond.findIndex((p) => p[0] === year);
+  // Année projetée au-delà de la table : gèle les paramètres de la dernière année
+  // connue (hypothèse de projection). Une année passée hors table reste null.
+  const arrcoMaxYear = Math.max(...arrcoPlafond.map((p) => p[0]));
+  const x = arrcoPlafond.findIndex((p) => p[0] === (year > arrcoMaxYear ? arrcoMaxYear : year));
   if (x < 0) return null;
 
   const plafondAnnuel = arrcoPlafond[x][2];
@@ -167,13 +175,16 @@ export function calculateIrcantec(year, grossSalary) {
 
   if (isNaN(salaire) || salaire <= 0) return null;
 
-  if (!ircantecPlafonds[year] || !ircantecValeursPoint[year] || !ircantecTauxDisplay[year]) {
+  // Année projetée au-delà de la table : gèle les paramètres de la dernière année connue.
+  const ircMaxYear = Math.max(...Object.keys(ircantecPlafonds).map(Number));
+  const ly = year > ircMaxYear ? ircMaxYear : year;
+  if (!ircantecPlafonds[ly] || !ircantecValeursPoint[ly] || !ircantecTauxDisplay[ly]) {
     return null;
   }
 
-  const display = ircantecTauxDisplay[year];
-  const plafondAnnuel = ircantecPlafonds[year];
-  const valeurPoint = ircantecValeursPoint[year];
+  const display = ircantecTauxDisplay[ly];
+  const plafondAnnuel = ircantecPlafonds[ly];
+  const valeurPoint = ircantecValeursPoint[ly];
   const tauxA =
     parseFloat((display.tauxA || '').replace(',', '.').replace('%', '')) / 100;
   const tauxB =
@@ -203,14 +214,17 @@ export function calculateRci(year, grossSalary) {
 
   if (isNaN(salaire) || salaire <= 0) return null;
 
-  if (!plafondSS[year] || !rciPrixAchat[year] || !rciTauxDisplay[year]) return null;
+  // Année projetée au-delà de la table : gèle les paramètres de la dernière année connue.
+  const rciMaxYear = Math.max(...Object.keys(rciPrixAchat).map(Number));
+  const ly = year > rciMaxYear ? rciMaxYear : year;
+  if (!plafondSS[ly] || !rciPrixAchat[ly] || !rciTauxDisplay[ly]) return null;
 
   // Conversion FRF → EUR pour les années avant 2002
   if (year < 2002) salaire = salaire / FRF_PER_EUR_ARRCO;
 
-  const display = rciTauxDisplay[year];
-  const pass = plafondSS[year];
-  const prixAchat = rciPrixAchat[year];
+  const display = rciTauxDisplay[ly];
+  const pass = plafondSS[ly];
+  const prixAchat = rciPrixAchat[ly];
   const tauxA =
     parseFloat((display.tauxA || '').replace(',', '.').replace('%', '')) / 100;
   const tauxB =
@@ -237,7 +251,9 @@ export function computeSAMB(carriereRows) {
   const revalued = carriereRows
     .filter(row => (Number(row.sal) || 0) > 0 && plafondSS[row.yr])
     .map(row => {
-      const sal = Math.min(Number(row.sal), plafondSS[row.yr]);
+      // row.sal est en FRANCS avant 2002 → convertir en EUR avant de plafonner au PASS (EUR).
+      const salEur = row.yr <= 2001 ? Number(row.sal) / FRF_PER_EUR : Number(row.sal);
+      const sal = Math.min(salEur, plafondSS[row.yr]);
       return sal * (coeffRevalo[row.yr] || 1);
     })
     .sort((a, b) => b - a)

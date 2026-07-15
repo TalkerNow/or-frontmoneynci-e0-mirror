@@ -182,6 +182,22 @@ function formatDate(input) {
   }
 }
 
+// Vrai si la date (YYYY-MM-DD ou ISO) est aujourd'hui ou dans le passé
+function isDatePastOrToday(input) {
+  if (!input) return false;
+  try {
+    const str = String(input);
+    const d = new Date(str.length === 10 ? `${str}T00:00:00` : str);
+    if (isNaN(d.getTime())) return false;
+    const dayOnly = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return dayOnly.getTime() <= today.getTime();
+  } catch (e) {
+    return false;
+  }
+}
+
 // Date + heure (fr-FR)
 // eslint-disable-next-line no-unused-vars
 function formatDateTime(input) {
@@ -1752,7 +1768,7 @@ export default function KpiPage() {
                                                 {last.date && (
                                                   <>
                                                     <span style={{ color: "#ced4da", margin: "0 5px" }}>·</span>
-                                                    <span style={{ fontSize: 13, color: "#6e6b7b" }}>{formatDate(last.date)}</span>
+                                                    <span style={{ fontSize: 13, color: isDatePastOrToday(last.date) ? "#ea5455" : "#6e6b7b" }}>{formatDate(last.date)}</span>
                                                   </>
                                                 )}
                                               </span>
@@ -1890,7 +1906,7 @@ export default function KpiPage() {
                                                 {last.date && (
                                                   <>
                                                     <span style={{ color: "#ced4da", margin: "0 5px" }}>·</span>
-                                                    <span style={{ fontSize: 13, color: "#6e6b7b" }}>{formatDate(last.date)}</span>
+                                                    <span style={{ fontSize: 13, color: isDatePastOrToday(last.date) ? "#ea5455" : "#6e6b7b" }}>{formatDate(last.date)}</span>
                                                   </>
                                                 )}
                                               </span>
@@ -2011,7 +2027,7 @@ export default function KpiPage() {
                                                 {last.date && (
                                                   <>
                                                     <span style={{ color: "#ced4da", margin: "0 5px" }}>·</span>
-                                                    <span style={{ fontSize: 13, color: "#6e6b7b" }}>{formatDate(last.date)}</span>
+                                                    <span style={{ fontSize: 13, color: isDatePastOrToday(last.date) ? "#ea5455" : "#6e6b7b" }}>{formatDate(last.date)}</span>
                                                   </>
                                                 )}
                                               </span>
@@ -2142,7 +2158,7 @@ export default function KpiPage() {
                                                 {last.date && (
                                                   <>
                                                     <span style={{ color: "#ced4da", margin: "0 5px" }}>·</span>
-                                                    <span style={{ fontSize: 13, color: "#6e6b7b" }}>{formatDate(last.date)}</span>
+                                                    <span style={{ fontSize: 13, color: isDatePastOrToday(last.date) ? "#ea5455" : "#6e6b7b" }}>{formatDate(last.date)}</span>
                                                   </>
                                                 )}
                                               </span>
@@ -2260,7 +2276,7 @@ export default function KpiPage() {
                                             {last.date && (
                                               <>
                                                 <span style={{ color: "#ced4da", margin: "0 5px" }}>·</span>
-                                                <span style={{ fontSize: 13, color: "#6e6b7b" }}>{formatDate(last.date)}</span>
+                                                <span style={{ fontSize: 13, color: isDatePastOrToday(last.date) ? "#ea5455" : "#6e6b7b" }}>{formatDate(last.date)}</span>
                                               </>
                                             )}
                                           </span>
@@ -2375,7 +2391,7 @@ export default function KpiPage() {
                                                 {last.date && (
                                                   <>
                                                     <span style={{ color: "#ced4da", margin: "0 5px" }}>·</span>
-                                                    <span style={{ fontSize: 13, color: "#6e6b7b" }}>{formatDate(last.date)}</span>
+                                                    <span style={{ fontSize: 13, color: isDatePastOrToday(last.date) ? "#ea5455" : "#6e6b7b" }}>{formatDate(last.date)}</span>
                                                   </>
                                                 )}
                                               </span>
@@ -2499,7 +2515,7 @@ export default function KpiPage() {
                                                 {last.date && (
                                                   <>
                                                     <span style={{ color: "#ced4da", margin: "0 5px" }}>·</span>
-                                                    <span style={{ fontSize: 13, color: "#6e6b7b" }}>{formatDate(last.date)}</span>
+                                                    <span style={{ fontSize: 13, color: isDatePastOrToday(last.date) ? "#ea5455" : "#6e6b7b" }}>{formatDate(last.date)}</span>
                                                   </>
                                                 )}
                                               </span>
