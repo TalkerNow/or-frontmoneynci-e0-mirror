@@ -2677,7 +2677,11 @@ export default function KpiPage() {
           // Créer la liste brute avec tous les items
           const allRawItems = [
             ...conversations.map((c) => markMultiChannel(c, "chatbot")),
-            ...diagnostics.map((d) => markMultiChannel(d, "diagnostic")),
+            // Diagnostic retraite gratuit : ne remonte que si email + tel étaient
+            // déjà tous les deux présents à la création (crm_eligible figé côté back).
+            ...diagnostics
+              .filter((d) => d.crm_eligible)
+              .map((d) => markMultiChannel(d, "diagnostic")),
             ...allItems
               .filter((kpi) => {
                 const obj = (kpi.objet || kpi.object || "")

@@ -370,10 +370,14 @@ class SideMenuContent extends React.Component {
 
       // Prepare items for deduplication
       const convsMapped = allConvs.map((c) => ({ ...c, _source: "chatbot" }));
-      const diagsMapped = allDiags.map((d) => ({
-        ...d,
-        _source: "diagnostic",
-      }));
+      // Diagnostic retraite gratuit : même règle que dans kpi/index.jsx —
+      // ne compte que si email + tel étaient déjà tous les deux présents à la création.
+      const diagsMapped = allDiags
+        .filter((d) => d.crm_eligible)
+        .map((d) => ({
+          ...d,
+          _source: "diagnostic",
+        }));
 
       const allRawItems = [...convsMapped, ...diagsMapped, ...relevantKpis];
 
