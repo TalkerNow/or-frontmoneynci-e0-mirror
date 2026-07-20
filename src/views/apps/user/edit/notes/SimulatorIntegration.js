@@ -1133,6 +1133,21 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [droitsSynthese, setDroitsSynthese] = useState(null);
   const [risCarriereSynthese, setRisCarriereSynthese] = useState(null);
   const [lastRisPayload, setLastRisPayload] = useState(null);
+  // Tranche C AGIRC-ARRCO : points acquis avant 2016 (relevé de points AGIRC-ARRCO,
+  // ligne "Dont TC avant 2016"). Minorés par l'âge (tableau 3) si liquidation avant 67 ans,
+  // même au taux plein. Saisie manuelle pour l'instant (parseur d'upload à venir).
+  const [agircPointsTc, setAgircPointsTc] = useState(() => {
+    try { return localStorage.getItem(`simu_agirc_tc_${id}`) || ""; } catch { return ""; }
+  });
+  const [agircTcReport67, setAgircTcReport67] = useState(() => {
+    try { return localStorage.getItem(`simu_agirc_tc_report67_${id}`) === "1"; } catch { return false; }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(`simu_agirc_tc_${id}`, agircPointsTc || "");
+      localStorage.setItem(`simu_agirc_tc_report67_${id}`, agircTcReport67 ? "1" : "0");
+    } catch { /* quota */ }
+  }, [agircPointsTc, agircTcReport67, id]);
   const [cnavplRows, setCnavplRows] = useState(() => {
     const yrs = [2025,2024,2023,2022,2021,2020,2019,2018,2017,2016,2015];
     return Object.fromEntries(yrs.map(yr => [yr, { revenus: "", revCnavpl: "", points: "" }]));
@@ -3785,10 +3800,15 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
             ?? risCarriereSynthese?.trimestres_requis_taux_plein
             ?? 172,
           trimestres_par_regime,
+          // Tranche C avant 2016 (saisie manuelle) : retranchée du total et minorée par l'âge
+          // dans le moteur si liquidation avant 67 ans. 0/absent => aucun effet.
+          agirc_points_tc: parseFloat(String(agircPointsTc).replace(',', '.')) || 0,
+          agirc_tc_report_67: !!agircTcReport67,
           points_officiels: {
             agirc_arrco: {
               total_points: totalPointsAgirc,
               valeur_point: droitsSynthese?.agirc_arrco?.valeur_point || 1.4386,
+              points_tc: parseFloat(String(agircPointsTc).replace(',', '.')) || 0,
             },
             cipav: {
               points_base: totalPointsCipavBase,
@@ -5736,6 +5756,38 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               )}
                             </div>
                           )}
+
+                          {/* Tranche C AGIRC-ARRCO (saisie manuelle depuis le relevé de points) */}
+                          <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 8, border: "1px solid #e6e8ef", background: "#fbfbff" }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e", marginBottom: 6 }}>
+                              📉 Tranche C AGIRC-ARRCO <span style={{ fontWeight: 400, color: "#9a9aa5" }}>(optionnel)</span>
+                            </div>
+                            <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 8, lineHeight: 1.4 }}>
+                              Points TC <b>avant 2016</b> (relevé de points AGIRC-ARRCO, ligne « Dont TC avant 2016 »).
+                              Minorés selon l'âge si liquidation avant 67 ans, même au taux plein.
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={agircPointsTc}
+                                onChange={(e) => setAgircPointsTc(e.target.value)}
+                                disabled={carriereValidee}
+                                placeholder="ex. 15036,77"
+                                style={{ width: 130, padding: "6px 8px", borderRadius: 6, border: "1px solid #d7dbe8", fontSize: 13 }}
+                              />
+                              <span style={{ fontSize: 11, color: "#9a9aa5" }}>points TC</span>
+                              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#374151", cursor: carriereValidee ? "default" : "pointer" }}>
+                                <input
+                                  type="checkbox"
+                                  checked={agircTcReport67}
+                                  onChange={(e) => setAgircTcReport67(e.target.checked)}
+                                  disabled={carriereValidee}
+                                />
+                                Reporter la liquidation TC à 67 ans (pas de minoration)
+                              </label>
+                            </div>
+                          </div>
 
                           {/* Boutons bas */}
                           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
