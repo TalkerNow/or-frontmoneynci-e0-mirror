@@ -3885,7 +3885,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       setFrozenLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, carriereRows, revaloValues, deplafValues, trimCotState, trimAssState, user, cnavplRows, carpimkoRows, droitsSynthese, risCarriereSynthese, isCarriereEmpty, accessGranted]);
+  }, [id, carriereRows, revaloValues, deplafValues, trimCotState, trimAssState, user, cnavplRows, carpimkoRows, droitsSynthese, risCarriereSynthese, isCarriereEmpty, accessGranted, agircPointsTc, agircTcReport67]);
 
   const handleCalculateAllRegimes = async () => {
     if (!carriereValidee) return;
