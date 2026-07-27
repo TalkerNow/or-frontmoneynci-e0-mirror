@@ -3741,6 +3741,22 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
               ?? 0,
             10
           ) || 0,
+          // Statut pro (optionnel, fiche client) : impacte la majoration de trimestres enfants
+          // (prive = MDA 8/enfant mere ; fonctionnaire = bonification 4/enfant H ou F).
+          statut: (() => {
+            const s = String(
+              user?.profil?.statut_pro ?? user?.statut_pro ?? user?.statut ?? ''
+            ).toLowerCase().trim();
+            if (s.startsWith('fonct') || s === 'public' || s.includes('fonction publique')) return 'fonctionnaire';
+            return 'prive';
+          })(),
+          // Nombre d'enfants handicapes (optionnel, fiche client) : +8 trim/enfant.
+          nombre_enfants_handicapes: parseInt(
+            user?.profil?.nombre_enfants_handicapes
+              ?? user?.nombre_enfants_handicapes
+              ?? 0,
+            10
+          ) || 0,
           nir: nir || null,
           valide_le: new Date().toISOString().split("T")[0],
         },
