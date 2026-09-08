@@ -458,6 +458,15 @@
   width: 4%;
   min-width: 36px;
 }
+.manual-table th.col-dep,
+.manual-table td.col-dep {
+  width: 3%;
+  min-width: 28px;
+  max-width: 40px;
+  white-space: nowrap;
+  padding-left: 2px;
+  padding-right: 2px;
+}
 .col-year {
   width: 5.5%;
   min-width: 50px;
