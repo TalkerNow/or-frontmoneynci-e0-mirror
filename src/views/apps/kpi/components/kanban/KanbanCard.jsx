@@ -72,7 +72,7 @@ class KanbanCard extends React.Component {
     return (
       <Badge
         color={`light-${config.color}`}
-        className="font-weight-bold"
+        className="font-weight-normal"
         style={{
           fontSize: "0.65rem",
           padding: "0.35rem 0.5rem",
@@ -268,7 +268,7 @@ class KanbanCard extends React.Component {
                         <Badge
                           key={idx}
                           color={getBadgeColor(service)}
-                          className="font-weight-bold"
+                          className="font-weight-normal"
                           style={{
                             fontSize: "0.7rem",
                             padding: "0.3rem 0.6rem",
@@ -281,7 +281,7 @@ class KanbanCard extends React.Component {
                   ) : (
                     <Badge
                       color="light-secondary"
-                      className="font-weight-bold"
+                      className="font-weight-normal"
                       style={{
                         fontSize: "0.7rem",
                         padding: "0.3rem 0.6rem",
@@ -308,7 +308,7 @@ class KanbanCard extends React.Component {
             </div>
 
             <h5
-              className="mb-50 font-weight-bold text-dark clickable-name"
+              className="mb-50 font-weight-normal text-dark clickable-name"
               onClick={(e) => {
                 e.stopPropagation();
                 this.handleNameClick(card.user_id);
@@ -339,7 +339,7 @@ class KanbanCard extends React.Component {
                   }}
                 />
               ) : (
-                <h4 className="mb-0 font-weight-bold text-primary">
+                <h4 className="mb-0 font-weight-normal text-primary">
                   {this.formatAmount(amount || 0)}
                 </h4>
               )}
@@ -381,7 +381,7 @@ class KanbanCard extends React.Component {
                         </Badge>
                       ) : (
                         <span
-                          className={`font-small-2 ${overdue ? "text-danger font-weight-bold" : "text-muted"}`}
+                          className={`font-small-2 ${overdue ? "text-danger" : "text-muted"}`}
                           style={{ fontSize: "0.7rem" }}
                         >
                           {overdue && "⚠️ "}
@@ -404,7 +404,7 @@ class KanbanCard extends React.Component {
             {deadline && (
               <div className="mt-50 d-flex align-items-center">
                 <Calendar size={14} className="text-danger mr-50" />
-                <span className="text-danger font-small-2 font-weight-bold">
+                <span className="text-danger font-small-2">
                   {deadline}
                 </span>
               </div>
