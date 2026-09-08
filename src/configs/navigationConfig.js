@@ -2,10 +2,10 @@ import React from "react";
 import * as Icon from "react-feather";
 
 /**
- * Menu CRM verrouillé 2026-09-08 (Cap'tain / JF)
- * Funnel: Leads → Inscrits → Prospects → Clients
- * Consultant: Clients + Tâches seulement (jamais Leads/Inscrits/Prospects)
- * Rendu Vuexy: collapse = sous-menus indentés (« décalés »)
+ * Menu CRM — retouche JF 2026-09-08 ~10:46
+ * Admin: Tableau de bord · Contact(Leads→sources, Inscrits, Prospects, Clients) · Tâches · Accès
+ * Leads = collapse direct (chatbot/diagnostic/mails/appels) — pas de couche Flux
+ * Consultant: Clients + Tâches seulement
  */
 
 const items = {
@@ -18,20 +18,19 @@ const items = {
     navLink: "/dashboard",
   },
 
-  // --- Leads (flux brut, pas de compte SaaS) ---
-  leads: {
-    id: "leads",
-    title: "Leads",
+  contact: {
+    id: "contact",
+    title: "Contact",
     type: "collapse",
-    icon: <Icon.Inbox size={20} />,
+    icon: <Icon.Users size={20} />,
     permissions: ["admin"],
     navLink: "/kpi/inbox/all",
     children: [
       {
-        id: "leads-flux",
-        title: "Flux",
+        id: "leads",
+        title: "Leads",
         type: "collapse",
-        icon: <Icon.Layers size={16} />,
+        icon: <Icon.Inbox size={16} />,
         permissions: ["admin"],
         navLink: "/kpi/inbox/all",
         children: [
@@ -69,51 +68,53 @@ const items = {
           },
         ],
       },
-    ],
-  },
-
-  // --- Inscrits (compte SaaS, pas encore de contrat) ---
-  // Route provisoire: liste contacts — TODO filtre métier « inscrit » dédié si backend l’expose
-  inscrits: {
-    id: "inscrits",
-    title: "Inscrits",
-    type: "item",
-    icon: <Icon.UserPlus size={20} />,
-    permissions: ["admin"],
-    navLink: "/kpi/opportunities",
-  },
-
-  // --- Prospects (contrat fait) ---
-  prospects: {
-    id: "prospects",
-    title: "Prospects",
-    type: "collapse",
-    icon: <Icon.Briefcase size={20} />,
-    permissions: ["admin"],
-    navLink: "/kpi/suivi",
-    children: [
       {
-        id: "prospects-list",
-        title: "Prospects",
+        id: "inscrits",
+        title: "Inscrits",
         type: "item",
-        icon: <Icon.Users size={16} />,
+        icon: <Icon.UserPlus size={16} />,
+        permissions: ["admin"],
+        navLink: "/kpi/opportunities",
+      },
+      {
+        id: "prospects",
+        title: "Prospects",
+        type: "collapse",
+        icon: <Icon.Briefcase size={16} />,
         permissions: ["admin"],
         navLink: "/kpi/suivi",
+        children: [
+          {
+            id: "prospects-list",
+            title: "Prospects",
+            type: "item",
+            icon: <Icon.Users size={14} />,
+            permissions: ["admin"],
+            navLink: "/kpi/suivi",
+          },
+          {
+            id: "prospects-contrats-non-conclus",
+            title: "Contrats non conclus",
+            type: "item",
+            icon: <Icon.FileText size={14} />,
+            permissions: ["admin"],
+            navLink: "/app/AllContracts",
+          },
+        ],
       },
       {
-        id: "prospects-contrats-non-conclus",
-        title: "Contrats non conclus",
+        id: "clients",
+        title: "Clients",
         type: "item",
-        icon: <Icon.FileText size={16} />,
+        icon: <Icon.UserCheck size={16} />,
         permissions: ["admin"],
-        navLink: "/app/AllContracts",
+        navLink: "/app/user/clientslist",
       },
     ],
   },
 
-  // --- Clients (mandat) ---
   clients: {
-    id: "clients",
+    id: "clients-direct",
     title: "Clients",
     type: "item",
     icon: <Icon.Users size={20} />,
@@ -121,7 +122,6 @@ const items = {
     navLink: "/app/user/clientslist",
   },
 
-  // --- Ops ---
   tasks: {
     id: "tasks",
     title: "Tâches",
@@ -139,56 +139,9 @@ const items = {
     permissions: ["admin"],
     navLink: "/app/consultant-access",
   },
-
-  // Conservés hors menu principal (routes encore utilisées ailleurs)
-  profile: {
-    id: "profile",
-    title: "Profile",
-    type: "item",
-    icon: <Icon.User size={20} />,
-    permissions: ["admin", "Client", "Consultant", "Expert"],
-    navLink: "/app/profile",
-  },
-  document: {
-    id: "document",
-    title: "Mes documents",
-    type: "item",
-    icon: <Icon.Folder size={20} />,
-    permissions: ["admin", "Client", "Ancient Client", "Consultant", "Expert"],
-    badge: "primary",
-    badgeText: "5 news",
-    navLink: "/document",
-  },
-  contractTemplate: {
-    id: "contractTemplate",
-    title: "Modèle de contrat",
-    type: "item",
-    icon: <Icon.List size={20} />,
-    permissions: ["admin"],
-    navLink: "/app/contractTemplate",
-  },
-  members: {
-    id: "members",
-    title: "Admins",
-    type: "item",
-    icon: <Icon.Monitor size={20} />,
-    permissions: ["admin"],
-    navLink: "/app/member/memberslist",
-  },
 };
 
-// Admin / commercial — menu CRM complet
-const adminOrder = [
-  "dashboard",
-  "leads",
-  "inscrits",
-  "prospects",
-  "clients",
-  "tasks",
-  "consultantAccess",
-];
-
-// Consultant / Expert — Clients + Tâches seulement (sécu funnel)
+const adminOrder = ["dashboard", "contact", "tasks", "consultantAccess"];
 const consultantOrder = ["clients", "tasks"];
 
 const buildMenu = (order) => order.map((key) => items[key]).filter(Boolean);
