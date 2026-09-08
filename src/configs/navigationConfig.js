@@ -29,7 +29,7 @@ const items = {
 
   contact: {
     id: "contact",
-    title: "Contact",
+    title: "Contacts",
     type: "collapse",
     icon: <Icon.Inbox size={20} />,
     permissions: ["admin"],
