@@ -37,7 +37,8 @@ import CourriersHub from "./CourriersHub";
 import SimulatorHub from "./SimulatorHub";
 import SimulatorIntegration from "./notes/SimulatorIntegration";
 import { history } from "../../../../history";
-import SuiviAvancementBox from "./SuiviAvancementBox";
+// SuiviAvancementBox hidden from fiche Infos (JF 2026-09-08) — file kept
+// import SuiviAvancementBox from "./SuiviAvancementBox";
 
 import { canAccessSimulator } from "../../../../constants/permissions";
 import ClientTasks from "./clientTask/Task";
@@ -51,7 +52,7 @@ class UserEdit extends React.Component {
     documentsInitialSubTab: null,
     showFullForm: false,
     isCollapsed: false,
-    simulatorMode: "production",
+    // simulatorMode removed from Infos chrome — admin only via ?adminSection=1
     simuOffset: 0,
     docsOffset: 0,
     courriersOffset: 0,
@@ -431,16 +432,9 @@ class UserEdit extends React.Component {
               backUrl={this.props.location && this.props.location.state ? this.props.location.state.backUrl : null}
             />
 
-            {/* 👇 Ta box de suivi d'avancement, dans un fichier séparé */}
-            {String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
-              <SuiviAvancementBox
-                clientId={id}
-                onContractUpdate={() => {
-                  if (this.documentsHubRef.current && this.documentsHubRef.current.fetchContracts) {
-                    this.documentsHubRef.current.fetchContracts();
-                  }
-                }}
-              />
+            {/* Suivi d'avancement — HIDDEN from fiche Infos (JF 2026-09-08); SuiviAvancementBox.js kept */}
+            {false && String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
+              null /* was <SuiviAvancementBox clientId={id} … /> */
             )}
           </div>
         </Col>
@@ -649,42 +643,28 @@ class UserEdit extends React.Component {
 
       {String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
         <div className="bottom-simulator-section mt-1" style={{ display: this.state.activeTab === "notes" ? "block" : "none" }}>
-          <div className="simu-mode-tabs">
-            <button
-              onClick={() => this.setState({ simulatorMode: "production" })}
-              style={{
-                borderBottom: this.state.simulatorMode === "production" ? "3px solid #6C5CE7" : "3px solid transparent",
-                background: this.state.simulatorMode === "production" ? "#6C5CE708" : "transparent",
-                color: this.state.simulatorMode === "production" ? "#6C5CE7" : "#888",
-              }}
-            >
-              Production Client
-            </button>
-            {(() => {
-              try {
-                const token = localStorage.getItem("token") || "";
-                const payload = JSON.parse(atob(token.split(".")[1]));
-                return [4, 1271, 1638].includes(parseInt(payload.sub));
-              } catch { return false; }
-            })() && (
-              <button
-                onClick={() => this.setState({ simulatorMode: "admin" })}
-                style={{
-                  borderBottom: this.state.simulatorMode === "admin" ? "3px solid #E17055" : "3px solid transparent",
-                  background: this.state.simulatorMode === "admin" ? "#E1705508" : "transparent",
-                  color: this.state.simulatorMode === "admin" ? "#E17055" : "#888",
-                }}
-              >
-                Admin & Moteur
-              </button>
-            )}
-          </div>
-          <SimulatorIntegration
-            user={this.state.rowData}
-            mode={this.state.simulatorMode}
-            id={id}
-            onUserUpdate={(updates) => this.setState(prev => ({ rowData: { ...prev.rowData, ...updates } }))}
-          />
+          {/* Infos chrome: no "Production Client" / "Admin & Moteur" tabs (JF 2026-09-08).
+              Default = production. Admin UI only if allowlisted user AND ?adminSection=1 (explicit).
+              AdminEngineChat / admin panels kept behind mode==="admin", not deleted. */}
+          {(() => {
+            const search = (this.props.location && this.props.location.search) || "";
+            const wantAdmin = new URLSearchParams(search).get("adminSection");
+            let allowlisted = false;
+            try {
+              const token = localStorage.getItem("token") || "";
+              const payload = JSON.parse(atob(token.split(".")[1]));
+              allowlisted = [4, 1271, 1638].includes(parseInt(payload.sub, 10));
+            } catch (e) { allowlisted = false; }
+            const mode = wantAdmin && allowlisted ? "admin" : "production";
+            return (
+              <SimulatorIntegration
+                user={this.state.rowData}
+                mode={mode}
+                id={id}
+                onUserUpdate={(updates) => this.setState(prev => ({ rowData: { ...prev.rowData, ...updates } }))}
+              />
+            );
+          })()}
         </div>
       )}
     </>

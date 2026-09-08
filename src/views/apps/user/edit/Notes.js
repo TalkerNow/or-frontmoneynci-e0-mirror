@@ -8,8 +8,9 @@ import DocumentViewerModal from "./notes/DocumentViewerModal";
 import ReportErrorModal from "./notes/ReportErrorModal";
 import DeleteConfirmModal from "./notes/DeleteConfirmModal";
 import ProspectChatView from "./ProspectChatView";
-import UploadSection from "./notes/UploadSection";
-import GeneratedDocsSection from "./notes/GeneratedDocsSection";
+// UploadSection / GeneratedDocsSection kept on disk; not rendered as Infos hero (JF 2026-09-08)
+// import UploadSection from "./notes/UploadSection";
+// import GeneratedDocsSection from "./notes/GeneratedDocsSection";
 
 const NotesTab = ({ id, perso = {}, commentsSlot, renderUploadOutside }) => {
 
@@ -89,35 +90,9 @@ const NotesTab = ({ id, perso = {}, commentsSlot, renderUploadOutside }) => {
     }
   }, []);
 
-  const uploadSectionElement = !isProspect ? (
-    <>
-      {/* <UploadSection
-        fileToSend={fileToSend}
-        clearFileToSend={clearFileToSend}
-        isUploading={isUploading}
-        onUpload={handleUpload}
-        isGenerating={isGenerating}
-        onCancelGeneration={handleCancelGeneration}
-        userDocuments={userDocuments}
-        isLoadingDocs={isLoadingDocs}
-        onFetchDocuments={fetchUserDocuments}
-        onSelectDocument={selectDocumentFromList}
-        selectedTags={selectedTags}
-        handleTagsChange={handleTagsChange}
-        n8nMessage={n8nMessage}
-        setN8nMessage={setN8nMessage}
-        reportType={reportType}
-        handleGenerateDoc={handleGenerateDoc}
-      /> */}
-      <GeneratedDocsSection
-        generatedDocs={generatedDocs}
-        handleOpenDoc={handleOpenDoc}
-        requestDeleteGenerated={requestDeleteGenerated}
-        requestDeleteAllGenerated={requestDeleteAllGenerated}
-        handleRenameDoc={handleRenameDoc}
-      />
-    </>
-  ) : null;
+  // Infos hero cleanup (JF 2026-09-08): no GeneratedDocsSection / UploadSection as top chrome.
+  // Capability remains in SimulatorIntegration (collapsed docs + assistant + attach) and Documents tab.
+  const uploadSectionElement = null;
 
   const uploadSectionPortal = portalNode && uploadSectionElement
     ? ReactDOM.createPortal(uploadSectionElement, portalNode)

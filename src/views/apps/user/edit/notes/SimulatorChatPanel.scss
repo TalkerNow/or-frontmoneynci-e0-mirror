@@ -76,9 +76,18 @@
   &__bubble-meta { font-size: 10px; opacity: 0.6; margin-top: 4px; }
 
   &__input {
-    display: flex; gap: 8px; padding: 10px; border-top: 1px solid #eee;
+    display: flex; gap: 8px; padding: 10px; border-top: 1px solid #eee; align-items: center;
     textarea { flex: 1; resize: none; height: 44px; border: 1px solid #ddd; border-radius: 6px; padding: 8px; font-family: inherit; font-size: 13px; }
     button { padding: 0 16px; border: none; border-radius: 6px; background: #6c5ce7; color: #fff; font-weight: 700; cursor: pointer; }
     button:disabled { opacity: 0.5; cursor: default; }
+  }
+  &__attach {
+    flex-shrink: 0;
+    width: 36px; height: 36px; padding: 0 !important;
+    border: 1px solid #6c5ce7 !important;
+    border-radius: 8px !important;
+    background: #fff !important;
+    color: #6c5ce7 !important;
+    font-size: 20px; font-weight: 700; line-height: 1;
   }
 }

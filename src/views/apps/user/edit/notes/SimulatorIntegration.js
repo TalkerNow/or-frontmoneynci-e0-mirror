@@ -973,6 +973,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   // eslint-disable-next-line no-unused-vars
   const [executed, setExecuted] = useState(null);
   const [adminSection, setAdminSection] = useState("regles");
+  // Infos: docs dropzone demoted from hero (JF 2026-09-08) — collapsed by default
+  const [docsZoneOpen, setDocsZoneOpen] = useState(false);
   const [expandedRule, setExpandedRule] = useState(null);
   const [expandedParam, setExpandedParam] = useState(null);
   const [modal, setModal] = useState(null);
@@ -4533,9 +4535,44 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
 
       {mode === "production" && (
         <div style={{ padding: "0 4px" }}>
-{/* Zone documents — real upload */}
-              <div style={{ ...S.card, padding: 14, marginBottom: 14 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>📁 Documents</div>
+
+          {/* ── CHATBOT ASSISTANT CONTEXTUEL — visible uniquement pour admin/consultant ── */}
+          {user?.id &&
+            ["admin", "consultant"].includes(
+              ((window.localStorage && window.localStorage.getItem("role")) || "").toLowerCase()
+            ) && (
+            <SimulatorChatPanel
+              clientId={user.id}
+              pinnedNote={pinnedNote}
+              onPin={(content) => { setPinnedNote(content); toast.success("📌 Note épinglée — sera transmise au rapport."); }}
+              onUnpin={() => { setPinnedNote(""); toast.info("Note retirée du rapport."); }}
+              onAttach={handleUpload}
+              getContext={() => buildSimulatorContext({
+                user,
+                carriereRows,
+                carriereValidee,
+                chosenScenarios,
+                chosenDates,
+                scenarioSkillResults,
+              })}
+            />
+          )}
+
+{/* Zone documents — demoted from Infos hero (JF 2026-09-08); collapsed by default */}
+              <div style={{ ...S.card, padding: 10, marginBottom: 14 }}>
+                <button
+                  type="button"
+                  onClick={() => setDocsZoneOpen((v) => !v)}
+                  style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: "none", border: "none", padding: "2px 0", cursor: "pointer", textAlign: "left" }}
+                >
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#555" }}>
+                    📁 Documents{orderedDocs.length || fileToSend ? ` (${orderedDocs.length + (fileToSend && !orderedDocs.some((d) => d.filename === fileToSend.name) ? 1 : 0)})` : ""}
+                  </span>
+                  <span style={{ fontSize: 11, color: "#888" }}>{docsZoneOpen ? "▲ replier" : "▼ importer / gérer"}</span>
+                </button>
+                {docsZoneOpen && (
+                <div style={{ marginTop: 8 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: "#666" }}>Import & fichiers dossier</div>
 
                 {/* Dropzone */}
                 <Dropzone disabled={isUploading} onDrop={handleUpload}>
@@ -4719,7 +4756,9 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                   <div style={{ fontSize: 12, color: "#666", textAlign: "center", padding: "4px 0" }}>Aucun document importé</div>
                 )}
               </div>
-              {/* fin zone documents masquée */}
+                )}
+              </div>
+              {/* fin zone documents — demoted / collapsed by default */}
 
               {/* ── Rapprochement RIS / bulletin (affichée seulement si RIS analysé + ≥1 bulletin) ── */}
               {canRapprocher && (
@@ -4804,27 +4843,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                 )}
               </div>
               )}
-
-          {/* ── CHATBOT ASSISTANT CONTEXTUEL — visible uniquement pour admin/consultant ── */}
-          {user?.id &&
-            ["admin", "consultant"].includes(
-              ((window.localStorage && window.localStorage.getItem("role")) || "").toLowerCase()
-            ) && (
-            <SimulatorChatPanel
-              clientId={user.id}
-              pinnedNote={pinnedNote}
-              onPin={(content) => { setPinnedNote(content); toast.success("📌 Note épinglée — sera transmise au rapport."); }}
-              onUnpin={() => { setPinnedNote(""); toast.info("Note retirée du rapport."); }}
-              getContext={() => buildSimulatorContext({
-                user,
-                carriereRows,
-                carriereValidee,
-                chosenScenarios,
-                chosenDates,
-                scenarioSkillResults,
-              })}
-            />
-          )}
 
           {/* ── MAIN PANELS ── */}
           {hasDocuments && (

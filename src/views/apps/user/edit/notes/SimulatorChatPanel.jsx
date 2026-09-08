@@ -11,7 +11,7 @@ function formatDate(str) {
   return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
-export default function SimulatorChatPanel({ clientId, getContext, pinnedNote, onPin, onUnpin }) {
+export default function SimulatorChatPanel({ clientId, getContext, pinnedNote, onPin, onUnpin, onAttach }) {
   const [open, setOpen]               = useState(false);
   const [sessions, setSessions]       = useState([]);
   const [sessionId, setSessionId]     = useState(null);
@@ -20,6 +20,7 @@ export default function SimulatorChatPanel({ clientId, getContext, pinnedNote, o
   const [sending, setSending]         = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const loadSessions = useCallback(() => {
     if (!clientId) return;
@@ -145,6 +146,30 @@ export default function SimulatorChatPanel({ clientId, getContext, pinnedNote, o
                   </div>
 
                   <div className="simulator-chat-panel__input">
+                    {typeof onAttach === "function" && (
+                      <>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept=".pdf,.png,.jpg,.jpeg,.webp,.html,.htm"
+                          style={{ display: "none" }}
+                          onChange={(e) => {
+                            const files = e.target.files ? Array.from(e.target.files) : [];
+                            if (files.length) onAttach(files);
+                            e.target.value = "";
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="simulator-chat-panel__attach"
+                          onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                          title="Joindre un document (RIS, bulletin…)"
+                          disabled={sending}
+                        >
+                          +
+                        </button>
+                      </>
+                    )}
                     <textarea
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
