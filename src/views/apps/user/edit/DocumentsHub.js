@@ -1,4 +1,4 @@
-import React, { useState, forwardRef, useImperativeHandle } from "react";
+import React, { useState, forwardRef, useImperativeHandle, useEffect, useRef } from "react";
 import {
   Nav,
   NavItem,
@@ -15,13 +15,27 @@ import Documents from "./Documents";
 import { ArrowLeft } from "react-feather";
 
 const DocumentsHub = forwardRef(
-  ({ id, name, parent_id, userFullName }, ref) => {
-    const [subTab, setSubTab] = useState("perso");
+  ({ id, name, parent_id, userFullName, initialSubTab }, ref) => {
+    const [subTab, setSubTab] = useState(initialSubTab || "perso");
     const [folderId, setFolderId] = useState(null);
+    const contractsRef = useRef(null);
+
+    // Apply optional initialSubTab once (legacy Contrats deep-link / redirect)
+    useEffect(() => {
+      if (initialSubTab) {
+        setSubTab(initialSubTab);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useImperativeHandle(ref, () => ({
       resetView: () => {
         setFolderId(null);
+      },
+      fetchContracts: () => {
+        if (contractsRef.current && contractsRef.current.fetchData) {
+          contractsRef.current.fetchData();
+        }
       },
     }));
 
@@ -50,6 +64,14 @@ const DocumentsHub = forwardRef(
             </NavItem>
             <NavItem>
               <NavLink
+                className={classnames({ active: subTab === "contrats" })}
+                onClick={() => setSubTab("contrats")}
+              >
+                <span id="docs-label-contrats">Contrats</span>
+              </NavLink>
+            </NavItem>
+            <NavItem>
+              <NavLink
                 className={classnames({ active: subTab === "cerfa" })}
                 onClick={() => setSubTab("cerfa")}
               >
@@ -59,11 +81,6 @@ const DocumentsHub = forwardRef(
             {/* <NavItem>
           <NavLink className={classnames({ active: subTab === 'courriers' })} onClick={() => setSubTab('courriers')}>
             <span>Courriers caisse</span>
-          </NavLink>
-        </NavItem> */}
-            {/* <NavItem>
-          <NavLink className={classnames({ active: subTab === 'contrats' })} onClick={() => setSubTab('contrats')}>
-            <span id='docs-label-contrats'>Contrats</span>
           </NavLink>
         </NavItem> */}
           </Nav>
@@ -78,6 +95,7 @@ const DocumentsHub = forwardRef(
                     name={name || userFullName}
                     id={id}
                     parent_id={parent_id}
+                    ref={contractsRef}
                   />
                 </CardBody>
               </Card>

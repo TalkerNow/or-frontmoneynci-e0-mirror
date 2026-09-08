@@ -22,7 +22,6 @@ import {
   CheckSquare,
   ArrowLeft,
   Disc,
-  FileText,
   Mail,
   Activity
 } from "react-feather";
@@ -38,7 +37,6 @@ import CourriersHub from "./CourriersHub";
 import SimulatorHub from "./SimulatorHub";
 import SimulatorIntegration from "./notes/SimulatorIntegration";
 import { history } from "../../../../history";
-import Contracts from "./Contracts";
 import SuiviAvancementBox from "./SuiviAvancementBox";
 
 import { canAccessSimulator } from "../../../../constants/permissions";
@@ -50,6 +48,7 @@ class UserEdit extends React.Component {
     rowData: [],
     members: [],
     activeTab: "notes",
+    documentsInitialSubTab: null,
     showFullForm: false,
     isCollapsed: false,
     simulatorMode: "production",
@@ -64,7 +63,6 @@ class UserEdit extends React.Component {
 
   navRef = null;
   documentsHubRef = React.createRef();
-  contractsRef = React.createRef();
 
   computeSimuOffset = () => {
     try {
@@ -119,12 +117,16 @@ class UserEdit extends React.Component {
         5: "tasks",
         6: "commentaires",
         7: "simulateur",
-        8: "contrats",
+        8: "documents",
       };
-      this.setState({
+      const next = {
         showFullForm: false,
         activeTab: mapNumToKey[tabParam] || "notes",
-      });
+      };
+      if (tabParam === "8") {
+        next.documentsInitialSubTab = "contrats";
+      }
+      this.setState(next);
     }
   }
 
@@ -268,8 +270,19 @@ class UserEdit extends React.Component {
   };
 
   toggle = (tab) => {
+    // Deep-link / legacy: Contrats is now a Documents sub-tab
+    if (tab === "contrats") {
+      this.setState(
+        { activeTab: "documents", documentsInitialSubTab: "contrats" },
+        () => {
+          setTimeout(this.computeDocsOffset, 0);
+        },
+      );
+      return;
+    }
     if (this.state.activeTab !== tab) {
       const next = { activeTab: tab };
+      if (tab === "documents") next.documentsInitialSubTab = null;
       if (tab === "simulateur" && !this.state.isCollapsed)
         next.isCollapsed = true;
       this.setState(next, () => {
@@ -423,8 +436,8 @@ class UserEdit extends React.Component {
               <SuiviAvancementBox
                 clientId={id}
                 onContractUpdate={() => {
-                  if (this.contractsRef.current) {
-                    this.contractsRef.current.fetchData();
+                  if (this.documentsHubRef.current && this.documentsHubRef.current.fetchContracts) {
+                    this.documentsHubRef.current.fetchContracts();
                   }
                 }}
               />
@@ -483,17 +496,6 @@ class UserEdit extends React.Component {
               {String(this.state.rowData?.role).toLowerCase() !==
                 "prospect" && (
                 <>
-                  <NavItem>
-                    <NavLink
-                      className={classnames({
-                        active: this.state.activeTab === "contrats",
-                      })}
-                      onClick={() => this.toggle("contrats")}
-                    >
-                      <FileText className="text-primary mr-50" size={16} />{" "}
-                      Contrats
-                    </NavLink>
-                  </NavItem>
                   <NavItem>
                     <NavLink
                       id={`documents-link-client-${id}`}
@@ -594,17 +596,16 @@ class UserEdit extends React.Component {
 
             {String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
               <>
-                <TabPane tabId="contrats">
-                  <Contracts id={id} ref={this.contractsRef} />
-                </TabPane>
                 <TabPane tabId="documents">
                   <DocumentsHub
+                    key={this.state.documentsInitialSubTab || "documents"}
                     ref={this.documentsHubRef}
                     id={id}
                     name={this.state.rowData.name}
                     parent_id={this.state.rowData.parent_id}
                     alignOffset={this.state.docsOffset}
                     labelId={`documents-label-client-${id}`}
+                    initialSubTab={this.state.documentsInitialSubTab}
                   />
                 </TabPane>
                 <TabPane tabId="tasks">
