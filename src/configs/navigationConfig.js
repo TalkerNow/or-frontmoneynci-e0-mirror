@@ -3,7 +3,7 @@ import * as Icon from "react-feather";
 
 /**
  * Menu CRM — retouche JF 2026-09-08 12:30
- * Admin: Tableau de bord · Clients · Contact(Leads→sources, Inscrits, Prospects→Contrat perdu) · Tâches · Accès
+ * Admin: Tableau de bord · Clients · Contact(Leads→sources, Inscrits, Prospects→Contrat perdu) · Tâches · Accès · Admin moteur
  * Leads: enfants directs (pas de couche Flux) — collapse Vuexy natif
  * Consultant: Clients + Tâches
  */
@@ -122,9 +122,17 @@ const items = {
     permissions: ["admin"],
     navLink: "/app/consultant-access",
   },
+  adminMoteur: {
+    id: "adminMoteur",
+    title: "Admin moteur",
+    type: "item",
+    icon: <Icon.Settings size={20} />,
+    permissions: ["admin"],
+    navLink: "/app/admin-moteur",
+  },
 };
 
-const adminOrder = ["dashboard", "clients", "contact", "tasks", "consultantAccess"];
+const adminOrder = ["dashboard", "clients", "contact", "tasks", "consultantAccess", "adminMoteur"];
 const consultantOrder = ["clients", "tasks"];
 
 const buildMenu = (order) => order.map((key) => items[key]).filter(Boolean);
