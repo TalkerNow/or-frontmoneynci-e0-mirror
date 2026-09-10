@@ -32,9 +32,11 @@ const PASTILLE_PLACEHOLDERS = {
 };
 
 const ASSISTANT_GUIDANCE =
-  "Réponds d'abord sur le profil dossier : ce qui manque, ce qu'il faut documenter. " +
-  "Si l'information est insuffisante, ne progresse pas — pose des questions ciblées. " +
-  "N'anticipe pas les livrables ni les conclusions tant que le dossier n'est pas cadré.";
+  "Avant toute rédaction de document (Consultation / Calcul / Audit) : " +
+  "1) lister les manques dossier, 2) questions au consultant, 3) actions caisses / demandes client-consultant. " +
+  "Rédiger le livrable seulement ensuite — stop audit aveugle, ne pas sauter au document fini. " +
+  "En cas de doute : poser une question au consultant (la réponse pourra alimenter une KB — pas d'apprentissage silencieux). " +
+  "Si l'information est insuffisante, ne progresse pas.";
 
 export default function SimulatorChatPanel({
   clientId,

@@ -161,30 +161,4 @@
     }
   }
 
-  &__plus-dd {
-    flex-shrink: 0;
-    position: relative;
-  }
-  &__plus-menu {
-    min-width: 220px;
-    max-height: 260px;
-    overflow-y: auto;
-    border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(34, 41, 47, 0.12);
-    .dropdown-header {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.02em;
-      color: #6c5ce7;
-      padding-top: 0.5rem;
-    }
-    .dropdown-item {
-      font-size: 13px;
-      max-width: 280px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-  }
-
 }

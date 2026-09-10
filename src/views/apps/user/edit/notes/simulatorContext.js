@@ -72,7 +72,7 @@ export function buildSimulatorContext(state = {}) {
     // Hint for backend LLM: start from dossier completeness; do not skip gaps.
     priorite_reponse: "profil_dossier",
     consigne:
-      "Commencer par le profil dossier (champs manquants / pièces à documenter). " +
-      "Ne pas avancer ni conclure tant que les informations indispensables manquent.",
+      "Avant rédaction Consultation/Calcul/Audit : lister manques, questions consultant, actions caisses. " +
+      "Rédiger seulement ensuite — pas d'audit aveugle. En doute : question consultant (réponse → KB, pas d'apprentissage silencieux).",
   };
 }
