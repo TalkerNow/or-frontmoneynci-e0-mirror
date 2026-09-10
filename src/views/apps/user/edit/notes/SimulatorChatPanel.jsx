@@ -11,7 +11,19 @@ function formatDate(str) {
   return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
-export default function SimulatorChatPanel({ clientId, getContext, pinnedNote, onPin, onUnpin, onAttach }) {
+const PASTILLES = [
+  { id: "consultation", label: "Consultation retraite", actionId: "rapport_consultation" },
+  { id: "calcul", label: "Calcul / simulation", actionId: "simulation_retraite" },
+  { id: "audit", label: "Audit retraite", actionId: "audit_retraite" },
+];
+
+const PASTILLE_PLACEHOLDERS = {
+  consultation: "Posez une question d'analyse sur le parcours (droits, trimestres, points d'attention)…",
+  calcul: "Demandez une simulation (âge, départ, décote / surcote, 25 meilleures années)…",
+  audit: "Orientez l'audit (écarts caisse, rachats, arbitrages, commentaires rapport)…",
+};
+
+export default function SimulatorChatPanel({ clientId, getContext, pinnedNote, onPin, onUnpin, onAttach, onPastilleSelect }) {
   const [open, setOpen]               = useState(false);
   const [sessions, setSessions]       = useState([]);
   const [sessionId, setSessionId]     = useState(null);
@@ -19,6 +31,7 @@ export default function SimulatorChatPanel({ clientId, getContext, pinnedNote, o
   const [input, setInput]             = useState("");
   const [sending, setSending]         = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [pastille, setPastille] = useState(null);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -71,6 +84,15 @@ export default function SimulatorChatPanel({ clientId, getContext, pinnedNote, o
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
+
+  const handlePastilleClick = (p) => {
+    const next = pastille === p.id ? null : p.id;
+    setPastille(next);
+    if (next && typeof onPastilleSelect === "function") {
+      onPastilleSelect(next, p.actionId);
+    }
+  };
+
   return (
     <>
       <Modal isOpen={!!deleteConfirmId} toggle={() => setDeleteConfirmId(null)} centered>
@@ -91,6 +113,21 @@ export default function SimulatorChatPanel({ clientId, getContext, pinnedNote, o
         </button>
 
         {open && (
+          <>
+          <div className="simulator-chat-panel__pastilles" role="group" aria-label="Type de prestation">
+            {PASTILLES.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className={`simulator-chat-panel__pastille${pastille === p.id ? " active" : ""}`}
+                onClick={() => handlePastilleClick(p)}
+                aria-pressed={pastille === p.id}
+                title={p.label}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
           <div className="simulator-chat-panel__body">
             <div className="simulator-chat-panel__sessions">
               <button className="simulator-chat-panel__new" onClick={createSession}>+ Nouvelle session</button>
@@ -174,7 +211,7 @@ export default function SimulatorChatPanel({ clientId, getContext, pinnedNote, o
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
                       onKeyDown={handleKeyDown}
-                      placeholder="Ex : Combien de trimestres a ce client ?"
+                      placeholder={pastille ? PASTILLE_PLACEHOLDERS[pastille] : "Ex : Combien de trimestres a ce client ?"}
                       disabled={sending}
                     />
                     <button onClick={sendMessage} disabled={sending || !input.trim()}>
@@ -185,6 +222,7 @@ export default function SimulatorChatPanel({ clientId, getContext, pinnedNote, o
               )}
             </div>
           </div>
+          </>
         )}
       </div>
     </>

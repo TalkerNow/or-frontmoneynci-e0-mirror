@@ -4547,6 +4547,22 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
               onPin={(content) => { setPinnedNote(content); toast.success("📌 Note épinglée — sera transmise au rapport."); }}
               onUnpin={() => { setPinnedNote(""); toast.info("Note retirée du rapport."); }}
               onAttach={handleUpload}
+              onPastilleSelect={(pastilleId, actionId) => {
+                // Focus livrables + select matching action (existing generate path UI).
+                // Do not invent engines — reuse rapport/simulation/audit handlers via the Livrables panel.
+                const action = (ACTION_PANELS.livrables && ACTION_PANELS.livrables.actions || [])
+                  .find((a) => a.id === actionId) || null;
+                setExpandedPanel("livrables");
+                setSelectedAction(action);
+                setExecuted(null);
+                if (actionId === "rapport_consultation") {
+                  handleGenerateRapportConsultation();
+                } else if (actionId === "simulation_retraite") {
+                  handleGenerateSimulationRetraite();
+                } else if (actionId === "audit_retraite") {
+                  handleGenerateAuditRetraite();
+                }
+              }}
               getContext={() => buildSimulatorContext({
                 user,
                 carriereRows,

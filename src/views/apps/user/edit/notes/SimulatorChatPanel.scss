@@ -90,4 +90,39 @@
     color: #6c5ce7 !important;
     font-size: 20px; font-weight: 700; line-height: 1;
   }
+
+  &__pastilles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 12px;
+    background: #f7f5ff;
+    border-bottom: 1px solid #e0dcff;
+  }
+  &__pastille {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid #d8d6de;
+    background: #fff;
+    color: #5e5873;
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
+    &:hover {
+      border-color: #6c5ce7;
+      color: #6c5ce7;
+      background: #f2f0ff;
+    }
+    &.active {
+      background: #6c5ce7;
+      border-color: #6c5ce7;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(108, 92, 231, 0.3);
+    }
+  }
+
 }
