@@ -48,7 +48,7 @@ export default function SimulatorChatPanel({
   onSelectProfileDoc,
   profileDocs = [],
 }) {
-  const [open, setOpen]               = useState(false);
+  const [open, setOpen]               = useState(true);
   const [sessions, setSessions]       = useState([]);
   const [sessionId, setSessionId]     = useState(null);
   const [messages, setMessages]       = useState([]);
