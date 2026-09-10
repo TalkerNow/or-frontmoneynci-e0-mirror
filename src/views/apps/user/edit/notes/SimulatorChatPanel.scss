@@ -56,8 +56,8 @@
   }
 
   &__thread { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-  &__empty, &__messages-hint { color: #bbb; font-size: 12px; text-align: center; margin: auto; padding: 16px; }
-  &__messages { flex: 1; overflow-y: auto; padding: 8px; }
+  &__empty, &__messages-hint { color: #bbb; font-size: 12px; text-align: center; margin: auto; padding: 12px; }
+  &__messages { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; }
 
   &__bubble {
     max-width: 85%;
@@ -98,7 +98,15 @@
   &__send {
     flex-shrink: 0;
     min-width: 40px; height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     font-size: 18px; line-height: 1;
+    padding: 0 10px !important;
+  }
+  &__send-icon {
+    display: block;
+    transform: translateX(1px);
   }
 
   &__plus-dd {

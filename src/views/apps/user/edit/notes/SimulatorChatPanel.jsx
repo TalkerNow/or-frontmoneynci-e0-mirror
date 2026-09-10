@@ -38,6 +38,24 @@ const ASSISTANT_GUIDANCE =
   "En cas de doute : poser une question au consultant (la réponse pourra alimenter une KB — pas d'apprentissage silencieux). " +
   "Si l'information est insuffisante, ne progresse pas.";
 
+function PaperPlaneIcon() {
+  return (
+    <svg
+      className="simulator-chat-panel__send-icon"
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        fill="currentColor"
+        d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"
+      />
+    </svg>
+  );
+}
+
 export default function SimulatorChatPanel({
   clientId,
   getContext,
@@ -60,6 +78,9 @@ export default function SimulatorChatPanel({
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
+  const sessionIdRef = useRef(null);
+
+  useEffect(() => { sessionIdRef.current = sessionId; }, [sessionId]);
 
   const loadSessions = useCallback(() => {
     if (!clientId) return;
@@ -75,18 +96,26 @@ export default function SimulatorChatPanel({
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${Math.min(Math.max(el.scrollHeight, 44), 160)}px`;
-  }, [input, sessionId]);
+    el.style.height = `${Math.min(Math.max(el.scrollHeight, 36), 120)}px`;
+  }, [input, open, sessionId]);
 
-  const createSession = () => {
-    if (!clientId || creating) return;
-    setCreating(true);
-    api.post("/v1/simulator-chat/sessions", { customer_id: clientId })
+  useEffect(() => {
+    if (!open) return undefined;
+    const t = setTimeout(() => {
+      if (textareaRef.current) textareaRef.current.focus();
+    }, 0);
+    return () => clearTimeout(t);
+  }, [open]);
+
+  const createSessionRequest = useCallback(() => {
+    if (!clientId) {
+      return Promise.reject(new Error("Client manquant."));
+    }
+    return api.post("/v1/simulator-chat/sessions", { customer_id: clientId })
       .then((res) => {
         const created = res.data && (res.data.id ? res.data : res.data.data);
         if (!created || !created.id) {
-          toast.error("Session créée sans identifiant.");
-          return;
+          throw new Error("Session créée sans identifiant.");
         }
         const row = {
           ...created,
@@ -95,11 +124,21 @@ export default function SimulatorChatPanel({
         };
         setSessions((prev) => [row, ...prev.filter((s) => s.id !== row.id)]);
         setSessionId(row.id);
+        sessionIdRef.current = row.id;
+        return row.id;
+      });
+  }, [clientId]);
+
+  const createSession = () => {
+    if (!clientId || creating || sending) return;
+    setCreating(true);
+    createSessionRequest()
+      .then(() => {
         setMessages([]);
         setInput("");
         setTimeout(() => textareaRef.current && textareaRef.current.focus(), 0);
       })
-      .catch(() => toast.error("Erreur lors de la création de la session."))
+      .catch((err) => toast.error((err && err.message) || "Erreur lors de la création de la session."))
       .finally(() => setCreating(false));
   };
 
@@ -125,7 +164,7 @@ export default function SimulatorChatPanel({
   };
 
   const sendMessage = () => {
-    if (!sessionId || !input.trim() || sending) return;
+    if (!input.trim() || sending || !clientId) return;
     const text = input.trim();
     const baseContext = typeof getContext === "function" ? getContext() : null;
     const context = {
@@ -134,22 +173,34 @@ export default function SimulatorChatPanel({
       guidance: ASSISTANT_GUIDANCE,
     };
     setSending(true);
-    api.post(`/v1/simulator-chat/sessions/${sessionId}/message`, { content: text, context })
-      .then((r) => {
-        const data = r.data || {};
-        setMessages((prev) => [...prev, data.user_message, data.assistant_message].filter(Boolean));
-        setInput("");
-        setSessions((prev) => prev.map((s) => {
-          if (s.id !== sessionId) return s;
-          const generic = !s.title || /^nouvelle session$/i.test(String(s.title).trim()) || /^session$/i.test(String(s.title).trim());
-          return {
-            ...s,
-            title: generic ? text.slice(0, 80) : s.title,
-            preview: text.slice(0, 120),
-            updated_at: new Date().toISOString(),
-          };
-        }));
-      })
+
+    const postToSession = (sid) =>
+      api.post(`/v1/simulator-chat/sessions/${sid}/message`, { content: text, context })
+        .then((r) => {
+          const data = r.data || {};
+          setMessages((prev) => [...prev, data.user_message, data.assistant_message].filter(Boolean));
+          setInput("");
+          setSessions((prev) => prev.map((s) => {
+            if (s.id !== sid) return s;
+            const generic = !s.title || /^nouvelle session$/i.test(String(s.title).trim()) || /^session$/i.test(String(s.title).trim());
+            return {
+              ...s,
+              title: generic ? text.slice(0, 80) : s.title,
+              preview: text.slice(0, 120),
+              updated_at: new Date().toISOString(),
+            };
+          }));
+        });
+
+    const ensureThenSend = sessionIdRef.current
+      ? Promise.resolve(sessionIdRef.current)
+      : createSessionRequest().then((sid) => {
+          setMessages([]);
+          return sid;
+        });
+
+    ensureThenSend
+      .then((sid) => postToSession(sid))
       .catch(() => toast.error("Erreur lors de l'envoi du message."))
       .finally(() => setSending(false));
   };
@@ -204,7 +255,7 @@ export default function SimulatorChatPanel({
                 type="button"
                 className="simulator-chat-panel__new"
                 onClick={createSession}
-                disabled={creating || !clientId}
+                disabled={creating || sending || !clientId}
               >
                 {creating ? "Création…" : "+ Nouvelle session"}
               </button>
@@ -232,118 +283,113 @@ export default function SimulatorChatPanel({
             </div>
 
             <div className="simulator-chat-panel__thread">
-              {!sessionId ? (
-                <div className="simulator-chat-panel__empty">Sélectionnez ou créez une session pour discuter.</div>
-              ) : (
-                <>
-                  <div className="simulator-chat-panel__messages">
-                    {messages.length === 0 && (
-                      <div className="simulator-chat-panel__messages-hint">
-                        Collez la note client ou posez une question sur la retraite de ce client (trimestres, points, scénarios, dates de départ…).
-                      </div>
-                    )}
-                    {messages.map((msg) => {
-                      const isAssistant = msg.role === "assistant";
-                      const isPinned = isAssistant && pinnedNote && pinnedNote === msg.content;
-                      return (
-                        <div key={msg.id} className={`simulator-chat-panel__bubble simulator-chat-panel__bubble--${msg.role}`}>
-                          <div style={{ whiteSpace: "pre-wrap" }}>{msg.content}</div>
-                          {isAssistant && (
-                            <div className="simulator-chat-panel__bubble-actions">
-                              {isPinned ? (
-                                <button type="button" className="pinned" onClick={onUnpin} title="Retirer du rapport">📌 Épinglé — retirer</button>
-                              ) : (
-                                <button type="button" className="pin" onClick={() => onPin(msg.content)} title="Transmettre au rapport">📌 Épingler au rapport</button>
-                              )}
-                            </div>
+              <div className="simulator-chat-panel__messages">
+                {messages.length === 0 && (
+                  <div className="simulator-chat-panel__messages-hint">
+                    Collez la note client ou posez une question sur la retraite de ce client (trimestres, points, scénarios, dates de départ…).
+                    {!sessionId ? " Une session sera créée à l'envoi." : ""}
+                  </div>
+                )}
+                {messages.map((msg) => {
+                  const isAssistant = msg.role === "assistant";
+                  const isPinned = isAssistant && pinnedNote && pinnedNote === msg.content;
+                  return (
+                    <div key={msg.id} className={`simulator-chat-panel__bubble simulator-chat-panel__bubble--${msg.role}`}>
+                      <div style={{ whiteSpace: "pre-wrap" }}>{msg.content}</div>
+                      {isAssistant && (
+                        <div className="simulator-chat-panel__bubble-actions">
+                          {isPinned ? (
+                            <button type="button" className="pinned" onClick={onUnpin} title="Retirer du rapport">📌 Épinglé — retirer</button>
+                          ) : (
+                            <button type="button" className="pin" onClick={() => onPin(msg.content)} title="Transmettre au rapport">📌 Épingler au rapport</button>
                           )}
-                          <div className="simulator-chat-panel__bubble-meta">{formatDate(msg.created_at)}</div>
                         </div>
-                      );
-                    })}
-                    <div ref={messagesEndRef} />
-                  </div>
+                      )}
+                      <div className="simulator-chat-panel__bubble-meta">{formatDate(msg.created_at)}</div>
+                    </div>
+                  );
+                })}
+                <div ref={messagesEndRef} />
+              </div>
 
-                  <div className="simulator-chat-panel__input">
-                    {(typeof onAttach === "function" || typeof onSelectProfileDoc === "function") && (
-                      <>
-                        {typeof onAttach === "function" && (
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept=".pdf,.png,.jpg,.jpeg,.webp,.html,.htm"
-                            style={{ display: "none" }}
-                            onChange={(e) => {
-                              const files = e.target.files ? Array.from(e.target.files) : [];
-                              if (files.length) onAttach(files);
-                              e.target.value = "";
-                            }}
-                          />
-                        )}
-                        <UncontrolledDropdown direction="up" className="simulator-chat-panel__plus-dd">
-                          <DropdownToggle
-                            tag="button"
-                            type="button"
-                            className="simulator-chat-panel__attach"
-                            title="Joindre un fichier / docs profil"
-                            disabled={sending}
-                            caret={false}
-                          >
-                            +
-                          </DropdownToggle>
-                          <DropdownMenu className="simulator-chat-panel__plus-menu">
-                            {typeof onAttach === "function" && (
-                              <DropdownItem
-                                onClick={() => fileInputRef.current && fileInputRef.current.click()}
-                              >
-                                Joindre un fichier
-                              </DropdownItem>
-                            )}
-                            {typeof onSelectProfileDoc === "function" && (
-                              <>
-                                {typeof onAttach === "function" && <DropdownItem divider />}
-                                <DropdownItem header>Docs profil</DropdownItem>
-                                {(!profileDocs || profileDocs.length === 0) ? (
-                                  <DropdownItem disabled>Aucun document</DropdownItem>
-                                ) : (
-                                  profileDocs.map((doc) => (
-                                    <DropdownItem
-                                      key={doc.id || doc.filename}
-                                      onClick={() => onSelectProfileDoc(doc)}
-                                      title={doc.filename}
-                                    >
-                                      {doc.filename || `Document #${doc.id}`}
-                                    </DropdownItem>
-                                  ))
-                                )}
-                              </>
-                            )}
-                          </DropdownMenu>
-                        </UncontrolledDropdown>
-                      </>
+              <div className="simulator-chat-panel__input">
+                {(typeof onAttach === "function" || typeof onSelectProfileDoc === "function") && (
+                  <>
+                    {typeof onAttach === "function" && (
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg,.webp,.html,.htm"
+                        style={{ display: "none" }}
+                        onChange={(e) => {
+                          const files = e.target.files ? Array.from(e.target.files) : [];
+                          if (files.length) onAttach(files);
+                          e.target.value = "";
+                        }}
+                      />
                     )}
-                    <textarea
-                      ref={textareaRef}
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      placeholder={pastille ? PASTILLE_PLACEHOLDERS[pastille] : "Collez la note client ou posez une question…"}
-                      disabled={sending}
-                      rows={2}
-                    />
-                    <button
-                      type="button"
-                      className="simulator-chat-panel__send"
-                      onClick={sendMessage}
-                      disabled={sending || !input.trim()}
-                      title="Envoyer"
-                      aria-label="Envoyer"
-                    >
-                      {sending ? "…" : "→"}
-                    </button>
-                  </div>
-                </>
-              )}
+                    <UncontrolledDropdown direction="up" className="simulator-chat-panel__plus-dd">
+                      <DropdownToggle
+                        tag="button"
+                        type="button"
+                        className="simulator-chat-panel__attach"
+                        title="Joindre un fichier / docs profil"
+                        disabled={sending}
+                        caret={false}
+                      >
+                        +
+                      </DropdownToggle>
+                      <DropdownMenu className="simulator-chat-panel__plus-menu">
+                        {typeof onAttach === "function" && (
+                          <DropdownItem
+                            onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                          >
+                            Joindre un fichier
+                          </DropdownItem>
+                        )}
+                        {typeof onSelectProfileDoc === "function" && (
+                          <>
+                            {typeof onAttach === "function" && <DropdownItem divider />}
+                            <DropdownItem header>Docs profil</DropdownItem>
+                            {(!profileDocs || profileDocs.length === 0) ? (
+                              <DropdownItem disabled>Aucun document</DropdownItem>
+                            ) : (
+                              profileDocs.map((doc) => (
+                                <DropdownItem
+                                  key={doc.id || doc.filename}
+                                  onClick={() => onSelectProfileDoc(doc)}
+                                  title={doc.filename}
+                                >
+                                  {doc.filename || `Document #${doc.id}`}
+                                </DropdownItem>
+                              ))
+                            )}
+                          </>
+                        )}
+                      </DropdownMenu>
+                    </UncontrolledDropdown>
+                  </>
+                )}
+                <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={pastille ? PASTILLE_PLACEHOLDERS[pastille] : "Collez la note client ou posez une question…"}
+                  disabled={sending || !clientId}
+                  rows={2}
+                />
+                <button
+                  type="button"
+                  className="simulator-chat-panel__send"
+                  onClick={sendMessage}
+                  disabled={sending || !input.trim() || !clientId}
+                  title="Envoyer"
+                  aria-label="Envoyer"
+                >
+                  {sending ? "…" : <PaperPlaneIcon />}
+                </button>
+              </div>
             </div>
           </div>
           </>
