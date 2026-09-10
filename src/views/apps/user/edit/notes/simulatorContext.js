@@ -63,5 +63,16 @@ export function buildSimulatorContext(state = {}) {
   if (scenarios.dates_cles.length === 0)
     champs_manquants.push("une date de départ");
 
-  return { profil, carriere, scenarios, regimes, champs_manquants };
+  return {
+    profil,
+    carriere,
+    scenarios,
+    regimes,
+    champs_manquants,
+    // Hint for backend LLM: start from dossier completeness; do not skip gaps.
+    priorite_reponse: "profil_dossier",
+    consigne:
+      "Commencer par le profil dossier (champs manquants / pièces à documenter). " +
+      "Ne pas avancer ni conclure tant que les informations indispensables manquent.",
+  };
 }

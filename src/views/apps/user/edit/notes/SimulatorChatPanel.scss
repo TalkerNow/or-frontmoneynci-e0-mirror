@@ -19,7 +19,7 @@
   }
   &__bar-hint { font-size: 12px; font-weight: 400; opacity: 0.85; }
 
-  &__body { display: flex; height: 320px; }
+  &__body { display: flex; height: 360px; }
 
   &__sessions {
     width: 180px;
@@ -37,6 +37,7 @@
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
+    &:disabled { opacity: 0.6; cursor: default; }
   }
   &__sessions-list { flex: 1; overflow-y: auto; }
   &__sessions-empty { padding: 10px; color: #bbb; font-size: 12px; text-align: center; }
@@ -47,8 +48,8 @@
     cursor: pointer;
     &.active { background: #f2f0ff; }
   }
+  &__session-date { font-size: 10px; color: #7a7690; font-weight: 600; margin-bottom: 2px; }
   &__session-title { font-size: 12px; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  &__session-date { font-size: 10px; color: #999; }
   &__session-delete {
     position: absolute; top: 6px; right: 6px;
     border: none; background: transparent; color: #d63031; cursor: pointer; font-size: 12px;
@@ -76,8 +77,12 @@
   &__bubble-meta { font-size: 10px; opacity: 0.6; margin-top: 4px; }
 
   &__input {
-    display: flex; gap: 8px; padding: 10px; border-top: 1px solid #eee; align-items: center;
-    textarea { flex: 1; resize: none; height: 44px; border: 1px solid #ddd; border-radius: 6px; padding: 8px; font-family: inherit; font-size: 13px; }
+    display: flex; gap: 8px; padding: 10px; border-top: 1px solid #eee; align-items: flex-end;
+    textarea {
+      flex: 1; resize: none; min-height: 44px; max-height: 160px;
+      border: 1px solid #ddd; border-radius: 6px; padding: 8px;
+      font-family: inherit; font-size: 13px; line-height: 1.4;
+    }
     button { padding: 0 16px; border: none; border-radius: 6px; background: #6c5ce7; color: #fff; font-weight: 700; cursor: pointer; }
     button:disabled { opacity: 0.5; cursor: default; }
   }
@@ -89,6 +94,37 @@
     background: #fff !important;
     color: #6c5ce7 !important;
     font-size: 20px; font-weight: 700; line-height: 1;
+  }
+  &__send {
+    flex-shrink: 0;
+    min-width: 44px; height: 36px;
+    font-size: 18px; line-height: 1;
+  }
+
+  &__plus-dd {
+    flex-shrink: 0;
+    position: relative;
+  }
+  &__plus-menu {
+    min-width: 220px;
+    max-height: 260px;
+    overflow-y: auto;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(34, 41, 47, 0.12);
+    .dropdown-header {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      color: #6c5ce7;
+      padding-top: 0.5rem;
+    }
+    .dropdown-item {
+      font-size: 13px;
+      max-width: 280px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
   }
 
   &__pastilles {

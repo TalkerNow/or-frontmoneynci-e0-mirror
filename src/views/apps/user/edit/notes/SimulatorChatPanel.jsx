@@ -11,50 +11,103 @@ function formatDate(str) {
   return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
+function sessionSnippet(s) {
+  const raw = (s && (s.title || s.preview || s.first_message || s.summary)) || "";
+  const trimmed = String(raw).trim().replace(/\s+/g, " ");
+  if (!trimmed) return "Nouvelle session";
+  if (/^nouvelle session$/i.test(trimmed) || /^session$/i.test(trimmed)) return "Nouvelle session";
+  return trimmed.length > 52 ? `${trimmed.slice(0, 52)}…` : trimmed;
+}
+
 const PASTILLES = [
-  { id: "consultation", label: "Consultation retraite", actionId: "rapport_consultation" },
-  { id: "calcul", label: "Calcul / simulation", actionId: "simulation_retraite" },
-  { id: "audit", label: "Audit retraite", actionId: "audit_retraite" },
+  { id: "consultation", label: "Consultation retraite" },
+  { id: "calcul", label: "Calcul / simulation" },
+  { id: "audit", label: "Audit retraite" },
 ];
 
 const PASTILLE_PLACEHOLDERS = {
-  consultation: "Posez une question d'analyse sur le parcours (droits, trimestres, points d'attention)…",
-  calcul: "Demandez une simulation (âge, départ, décote / surcote, 25 meilleures années)…",
-  audit: "Orientez l'audit (écarts caisse, rachats, arbitrages, commentaires rapport)…",
+  consultation: "Collez la note client / déroulé (droits, trimestres, points d'attention)…",
+  calcul: "Collez la note client / demandes de simulation (âge, départ, décote / surcote)…",
+  audit: "Collez la note client / arbitrages, écarts caisse, commentaires audit…",
 };
 
-export default function SimulatorChatPanel({ clientId, getContext, pinnedNote, onPin, onUnpin, onAttach, onSelectProfileDoc, profileDocs = [], onPastilleSelect }) {
+const ASSISTANT_GUIDANCE =
+  "Réponds d'abord sur le profil dossier : ce qui manque, ce qu'il faut documenter. " +
+  "Si l'information est insuffisante, ne progresse pas — pose des questions ciblées. " +
+  "N'anticipe pas les livrables ni les conclusions tant que le dossier n'est pas cadré.";
+
+export default function SimulatorChatPanel({
+  clientId,
+  getContext,
+  pinnedNote,
+  onPin,
+  onUnpin,
+  onAttach,
+  onSelectProfileDoc,
+  profileDocs = [],
+}) {
   const [open, setOpen]               = useState(false);
   const [sessions, setSessions]       = useState([]);
   const [sessionId, setSessionId]     = useState(null);
   const [messages, setMessages]       = useState([]);
   const [input, setInput]             = useState("");
   const [sending, setSending]         = useState(false);
+  const [creating, setCreating]       = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [pastille, setPastille] = useState(null);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const textareaRef = useRef(null);
 
   const loadSessions = useCallback(() => {
     if (!clientId) return;
     api.get(`/v1/simulator-chat/sessions?customer_id=${clientId}`)
-      .then((res) => setSessions(res.data))
+      .then((res) => setSessions(Array.isArray(res.data) ? res.data : (res.data && res.data.data) || []))
       .catch(() => toast.error("Impossible de charger les sessions."));
   }, [clientId]);
 
   useEffect(() => { if (open) loadSessions(); }, [open, loadSessions]);
   useEffect(() => { if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(Math.max(el.scrollHeight, 44), 160)}px`;
+  }, [input, sessionId]);
+
   const createSession = () => {
+    if (!clientId || creating) return;
+    setCreating(true);
     api.post("/v1/simulator-chat/sessions", { customer_id: clientId })
-      .then((res) => { setSessions((prev) => [res.data, ...prev]); setSessionId(res.data.id); setMessages([]); })
-      .catch(() => toast.error("Erreur lors de la création de la session."));
+      .then((res) => {
+        const created = res.data && (res.data.id ? res.data : res.data.data);
+        if (!created || !created.id) {
+          toast.error("Session créée sans identifiant.");
+          return;
+        }
+        const row = {
+          ...created,
+          title: created.title || "Nouvelle session",
+          updated_at: created.updated_at || created.created_at || new Date().toISOString(),
+        };
+        setSessions((prev) => [row, ...prev.filter((s) => s.id !== row.id)]);
+        setSessionId(row.id);
+        setMessages([]);
+        setInput("");
+        setTimeout(() => textareaRef.current && textareaRef.current.focus(), 0);
+      })
+      .catch(() => toast.error("Erreur lors de la création de la session."))
+      .finally(() => setCreating(false));
   };
 
   const openSession = (id) => {
     setSessionId(id);
     api.get(`/v1/simulator-chat/sessions/${id}`)
-      .then((res) => setMessages(res.data.messages))
+      .then((res) => {
+        const payload = res.data && (Array.isArray(res.data.messages) ? res.data : res.data.data);
+        setMessages((payload && payload.messages) || []);
+      })
       .catch(() => toast.error("Impossible de charger la session."));
   };
 
@@ -72,10 +125,29 @@ export default function SimulatorChatPanel({ clientId, getContext, pinnedNote, o
   const sendMessage = () => {
     if (!sessionId || !input.trim() || sending) return;
     const text = input.trim();
-    const context = typeof getContext === "function" ? getContext() : null;
+    const baseContext = typeof getContext === "function" ? getContext() : null;
+    const context = {
+      ...(baseContext && typeof baseContext === "object" ? baseContext : { raw: baseContext }),
+      assistant_mode: pastille || null,
+      guidance: ASSISTANT_GUIDANCE,
+    };
     setSending(true);
     api.post(`/v1/simulator-chat/sessions/${sessionId}/message`, { content: text, context })
-      .then((r) => { setMessages((prev) => [...prev, r.data.user_message, r.data.assistant_message]); setInput(""); })
+      .then((r) => {
+        const data = r.data || {};
+        setMessages((prev) => [...prev, data.user_message, data.assistant_message].filter(Boolean));
+        setInput("");
+        setSessions((prev) => prev.map((s) => {
+          if (s.id !== sessionId) return s;
+          const generic = !s.title || /^nouvelle session$/i.test(String(s.title).trim()) || /^session$/i.test(String(s.title).trim());
+          return {
+            ...s,
+            title: generic ? text.slice(0, 80) : s.title,
+            preview: text.slice(0, 120),
+            updated_at: new Date().toISOString(),
+          };
+        }));
+      })
       .catch(() => toast.error("Erreur lors de l'envoi du message."))
       .finally(() => setSending(false));
   };
@@ -84,13 +156,9 @@ export default function SimulatorChatPanel({ clientId, getContext, pinnedNote, o
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
-
   const handlePastilleClick = (p) => {
-    const next = pastille === p.id ? null : p.id;
-    setPastille(next);
-    if (next && typeof onPastilleSelect === "function") {
-      onPastilleSelect(next, p.actionId);
-    }
+    // Mode chat ONLY — ne déclenche jamais Flux Livrables / generate.
+    setPastille((prev) => (prev === p.id ? null : p.id));
   };
 
   return (
@@ -122,7 +190,7 @@ export default function SimulatorChatPanel({ clientId, getContext, pinnedNote, o
                 className={`simulator-chat-panel__pastille${pastille === p.id ? " active" : ""}`}
                 onClick={() => handlePastilleClick(p)}
                 aria-pressed={pastille === p.id}
-                title={p.label}
+                title={`${p.label} — mode Assistant uniquement`}
               >
                 {p.label}
               </button>
@@ -130,7 +198,14 @@ export default function SimulatorChatPanel({ clientId, getContext, pinnedNote, o
           </div>
           <div className="simulator-chat-panel__body">
             <div className="simulator-chat-panel__sessions">
-              <button className="simulator-chat-panel__new" onClick={createSession}>+ Nouvelle session</button>
+              <button
+                type="button"
+                className="simulator-chat-panel__new"
+                onClick={createSession}
+                disabled={creating || !clientId}
+              >
+                {creating ? "Création…" : "+ Nouvelle session"}
+              </button>
               <div className="simulator-chat-panel__sessions-list">
                 {sessions.length === 0 && <div className="simulator-chat-panel__sessions-empty">Aucune session</div>}
                 {sessions.map((s) => (
@@ -139,9 +214,12 @@ export default function SimulatorChatPanel({ clientId, getContext, pinnedNote, o
                     className={`simulator-chat-panel__session-item${sessionId === s.id ? " active" : ""}`}
                     onClick={() => openSession(s.id)}
                   >
-                    <div className="simulator-chat-panel__session-title">{s.title}</div>
-                    <div className="simulator-chat-panel__session-date">{formatDate(s.updated_at)}</div>
+                    <div className="simulator-chat-panel__session-date">{formatDate(s.updated_at || s.created_at)}</div>
+                    <div className="simulator-chat-panel__session-title" title={sessionSnippet(s)}>
+                      {sessionSnippet(s)}
+                    </div>
                     <button
+                      type="button"
                       className="simulator-chat-panel__session-delete"
                       onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(s.id); }}
                       title="Supprimer"
@@ -158,7 +236,9 @@ export default function SimulatorChatPanel({ clientId, getContext, pinnedNote, o
                 <>
                   <div className="simulator-chat-panel__messages">
                     {messages.length === 0 && (
-                      <div className="simulator-chat-panel__messages-hint">Posez une question sur la retraite de ce client (trimestres, points, scénarios, dates de départ…).</div>
+                      <div className="simulator-chat-panel__messages-hint">
+                        Collez la note client ou posez une question sur la retraite de ce client (trimestres, points, scénarios, dates de départ…).
+                      </div>
                     )}
                     {messages.map((msg) => {
                       const isAssistant = msg.role === "assistant";
@@ -169,9 +249,9 @@ export default function SimulatorChatPanel({ clientId, getContext, pinnedNote, o
                           {isAssistant && (
                             <div className="simulator-chat-panel__bubble-actions">
                               {isPinned ? (
-                                <button className="pinned" onClick={onUnpin} title="Retirer du rapport">📌 Épinglé — retirer</button>
+                                <button type="button" className="pinned" onClick={onUnpin} title="Retirer du rapport">📌 Épinglé — retirer</button>
                               ) : (
-                                <button className="pin" onClick={() => onPin(msg.content)} title="Transmettre au rapport">📌 Épingler au rapport</button>
+                                <button type="button" className="pin" onClick={() => onPin(msg.content)} title="Transmettre au rapport">📌 Épingler au rapport</button>
                               )}
                             </div>
                           )}
@@ -241,14 +321,23 @@ export default function SimulatorChatPanel({ clientId, getContext, pinnedNote, o
                       </>
                     )}
                     <textarea
+                      ref={textareaRef}
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
                       onKeyDown={handleKeyDown}
-                      placeholder={pastille ? PASTILLE_PLACEHOLDERS[pastille] : "Ex : Combien de trimestres a ce client ?"}
+                      placeholder={pastille ? PASTILLE_PLACEHOLDERS[pastille] : "Collez la note client ou posez une question…"}
                       disabled={sending}
+                      rows={2}
                     />
-                    <button onClick={sendMessage} disabled={sending || !input.trim()}>
-                      {sending ? "…" : "Envoyer"}
+                    <button
+                      type="button"
+                      className="simulator-chat-panel__send"
+                      onClick={sendMessage}
+                      disabled={sending || !input.trim()}
+                      title="Envoyer"
+                      aria-label="Envoyer"
+                    >
+                      {sending ? "…" : "→"}
                     </button>
                   </div>
                 </>
