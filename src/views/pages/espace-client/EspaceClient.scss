@@ -1,0 +1,69 @@
+.espace-client {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+
+  &__top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+  }
+
+  &__title {
+    font-size: 1.55rem;
+    font-weight: 700;
+    color: #5e5873;
+    margin: 0 0 6px;
+  }
+
+  &__subtitle {
+    color: #6e6b7b;
+    font-size: 0.92rem;
+    margin: 0;
+    max-width: 640px;
+  }
+
+  &__nav {
+    .nav-link {
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.88rem;
+      color: #5e5873;
+      &.active {
+        background: #7367f0 !important;
+        color: #fff !important;
+      }
+    }
+  }
+
+  &__card {
+    border: 1px solid #ebe9f1;
+    box-shadow: 0 4px 24px rgba(34, 41, 47, 0.06);
+    border-radius: 8px;
+  }
+
+  &__drop {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 18px;
+    border: 1px dashed #c7c2f2;
+    border-radius: 8px;
+    background: #f8f7ff;
+  }
+
+  &__filechip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #fff;
+    border: 1px solid #d8d6de;
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-size: 0.85rem;
+    color: #5e5873;
+  }
+}

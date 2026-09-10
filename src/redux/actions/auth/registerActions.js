@@ -86,7 +86,12 @@ export const signupWithJWT = (email, password, first_name, last_name) => {
             payload: { loggedInUser, loggedInWith: "jwt" }
           })
 
-          history.push("/app/profile")
+          const roleLc = String(loggedInUser.role || "").toLowerCase();
+          if (roleLc === "client") {
+            history.push("/espace-client");
+          } else {
+            history.push("/app/profile");
+          }
         }
 
       })

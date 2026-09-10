@@ -61,6 +61,9 @@ const resetPassword = lazy(
 const register = lazy(
   () => import("./views/pages/authentication/register/Register"),
 );
+const espaceClient = lazy(
+  () => import("./views/pages/espace-client/EspaceClient"),
+);
 // const AdmUserList = lazy(() => import("./views/apps/user/list/usersList"))
 // const createService = lazy(() => import("./views/apps/Contract/Services/addService"))
 
@@ -328,6 +331,15 @@ class AppRouter extends React.Component {
           {/* <AppRoute path="/app/user/userlist" component={AdmUserList} /> */}
           {/* <AppRoute path="/app/contract/handleServices/:id" component={handleServices} /> */}
           {/* <AppRoute path="/app/user/createService" component={createService} /> */}
+
+          {/* MVP espace client public (auth Client) — no PDF livrables */}
+          <ProtectedRoute
+            path="/espace-client"
+            component={espaceClient}
+            isAuth={{ user }}
+            authorisation={[...basic_acess, "client"]}
+            fullLayout
+          />
 
           <AppRoute component={error404} fullLayout />
         </Switch>
