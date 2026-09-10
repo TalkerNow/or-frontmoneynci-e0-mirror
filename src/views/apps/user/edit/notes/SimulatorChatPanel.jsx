@@ -1,7 +1,7 @@
 /* eslint-disable jsx-a11y/accessible-emoji */
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "react-toastify";
-import { Modal, ModalHeader, ModalBody, ModalFooter, Button } from "reactstrap";
+import { Modal, ModalHeader, ModalBody, ModalFooter, Button, UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem } from "reactstrap";
 import api from "../../../../../services/api";
 import "./SimulatorChatPanel.scss";
 
@@ -23,7 +23,7 @@ const PASTILLE_PLACEHOLDERS = {
   audit: "Orientez l'audit (écarts caisse, rachats, arbitrages, commentaires rapport)…",
 };
 
-export default function SimulatorChatPanel({ clientId, getContext, pinnedNote, onPin, onUnpin, onAttach, onPastilleSelect }) {
+export default function SimulatorChatPanel({ clientId, getContext, pinnedNote, onPin, onUnpin, onAttach, onSelectProfileDoc, profileDocs = [], onPastilleSelect }) {
   const [open, setOpen]               = useState(false);
   const [sessions, setSessions]       = useState([]);
   const [sessionId, setSessionId]     = useState(null);
@@ -183,28 +183,61 @@ export default function SimulatorChatPanel({ clientId, getContext, pinnedNote, o
                   </div>
 
                   <div className="simulator-chat-panel__input">
-                    {typeof onAttach === "function" && (
+                    {(typeof onAttach === "function" || typeof onSelectProfileDoc === "function") && (
                       <>
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept=".pdf,.png,.jpg,.jpeg,.webp,.html,.htm"
-                          style={{ display: "none" }}
-                          onChange={(e) => {
-                            const files = e.target.files ? Array.from(e.target.files) : [];
-                            if (files.length) onAttach(files);
-                            e.target.value = "";
-                          }}
-                        />
-                        <button
-                          type="button"
-                          className="simulator-chat-panel__attach"
-                          onClick={() => fileInputRef.current && fileInputRef.current.click()}
-                          title="Joindre un document (RIS, bulletin…)"
-                          disabled={sending}
-                        >
-                          +
-                        </button>
+                        {typeof onAttach === "function" && (
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".pdf,.png,.jpg,.jpeg,.webp,.html,.htm"
+                            style={{ display: "none" }}
+                            onChange={(e) => {
+                              const files = e.target.files ? Array.from(e.target.files) : [];
+                              if (files.length) onAttach(files);
+                              e.target.value = "";
+                            }}
+                          />
+                        )}
+                        <UncontrolledDropdown direction="up" className="simulator-chat-panel__plus-dd">
+                          <DropdownToggle
+                            tag="button"
+                            type="button"
+                            className="simulator-chat-panel__attach"
+                            title="Joindre un fichier / docs profil"
+                            disabled={sending}
+                            caret={false}
+                          >
+                            +
+                          </DropdownToggle>
+                          <DropdownMenu className="simulator-chat-panel__plus-menu">
+                            {typeof onAttach === "function" && (
+                              <DropdownItem
+                                onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                              >
+                                Joindre un fichier
+                              </DropdownItem>
+                            )}
+                            {typeof onSelectProfileDoc === "function" && (
+                              <>
+                                {typeof onAttach === "function" && <DropdownItem divider />}
+                                <DropdownItem header>Docs profil</DropdownItem>
+                                {(!profileDocs || profileDocs.length === 0) ? (
+                                  <DropdownItem disabled>Aucun document</DropdownItem>
+                                ) : (
+                                  profileDocs.map((doc) => (
+                                    <DropdownItem
+                                      key={doc.id || doc.filename}
+                                      onClick={() => onSelectProfileDoc(doc)}
+                                      title={doc.filename}
+                                    >
+                                      {doc.filename || `Document #${doc.id}`}
+                                    </DropdownItem>
+                                  ))
+                                )}
+                              </>
+                            )}
+                          </DropdownMenu>
+                        </UncontrolledDropdown>
                       </>
                     )}
                     <textarea

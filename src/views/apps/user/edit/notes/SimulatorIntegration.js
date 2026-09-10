@@ -4545,6 +4545,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
               onPin={(content) => { setPinnedNote(content); toast.success("📌 Note épinglée — sera transmise au rapport."); }}
               onUnpin={() => { setPinnedNote(""); toast.info("Note retirée du rapport."); }}
               onAttach={handleUpload}
+              profileDocs={orderedDocs}
+              onSelectProfileDoc={handleSelectDocument}
               onPastilleSelect={(pastilleId, actionId) => {
                 // Focus livrables + select matching action (existing generate path UI).
                 // Do not invent engines — reuse rapport/simulation/audit handlers via the Livrables panel.
