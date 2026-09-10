@@ -30,7 +30,6 @@ import MD_CONTENT from "./adminSkillsContent";
 import { buildRecapRegimes, buildCipavRecap } from "./recapCarriere";
 import { RegimeRecapVignettes } from "./RecapCarriereParRegime";
 import SimulatorChatPanel from "./SimulatorChatPanel";
-import { attachColResize } from "./colResize";
 import { buildSimulatorContext } from "./simulatorContext";
 import BaremeRetraitePage from "../../../bareme-retraite";
 import { coeffRevalo, initBareme, seuilValidationTrimestre } from "../simulatorData";
@@ -969,7 +968,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [accessGranted, setAccessGranted] = useState(false);
   const [identiteReset, setIdentiteReset] = useState(false);
   const [expandedPanel, setExpandedPanel] = useState("carriere");
-
   const [selectedAction, setSelectedAction] = useState(null);
   const [inputValues, setInputValues] = useState({});
   // eslint-disable-next-line no-unused-vars
@@ -1087,14 +1085,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [availableSkills, setAvailableSkills] = useState([]);
   // ── Career data state (stable, populated from OCR or manual input) ──
   const [carriereRows, setCarriereRows] = useState(_buildDefaultCarriereRows);
-
-  // Career grid column resize (Vuexy density skin) — all métier columns kept
-  useEffect(() => {
-    if (expandedPanel !== "carriere") return undefined;
-    const table = document.querySelector(".simu-career-grid table.simu-career-table");
-    return attachColResize(table);
-  }, [expandedPanel, carriereRows.length, cnavplOpen]);
-
   const [isCadreSimu, setIsCadreSimu] = useState(false);
   const [trimCotState, setTrimCotState] = useState(() => {
     const init = {};
@@ -5197,8 +5187,8 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                           </div>
 
                           {/* Grand tableau unifié */}
-                          <div className="simu-table-wrap simu-career-grid" style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
-                            <table className="simu-career-table" style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
+                          <div className="simu-table-wrap" style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 15 }}>
                               <thead>
                                 <tr>
                                   <th rowSpan={2} style={{ padding: "5px 6px", textAlign: "left", fontWeight: 700, color: "#333", borderBottom: "2px solid #ddd", background: "#f8f8f8", verticalAlign: "bottom", width: 54 }}>An.</th>
