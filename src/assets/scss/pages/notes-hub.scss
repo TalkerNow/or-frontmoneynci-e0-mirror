@@ -1382,3 +1382,132 @@
     width: 100%;
   }
 }
+
+
+/* ── Career grid post-RIS — Vuexy light / Graphite density (JF 2026-09-10) ──
+   Keep ALL métier columns (incl. Déplafonner). Skin only: tighter padding,
+   smaller type, soft borders, optional column resize handles. */
+.simu-table-wrap.simu-career-grid {
+  border: 1px solid #ebe9f1;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 4px 24px rgba(34, 41, 47, 0.05);
+  margin-top: 4px;
+}
+
+.simu-table-wrap.simu-career-grid > table.simu-career-table {
+  font-size: 12px !important;
+  min-width: 980px;
+  color: #5e5873;
+}
+
+.simu-table-wrap.simu-career-grid > table.simu-career-table thead th {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em;
+  padding: 4px 5px !important;
+  line-height: 1.2;
+  background: #f3f2f7 !important;
+  color: #5e5873 !important;
+  border-bottom: 1px solid #ebe9f1 !important;
+  border-left-color: #ebe9f1 !important;
+  position: relative;
+}
+
+.simu-table-wrap.simu-career-grid > table.simu-career-table thead tr:first-child th {
+  background: #f8f7fa !important;
+  color: #6e6b7b !important;
+}
+
+.simu-table-wrap.simu-career-grid > table.simu-career-table tbody td {
+  padding: 2px 4px !important;
+  border-color: #f0eef5 !important;
+  font-size: 12px !important;
+}
+
+.simu-table-wrap.simu-career-grid > table.simu-career-table input[type="number"],
+.simu-table-wrap.simu-career-grid > table.simu-career-table input[type="text"] {
+  font-size: 12px !important;
+  padding: 2px 4px !important;
+  border-radius: 4px !important;
+  border-color: #d8d6de !important;
+  max-width: 72px;
+  height: 26px;
+  color: #5e5873;
+  background: #fff;
+}
+.simu-table-wrap.simu-career-grid > table.simu-career-table input[type="number"]:focus,
+.simu-table-wrap.simu-career-grid > table.simu-career-table input[type="text"]:focus {
+  border-color: #7367f0 !important;
+  box-shadow: 0 0 0 2px rgba(115, 103, 240, 0.18);
+  outline: none;
+}
+.simu-table-wrap.simu-career-grid > table.simu-career-table input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: #7367f0;
+  cursor: pointer;
+}
+
+/* Column resize handle (drag th right edge) */
+.simu-table-wrap.simu-career-grid > table.simu-career-table thead th .col-resize-handle,
+.manual-table thead th .col-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 5px;
+  height: 100%;
+  cursor: col-resize;
+  user-select: none;
+  z-index: 4;
+}
+.simu-table-wrap.simu-career-grid > table.simu-career-table thead th .col-resize-handle:hover,
+.manual-table thead th .col-resize-handle:hover {
+  background: rgba(115, 103, 240, 0.35);
+}
+
+/* ManualCareerTable — same Vuexy light density (all columns kept) */
+.manual-entry-card {
+  border: 1px solid #ebe9f1 !important;
+  box-shadow: 0 4px 24px rgba(34, 41, 47, 0.05) !important;
+  border-radius: 8px !important;
+}
+.manual-table-wrap {
+  border: 1px solid #ebe9f1;
+  border-radius: 6px;
+  background: #fff;
+}
+.manual-table {
+  font-size: 12px;
+  min-width: 980px;
+  color: #5e5873;
+}
+.manual-table thead th {
+  background: #f3f2f7 !important;
+  color: #5e5873 !important;
+  border: 1px solid #ebe9f1 !important;
+  padding: 5px 3px !important;
+  font-size: 11px !important;
+  line-height: 1.15;
+  position: relative;
+}
+.manual-table td {
+  border-color: #f0eef5 !important;
+  padding: 2px 3px !important;
+}
+.manual-input,
+.manual-num,
+.manual-num-left {
+  font-size: 12px;
+  border-radius: 4px;
+  border-color: #d8d6de;
+  padding: 2px 4px;
+  height: 26px;
+  color: #5e5873;
+}
+.manual-table th.col-dep,
+.manual-table td.col-dep {
+  /* keep Déplafonner / DEP — just tighten */
+  min-width: 28px;
+  max-width: 36px;
+}

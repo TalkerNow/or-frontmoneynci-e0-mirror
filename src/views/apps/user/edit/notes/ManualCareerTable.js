@@ -1,4 +1,5 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
+import { attachColResize } from "./colResize";
 import { Card, CardBody, Button, Modal, ModalHeader, ModalBody, ModalFooter } from "reactstrap";
 import { sanitizeSalaryInput } from "./utils";
 
@@ -17,6 +18,11 @@ const ManualCareerTable = ({
     frozenSaved,
 }) => {
     const [showCadreModal, setShowCadreModal] = useState(false);
+    const tableRef = useRef(null);
+
+    useEffect(() => {
+        return attachColResize(tableRef.current);
+    }, [manualCareerRows.length]);
 
     const handleImportClick = useCallback(() => {
         setShowCadreModal(true);
@@ -68,7 +74,7 @@ const ManualCareerTable = ({
                 </div>
                 <div className="bilan-wrap manual-table-wrap">
                     <div className="table-responsive">
-                        <table className="manual-table">
+                        <table className="manual-table" ref={tableRef}>
                             <thead>
                                 <tr>
                                     <th className="col-year">Année</th>
