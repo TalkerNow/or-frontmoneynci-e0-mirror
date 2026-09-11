@@ -1,13 +1,9 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
   Activity,
-  CheckCircle,
   DollarSign,
   FileText,
-  Inbox,
   MessageCircle,
-  Package,
-  TrendingUp,
   Users,
 } from "react-feather";
 import axios from "axios";
@@ -25,8 +21,6 @@ import {
 } from "reactstrap";
 import classNames from "classnames";
 import TabDropdown from "../../../components/TabDropdown";
-import ProspectsDetailsModal from "./ProspectsDetailsModal";
-
 /* ===================== Constantes ===================== */
 const FRENCH_MONTHS = [
   "Janvier",
@@ -267,7 +261,7 @@ const StatItem = ({ icon: Icon, value, label, color, onClick }) => (
   </div>
 );
 
-const StatGrid = ({ stats, onProspectsClick }) => (
+const StatGrid = ({ stats }) => (
   <div
     className="icon-section form-inline text-bold-600 w-100"
     style={{
@@ -285,11 +279,7 @@ const StatGrid = ({ stats, onProspectsClick }) => (
     }}
   >
     {stats.map((s) => (
-      <StatItem
-        key={s.label}
-        {...s}
-        onClick={s.label === "Prospects" ? onProspectsClick : undefined}
-      />
+      <StatItem key={s.label} {...s} />
     ))}
   </div>
 );
@@ -440,20 +430,12 @@ export default function OverallCard() {
   const [error, setError] = useState("");
   const [data, setData] = useState(() => normalizeApiYear({}));
 
-  // People STOCK (all-period) — never forced to 0 by month filter
-  const [peopleStock, setPeopleStock] = useState({
-    clients: null, // users.role=Client total
-    prospects: null, // users.role=Prospect count
-    anciens: null, // old_clients length
-  });
-
   // Activité période — raw lists (null = API fail → hide tile; [] = 0 OK)
   const [activityRaw, setActivityRaw] = useState({
     chatbot: null, // conversation_archives
     diags: null, // simulator_difficulty_results
-    prospects: null, // users role Prospect (with created_at)
-    kpis: null,
-    kanbans: null, // user_kanbans
+    prospects: null, // CRM users Client|Prospect|user (created_at)
+    kpis: null, // for Mail tile only
   });
 
   // Contrats signés période — suivi_avancement.step1 + documents.advanced_payment (flat join)
@@ -485,72 +467,55 @@ export default function OverallCard() {
     fetchYear(year);
   }, [fetchYear, year]);
 
-  // Stock people (once) + Activité raw lists (once) for admin
+  // Activité raw lists (once) + suivi for Contrats signés — admin only
   useEffect(() => {
     if (!isAdmin) return;
     let cancelled = false;
 
     (async () => {
-      // Clients stock via paginated total (per_page=1 → cheap)
-      let clients = null;
-      try {
-        const res = await axios.get(
-          `${global.config.server_url}/users?kind=client&page=1&per_page=1`,
-          AUTH_CONFIG,
-        );
-        clients = extractTotal(res.data);
-        if (clients == null && Array.isArray(res.data)) clients = res.data.length;
-      } catch (e) {
-        console.error("dashboard clients stock", e);
-      }
-
-      // Prospects = members with role Prospect (also feeds Activité created_at)
-      let prospects = null;
-      let prospectList = null;
-      try {
-        const res = await axios.get(
-          `${global.config.server_url}/users?kind=member`,
-          AUTH_CONFIG,
-        );
-        const list = Array.isArray(res.data) ? res.data : [];
-        prospectList = list.filter(
-          (u) => (u.role || "").toLowerCase() === "prospect",
-        );
-        prospects = prospectList.length;
-      } catch (e) {
-        console.error("dashboard prospects stock", e);
-      }
-
-      // Anciens = old_clients array length
-      let anciens = null;
-      try {
-        const res = await axios.get(
-          `${global.config.server_url}/users?kind=oldclient`,
-          AUTH_CONFIG,
-        );
-        const list = Array.isArray(res.data) ? res.data : [];
-        anciens = list.length;
-      } catch (e) {
-        console.error("dashboard anciens stock", e);
-      }
-
-      if (!cancelled) {
-        setPeopleStock({ clients, prospects, anciens });
-        setActivityRaw((prev) => ({
-          ...prev,
-          prospects: prospectList,
-        }));
-      }
-    })();
-
-    (async () => {
       const next = {
         chatbot: null,
         diags: null,
-        prospects: undefined, // leave member-driven list alone
+        prospects: null,
         kpis: null,
-        kanbans: null,
       };
+
+      // Prospects créés = CRM fiches created: Client|Prospect|user (excl. admin/consultant/expert)
+      try {
+        const [clients, members] = await Promise.all([
+          fetchAllPages(`${global.config.server_url}/users`, {
+            kind: "client",
+            per_page: 200,
+          }),
+          fetchAllPages(`${global.config.server_url}/users`, {
+            kind: "member",
+            per_page: 200,
+          }).catch(async () => {
+            // kind=member may return bare array (non-paginated)
+            const res = await axios.get(
+              `${global.config.server_url}/users?kind=member`,
+              AUTH_CONFIG,
+            );
+            return Array.isArray(res.data)
+              ? res.data
+              : Array.isArray(res.data?.data)
+                ? res.data.data
+                : [];
+          }),
+        ]);
+        const byId = new Map();
+        for (const u of [...clients, ...members]) {
+          if (!u || u.id == null) continue;
+          byId.set(u.id, u);
+        }
+        const ALLOWED = new Set(["client", "prospect", "user"]);
+        next.prospects = [...byId.values()].filter((u) =>
+          ALLOWED.has(String(u.role || "").toLowerCase()),
+        );
+      } catch (e) {
+        console.error("dashboard prospects activity", e);
+        next.prospects = null;
+      }
 
       try {
         next.chatbot = await fetchAllPages(
@@ -573,7 +538,7 @@ export default function OverallCard() {
       }
 
       try {
-        // KpiController paginate(25) fixed — must page
+        // KpiController paginate(25) fixed — must page (Mail tile only)
         next.kpis = await fetchAllPages(
           `${global.config.server_url}/kpis`,
           {},
@@ -581,21 +546,6 @@ export default function OverallCard() {
       } catch (e) {
         console.error("dashboard kpis activity", e);
         next.kpis = null;
-      }
-
-      try {
-        const res = await axios.get(
-          `${global.config.server_url}/user-kanbans`,
-          AUTH_CONFIG,
-        );
-        next.kanbans = Array.isArray(res.data)
-          ? res.data
-          : Array.isArray(res.data?.data)
-            ? res.data.data
-            : [];
-      } catch (e) {
-        console.error("dashboard kanban activity", e);
-        next.kanbans = null;
       }
 
       // Contrats signés: GET /suivi-avancement/all (flat join incl. advanced_payment)
@@ -617,15 +567,12 @@ export default function OverallCard() {
       }
 
       if (!cancelled) {
-        setActivityRaw((prev) => ({
+        setActivityRaw({
           chatbot: next.chatbot,
           diags: next.diags,
           kpis: next.kpis,
-          kanbans: next.kanbans,
-          // keep prospects from stock fetch if already set
-          prospects:
-            next.prospects === undefined ? prev.prospects : next.prospects,
-        }));
+          prospects: next.prospects,
+        });
         setSuiviRaw(suiviList);
       }
     })();
@@ -634,18 +581,6 @@ export default function OverallCard() {
       cancelled = true;
     };
   }, [isAdmin]);
-
-  // Stock row values (all-time) — separate card, never mixed into period CA
-  const stockStats = useMemo(() => {
-    const c = peopleStock.clients;
-    const p = peopleStock.prospects;
-    const a = peopleStock.anciens;
-    return {
-      clients: c == null ? null : fmt(c),
-      prospects: p == null ? null : fmt(p),
-      anciens: a == null ? null : fmt(a),
-    };
-  }, [peopleStock]);
 
   // Activité période — filter Martin motion sources by dashboard period
   const activityPeriod = useMemo(() => {
@@ -665,28 +600,27 @@ export default function OverallCard() {
     );
     const mk = (raw, keys) =>
       raw == null ? null : countInPeriod(raw, keys, start, end);
+    // Mail = kpis where objet contains mail|email (kpi_date then created_at)
+    let mail = null;
+    if (activityRaw.kpis != null) {
+      mail = 0;
+      const items = activityRaw.kpis;
+      if (Array.isArray(items)) {
+        for (const it of items) {
+          if (!it) continue;
+          const objet = String(it.objet || "").toLowerCase();
+          if (!/mail|email/.test(objet)) continue;
+          let d = parseDate(it.kpi_date) || parseDate(it.created_at);
+          if (d && d >= start && d <= end) mail += 1;
+        }
+      }
+    }
     return {
       label,
       prospectsCreated: mk(activityRaw.prospects, ["created_at"]),
       diags: mk(activityRaw.diags, ["created_at", "external_created_at"]),
       chatbot: mk(activityRaw.chatbot, ["created_at"]),
-      kpis: mk(activityRaw.kpis, ["kpi_date", "created_at"]),
-      // Kanban: created in period OR moved/updated in period
-      kanban: activityRaw.kanbans == null
-        ? null
-        : (() => {
-            const items = activityRaw.kanbans;
-            if (!Array.isArray(items)) return 0;
-            let n = 0;
-            for (const it of items) {
-              const c = parseDate(it?.created_at);
-              const u = parseDate(it?.updated_at);
-              const inC = c && c >= start && c <= end;
-              const inU = u && u >= start && u <= end;
-              if (inC || inU) n += 1;
-            }
-            return n;
-          })(),
+      mail,
     };
   }, [
     activityRaw,
@@ -785,31 +719,10 @@ export default function OverallCard() {
 
   const tabStats = useMemo(() => {
     const UL = (v) => v;
-    // Money / contrats only — people moved to Stock; motion to Activité
+    // Slim Martin: Opportunités · Contrats signés · Signés TTC only
     // Contrats signés = step1 période (count); Signés TTC = SUM advanced_payment (≠ CA encaissé)
-    const COUNT_LABELS = new Set(["Contrats cloturés", "Contrats signés"]);
+    const COUNT_LABELS = new Set(["Contrats signés"]);
     const common = [
-      {
-        icon: TrendingUp,
-        bubbleClass: "bg-rgba-warning",
-        valueKey: "ca",
-        label: "Chiffre d'affaires",
-        color: "#7367f0",
-      },
-      {
-        icon: Inbox,
-        bubbleClass: "bg-rgba-info",
-        valueKey: "acompte",
-        label: "Acomptes",
-        color: "#00cfe8",
-      },
-      {
-        icon: Package,
-        bubbleClass: "bg-rgba-info",
-        valueKey: "solde",
-        label: "Soldes",
-        color: "#00cfe8",
-      },
       {
         icon: DollarSign,
         bubbleClass: "bg-rgba-success",
@@ -830,13 +743,6 @@ export default function OverallCard() {
         valueKey: "signesTtc",
         label: "Signés TTC",
         color: "#ff9f43",
-      },
-      {
-        icon: CheckCircle,
-        bubbleClass: "bg-rgba-danger",
-        valueKey: "contratsClotures",
-        label: "Contrats cloturés",
-        color: "#ea5455",
       },
     ];
     const withSigned = (obj) => ({
@@ -870,17 +776,6 @@ export default function OverallCard() {
   const [openYear, setOpenYear] = useState(false);
   const [openMonth, setOpenMonth] = useState(false);
   const [openTrim, setOpenTrim] = useState(false);
-  const [prospectsModalOpen, setProspectsModalOpen] = useState(false);
-
-  // Handler pour ouvrir la modale Prospects
-  const handleProspectsClick = useCallback(() => {
-    setProspectsModalOpen(true);
-  }, []);
-
-  // Extrait le numéro de semaine depuis currentWeek ("W12" -> 12)
-  const weekNumber = useMemo(() => {
-    return Number(String(currentWeek).replace(/\D/g, "")) || 1;
-  }, [currentWeek]);
 
   const FiltersLeft = () => (
     <Nav className="d-flex align-items-center flex-wrap">
@@ -1073,32 +968,8 @@ export default function OverallCard() {
                 <StatGrid
                   stats={(() => {
                     const UL = (v) => v;
-                    const COUNT_LABELS = new Set([
-                      "Contrats cloturés",
-                      "Contrats signés",
-                    ]);
+                    const COUNT_LABELS = new Set(["Contrats signés"]);
                     const common = [
-                      {
-                        icon: TrendingUp,
-                        bubbleClass: "bg-rgba-warning",
-                        valueKey: "ca",
-                        label: "Chiffre d'affaires",
-                        color: "#7367f0",
-                      },
-                      {
-                        icon: Inbox,
-                        bubbleClass: "bg-rgba-info",
-                        valueKey: "acompte",
-                        label: "Acomptes",
-                        color: "#00cfe8",
-                      },
-                      {
-                        icon: Package,
-                        bubbleClass: "bg-rgba-info",
-                        valueKey: "solde",
-                        label: "Soldes",
-                        color: "#00cfe8",
-                      },
                       {
                         icon: DollarSign,
                         bubbleClass: "bg-rgba-success",
@@ -1119,13 +990,6 @@ export default function OverallCard() {
                         valueKey: "signesTtc",
                         label: "Signés TTC",
                         color: "#ff9f43",
-                      },
-                      {
-                        icon: CheckCircle,
-                        bubbleClass: "bg-rgba-danger",
-                        valueKey: "contratsClotures",
-                        label: "Contrats cloturés",
-                        color: "#ea5455",
                       },
                     ];
                     const obj = {
@@ -1185,50 +1049,11 @@ export default function OverallCard() {
         </CardBody>
       </Card>
 
-      {/* Stock all-time — never shown as month activity */}
-      {(stockStats.clients != null ||
-        stockStats.prospects != null ||
-        stockStats.anciens != null) && (
-        <Card className="mt-1">
-          <CardHeader className="pb-1">
-            <CardTitle tag="h4" className="mb-0">
-              Stock
-            </CardTitle>
-          </CardHeader>
-          <CardBody>
-            <StatGrid
-              stats={[
-                stockStats.clients != null && {
-                  icon: Users,
-                  color: "#28c76f",
-                  value: stockStats.clients,
-                  label: "Clients",
-                },
-                stockStats.prospects != null && {
-                  icon: Users,
-                  color: "#ff9f43",
-                  value: stockStats.prospects,
-                  label: "Prospects",
-                },
-                stockStats.anciens != null && {
-                  icon: Users,
-                  color: "#82868b",
-                  value: stockStats.anciens,
-                  label: "Anciens",
-                },
-              ].filter(Boolean)}
-              onProspectsClick={handleProspectsClick}
-            />
-          </CardBody>
-        </Card>
-      )}
-
-      {/* Activité période — Martin prospect motion (honest 0 OK) */}
+      {/* Activité période — Martin motion (honest 0 OK; Chatbot=archives created_at) */}
       {(activityPeriod.prospectsCreated != null ||
         activityPeriod.diags != null ||
         activityPeriod.chatbot != null ||
-        activityPeriod.kpis != null ||
-        activityPeriod.kanban != null) && (
+        activityPeriod.mail != null) && (
         <Card className="mt-1">
           <CardHeader className="pb-1 d-flex align-items-center justify-content-between flex-wrap">
             <CardTitle tag="h4" className="mb-0">
@@ -1262,34 +1087,17 @@ export default function OverallCard() {
                   value: fmt(activityPeriod.chatbot),
                   label: "Chatbot",
                 },
-                activityPeriod.kpis != null && {
+                activityPeriod.mail != null && {
                   icon: FileText,
                   color: "#28c76f",
-                  value: fmt(activityPeriod.kpis),
-                  label: "KPI saisis",
-                },
-                activityPeriod.kanban != null && {
-                  icon: Package,
-                  color: "#ea5455",
-                  value: fmt(activityPeriod.kanban),
-                  label: "Kanban",
+                  value: fmt(activityPeriod.mail),
+                  label: "Mail",
                 },
               ].filter(Boolean)}
             />
           </CardBody>
         </Card>
       )}
-
-      {/* Modal Drill-Down Prospects */}
-      <ProspectsDetailsModal
-        isOpen={prospectsModalOpen}
-        toggle={() => setProspectsModalOpen(false)}
-        year={year}
-        monthIndex={monthIndex}
-        trimIndex={trimIndex}
-        activeTab={activeTab}
-        weekNumber={weekNumber}
-      />
     </div>
   );
 }

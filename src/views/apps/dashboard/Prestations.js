@@ -155,6 +155,17 @@ const FrenchMonth = [
   "Novembre",
   "Décembre",
 ];
+
+/** Hide empty pies and 100%-CH pies (only first series value >0). */
+function seriesUseful(series) {
+  if (!Array.isArray(series) || !series.length) return false;
+  if (!series.some((v) => Number(v) > 0)) return false;
+  if (Number(series[0]) > 0 && series.slice(1).every((v) => !Number(v))) {
+    return false;
+  }
+  return true;
+}
+
 /* eslint-disable */
 const Config = {
   headers: {
@@ -753,74 +764,82 @@ class PrestationStatistics extends React.Component {
                   </Nav>
                 </div>
                 <div className="chart-grid">
+                  {seriesUseful(this.state.seriesW) && (
                   <div className="chart-item">
-                    <h4 className="chart-title">En Attente</h4>
-                    <div id="chart">
-                      <ReactApexChart
-                        key={`waiting-month`}
-                        options={this.state.options}
-                        series={
-                          this.state.seriesW.some((elem) => elem > 0)
-                            ? this.state.seriesW
-                            : []
-                        }
-                        type="pie"
-                        width={300}
-                        height={175}
-                      />
-                    </div>
-                  </div>
+                                      <h4 className="chart-title">En Attente</h4>
+                                      <div id="chart">
+                                        <ReactApexChart
+                                          key={`waiting-month`}
+                                          options={this.state.options}
+                                          series={
+                                            this.state.seriesW.some((elem) => elem > 0)
+                                              ? this.state.seriesW
+                                              : []
+                                          }
+                                          type="pie"
+                                          width={300}
+                                          height={175}
+                                        />
+                                      </div>
+                                    </div>
+                  )}
+                  {seriesUseful(this.state.seriesOg) && (
                   <div className="chart-item">
-                    <h4 className="chart-title">En Cours</h4>
-                    <div id="chart">
-                      <ReactApexChart
-                        key={`ongoing-month`}
-                        options={this.state.options}
-                        series={
-                          this.state.seriesOg.some((elem) => elem > 0)
-                            ? this.state.seriesOg
-                            : []
-                        }
-                        type="pie"
-                        width={300}
-                        height={175}
-                      />
-                    </div>
-                  </div>
+                                      <h4 className="chart-title">En Cours</h4>
+                                      <div id="chart">
+                                        <ReactApexChart
+                                          key={`ongoing-month`}
+                                          options={this.state.options}
+                                          series={
+                                            this.state.seriesOg.some((elem) => elem > 0)
+                                              ? this.state.seriesOg
+                                              : []
+                                          }
+                                          type="pie"
+                                          width={300}
+                                          height={175}
+                                        />
+                                      </div>
+                                    </div>
+                  )}
+                  {seriesUseful(this.state.seriesF) && (
                   <div className="chart-item">
-                    <h4 className="chart-title">Terminé</h4>
-                    <div id="chart">
-                      <ReactApexChart
-                        key={`finished-month`}
-                        options={this.state.options}
-                        series={
-                          this.state.seriesF.some((elem) => elem > 0)
-                            ? this.state.seriesF
-                            : []
-                        }
-                        type="pie"
-                        width={300}
-                        height={175}
-                      />
-                    </div>
-                  </div>
+                                      <h4 className="chart-title">Terminé</h4>
+                                      <div id="chart">
+                                        <ReactApexChart
+                                          key={`finished-month`}
+                                          options={this.state.options}
+                                          series={
+                                            this.state.seriesF.some((elem) => elem > 0)
+                                              ? this.state.seriesF
+                                              : []
+                                          }
+                                          type="pie"
+                                          width={300}
+                                          height={175}
+                                        />
+                                      </div>
+                                    </div>
+                  )}
+                  {seriesUseful(this.state.seriesL) && (
                   <div className="chart-item">
-                    <h4 className="chart-title">Perdu</h4>
-                    <div id="chart">
-                      <ReactApexChart
-                        key={`lost-month`}
-                        options={this.state.options}
-                        series={
-                          this.state.seriesL.some((elem) => elem > 0)
-                            ? this.state.seriesL
-                            : []
-                        }
-                        type="pie"
-                        width={300}
-                        height={175}
-                      />
-                    </div>
-                  </div>
+                                      <h4 className="chart-title">Perdu</h4>
+                                      <div id="chart">
+                                        <ReactApexChart
+                                          key={`lost-month`}
+                                          options={this.state.options}
+                                          series={
+                                            this.state.seriesL.some((elem) => elem > 0)
+                                              ? this.state.seriesL
+                                              : []
+                                          }
+                                          type="pie"
+                                          width={300}
+                                          height={175}
+                                        />
+                                      </div>
+                                    </div>
+                  )}
                 </div>
               </TabPane>
               <TabPane tabId="2">
@@ -897,74 +916,82 @@ class PrestationStatistics extends React.Component {
                   </Nav>
                 </div>
                 <div className="chart-grid">
+                  {seriesUseful(this.state.seriesTW) && (
                   <div className="chart-item">
-                    <h4 className="chart-title">En Attente</h4>
-                    <div id="chart">
-                      <ReactApexChart
-                        key={`waiting-trimester`}
-                        options={this.state.options}
-                        series={
-                          this.state.seriesTW.some((elem) => elem > 0)
-                            ? this.state.seriesTW
-                            : []
-                        }
-                        type="pie"
-                        width={300}
-                        height={175}
-                      />
-                    </div>
-                  </div>
+                                      <h4 className="chart-title">En Attente</h4>
+                                      <div id="chart">
+                                        <ReactApexChart
+                                          key={`waiting-trimester`}
+                                          options={this.state.options}
+                                          series={
+                                            this.state.seriesTW.some((elem) => elem > 0)
+                                              ? this.state.seriesTW
+                                              : []
+                                          }
+                                          type="pie"
+                                          width={300}
+                                          height={175}
+                                        />
+                                      </div>
+                                    </div>
+                  )}
+                  {seriesUseful(this.state.seriesTOg) && (
                   <div className="chart-item">
-                    <h4 className="chart-title">En Cours</h4>
-                    <div id="chart">
-                      <ReactApexChart
-                        key={`ongoing-trimester`}
-                        options={this.state.options}
-                        series={
-                          this.state.seriesTOg.some((elem) => elem > 0)
-                            ? this.state.seriesTOg
-                            : []
-                        }
-                        type="pie"
-                        width={300}
-                        height={175}
-                      />
-                    </div>
-                  </div>
+                                      <h4 className="chart-title">En Cours</h4>
+                                      <div id="chart">
+                                        <ReactApexChart
+                                          key={`ongoing-trimester`}
+                                          options={this.state.options}
+                                          series={
+                                            this.state.seriesTOg.some((elem) => elem > 0)
+                                              ? this.state.seriesTOg
+                                              : []
+                                          }
+                                          type="pie"
+                                          width={300}
+                                          height={175}
+                                        />
+                                      </div>
+                                    </div>
+                  )}
+                  {seriesUseful(this.state.seriesTF) && (
                   <div className="chart-item">
-                    <h4 className="chart-title">Terminé</h4>
-                    <div id="chart">
-                      <ReactApexChart
-                        key={`finished-trimester`}
-                        options={this.state.options}
-                        series={
-                          this.state.seriesTF.some((elem) => elem > 0)
-                            ? this.state.seriesTF
-                            : []
-                        }
-                        type="pie"
-                        width={300}
-                        height={175}
-                      />
-                    </div>
-                  </div>
+                                      <h4 className="chart-title">Terminé</h4>
+                                      <div id="chart">
+                                        <ReactApexChart
+                                          key={`finished-trimester`}
+                                          options={this.state.options}
+                                          series={
+                                            this.state.seriesTF.some((elem) => elem > 0)
+                                              ? this.state.seriesTF
+                                              : []
+                                          }
+                                          type="pie"
+                                          width={300}
+                                          height={175}
+                                        />
+                                      </div>
+                                    </div>
+                  )}
+                  {seriesUseful(this.state.seriesTL) && (
                   <div className="chart-item">
-                    <h4 className="chart-title">Perdu</h4>
-                    <div id="chart">
-                      <ReactApexChart
-                        key={`lost-trimester`}
-                        options={this.state.options}
-                        series={
-                          this.state.seriesTL.some((elem) => elem > 0)
-                            ? this.state.seriesTL
-                            : []
-                        }
-                        type="pie"
-                        width={300}
-                        height={175}
-                      />
-                    </div>
-                  </div>
+                                      <h4 className="chart-title">Perdu</h4>
+                                      <div id="chart">
+                                        <ReactApexChart
+                                          key={`lost-trimester`}
+                                          options={this.state.options}
+                                          series={
+                                            this.state.seriesTL.some((elem) => elem > 0)
+                                              ? this.state.seriesTL
+                                              : []
+                                          }
+                                          type="pie"
+                                          width={300}
+                                          height={175}
+                                        />
+                                      </div>
+                                    </div>
+                  )}
                 </div>
               </TabPane>
               <TabPane tabId="3">
@@ -1012,76 +1039,84 @@ class PrestationStatistics extends React.Component {
                   </Nav>
                 </div>
                 <div className="chart-grid">
+                  {seriesUseful(this.state.seriesYW) && (
                   <div className="chart-item">
-                    <h4 className="chart-title">En Attente</h4>
-                    <div id="chart">
-                      <ReactApexChart
-                        key={`waiting-year`}
-                        options={this.state.options}
-                        series={
-                          this.state.seriesYW.some((elem) => {
-                            return elem > 0;
-                          })
-                            ? this.state.seriesYW
-                            : []
-                        }
-                        type="pie"
-                        width={300}
-                        height={175}
-                      />
-                    </div>
-                  </div>
+                                      <h4 className="chart-title">En Attente</h4>
+                                      <div id="chart">
+                                        <ReactApexChart
+                                          key={`waiting-year`}
+                                          options={this.state.options}
+                                          series={
+                                            this.state.seriesYW.some((elem) => {
+                                              return elem > 0;
+                                            })
+                                              ? this.state.seriesYW
+                                              : []
+                                          }
+                                          type="pie"
+                                          width={300}
+                                          height={175}
+                                        />
+                                      </div>
+                                    </div>
+                  )}
+                  {seriesUseful(this.state.seriesYOg) && (
                   <div className="chart-item">
-                    <h4 className="chart-title">En Cours</h4>
-                    <div id="chart">
-                      <ReactApexChart
-                        key={`ongoing-year`}
-                        options={this.state.options}
-                        series={
-                          this.state.seriesYOg.some((elem) => elem > 0)
-                            ? this.state.seriesYOg
-                            : []
-                        }
-                        type="pie"
-                        width={300}
-                        height={175}
-                      />
-                    </div>
-                  </div>
+                                      <h4 className="chart-title">En Cours</h4>
+                                      <div id="chart">
+                                        <ReactApexChart
+                                          key={`ongoing-year`}
+                                          options={this.state.options}
+                                          series={
+                                            this.state.seriesYOg.some((elem) => elem > 0)
+                                              ? this.state.seriesYOg
+                                              : []
+                                          }
+                                          type="pie"
+                                          width={300}
+                                          height={175}
+                                        />
+                                      </div>
+                                    </div>
+                  )}
+                  {seriesUseful(this.state.seriesYF) && (
                   <div className="chart-item">
-                    <h4 className="chart-title">Terminé</h4>
-                    <div id="chart">
-                      <ReactApexChart
-                        key={`finished-year`}
-                        options={this.state.options}
-                        series={
-                          this.state.seriesYF.some((elem) => elem > 0)
-                            ? this.state.seriesYF
-                            : []
-                        }
-                        type="pie"
-                        width={300}
-                        height={175}
-                      />
-                    </div>
-                  </div>
+                                      <h4 className="chart-title">Terminé</h4>
+                                      <div id="chart">
+                                        <ReactApexChart
+                                          key={`finished-year`}
+                                          options={this.state.options}
+                                          series={
+                                            this.state.seriesYF.some((elem) => elem > 0)
+                                              ? this.state.seriesYF
+                                              : []
+                                          }
+                                          type="pie"
+                                          width={300}
+                                          height={175}
+                                        />
+                                      </div>
+                                    </div>
+                  )}
+                  {seriesUseful(this.state.seriesYL) && (
                   <div className="chart-item">
-                    <h4 className="chart-title">Perdu</h4>
-                    <div id="chart">
-                      <ReactApexChart
-                        key={`lost-year`}
-                        options={this.state.options}
-                        series={
-                          this.state.seriesYL.some((elem) => elem > 0)
-                            ? this.state.seriesYL
-                            : []
-                        }
-                        type="pie"
-                        width={300}
-                        height={175}
-                      />
-                    </div>
-                  </div>
+                                      <h4 className="chart-title">Perdu</h4>
+                                      <div id="chart">
+                                        <ReactApexChart
+                                          key={`lost-year`}
+                                          options={this.state.options}
+                                          series={
+                                            this.state.seriesYL.some((elem) => elem > 0)
+                                              ? this.state.seriesYL
+                                              : []
+                                          }
+                                          type="pie"
+                                          width={300}
+                                          height={175}
+                                        />
+                                      </div>
+                                    </div>
+                  )}
                 </div>
               </TabPane>
               <TabPane tabId="4">
@@ -1164,74 +1199,82 @@ class PrestationStatistics extends React.Component {
                 </div>
 
                 <div className="chart-grid">
+                  {seriesUseful(this.state.seriesWW) && (
                   <div className="chart-item">
-                    <h4 className="chart-title">En Attente</h4>
-                    <div id="chart">
-                      <ReactApexChart
-                        key={`waiting-week`}
-                        options={this.state.options}
-                        series={
-                          this.state.seriesWW.some((elem) => elem > 0)
-                            ? this.state.seriesWW
-                            : []
-                        }
-                        type="pie"
-                        width={300}
-                        height={175}
-                      />
-                    </div>
-                  </div>
+                                      <h4 className="chart-title">En Attente</h4>
+                                      <div id="chart">
+                                        <ReactApexChart
+                                          key={`waiting-week`}
+                                          options={this.state.options}
+                                          series={
+                                            this.state.seriesWW.some((elem) => elem > 0)
+                                              ? this.state.seriesWW
+                                              : []
+                                          }
+                                          type="pie"
+                                          width={300}
+                                          height={175}
+                                        />
+                                      </div>
+                                    </div>
+                  )}
+                  {seriesUseful(this.state.seriesWOg) && (
                   <div className="chart-item">
-                    <h4 className="chart-title">En Cours</h4>
-                    <div id="chart">
-                      <ReactApexChart
-                        key={`ongoing-week`}
-                        options={this.state.options}
-                        series={
-                          this.state.seriesWOg.some((elem) => elem > 0)
-                            ? this.state.seriesWOg
-                            : []
-                        }
-                        type="pie"
-                        width={300}
-                        height={175}
-                      />
-                    </div>
-                  </div>
+                                      <h4 className="chart-title">En Cours</h4>
+                                      <div id="chart">
+                                        <ReactApexChart
+                                          key={`ongoing-week`}
+                                          options={this.state.options}
+                                          series={
+                                            this.state.seriesWOg.some((elem) => elem > 0)
+                                              ? this.state.seriesWOg
+                                              : []
+                                          }
+                                          type="pie"
+                                          width={300}
+                                          height={175}
+                                        />
+                                      </div>
+                                    </div>
+                  )}
+                  {seriesUseful(this.state.seriesWF) && (
                   <div className="chart-item">
-                    <h4 className="chart-title">Terminé</h4>
-                    <div id="chart">
-                      <ReactApexChart
-                        key={`finished-week`}
-                        options={this.state.options}
-                        series={
-                          this.state.seriesWF.some((elem) => elem > 0)
-                            ? this.state.seriesWF
-                            : []
-                        }
-                        type="pie"
-                        width={300}
-                        height={175}
-                      />
-                    </div>
-                  </div>
+                                      <h4 className="chart-title">Terminé</h4>
+                                      <div id="chart">
+                                        <ReactApexChart
+                                          key={`finished-week`}
+                                          options={this.state.options}
+                                          series={
+                                            this.state.seriesWF.some((elem) => elem > 0)
+                                              ? this.state.seriesWF
+                                              : []
+                                          }
+                                          type="pie"
+                                          width={300}
+                                          height={175}
+                                        />
+                                      </div>
+                                    </div>
+                  )}
+                  {seriesUseful(this.state.seriesWL) && (
                   <div className="chart-item">
-                    <h4 className="chart-title">Perdu</h4>
-                    <div id="chart">
-                      <ReactApexChart
-                        key={`lost-week`}
-                        options={this.state.options}
-                        series={
-                          this.state.seriesWL.some((elem) => elem > 0)
-                            ? this.state.seriesWL
-                            : []
-                        }
-                        type="pie"
-                        width={300}
-                        height={175}
-                      />
-                    </div>
-                  </div>
+                                      <h4 className="chart-title">Perdu</h4>
+                                      <div id="chart">
+                                        <ReactApexChart
+                                          key={`lost-week`}
+                                          options={this.state.options}
+                                          series={
+                                            this.state.seriesWL.some((elem) => elem > 0)
+                                              ? this.state.seriesWL
+                                              : []
+                                          }
+                                          type="pie"
+                                          width={300}
+                                          height={175}
+                                        />
+                                      </div>
+                                    </div>
+                  )}
                 </div>
               </TabPane>
             </TabContent>

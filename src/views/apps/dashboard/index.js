@@ -4,8 +4,6 @@ import React from "react";
 import { Row, Col } from "reactstrap";
 import OverallCard from "./OverallData";
 import ExpertCard from "./ExpertCard";
-import KpiStats from "./KpiStats"; // nouvel import
-
 import RevenueGraph from "./RevenueGraph";
 import PrestationStatistics from "./Prestations";
 import "../../../assets/scss/plugins/charts/apex-charts.scss";
@@ -49,9 +47,6 @@ class Index extends React.Component {
               labelColor={$label_color}
             />
           </Col>
-          <Col lg="12">
-            <KpiStats />
-          </Col>
           {/* <Col lg="12" md="6" sm="6">
             <RevenueGraph
               strokeColor={$stroke_color}
@@ -70,7 +65,7 @@ class Index extends React.Component {
           </Col>
           <Col></Col>
         </Row>
-        <Row className="match-height">
+        <Row className="align-items-start">
           <Col lg="12" md="6" sm="12">
             <ExpertCard
               clients_count={this.state.clients_count}
