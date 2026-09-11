@@ -143,3 +143,78 @@ $eor-navy: #002060;
     }
   }
 }
+
+/* EOR nuclear kill violet — beats [dir=ltr] theme-primary Vuexy */
+$eor-navy: #002060;
+
+@mixin eor-nuke-active-surface {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  margin-bottom: 0 !important;
+  color: inherit !important;
+}
+
+@mixin eor-word-underline {
+  display: inline !important;
+  flex: none !important;
+  flex-grow: 0 !important;
+  width: auto !important;
+  max-width: none !important;
+  color: $eor-navy !important;
+  border-bottom: 2px solid $eor-navy !important;
+  padding-bottom: 1px;
+  text-decoration: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+// Beat [dir=ltr|rtl] + .vertical-layout .theme-* .nav-item .menu-content li.active
+html body.vertical-layout .main-menu .navigation li.active,
+html body.vertical-layout .main-menu .navigation li.active > a,
+html body.vertical-layout .main-menu .navigation .nav-item .menu-content li.active,
+html body.vertical-layout .main-menu .navigation .nav-item .menu-content li.active > a,
+html body.vertical-layout .main-menu .navigation > li ul.menu-content li.active,
+html body.vertical-layout .main-menu .navigation > li ul.menu-content li.active > a,
+html body[dir] .vertical-layout .main-menu .navigation li.active,
+html body[dir] .vertical-layout .main-menu .navigation li.active > a,
+html body[dir] .vertical-layout .main-menu .navigation .nav-item .menu-content li.active,
+html body[dir] .vertical-layout .main-menu .navigation .nav-item .menu-content li.active > a,
+html body[dir=ltr] .vertical-layout .main-menu .navigation li.active,
+html body[dir=ltr] .vertical-layout .main-menu .navigation li.active > a,
+html body[dir=ltr] .vertical-layout .main-menu .navigation .nav-item .menu-content li.active,
+html body[dir=ltr] .vertical-layout .main-menu .navigation .nav-item .menu-content li.active > a,
+html body[dir=rtl] .vertical-layout .main-menu .navigation li.active,
+html body[dir=rtl] .vertical-layout .main-menu .navigation li.active > a,
+html body[dir=rtl] .vertical-layout .main-menu .navigation .nav-item .menu-content li.active,
+html body[dir=rtl] .vertical-layout .main-menu .navigation .nav-item .menu-content li.active > a {
+  @include eor-nuke-active-surface;
+}
+
+html body.vertical-layout .main-menu .navigation li.active > a .menu-title,
+html body[dir] .vertical-layout .main-menu .navigation li.active > a .menu-title,
+html body[dir=ltr] .vertical-layout .main-menu .navigation li.active > a .menu-title,
+html body[dir=rtl] .vertical-layout .main-menu .navigation li.active > a .menu-title,
+html body.vertical-layout .main-menu .navigation .nav-item .menu-content li.active > a .menu-title,
+html body[dir] .vertical-layout .main-menu .navigation .nav-item .menu-content li.active > a .menu-title,
+html body[dir=ltr] .vertical-layout .main-menu .navigation .nav-item .menu-content li.active > a .menu-title,
+html body[dir=rtl] .vertical-layout .main-menu .navigation .nav-item .menu-content li.active > a .menu-title {
+  @include eor-word-underline;
+}
+
+// Hover word-only (Talker) — same specificity family
+html body.vertical-layout .main-menu .navigation li:not(.active) > a:hover,
+html body[dir] .vertical-layout .main-menu .navigation li:not(.active) > a:hover,
+html body[dir=ltr] .vertical-layout .main-menu .navigation li:not(.active) > a:hover,
+html body[dir=rtl] .vertical-layout .main-menu .navigation li:not(.active) > a:hover {
+  @include eor-nuke-active-surface;
+}
+
+html body.vertical-layout .main-menu .navigation li:not(.active) > a:hover .menu-title,
+html body[dir] .vertical-layout .main-menu .navigation li:not(.active) > a:hover .menu-title,
+html body[dir=ltr] .vertical-layout .main-menu .navigation li:not(.active) > a:hover .menu-title,
+html body[dir=rtl] .vertical-layout .main-menu .navigation li:not(.active) > a:hover .menu-title {
+  @include eor-word-underline;
+}
