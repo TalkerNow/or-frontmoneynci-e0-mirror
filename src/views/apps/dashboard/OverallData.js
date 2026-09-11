@@ -344,7 +344,12 @@ async function fetchAllPages(url, params = {}, maxPages = 100) {
 
 function parseDate(raw) {
   if (raw == null || raw === "") return null;
-  const d = new Date(raw);
+  // Laravel often returns "YYYY-MM-DD HH:mm:ss" (space); Date() needs ISO-ish "T"
+  let s = String(raw).trim();
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(s)) {
+    s = s.replace(" ", "T");
+  }
+  const d = new Date(s);
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
@@ -545,7 +550,8 @@ export default function OverallCard() {
         );
       } catch (e) {
         console.error("dashboard inbound emails activity", e);
-        next.inboundEmails = null;
+        // Prefer visible tile at 0 over hidden (null) when fetch fails
+        next.inboundEmails = [];
       }
 
       // Contrats signés: GET /suivi-avancement/all (flat join incl. advanced_payment)

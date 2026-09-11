@@ -27,12 +27,16 @@ const InboxList = ({
     const phone = item.phone ? item.phone.toString() : "";
     const summary =
       item.summary && item.summary[0] ? item.summary[0].toLowerCase() : "";
+    const subject = item.subject ? item.subject.toLowerCase() : "";
+    const snippet = item.snippet ? item.snippet.toLowerCase() : "";
 
     return (
       name.includes(lowerTerm) ||
       email.includes(lowerTerm) ||
       phone.includes(lowerTerm) ||
-      summary.includes(lowerTerm)
+      summary.includes(lowerTerm) ||
+      subject.includes(lowerTerm) ||
+      snippet.includes(lowerTerm)
     );
   });
 
@@ -45,7 +49,7 @@ const InboxList = ({
           <input
             type="text"
             className="inbox-search-input"
-            placeholder="Rechercher nom, email, tél..."
+            placeholder="Rechercher expéditeur, sujet, extrait..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -131,7 +135,7 @@ const InboxList = ({
                     marginBottom: "8px",
                   }}
                 >
-                  Aucune conversation
+                  Aucun mail
                 </p>
                 <p
                   style={{
@@ -140,7 +144,7 @@ const InboxList = ({
                     maxWidth: "250px",
                   }}
                 >
-                  Les conversations avec vos clients apparaîtront ici
+                  Les mails entrants (formulaires / chatbot) apparaîtront ici
                   automatiquement.
                 </p>
               </>
@@ -193,7 +197,9 @@ const InboxList = ({
                     textOverflow: "ellipsis",
                   }}
                 >
-                  {formatPhoneNumber(item.name) || item.name}
+                  {item.type === "email"
+                    ? item.name
+                    : formatPhoneNumber(item.name) || item.name}
                   {item.hasMultipleChannels && (
                     <span title="Multi-Canal" style={{ marginLeft: "6px" }}>
                       <span role="img" aria-label="fire">
@@ -231,7 +237,11 @@ const InboxList = ({
                     textOverflow: "ellipsis",
                   }}
                 >
-                  {item.summary[0]}
+                  {item.type === "email"
+                    ? [item.subject, item.snippet].filter(Boolean).join(" · ") ||
+                      (item.summary && item.summary[0]) ||
+                      ""
+                    : item.summary && item.summary[0]}
                 </span>
               </div>
               <div

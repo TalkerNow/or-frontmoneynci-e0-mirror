@@ -158,38 +158,39 @@ class SideMenuGroup extends React.Component {
                       ""
                     )}
 
-                    {/* Chatbot Badge */}
-                    {child.id === "leads-chatbot" || child.id === "crm-inbox-chatbot" &&
-                      this.props.chatbotBadge > 0 ? (
+                    {/* Chatbot Badge — never at 0 */}
+                    {(child.id === "leads-chatbot" ||
+                      child.id === "crm-inbox-chatbot") &&
+                    this.props.chatbotBadge > 0 ? (
                       <Badge color="danger" className="" style={{ position: "absolute", right: "5px", top: "50%", transform: "translateY(-50%)", margin: 0 }} pill>
                         {this.props.chatbotBadge}
                       </Badge>
                     ) : null}
 
-                    {/* Diagnostic Badge */}
-                    {child.id === "leads-diagnostic" || child.id === "crm-inbox-diagnostic" &&
-                      this.props.diagnosticBadge > 0 ? (
+                    {/* Diagnostic Badge — never at 0 */}
+                    {(child.id === "leads-diagnostic" ||
+                      child.id === "crm-inbox-diagnostic") &&
+                    this.props.diagnosticBadge > 0 ? (
                       <Badge color="danger" className="" style={{ position: "absolute", right: "5px", top: "50%", transform: "translateY(-50%)", margin: 0 }} pill>
                         {this.props.diagnosticBadge}
                       </Badge>
                     ) : null}
 
-                    {/* Call Badge */}
-                    {child.id === "leads-appels" || child.id === "crm-inbox-call" &&
-                      this.props.callBadge > 0 ? (
+                    {/* Call Badge — never at 0 */}
+                    {(child.id === "leads-appels" ||
+                      child.id === "crm-inbox-call") &&
+                    this.props.callBadge > 0 ? (
                       <Badge color="danger" className="" style={{ position: "absolute", right: "5px", top: "50%", transform: "translateY(-50%)", margin: 0 }} pill>
                         {this.props.callBadge}
                       </Badge>
                     ) : null}
 
-                    {/* Email / Mails inbound unread Badge */}
+                    {/* Email Badge */}
                     {(child.id === "leads-mails" ||
-                      child.id === "crm-inbox-email" ||
-                      child.id === "leads") &&
-                    (this.props.inboundMailBadge > 0 ||
-                      this.props.emailBadge > 0) ? (
+                      child.id === "crm-inbox-email") &&
+                    this.props.emailBadge > 0 ? (
                       <Badge color="danger" className="" style={{ position: "absolute", right: "5px", top: "50%", transform: "translateY(-50%)", margin: 0 }} pill>
-                        {this.props.inboundMailBadge || this.props.emailBadge}
+                        {this.props.emailBadge}
                       </Badge>
                     ) : null}
 

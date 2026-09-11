@@ -641,6 +641,11 @@ export default function KpiPage() {
   const [loadingDiagnostics, setLoadingDiagnostics] = useState(false);
   const [diagError, setDiagError] = useState("");
 
+  // Inbound emails (cf7|chatbot_report) — Mails/contacts inbox channel
+  const [inboundEmails, setInboundEmails] = useState([]);
+  const [loadingInboundEmails, setLoadingInboundEmails] = useState(false);
+  const [inboundEmailError, setInboundEmailError] = useState("");
+
   const handleSort = (field) => {
     setSortField((prevField) => {
       if (prevField === field) {
@@ -1036,6 +1041,39 @@ export default function KpiPage() {
     }
   }
 
+
+  async function fetchInboundEmails() {
+    try {
+      setLoadingInboundEmails(true);
+      setInboundEmailError("");
+      const perPage = 200;
+      let page = 1;
+      let last = 1;
+      const aggregated = [];
+      do {
+        const res = await API.get("/inbound-emails", {
+          params: { source: "cf7,chatbot_report", per_page: perPage, page },
+        });
+        const payload = res.data;
+        const rows = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.data)
+            ? payload.data
+            : [];
+        aggregated.push(...rows);
+        last = Number(payload?.last_page || payload?.meta?.last_page || 1);
+        page += 1;
+      } while (page <= last && page <= 20);
+      setInboundEmails(aggregated);
+    } catch (e) {
+      console.error("fetchInboundEmails error:", e);
+      setInboundEmailError("Impossible de charger les mails entrants.");
+      setInboundEmails([]);
+    } finally {
+      setLoadingInboundEmails(false);
+    }
+  }
+
   // Effets de chargement
   useEffect(() => {
     fetchKpis(1);
@@ -1047,6 +1085,7 @@ export default function KpiPage() {
     fetchClients();
     fetchConversationArchives();
     fetchDiagnosticResults();
+    fetchInboundEmails();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1494,9 +1533,11 @@ export default function KpiPage() {
               ? "Suivi Administratif"
               : location.pathname.includes("/kpi/opportunities")
                 ? "Opportunités"
-                : location.pathname.includes("/kpi/clients") // Assuming clients route exists or will exist
+                : location.pathname.includes("/kpi/clients")
                   ? "Clients"
-                  : "Boîte De Réception"}
+                  : location.pathname.includes("/inbox/email")
+                    ? "Mails / contacts"
+                    : "Boîte De Réception"}
           </span>
         </div>
         <div style={{ marginLeft: "auto" }}>
@@ -2682,39 +2723,34 @@ export default function KpiPage() {
             ...diagnostics
               .filter((d) => d.crm_eligible)
               .map((d) => markMultiChannel(d, "diagnostic")),
+            // Appels only from kpis — emails come from inbound_emails (not kpis)
             ...allItems
               .filter((kpi) => {
                 const obj = (kpi.objet || kpi.object || "")
                   .toString()
                   .toLowerCase();
                 const act = (kpi.action || "").toString().toLowerCase();
-
-                return (
-                  obj.includes("email") ||
-                  obj.includes("appel") ||
-                  act.includes("email") ||
-                  act.includes("appel") ||
-                  act === "email reçu" ||
-                  act === "email recu"
-                );
-              })
-              .map((kpi) => {
-                const obj = (kpi.objet || kpi.object || "")
-                  .toString()
-                  .toLowerCase();
-                const act = (kpi.action || "").toString().toLowerCase();
-
                 const isEmail =
                   obj.includes("email") ||
                   act.includes("email") ||
                   act.includes("email reçu") ||
                   act.includes("email recu");
-
-                return {
-                  ...kpi,
-                  _source: isEmail ? "email" : "call",
-                };
-              }),
+                const isCall =
+                  obj.includes("appel") ||
+                  act.includes("appel") ||
+                  act.includes("call");
+                return isCall && !isEmail;
+              })
+              .map((kpi) => ({
+                ...kpi,
+                _source: "call",
+              })),
+            // Mails/contacts = inbound_emails cf7|chatbot_report (HARD: no kpis)
+            ...inboundEmails.map((row) => ({
+              ...row,
+              _source: "email",
+              created_at: row.received_at || row.created_at,
+            })),
           ];
 
           // Dédupliquer par téléphone pour éviter le ±2
@@ -2782,13 +2818,17 @@ export default function KpiPage() {
                         : "all"
               }
               loading={
-                loadingConversations || loadingDiagnostics || loadingList
+                loadingConversations ||
+                loadingDiagnostics ||
+                loadingList ||
+                loadingInboundEmails
               }
-              error={convError || diagError}
+              error={convError || diagError || inboundEmailError}
               onSelect={handleSelectConversation}
               onDataRefresh={() => {
                 fetchConversationArchives();
                 fetchDiagnosticResults();
+                fetchInboundEmails();
               }}
             />
           );

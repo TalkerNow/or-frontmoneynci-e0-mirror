@@ -112,7 +112,11 @@ export function formatPhoneNumber(input) {
 // Helper: Format date to relative time
 export function formatRelativeDate(isoDate) {
   if (!isoDate) return "";
-  const date = new Date(isoDate);
+  let raw = isoDate;
+  if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2} \d{2}:/.test(raw)) {
+    raw = raw.replace(" ", "T");
+  }
+  const date = new Date(raw);
   const now = new Date();
 
   // Check if same day
@@ -156,6 +160,51 @@ export function extractSummaryFromMessages(messages) {
 }
 
 // Helper: Map conversation from backend to inbox item
+
+/**
+ * Map inbound_emails row (cf7|chatbot_report) → inbox item.
+ * Never "Prospect inconnu" — mail UX: from · subject · snippet · received_at.
+ */
+export function mapInboundEmailToInboxItem(row) {
+  if (!row) return null;
+  const fromName = (row.from_name || "").trim();
+  const fromEmail = (row.from_email || "").trim();
+  const subject = (row.subject || "").trim();
+  const snippet = (row.snippet || "").trim();
+  // No body column yet — snippet is the body content for detail
+  const body = (row.body || row.snippet || "").trim();
+  const displayName =
+    fromName || fromEmail || subject || "Mail entrant";
+  const when = row.received_at || row.created_at || null;
+  let whenIso = when;
+  if (typeof whenIso === "string" && /^\d{4}-\d{2}-\d{2} \d{2}:/.test(whenIso)) {
+    whenIso = whenIso.replace(" ", "T");
+  }
+  const isRead = row.is_read === true || row.is_read === 1 || row.is_read === "1";
+  return {
+    id: row.id,
+    clientId: null,
+    type: "email",
+    name: displayName,
+    firstName: fromName,
+    lastName: "",
+    email: fromEmail,
+    phone: "",
+    subject,
+    snippet,
+    body,
+    date: formatRelativeDate(whenIso),
+    receivedAt: when,
+    score: 0,
+    summary: [subject, snippet].filter(Boolean),
+    status: isRead ? "read" : "new",
+    priority: "medium",
+    hasMultipleChannels: false,
+    gmailPermalink: row.gmail_permalink || null,
+    raw: { ...row, _source: "email", source: row.source },
+  };
+}
+
 export function mapConversationToInboxItem(conv) {
   const type =
     conv._source ||

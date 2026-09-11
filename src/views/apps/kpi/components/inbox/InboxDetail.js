@@ -1107,31 +1107,71 @@ const InboxDetail = ({
                         fontFamily: "'Montserrat', sans-serif",
                       }}
                     >
-                      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                        {selectedItem.summary?.map((point, idx) => (
-                          <li
-                            key={idx}
+                      {selectedItem.type === "email" ? (
+                        <div>
+                          <div
                             style={{
-                              display: "flex",
-                              alignItems: "flex-start",
-                              gap: "8px",
+                              fontWeight: 600,
                               marginBottom: "8px",
+                              color: "#111827",
                             }}
                           >
-                            <span
+                            {selectedItem.subject || "(sans objet)"}
+                          </div>
+                          <div
+                            style={{
+                              whiteSpace: "pre-wrap",
+                              color: "#374151",
+                              lineHeight: 1.6,
+                            }}
+                          >
+                            {selectedItem.body ||
+                              selectedItem.snippet ||
+                              "(pas de contenu)"}
+                          </div>
+                          {selectedItem.gmailPermalink ? (
+                            <a
+                              href={selectedItem.gmailPermalink}
+                              target="_blank"
+                              rel="noopener noreferrer"
                               style={{
-                                marginTop: "6px",
-                                width: "6px",
-                                height: "6px",
-                                backgroundColor: "#60a5fa",
-                                borderRadius: "50%",
-                                flexShrink: 0,
+                                display: "inline-block",
+                                marginTop: "12px",
+                                fontSize: "12px",
+                                color: "#4f46e5",
                               }}
-                            ></span>
-                            <span>{point}</span>
-                          </li>
-                        ))}
-                      </ul>
+                            >
+                              Ouvrir dans Gmail →
+                            </a>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                          {selectedItem.summary?.map((point, idx) => (
+                            <li
+                              key={idx}
+                              style={{
+                                display: "flex",
+                                alignItems: "flex-start",
+                                gap: "8px",
+                                marginBottom: "8px",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  marginTop: "6px",
+                                  width: "6px",
+                                  height: "6px",
+                                  backgroundColor: "#60a5fa",
+                                  borderRadius: "50%",
+                                  flexShrink: 0,
+                                }}
+                              ></span>
+                              <span>{point}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
                   </div>
                 </div>

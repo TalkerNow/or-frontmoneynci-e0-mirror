@@ -7,6 +7,7 @@ import "./InboxView.css";
 import {
   calculateComplexityScore,
   mapConversationToInboxItem,
+  mapInboundEmailToInboxItem,
 } from "./inbox/utils";
 import { generateStrategicAnalysis, generateGeminiContent } from "./inbox/api";
 import InboxList from "./inbox/InboxList";
@@ -39,11 +40,31 @@ const InboxView = ({
   // Sort and Map Items
   const allInboxItems = useMemo(() => {
     if (!items || items.length === 0) return [];
-    return items.map(mapConversationToInboxItem).sort((a, b) => {
-      const dateA = new Date(a.raw?.created_at || a.raw?.kpi_date || 0);
-      const dateB = new Date(b.raw?.created_at || b.raw?.kpi_date || 0);
-      return dateB - dateA; // Most recent first
-    });
+    return items
+      .map((raw) => {
+        const src = raw?._source || raw?.type;
+        if (src === "email" || raw?.gmail_message_id != null) {
+          return mapInboundEmailToInboxItem(raw);
+        }
+        return mapConversationToInboxItem(raw);
+      })
+      .filter(Boolean)
+      .sort((a, b) => {
+        const parse = (v) => {
+          if (!v) return 0;
+          let s = String(v);
+          if (/^\d{4}-\d{2}-\d{2} \d{2}:/.test(s)) s = s.replace(" ", "T");
+          const d = new Date(s);
+          return Number.isNaN(d.getTime()) ? 0 : d.getTime();
+        };
+        const dateA = parse(
+          a.raw?.received_at || a.raw?.created_at || a.raw?.kpi_date,
+        );
+        const dateB = parse(
+          b.raw?.received_at || b.raw?.created_at || b.raw?.kpi_date,
+        );
+        return dateB - dateA;
+      });
   }, [items]);
 
   // Filter Items
@@ -55,13 +76,13 @@ const InboxView = ({
       filtered = filtered.filter((item) => item.type === filter);
     }
 
-    // Exclure les users avec role "Client"
-    filtered = filtered.filter((item) => item.raw?.user?.role !== "Client");
-
-    // Exclure les conversations dont le user_id est dans user-kanbans
-    filtered = filtered.filter(
-      (item) => !item.raw?.user_id || !kanbanUserIds.has(item.raw.user_id),
-    );
+    // Mail channel = inbound_emails — no Client/kanban CRM filters
+    if (filter !== "email") {
+      filtered = filtered.filter((item) => item.raw?.user?.role !== "Client");
+      filtered = filtered.filter(
+        (item) => !item.raw?.user_id || !kanbanUserIds.has(item.raw.user_id),
+      );
+    }
 
     return filtered;
   }, [allInboxItems, filter, kanbanUserIds]);
@@ -228,6 +249,17 @@ const InboxView = ({
       next.delete(`${item.type}-${item.id}`);
       return next;
     });
+    // Persist read on inbound_emails
+    if (item?.type === "email" && item?.id && item.status === "new") {
+      const token = localStorage.getItem("token");
+      axios
+        .patch(
+          `${global.config.server_url}/inbound-emails/${item.id}/read`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } },
+        )
+        .catch((err) => console.error("mark inbound email read", err));
+    }
     if (onSelect) onSelect(item.id);
   };
 
