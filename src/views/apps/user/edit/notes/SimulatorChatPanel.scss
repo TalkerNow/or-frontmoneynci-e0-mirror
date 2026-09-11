@@ -3,7 +3,8 @@
   border-radius: 8px;
   margin: 12px 0;
   background: #fff;
-  overflow: hidden;
+  /* visible so upward + docs DropdownMenu can escape (JF clipped list) */
+  overflow: visible;
 
   &__bar {
     width: 100%;
@@ -14,6 +15,7 @@
     background: #6c5ce7;
     color: #fff;
     border: none;
+    border-radius: 8px 8px 0 0; /* keep top radius without panel overflow:hidden */
     font-weight: 700;
     cursor: pointer;
   }
@@ -141,6 +143,7 @@
   &__plus-dd {
     flex-shrink: 0;
     position: relative;
+    z-index: 20; /* above pastilles / purple bar when menu opens up */
   }
   /* REPLACE ugly purple-pill + menu with Vuexy / Documents ⋮ pattern */
   &__plus-menu.dropdown-menu {
@@ -155,7 +158,7 @@
     border: 1px solid #ebe9f1 !important;
     border-radius: 6px !important;
     box-shadow: 0 5px 25px rgba(34, 41, 47, 0.1) !important;
-    z-index: 1060;
+    z-index: 1060; /* above bar/pastilles */
   }
   &__plus-header.dropdown-header,
   &__plus-menu .dropdown-header {
