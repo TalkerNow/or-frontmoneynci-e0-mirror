@@ -1,8 +1,12 @@
 /**
  * Sidebar active-state helpers (JF TEST nav 2026-09-11).
  * Highlight only when a leaf navLink === current route (exact; param routes ok).
- * Prefer top-level matches over nested items that share a path
- * (Clients vs Inscrits on /app/user/clientslist).
+ * Collapse+navLink (Clients mother) is NEVER the active leaf — avoids false
+ * sticky to /kpi/suivi. Exact match only (no prefix).
+ *
+ * /app/user/clientslist: shallowest leaf is Inscrits (Contacts) — OK.
+ *   Clients collapse navLink also matches → keep Clients group open.
+ * /app/user/prospectslist: Prospects leaf active, Clients group open.
  */
 
 export function pathMatchesNavLink(pathname, navLink, filterBase) {
@@ -38,12 +42,47 @@ function collectTrails(items, pathname, ancestors = []) {
   return trails;
 }
 
+/** Collapse mothers with navLink: open that group when pathname === navLink.
+ *  Not used as the winning leaf (type !== item) so Clients never steals
+ *  Suivi/Opportunités highlight and never prefix-matches /kpi/*. */
+function collectCollapseNavIds(items, pathname) {
+  const ids = [];
+  if (!Array.isArray(items)) return ids;
+  for (const item of items) {
+    if (!item) continue;
+    if (
+      item.type === "collapse" &&
+      item.navLink &&
+      item.matchActive !== false &&
+      pathMatchesNavLink(pathname, item.navLink, item.filterBase)
+    ) {
+      ids.push(item.id);
+    }
+    if (item.children && item.children.length) {
+      ids.push(...collectCollapseNavIds(item.children, pathname));
+    }
+  }
+  return ids;
+}
+
 /** Shallowest matching leaf wins (top-level over nested duplicate paths). */
 export function resolveActiveTrail(navigationConfig, pathname) {
   const trails = collectTrails(navigationConfig, pathname);
-  if (!trails.length) return { groupIds: [], leafId: null };
+  const collapseOpenIds = collectCollapseNavIds(navigationConfig, pathname);
+  if (!trails.length) {
+    return { groupIds: collapseOpenIds, leafId: null };
+  }
   trails.sort((a, b) => a.depth - b.depth);
-  return { groupIds: trails[0].groupIds, leafId: trails[0].leafId };
+  const winner = trails[0];
+  const groupIds = [];
+  const seen = {};
+  winner.groupIds.concat(collapseOpenIds).forEach((id) => {
+    if (id != null && !seen[id]) {
+      seen[id] = true;
+      groupIds.push(id);
+    }
+  });
+  return { groupIds, leafId: winner.leafId };
 }
 
 export function isLeafRouteActive(item, pathname, activeLeafId) {

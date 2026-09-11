@@ -2,12 +2,12 @@ import React from "react";
 import * as Icon from "react-feather";
 
 /**
- * Menu CRM — arbo TEST JF 2026-09-11 (Cap'tain)
- * Admin: Tableau de bord · Clients(Opportunité, Suivi administratif, Prospects→Contrat perdu) · Contacts(Leads, Inscrits) · Tâches · Accès · Admin moteur
- * Clients = collapse mother — NO navLink (avoids false sticky to /kpi/suivi)
- * Prospects moved OUT of Contacts under Clients
+ * Menu CRM — arbo TEST JF 2026-09-11 (Cap'tain / HubSpot)
+ * Admin: Tableau de bord · Clients(click→liste BDD) · Opportunités · Suivi administratif · Prospects(liste BDD) · Contacts(Leads, Inscrits) · Tâches · Accès · Admin moteur
+ * Clients = collapse + navLink /app/user/clientslist (parent click → ALL dossiers)
+ * Prospects = leaf /app/user/prospectslist (ClientsList tab prospect) — not Contrat perdu CRM
+ * Contacts Inscrits stays /app/user/clientslist (shallowest leaf highlight OK)
  * Consultant: Clients leaf → clientslist (unchanged UX)
- * Routes CRM = prod VPS mapping (opportunities / suivi) — no invented pages
  */
 
 const items = {
@@ -26,11 +26,13 @@ const items = {
     type: "collapse",
     icon: <Icon.Users size={20} />,
     permissions: ["admin"],
-    // NO navLink — mother collapse only (JF: no false sticky to /kpi/suivi)
+    // Parent click → liste BDD (HubSpot). Caret still expands children.
+    // Exact navLink — not prefix — so /kpi/suivi does not sticky this mother.
+    navLink: "/app/user/clientslist",
     children: [
       {
         id: "crm-opportunities",
-        title: "Opportunité",
+        title: "Opportunités",
         type: "item",
         icon: <Icon.Briefcase size={16} />,
         permissions: ["admin"],
@@ -47,20 +49,10 @@ const items = {
       {
         id: "prospects",
         title: "Prospects",
-        type: "collapse",
+        type: "item",
         icon: <Icon.Target size={16} />,
         permissions: ["admin"],
-        // no navLink: like Leads — avoids purple active / sticky mother
-        children: [
-          {
-            id: "prospects-contrat-perdu",
-            title: "Contrat perdu",
-            type: "item",
-            icon: <Icon.FileText size={14} />,
-            permissions: ["admin"],
-            navLink: "/app/AllContracts",
-          },
-        ],
+        navLink: "/app/user/prospectslist",
       },
     ],
   },

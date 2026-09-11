@@ -77,6 +77,20 @@ const ALLOWED_EMAILS = [
   "sebastien@eor.fr",
 ];
 
+/** Prospects leaf /app/user/prospectslist (or ?tab=prospect) → ClientsList tab. */
+const resolveClientsListTab = (location) => {
+  const loc =
+    location ||
+    (history && history.location) ||
+    (typeof window !== "undefined" && window.location) ||
+    {};
+  const pathname = loc.pathname || "";
+  const search = loc.search || "";
+  if (pathname.indexOf("prospectslist") !== -1) return "prospect";
+  if (search.indexOf("tab=prospect") !== -1) return "prospect";
+  return "all";
+};
+
 class ClientsList extends React.Component {
   state = {
     defaultAlert: false,
@@ -85,7 +99,7 @@ class ClientsList extends React.Component {
     IdToDelete: 0,
     rowData: null,
     allRowData: null, // Données brutes complètes (clients + prospects)
-    activeTab: "all", // Onglet actif: "all", "client", "prospect"
+    activeTab: resolveClientsListTab(), // "all" | "mine" | "old_client" | "prospect"
     pageSize: 50,
     defaultColDef: {
       resizable: true,
@@ -540,11 +554,9 @@ class ClientsList extends React.Component {
       // Afficher page 1 immédiatement
       const sortedPage1 = buildSorted(clientsPage1);
       this.setState(
-        { allRowData: sortedPage1, rowData: sortedPage1, servicesByUserId },
+        { allRowData: sortedPage1, servicesByUserId },
         () => {
-          if (this.gridApi && this.isExternalFilterPresent()) {
-            this.gridApi.onFilterChanged();
-          }
+          this.toggleTab(resolveClientsListTab(this.props.location));
         },
       );
 
@@ -562,10 +574,8 @@ class ClientsList extends React.Component {
           );
           const allClients = [...clientsPage1, ...extraClients];
           const sortedAll = buildSorted(allClients);
-          this.setState({ allRowData: sortedAll, rowData: sortedAll }, () => {
-            if (this.gridApi && this.isExternalFilterPresent()) {
-              this.gridApi.onFilterChanged();
-            }
+          this.setState({ allRowData: sortedAll }, () => {
+            this.toggleTab(this.state.activeTab || resolveClientsListTab(this.props.location));
           });
         }).catch((e) => {
           console.error("Erreur chargement pages clients supplémentaires", e);
