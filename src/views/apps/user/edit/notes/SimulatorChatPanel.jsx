@@ -508,7 +508,7 @@ export default function SimulatorChatPanel({
         </ModalFooter>
       </Modal>
 
-      <div className="simulator-chat-panel">
+      <div className={`simulator-chat-panel${messages.length === 0 ? " simulator-chat-panel--composer-fill" : ""}`}>
         <button className="simulator-chat-panel__bar" onClick={() => setOpen((v) => !v)}>
           <span>💬 Assistant retraite</span>
           <span className="simulator-chat-panel__bar-hint">

@@ -293,4 +293,50 @@
     }
   }
 
+  /* Empty thread: composer fills panel body — no nested white frame (JF) */
+  &--composer-fill {
+    .simulator-chat-panel__body {
+      min-height: 140px;
+    }
+    .simulator-chat-panel__thread {
+      min-height: 140px;
+    }
+    .simulator-chat-panel__messages,
+    .simulator-chat-panel__messages--empty {
+      flex: 0 0 0 !important;
+      min-height: 0 !important;
+      max-height: 0 !important;
+      height: 0 !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      overflow: hidden !important;
+      border: 0 !important;
+    }
+    .simulator-chat-panel__input {
+      flex: 1 1 auto;
+      align-items: flex-end;
+      min-height: 140px;
+      padding: 10px 12px;
+      border-top: none;
+      background: transparent;
+    }
+    .simulator-chat-panel__input textarea {
+      align-self: stretch;
+      min-height: 112px;
+      max-height: none;
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+      outline: none;
+      background: transparent;
+      padding: 4px 2px;
+      resize: none;
+    }
+    .simulator-chat-panel__input textarea:focus {
+      border: none;
+      box-shadow: none;
+      outline: none;
+    }
+  }
+
 }
