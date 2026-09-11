@@ -162,8 +162,89 @@ export function extractSummaryFromMessages(messages) {
 // Helper: Map conversation from backend to inbox item
 
 /**
+ * Parse CF7 contact-form body/snippet (Gmail ingest).
+ * Typical: « Nouveau message reçu via le formulaire de contact
+ * Prénom, Nom Afide Azzi Téléphone 0786… Adresse email … »
+ * Snippet often holds the full CF7 text (no body column yet).
+ */
+export function parseCf7ContactBody(text) {
+  const raw = String(text || "").replace(/\s+/g, " ").trim();
+  if (!raw) return { firstName: "", lastName: "", name: "", phone: "", email: "" };
+
+  const nextLabel =
+    "(?=\\s*(?:Téléphone|Telephone|Adresse\\s*(?:e-?mail|mail)|Date\\s*de\\s*naissance|Statut|Vous\\s*êtes|Besoin|Message|Votre\\s*message)\\b|$)";
+
+  let firstName = "";
+  let lastName = "";
+  let name = "";
+
+  // "Prénom, Nom VALUE" → first token = prénom, rest = nom
+  let m = raw.match(
+    new RegExp(
+      "(?:Prénom|Prenom)\\s*,\\s*Nom\\s+(.+?)" + nextLabel,
+      "i",
+    ),
+  );
+  if (m) {
+    name = m[1].trim();
+    const parts = name.split(/\s+/).filter(Boolean);
+    if (parts.length === 1) {
+      firstName = parts[0];
+    } else if (parts.length > 1) {
+      firstName = parts[0];
+      lastName = parts.slice(1).join(" ");
+    }
+  } else {
+    // "Nom, prénom VALUE" — FR order often Title? Prénom NOM
+    m = raw.match(
+      new RegExp("Nom\\s*,\\s*(?:Prénom|Prenom)\\s+(.+?)" + nextLabel, "i"),
+    );
+    if (m) {
+      name = m[1].trim();
+      const parts = name.split(/\s+/).filter(Boolean);
+      // strip civility
+      if (parts.length && /^(m\.?|mr\.?|mme\.?|mlle\.?|monsieur|madame)$/i.test(parts[0])) {
+        parts.shift();
+      }
+      if (parts.length === 1) {
+        lastName = parts[0];
+      } else if (parts.length === 2) {
+        firstName = parts[0];
+        lastName = parts[1];
+      } else if (parts.length > 2) {
+        firstName = parts.slice(0, -1).join(" ");
+        lastName = parts[parts.length - 1];
+      }
+      name = [firstName, lastName].filter(Boolean).join(" ");
+    }
+  }
+
+  let phone = "";
+  m = raw.match(
+    new RegExp(
+      "(?:Téléphone|Telephone)\\s*[:\\s]\\s*([+0-9][0-9.\\s/-]{6,})" + nextLabel,
+      "i",
+    ),
+  );
+  if (m) {
+    phone = m[1].replace(/[.\s/-]/g, "").trim();
+  }
+
+  let email = "";
+  m = raw.match(
+    /(?:Adresse\s*(?:e-?mail|mail)|E-?mail)\s*[:\s]\s*([^\s]+@[^\s]+)/i,
+  );
+  if (m) {
+    email = m[1].replace(/[>,;]+$/, "").trim();
+  }
+
+  return { firstName, lastName, name, phone, email };
+}
+
+/**
  * Map inbound_emails row (source=cf7 only) → inbox item.
- * Never "Prospect inconnu" — mail UX: from · subject · snippet · received_at.
+ * CF7: parse Prénom/Nom + téléphone + email from snippet/body;
+ * detail pane = FULL body/snippet (not truncated); keep gmail_permalink.
  */
 export function mapInboundEmailToInboxItem(row) {
   if (!row) return null;
@@ -171,10 +252,25 @@ export function mapInboundEmailToInboxItem(row) {
   const fromEmail = (row.from_email || "").trim();
   const subject = (row.subject || "").trim();
   const snippet = (row.snippet || "").trim();
-  // No body column yet — snippet is the body content for detail
+  // No body column yet — snippet is the body content for detail (show FULL text)
   const body = (row.body || row.snippet || "").trim();
+  const src = String(row.source || "").toLowerCase();
+  const cf7 =
+    src === "cf7" ? parseCf7ContactBody(body || snippet) : null;
+
+  const firstName = (cf7 && cf7.firstName) || fromName || "";
+  const lastName = (cf7 && cf7.lastName) || "";
+  const email = (cf7 && cf7.email) || fromEmail || "";
+  const phone = (cf7 && cf7.phone) || "";
   const displayName =
-    fromName || fromEmail || subject || "Mail entrant";
+    (cf7 && cf7.name) ||
+    [firstName, lastName].filter(Boolean).join(" ").trim() ||
+    fromName ||
+    fromEmail ||
+    email ||
+    subject ||
+    "Mail entrant";
+
   const when = row.received_at || row.created_at || null;
   let whenIso = when;
   if (typeof whenIso === "string" && /^\d{4}-\d{2}-\d{2} \d{2}:/.test(whenIso)) {
@@ -186,10 +282,10 @@ export function mapInboundEmailToInboxItem(row) {
     clientId: null,
     type: "email",
     name: displayName,
-    firstName: fromName,
-    lastName: "",
-    email: fromEmail,
-    phone: "",
+    firstName,
+    lastName,
+    email,
+    phone,
     subject,
     snippet,
     body,
