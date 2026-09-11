@@ -563,14 +563,7 @@ export default function SimulatorChatPanel({
             </div>
 
             <div className="simulator-chat-panel__thread">
-              <div className="simulator-chat-panel__messages">
-                {messages.length === 0 && (
-                  <div className="simulator-chat-panel__messages-hint">
-                    {sessionId
-                      ? "Collez une note ou posez une question sur ce dossier."
-                      : "Collez une note ou posez une question — une session sera créée à l'envoi."}
-                  </div>
-                )}
+              <div className={`simulator-chat-panel__messages${messages.length === 0 ? " simulator-chat-panel__messages--empty" : ""}`}>
                 {messages.map((msg) => {
                   const isAssistant = msg.role === "assistant";
                   const isPinned = isAssistant && pinnedNote && pinnedNote === msg.content;
@@ -600,7 +593,13 @@ export default function SimulatorChatPanel({
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={pastille ? PASTILLE_PLACEHOLDERS[pastille] : "Collez la note client ou posez une question…"}
+                  placeholder={
+                    pastille
+                      ? PASTILLE_PLACEHOLDERS[pastille]
+                      : sessionId
+                        ? "Collez la note client ou posez une question…"
+                        : "Collez une note ou posez une question — session créée à l'envoi…"
+                  }
                   disabled={sending || !clientId}
                   rows={2}
                 />

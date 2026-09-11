@@ -19,7 +19,13 @@
   }
   &__bar-hint { font-size: 12px; font-weight: 400; opacity: 0.85; }
 
-  &__body { display: flex; height: 168px; }
+  /* Composer-first: no fixed tall void when empty (JF shot 06) */
+  &__body {
+    display: flex;
+    align-items: stretch;
+    min-height: 0;
+    height: auto;
+  }
 
   &__sessions {
     width: 148px;
@@ -40,7 +46,7 @@
     &:disabled { opacity: 0.6; cursor: default; }
   }
   &__sessions-list { flex: 1; overflow-y: auto; }
-  &__sessions-empty { padding: 10px; color: #bbb; font-size: 12px; text-align: center; }
+  &__sessions-empty { padding: 6px 8px; color: #bbb; font-size: 11px; text-align: center; }
   &__session-item {
     position: relative;
     padding: 6px 22px 6px 8px;
@@ -63,25 +69,23 @@
     margin: 0;
     padding: 8px 10px;
   }
-  &__messages-hint {
-    flex: 0 0 auto;
-    color: #6e6b7b;
-    font-size: 12px;
-    line-height: 1.35;
-    text-align: left;
-    margin: 0;
-    padding: 6px 10px;
-    border-bottom: 1px solid #f3f2f7;
-    background: #fafafa;
-  }
   &__messages {
-    flex: 1;
+    flex: 1 1 auto;
     min-height: 0;
+    max-height: 240px;
     overflow-y: auto;
     padding: 6px 8px;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
+    &--empty {
+      flex: 0 0 0;
+      min-height: 0;
+      max-height: 0;
+      padding: 0;
+      overflow: hidden;
+      border: 0;
+    }
   }
 
   &__bubble {
