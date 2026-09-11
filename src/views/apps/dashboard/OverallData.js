@@ -435,7 +435,7 @@ export default function OverallCard() {
     chatbot: null, // conversation_archives
     diags: null, // simulator_difficulty_results
     prospects: null, // CRM users Client|Prospect|user (created_at)
-    kpis: null, // for Mail tile only
+    inboundEmails: null, // Mail tile = inbound_emails cf7|chatbot_report
   });
 
   // Contrats signés période — suivi_avancement.step1 + documents.advanced_payment (flat join)
@@ -477,7 +477,7 @@ export default function OverallCard() {
         chatbot: null,
         diags: null,
         prospects: null,
-        kpis: null,
+        inboundEmails: null,
       };
 
       // Prospects créés = CRM fiches created: Client|Prospect|user (excl. admin/consultant/expert)
@@ -538,14 +538,14 @@ export default function OverallCard() {
       }
 
       try {
-        // KpiController paginate(25) fixed — must page (Mail tile only)
-        next.kpis = await fetchAllPages(
-          `${global.config.server_url}/kpis`,
-          {},
+        // Mail tile = inbound_emails source cf7|chatbot_report (auth:api)
+        next.inboundEmails = await fetchAllPages(
+          `${global.config.server_url}/inbound-emails`,
+          { source: "cf7,chatbot_report", per_page: 200 },
         );
       } catch (e) {
-        console.error("dashboard kpis activity", e);
-        next.kpis = null;
+        console.error("dashboard inbound emails activity", e);
+        next.inboundEmails = null;
       }
 
       // Contrats signés: GET /suivi-avancement/all (flat join incl. advanced_payment)
@@ -570,7 +570,7 @@ export default function OverallCard() {
         setActivityRaw({
           chatbot: next.chatbot,
           diags: next.diags,
-          kpis: next.kpis,
+          inboundEmails: next.inboundEmails,
           prospects: next.prospects,
         });
         setSuiviRaw(suiviList);
@@ -600,17 +600,17 @@ export default function OverallCard() {
     );
     const mk = (raw, keys) =>
       raw == null ? null : countInPeriod(raw, keys, start, end);
-    // Mail = kpis where objet contains mail|email (kpi_date then created_at)
+    // Mail = inbound_emails source cf7|chatbot_report × received_at (fallback created_at)
     let mail = null;
-    if (activityRaw.kpis != null) {
+    if (activityRaw.inboundEmails != null) {
       mail = 0;
-      const items = activityRaw.kpis;
+      const items = activityRaw.inboundEmails;
       if (Array.isArray(items)) {
+        const ALLOWED = new Set(["cf7", "chatbot_report"]);
         for (const it of items) {
           if (!it) continue;
-          const objet = String(it.objet || "").toLowerCase();
-          if (!/mail|email/.test(objet)) continue;
-          let d = parseDate(it.kpi_date) || parseDate(it.created_at);
+          if (!ALLOWED.has(String(it.source || "").toLowerCase())) continue;
+          let d = parseDate(it.received_at) || parseDate(it.created_at);
           if (d && d >= start && d <= end) mail += 1;
         }
       }

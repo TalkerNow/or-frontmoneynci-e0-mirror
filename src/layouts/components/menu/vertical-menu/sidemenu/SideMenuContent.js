@@ -118,6 +118,7 @@ class SideMenuContent extends React.Component {
     diagnosticBadge: 0,
     callBadge: 0,
     emailBadge: 0,
+    inboundMailBadge: 0, // unread inbound_emails cf7|chatbot_report
     tasksBadge: 0,
     contractsBadge: 0,
     flag: true,
@@ -540,6 +541,24 @@ class SideMenuContent extends React.Component {
         console.error("❌ Error fetching urgent tasks count", err),
       );
 
+    // --- Fetch inbound_emails unread (Mails pastille, cf7|chatbot_report) ---
+    axios
+      .get(
+        global.config.server_url +
+          "/inbound-emails/unread-count?source=cf7,chatbot_report",
+        Config,
+      )
+      .then((res) => {
+        const n = Number(res?.data?.count);
+        this.setState({
+          inboundMailBadge: Number.isFinite(n) ? n : 0,
+          emailBadge: Number.isFinite(n) ? n : 0,
+        });
+      })
+      .catch((err) =>
+        console.error("❌ Error fetching inbound mail unread count", err),
+      );
+
     // --- Fetch Unpaid Terminated Contracts Count ---
     axios
       .get(global.config.server_url + "/documents", Config)
@@ -645,7 +664,9 @@ class SideMenuContent extends React.Component {
                 const targetLink =
                   item.id === "kpi" && this.state.crmBadge > 0
                     ? "/kpi/suivi"
-                    : item.navLink;
+                    : item.id === "contact" && this.state.inboundMailBadge > 0
+                      ? "/kpi/inbox/email"
+                      : item.navLink;
                 // JF: clic mot = navigate + expand (force open, never toggle closed)
                 this.setState((prev) => {
                   const open = prev.activeGroups.includes(item.id)
@@ -686,7 +707,8 @@ class SideMenuContent extends React.Component {
             style={
               ((item.id === "kpi" && this.state.crmBadge > 0) ||
                 (item.id === "tasks" && this.state.tasksBadge > 0) ||
-                (item.id === "contracts" && this.state.contractsBadge > 0)) &&
+                (item.id === "contracts" && this.state.contractsBadge > 0) ||
+                (item.id === "contact" && this.state.inboundMailBadge > 0)) &&
               !this.props.isCollapsed
                 ? { paddingRight: "44px" }
                 : undefined
@@ -709,7 +731,8 @@ class SideMenuContent extends React.Component {
               {/* Petit point rouge pour les notifs (visible en collapsed) */}
               {((item.id === "contracts" && this.state.contractsBadge > 0) ||
                 (item.id === "tasks" && this.state.tasksBadge > 0) ||
-                (item.id === "kpi" && this.state.crmBadge > 0)) && (
+                (item.id === "kpi" && this.state.crmBadge > 0) ||
+                (item.id === "contact" && this.state.inboundMailBadge > 0)) && (
                 <span
                   className="sidebar-notif-dot"
                   style={{
@@ -753,6 +776,33 @@ class SideMenuContent extends React.Component {
                 }}
               >
                 {this.state.contractsBadge}
+              </span>
+            ) : null}
+
+            {/* ✅ Badge Mails inbound non lus (cf7|chatbot_report) */}
+            {item.id === "contact" && this.state.inboundMailBadge > 0 ? (
+              <span
+                className="sidebar-badge-num"
+                style={{
+                  position: "absolute",
+                  right: 10,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minWidth: 22,
+                  height: 22,
+                  borderRadius: 11,
+                  backgroundColor: "#ea5455",
+                  color: "#fff",
+                  fontSize: 10,
+                  fontWeight: 600,
+                  lineHeight: 1,
+                  padding: "0 5px",
+                }}
+              >
+                {this.state.inboundMailBadge}
               </span>
             ) : null}
 
@@ -844,6 +894,7 @@ class SideMenuContent extends React.Component {
               diagnosticBadge={this.state.diagnosticBadge}
               callBadge={this.state.callBadge}
               emailBadge={this.state.emailBadge}
+              inboundMailBadge={this.state.inboundMailBadge}
               opportunitiesBadge={this.state.opportunitiesBadge}
             />
           ) : (
