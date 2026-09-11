@@ -456,6 +456,9 @@ export default function OverallCard() {
     kanbans: null, // user_kanbans
   });
 
+  // Contrats signés période — suivi_avancement.step1 + documents.advanced_payment (flat join)
+  const [suiviRaw, setSuiviRaw] = useState(null); // null = fail/hide; [] = 0 OK
+
   const fetchYear = useCallback(
     async (y) => {
       // Ne pas charger les données si l'utilisateur n'est pas admin
@@ -595,6 +598,24 @@ export default function OverallCard() {
         next.kanbans = null;
       }
 
+      // Contrats signés: GET /suivi-avancement/all (flat join incl. advanced_payment)
+      let suiviList = null;
+      try {
+        const res = await axios.get(
+          `${global.config.server_url}/suivi-avancement/all`,
+          AUTH_CONFIG,
+        );
+        const payload = res.data;
+        suiviList = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.data)
+            ? payload.data
+            : [];
+      } catch (e) {
+        console.error("dashboard contrats signes suivi", e);
+        suiviList = null;
+      }
+
       if (!cancelled) {
         setActivityRaw((prev) => ({
           chatbot: next.chatbot,
@@ -605,6 +626,7 @@ export default function OverallCard() {
           prospects:
             next.prospects === undefined ? prev.prospects : next.prospects,
         }));
+        setSuiviRaw(suiviList);
       }
     })();
 
@@ -675,6 +697,33 @@ export default function OverallCard() {
     currentWeek,
   ]);
 
+  // Contrats signés (période) — count step1 + SUM advanced_payment (TTC devis, ≠ CA encaissé)
+  const contratsSignesPeriod = useMemo(() => {
+    if (suiviRaw == null) return { count: null, ttc: null };
+    const { start, end } = getPeriodBounds(
+      activeTab,
+      year,
+      monthIndex,
+      trimIndex,
+      currentWeek,
+    );
+    let count = 0;
+    let ttc = 0;
+    for (const it of suiviRaw) {
+      if (!it) continue;
+      const d = parseDate(it.step1_completed_at);
+      if (!d || d < start || d > end) continue;
+      count += 1;
+      // API flat join exposes advanced_payment; tolerate nested document/facture if shape changes
+      const ap =
+        it.advanced_payment ??
+        it.document?.advanced_payment ??
+        it.facture?.advanced_payment;
+      ttc += Number(ap || 0);
+    }
+    return { count, ttc };
+  }, [suiviRaw, activeTab, year, monthIndex, trimIndex, currentWeek]);
+
   const statsForMonth = useCallback(
     (i) => ({
       ca: fmt(data.current_total_amount[i]),
@@ -737,7 +786,8 @@ export default function OverallCard() {
   const tabStats = useMemo(() => {
     const UL = (v) => v;
     // Money / contrats only — people moved to Stock; motion to Activité
-    const COUNT_LABELS = new Set(["Contrats cloturés"]);
+    // Contrats signés = step1 période (count); Signés TTC = SUM advanced_payment (≠ CA encaissé)
+    const COUNT_LABELS = new Set(["Contrats cloturés", "Contrats signés"]);
     const common = [
       {
         icon: TrendingUp,
@@ -768,6 +818,20 @@ export default function OverallCard() {
         color: "#28c76f",
       },
       {
+        icon: FileText,
+        bubbleClass: "bg-rgba-primary",
+        valueKey: "contratsSignes",
+        label: "Contrats signés",
+        color: "#7367f0",
+      },
+      {
+        icon: DollarSign,
+        bubbleClass: "bg-rgba-warning",
+        valueKey: "signesTtc",
+        label: "Signés TTC",
+        color: "#ff9f43",
+      },
+      {
         icon: CheckCircle,
         bubbleClass: "bg-rgba-danger",
         valueKey: "contratsClotures",
@@ -775,6 +839,17 @@ export default function OverallCard() {
         color: "#ea5455",
       },
     ];
+    const withSigned = (obj) => ({
+      ...obj,
+      contratsSignes:
+        contratsSignesPeriod.count == null
+          ? null
+          : fmt(contratsSignesPeriod.count),
+      signesTtc:
+        contratsSignesPeriod.ttc == null
+          ? null
+          : fmt(contratsSignesPeriod.ttc),
+    });
     const toCards = (obj) =>
       common
         .filter(({ valueKey }) => obj[valueKey] != null)
@@ -786,11 +861,11 @@ export default function OverallCard() {
           label,
         }));
     return {
-      month: toCards(monthlyStats),
-      trim: toCards(trimesterStats),
-      year: toCards(yearlyStats),
+      month: toCards(withSigned(monthlyStats)),
+      trim: toCards(withSigned(trimesterStats)),
+      year: toCards(withSigned(yearlyStats)),
     };
-  }, [monthlyStats, trimesterStats, yearlyStats]);
+  }, [monthlyStats, trimesterStats, yearlyStats, contratsSignesPeriod]);
 
   const [openYear, setOpenYear] = useState(false);
   const [openMonth, setOpenMonth] = useState(false);
@@ -998,7 +1073,10 @@ export default function OverallCard() {
                 <StatGrid
                   stats={(() => {
                     const UL = (v) => v;
-                    const COUNT_LABELS = new Set(["Contrats cloturés"]);
+                    const COUNT_LABELS = new Set([
+                      "Contrats cloturés",
+                      "Contrats signés",
+                    ]);
                     const common = [
                       {
                         icon: TrendingUp,
@@ -1029,6 +1107,20 @@ export default function OverallCard() {
                         color: "#28c76f",
                       },
                       {
+                        icon: FileText,
+                        bubbleClass: "bg-rgba-primary",
+                        valueKey: "contratsSignes",
+                        label: "Contrats signés",
+                        color: "#7367f0",
+                      },
+                      {
+                        icon: DollarSign,
+                        bubbleClass: "bg-rgba-warning",
+                        valueKey: "signesTtc",
+                        label: "Signés TTC",
+                        color: "#ff9f43",
+                      },
+                      {
                         icon: CheckCircle,
                         bubbleClass: "bg-rgba-danger",
                         valueKey: "contratsClotures",
@@ -1036,7 +1128,17 @@ export default function OverallCard() {
                         color: "#ea5455",
                       },
                     ];
-                    const obj = weeklyStats;
+                    const obj = {
+                      ...weeklyStats,
+                      contratsSignes:
+                        contratsSignesPeriod.count == null
+                          ? null
+                          : fmt(contratsSignesPeriod.count),
+                      signesTtc:
+                        contratsSignesPeriod.ttc == null
+                          ? null
+                          : fmt(contratsSignesPeriod.ttc),
+                    };
                     return common
                       .filter(({ valueKey }) => obj[valueKey] != null)
                       .map(({ icon, bubbleClass, valueKey, label, color }) => ({
