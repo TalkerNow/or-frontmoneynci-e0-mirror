@@ -963,7 +963,7 @@ export default function OverallCard() {
   if (!isAdmin) return null;
 
   return (
-    <>
+    <div className="w-100">
       <style>{DROPDOWN_CSS}</style>
       <Card>
         <CardHeader className="pb-2">
@@ -1188,6 +1188,6 @@ export default function OverallCard() {
         activeTab={activeTab}
         weekNumber={weekNumber}
       />
-    </>
+    </div>
   );
 }

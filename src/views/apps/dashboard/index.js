@@ -38,7 +38,7 @@ class Index extends React.Component {
   render() {
     return (
       <React.Fragment>
-        <Row className="match-height">
+        <Row className="align-items-start">
           <Col lg="12" md="6" sm="6">
             <OverallCard
               clients_count={this.state.clients_count}
