@@ -140,14 +140,14 @@ class ClientsList extends React.Component {
       suppressRowClickSelection: true,
     },
     columnDefs: [
-      // ====== COLONNE "Type" - Badge Client/Prospect ======
+      // ====== COLONNE "Type" - pastilles v1 (Client/Prospect/Ancien/Perdue) ======
       {
         headerName: "Type",
         field: "role",
         colId: "type",
         filter: false,
-        width: 100,
-        minWidth: 100,
+        width: 110,
+        minWidth: 110,
         flex: 0,
         cellStyle: {
           display: "flex",
@@ -155,23 +155,44 @@ class ClientsList extends React.Component {
           justifyContent: "center",
         },
         cellRendererFramework: (params) => {
+          // JF/Cap'tain 2026-09-11 Type pastilles v1 (TEST):
+          // Perdue > Ancien > Prospect > Client. Bot/Diag hors v1.
           const role = (params?.data?.role || "").toLowerCase();
-          const isProspect = role === "prospect";
+          const status = (params?.data?.status || "").toLowerCase();
+          const base = { fontSize: "0.75rem", fontWeight: 600 };
+          let label = "CLIENT";
+          let color = "light-success";
+          let style = { ...base };
+
+          if (status === "perdu") {
+            label = "PERDUE";
+            color = undefined;
+            style = {
+              ...base,
+              backgroundColor: "#fce8e8",
+              color: "#ea5455",
+            };
+          } else if (role === "old_client") {
+            label = "ANCIEN";
+            color = undefined;
+            style = {
+              ...base,
+              backgroundColor: "#e9ecef",
+              color: "#6c757d",
+            };
+          } else if (role === "prospect") {
+            label = "PROSPECT";
+            color = undefined;
+            style = {
+              ...base,
+              backgroundColor: "#fde8dc",
+              color: "#c45c26",
+            };
+          }
+
           return (
-            <Badge
-              color={isProspect ? undefined : "light-success"}
-              pill
-              style={
-                isProspect
-                  ? {
-                      backgroundColor: "#dbeafe",
-                      color: "#2c6ddf",
-                      fontSize: "0.75rem",
-                    }
-                  : { fontSize: "0.75rem" }
-              }
-            >
-              {isProspect ? "PROSPECT" : "CLIENT"}
+            <Badge color={color} pill style={style}>
+              {label}
             </Badge>
           );
         },
