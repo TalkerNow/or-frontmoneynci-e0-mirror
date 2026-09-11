@@ -29,10 +29,39 @@ body, input, button, select, textarea, .navigation, .main-menu {
 }
 
 
-/* JF Cap'tain 2026-09-11 — active leaf = EOR navy underline, no purple/violet pill.
+/* JF Cap'tain 2026-09-11 — active leaf = EOR navy underline word-only, no violet bg.
    Color sampled from src/assets/img/logo/eor.png (250px pack) dominant #002060.
-   Route-only: .active comes from menuActiveMatch leaf, never sticky parent. */
+   Route-only: .active from menuActiveMatch leaf, never sticky parent.
+   Beat Vuexy mixin: .main-menu.menu-* .navigation > li ul.menu-content li.active > a (!important gradient).
+   Also kill li.active gradient from core/menu/_navigation.scss ~232. */
 $eor-navy: #002060;
+
+@mixin eor-nav-active-title {
+  .menu-title {
+    /* flex:1 on Vuexy .menu-title made underline span full row — force word width */
+    display: inline !important;
+    flex: none !important;
+    flex-grow: 0 !important;
+    width: auto !important;
+    max-width: none !important;
+    color: $eor-navy !important;
+    border-bottom: 2px solid $eor-navy !important;
+    padding-bottom: 1px;
+    text-decoration: none !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+}
+
+@mixin eor-kill-violet-bg {
+  color: inherit !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
 
 .main-menu {
   &.menu-light,
@@ -42,52 +71,53 @@ $eor-navy: #002060;
         &.open:not(.active) > a,
         ul.menu-content .open:not(.active) > a {
           background: transparent !important;
+          background-image: none !important;
           box-shadow: none !important;
           color: inherit;
         }
         &.sidebar-group-active:not(.active) > a {
           background: transparent !important;
-          box-shadow: none !important;
-        }
-        /* Kill Vuexy purple gradient / violet wash on any active leaf */
-        &.nav-item.active > a,
-        &.active > a {
-          color: inherit !important;
-          background: transparent !important;
           background-image: none !important;
           box-shadow: none !important;
-          border-radius: 0 !important;
+        }
+
+        /* Top-level active leaf — match Vuexy .nav-item.active > a */
+        &.nav-item.active > a,
+        &.active > a,
+        &.has-sub.active > a {
+          @include eor-kill-violet-bg;
           font-weight: 500;
-          .menu-title {
-            color: $eor-navy;
-            border-bottom: 2px solid $eor-navy;
-            padding-bottom: 1px;
-            text-decoration: none;
+          @include eor-nav-active-title;
+        }
+
+        /* Sub-item: mixin puts gradient on > a with !important — equal/beat specificity */
+        ul.menu-content li.active {
+          @include eor-kill-violet-bg;
+          > a {
+            @include eor-kill-violet-bg;
+            font-weight: 500;
+            @include eor-nav-active-title;
           }
         }
       }
+
+      /* _navigation.scss ~221–238: gradient on .nav-item.active a AND on li.active */
+      .nav-item.active > a,
       .nav-item.active a,
       .nav-item .menu-content li.active,
-      ul.menu-content > li.active {
-        background: transparent !important;
-        background-image: none !important;
-        box-shadow: none !important;
+      .nav-item .menu-content li.active > a,
+      ul.menu-content > li.active,
+      ul.menu-content > li.active > a,
+      ul.menu-content li.active,
+      ul.menu-content li.active > a {
+        @include eor-kill-violet-bg;
       }
-      ul.menu-content > li.active {
-        > a {
-          color: inherit !important;
-          background: transparent !important;
-          background-image: none !important;
-          box-shadow: none !important;
-          border-radius: 0 !important;
-          font-weight: 500;
-          .menu-title {
-            color: $eor-navy;
-            border-bottom: 2px solid $eor-navy;
-            padding-bottom: 1px;
-            text-decoration: none;
-          }
-        }
+
+      .nav-item.active > a,
+      .nav-item .menu-content li.active > a,
+      ul.menu-content li.active > a {
+        font-weight: 500;
+        @include eor-nav-active-title;
       }
     }
   }
