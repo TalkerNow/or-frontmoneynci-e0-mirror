@@ -65,6 +65,11 @@ const DOC_FOLDERS = [
   { id: 6, name: "Autre" },
 ];
 
+/** Default dossier for composer drop-upload — same as Documents.js
+ *  `uploadFilesToDossier(files, dossier || 0)` when not inside a folder:
+ *  unsorted / non trié (id 0). Not Autre (6), not simulator RIS (10). */
+const DROP_DOSSIER_DEFAULT = 0;
+
 function authConfig(extra = {}) {
   return {
     headers: { Authorization: "Bearer " + localStorage.getItem("token"), ...(extra.headers || {}) },
@@ -107,6 +112,9 @@ export default function SimulatorChatPanel({
   pinnedNote,
   onPin,
   onUnpin,
+  // Intentionally unused: SimulatorIntegration.handleUpload stores dossier=10
+  // and runs detectDocType / parsePdf (silent OCR). Drop-upload v1 uses the
+  // Documents `/uploadFiles` pipe instead — INTERDIT auto OCR / calc / Analyse.
   onAttach: _onAttach,
   onSelectProfileDoc: _onSelectProfileDoc,
   profileDocs = [],
@@ -127,24 +135,39 @@ export default function SimulatorChatPanel({
   const [newFileName, setNewFileName] = useState("");
   const [deleteFileModal, setDeleteFileModal] = useState(false);
   const [fileToDeleteId, setFileToDeleteId] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [uploadingDrop, setUploadingDrop] = useState(false);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const sessionIdRef = useRef(null);
+  const dragCounterRef = useRef(0);
+  const uploadingDropRef = useRef(false);
 
   useEffect(() => { sessionIdRef.current = sessionId; }, [sessionId]);
 
   const loadClientFiles = useCallback(() => {
     if (!clientId) {
       setClientFiles([]);
-      return;
+      return Promise.resolve([]);
     }
-    axios
+    return axios
       .get(global.config.server_url + "/files?user_id=" + clientId, authConfig())
       .then((response) => {
         const files = Array.isArray(response.data) ? response.data : [];
         setClientFiles(files);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("clientDocumentsCountUpdated", {
+              detail: { clientId, count: files.length },
+            })
+          );
+        }
+        return files;
       })
-      .catch(() => setClientFiles([]));
+      .catch(() => {
+        setClientFiles([]);
+        return [];
+      });
   }, [clientId]);
 
   useEffect(() => { loadClientFiles(); }, [loadClientFiles]);
@@ -295,6 +318,97 @@ export default function SimulatorChatPanel({
     setPastille((prev) => (prev === p.id ? null : p.id));
   };
 
+  const appendDropAck = (filenames) => {
+    const now = new Date().toISOString();
+    const acks = filenames.map((name, i) => ({
+      id: `drop-ack-${Date.now()}-${i}`,
+      role: "user",
+      content: `reçu : ${name}`,
+      created_at: now,
+    }));
+    setMessages((prev) => [...prev, ...acks]);
+  };
+
+  // Same HTTP pipe as Documents.js uploadFilesToDossier — NOT handleUpload
+  // (that path is dossier=10 + detectDocType / OCR). No calc, no Analyse carrière.
+  const uploadDroppedFiles = (fileList) => {
+    const acceptedFiles = Array.from(fileList || []).filter((f) => f && f.name);
+    if (!acceptedFiles.length || !clientId || uploadingDropRef.current) return;
+    uploadingDropRef.current = true;
+    setUploadingDrop(true);
+    const formData = new FormData();
+    formData.set("user_id", clientId);
+    formData.set("dossier", String(DROP_DOSSIER_DEFAULT));
+    acceptedFiles.forEach((file, i) => formData.append("photoUpload" + i, file));
+    const Config = {
+      headers: {
+        Authorization: "Bearer " + localStorage.getItem("token"),
+        "Content-Type": "multipart/form-data",
+      },
+    };
+    axios
+      .post(global.config.server_url + "/uploadFiles", formData, Config)
+      .then((response) => {
+        const files = response.data && Array.isArray(response.data.files) ? response.data.files : [];
+        const ok = (response.data && response.data.success === true) || files.length > 0;
+        if (!ok) {
+          toast.error("Échec de l'upload du fichier.");
+          return null;
+        }
+        toast.success(acceptedFiles.length > 1 ? "Fichiers uploadés" : "Fichier uploadé");
+        const ensureSid = sessionIdRef.current
+          ? Promise.resolve(sessionIdRef.current)
+          : createSessionRequest().catch(() => null);
+        return ensureSid.then(() => {
+          appendDropAck(acceptedFiles.map((f) => f.name));
+          return loadClientFiles();
+        });
+      })
+      .catch(() => toast.error("Erreur lors de l'upload du fichier."))
+      .finally(() => {
+        uploadingDropRef.current = false;
+        setUploadingDrop(false);
+        setDragOver(false);
+        dragCounterRef.current = 0;
+      });
+  };
+
+  const hasFileDrag = (e) => {
+    const types = e.dataTransfer && e.dataTransfer.types;
+    if (!types) return false;
+    return Array.from(types).indexOf("Files") !== -1;
+  };
+
+  const onComposerDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!hasFileDrag(e) || !clientId) return;
+    dragCounterRef.current += 1;
+    setDragOver(true);
+  };
+
+  const onComposerDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = clientId ? "copy" : "none";
+  };
+
+  const onComposerDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
+    if (dragCounterRef.current === 0) setDragOver(false);
+  };
+
+  const onComposerDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current = 0;
+    setDragOver(false);
+    if (!clientId) return;
+    uploadDroppedFiles(e.dataTransfer && e.dataTransfer.files);
+  };
+
   // ── Documents ⋮ parity handlers (same endpoints / events as Documents.js) ──
   const moveFile = (fileId, newFolder) => {
     axios
@@ -411,7 +525,7 @@ export default function SimulatorChatPanel({
           caret={false}
           className="simulator-chat-panel__attach"
           title={file ? `Actions document — ${file.filename}` : "Actions document"}
-          disabled={sending}
+          disabled={sending || uploadingDrop}
           aria-label="Menu document (comme Documents ⋮)"
         >
           +
@@ -614,7 +728,13 @@ export default function SimulatorChatPanel({
                 <div ref={messagesEndRef} />
               </div>
 
-              <div className="simulator-chat-panel__input">
+              <div
+                className={`simulator-chat-panel__input${dragOver ? " simulator-chat-panel__input--drop" : ""}${uploadingDrop ? " simulator-chat-panel__input--uploading" : ""}`}
+                onDragEnter={onComposerDragEnter}
+                onDragOver={onComposerDragOver}
+                onDragLeave={onComposerDragLeave}
+                onDrop={onComposerDrop}
+              >
                 {renderDocsMenu()}
                 <textarea
                   ref={textareaRef}
@@ -625,12 +745,17 @@ export default function SimulatorChatPanel({
                     pastille
                       ? PASTILLE_PLACEHOLDERS[pastille]
                       : sessionId
-                        ? "Collez la note client ou posez une question…"
-                        : "Collez une note ou posez une question — session créée à l'envoi…"
+                        ? "Collez la note client, posez une question ou déposez un fichier…"
+                        : "Collez une note ou déposez un fichier — session créée à l'envoi…"
                   }
-                  disabled={sending || !clientId}
+                  disabled={sending || uploadingDrop || !clientId}
                   rows={2}
                 />
+                {dragOver && (
+                  <div className="simulator-chat-panel__drop-hint" aria-hidden="true">
+                    Déposez le fichier ici
+                  </div>
+                )}
                 <button
                   type="button"
                   className="simulator-chat-panel__send"

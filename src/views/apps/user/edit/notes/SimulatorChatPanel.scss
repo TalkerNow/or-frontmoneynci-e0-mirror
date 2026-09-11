@@ -116,6 +116,7 @@
   &__bubble-meta { font-size: 10px; opacity: 0.6; margin-top: 4px; }
 
   &__input {
+    position: relative;
     display: flex; gap: 6px; padding: 6px 8px; border-top: 1px solid #eee; align-items: flex-end;
     textarea {
       flex: 1; resize: none; min-height: 36px; max-height: 120px;
@@ -124,6 +125,29 @@
     }
     button { padding: 0 16px; border: none; border-radius: 6px; background: #6c5ce7; color: #fff; font-weight: 700; cursor: pointer; }
     button:disabled { opacity: 0.5; cursor: default; }
+    &--drop {
+      outline: 2px dashed #6c5ce7;
+      outline-offset: -2px;
+      background: #f7f5ff;
+      border-radius: 6px;
+    }
+    &--uploading {
+      opacity: 0.75;
+    }
+  }
+  &__drop-hint {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 6;
+    font-size: 13px;
+    font-weight: 700;
+    color: #6c5ce7;
+    background: rgba(247, 245, 255, 0.92);
+    border-radius: 6px;
   }
   &__attach {
     flex-shrink: 0;

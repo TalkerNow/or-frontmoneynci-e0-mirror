@@ -60,6 +60,7 @@ class UserEdit extends React.Component {
     showUnsavedModal: false,
     taskCount: 0,
     hasUrgentTask: false,
+    documentsCount: 0,
   };
 
   navRef = null;
@@ -185,6 +186,34 @@ class UserEdit extends React.Component {
     }
   };
 
+  fetchDocumentsCount = async () => {
+    const Config = {
+      headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+    };
+    const { id } = this.props.match.params;
+    try {
+      const response = await axios.get(
+        global.config.server_url + "/files?user_id=" + id,
+        Config,
+      );
+      const files = Array.isArray(response.data) ? response.data : [];
+      this.setState({ documentsCount: files.length });
+    } catch (e) {
+      console.error("Error fetching documents count", e);
+    }
+  };
+
+  handleDocumentsCountUpdated = (event) => {
+    const { clientId, count } = (event && event.detail) || {};
+    const { id } = this.props.match.params;
+    if (String(clientId) !== String(id)) return;
+    if (typeof count === "number" && count >= 0) {
+      this.setState({ documentsCount: count });
+    } else {
+      this.fetchDocumentsCount();
+    }
+  };
+
   fetchMembers = async () => {
     const Config = {
       headers: { Authorization: "Bearer " + localStorage.getItem("token") },
@@ -208,11 +237,16 @@ class UserEdit extends React.Component {
       "careerAnalysisFileReady",
       this.handleCareerAnalysisFileNavigate,
     );
+    window.addEventListener(
+      "clientDocumentsCountUpdated",
+      this.handleDocumentsCountUpdated,
+    );
 
     // Utilise les méthodes centralisées
     await this.fetchUser();
     await this.fetchMembers();
     await this.fetchTaskCount();
+    await this.fetchDocumentsCount();
     // Calculate offsets immediately after mount for alignment
     setTimeout(() => {
       if (this.state.activeTab === "simulateur") this.computeSimuOffset();
@@ -225,6 +259,10 @@ class UserEdit extends React.Component {
     window.removeEventListener(
       "careerAnalysisFileReady",
       this.handleCareerAnalysisFileNavigate,
+    );
+    window.removeEventListener(
+      "clientDocumentsCountUpdated",
+      this.handleDocumentsCountUpdated,
     );
   }
 
@@ -253,6 +291,7 @@ class UserEdit extends React.Component {
       // Re-fetch si on change d'utilisateur
       this.fetchUser();
       this.fetchMembers();
+      this.setState({ documentsCount: 0 }, () => this.fetchDocumentsCount());
     }
   }
 
@@ -493,7 +532,7 @@ class UserEdit extends React.Component {
                   <NavItem>
                     <NavLink
                       id={`documents-link-client-${id}`}
-                      className={classnames({
+                      className={classnames("d-flex align-items-center", {
                         active: this.state.activeTab === "documents",
                       })}
                       onClick={() => this.toggle("documents")}
@@ -503,6 +542,25 @@ class UserEdit extends React.Component {
                         {" "}
                         Documents
                       </span>
+                      {this.state.documentsCount > 0 && (
+                        <span
+                          className="badge badge-pill ml-50"
+                          style={{
+                            fontSize: "0.65rem",
+                            fontWeight: 600,
+                            padding: "2px 7px",
+                            lineHeight: 1.4,
+                            minWidth: "auto",
+                            height: "auto",
+                            background: "rgba(108, 92, 231, 0.12)",
+                            color: "#5e50ee",
+                            border: "1px solid rgba(108, 92, 231, 0.22)",
+                          }}
+                          title={`${this.state.documentsCount} document${this.state.documentsCount > 1 ? "s" : ""}`}
+                        >
+                          {this.state.documentsCount}
+                        </span>
+                      )}
                     </NavLink>
                   </NavItem>
                   <NavItem>
