@@ -492,6 +492,7 @@ const InboxView = ({
         readIds={readIds}
         manualUnreadIds={manualUnreadIds}
         onMarkAsUnread={handleMarkAsUnread}
+        filter={filter}
       />
 
       <InboxDetail

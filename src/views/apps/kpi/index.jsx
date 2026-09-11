@@ -641,7 +641,7 @@ export default function KpiPage() {
   const [loadingDiagnostics, setLoadingDiagnostics] = useState(false);
   const [diagError, setDiagError] = useState("");
 
-  // Inbound emails (source=cf7 only) — Mails/contacts inbox channel
+  // Inbound emails (source=cf7 only, last ~20d, read+unread) — Mails/contacts
   const [inboundEmails, setInboundEmails] = useState([]);
   const [loadingInboundEmails, setLoadingInboundEmails] = useState(false);
   const [inboundEmailError, setInboundEmailError] = useState("");
@@ -1050,9 +1050,13 @@ export default function KpiPage() {
       let page = 1;
       let last = 1;
       const aggregated = [];
+      // HARD Cap'tain: Mail list = last ~20 days, source=cf7, read AND unread
+      const from20 = new Date();
+      from20.setDate(from20.getDate() - 20);
+      const fromIso = from20.toISOString().slice(0, 19).replace("T", " ");
       do {
         const res = await API.get("/inbound-emails", {
-          params: { source: "cf7", per_page: perPage, page },
+          params: { source: "cf7", from: fromIso, per_page: perPage, page },
         });
         const payload = res.data;
         const rows = Array.isArray(payload)

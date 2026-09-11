@@ -14,6 +14,7 @@ const InboxList = ({
   readIds,
   manualUnreadIds,
   onMarkAsUnread,
+  filter = "all",
 }) => {
   const [hoveredItemId, setHoveredItemId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -69,7 +70,9 @@ const InboxList = ({
         <h3 style={{ fontWeight: 600, color: "#374151", margin: 0 }}>
           {searchTerm
             ? `Résultats (${filteredItems.length})`
-            : `Non lus (${unreadCount})`}
+            : filter === "email"
+              ? `Mails (${filteredItems.length}) · ${unreadCount} non lus`
+              : `Non lus (${unreadCount})`}
         </h3>
       </div>
       <div style={{ overflowY: "auto", flex: 1 }}>
