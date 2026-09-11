@@ -64,7 +64,7 @@ const items = {
     title: "Clients",
     type: "item",
     icon: <Icon.Users size={20} />,
-    permissions: ["Expert", "Consultant"],
+    permissions: ["admin", "Expert", "Consultant"],
     navLink: "/app/user/clientslist",
   },
 
@@ -161,12 +161,24 @@ const consultantOrder = ["clientsList", "tasks"];
 
 const buildMenu = (order) => order.map((key) => items[key]).filter(Boolean);
 
-const role =
-  typeof window !== "undefined" && localStorage.getItem("role")
-    ? localStorage.getItem("role").toLowerCase()
-    : "consultant";
+/**
+ * Build menu EACH call — never freeze at module import.
+ * Role from localStorage.role (or optional arg / currentUser).
+ * Admin if role includes "admin" OR currentUser arg is admin.
+ */
+export function getNavigationConfig(roleOrUser) {
+  let role = "";
+  if (typeof roleOrUser === "string" && roleOrUser.trim()) {
+    role = roleOrUser.trim().toLowerCase();
+  } else if (typeof window !== "undefined") {
+    const stored = localStorage.getItem("role");
+    if (stored) role = String(stored).toLowerCase();
+  }
+  const isAdmin = role.includes("admin");
+  return isAdmin ? buildMenu(adminOrder) : buildMenu(consultantOrder);
+}
 
-const navigationConfig =
-  role === "admin" ? buildMenu(adminOrder) : buildMenu(consultantOrder);
-
+// Back-compat default: evaluate lazily via getter-like call sites should use getNavigationConfig.
+// Keep default export as a function-result at import ONLY for AccessControl docs; SideMenu uses getNavigationConfig.
+const navigationConfig = getNavigationConfig();
 export default navigationConfig;

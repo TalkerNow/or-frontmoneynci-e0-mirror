@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import classnames from "classnames";
-import navigationConfig from "../../../../../configs/navigationConfig";
+import { getNavigationConfig } from "../../../../../configs/navigationConfig";
 import SideMenuGroup from "./SideMenuGroup";
 import { ChevronRight } from "react-feather";
 import { FormattedMessage } from "react-intl";
@@ -195,6 +195,7 @@ class SideMenuContent extends React.Component {
   // Route-derived open/active groups — leave section => highlight gone (JF).
   initRender = (_parentArr) => {
     const activePath = this.props.activePath || this.props.activeItemState || "";
+    const navigationConfig = getNavigationConfig(this.props.currentUser);
     const { groupIds } = resolveActiveTrail(navigationConfig, activePath);
     this.setState({
       activeGroups: groupIds.slice(),
@@ -587,6 +588,7 @@ class SideMenuContent extends React.Component {
 
   render() {
     const pathname = this.props.activePath || this.props.activeItemState || "";
+    const navigationConfig = getNavigationConfig(this.props.currentUser);
     const { groupIds: routeGroupIds, leafId: activeLeafId } = resolveActiveTrail(
       navigationConfig,
       pathname,
