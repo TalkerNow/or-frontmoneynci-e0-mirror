@@ -32,7 +32,7 @@ import { RegimeRecapVignettes } from "./RecapCarriereParRegime";
 import SimulatorChatPanel from "./SimulatorChatPanel";
 import { buildSimulatorContext } from "./simulatorContext";
 import BaremeRetraitePage from "../../../bareme-retraite";
-import { coeffRevalo, initBareme, seuilValidationTrimestre } from "../simulatorData";
+import { coeffRevalo, initBareme, getBaremeRetraite, seuilValidationTrimestre } from "../simulatorData";
 import {
   parseBirthYear,
   computeTargetYear,
@@ -978,6 +978,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [modal, setModal] = useState(null);
   const [preentretienModal, setPreentretienModal] = useState(null);
   const [systemPromptModal, setSystemPromptModal] = useState(null);
+  // Assistant lecture-consigne — GET-only Admin refs (never apply / skill_calcul_py).
+  const [assistantPromptsCatalogue, setAssistantPromptsCatalogue] = useState(null);
+  const [assistantRegistryMeta, setAssistantRegistryMeta] = useState(null);
+
   const [hiddenSystemPrompt, setHiddenSystemPrompt] = useState("");
   const [showDetailedCalcs, setShowDetailedCalcs] = useState(false);
   const [expandedScenarios, setExpandedScenarios] = useState({});
@@ -2293,6 +2297,43 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     axios.get(`${global.config.server_url}/v1/system-prompt/latest`, Config)
       .then((res) => setHiddenSystemPrompt(res.data?.prompt_text || ""))
       .catch(() => {});
+  }, []);
+
+  // Assistant context: prefetch prompts catalogue + registry (GET only; soft-fail).
+  // Never call admin-chat apply / skill_calcul_py from this path.
+  useEffect(() => {
+    let alive = true;
+    api.get("/prompts")
+      .then((res) => {
+        if (!alive) return;
+        const raw = (res.data && res.data.data) || res.data || [];
+        const list = Array.isArray(raw) ? raw : [];
+        setAssistantPromptsCatalogue(
+          list
+            .map((p) => ({ id: p.id, name: p.name || p.title || null }))
+            .filter((p) => p.id != null)
+            .slice(0, 40)
+        );
+      })
+      .catch(() => { if (alive) setAssistantPromptsCatalogue(null); });
+    api.get("/v1/admin-chat/registry")
+      .then((res) => {
+        if (!alive) return;
+        const parsed = res.data && res.data.parsed;
+        let rules = [];
+        if (parsed && Array.isArray(parsed.rules)) rules = parsed.rules;
+        else if (Array.isArray(parsed)) rules = parsed;
+        setAssistantRegistryMeta({
+          prompt_id: (res.data && res.data.prompt_id) != null ? res.data.prompt_id : null,
+          rules_count: rules.length,
+          rule_codes: rules
+            .map((r) => r.code || r.id || null)
+            .filter(Boolean)
+            .slice(0, 30),
+        });
+      })
+      .catch(() => { if (alive) setAssistantRegistryMeta(null); });
+    return () => { alive = false; };
   }, []);
 
   // ── Parse PDF via n8n v6 (direct webhook, SimulatorV6 compatible) ─────────
@@ -4547,14 +4588,36 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
               onAttach={handleUpload}
               profileDocs={orderedDocs}
               onSelectProfileDoc={handleSelectDocument}
-              getContext={() => buildSimulatorContext({
-                user,
-                carriereRows,
-                carriereValidee,
-                chosenScenarios,
-                chosenDates,
-                scenarioSkillResults,
-              })}
+              getContext={() => {
+                const bareme = user?.birth_date ? getBaremeRetraite(user.birth_date) : null;
+                const spText = hiddenSystemPrompt || "";
+                return buildSimulatorContext({
+                  user,
+                  carriereRows,
+                  carriereValidee,
+                  chosenScenarios,
+                  chosenDates,
+                  scenarioSkillResults,
+                  systemPromptMeta: spText
+                    ? {
+                        loaded: true,
+                        excerpt: spText.slice(0, 400),
+                        length: spText.length,
+                        source: "GET /v1/system-prompt/latest",
+                      }
+                    : { loaded: false, source: "GET /v1/system-prompt/latest" },
+                  promptsCatalogue: assistantPromptsCatalogue,
+                  departureRules: bareme
+                    ? {
+                        ageLegalLabel: bareme.ageLegalLabel,
+                        ageLegalMois: bareme.ageLegalMois,
+                        trimRequis: bareme.trimRequis,
+                        source: "GET /v1/departure-rules (via initBareme cache)",
+                      }
+                    : null,
+                  registryMeta: assistantRegistryMeta,
+                });
+              }}
             />
           )}
 

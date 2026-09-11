@@ -38,11 +38,14 @@ const PASTILLE_PLACEHOLDERS = {
 };
 
 const ASSISTANT_GUIDANCE =
-  "Avant toute rédaction de document (Consultation / Calcul / Audit) : " +
-  "1) lister les manques dossier, 2) questions au consultant, 3) actions caisses / demandes client-consultant. " +
-  "Rédiger le livrable seulement ensuite — stop audit aveugle, ne pas sauter au document fini. " +
-  "En cas de doute : poser une question au consultant (la réponse pourra alimenter une KB — pas d'apprentissage silencieux). " +
-  "Si l'information est insuffisante, ne progresse pas.";
+  "Mode lecture-consigne. Avant toute rédaction (Consultation / Calcul / Audit) : " +
+  "1) lire le context (profil, résumé carrière, champs_manquants), " +
+  "2) lister manques dossier, questions consultant, actions caisses, " +
+  "3) rédiger le livrable seulement ensuite — stop audit aveugle. " +
+  "En doute : question consultant (réponse → KB, pas d'apprentissage silencieux). " +
+  "Si l'information est insuffisante, ne progresse pas. " +
+  "INTERDIT: script-execute, production-validated-calculate, calculators, executeScript, admin-chat apply. " +
+  "Pastilles = mode chat only. Ne pas auto-lancer Analyse carrière / OCR (action utilisateur via Documents ou +).";
 
 /** Same folder list / labels as Documents.js ⋮ menu (prod parity). */
 const DOC_FOLDERS = [
