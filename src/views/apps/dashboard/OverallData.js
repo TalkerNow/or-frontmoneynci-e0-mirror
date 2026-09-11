@@ -440,7 +440,7 @@ export default function OverallCard() {
     chatbot: null, // conversation_archives
     diags: null, // simulator_difficulty_results
     prospects: null, // CRM users Client|Prospect|user (created_at)
-    inboundEmails: null, // Mail tile = inbound_emails cf7|chatbot_report
+    inboundEmails: null, // Mail tile = inbound_emails source=cf7 only
   });
 
   // Contrats signés période — suivi_avancement.step1 + documents.advanced_payment (flat join)
@@ -543,10 +543,10 @@ export default function OverallCard() {
       }
 
       try {
-        // Mail tile = inbound_emails source cf7|chatbot_report (auth:api)
+        // Mail tile = inbound_emails source=cf7 only (auth:api)
         next.inboundEmails = await fetchAllPages(
           `${global.config.server_url}/inbound-emails`,
-          { source: "cf7,chatbot_report", per_page: 200 },
+          { source: "cf7", per_page: 200 },
         );
       } catch (e) {
         console.error("dashboard inbound emails activity", e);
@@ -606,13 +606,13 @@ export default function OverallCard() {
     );
     const mk = (raw, keys) =>
       raw == null ? null : countInPeriod(raw, keys, start, end);
-    // Mail = inbound_emails source cf7|chatbot_report × received_at (fallback created_at)
+    // Mail = inbound_emails source=cf7 only × received_at (fallback created_at)
     let mail = null;
     if (activityRaw.inboundEmails != null) {
       mail = 0;
       const items = activityRaw.inboundEmails;
       if (Array.isArray(items)) {
-        const ALLOWED = new Set(["cf7", "chatbot_report"]);
+        const ALLOWED = new Set(["cf7"]);
         for (const it of items) {
           if (!it) continue;
           if (!ALLOWED.has(String(it.source || "").toLowerCase())) continue;

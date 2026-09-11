@@ -162,7 +162,7 @@ export function extractSummaryFromMessages(messages) {
 // Helper: Map conversation from backend to inbox item
 
 /**
- * Map inbound_emails row (cf7|chatbot_report) → inbox item.
+ * Map inbound_emails row (source=cf7 only) → inbox item.
  * Never "Prospect inconnu" — mail UX: from · subject · snippet · received_at.
  */
 export function mapInboundEmailToInboxItem(row) {

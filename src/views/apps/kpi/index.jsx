@@ -641,7 +641,7 @@ export default function KpiPage() {
   const [loadingDiagnostics, setLoadingDiagnostics] = useState(false);
   const [diagError, setDiagError] = useState("");
 
-  // Inbound emails (cf7|chatbot_report) — Mails/contacts inbox channel
+  // Inbound emails (source=cf7 only) — Mails/contacts inbox channel
   const [inboundEmails, setInboundEmails] = useState([]);
   const [loadingInboundEmails, setLoadingInboundEmails] = useState(false);
   const [inboundEmailError, setInboundEmailError] = useState("");
@@ -1052,7 +1052,7 @@ export default function KpiPage() {
       const aggregated = [];
       do {
         const res = await API.get("/inbound-emails", {
-          params: { source: "cf7,chatbot_report", per_page: perPage, page },
+          params: { source: "cf7", per_page: perPage, page },
         });
         const payload = res.data;
         const rows = Array.isArray(payload)
@@ -2745,7 +2745,7 @@ export default function KpiPage() {
                 ...kpi,
                 _source: "call",
               })),
-            // Mails/contacts = inbound_emails cf7|chatbot_report (HARD: no kpis)
+            // Mails/contacts = inbound_emails source=cf7 only (HARD: no kpis)
             ...inboundEmails.map((row) => ({
               ...row,
               _source: "email",

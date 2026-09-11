@@ -545,7 +545,7 @@ class SideMenuContent extends React.Component {
     axios
       .get(
         global.config.server_url +
-          "/inbound-emails/unread-count?source=cf7,chatbot_report",
+          "/inbound-emails/unread-count?source=cf7",
         Config,
       )
       .then((res) => {
