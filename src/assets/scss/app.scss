@@ -27,3 +27,51 @@ body, input, button, select, textarea, .navigation, .main-menu {
   padding: 0;
   line-height: 0;
 }
+
+
+/* JF soft sidebar active — do not duplicate */
+/* Soft active: underline / light bg — never purple slab on sub-items (JF 2026-09-11).
+   Open/collapse ≠ selected: expanded parents keep chevron only, no filled head. */
+.main-menu {
+  &.menu-light,
+  &.menu-dark {
+    .navigation {
+      > li {
+        &.open:not(.active) > a,
+        ul.menu-content .open:not(.active) > a {
+          background: transparent !important;
+          box-shadow: none !important;
+          color: inherit;
+        }
+        &.sidebar-group-active:not(.active) > a {
+          background: transparent !important;
+          box-shadow: none !important;
+        }
+        /* Top-level leaf soft active */
+        &.nav-item.active:not(.has-sub) > a {
+          color: #7367f0 !important;
+          background: rgba(115, 103, 240, 0.1) !important;
+          box-shadow: none !important;
+          border-radius: 4px;
+          font-weight: 500;
+        }
+      }
+      /* Sub-items: light wash + title underline — no gradient slab */
+      ul.menu-content > li.active {
+        background: transparent !important;
+        box-shadow: none !important;
+        > a {
+          color: #7367f0 !important;
+          background: rgba(115, 103, 240, 0.08) !important;
+          box-shadow: none !important;
+          border-radius: 4px;
+          font-weight: 500;
+          .menu-title {
+            text-decoration: underline;
+            text-underline-offset: 3px;
+          }
+        }
+      }
+    }
+  }
+}

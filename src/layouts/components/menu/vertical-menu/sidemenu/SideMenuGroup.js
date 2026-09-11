@@ -4,6 +4,7 @@ import { Badge } from "reactstrap";
 import classnames from "classnames";
 import { ChevronRight } from "react-feather";
 import { FormattedMessage } from "react-intl";
+import { isLeafRouteActive } from "../../../../utils/menuActiveMatch";
 
 class SideMenuGroup extends React.Component {
   constructor(props) {
@@ -55,10 +56,15 @@ class SideMenuGroup extends React.Component {
               this.props.collapsedMenuPaths(child.navLink);
             }
 
+            // Exact route leaf only — no startsWith sticky matches (JF)
             if (
-              this.props.activeItemState === child.navLink ||
-              (child.navLink &&
-                this.props.activeItemState.startsWith(child.navLink))
+              child.type === "item" &&
+              child.navLink &&
+              isLeafRouteActive(
+                child,
+                this.props.activePath || this.props.activeItemState || "",
+                this.props.activeLeafId
+              )
             ) {
               this.childObj = child;
               this.props.parentArr.push(this.parentArray);
@@ -85,20 +91,21 @@ class SideMenuGroup extends React.Component {
                     open:
                       child.type === "collapse" &&
                       activeGroup.includes(child.id),
+                    // Route-derived only — leave section clears highlight (JF)
                     "sidebar-group-active":
-                      this.props.currentActiveGroup.includes(child.id),
-                    active:
-                      // Leaf items only — never paint collapse parents purple
-                      // (JF Contacts 2026-09-11: Prospects must match Leads/Inscrits).
-                      child.type === "item" &&
-                      !!child.navLink &&
-                      (this.props.activeItemState === child.navLink ||
-                        this.props.activeItemState.startsWith(child.navLink)),
+                      Array.isArray(this.props.routeGroupIds) &&
+                      this.props.routeGroupIds.includes(child.id),
+                    active: isLeafRouteActive(
+                      child,
+                      this.props.activePath || this.props.activeItemState || "",
+                      this.props.activeLeafId
+                    ),
                   })}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleGroupClick(child.id, item.id, child.type);
-                    if (child.navLink && child.navLink !== undefined) {
+                    // Only leaf items with a real navLink update selection
+                    if (child.type === "item" && child.navLink) {
                       handleActiveItem(child.navLink);
                     }
                     if (

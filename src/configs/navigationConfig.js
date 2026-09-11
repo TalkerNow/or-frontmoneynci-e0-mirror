@@ -82,6 +82,7 @@ const items = {
         icon: <Icon.UserPlus size={16} />,
         permissions: ["admin"],
         // Liste simple (pas le kanban opportunités). Filtre métier inscrit à câbler.
+        // Same path as Clients: shallowest-wins keeps Clients active, not Contacts/Inscrits (JF sticky).
         navLink: "/app/user/clientslist",
       },
       {

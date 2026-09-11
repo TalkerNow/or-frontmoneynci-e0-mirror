@@ -7,6 +7,10 @@ import { ChevronRight } from "react-feather";
 import { FormattedMessage } from "react-intl";
 import { history } from "../../../../../history";
 import axios from "axios";
+import {
+  resolveActiveTrail,
+  isLeafRouteActive,
+} from "../../../../utils/menuActiveMatch";
 
 // --- Helpers pour KPI (copié/adapté de KpiPage) ---
 const parseServices = (servicesRaw) => {
@@ -187,18 +191,13 @@ class SideMenuContent extends React.Component {
     });
   };
 
-  initRender = (parentArr) => {
+  // Route-derived open/active groups — leave section => highlight gone (JF).
+  initRender = (_parentArr) => {
     const activePath = this.props.activePath || this.props.activeItemState || "";
-    let active_groups = parentArr.slice(0);
-    if (activePath.includes("/kpi/inbox") && !active_groups.includes("crm-inbox")) {
-      active_groups.push("crm-inbox");
-    } else if (!activePath.includes("/kpi/inbox")) {
-      active_groups = active_groups.filter((id) => id !== "crm-inbox");
-    }
-
+    const { groupIds } = resolveActiveTrail(navigationConfig, activePath);
     this.setState({
-      activeGroups: active_groups,
-      currentActiveGroup: active_groups,
+      activeGroups: groupIds.slice(),
+      currentActiveGroup: groupIds.slice(),
       flag: false,
     });
   };
@@ -586,6 +585,11 @@ class SideMenuContent extends React.Component {
   }
 
   render() {
+    const pathname = this.props.activePath || this.props.activeItemState || "";
+    const { groupIds: routeGroupIds, leafId: activeLeafId } = resolveActiveTrail(
+      navigationConfig,
+      pathname,
+    );
     // Loop over sidebar items
     // eslint-disable-next-line
     const menuItems = navigationConfig.map((item) => {
@@ -606,23 +610,10 @@ class SideMenuContent extends React.Component {
           className={classnames("nav-item", {
             "has-sub": item.type === "collapse",
             open: this.state.activeGroups.includes(item.id),
-            "sidebar-group-active": this.state.currentActiveGroup.includes(
-              item.id,
-            ),
+            "sidebar-group-active": routeGroupIds.includes(item.id),
             hover: this.props.hoverIndex === item.id,
-            // ✅ active UNIQUEMENT pour les items (pas les parents)
-            active:
-              item.type === "item" &&
-              (this.props.activeItemState === item.navLink ||
-                (item.filterBase &&
-                  this.props.activeItemState === item.filterBase) ||
-                (item.navLink &&
-                  item.navLink.includes(":") &&
-                  this.props.activeItemState.startsWith(
-                    item.navLink.split(":")[0],
-                  )) ||
-                (item.parentOf &&
-                  item.parentOf.includes(this.props.activeItemState))),
+            // Leaf only + exact route match (never collapse parents)
+            active: isLeafRouteActive(item, pathname, activeLeafId),
             disabled: item.disabled,
           })}
           key={item.id}
@@ -822,7 +813,9 @@ class SideMenuContent extends React.Component {
               initRender={this.initRender}
               parentArr={this.parentArr}
               triggerActive={undefined}
-              currentActiveGroup={this.state.currentActiveGroup}
+              currentActiveGroup={routeGroupIds}
+              routeGroupIds={routeGroupIds}
+              activeLeafId={activeLeafId}
               permission={this.props.permission}
               currentUser={this.props.currentUser}
               redirectUnauthorized={this.redirectUnauthorized}
