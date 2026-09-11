@@ -278,16 +278,13 @@
         }
 
         .active {
-          background: linear-gradient(
-            118deg,
-            rgba($primary, 1),
-            rgba($primary, 0.7)
-          );
-          box-shadow: 0 0 10px 1px rgba($primary, 0.7);
-          border-radius: 4px;
+          // EOR 2026-09-11: zero violet nested .active
+          background: transparent;
+          background-image: none;
+          box-shadow: none;
+          border-radius: 0;
           > a {
-            color: $white;
-            // font-weight: 500;
+            color: inherit;
           }
         }
       }
