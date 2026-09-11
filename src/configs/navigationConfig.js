@@ -2,10 +2,12 @@ import React from "react";
 import * as Icon from "react-feather";
 
 /**
- * Menu CRM — retouche JF 2026-09-08 12:30
- * Admin: Tableau de bord · Clients · Contact(Leads→sources, Inscrits, Prospects→Contrat perdu) · Tâches · Accès · Admin moteur
- * Leads: enfants directs (pas de couche Flux) — collapse Vuexy natif
- * Consultant: Clients + Tâches
+ * Menu CRM — arbo TEST JF 2026-09-11 (Cap'tain)
+ * Admin: Tableau de bord · Clients(Opportunité, Suivi administratif, Prospects→Contrat perdu) · Contacts(Leads, Inscrits) · Tâches · Accès · Admin moteur
+ * Clients = collapse mother — NO navLink (avoids false sticky to /kpi/suivi)
+ * Prospects moved OUT of Contacts under Clients
+ * Consultant: Clients leaf → clientslist (unchanged UX)
+ * Routes CRM = prod VPS mapping (opportunities / suivi) — no invented pages
  */
 
 const items = {
@@ -21,9 +23,55 @@ const items = {
   clients: {
     id: "clients",
     title: "Clients",
+    type: "collapse",
+    icon: <Icon.Users size={20} />,
+    permissions: ["admin"],
+    // NO navLink — mother collapse only (JF: no false sticky to /kpi/suivi)
+    children: [
+      {
+        id: "crm-opportunities",
+        title: "Opportunité",
+        type: "item",
+        icon: <Icon.Briefcase size={16} />,
+        permissions: ["admin"],
+        navLink: "/kpi/opportunities",
+      },
+      {
+        id: "crm-suivi",
+        title: "Suivi administratif",
+        type: "item",
+        icon: <Icon.FileText size={16} />,
+        permissions: ["admin"],
+        navLink: "/kpi/suivi",
+      },
+      {
+        id: "prospects",
+        title: "Prospects",
+        type: "collapse",
+        icon: <Icon.Target size={16} />,
+        permissions: ["admin"],
+        // no navLink: like Leads — avoids purple active / sticky mother
+        children: [
+          {
+            id: "prospects-contrat-perdu",
+            title: "Contrat perdu",
+            type: "item",
+            icon: <Icon.FileText size={14} />,
+            permissions: ["admin"],
+            navLink: "/app/AllContracts",
+          },
+        ],
+      },
+    ],
+  },
+
+  // Consultant / Expert keep a direct Clients → clientslist leaf
+  clientsList: {
+    id: "clientsList",
+    title: "Clients",
     type: "item",
     icon: <Icon.Users size={20} />,
-    permissions: ["admin", "Expert", "Consultant"],
+    permissions: ["Expert", "Consultant"],
     navLink: "/app/user/clientslist",
   },
 
@@ -81,28 +129,10 @@ const items = {
         type: "item",
         icon: <Icon.UserPlus size={16} />,
         permissions: ["admin"],
-        // Liste simple (pas le kanban opportunités). Filtre métier inscrit à câbler.
-        // Same path as Clients: shallowest-wins keeps Clients active, not Contacts/Inscrits (JF sticky).
+        // Liste simple (pas le kanban opportunités).
         navLink: "/app/user/clientslist",
       },
-      {
-        id: "prospects",
-        title: "Prospects",
-        type: "collapse",
-        icon: <Icon.Briefcase size={16} />,
-        permissions: ["admin"],
-        // no navLink: like Leads — avoids purple active on /kpi/suivi (JF 2026-09-11)
-        children: [
-          {
-            id: "prospects-contrat-perdu",
-            title: "Contrat perdu",
-            type: "item",
-            icon: <Icon.FileText size={14} />,
-            permissions: ["admin"],
-            navLink: "/app/AllContracts",
-          },
-        ],
-      },
+      // Prospects removed from Contacts — now under Clients (JF arbo 2026-09-11)
     ],
   },
 
@@ -134,7 +164,7 @@ const items = {
 };
 
 const adminOrder = ["dashboard", "clients", "contact", "tasks", "consultantAccess", "adminMoteur"];
-const consultantOrder = ["clients", "tasks"];
+const consultantOrder = ["clientsList", "tasks"];
 
 const buildMenu = (order) => order.map((key) => items[key]).filter(Boolean);
 
