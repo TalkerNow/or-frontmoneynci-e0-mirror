@@ -76,13 +76,6 @@ class DropzoneBasic extends React.Component {
           ).length;
         });
         this.setState({ files, folderCounts: counts });
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(
-            new CustomEvent("clientDocumentsCountUpdated", {
-              detail: { clientId: this.props.id, count: Array.isArray(files) ? files.length : 0 },
-            })
-          );
-        }
       });
   };
 
