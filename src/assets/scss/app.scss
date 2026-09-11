@@ -119,6 +119,27 @@ $eor-navy: #002060;
         font-weight: 500;
         @include eor-nav-active-title;
       }
+
+      /* Hover — same word-only navy underline (Talker.now gesture), zero bg */
+      li:not(.active) > a:hover .menu-title,
+      ul.menu-content li:not(.active) > a:hover .menu-title {
+        display: inline !important;
+        flex: none !important;
+        flex-grow: 0 !important;
+        width: auto !important;
+        color: $eor-navy !important;
+        border-bottom: 2px solid $eor-navy !important;
+        padding-bottom: 1px;
+        text-decoration: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+      }
+      li:not(.active) > a:hover,
+      ul.menu-content li:not(.active) > a:hover {
+        background: transparent !important;
+        background-image: none !important;
+        box-shadow: none !important;
+      }
     }
   }
 }
