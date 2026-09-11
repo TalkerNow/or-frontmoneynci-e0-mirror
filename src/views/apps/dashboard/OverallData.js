@@ -1,9 +1,13 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
+  Activity,
   CheckCircle,
   DollarSign,
+  FileText,
   Inbox,
+  MessageCircle,
   Package,
+  PenTool,
   TrendingUp,
   Users,
 } from "react-feather";
@@ -298,7 +302,9 @@ function normalizeApiYear(dataByMonthIndex1to12) {
     (_, i) => dataByMonthIndex1to12[i + 1] || {},
   );
   return {
-    client_count: months.map((m) => m.current_acompte_count || 0),
+    // clients_count = users.role=Client créés dans l'année (période) — people tiles use STOCK instead
+    clients_count: months.map((m) => m.clients_count || 0),
+    current_acompte_count: months.map((m) => m.current_acompte_count || 0),
     current_total_amount: months.map((m) => m.current_total_amount || 0),
     total_ended_count: months.map((m) => m.total_ended_count || 0),
     current_acompte_amount: months.map((m) => m.current_acompte_amount || 0),
@@ -306,6 +312,17 @@ function normalizeApiYear(dataByMonthIndex1to12) {
     opportunite_amount: months.map((m) => m.opportunite_amount || 0),
     opportunite_count: months.map((m) => m.opportunite_count || 0),
   };
+}
+
+/** Extract Laravel paginator total, or array length. */
+function extractTotal(payload) {
+  if (payload == null) return null;
+  if (typeof payload.total === "number") return payload.total;
+  if (payload.meta && typeof payload.meta.total === "number") return payload.meta.total;
+  if (Array.isArray(payload.data) && typeof payload.total === "number") return payload.total;
+  if (Array.isArray(payload)) return payload.length;
+  if (Array.isArray(payload.data)) return payload.data.length;
+  return null;
 }
 
 /* ===================== Composant principal ===================== */
@@ -329,6 +346,21 @@ export default function OverallCard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [data, setData] = useState(() => normalizeApiYear({}));
+
+  // People STOCK (all-period) — never forced to 0 by month filter
+  const [peopleStock, setPeopleStock] = useState({
+    clients: null, // users.role=Client total
+    prospects: null, // users.role=Prospect count
+    anciens: null, // old_clients length
+  });
+
+  // Optional inbox tiles — hide individually on failure (never invent)
+  const [inboxCounts, setInboxCounts] = useState({
+    diagnostics: null,
+    chatbot: null,
+    signatures: null,
+    creditImpot: null,
+  });
 
   const fetchYear = useCallback(
     async (y) => {
@@ -356,21 +388,153 @@ export default function OverallCard() {
     fetchYear(year);
   }, [fetchYear, year]);
 
+  // Stock people + optional inbox counts (once for admin)
+  useEffect(() => {
+    if (!isAdmin) return;
+    let cancelled = false;
+
+    (async () => {
+      // Clients stock via paginated total (per_page=1 → cheap)
+      let clients = null;
+      try {
+        const res = await axios.get(
+          `${global.config.server_url}/users?kind=client&page=1&per_page=1`,
+          AUTH_CONFIG,
+        );
+        clients = extractTotal(res.data);
+        // Fallback: if API returned bare array without total
+        if (clients == null && Array.isArray(res.data)) clients = res.data.length;
+      } catch (e) {
+        console.error("dashboard clients stock", e);
+      }
+
+      // Prospects = members with role Prospect
+      let prospects = null;
+      try {
+        const res = await axios.get(
+          `${global.config.server_url}/users?kind=member`,
+          AUTH_CONFIG,
+        );
+        const list = Array.isArray(res.data) ? res.data : [];
+        prospects = list.filter(
+          (u) => (u.role || "").toLowerCase() === "prospect",
+        ).length;
+      } catch (e) {
+        console.error("dashboard prospects stock", e);
+      }
+
+      // Anciens = old_clients array length
+      let anciens = null;
+      try {
+        const res = await axios.get(
+          `${global.config.server_url}/users?kind=oldclient`,
+          AUTH_CONFIG,
+        );
+        const list = Array.isArray(res.data) ? res.data : [];
+        anciens = list.length;
+      } catch (e) {
+        console.error("dashboard anciens stock", e);
+      }
+
+      if (!cancelled) {
+        setPeopleStock({ clients, prospects, anciens });
+      }
+    })();
+
+    (async () => {
+      const next = {
+        diagnostics: null,
+        chatbot: null,
+        signatures: null,
+        creditImpot: null,
+      };
+
+      try {
+        const res = await axios.get(
+          `${global.config.server_url}/v1/simulator-difficulty-results`,
+          { ...AUTH_CONFIG, params: { page: 1, per_page: 1 } },
+        );
+        next.diagnostics = extractTotal(res.data);
+      } catch (e) {
+        console.error("dashboard diagnostics count", e);
+      }
+
+      try {
+        const res = await axios.get(
+          `${global.config.server_url}/conversation-archives`,
+          { ...AUTH_CONFIG, params: { page: 1, per_page: 1 } },
+        );
+        next.chatbot = extractTotal(res.data);
+      } catch (e) {
+        console.error("dashboard chatbot count", e);
+      }
+
+      try {
+        const res = await axios.get(
+          `${global.config.server_url}/suivi-avancement/all`,
+          AUTH_CONFIG,
+        );
+        const list = Array.isArray(res.data) ? res.data : [];
+        next.signatures = list.filter(
+          (s) => s && (s.step1_completed_at || s.step1_completed),
+        ).length;
+      } catch (e) {
+        console.error("dashboard signatures count", e);
+      }
+
+      try {
+        const res = await axios.get(
+          `${global.config.server_url}/documents`,
+          AUTH_CONFIG,
+        );
+        const list = Array.isArray(res.data)
+          ? res.data
+          : Array.isArray(res.data?.data)
+            ? res.data.data
+            : [];
+        next.creditImpot = list.filter(
+          (d) => d && (d.unipro === 1 || d.unipro === "1"),
+        ).length;
+      } catch (e) {
+        console.error("dashboard credit impot count", e);
+      }
+
+      if (!cancelled) setInboxCounts(next);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin]);
+
+  // People tiles = STOCK (same across month/trim/week/year tabs)
+  const peopleStats = useMemo(() => {
+    const c = peopleStock.clients;
+    const p = peopleStock.prospects;
+    const a = peopleStock.anciens;
+    const total =
+      c != null && p != null ? Number(c) + Number(p) : c != null ? Number(c) : null;
+    return {
+      clientsSignes: c == null ? "—" : fmt(c),
+      prospects: p == null ? "—" : fmt(p),
+      totalClients: total == null ? "—" : fmt(total),
+      anciens: a == null ? null : fmt(a), // null → hide tile
+    };
+  }, [peopleStock]);
+
   const statsForMonth = useCallback(
     (i) => ({
       ca: fmt(data.current_total_amount[i]),
       acompte: fmt(data.current_acompte_amount[i]),
       solde: fmt(data.current_solde_amount[i]),
       oppoAmount: fmt(data.opportunite_amount[i]),
-      clientsSignes: fmt(data.client_count[i]),
-      prospects: fmt(data.opportunite_count[i]),
-      totalClients: fmt(
-        (Number(data.client_count[i]) || 0) +
-          (Number(data.opportunite_count[i]) || 0),
-      ),
+      clientsSignes: peopleStats.clientsSignes,
+      prospects: peopleStats.prospects,
+      totalClients: peopleStats.totalClients,
+      anciens: peopleStats.anciens,
       contratsClotures: fmt(data.total_ended_count[i]),
     }),
-    [data],
+    [data, peopleStats],
   );
 
   const monthlyStats = useMemo(
@@ -379,15 +543,13 @@ export default function OverallCard() {
       acompte: fmt(data.current_acompte_amount[monthIndex]),
       solde: fmt(data.current_solde_amount[monthIndex]),
       oppoAmount: fmt(data.opportunite_amount[monthIndex]),
-      clientsSignes: fmt(data.client_count[monthIndex]),
-      prospects: fmt(data.opportunite_count[monthIndex]),
-      totalClients: fmt(
-        (Number(data.client_count[monthIndex]) || 0) +
-          (Number(data.opportunite_count[monthIndex]) || 0),
-      ),
+      clientsSignes: peopleStats.clientsSignes,
+      prospects: peopleStats.prospects,
+      totalClients: peopleStats.totalClients,
+      anciens: peopleStats.anciens,
       contratsClotures: fmt(data.total_ended_count[monthIndex]),
     }),
-    [data, monthIndex],
+    [data, monthIndex, peopleStats],
   );
 
   const trimesterStats = useMemo(() => {
@@ -398,14 +560,13 @@ export default function OverallCard() {
       acompte: fmt(sum(pick(data.current_acompte_amount))),
       solde: fmt(sum(pick(data.current_solde_amount))),
       oppoAmount: fmt(sum(pick(data.opportunite_amount))),
-      clientsSignes: fmt(sum(pick(data.client_count))),
-      prospects: fmt(sum(pick(data.opportunite_count))),
-      totalClients: fmt(
-        sum(pick(data.client_count)) + sum(pick(data.opportunite_count)),
-      ),
+      clientsSignes: peopleStats.clientsSignes,
+      prospects: peopleStats.prospects,
+      totalClients: peopleStats.totalClients,
+      anciens: peopleStats.anciens,
       contratsClotures: fmt(sum(pick(data.total_ended_count))),
     };
-  }, [data, trimIndex]);
+  }, [data, trimIndex, peopleStats]);
 
   const yearlyStats = useMemo(
     () => ({
@@ -413,12 +574,13 @@ export default function OverallCard() {
       acompte: fmt(sum(data.current_acompte_amount)),
       solde: fmt(sum(data.current_solde_amount)),
       oppoAmount: fmt(sum(data.opportunite_amount)),
-      clientsSignes: fmt(sum(data.client_count)),
-      prospects: fmt(sum(data.opportunite_count)),
-      totalClients: fmt(sum(data.client_count) + sum(data.opportunite_count)),
+      clientsSignes: peopleStats.clientsSignes,
+      prospects: peopleStats.prospects,
+      totalClients: peopleStats.totalClients,
+      anciens: peopleStats.anciens,
       contratsClotures: fmt(sum(data.total_ended_count)),
     }),
-    [data],
+    [data, peopleStats],
   );
 
   const weeklyStats = useMemo(() => {
@@ -437,6 +599,13 @@ export default function OverallCard() {
 
   const tabStats = useMemo(() => {
     const UL = (v) => v;
+    const COUNT_LABELS = new Set([
+      "Clients signés",
+      "Prospects",
+      "Total clients",
+      "Anciens",
+      "Contrats cloturés",
+    ]);
     const common = [
       {
         icon: TrendingUp,
@@ -488,6 +657,13 @@ export default function OverallCard() {
         color: "#7367f0",
       },
       {
+        icon: Users,
+        bubbleClass: "bg-rgba-primary",
+        valueKey: "anciens",
+        label: "Anciens",
+        color: "#82868b",
+      },
+      {
         icon: CheckCircle,
         bubbleClass: "bg-rgba-danger",
         valueKey: "contratsClotures",
@@ -496,20 +672,15 @@ export default function OverallCard() {
       },
     ];
     const toCards = (obj) =>
-      common.map(({ icon, bubbleClass, valueKey, label, color }) => ({
-        icon,
-        bubbleClass,
-        color,
-        value:
-          UL(obj[valueKey]) +
-          (label !== "Clients signés" &&
-          label !== "Prospects" &&
-          label !== "Total clients" &&
-          label !== "Contrats cloturés"
-            ? " €"
-            : ""),
-        label,
-      }));
+      common
+        .filter(({ valueKey }) => obj[valueKey] != null)
+        .map(({ icon, bubbleClass, valueKey, label, color }) => ({
+          icon,
+          bubbleClass,
+          color,
+          value: UL(obj[valueKey]) + (COUNT_LABELS.has(label) ? "" : " €"),
+          label,
+        }));
     return {
       month: toCards(monthlyStats),
       trim: toCards(trimesterStats),
@@ -723,6 +894,13 @@ export default function OverallCard() {
                 <StatGrid
                   stats={(() => {
                     const UL = (v) => v;
+                    const COUNT_LABELS = new Set([
+                      "Clients signés",
+                      "Prospects",
+                      "Total clients",
+                      "Anciens",
+                      "Contrats cloturés",
+                    ]);
                     const common = [
                       {
                         icon: TrendingUp,
@@ -774,6 +952,13 @@ export default function OverallCard() {
                         color: "#7367f0",
                       },
                       {
+                        icon: Users,
+                        bubbleClass: "bg-rgba-primary",
+                        valueKey: "anciens",
+                        label: "Anciens",
+                        color: "#82868b",
+                      },
+                      {
                         icon: CheckCircle,
                         bubbleClass: "bg-rgba-danger",
                         valueKey: "contratsClotures",
@@ -782,22 +967,17 @@ export default function OverallCard() {
                       },
                     ];
                     const obj = weeklyStats;
-                    return common.map(
-                      ({ icon, bubbleClass, valueKey, label, color }) => ({
+                    return common
+                      .filter(({ valueKey }) => obj[valueKey] != null)
+                      .map(({ icon, bubbleClass, valueKey, label, color }) => ({
                         icon,
                         bubbleClass,
                         color,
                         value:
                           UL(obj[valueKey]) +
-                          (label !== "Clients signés" &&
-                          label !== "Prospects" &&
-                          label !== "Total clients" &&
-                          label !== "Contrats cloturés"
-                            ? " €"
-                            : ""),
+                          (COUNT_LABELS.has(label) ? "" : " €"),
                         label,
-                      }),
-                    );
+                      }));
                   })()}
                   onProspectsClick={handleProspectsClick}
                 />
@@ -836,6 +1016,50 @@ export default function OverallCard() {
           </TabContent>
         </CardBody>
       </Card>
+
+      {/* Optional CRM inbox stock tiles — hide each on API failure */}
+      {(inboxCounts.diagnostics != null ||
+        inboxCounts.chatbot != null ||
+        inboxCounts.signatures != null ||
+        inboxCounts.creditImpot != null) && (
+        <Card className="mt-1">
+          <CardHeader className="pb-1">
+            <CardTitle tag="h4" className="mb-0">
+              Tunnel & Inbox (stock)
+            </CardTitle>
+          </CardHeader>
+          <CardBody>
+            <StatGrid
+              stats={[
+                inboxCounts.diagnostics != null && {
+                  icon: Activity,
+                  color: "#7367f0",
+                  value: fmt(inboxCounts.diagnostics),
+                  label: "Diagnostics",
+                },
+                inboxCounts.chatbot != null && {
+                  icon: MessageCircle,
+                  color: "#00cfe8",
+                  value: fmt(inboxCounts.chatbot),
+                  label: "Chatbot",
+                },
+                inboxCounts.signatures != null && {
+                  icon: PenTool,
+                  color: "#28c76f",
+                  value: fmt(inboxCounts.signatures),
+                  label: "Signatures",
+                },
+                inboxCounts.creditImpot != null && {
+                  icon: FileText,
+                  color: "#ff9f43",
+                  value: fmt(inboxCounts.creditImpot),
+                  label: "Crédit d'impôt",
+                },
+              ].filter(Boolean)}
+            />
+          </CardBody>
+        </Card>
+      )}
 
       {/* Modal Drill-Down Prospects */}
       <ProspectsDetailsModal
