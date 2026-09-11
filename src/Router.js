@@ -231,6 +231,12 @@ class AppRouter extends React.Component {
             authorisation={employee_acess}
           />
           <ProtectedRoute
+            path="/app/user/inscritslist"
+            component={clientslist}
+            isAuth={{ user }}
+            authorisation={employee_acess}
+          />
+          <ProtectedRoute
             path="/app/user/prospectslist"
             component={clientslist}
             isAuth={{ user }}

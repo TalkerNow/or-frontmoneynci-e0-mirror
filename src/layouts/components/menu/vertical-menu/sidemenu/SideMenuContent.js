@@ -10,6 +10,7 @@ import axios from "axios";
 import {
   resolveActiveTrail,
   isLeafRouteActive,
+  isCollapseNavActive,
 } from "../../../../utils/menuActiveMatch";
 
 // --- Helpers pour KPI (copié/adapté de KpiPage) ---
@@ -612,8 +613,10 @@ class SideMenuContent extends React.Component {
             open: this.state.activeGroups.includes(item.id),
             "sidebar-group-active": routeGroupIds.includes(item.id),
             hover: this.props.hoverIndex === item.id,
-            // Leaf only + exact route match (never collapse parents)
-            active: isLeafRouteActive(item, pathname, activeLeafId),
+            // Leaf exact match; OR Clients mother when on clientslist (no leaf)
+            active:
+              isLeafRouteActive(item, pathname, activeLeafId) ||
+              isCollapseNavActive(item, pathname, activeLeafId),
             disabled: item.disabled,
           })}
           key={item.id}
@@ -641,6 +644,17 @@ class SideMenuContent extends React.Component {
                   item.id === "kpi" && this.state.crmBadge > 0
                     ? "/kpi/suivi"
                     : item.navLink;
+                // JF: clic mot = navigate + expand (force open, never toggle closed)
+                this.setState((prev) => {
+                  const open = prev.activeGroups.includes(item.id)
+                    ? prev.activeGroups.slice()
+                    : prev.activeGroups.concat(item.id);
+                  return {
+                    activeGroups: open,
+                    currentActiveGroup: open.slice(),
+                    tempArr: [item.id],
+                  };
+                });
                 this.props.handleActiveItem(targetLink);
                 history.push(targetLink);
                 if (this.props.deviceWidth <= 1200) {

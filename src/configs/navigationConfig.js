@@ -6,7 +6,8 @@ import * as Icon from "react-feather";
  * Admin: Tableau de bord · Clients(click→liste BDD) · Opportunités · Suivi administratif · Prospects(liste BDD) · Contacts(Leads, Inscrits) · Tâches · Accès · Admin moteur
  * Clients = collapse + navLink /app/user/clientslist (parent click → ALL dossiers)
  * Prospects = leaf /app/user/prospectslist (ClientsList tab prospect) — not Contrat perdu CRM
- * Contacts Inscrits stays /app/user/clientslist (shallowest leaf highlight OK)
+ * Contacts Inscrits = /app/user/inscritslist (same ClientsList) — NOT clientslist
+ * so Clients click no longer lights Inscrits (JF 2026-09-11).
  * Consultant: Clients leaf → clientslist (unchanged UX)
  */
 
@@ -121,8 +122,8 @@ const items = {
         type: "item",
         icon: <Icon.UserPlus size={16} />,
         permissions: ["admin"],
-        // Liste simple (pas le kanban opportunités).
-        navLink: "/app/user/clientslist",
+        // Same ClientsList UI — dedicated path so Clients≠Inscrits active (JF).
+        navLink: "/app/user/inscritslist",
       },
       // Prospects removed from Contacts — now under Clients (JF arbo 2026-09-11)
     ],

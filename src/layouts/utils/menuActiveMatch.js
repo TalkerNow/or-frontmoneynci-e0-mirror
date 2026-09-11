@@ -1,12 +1,12 @@
 /**
  * Sidebar active-state helpers (JF TEST nav 2026-09-11).
  * Highlight only when a leaf navLink === current route (exact; param routes ok).
- * Collapse+navLink (Clients mother) is NEVER the active leaf — avoids false
- * sticky to /kpi/suivi. Exact match only (no prefix).
+ * Collapse+navLink (Clients mother): opens group when pathname === navLink.
+ *   Visual "active" on the mother is handled in SideMenuContent when leafId is null.
  *
- * /app/user/clientslist: shallowest leaf is Inscrits (Contacts) — OK.
- *   Clients collapse navLink also matches → keep Clients group open.
- * /app/user/prospectslist: Prospects leaf active, Clients group open.
+ * /app/user/clientslist → Clients open (+ mother active), NOT Inscrits.
+ * /app/user/inscritslist → Inscrits leaf active, Contacts open.
+ * /app/user/prospectslist → Prospects leaf active, Clients group open.
  */
 
 export function pathMatchesNavLink(pathname, navLink, filterBase) {
@@ -42,9 +42,7 @@ function collectTrails(items, pathname, ancestors = []) {
   return trails;
 }
 
-/** Collapse mothers with navLink: open that group when pathname === navLink.
- *  Not used as the winning leaf (type !== item) so Clients never steals
- *  Suivi/Opportunités highlight and never prefix-matches /kpi/*. */
+/** Collapse mothers with navLink: open that group when pathname === navLink. */
 function collectCollapseNavIds(items, pathname) {
   const ids = [];
   if (!Array.isArray(items)) return ids;
@@ -65,7 +63,7 @@ function collectCollapseNavIds(items, pathname) {
   return ids;
 }
 
-/** Shallowest matching leaf wins (top-level over nested duplicate paths). */
+/** Shallowest matching leaf wins. */
 export function resolveActiveTrail(navigationConfig, pathname) {
   const trails = collectTrails(navigationConfig, pathname);
   const collapseOpenIds = collectCollapseNavIds(navigationConfig, pathname);
@@ -90,5 +88,14 @@ export function isLeafRouteActive(item, pathname, activeLeafId) {
     return false;
   }
   if (activeLeafId != null) return item.id === activeLeafId;
+  return pathMatchesNavLink(pathname, item.navLink, item.filterBase);
+}
+
+/** Clients mother (collapse+navLink) active when on its list and no leaf stole highlight. */
+export function isCollapseNavActive(item, pathname, activeLeafId) {
+  if (!item || item.type !== "collapse" || !item.navLink || item.matchActive === false) {
+    return false;
+  }
+  if (activeLeafId != null) return false;
   return pathMatchesNavLink(pathname, item.navLink, item.filterBase);
 }
