@@ -19,7 +19,7 @@
   }
   &__bar-hint { font-size: 12px; font-weight: 400; opacity: 0.85; }
 
-  &__body { display: flex; height: 260px; }
+  &__body { display: flex; height: 168px; }
 
   &__sessions {
     width: 148px;
@@ -56,8 +56,33 @@
   }
 
   &__thread { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-  &__empty, &__messages-hint { color: #bbb; font-size: 12px; text-align: center; margin: auto; padding: 12px; }
-  &__messages { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; }
+  &__empty {
+    color: #6e6b7b;
+    font-size: 12px;
+    text-align: left;
+    margin: 0;
+    padding: 8px 10px;
+  }
+  &__messages-hint {
+    flex: 0 0 auto;
+    color: #6e6b7b;
+    font-size: 12px;
+    line-height: 1.35;
+    text-align: left;
+    margin: 0;
+    padding: 6px 10px;
+    border-bottom: 1px solid #f3f2f7;
+    background: #fafafa;
+  }
+  &__messages {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
 
   &__bubble {
     max-width: 85%;
@@ -113,26 +138,121 @@
     flex-shrink: 0;
     position: relative;
   }
-  &__plus-menu {
-    min-width: 220px;
-    max-height: 260px;
+  /* REPLACE ugly purple-pill + menu with Vuexy / Documents ⋮ pattern */
+  &__plus-menu.dropdown-menu {
+    min-width: 248px;
+    max-width: 320px;
+    max-height: 280px;
     overflow-y: auto;
-    border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(34, 41, 47, 0.12);
-    .dropdown-header {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.02em;
-      color: #6c5ce7;
-      padding-top: 0.5rem;
-    }
-    .dropdown-item {
-      font-size: 13px;
-      max-width: 280px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
+    padding: 0.4rem 0 !important;
+    margin: 0.25rem 0 !important;
+    background: #ffffff !important;
+    background-clip: padding-box;
+    border: 1px solid #ebe9f1 !important;
+    border-radius: 6px !important;
+    box-shadow: 0 5px 25px rgba(34, 41, 47, 0.1) !important;
+    z-index: 1060;
+  }
+  &__plus-header.dropdown-header,
+  &__plus-menu .dropdown-header {
+    color: #5e5873 !important;
+    background: transparent !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.55rem 1rem 0.3rem !important;
+    margin: 0 !important;
+  }
+  &__plus-menu .dropdown-divider {
+    margin: 0.35rem 0;
+    border-top: 1px solid #ebe9f1;
+  }
+  &__plus-item.dropdown-item,
+  &__plus-menu .dropdown-item {
+    color: #6e6b7b !important;
+    background: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    line-height: 1.4;
+    padding: 0.65rem 1rem !important;
+    margin: 0 !important;
+    width: 100%;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+  }
+  &__plus-item.dropdown-item:hover,
+  &__plus-item.dropdown-item:focus,
+  &__plus-menu .dropdown-item:hover,
+  &__plus-menu .dropdown-item:focus {
+    color: #5e5873 !important;
+    background: #f3f2f7 !important;
+    background-image: none !important;
+  }
+  &__plus-item.dropdown-item:active,
+  &__plus-item.dropdown-item.active,
+  &__plus-menu .dropdown-item:active,
+  &__plus-menu .dropdown-item.active {
+    color: #5e5873 !important;
+    background: rgba(115, 103, 240, 0.12) !important;
+  }
+  &__plus-item.dropdown-item:disabled,
+  &__plus-item.dropdown-item.disabled,
+  &__plus-menu .dropdown-item:disabled,
+  &__plus-menu .dropdown-item.disabled {
+    color: #b9b9c3 !important;
+    background: transparent !important;
+  }
+  &__plus-doc {
+    display: flex !important;
+    align-items: center;
+  }
+  &__plus-item.text-danger,
+  &__plus-menu .dropdown-item.text-danger {
+    color: #ea5455 !important;
+  }
+  &__plus-item.text-danger:hover,
+  &__plus-menu .dropdown-item.text-danger:hover {
+    color: #ea5455 !important;
+    background: #fceaea !important;
+  }
+  &__plus-doc-name {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: inherit;
+    font-weight: 500;
+  }
+  &__attach.btn,
+  &__attach.btn-light {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    padding: 0 !important;
+    border: 1px solid #6c5ce7 !important;
+    border-radius: 8px !important;
+    background: #fff !important;
+    color: #6c5ce7 !important;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1;
+    box-shadow: none !important;
+  }
+  &__attach.btn:hover,
+  &__attach.btn-light:hover,
+  &__attach.btn:focus,
+  &__attach.btn-light:focus {
+    background: #f2f0ff !important;
+    color: #6c5ce7 !important;
+    border-color: #6c5ce7 !important;
   }
 
   &__pastilles {

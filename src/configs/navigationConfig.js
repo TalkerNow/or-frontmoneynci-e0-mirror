@@ -90,7 +90,7 @@ const items = {
         type: "collapse",
         icon: <Icon.Briefcase size={16} />,
         permissions: ["admin"],
-        navLink: "/kpi/suivi",
+        // no navLink: like Leads — avoids purple active on /kpi/suivi (JF 2026-09-11)
         children: [
           {
             id: "prospects-contrat-perdu",
