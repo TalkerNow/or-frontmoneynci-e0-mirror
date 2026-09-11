@@ -28,7 +28,6 @@ ReactDOM.render(
   document.getElementById("root"),
 );
 
-// If you want your app to work offline and load faster, you can change
-// unregister() to register() below. Note this comes with some pitfalls.
-// Learn more about service workers: https://bit.ly/CRA-PWA
+// HARD: never register a service worker (TEST/prod cache stale UI).
+// unregister() also clears any leftover CRA precache from older builds.
 serviceWorker.unregister();
