@@ -6,6 +6,14 @@
   /* visible so upward + docs DropdownMenu can escape (JF clipped list) */
   overflow: visible;
 
+  &__body,
+  &__thread,
+  &__input,
+  &__sessions,
+  &__plus-dd {
+    overflow: visible;
+  }
+
   &__bar {
     width: 100%;
     display: flex;
@@ -158,7 +166,7 @@
     border: 1px solid #ebe9f1 !important;
     border-radius: 6px !important;
     box-shadow: 0 5px 25px rgba(34, 41, 47, 0.1) !important;
-    z-index: 1060; /* above bar/pastilles */
+    z-index: 2000; /* body portal — above sidebar/navbar/panel */
   }
   &__plus-header.dropdown-header,
   &__plus-menu .dropdown-header {
@@ -298,11 +306,17 @@
 
   /* Empty thread: composer fills panel body — no nested white frame (JF) */
   &--composer-fill {
+    overflow: visible;
     .simulator-chat-panel__body {
       min-height: 140px;
+      overflow: visible;
     }
     .simulator-chat-panel__thread {
       min-height: 140px;
+      overflow: visible;
+    }
+    .simulator-chat-panel__sessions {
+      overflow: visible;
     }
     .simulator-chat-panel__messages,
     .simulator-chat-panel__messages--empty {
@@ -316,6 +330,7 @@
       border: 0 !important;
     }
     .simulator-chat-panel__input {
+      overflow: visible;
       flex: 1 1 auto;
       align-items: flex-end;
       min-height: 140px;

@@ -1,5 +1,6 @@
 /* eslint-disable jsx-a11y/accessible-emoji */
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import ReactDOM from "react-dom";
 import { toast } from "react-toastify";
 import axios from "axios";
 import {
@@ -10,6 +11,13 @@ import {
 import api from "../../../../../services/api";
 import { waiterHide, waiterShow } from "../../../../../helpers/waiter";
 import "./SimulatorChatPanel.scss";
+
+/** reactstrap 8 has no container="body" — portal DropdownMenu to document.body
+ *  so + docs list escapes overflow on panel/body/thread/input/sessions. */
+function PortalDropdownMenu({ children }) {
+  if (typeof document === "undefined") return children;
+  return ReactDOM.createPortal(children, document.body);
+}
 
 function formatDate(str) {
   if (!str) return "";
@@ -408,7 +416,23 @@ export default function SimulatorChatPanel({
         >
           +
         </DropdownToggle>
-        <DropdownMenu right className="simulator-chat-panel__plus-menu">
+        <PortalDropdownMenu>
+        <DropdownMenu
+          className="simulator-chat-panel__plus-menu"
+          modifiers={{
+            preventOverflow: { enabled: true, boundariesElement: "viewport", padding: 8 },
+            hide: { enabled: false },
+            // body portal: fixed to viewport so no ancestor overflow/transform clips
+            setFixed: {
+              enabled: true,
+              order: 850,
+              fn: (data) => {
+                data.styles = Object.assign({}, data.styles, { position: "fixed" });
+                return data;
+              },
+            },
+          }}
+        >
           {!file ? (
             <DropdownItem disabled className="simulator-chat-panel__plus-item">
               Aucun document
@@ -466,6 +490,7 @@ export default function SimulatorChatPanel({
             </>
           )}
         </DropdownMenu>
+        </PortalDropdownMenu>
       </UncontrolledButtonDropdown>
     );
   };
