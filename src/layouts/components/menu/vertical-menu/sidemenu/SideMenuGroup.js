@@ -175,17 +175,8 @@ class SideMenuGroup extends React.Component {
                         {this.props.diagnosticBadge}
                       </Badge>
                     ) : null}
-
-                    {/* Call Badge — never at 0 */}
-                    {(child.id === "leads-appels" ||
-                      child.id === "crm-inbox-call") &&
-                    this.props.callBadge > 0 ? (
-                      <Badge color="danger" className="" style={{ position: "absolute", right: "5px", top: "50%", transform: "translateY(-50%)", margin: 0 }} pill>
-                        {this.props.callBadge}
-                      </Badge>
-                    ) : null}
-
-                    {/* Email Badge */}
+                    {/* Appels badge removed — Martin fiches only (tip 2026-09-12) */}
+{/* Email Badge */}
                     {(child.id === "leads-mails" ||
                       child.id === "crm-inbox-email") &&
                     this.props.emailBadge > 0 ? (

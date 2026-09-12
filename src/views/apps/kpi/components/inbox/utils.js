@@ -594,7 +594,17 @@ export function mapConversationToInboxItem(conv) {
           : conv.objet
             ? [conv.objet]
             : [],
-    status: conv.status || conv.action || "new",
+    status: (() => {
+      // Chatbot: real unread from conversation_archives.is_read (tip 2026-09-12)
+      if (type === "chatbot") {
+        const isRead =
+          conv.is_read === true ||
+          conv.is_read === 1 ||
+          conv.is_read === "1";
+        return isRead ? "read" : "new";
+      }
+      return conv.status || conv.action || "new";
+    })(),
     priority: conv.priority || "medium",
     hasMultipleChannels: conv._hasMultipleChannels || false,
     raw: conv,

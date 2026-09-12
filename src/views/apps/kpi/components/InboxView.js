@@ -258,7 +258,33 @@ const InboxView = ({
           {},
           { headers: { Authorization: `Bearer ${token}` } },
         )
+        .then(() => {
+          try {
+            window.dispatchEvent(new Event("eor-inbox-badge-refresh"));
+          } catch (e) {}
+        })
         .catch((err) => console.error("mark inbound email read", err));
+    }
+    // Persist read on conversation_archives (Chatbot badge)
+    if (
+      (item?.type === "chatbot" ||
+        item?.type === "conversations-archives") &&
+      item?.id &&
+      item.status === "new"
+    ) {
+      const token = localStorage.getItem("token");
+      axios
+        .patch(
+          `${global.config.server_url}/conversation-archives/${item.id}/read`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } },
+        )
+        .then(() => {
+          try {
+            window.dispatchEvent(new Event("eor-inbox-badge-refresh"));
+          } catch (e) {}
+        })
+        .catch((err) => console.error("mark chatbot read", err));
     }
     if (onSelect) onSelect(item.id);
   };
@@ -276,6 +302,26 @@ const InboxView = ({
     setManualUnreadIds((prev) =>
       new Set(prev).add(`${target.type}-${target.id}`),
     );
+
+    // Persist unread on conversation_archives (Chatbot badge)
+    if (
+      target.type === "chatbot" ||
+      target.type === "conversations-archives"
+    ) {
+      const token = localStorage.getItem("token");
+      axios
+        .patch(
+          `${global.config.server_url}/conversation-archives/${target.id}/unread`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } },
+        )
+        .then(() => {
+          try {
+            window.dispatchEvent(new Event("eor-inbox-badge-refresh"));
+          } catch (e) {}
+        })
+        .catch((err) => console.error("mark chatbot unread", err));
+    }
 
     // Toast notification could be moved to a utility or separate component
     const toast = document.createElement("div");

@@ -438,10 +438,18 @@ class SideMenuContent extends React.Component {
       let totalUnread = 0;
 
       validItems.forEach((c) => {
-        const status = c.status || c.action || "new";
-
         // Determine type first to use in composite ID
         let type = c._source || c.type;
+
+        // Chatbot: is_read from API (no status column on conversation_archives)
+        let status;
+        if (type === "chatbot") {
+          const isRead =
+            c.is_read === true || c.is_read === 1 || c.is_read === "1";
+          status = isRead ? "read" : "new";
+        } else {
+          status = c.status || c.action || "new";
+        }
 
         const compositeId = `${type}-${c.id}`;
 
@@ -461,9 +469,9 @@ class SideMenuContent extends React.Component {
 
       this.setState({
         inboxBadge: totalUnread,
-        chatbotBadge: chatbotCount,
+        // chatbotBadge: from /conversation-archives/unread-count (is_read) — not stock
         diagnosticBadge: diagnosticCount,
-        callBadge: callCount,
+        callBadge: 0, // Appels: never show (Martin fiches only) — tip 2026-09-12
         // emailBadge: set separately from /inbound-emails/unread-count (Mails child only)
         opportunitiesBadge: opportunitiesCount,
       });
@@ -472,7 +480,29 @@ class SideMenuContent extends React.Component {
     }
   };
 
-  componentDidMount() {
+  fetchChatbotUnreadCount = () => {
+    const Config = {
+      headers: {
+        Authorization: "Bearer " + localStorage.getItem("token"),
+      },
+    };
+    axios
+      .get(
+        global.config.server_url + "/conversation-archives/unread-count",
+        Config,
+      )
+      .then((res) => {
+        const n = Number(res?.data?.count);
+        this.setState({
+          chatbotBadge: Number.isFinite(n) && n > 0 ? n : 0,
+        });
+      })
+      .catch((err) =>
+        console.error("❌ Error fetching chatbot unread count", err),
+      );
+  };
+
+    componentDidMount() {
     this.initRender(this.parentArr[0] ? this.parentArr[0] : []);
 
     const Config = {
@@ -483,6 +513,30 @@ class SideMenuContent extends React.Component {
 
     // Initial fetch
     this.fetchInboxCount();
+    this.fetchChatbotUnreadCount();
+
+    this._onInboxBadgeRefresh = () => {
+      this.fetchChatbotUnreadCount();
+      // keep mail badge in sync when inbox marks read
+      axios
+        .get(
+          global.config.server_url +
+            "/inbound-emails/unread-count?source=cf7",
+          {
+            headers: {
+              Authorization: "Bearer " + localStorage.getItem("token"),
+            },
+          },
+        )
+        .then((res) => {
+          const n = Number(res?.data?.count);
+          this.setState({
+            emailBadge: Number.isFinite(n) && n > 0 ? n : 0,
+          });
+        })
+        .catch(() => {});
+    };
+    window.addEventListener("eor-inbox-badge-refresh", this._onInboxBadgeRefresh);
 
     axios
       .get(global.config.server_url + "/suivi-avancement/all", Config)
@@ -590,7 +644,14 @@ class SideMenuContent extends React.Component {
       );
   }
 
-  componentWillUnmount() {}
+  componentWillUnmount() {
+    if (this._onInboxBadgeRefresh) {
+      window.removeEventListener(
+        "eor-inbox-badge-refresh",
+        this._onInboxBadgeRefresh,
+      );
+    }
+  }
 
   componentDidUpdate(prevProps, prevState) {
     if (prevProps.activePath !== this.props.activePath) {
