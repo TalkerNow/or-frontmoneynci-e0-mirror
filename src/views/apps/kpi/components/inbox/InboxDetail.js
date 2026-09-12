@@ -190,10 +190,16 @@ const InboxDetail = ({
                 </span>
               )}
               <span style={{ fontSize: "12px", color: "#9ca3af" }}>
-                Reçu le {selectedItem.date} • Source:{" "}
-                {selectedItem.raw?.source === "expert-retraite"
-                  ? "Expert Retraite"
-                  : "EOR Consultant"}
+                {selectedItem.type === "email" ? (
+                  <>Reçu le {selectedItem.date}</>
+                ) : (
+                  <>
+                    Reçu le {selectedItem.date} • Source:{" "}
+                    {selectedItem.raw?.source === "expert-retraite"
+                      ? "Expert Retraite"
+                      : "EOR Consultant"}
+                  </>
+                )}
               </span>
             </div>
             <div
@@ -290,7 +296,7 @@ const InboxDetail = ({
             </div>
           </div>
 
-          {/* Header Prospect - 3 champs horizontaux */}
+          {selectedItem.type !== "email" && (
           <div
             className="inbox-header-fields"
             style={{
@@ -395,6 +401,7 @@ const InboxDetail = ({
               </div>
             </div>
           </div>
+          )}
         </div>
 
         <div
@@ -1050,6 +1057,147 @@ const InboxDetail = ({
                 )}
               </div>
             </div>
+          ) : selectedItem.type === "email" ? (
+            <div style={{ paddingTop: "8px" }}>
+              {/* CF7 reading pane — Gmail mirror, label then value */}
+              {selectedItem.channel ? (
+                <div
+                  style={{
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    color: "#111827",
+                    marginBottom: "20px",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {selectedItem.channel}
+                </div>
+              ) : null}
+
+              {[
+                { label: "Nom, prénom", value: selectedItem.name },
+                {
+                  label: "Téléphone",
+                  value: formatPhoneNumber(selectedItem.phone) || selectedItem.phone,
+                },
+                { label: "Adresse mail", value: selectedItem.email },
+                { label: "Date de naissance", value: selectedItem.birthDate },
+                {
+                  label: "Vous êtes intéressé·e par",
+                  value: selectedItem.interest,
+                },
+                {
+                  label: "Message",
+                  value: selectedItem.cf7Message,
+                },
+              ]
+                .filter((row) => row.value && String(row.value).trim())
+                .map((row) => (
+                  <div
+                    key={row.label}
+                    style={{
+                      marginBottom: "16px",
+                      paddingBottom: "14px",
+                      borderBottom: "1px solid #f3f4f6",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        fontWeight: 500,
+                        color: "#6b7280",
+                        marginBottom: "4px",
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {row.label}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "15px",
+                        fontWeight: 500,
+                        color: "#111827",
+                        lineHeight: 1.55,
+                        whiteSpace: "pre-wrap",
+                        wordBreak: "break-word",
+                      }}
+                    >
+                      {row.value}
+                    </div>
+                  </div>
+                ))}
+
+              {selectedItem.formUrl ? (
+                <div
+                  style={{
+                    marginBottom: "16px",
+                    paddingBottom: "14px",
+                    borderBottom: "1px solid #f3f4f6",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 500,
+                      color: "#6b7280",
+                      marginBottom: "4px",
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    Formulaire rempli sur le site EOR
+                  </div>
+                  <a
+                    href={selectedItem.formUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      fontSize: "14px",
+                      color: "#4f46e5",
+                      wordBreak: "break-all",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {selectedItem.formUrl}
+                  </a>
+                </div>
+              ) : null}
+
+              {/* Fallback if CF7 parse empty: quiet body, no subject noise */}
+              {!selectedItem.channel &&
+              !selectedItem.name &&
+              !selectedItem.phone &&
+              !selectedItem.email &&
+              !selectedItem.cf7Message ? (
+                <div
+                  style={{
+                    fontSize: "14px",
+                    color: "#374151",
+                    whiteSpace: "pre-wrap",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {selectedItem.body || selectedItem.snippet || ""}
+                </div>
+              ) : null}
+
+              {selectedItem.gmailPermalink ? (
+                <div style={{ marginTop: "8px", paddingTop: "8px" }}>
+                  <a
+                    href={selectedItem.gmailPermalink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: "inline-block",
+                      fontSize: "13px",
+                      color: "#4f46e5",
+                      fontWeight: 500,
+                    }}
+                  >
+                    Ouvrir dans Gmail →
+                  </a>
+                </div>
+              ) : null}
+            </div>
           ) : (
             <div>
               <h3
@@ -1063,7 +1211,7 @@ const InboxDetail = ({
                 }}
               >
                 <MessageSquare size={16} className="mr-50" />
-                {selectedItem.type === "call" || selectedItem.type === "email"
+                {selectedItem.type === "call"
                   ? "DÉTAILS DE L'ÉCHANGE"
                   : "SYNTHÈSE DE LA CONVERSATION"}
               </h3>
@@ -1096,9 +1244,7 @@ const InboxDetail = ({
                     >
                       {selectedItem.type === "call"
                         ? "📞 Détails de l'appel"
-                        : selectedItem.type === "email"
-                          ? "✉️ Détails du mail"
-                          : "📝 Synthèse IA"}
+                        : "📝 Synthèse IA"}
                     </div>
                     <div
                       style={{
@@ -1107,46 +1253,7 @@ const InboxDetail = ({
                         fontFamily: "'Montserrat', sans-serif",
                       }}
                     >
-                      {selectedItem.type === "email" ? (
-                        <div>
-                          <div
-                            style={{
-                              fontWeight: 600,
-                              marginBottom: "8px",
-                              color: "#111827",
-                            }}
-                          >
-                            {selectedItem.subject || "(sans objet)"}
-                          </div>
-                          <div
-                            style={{
-                              whiteSpace: "pre-wrap",
-                              color: "#374151",
-                              lineHeight: 1.6,
-                            }}
-                          >
-                            {selectedItem.body ||
-                              selectedItem.snippet ||
-                              "(pas de contenu)"}
-                          </div>
-                          {selectedItem.gmailPermalink ? (
-                            <a
-                              href={selectedItem.gmailPermalink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{
-                                display: "inline-block",
-                                marginTop: "12px",
-                                fontSize: "12px",
-                                color: "#4f46e5",
-                              }}
-                            >
-                              Ouvrir dans Gmail →
-                            </a>
-                          ) : null}
-                        </div>
-                      ) : (
-                        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                           {selectedItem.summary?.map((point, idx) => (
                             <li
                               key={idx}
@@ -1171,7 +1278,6 @@ const InboxDetail = ({
                             </li>
                           ))}
                         </ul>
-                      )}
                     </div>
                   </div>
                 </div>

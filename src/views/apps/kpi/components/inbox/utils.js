@@ -163,16 +163,36 @@ export function extractSummaryFromMessages(messages) {
 
 /**
  * Parse CF7 contact-form body/snippet (Gmail ingest).
- * Typical: « Nouveau message reçu via le formulaire de contact
- * Prénom, Nom Afide Azzi Téléphone 0786… Adresse email … »
+ * Official layout (label then value):
+ *   Message reçu via le formulaire de contact
+ *   Nom, prénom / Téléphone / Adresse mail / Date de naissance /
+ *   Vous êtes intéressé·e par / Message /
+ *   Formulaire rempli sur le site EOR : https://www.eor.fr/…
  * Snippet often holds the full CF7 text (no body column yet).
  */
 export function parseCf7ContactBody(text) {
+  const empty = {
+    firstName: "",
+    lastName: "",
+    name: "",
+    phone: "",
+    email: "",
+    birthDate: "",
+    interest: "",
+    message: "",
+    channel: "",
+    formUrl: "",
+  };
   const raw = String(text || "").replace(/\s+/g, " ").trim();
-  if (!raw) return { firstName: "", lastName: "", name: "", phone: "", email: "" };
+  if (!raw) return empty;
 
   const nextLabel =
-    "(?=\\s*(?:Téléphone|Telephone|Adresse\\s*(?:e-?mail|mail)|Date\\s*de\\s*naissance|Statut|Vous\\s*êtes|Besoin|Message|Votre\\s*message)\\b|$)";
+    "(?=\\s*(?:Téléphone|Telephone|Adresse\\s*(?:e-?mail|mail)|E-?mail|Date\\s*de\\s*naissance|Statut|Vous\\s*êtes|Besoin|Message|Votre\\s*message|Formulaire\\s+rempli)\\b|$)";
+
+  let channel = "";
+  if (/(?:Nouveau\s+)?[Mm]essage\s+reçu\s+via\s+le\s+formulaire\s+de\s+contact/i.test(raw)) {
+    channel = "Message reçu via le formulaire de contact";
+  }
 
   let firstName = "";
   let lastName = "";
@@ -180,42 +200,48 @@ export function parseCf7ContactBody(text) {
 
   // "Prénom, Nom VALUE" → first token = prénom, rest = nom
   let m = raw.match(
-    new RegExp(
-      "(?:Prénom|Prenom)\\s*,\\s*Nom\\s+(.+?)" + nextLabel,
-      "i",
-    ),
+    new RegExp("(?:Prénom|Prenom)\\s*,\\s*Nom\\s+(.+?)" + nextLabel, "i"),
   );
   if (m) {
     name = m[1].trim();
     const parts = name.split(/\s+/).filter(Boolean);
-    if (parts.length === 1) {
-      firstName = parts[0];
-    } else if (parts.length > 1) {
-      firstName = parts[0];
-      lastName = parts.slice(1).join(" ");
+    const nameParts = [...parts];
+    if (
+      nameParts.length &&
+      /^(m\.?|mr\.?|mme\.?|mlle\.?|monsieur|madame)$/i.test(nameParts[0])
+    ) {
+      nameParts.shift();
+    }
+    if (nameParts.length === 1) {
+      firstName = nameParts[0];
+    } else if (nameParts.length > 1) {
+      firstName = nameParts[0];
+      lastName = nameParts.slice(1).join(" ");
     }
   } else {
-    // "Nom, prénom VALUE" — FR order often Title? Prénom NOM
+    // "Nom, prénom VALUE" — keep civility in display name (Mr Serge RICHARD)
     m = raw.match(
       new RegExp("Nom\\s*,\\s*(?:Prénom|Prenom)\\s+(.+?)" + nextLabel, "i"),
     );
     if (m) {
       name = m[1].trim();
       const parts = name.split(/\s+/).filter(Boolean);
-      // strip civility
-      if (parts.length && /^(m\.?|mr\.?|mme\.?|mlle\.?|monsieur|madame)$/i.test(parts[0])) {
-        parts.shift();
+      const nameParts = [...parts];
+      if (
+        nameParts.length &&
+        /^(m\.?|mr\.?|mme\.?|mlle\.?|monsieur|madame)$/i.test(nameParts[0])
+      ) {
+        nameParts.shift();
       }
-      if (parts.length === 1) {
-        lastName = parts[0];
-      } else if (parts.length === 2) {
-        firstName = parts[0];
-        lastName = parts[1];
-      } else if (parts.length > 2) {
-        firstName = parts.slice(0, -1).join(" ");
-        lastName = parts[parts.length - 1];
+      if (nameParts.length === 1) {
+        lastName = nameParts[0];
+      } else if (nameParts.length === 2) {
+        firstName = nameParts[0];
+        lastName = nameParts[1];
+      } else if (nameParts.length > 2) {
+        firstName = nameParts.slice(0, -1).join(" ");
+        lastName = nameParts[nameParts.length - 1];
       }
-      name = [firstName, lastName].filter(Boolean).join(" ");
     }
   }
 
@@ -238,7 +264,63 @@ export function parseCf7ContactBody(text) {
     email = m[1].replace(/[>,;]+$/, "").trim();
   }
 
-  return { firstName, lastName, name, phone, email };
+  let birthDate = "";
+  m = raw.match(
+    new RegExp(
+      "Date\\s*de\\s*naissance\\s*[:\\s]\\s*([0-9]{1,2}[/.-][0-9]{1,2}[/.-][0-9]{2,4})" +
+        nextLabel,
+      "i",
+    ),
+  );
+  if (m) {
+    birthDate = m[1].trim();
+  }
+
+  let interest = "";
+  m = raw.match(
+    new RegExp(
+      "Vous\\s*êtes\\s*intéressé[·.•\\s]*e?\\s*par\\s+(.+?)" + nextLabel,
+      "i",
+    ),
+  );
+  if (m) {
+    interest = m[1].trim();
+  }
+
+  let message = "";
+  // Avoid matching intro « Message reçu via le formulaire… »
+  m = raw.match(
+    /(?:Votre\s+message|\bMessage(?!\s+reçu)\b)\s+(.+?)(?=\s*Formulaire\s+rempli\s+sur|\s*$)/i,
+  );
+  if (m) {
+    message = m[1].trim();
+  }
+
+  let formUrl = "";
+  m = raw.match(
+    /Formulaire\s+rempli\s+sur\s+le\s+site\s+EOR\s*:\s*(https?:\/\/[^\s]+)/i,
+  );
+  if (m) {
+    formUrl = m[1].replace(/[.,;)\]]+$/, "").trim();
+  } else {
+    m = raw.match(/(https?:\/\/(?:www\.)?eor\.fr\/[^\s]+)/i);
+    if (m) {
+      formUrl = m[1].replace(/[.,;)\]]+$/, "").trim();
+    }
+  }
+
+  return {
+    firstName,
+    lastName,
+    name,
+    phone,
+    email,
+    birthDate,
+    interest,
+    message,
+    channel,
+    formUrl,
+  };
 }
 
 /**
@@ -262,6 +344,11 @@ export function mapInboundEmailToInboxItem(row) {
   const lastName = (cf7 && cf7.lastName) || "";
   const email = (cf7 && cf7.email) || fromEmail || "";
   const phone = (cf7 && cf7.phone) || "";
+  const birthDate = (cf7 && cf7.birthDate) || "";
+  const interest = (cf7 && cf7.interest) || "";
+  const cf7Message = (cf7 && cf7.message) || "";
+  const channel = (cf7 && cf7.channel) || "";
+  const formUrl = (cf7 && cf7.formUrl) || "";
   const displayName =
     (cf7 && cf7.name) ||
     [firstName, lastName].filter(Boolean).join(" ").trim() ||
@@ -286,6 +373,11 @@ export function mapInboundEmailToInboxItem(row) {
     lastName,
     email,
     phone,
+    birthDate,
+    interest,
+    cf7Message,
+    channel,
+    formUrl,
     subject,
     snippet,
     body,
