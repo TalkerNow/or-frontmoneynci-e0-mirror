@@ -345,6 +345,38 @@ const InboxDetail = ({
             </div>
           </div>
 
+          {/* Mail header → legacy ActionsSection forms (CALLREPORT bandeau / TASK form) */}
+          {selectedItem.type === "email" &&
+            (actionsView === "CALLREPORT" || actionsView === "TASK") && (
+              <div
+                style={{
+                  marginTop: "12px",
+                  marginBottom: "8px",
+                  padding: "16px",
+                  backgroundColor: "#f9fafb",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "12px",
+                }}
+              >
+                <ActionsSection
+                  clientId={selectedItem.clientId}
+                  prospectId={selectedItem.id}
+                  adminId={localStorage.getItem("userid")}
+                  type={selectedItem.type}
+                  prospectData={{
+                    firstName: selectedItem.firstName,
+                    lastName: selectedItem.lastName,
+                    email: selectedItem.email,
+                    phone: selectedItem.phone,
+                  }}
+                  onProspectCreated={onProspectCreated}
+                  hideNav
+                  controlledView={actionsView}
+                  onViewChange={setActionsView}
+                />
+              </div>
+            )}
+
           {selectedItem.type !== "email" && (
           <div
             className="inbox-header-fields"
@@ -1534,7 +1566,11 @@ const InboxDetail = ({
               </div>
             )}
 
-          {/* Actions Section */}
+          {/* Actions Section — skip duplicate while mail header bandeau owns TASK/CALLREPORT */}
+          {!(
+            selectedItem.type === "email" &&
+            (actionsView === "CALLREPORT" || actionsView === "TASK")
+          ) && (
           <div
             style={{
               marginTop: "0",
@@ -1573,6 +1609,7 @@ const InboxDetail = ({
               }
             />
           </div>
+          )}
         </div>
       </div>
     </>

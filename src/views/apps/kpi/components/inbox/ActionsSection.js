@@ -47,7 +47,10 @@ const ActionsSection = ({
 
   useEffect(() => {
     setLocalClientId(null);
-    setActiveView("HOME");
+    // Parent owns view when controlled (mail header icons); do not clobber TASK/CALLREPORT.
+    if (controlledView === undefined) {
+      setInternalView("HOME");
+    }
     setNewCallReport("");
     setNewTaskText("");
     setTaskDateTime("");
