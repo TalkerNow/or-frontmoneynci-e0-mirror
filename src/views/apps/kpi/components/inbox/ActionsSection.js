@@ -1,14 +1,10 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { useHistory } from "react-router-dom";
 import {
-  MessageSquare,
   CheckCircle,
   Phone,
-  Briefcase,
   User,
   Plus,
-  Calendar,
 } from "lucide-react";
 import SweetAlert from "react-bootstrap-sweetalert";
 
@@ -24,9 +20,18 @@ const ActionsSection = ({
   type,
   prospectData = {},
   onProspectCreated, // Nouveau callback pour notifier le parent
+  hideNav = false,
+  controlledView,
+  onViewChange,
 }) => {
-  const routerHistory = useHistory();
-  const [activeView, setActiveView] = useState("HOME");
+  const [internalView, setInternalView] = useState("HOME");
+  const activeView =
+    controlledView !== undefined ? controlledView : internalView;
+  const setActiveView = (v) => {
+    const next = typeof v === "function" ? v(activeView) : v;
+    if (onViewChange) onViewChange(next);
+    if (controlledView === undefined) setInternalView(next);
+  };
   const [newCallReport, setNewCallReport] = useState("");
   const [newTaskText, setNewTaskText] = useState("");
   const [taskDateTime, setTaskDateTime] = useState("");
@@ -543,70 +548,25 @@ const ActionsSection = ({
 
   return (
     <div>
-      {/* Icon Navigation Bar */}
-      <div className="header-flex-wrap" style={iconBarStyle}>
-        <button
-          style={iconButtonStyle(activeView === "HOME")}
-          onClick={() => setActiveView("HOME")}
-          title="Historique"
-        >
-          <MessageSquare size={20} />
-        </button>
-        <button
-          style={iconButtonStyle(activeView === "CALLREPORT")}
-          onClick={() => setActiveView("CALLREPORT")}
-          title="Call Report"
-        >
-          <Phone size={20} />
-        </button>
-        <button
-          style={iconButtonStyle(activeView === "TASK")}
-          onClick={() => setActiveView("TASK")}
-          title="Tâche"
-        >
-          <CheckCircle size={20} />
-        </button>
-
-        <button
-          style={iconButtonStyle(false)}
-          onClick={() =>
-            routerHistory.push({
-              pathname: "/kpi/opportunities",
-              state: { fromInbox: true, conversationId: prospectId },
-            })
-          }
-          title="Opportunités"
-        >
-          <Briefcase size={20} />
-        </button>
-
-        {ownerId && (
-          <>
-            <button
-              style={{
-                ...iconButtonStyle(false),
-                color: "#059669",
-                backgroundColor: "#d1fae5",
-              }}
-              onClick={() => routerHistory.push(`/app/user/edit/${ownerId}/2`)}
-              title="Voir le profil complet"
-            >
-              <User size={20} />
-            </button>
-            <button
-              style={{
-                ...iconButtonStyle(false),
-                color: "#7c3aed",
-                backgroundColor: "#ede9fe",
-              }}
-              onClick={() => setShowKanbanModal(true)}
-              title="Ajouter au Kanban"
-            >
-              <Calendar size={20} />
-            </button>
-          </>
-        )}
-      </div>
+      {/* Icon nav: chat/kanban/profil parked. hideNav => mail header owns icons. */}
+      {!hideNav && (
+        <div className="header-flex-wrap" style={iconBarStyle}>
+          <button
+            style={iconButtonStyle(activeView === "CALLREPORT")}
+            onClick={() => setActiveView("CALLREPORT")}
+            title="Téléphone"
+          >
+            <Phone size={20} />
+          </button>
+          <button
+            style={iconButtonStyle(activeView === "TASK")}
+            onClick={() => setActiveView("TASK")}
+            title="Tâche"
+          >
+            <CheckCircle size={20} />
+          </button>
+        </div>
+      )}
 
       {/* Views */}
       <div style={viewContainerStyle}>

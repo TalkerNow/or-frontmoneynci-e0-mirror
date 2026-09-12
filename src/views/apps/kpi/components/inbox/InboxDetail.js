@@ -14,11 +14,13 @@ import {
   TrendingUp,
   Star,
   Loader,
-  // Eye,
   EyeOff,
   Trash2,
   MessageSquare,
   FileText,
+  X,
+  UserPlus,
+  Reply,
 } from "lucide-react";
 
 import { Badge } from "../SharedComponents";
@@ -52,8 +54,13 @@ const InboxDetail = ({
 }) => {
   const [showConversationModal, setShowConversationModal] = useState(false);
   const [showVisualReport, setShowVisualReport] = useState(false);
+  const [actionsView, setActionsView] = useState("HOME");
   const [reportData, setReportData] = useState(null);
   const [isLoadingReport, setIsLoadingReport] = useState(false);
+
+  useEffect(() => {
+    setActionsView("HOME");
+  }, [selectedItem?.id, selectedItem?.type]);
 
   useEffect(() => {
     if (!showVisualReport) {
@@ -205,95 +212,141 @@ const InboxDetail = ({
             </div>
             <div
               className="header-btn-stack"
-              style={{ display: "flex", gap: "8px" }}
+              style={{
+                display: "flex",
+                gap: "6px",
+                flexWrap: "wrap",
+                alignItems: "center",
+              }}
             >
-              <button
-                onClick={onMarkAsUnread}
-                style={{
-                  padding: "8px 12px",
-                  fontSize: "14px",
-                  color: "#4b5563",
-                  backgroundColor: "#f3f4f6",
+              {(() => {
+                const iconBtn = (extra = {}) => ({
+                  padding: "8px",
+                  width: "36px",
+                  height: "36px",
+                  color: extra.color || "#4b5563",
+                  backgroundColor: extra.bg || "#f3f4f6",
                   borderRadius: "8px",
-                  display: "flex",
+                  display: "inline-flex",
                   alignItems: "center",
-                  gap: "8px",
+                  justifyContent: "center",
                   border: "none",
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
-                }}
-                title="Marquer comme non lu"
-              >
-                <EyeOff size={16} /> Marquer comme non lu
-              </button>
-              <button
-                onClick={onDisqualify}
-                style={{
-                  padding: "8px 12px",
-                  fontSize: "14px",
-                  color: "#dc2626",
-                  backgroundColor: "#fef2f2",
-                  borderRadius: "8px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  border: "none",
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
-                }}
-              >
-                <XCircle size={16} /> Disqualifier
-              </button>
-              {selectedItem.type === "diagnostic" && (
-                <button
-                  onClick={() => setShowVisualReport(true)}
-                  style={{
-                    padding: "8px 16px",
-                    fontSize: "14px",
-                    fontWeight: "500",
-                    color: "#1e3a8a", // Dark blue text
-                    backgroundColor: "#eff6ff", // Very light blue background
-                    borderRadius: "8px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    border: "none",
-                    cursor: "pointer",
-                    transition: "all 0.2s ease",
-                    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.backgroundColor = "#dbeafe";
-                    e.currentTarget.style.color = "#172554";
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.backgroundColor = "#eff6ff";
-                    e.currentTarget.style.color = "#1e3a8a";
-                  }}
-                  title="Générer le rapport visuel"
-                >
-                  <FileText size={16} strokeWidth={2} />
-                  <span className="hide-on-mobile">Rapport Visuel</span>
-                </button>
-              )}
-              <button
-                style={{
-                  padding: "8px 16px",
-                  fontSize: "14px",
-                  color: "white",
-                  backgroundColor: "#4f46e5",
-                  borderRadius: "8px",
-                  boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  cursor: "pointer",
-                  border: "none",
-                }}
-                onClick={onConvert}
-              >
-                <ArrowRight size={16} /> Convertir
-              </button>
+                  cursor: extra.disabled ? "not-allowed" : "pointer",
+                  opacity: extra.disabled ? 0.45 : 1,
+                  transition: "all 0.15s ease",
+                  textDecoration: "none",
+                  lineHeight: 1,
+                });
+                const reply =
+                  selectedItem.type === "email"
+                    ? buildCf7ReplyHref(selectedItem)
+                    : null;
+                return (
+                  <>
+                    <button
+                      type="button"
+                      onClick={onMarkAsUnread}
+                      style={iconBtn()}
+                      title="Lu / non-lu"
+                      aria-label="Marquer comme non lu"
+                    >
+                      <EyeOff size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onDisqualify}
+                      style={iconBtn({ color: "#dc2626", bg: "#fef2f2" })}
+                      title="Disqualifier"
+                      aria-label="Disqualifier"
+                    >
+                      <X size={16} strokeWidth={2.5} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onConvert}
+                      style={iconBtn({ color: "#059669", bg: "#d1fae5" })}
+                      title="Convertir"
+                      aria-label="Convertir"
+                    >
+                      <UserPlus size={16} />
+                    </button>
+                    {selectedItem.type === "email" &&
+                      (reply && reply.href && !reply.disabled ? (
+                        <a
+                          href={reply.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={iconBtn({ color: "#4f46e5", bg: "#eef2ff" })}
+                          title={
+                            reply.fallbackMailto
+                              ? "Répondre (mailto)"
+                              : "Répondre (Gmail)"
+                          }
+                          aria-label="Répondre"
+                        >
+                          <Reply size={16} />
+                        </a>
+                      ) : (
+                        <span
+                          style={iconBtn({ disabled: true })}
+                          title="Aucun email prospect"
+                          aria-label="Répondre indisponible"
+                        >
+                          <Reply size={16} />
+                        </span>
+                      ))}
+                    {selectedItem.type === "diagnostic" && (
+                      <button
+                        type="button"
+                        onClick={() => setShowVisualReport(true)}
+                        style={iconBtn({ color: "#1e3a8a", bg: "#eff6ff" })}
+                        title="Rapport visuel"
+                        aria-label="Rapport visuel"
+                      >
+                        <FileText size={16} />
+                      </button>
+                    )}
+                    {selectedItem.type === "email" && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setActionsView((v) =>
+                              v === "CALLREPORT" ? "HOME" : "CALLREPORT",
+                            )
+                          }
+                          style={iconBtn(
+                            actionsView === "CALLREPORT"
+                              ? { color: "#4f46e5", bg: "#e0e7ff" }
+                              : {},
+                          )}
+                          title="Téléphone / call report"
+                          aria-label="Téléphone"
+                        >
+                          <Phone size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setActionsView((v) =>
+                              v === "TASK" ? "HOME" : "TASK",
+                            )
+                          }
+                          style={iconBtn(
+                            actionsView === "TASK"
+                              ? { color: "#4f46e5", bg: "#e0e7ff" }
+                              : {},
+                          )}
+                          title="Créer une tâche"
+                          aria-label="Tâche"
+                        >
+                          <CheckCircle size={16} />
+                        </button>
+                      </>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
 
@@ -1181,81 +1234,23 @@ const InboxDetail = ({
                 </div>
               ) : null}
 
-              {(() => {
-                const reply = buildCf7ReplyHref(selectedItem);
-                return (
-                  <div
+              {selectedItem.gmailPermalink ? (
+                <div style={{ marginTop: "8px", paddingTop: "8px" }}>
+                  <a
+                    href={selectedItem.gmailPermalink}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     style={{
-                      marginTop: "8px",
-                      paddingTop: "12px",
-                      display: "flex",
-                      flexWrap: "wrap",
-                      gap: "10px",
-                      alignItems: "center",
+                      display: "inline-block",
+                      fontSize: "13px",
+                      color: "#4f46e5",
+                      fontWeight: 500,
                     }}
                   >
-                    {reply.href && !reply.disabled ? (
-                      <a
-                        href={reply.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title={
-                          reply.fallbackMailto
-                            ? "Pas d'email prospect — ouverture client mail"
-                            : "Répondre dans Gmail (brouillon)"
-                        }
-                        style={{
-                          display: "inline-block",
-                          fontSize: "13px",
-                          color: "#4f46e5",
-                          fontWeight: 500,
-                          padding: "6px 12px",
-                          border: "1px solid #c7d2fe",
-                          borderRadius: "6px",
-                          background: "#eef2ff",
-                          textDecoration: "none",
-                          lineHeight: 1.4,
-                        }}
-                      >
-                        Répondre
-                      </a>
-                    ) : (
-                      <span
-                        title="Aucun email prospect"
-                        style={{
-                          display: "inline-block",
-                          fontSize: "13px",
-                          color: "#9ca3af",
-                          fontWeight: 500,
-                          padding: "6px 12px",
-                          border: "1px solid #e5e7eb",
-                          borderRadius: "6px",
-                          background: "#f9fafb",
-                          lineHeight: 1.4,
-                          cursor: "not-allowed",
-                        }}
-                      >
-                        Répondre
-                      </span>
-                    )}
-                    {selectedItem.gmailPermalink ? (
-                      <a
-                        href={selectedItem.gmailPermalink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          display: "inline-block",
-                          fontSize: "13px",
-                          color: "#4f46e5",
-                          fontWeight: 500,
-                        }}
-                      >
-                        Ouvrir dans Gmail →
-                      </a>
-                    ) : null}
-                  </div>
-                );
-              })()}
+                    Ouvrir dans Gmail →
+                  </a>
+                </div>
+              ) : null}
             </div>
           ) : (
             <div>
@@ -1574,6 +1569,13 @@ const InboxDetail = ({
                 phone: selectedItem.phone,
               }}
               onProspectCreated={onProspectCreated}
+              hideNav={selectedItem.type === "email"}
+              controlledView={
+                selectedItem.type === "email" ? actionsView : undefined
+              }
+              onViewChange={
+                selectedItem.type === "email" ? setActionsView : undefined
+              }
             />
           </div>
         </div>

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Loader, MessageSquare, EyeOff, Search } from "lucide-react";
+import { Loader, MessageSquare, EyeOff, Search, X, UserPlus } from "lucide-react";
 import {
   getTypeIcon,
   formatPhoneNumber,
@@ -14,6 +14,8 @@ const InboxList = ({
   readIds,
   manualUnreadIds,
   onMarkAsUnread,
+  onDisqualify,
+  onConvert,
   filter = "all",
 }) => {
   const [hoveredItemId, setHoveredItemId] = useState(null);
@@ -267,35 +269,86 @@ const InboxList = ({
                     }}
                   ></span>
                 ) : hoveredItemId === item.id ? (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (onMarkAsUnread) onMarkAsUnread(e, item);
-                    }}
-                    title="Marquer comme non lu"
+                  <div
                     style={{
-                      background: "#f3f4f6",
-                      border: "none",
-                      cursor: "pointer",
-                      padding: "4px 8px",
-                      borderRadius: "4px",
-                      color: "#4b5563",
                       display: "flex",
                       alignItems: "center",
                       gap: "4px",
-                      fontSize: "12px",
-                      transition: "all 0.2s",
                     }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.background = "#e5e7eb")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.background = "#f3f4f6")
-                    }
                   >
-                    <EyeOff size={14} />
-                    <span>Non lu</span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onMarkAsUnread) onMarkAsUnread(e, item);
+                      }}
+                      title="Lu / non-lu"
+                      aria-label="Marquer comme non lu"
+                      style={{
+                        background: "#f3f4f6",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: "4px",
+                        width: "28px",
+                        height: "28px",
+                        borderRadius: "6px",
+                        color: "#4b5563",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <EyeOff size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onDisqualify) onDisqualify(e, item);
+                      }}
+                      title="Disqualifier"
+                      aria-label="Disqualifier"
+                      style={{
+                        background: "#fef2f2",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: "4px",
+                        width: "28px",
+                        height: "28px",
+                        borderRadius: "6px",
+                        color: "#dc2626",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <X size={14} strokeWidth={2.5} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onConvert) onConvert(e, item);
+                      }}
+                      title="Convertir"
+                      aria-label="Convertir"
+                      style={{
+                        background: "#d1fae5",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: "4px",
+                        width: "28px",
+                        height: "28px",
+                        borderRadius: "6px",
+                        color: "#059669",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <UserPlus size={14} />
+                    </button>
+                  </div>
                 ) : null}
               </div>
             </div>

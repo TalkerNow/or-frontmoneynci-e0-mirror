@@ -338,10 +338,13 @@ const InboxView = ({
     setIsGenerating(false);
   };
 
-  const handleConvert = () => {
-    if (!selectedItem) return;
+  const handleConvert = (e, item = null) => {
+    if (e && typeof e.stopPropagation === "function") e.stopPropagation();
+    const target = item || selectedItem;
+    if (!target) return;
+    if (item) setSelectedItem(item);
 
-    const fullName = selectedItem.name || "";
+    const fullName = target.name || "";
     const nameParts = fullName.trim().split(" ");
     let firstName = "";
     let lastName = "";
@@ -350,14 +353,14 @@ const InboxView = ({
       lastName = nameParts.slice(1).join(" ");
     }
 
-    const attrs = selectedItem.raw?.attributes || {};
+    const attrs = target.raw?.attributes || {};
     let civility = "";
     if (attrs.CIVILITE === "M") civility = "Monsieur";
     else if (attrs.CIVILITE === "Mme") civility = "Madame";
 
     const birthDateRaw =
-      selectedItem.raw?.birth_date ||
-      selectedItem.raw?.date_naissance ||
+      target.raw?.birth_date ||
+      target.raw?.date_naissance ||
       attrs.DATE_NAISSANCE;
     let birth_date = null;
     if (birthDateRaw) {
@@ -369,8 +372,8 @@ const InboxView = ({
     const prefillData = {
       first_name: firstName,
       last_name: lastName,
-      email: selectedItem.email || attrs.EMAIL,
-      mobile_number: selectedItem.phone || attrs.TELEPHONE,
+      email: target.email || attrs.EMAIL,
+      mobile_number: target.phone || attrs.TELEPHONE,
       children_number: attrs.NBR_ENFANTS,
       birth_date: birth_date,
       military_service:
@@ -492,6 +495,12 @@ const InboxView = ({
         readIds={readIds}
         manualUnreadIds={manualUnreadIds}
         onMarkAsUnread={handleMarkAsUnread}
+        onDisqualify={(e, item) => {
+          if (e && e.stopPropagation) e.stopPropagation();
+          if (item) setSelectedItem(item);
+          setShowDisqualifyModal(true);
+        }}
+        onConvert={handleConvert}
         filter={filter}
       />
 
