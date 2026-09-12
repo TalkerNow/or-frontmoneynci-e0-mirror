@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Loader, MessageSquare, EyeOff, Search, X, UserPlus } from "lucide-react";
+import { Loader, MessageSquare, Search, X, UserPlus, Mail, MailOpen } from "lucide-react";
 import {
   getTypeIcon,
   formatPhoneNumber,
@@ -282,7 +282,7 @@ const InboxList = ({
                         e.stopPropagation();
                         if (onMarkAsUnread) onMarkAsUnread(e, item);
                       }}
-                      title="Lu / non-lu"
+                      title="Marquer comme non lu"
                       aria-label="Marquer comme non lu"
                       style={{
                         background: "#f3f4f6",
@@ -298,7 +298,7 @@ const InboxList = ({
                         justifyContent: "center",
                       }}
                     >
-                      <EyeOff size={14} />
+                      <MailOpen size={14} />
                     </button>
                     <button
                       type="button"

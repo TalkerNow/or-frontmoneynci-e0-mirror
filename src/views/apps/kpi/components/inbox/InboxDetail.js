@@ -4,6 +4,7 @@ import {
   User,
   Phone,
   Mail,
+  MailOpen,
   ArrowRight,
   XCircle,
   ClipboardList,
@@ -14,7 +15,6 @@ import {
   TrendingUp,
   Star,
   Loader,
-  EyeOff,
   Trash2,
   MessageSquare,
   FileText,
@@ -237,20 +237,29 @@ const InboxDetail = ({
                   textDecoration: "none",
                   lineHeight: 1,
                 });
+                const isUnread = selectedItem.status === "new";
+                const readTitle = isUnread
+                  ? "Marquer comme lu"
+                  : "Marquer comme non lu";
                 const reply =
                   selectedItem.type === "email"
                     ? buildCf7ReplyHref(selectedItem)
                     : null;
                 return (
                   <>
+                    {/* 1 enveloppe lu/non-lu · 2 ✕ · 3 reply · 4 tél · 5 tâche · 6 convert */}
                     <button
                       type="button"
                       onClick={onMarkAsUnread}
-                      style={iconBtn()}
-                      title="Lu / non-lu"
-                      aria-label="Marquer comme non lu"
+                      style={iconBtn(
+                        isUnread
+                          ? { color: "#4f46e5", bg: "#eef2ff" }
+                          : {},
+                      )}
+                      title={readTitle}
+                      aria-label={readTitle}
                     >
-                      <EyeOff size={16} />
+                      {isUnread ? <Mail size={16} /> : <MailOpen size={16} />}
                     </button>
                     <button
                       type="button"
@@ -261,6 +270,66 @@ const InboxDetail = ({
                     >
                       <X size={16} strokeWidth={2.5} />
                     </button>
+                    {selectedItem.type === "email" ? (
+                      reply && reply.href && !reply.disabled ? (
+                        <a
+                          href={reply.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={iconBtn({ color: "#4f46e5", bg: "#eef2ff" })}
+                          title="Répondre"
+                          aria-label="Répondre"
+                        >
+                          <Reply size={16} />
+                        </a>
+                      ) : (
+                        <span
+                          style={iconBtn({ disabled: true })}
+                          title="Répondre"
+                          aria-label="Répondre (indisponible)"
+                        >
+                          <Reply size={16} />
+                        </span>
+                      )
+                    ) : null}
+                    {selectedItem.type === "email" ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setActionsView((v) =>
+                            v === "CALLREPORT" ? "HOME" : "CALLREPORT",
+                          )
+                        }
+                        style={iconBtn(
+                          actionsView === "CALLREPORT"
+                            ? { color: "#4f46e5", bg: "#e0e7ff" }
+                            : {},
+                        )}
+                        title="Appeler"
+                        aria-label="Appeler"
+                      >
+                        <Phone size={16} />
+                      </button>
+                    ) : null}
+                    {selectedItem.type === "email" ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setActionsView((v) =>
+                            v === "TASK" ? "HOME" : "TASK",
+                          )
+                        }
+                        style={iconBtn(
+                          actionsView === "TASK"
+                            ? { color: "#4f46e5", bg: "#e0e7ff" }
+                            : {},
+                        )}
+                        title="Créer une tâche"
+                        aria-label="Créer une tâche"
+                      >
+                        <CheckCircle size={16} />
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       onClick={onConvert}
@@ -270,80 +339,6 @@ const InboxDetail = ({
                     >
                       <UserPlus size={16} />
                     </button>
-                    {selectedItem.type === "email" &&
-                      (reply && reply.href && !reply.disabled ? (
-                        <a
-                          href={reply.href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={iconBtn({ color: "#4f46e5", bg: "#eef2ff" })}
-                          title={
-                            reply.fallbackMailto
-                              ? "Répondre (mailto)"
-                              : "Répondre (Gmail)"
-                          }
-                          aria-label="Répondre"
-                        >
-                          <Reply size={16} />
-                        </a>
-                      ) : (
-                        <span
-                          style={iconBtn({ disabled: true })}
-                          title="Aucun email prospect"
-                          aria-label="Répondre indisponible"
-                        >
-                          <Reply size={16} />
-                        </span>
-                      ))}
-                    {selectedItem.type === "diagnostic" && (
-                      <button
-                        type="button"
-                        onClick={() => setShowVisualReport(true)}
-                        style={iconBtn({ color: "#1e3a8a", bg: "#eff6ff" })}
-                        title="Rapport visuel"
-                        aria-label="Rapport visuel"
-                      >
-                        <FileText size={16} />
-                      </button>
-                    )}
-                    {selectedItem.type === "email" && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setActionsView((v) =>
-                              v === "CALLREPORT" ? "HOME" : "CALLREPORT",
-                            )
-                          }
-                          style={iconBtn(
-                            actionsView === "CALLREPORT"
-                              ? { color: "#4f46e5", bg: "#e0e7ff" }
-                              : {},
-                          )}
-                          title="Téléphone / call report"
-                          aria-label="Téléphone"
-                        >
-                          <Phone size={16} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setActionsView((v) =>
-                              v === "TASK" ? "HOME" : "TASK",
-                            )
-                          }
-                          style={iconBtn(
-                            actionsView === "TASK"
-                              ? { color: "#4f46e5", bg: "#e0e7ff" }
-                              : {},
-                          )}
-                          title="Créer une tâche"
-                          aria-label="Tâche"
-                        >
-                          <CheckCircle size={16} />
-                        </button>
-                      </>
-                    )}
                   </>
                 );
               })()}
