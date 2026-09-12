@@ -393,6 +393,53 @@ export function mapInboundEmailToInboxItem(row) {
   };
 }
 
+
+/**
+ * Short CF7 quote for Gmail compose (Répondre) — Nom, Tél, Email, Message/intérêt.
+ */
+export function buildCf7QuotedBody(item) {
+  if (!item) return "";
+  const lines = [];
+  const name = (item.name || "").trim();
+  const phone = (item.phone || "").trim();
+  const email = (item.email || "").trim();
+  const msg = (item.cf7Message || "").trim();
+  const interest = (item.interest || "").trim();
+  if (name) lines.push(`Nom: ${name}`);
+  if (phone) lines.push(`Tél: ${phone}`);
+  if (email) lines.push(`Email: ${email}`);
+  if (msg) lines.push(`Message: ${msg}`);
+  if (interest) lines.push(`Intérêt: ${interest}`);
+  return lines.join("\n");
+}
+
+/**
+ * Gmail compose URL for CF7 reply (client-side only — no SMTP/outbox).
+ * If no prospect email: mailto: fallback with same subject/body.
+ */
+export function buildCf7ReplyHref(item) {
+  if (!item) return { href: null, disabled: true };
+  const email = (item.email || "").trim();
+  const subjectOrName = (item.subject || item.name || "Contact site").trim();
+  const su = `Re: ${subjectOrName}`;
+  const quoted = buildCf7QuotedBody(item);
+  const body = quoted
+    ? `Bonjour,\n\n\n\n---\nDemande reçue via le site :\n${quoted}`
+    : "";
+  if (email) {
+    const href =
+      "https://mail.google.com/mail/?view=cm&fs=1" +
+      `&to=${encodeURIComponent(email)}` +
+      `&su=${encodeURIComponent(su)}` +
+      `&body=${encodeURIComponent(body)}`;
+    return { href, disabled: false };
+  }
+  const mailto =
+    `mailto:?subject=${encodeURIComponent(su)}` +
+    `&body=${encodeURIComponent(body)}`;
+  return { href: mailto, disabled: !body, fallbackMailto: true };
+}
+
 export function mapConversationToInboxItem(conv) {
   const type =
     conv._source ||

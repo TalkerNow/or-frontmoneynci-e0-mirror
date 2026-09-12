@@ -32,6 +32,7 @@ import {
   formatPhoneNumber,
   calculateComplexityScore,
   generateVisualReport,
+  buildCf7ReplyHref,
 } from "./utils";
 
 const InboxDetail = ({
@@ -1180,23 +1181,81 @@ const InboxDetail = ({
                 </div>
               ) : null}
 
-              {selectedItem.gmailPermalink ? (
-                <div style={{ marginTop: "8px", paddingTop: "8px" }}>
-                  <a
-                    href={selectedItem.gmailPermalink}
-                    target="_blank"
-                    rel="noopener noreferrer"
+              {(() => {
+                const reply = buildCf7ReplyHref(selectedItem);
+                return (
+                  <div
                     style={{
-                      display: "inline-block",
-                      fontSize: "13px",
-                      color: "#4f46e5",
-                      fontWeight: 500,
+                      marginTop: "8px",
+                      paddingTop: "12px",
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: "10px",
+                      alignItems: "center",
                     }}
                   >
-                    Ouvrir dans Gmail →
-                  </a>
-                </div>
-              ) : null}
+                    {reply.href && !reply.disabled ? (
+                      <a
+                        href={reply.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={
+                          reply.fallbackMailto
+                            ? "Pas d'email prospect — ouverture client mail"
+                            : "Répondre dans Gmail (brouillon)"
+                        }
+                        style={{
+                          display: "inline-block",
+                          fontSize: "13px",
+                          color: "#4f46e5",
+                          fontWeight: 500,
+                          padding: "6px 12px",
+                          border: "1px solid #c7d2fe",
+                          borderRadius: "6px",
+                          background: "#eef2ff",
+                          textDecoration: "none",
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        Répondre
+                      </a>
+                    ) : (
+                      <span
+                        title="Aucun email prospect"
+                        style={{
+                          display: "inline-block",
+                          fontSize: "13px",
+                          color: "#9ca3af",
+                          fontWeight: 500,
+                          padding: "6px 12px",
+                          border: "1px solid #e5e7eb",
+                          borderRadius: "6px",
+                          background: "#f9fafb",
+                          lineHeight: 1.4,
+                          cursor: "not-allowed",
+                        }}
+                      >
+                        Répondre
+                      </span>
+                    )}
+                    {selectedItem.gmailPermalink ? (
+                      <a
+                        href={selectedItem.gmailPermalink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: "inline-block",
+                          fontSize: "13px",
+                          color: "#4f46e5",
+                          fontWeight: 500,
+                        }}
+                      >
+                        Ouvrir dans Gmail →
+                      </a>
+                    ) : null}
+                  </div>
+                );
+              })()}
             </div>
           ) : (
             <div>
