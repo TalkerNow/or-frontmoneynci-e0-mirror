@@ -445,6 +445,8 @@ export default function OverallCard() {
 
   // Contrats signés période — suivi_avancement.step1 + documents.advanced_payment (flat join)
   const [suiviRaw, setSuiviRaw] = useState(null); // null = fail/hide; [] = 0 OK
+  // Contrats créés période — documents.created_at (all rows = type contract; no contracts table)
+  const [docsRaw, setDocsRaw] = useState(null); // null = fail/hide; [] = 0 OK
 
   const fetchYear = useCallback(
     async (y) => {
@@ -572,6 +574,24 @@ export default function OverallCard() {
         suiviList = null;
       }
 
+      // Contrats créés: GET /documents — COUNT created_at in period (SQL: documents.created_at)
+      let docsList = null;
+      try {
+        const res = await axios.get(
+          `${global.config.server_url}/documents`,
+          AUTH_CONFIG,
+        );
+        const payload = res.data;
+        docsList = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.data)
+            ? payload.data
+            : [];
+      } catch (e) {
+        console.error("dashboard contrats crees documents", e);
+        docsList = null;
+      }
+
       if (!cancelled) {
         setActivityRaw({
           chatbot: next.chatbot,
@@ -580,6 +600,7 @@ export default function OverallCard() {
           prospects: next.prospects,
         });
         setSuiviRaw(suiviList);
+        setDocsRaw(docsList);
       }
     })();
 
@@ -664,6 +685,27 @@ export default function OverallCard() {
     return { count, ttc };
   }, [suiviRaw, activeTab, year, monthIndex, trimIndex, currentWeek]);
 
+  // Contrats créés (période) — COUNT documents.created_at (tous = contrats; table contracts absente)
+  const contratsCreesPeriod = useMemo(() => {
+    if (docsRaw == null) return null;
+    const { start, end } = getPeriodBounds(
+      activeTab,
+      year,
+      monthIndex,
+      trimIndex,
+      currentWeek,
+    );
+    // Prefer type=contract when present; all current rows are contract
+    const items = Array.isArray(docsRaw)
+      ? docsRaw.filter((it) => {
+          if (!it) return false;
+          const t = String(it.type || "").toLowerCase();
+          return !t || t === "contract";
+        })
+      : [];
+    return countInPeriod(items, ["created_at"], start, end);
+  }, [docsRaw, activeTab, year, monthIndex, trimIndex, currentWeek]);
+
   const statsForMonth = useCallback(
     (i) => ({
       ca: fmt(data.current_total_amount[i]),
@@ -725,15 +767,15 @@ export default function OverallCard() {
 
   const tabStats = useMemo(() => {
     const UL = (v) => v;
-    // Slim Martin: Opportunités · Contrats signés · Signés TTC only
-    // Contrats signés = step1 période (count); Signés TTC = SUM advanced_payment (≠ CA encaissé)
-    const COUNT_LABELS = new Set(["Contrats signés"]);
+    // JF tip: Contrats créés · Contrats signés · Signés TTC (Opportunités € dropped as key)
+    // Créés = documents.created_at période; Signés = step1; Signés TTC = SUM advanced_payment
+    const COUNT_LABELS = new Set(["Contrats créés", "Contrats signés"]);
     const common = [
       {
-        icon: DollarSign,
+        icon: FileText,
         bubbleClass: "bg-rgba-success",
-        valueKey: "oppoAmount",
-        label: "Opportunités",
+        valueKey: "contratsCrees",
+        label: "Contrats créés",
         color: "#28c76f",
       },
       {
@@ -753,6 +795,8 @@ export default function OverallCard() {
     ];
     const withSigned = (obj) => ({
       ...obj,
+      contratsCrees:
+        contratsCreesPeriod == null ? null : fmt(contratsCreesPeriod),
       contratsSignes:
         contratsSignesPeriod.count == null
           ? null
@@ -777,7 +821,7 @@ export default function OverallCard() {
       trim: toCards(withSigned(trimesterStats)),
       year: toCards(withSigned(yearlyStats)),
     };
-  }, [monthlyStats, trimesterStats, yearlyStats, contratsSignesPeriod]);
+  }, [monthlyStats, trimesterStats, yearlyStats, contratsSignesPeriod, contratsCreesPeriod]);
 
   const [openYear, setOpenYear] = useState(false);
   const [openMonth, setOpenMonth] = useState(false);
@@ -974,13 +1018,13 @@ export default function OverallCard() {
                 <StatGrid
                   stats={(() => {
                     const UL = (v) => v;
-                    const COUNT_LABELS = new Set(["Contrats signés"]);
+                    const COUNT_LABELS = new Set(["Contrats créés", "Contrats signés"]);
                     const common = [
                       {
-                        icon: DollarSign,
+                        icon: FileText,
                         bubbleClass: "bg-rgba-success",
-                        valueKey: "oppoAmount",
-                        label: "Opportunités",
+                        valueKey: "contratsCrees",
+                        label: "Contrats créés",
                         color: "#28c76f",
                       },
                       {
@@ -1000,6 +1044,10 @@ export default function OverallCard() {
                     ];
                     const obj = {
                       ...weeklyStats,
+                      contratsCrees:
+                        contratsCreesPeriod == null
+                          ? null
+                          : fmt(contratsCreesPeriod),
                       contratsSignes:
                         contratsSignesPeriod.count == null
                           ? null
