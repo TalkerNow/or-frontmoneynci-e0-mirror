@@ -418,7 +418,7 @@ const InboxView = ({
         );
         const clientId = res.data?.client_id;
         if (clientId) {
-          routerHistory.push(`/app/user/edit/${clientId}`);
+          routerHistory.push(`/app/user/edit/${clientId}/2`);
           return;
         }
       } catch (err) {
