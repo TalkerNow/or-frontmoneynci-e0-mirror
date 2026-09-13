@@ -173,10 +173,13 @@ const InboxList = ({
                 cursor: "pointer",
                 backgroundColor:
                   selectedItem.id === item.id ? "#eef2ff" : "transparent",
-                // Email: purple bar ONLY when unread. Read / selected = no bar
-                // (selection is background only). Other types keep type color.
+                // Email + Chatbot: purple bar ONLY when unread.
+                // Read / selected = transparent bar (selection = background only).
+                // Diagnostic / call keep type colors.
                 borderLeft:
-                  item.type === "email"
+                  item.type === "email" ||
+                  item.type === "chatbot" ||
+                  item.type === "conversations-archives"
                     ? isItemUnread(item)
                       ? "4px solid #6366f1"
                       : "4px solid transparent"

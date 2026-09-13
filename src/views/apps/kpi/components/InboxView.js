@@ -265,12 +265,11 @@ const InboxView = ({
         })
         .catch((err) => console.error("mark inbound email read", err));
     }
-    // Persist read on conversation_archives (Chatbot badge)
+    // Persist read on conversation_archives (always — idempotent; covers mark-unread then reopen)
     if (
       (item?.type === "chatbot" ||
         item?.type === "conversations-archives") &&
-      item?.id &&
-      item.status === "new"
+      item?.id
     ) {
       const token = localStorage.getItem("token");
       axios
