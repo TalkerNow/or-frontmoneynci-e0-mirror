@@ -23,12 +23,8 @@ import {
   ArrowLeft,
   Disc,
   Mail,
-  Activity,
-  Phone,
-  CheckCircle,
-  X,
+  Activity
 } from "react-feather";
-import ActionsSection from "../../kpi/components/inbox/ActionsSection";
 import UserDetails from "../../profile/UserDetails";
 import AccountTab from "./Informations";
 import NotesTab from "./Notes";
@@ -64,7 +60,6 @@ class UserEdit extends React.Component {
     showUnsavedModal: false,
     taskCount: 0,
     hasUrgentTask: false,
-    ficheActionsView: null, // Lot1: CALLREPORT | TASK | null
   };
 
   navRef = null;
@@ -571,108 +566,8 @@ class UserEdit extends React.Component {
                   )}
                 </>
               )}
-              {/* Lot1 JF: Appeler + Tâche after Simulateur — same ActionsSection as lead/mail */}
-              <NavItem className="d-flex align-items-center ml-50" style={{ gap: 6 }}>
-                <button
-                  type="button"
-                  title="Appeler"
-                  aria-label="Appeler"
-                  onClick={() =>
-                    this.setState((s) => ({
-                      ficheActionsView:
-                        s.ficheActionsView === "CALLREPORT" ? null : "CALLREPORT",
-                    }))
-                  }
-                  style={{
-                    border: "1px solid #c9cdd8",
-                    background:
-                      this.state.ficheActionsView === "CALLREPORT" ? "#d1fae5" : "#fff",
-                    color: "#1f7a4d",
-                    borderRadius: 6,
-                    padding: "6px 10px",
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 4,
-                    fontWeight: 700,
-                    fontSize: 12,
-                  }}
-                >
-                  <Phone size={14} /> Appeler
-                </button>
-                <button
-                  type="button"
-                  title="Tâche"
-                  aria-label="Tâche"
-                  onClick={() =>
-                    this.setState((s) => ({
-                      ficheActionsView:
-                        s.ficheActionsView === "TASK" ? null : "TASK",
-                    }))
-                  }
-                  style={{
-                    border: "1px solid #c9cdd8",
-                    background:
-                      this.state.ficheActionsView === "TASK" ? "#e0e7ff" : "#fff",
-                    color: "#2b5cff",
-                    borderRadius: 6,
-                    padding: "6px 10px",
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 4,
-                    fontWeight: 700,
-                    fontSize: 12,
-                  }}
-                >
-                  <CheckCircle size={14} /> Tâche
-                </button>
-              </NavItem>
             </Nav>
           </div>
-          {this.state.ficheActionsView && (
-            <div
-              style={{
-                marginBottom: 12,
-                padding: 16,
-                backgroundColor: "#f9fafb",
-                border: "1px solid #e5e7eb",
-                borderRadius: 12,
-                position: "relative",
-              }}
-            >
-              <button
-                type="button"
-                title="Fermer"
-                aria-label="Fermer"
-                onClick={() => this.setState({ ficheActionsView: null })}
-                style={{
-                  position: "absolute",
-                  top: 8,
-                  right: 8,
-                  border: "none",
-                  background: "transparent",
-                  cursor: "pointer",
-                  color: "#6b7280",
-                  padding: 4,
-                }}
-              >
-                <X size={16} />
-              </button>
-              <ActionsSection
-                clientId={id}
-                adminId={localStorage.getItem("userid")}
-                type="client"
-                hideNav
-                controlledView={this.state.ficheActionsView}
-                onViewChange={(v) =>
-                  this.setState({
-                    ficheActionsView: v === "HOME" ? null : v,
-                  })
-                }
-              />
-            </div>
-          )}
           <TabContent activeTab={this.state.activeTab}>
             <TabPane tabId="notes">
               <NotesTab

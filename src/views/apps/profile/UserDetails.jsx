@@ -6,7 +6,6 @@ import api from "../../../services/api";
 import { history } from "../../../history";
 import SweetAlert from "react-bootstrap-sweetalert";
 import ReactDOM from "react-dom";
-import { getTypeIcon, getTypeLabel } from "../kpi/components/inbox/utils";
 
 export default function UserDetails({
   user = {},
@@ -98,48 +97,6 @@ export default function UserDetails({
 
   const fullName =
     `${user.first_name || ""} ${user.last_name || ""}`.trim() || "Utilisateur";
-
-  // Lot1: source pastilles — dig FKs + getTypeIcon inbox; Badge pill = ClientsList Type style
-  const [hasCf7Inbound, setHasCf7Inbound] = useState(false);
-  useEffect(() => {
-    if (!user?.id) {
-      setHasCf7Inbound(false);
-      return;
-    }
-    let cancelled = false;
-    const token = localStorage.getItem("token");
-    const base = (global?.config?.server_url || "").replace(/\/+$/, "");
-    axios
-      .get(`${base}/inbound-emails`, {
-        params: { client_id: user.id, source: "cf7", per_page: 1 },
-        headers: { Authorization: "Bearer " + token },
-      })
-      .then((res) => {
-        if (cancelled) return;
-        const rows = res.data?.data || res.data || [];
-        setHasCf7Inbound(Array.isArray(rows) && rows.length > 0);
-      })
-      .catch(() => {
-        if (!cancelled) setHasCf7Inbound(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id]);
-
-  const sourceFlags = useMemo(() => {
-    const archives = user.conversation_archives || user.conversationArchives || [];
-    const diags =
-      user.simulator_difficulty_results || user.simulatorDifficultyResults || [];
-    return {
-      hasChatbot: Array.isArray(archives) && archives.length > 0,
-      hasDiag: Array.isArray(diags) && diags.length > 0,
-      hasCf7: hasCf7Inbound,
-    };
-  }, [user, hasCf7Inbound]);
-
-  const typePastilleBase = { fontSize: "0.75rem", fontWeight: 600 };
-
 
   const formatPhoneFR = (val) => {
     if (!val) return "";
@@ -373,67 +330,6 @@ export default function UserDetails({
               </div>
 
               <h5 className="mb-25 text-center">{fullName}</h5>
-              {(sourceFlags.hasChatbot || sourceFlags.hasDiag || sourceFlags.hasCf7) && (
-                <div
-                  className="source-pictos-lot1 d-flex justify-content-center align-items-center mb-50"
-                  style={{ gap: 6, flexWrap: "wrap" }}
-                >
-                  {sourceFlags.hasChatbot && (
-                    <Badge
-                      pill
-                      title={"d'où il vient: " + getTypeLabel("chatbot")}
-                      aria-label={"Source " + getTypeLabel("chatbot")}
-                      style={{
-                        ...typePastilleBase,
-                        backgroundColor: "#eef2ff",
-                        color: "#4338ca",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 4,
-                      }}
-                    >
-                      {getTypeIcon("chatbot")}
-                      {getTypeLabel("chatbot")}
-                    </Badge>
-                  )}
-                  {sourceFlags.hasDiag && (
-                    <Badge
-                      pill
-                      title={"d'où il vient: " + getTypeLabel("diagnostic")}
-                      aria-label={"Source " + getTypeLabel("diagnostic")}
-                      style={{
-                        ...typePastilleBase,
-                        backgroundColor: "#fde8dc",
-                        color: "#c45c26",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 4,
-                      }}
-                    >
-                      {getTypeIcon("diagnostic")}
-                      {getTypeLabel("diagnostic")}
-                    </Badge>
-                  )}
-                  {sourceFlags.hasCf7 && (
-                    <Badge
-                      pill
-                      title="d'où il vient: CF7 / formulaire contact"
-                      aria-label="Source CF7"
-                      style={{
-                        ...typePastilleBase,
-                        backgroundColor: "#f3e8ff",
-                        color: "#6b21a8",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 4,
-                      }}
-                    >
-                      {getTypeIcon("email")}
-                      CF7
-                    </Badge>
-                  )}
-                </div>
-              )}
 
               {user.role ? (
                 <div className="d-flex justify-content-center align-items-center mb-75" style={{ gap: 6, flexWrap: "wrap" }}>
