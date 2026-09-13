@@ -249,8 +249,8 @@ const InboxView = ({
       next.delete(`${item.type}-${item.id}`);
       return next;
     });
-    // Persist read on inbound_emails
-    if (item?.type === "email" && item?.id && item.status === "new") {
+    // Persist read on inbound_emails (always — idempotent; covers mark-unread then reopen)
+    if (item?.type === "email" && item?.id) {
       const token = localStorage.getItem("token");
       axios
         .patch(
@@ -302,6 +302,23 @@ const InboxView = ({
     setManualUnreadIds((prev) =>
       new Set(prev).add(`${target.type}-${target.id}`),
     );
+
+    // Persist unread on inbound_emails
+    if (target.type === "email" && target.id) {
+      const token = localStorage.getItem("token");
+      axios
+        .patch(
+          `${global.config.server_url}/inbound-emails/${target.id}/unread`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } },
+        )
+        .then(() => {
+          try {
+            window.dispatchEvent(new Event("eor-inbox-badge-refresh"));
+          } catch (e) {}
+        })
+        .catch((err) => console.error("mark inbound email unread", err));
+    }
 
     // Persist unread on conversation_archives (Chatbot badge)
     if (

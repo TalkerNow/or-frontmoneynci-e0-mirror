@@ -21,6 +21,11 @@ const InboxList = ({
   const [hoveredItemId, setHoveredItemId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
 
+  const isItemUnread = (item) =>
+    (item.status === "new" ||
+      manualUnreadIds.has(`${item.type}-${item.id}`)) &&
+    !readIds.has(`${item.type}-${item.id}`);
+
   // Logique de filtrage
   const filteredItems = visibleInboxItems.filter((item) => {
     if (!searchTerm) return true;
@@ -168,15 +173,20 @@ const InboxList = ({
                 cursor: "pointer",
                 backgroundColor:
                   selectedItem.id === item.id ? "#eef2ff" : "transparent",
-                borderLeft: `4px solid ${
-                  item.type === "diagnostic"
-                    ? "#f97316"
-                    : item.type === "call"
-                    ? "#22c55e"
-                    : item.type === "email"
-                    ? "#6366f1"
-                    : "#3b82f6"
-                }`,
+                // Email: purple bar ONLY when unread. Read / selected = no bar
+                // (selection is background only). Other types keep type color.
+                borderLeft:
+                  item.type === "email"
+                    ? isItemUnread(item)
+                      ? "4px solid #6366f1"
+                      : "4px solid transparent"
+                    : `4px solid ${
+                        item.type === "diagnostic"
+                          ? "#f97316"
+                          : item.type === "call"
+                          ? "#22c55e"
+                          : "#3b82f6"
+                      }`,
                 transition: "background-color 0.2s",
                 position: "relative",
               }}
@@ -190,13 +200,8 @@ const InboxList = ({
               >
                 <span
                   style={{
-                    fontWeight: 500,
-                    color:
-                      (item.status === "new" ||
-                        manualUnreadIds.has(`${item.type}-${item.id}`)) &&
-                      !readIds.has(`${item.type}-${item.id}`)
-                        ? "#111827"
-                        : "#4b5563",
+                    fontWeight: isItemUnread(item) ? 700 : 500,
+                    color: isItemUnread(item) ? "#111827" : "#4b5563",
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -257,8 +262,7 @@ const InboxList = ({
                   height: "24px", // Fixed height to prevent layout jump
                 }}
               >
-                {(item.status === "new" || manualUnreadIds.has(`${item.type}-${item.id}`)) &&
-                !readIds.has(`${item.type}-${item.id}`) ? (
+                {isItemUnread(item) ? (
                   <span
                     style={{
                       display: "inline-block",
