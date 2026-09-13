@@ -24,6 +24,8 @@ export default function UserDetails({
   const [parentName, setParentName] = useState(null);
   const [consultantHistory, setConsultantHistory] = useState([]);
   const [consultantAccess, setConsultantAccess] = useState(null);
+  // Tip D: CF7 flag (chatbot/diag from include already on user)
+  const [hasCf7, setHasCf7] = useState(false);
 
   const ADMIN_IDS = [4, 1271, 1638];
   const currentUserId = parseInt(localStorage.getItem("userid"), 10);
@@ -94,6 +96,49 @@ export default function UserDetails({
     fetchParent();
     return () => { isMounted = false; };
   }, [user?.parent_id]);
+
+  // Tip D: CF7 via inbound-emails?client_id= (Notes pattern); bot/diag from include
+  useEffect(() => {
+    if (!user?.id) {
+      setHasCf7(false);
+      return;
+    }
+    let cancelled = false;
+    const token = localStorage.getItem("token");
+    const base = (global?.config?.server_url || "").replace(/\/+$/, "");
+    axios
+      .get(base + "/inbound-emails", {
+        params: { client_id: user.id, source: "cf7", per_page: 5 },
+        headers: { Authorization: "Bearer " + token },
+      })
+      .then((res) => {
+        if (cancelled) return;
+        const rows = res.data?.data || res.data || [];
+        const list = Array.isArray(rows) ? rows : [];
+        const ok = list.some((r) => {
+          const cid = r.client_id ?? r.clientId;
+          const src = String(r.source || "").toLowerCase();
+          if (cid != null && String(cid) !== String(user.id)) return false;
+          return !src || src === "cf7";
+        });
+        setHasCf7(ok);
+      })
+      .catch(() => {
+        if (!cancelled) setHasCf7(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  const archives =
+    user.conversationArchives || user.conversation_archives || [];
+  const hasChatbot = Array.isArray(archives) && archives.length > 0;
+  const diags =
+    user.simulatorDifficultyResults ||
+    user.simulator_difficulty_results ||
+    [];
+  const hasDiagnostic = Array.isArray(diags) && diags.length > 0;
 
   const fullName =
     `${user.first_name || ""} ${user.last_name || ""}`.trim() || "Utilisateur";
@@ -349,6 +394,49 @@ export default function UserDetails({
                       pill
                     >
                       {String(user.role).toUpperCase()}
+                    </Badge>
+                  )}
+                  {/* Tip D source pastilles — CF7 label hardcodé (pas getTypeLabel email→Email) */}
+                  {hasCf7 && (
+                    <Badge
+                      pill
+                      style={{
+                        fontSize: "0.75rem",
+                        fontWeight: 600,
+                        backgroundColor: "#eef2ff",
+                        color: "#4f46e5",
+                      }}
+                      title="Source Contact Form 7"
+                    >
+                      CF7
+                    </Badge>
+                  )}
+                  {hasChatbot && (
+                    <Badge
+                      pill
+                      style={{
+                        fontSize: "0.75rem",
+                        fontWeight: 600,
+                        backgroundColor: "#e8f4fd",
+                        color: "#1e88e5",
+                      }}
+                      title="Conversation chatbot"
+                    >
+                      Chatbot
+                    </Badge>
+                  )}
+                  {hasDiagnostic && (
+                    <Badge
+                      pill
+                      style={{
+                        fontSize: "0.75rem",
+                        fontWeight: 600,
+                        backgroundColor: "#fff3e0",
+                        color: "#ef6c00",
+                      }}
+                      title="Résultat diagnostic"
+                    >
+                      Diagnostic
                     </Badge>
                   )}
                   {consultantAccess && ADMIN_IDS.includes(currentUserId) && (

@@ -117,6 +117,8 @@ class ClientsList extends React.Component {
     phoneQueryDigits: "",
     // Map userId -> array de services (depuis le dernier document)
     servicesByUserId: {},
+    // Tip D: flags source CF7 / Chatbot / Diagnostic (batch endpoints, no users?include=)
+    sourceFlagsByUserId: {},
     gridOptions: {
       onCellClicked: (params) => {
         const colKey = params?.colDef?.field || params?.colDef?.colId;
@@ -140,19 +142,21 @@ class ClientsList extends React.Component {
       suppressRowClickSelection: true,
     },
     columnDefs: [
-      // ====== COLONNE "Type" - pastilles v1 (Client/Prospect/Ancien/Perdue) ======
+      // ====== COLONNE "Type" - pastilles v1 (Client/Prospect/Ancien/Perdue) + tip D sources ======
       {
         headerName: "Type",
         field: "role",
         colId: "type",
         filter: false,
-        width: 110,
-        minWidth: 110,
+        width: 200,
+        minWidth: 180,
         flex: 0,
         cellStyle: {
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
+          justifyContent: "flex-start",
+          gap: "4px",
+          flexWrap: "wrap",
         },
         cellRendererFramework: (params) => {
           // JF/Cap'tain 2026-09-11 Type pastilles v1 (TEST):
@@ -190,10 +194,67 @@ class ClientsList extends React.Component {
             };
           }
 
+          const uid = params?.data?.id;
+          const flags =
+            (uid != null &&
+              this.state.sourceFlagsByUserId &&
+              this.state.sourceFlagsByUserId[uid]) ||
+            {};
+          const pillBase = { fontSize: "0.75rem", fontWeight: 600, marginLeft: 2 };
+          const sourcePills = [];
+          if (flags.cf7) {
+            sourcePills.push(
+              <Badge
+                key="cf7"
+                pill
+                style={{
+                  ...pillBase,
+                  backgroundColor: "#eef2ff",
+                  color: "#4f46e5",
+                }}
+              >
+                CF7
+              </Badge>
+            );
+          }
+          if (flags.chatbot) {
+            sourcePills.push(
+              <Badge
+                key="chatbot"
+                pill
+                style={{
+                  ...pillBase,
+                  backgroundColor: "#e8f4fd",
+                  color: "#1e88e5",
+                }}
+              >
+                Chatbot
+              </Badge>
+            );
+          }
+          if (flags.diagnostic) {
+            sourcePills.push(
+              <Badge
+                key="diagnostic"
+                pill
+                style={{
+                  ...pillBase,
+                  backgroundColor: "#fff3e0",
+                  color: "#ef6c00",
+                }}
+              >
+                Diagnostic
+              </Badge>
+            );
+          }
+
           return (
-            <Badge color={color} pill style={style}>
-              {label}
-            </Badge>
+            <div className="d-flex align-items-center" style={{ gap: 4, flexWrap: "wrap" }}>
+              <Badge color={color} pill style={style}>
+                {label}
+              </Badge>
+              {sourcePills}
+            </div>
           );
         },
       },
@@ -508,6 +569,77 @@ class ClientsList extends React.Component {
     return map;
   };
 
+  // Tip D PERF-SAFE: batch source flags (no users?include= archives)
+  fetchSourceFlags = async (Config) => {
+    const base = global.config.server_url;
+    const empty = new Set();
+    const toRows = (data) => {
+      if (!data) return [];
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data.data)) return data.data;
+      return [];
+    };
+    const safeGet = async (url) => {
+      try {
+        const res = await axios.get(url, Config);
+        return toRows(res.data);
+      } catch (e) {
+        console.warn("Tip D source flag fetch failed", url, e?.message || e);
+        return [];
+      }
+    };
+
+    const [cf7Rows, archiveRows, diagRows] = await Promise.all([
+      safeGet(base + "/inbound-emails?source=cf7&per_page=200"),
+      safeGet(base + "/conversation-archives?per_page=200"),
+      safeGet(base + "/simulator-difficulty-results?per_page=200").then(async (rows) => {
+        if (rows.length) return rows;
+        // dig: endpoint may live under /v1/
+        return safeGet(base + "/v1/simulator-difficulty-results?per_page=200");
+      }),
+    ]);
+
+    const cf7Ids = new Set();
+    cf7Rows.forEach((r) => {
+      const id = r.client_id ?? r.clientId;
+      if (id != null && id !== "") cf7Ids.add(String(id));
+    });
+
+    const chatbotIds = new Set();
+    archiveRows.forEach((r) => {
+      const id = r.user_id ?? r.userId ?? (r.user && r.user.id);
+      if (id != null && id !== "") chatbotIds.add(String(id));
+    });
+
+    const diagIds = new Set();
+    diagRows.forEach((r) => {
+      const id = r.user_id ?? r.userId ?? (r.user && r.user.id);
+      if (id != null && id !== "") diagIds.add(String(id));
+    });
+
+    const allIds = new Set([...cf7Ids, ...chatbotIds, ...diagIds]);
+    const sourceFlagsByUserId = {};
+    allIds.forEach((id) => {
+      // store under both string and numeric key when possible
+      const flags = {
+        cf7: cf7Ids.has(id),
+        chatbot: chatbotIds.has(id),
+        diagnostic: diagIds.has(id),
+      };
+      sourceFlagsByUserId[id] = flags;
+      const n = Number(id);
+      if (!Number.isNaN(n)) sourceFlagsByUserId[n] = flags;
+    });
+
+    this.setState({ sourceFlagsByUserId }, () => {
+      if (this.gridApi) {
+        try {
+          this.gridApi.refreshCells({ force: true, columns: ["type"] });
+        } catch (e) {}
+      }
+    });
+  };
+
   async componentDidMount() {
     const Config = {
       headers: {
@@ -580,6 +712,9 @@ class ClientsList extends React.Component {
           this.toggleTab(resolveClientsListTab(this.props.location));
         },
       );
+
+      // Tip D: batch source flags after clients loaded (degrade → empty)
+      this.fetchSourceFlags(Config);
 
       // Charger les pages suivantes en arrière-plan si nécessaire
       if (clientsLastPage > 1) {
