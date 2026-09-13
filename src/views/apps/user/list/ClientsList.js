@@ -1074,16 +1074,7 @@ class ClientsList extends React.Component {
                       value={this.state.searchVal}
                       style={{ flex: 1 }}
                     />
-
-                    {/* Bouton d'action principal */}
-                    <Button
-                      color="success"
-                      onClick={() => history.push("/app/user/createUser")}
-                      title="Créer un compte"
-                    >
-                      <UserPlus size={18} />
-                      <span className="ml-1 d-none d-sm-inline">Nouveau</span>
-                    </Button>
+                    {/* Lot1 JF 23:09: +bonhomme Nouveau removed (déjà fiche) */}
                   </div>
 
                   {/* === BAS : Onglets (Tous, Mes Clients, Anciens, Prospects) === */}

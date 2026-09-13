@@ -400,11 +400,36 @@ const InboxView = ({
     setIsGenerating(false);
   };
 
-  const handleConvert = (e, item = null) => {
+  const handleConvert = async (e, item = null) => {
     if (e && typeof e.stopPropagation === "function") e.stopPropagation();
     const target = item || selectedItem;
     if (!target) return;
     if (item) setSelectedItem(item);
+
+    // Lot1: CF7/inbound Mail Convertir → upsert Contact + open fiche (TEST)
+    if (target.type === "email" && target.id) {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.post(
+          global.config.server_url +
+            `/inbound-emails/${target.id}/convert-contact`,
+          {},
+          { headers: { Authorization: "Bearer " + token } },
+        );
+        const clientId = res.data?.client_id;
+        if (clientId) {
+          routerHistory.push(`/app/user/edit/${clientId}`);
+          return;
+        }
+      } catch (err) {
+        console.error("convert-contact failed", err);
+        window.alert(
+          err?.response?.data?.message ||
+            "Impossible de créer/lier le contact depuis ce mail.",
+        );
+        return;
+      }
+    }
 
     const fullName = target.name || "";
     const nameParts = fullName.trim().split(" ");

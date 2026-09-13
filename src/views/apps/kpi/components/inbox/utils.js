@@ -394,7 +394,7 @@ export function mapInboundEmailToInboxItem(row) {
   const isRead = row.is_read === true || row.is_read === 1 || row.is_read === "1";
   return {
     id: row.id,
-    clientId: null,
+    clientId: row.client_id || null,
     type: "email",
     name: displayName,
     firstName,

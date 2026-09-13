@@ -23,7 +23,7 @@ const items = {
 
   clients: {
     id: "clients",
-    title: "Clients",
+    title: "Contacts",
     type: "collapse",
     icon: <Icon.Users size={20} />,
     permissions: ["admin"],
@@ -61,7 +61,7 @@ const items = {
   // Consultant / Expert keep a direct Clients → clientslist leaf
   clientsList: {
     id: "clientsList",
-    title: "Clients",
+    title: "Contacts",
     type: "item",
     icon: <Icon.Users size={20} />,
     permissions: ["admin", "Expert", "Consultant"],
