@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import axios from "axios";
 import ReactDOM from "react-dom";
 import { Row, Col } from "reactstrap";
 import "../../../../assets/scss/pages/notes-hub.scss";
@@ -76,6 +77,38 @@ const NotesTab = ({ id, perso = {}, commentsSlot, renderUploadOutside }) => {
   const [portalNode, setPortalNode] = useState(null);
   const [isNotesExpanded, setIsNotesExpanded] = useState(false);
 
+  // Lot1 JF: inbound CF7 body under the two notes (live fiche — not dumped into notes)
+  const [inboundMessage, setInboundMessage] = useState(null);
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    const token = localStorage.getItem("token");
+    axios
+      .get(global.config.server_url + "/inbound-emails", {
+        params: { client_id: id, per_page: 5 },
+        headers: { Authorization: "Bearer " + token },
+      })
+      .then((res) => {
+        if (cancelled) return;
+        const rows = res.data?.data || res.data || [];
+        const list = Array.isArray(rows) ? rows : [];
+        const first = list[0];
+        if (!first) {
+          setInboundMessage(null);
+          return;
+        }
+        const body = (first.body || first.snippet || "").trim();
+        setInboundMessage(body || null);
+      })
+      .catch(() => {
+        if (!cancelled) setInboundMessage(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+
   useEffect(() => {
     // Attempt to find the portal node. It might be available immediately, or shortly after.
     const node = document.getElementById("ris-upload-portal-target");
@@ -142,6 +175,37 @@ const NotesTab = ({ id, perso = {}, commentsSlot, renderUploadOutside }) => {
           </Col>
         )}
       </Row>
+
+      {inboundMessage ? (
+        <div
+          className="inbound-email-under-notes"
+          style={{
+            marginTop: 12,
+            padding: 12,
+            border: "1px dashed #c4b5fd",
+            borderRadius: 8,
+            background: "#faf8ff",
+            whiteSpace: "pre-wrap",
+            fontSize: 13,
+            lineHeight: 1.4,
+            color: "#1f2937",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: "#5b2d91",
+              marginBottom: 6,
+              textTransform: "uppercase",
+              letterSpacing: "0.03em",
+            }}
+          >
+            Message inbound (CF7 / mail)
+          </div>
+          {inboundMessage}
+        </div>
+      ) : null}
 
       {/* ManualCareerTable masquée
       {!isProspect && (
