@@ -1139,13 +1139,13 @@ export default function OverallCard() {
                   icon: MessageCircle,
                   color: "#00cfe8",
                   value: fmt(activityPeriod.chatbot),
-                  label: "Chatbot",
+                  label: "Chatbots",
                 },
                 activityPeriod.mail != null && {
                   icon: FileText,
                   color: "#28c76f",
                   value: fmt(activityPeriod.mail),
-                  label: "Mail",
+                  label: "Mails",
                 },
               ].filter(Boolean)}
             />

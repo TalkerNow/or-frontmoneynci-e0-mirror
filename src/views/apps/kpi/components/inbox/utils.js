@@ -611,6 +611,31 @@ export function mapConversationToInboxItem(conv) {
   };
 }
 
+/**
+ * True if we recovered an email OR a phone from the conversation
+ * (same extract as mapConversationToInboxItem). Used for Leads > Chatbot pastille.
+ * Does NOT use is_read / unread stock.
+ */
+export function conversationHasContact(conv) {
+  if (!conv) return false;
+  let messages = conv.messages;
+  if (typeof messages === "string") {
+    try {
+      messages = JSON.parse(messages);
+    } catch (e) {
+      messages = [];
+    }
+  }
+  const item = mapConversationToInboxItem({
+    ...conv,
+    messages: Array.isArray(messages) ? messages : conv.messages,
+    _source: conv._source || "chatbot",
+  });
+  const email = String(item.email || "").trim();
+  const phoneDigits = String(item.phone || "").replace(/\D/g, "");
+  return Boolean(email) || phoneDigits.length >= 9;
+}
+
 export const getTypeIcon = (type) => {
   switch (type) {
     case "chatbot":

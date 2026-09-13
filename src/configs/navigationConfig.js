@@ -2,11 +2,11 @@ import React from "react";
 import * as Icon from "react-feather";
 
 /**
- * Menu CRM — arbo TEST JF 2026-09-11 (Cap'tain / HubSpot)
- * Admin: Tableau de bord · Clients(click→liste BDD) · Opportunités · Suivi administratif · Prospects(liste BDD) · Contacts(Leads, Inscrits) · Tâches · Accès · Admin moteur
- * Clients = collapse + navLink /app/user/clientslist (parent click → ALL dossiers)
+ * Menu CRM — arbo TEST JF 2026-09-13 (Cap'tain / HubSpot)
+ * Admin: Tableau de bord · Clients(click→liste BDD) · Opportunités · Suivi administratif · Prospects(liste BDD) · Leads(Mails, Chatbot, Diagnostic, Appels, Inscrits) · Tâches · Accès · Admin moteur
+ * Clients = collapse + navLink /app/user/clientslist — whole-row click toggles; open also navigates
  * Prospects = leaf /app/user/prospectslist (ClientsList tab prospect) — not Contrat perdu CRM
- * Contacts Inscrits = /app/user/inscritslist (same ClientsList) — NOT clientslist
+ * Leads Inscrits = /app/user/inscritslist (same ClientsList) — NOT clientslist
  * so Clients click no longer lights Inscrits (JF 2026-09-11).
  * Consultant: Clients leaf → clientslist (unchanged UX)
  */
@@ -70,51 +70,42 @@ const items = {
 
   contact: {
     id: "contact",
-    title: "Contacts",
+    title: "Leads",
     type: "collapse",
     icon: <Icon.Inbox size={20} />,
     permissions: ["admin"],
     children: [
       {
-        id: "leads",
-        title: "Leads",
-        type: "collapse",
-        icon: <Icon.Zap size={16} />,
+        id: "leads-mails",
+        title: "Mails / contacts",
+        type: "item",
+        icon: <Icon.Mail size={14} />,
         permissions: ["admin"],
-        children: [
-          {
-            id: "leads-chatbot",
-            title: "Chatbot",
-            type: "item",
-            icon: <Icon.MessageCircle size={14} />,
-            permissions: ["admin"],
-            navLink: "/kpi/inbox/chatbot",
-          },
-          {
-            id: "leads-diagnostic",
-            title: "Diagnostic",
-            type: "item",
-            icon: <Icon.Activity size={14} />,
-            permissions: ["admin"],
-            navLink: "/kpi/inbox/diagnostic",
-          },
-          {
-            id: "leads-mails",
-            title: "Mails / contacts",
-            type: "item",
-            icon: <Icon.Mail size={14} />,
-            permissions: ["admin"],
-            navLink: "/kpi/inbox/email",
-          },
-          {
-            id: "leads-appels",
-            title: "Appels",
-            type: "item",
-            icon: <Icon.Phone size={14} />,
-            permissions: ["admin"],
-            navLink: "/kpi/inbox/call",
-          },
-        ],
+        navLink: "/kpi/inbox/email",
+      },
+      {
+        id: "leads-chatbot",
+        title: "Chatbot",
+        type: "item",
+        icon: <Icon.MessageCircle size={14} />,
+        permissions: ["admin"],
+        navLink: "/kpi/inbox/chatbot",
+      },
+      {
+        id: "leads-diagnostic",
+        title: "Diagnostic",
+        type: "item",
+        icon: <Icon.Activity size={14} />,
+        permissions: ["admin"],
+        navLink: "/kpi/inbox/diagnostic",
+      },
+      {
+        id: "leads-appels",
+        title: "Appels",
+        type: "item",
+        icon: <Icon.Phone size={14} />,
+        permissions: ["admin"],
+        navLink: "/kpi/inbox/call",
       },
       {
         id: "inscrits",
@@ -125,7 +116,7 @@ const items = {
         // Same ClientsList UI — dedicated path so Clients≠Inscrits active (JF).
         navLink: "/app/user/inscritslist",
       },
-      // Prospects removed from Contacts — now under Clients (JF arbo 2026-09-11)
+      // Flattened 2026-09-13: no nested Contacts/Leads subgroup
     ],
   },
 

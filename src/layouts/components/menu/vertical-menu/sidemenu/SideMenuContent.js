@@ -12,6 +12,7 @@ import {
   isLeafRouteActive,
   isCollapseNavActive,
 } from "../../../../utils/menuActiveMatch";
+import { conversationHasContact } from "../../../../../views/apps/kpi/components/inbox/utils";
 
 // --- Helpers pour KPI (copié/adapté de KpiPage) ---
 const parseServices = (servicesRaw) => {
@@ -480,26 +481,41 @@ class SideMenuContent extends React.Component {
     }
   };
 
-  fetchChatbotUnreadCount = () => {
+  // Chatbot pastille = conversations with recovered email OR phone (not unread / is_read).
+  fetchChatbotUnreadCount = async () => {
     const Config = {
       headers: {
         Authorization: "Bearer " + localStorage.getItem("token"),
       },
     };
-    axios
-      .get(
-        global.config.server_url + "/conversation-archives/unread-count",
-        Config,
-      )
-      .then((res) => {
-        const n = Number(res?.data?.count);
-        this.setState({
-          chatbotBadge: Number.isFinite(n) && n > 0 ? n : 0,
+    try {
+      let p = 1;
+      let maxPage = 1;
+      let count = 0;
+      do {
+        const res = await axios.get(
+          global.config.server_url + "/conversation-archives",
+          { ...Config, params: { page: p, per_page: 100 } },
+        );
+        const payload = res.data || {};
+        const data = Array.isArray(payload.data)
+          ? payload.data
+          : Array.isArray(payload)
+            ? payload
+            : [];
+        data.forEach((conv) => {
+          if (conversationHasContact(conv)) count += 1;
         });
-      })
-      .catch((err) =>
-        console.error("❌ Error fetching chatbot unread count", err),
-      );
+        maxPage = payload.last_page || payload.meta?.last_page || 1;
+        if (Array.isArray(payload)) maxPage = 1;
+        p += 1;
+      } while (p <= maxPage && p <= 50);
+      this.setState({
+        chatbotBadge: count > 0 ? count : 0,
+      });
+    } catch (err) {
+      console.error("❌ Error fetching chatbot contact count", err);
+    }
   };
 
     componentDidMount() {
@@ -704,8 +720,6 @@ class SideMenuContent extends React.Component {
           onClick={(e) => {
             e.stopPropagation();
 
-            const clickedCaret = e.target.closest(".menu-toggle-icon");
-
             if (item.type === "item") {
               this.props.handleActiveItem(item.navLink);
               this.handleGroupClick(item.id, null, item.type);
@@ -716,34 +730,21 @@ class SideMenuContent extends React.Component {
             }
 
             if (item.type === "collapse") {
-              if (clickedCaret) {
-                this.handleGroupClick(item.id, null, item.type);
-                return;
-              }
-              if (item.navLink) {
+              // Whole parent row toggles (Clients + Leads), not only the chevron.
+              const wasOpen = this.state.activeGroups.includes(item.id);
+              this.handleGroupClick(item.id, null, item.type);
+              // Clients (has navLink): opening also navigates; closing just closes.
+              if (item.navLink && !wasOpen) {
                 const targetLink =
                   item.id === "kpi" && this.state.crmBadge > 0
                     ? "/kpi/suivi"
                     : item.navLink;
-                // JF: clic mot = navigate + expand (force open, never toggle closed)
-                this.setState((prev) => {
-                  const open = prev.activeGroups.includes(item.id)
-                    ? prev.activeGroups.slice()
-                    : prev.activeGroups.concat(item.id);
-                  return {
-                    activeGroups: open,
-                    currentActiveGroup: open.slice(),
-                    tempArr: [item.id],
-                  };
-                });
                 this.props.handleActiveItem(targetLink);
                 history.push(targetLink);
                 if (this.props.deviceWidth <= 1200) {
                   this.props.toggleMenu();
                 }
-                return;
               }
-              this.handleGroupClick(item.id, null, item.type);
               return;
             }
           }}

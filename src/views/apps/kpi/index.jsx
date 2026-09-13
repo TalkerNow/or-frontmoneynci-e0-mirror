@@ -646,6 +646,10 @@ export default function KpiPage() {
   const [loadingInboundEmails, setLoadingInboundEmails] = useState(false);
   const [inboundEmailError, setInboundEmailError] = useState("");
 
+  // Call notes from Leads/Mail bandeau Appeler (call_report table)
+  const [callReports, setCallReports] = useState([]);
+  const [loadingCallReports, setLoadingCallReports] = useState(false);
+
   const handleSort = (field) => {
     setSortField((prevField) => {
       if (prevField === field) {
@@ -1078,6 +1082,36 @@ export default function KpiPage() {
     }
   }
 
+  async function fetchCallReports() {
+    try {
+      setLoadingCallReports(true);
+      const perPage = 50;
+      let page = 1;
+      let last = 1;
+      const aggregated = [];
+      do {
+        const res = await API.get("/v1/call-reports", {
+          params: { per_page: perPage, page },
+        });
+        const payload = res.data;
+        const rows = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.data)
+            ? payload.data
+            : [];
+        aggregated.push(...rows);
+        last = Number(payload?.last_page || payload?.meta?.last_page || 1);
+        page += 1;
+      } while (page <= last && page <= 50);
+      setCallReports(aggregated);
+    } catch (e) {
+      console.error("fetchCallReports error:", e);
+      setCallReports([]);
+    } finally {
+      setLoadingCallReports(false);
+    }
+  }
+
   // Effets de chargement
   useEffect(() => {
     fetchKpis(1);
@@ -1090,6 +1124,7 @@ export default function KpiPage() {
     fetchConversationArchives();
     fetchDiagnosticResults();
     fetchInboundEmails();
+    fetchCallReports();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -2749,6 +2784,30 @@ export default function KpiPage() {
                 ...kpi,
                 _source: "call",
               })),
+            // Notes d'appel Leads/Mail bandeau Appeler (call_report) — real API rows only
+            ...callReports.map((row) => {
+              const clientName = row.client_id
+                ? clientsById[row.client_id] || ""
+                : "";
+              const parts = String(clientName).trim().split(/\s+/).filter(Boolean);
+              const first =
+                parts.length > 1 ? parts.slice(0, -1).join(" ") : clientName;
+              const last = parts.length > 1 ? parts[parts.length - 1] : "";
+              return {
+                id: `cr-${row.id}`,
+                _source: "call",
+                type: "call",
+                note: row.call_report || "",
+                objet: "Appel",
+                user_id: row.client_id || null,
+                client_id: row.client_id || null,
+                admin_id: row.admin_id || null,
+                created_at: row.created_at,
+                client_first_name: first || "",
+                client_last_name: last || "",
+                _fromCallReport: true,
+              };
+            }),
             // Mails/contacts = inbound_emails source=cf7 only (HARD: no kpis)
             ...inboundEmails.map((row) => ({
               ...row,
@@ -2825,7 +2884,8 @@ export default function KpiPage() {
                 loadingConversations ||
                 loadingDiagnostics ||
                 loadingList ||
-                loadingInboundEmails
+                loadingInboundEmails ||
+                loadingCallReports
               }
               error={convError || diagError || inboundEmailError}
               onSelect={handleSelectConversation}
@@ -2833,6 +2893,7 @@ export default function KpiPage() {
                 fetchConversationArchives();
                 fetchDiagnosticResults();
                 fetchInboundEmails();
+                fetchCallReports();
               }}
             />
           );
