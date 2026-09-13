@@ -12,7 +12,6 @@ import {
   isLeafRouteActive,
   isCollapseNavActive,
 } from "../../../../utils/menuActiveMatch";
-import { conversationHasContact } from "../../../../../views/apps/kpi/components/inbox/utils";
 
 // --- Helpers pour KPI (copié/adapté de KpiPage) ---
 const parseServices = (servicesRaw) => {
@@ -481,41 +480,27 @@ class SideMenuContent extends React.Component {
     }
   };
 
-  // Chatbot pastille = conversations with recovered email OR phone (not unread / is_read).
-  fetchChatbotUnreadCount = async () => {
+  // Chatbot pastille = unread conversations (is_read=0), same source as liste « Non lus (n) ».
+  fetchChatbotUnreadCount = () => {
     const Config = {
       headers: {
         Authorization: "Bearer " + localStorage.getItem("token"),
       },
     };
-    try {
-      let p = 1;
-      let maxPage = 1;
-      let count = 0;
-      do {
-        const res = await axios.get(
-          global.config.server_url + "/conversation-archives",
-          { ...Config, params: { page: p, per_page: 100 } },
-        );
-        const payload = res.data || {};
-        const data = Array.isArray(payload.data)
-          ? payload.data
-          : Array.isArray(payload)
-            ? payload
-            : [];
-        data.forEach((conv) => {
-          if (conversationHasContact(conv)) count += 1;
+    axios
+      .get(
+        global.config.server_url + "/conversation-archives/unread-count",
+        Config,
+      )
+      .then((res) => {
+        const n = Number(res?.data?.count);
+        this.setState({
+          chatbotBadge: Number.isFinite(n) && n > 0 ? n : 0,
         });
-        maxPage = payload.last_page || payload.meta?.last_page || 1;
-        if (Array.isArray(payload)) maxPage = 1;
-        p += 1;
-      } while (p <= maxPage && p <= 50);
-      this.setState({
-        chatbotBadge: count > 0 ? count : 0,
-      });
-    } catch (err) {
-      console.error("❌ Error fetching chatbot contact count", err);
-    }
+      })
+      .catch((err) =>
+        console.error("❌ Error fetching chatbot unread count", err),
+      );
   };
 
     componentDidMount() {
