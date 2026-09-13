@@ -160,7 +160,7 @@ const InboxView = ({
 
   // Disqualify Modal State
   const [showDisqualifyModal, setShowDisqualifyModal] = useState(false);
-  const [disqualifyReason, setDisqualifyReason] = useState("");
+  const [disqualifyReason, setDisqualifyReason] = useState("mail_non_pertinent");
   const [disqualifyComment, setDisqualifyComment] = useState("");
   const [isDisqualifying, setIsDisqualifying] = useState(false);
 
@@ -489,7 +489,7 @@ const InboxView = ({
 
       setDisqualifiedIds((prev) => new Set([...prev, selectedItem.id]));
       setShowDisqualifyModal(false);
-      setDisqualifyReason("");
+      setDisqualifyReason("mail_non_pertinent");
       setDisqualifyComment("");
 
       // Move selection
@@ -544,6 +544,7 @@ const InboxView = ({
         onDisqualify={(e, item) => {
           if (e && e.stopPropagation) e.stopPropagation();
           if (item) setSelectedItem(item);
+          setDisqualifyReason("mail_non_pertinent");
           setShowDisqualifyModal(true);
         }}
         onConvert={handleConvert}
@@ -553,7 +554,7 @@ const InboxView = ({
       <InboxDetail
         selectedItem={selectedItem}
         onMarkAsUnread={handleMarkAsUnread}
-        onDisqualify={() => setShowDisqualifyModal(true)}
+        onDisqualify={() => { setDisqualifyReason("mail_non_pertinent"); setShowDisqualifyModal(true); }}
         onConvert={handleConvert}
         strategicAnalysis={strategicAnalysis}
         isAnalyzing={isAnalyzing}
