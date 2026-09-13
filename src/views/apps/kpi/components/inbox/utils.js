@@ -297,9 +297,7 @@ export function parseCf7ContactBody(text) {
   }
   // Nouveau CF7 layout: "Besoin …" often holds the question when Message absent / snippet truncated
   let besoin = "";
-  m = raw.match(
-    new RegExp("Besoin\\s+(.+?)" + nextLabel, "i"),
-  );
+  m = raw.match(/Besoin\s+(.+?)(?=\s*Formulaire\s+rempli\s+sur|\s*$)/i);
   if (m) {
     besoin = m[1].trim();
   }
