@@ -571,12 +571,12 @@ class UserEdit extends React.Component {
                   )}
                 </>
               )}
-              {/* Lot1 JF: Appeler + Tâche after Simulateur — same ActionsSection as lead/mail */}
-              <NavItem className="d-flex align-items-center ml-50" style={{ gap: 6 }}>
+{/* Lot1 JF tip B icons: origin ActionsSection Phone/CheckCircle icon-only */}
+              <NavItem className="d-flex align-items-center ml-50" style={{ gap: 8 }}>
                 <button
                   type="button"
-                  title="Appeler"
-                  aria-label="Appeler"
+                  title="Appel"
+                  aria-label="Appel"
                   onClick={() =>
                     this.setState((s) => ({
                       ficheActionsView:
@@ -584,21 +584,25 @@ class UserEdit extends React.Component {
                     }))
                   }
                   style={{
-                    border: "1px solid #c9cdd8",
                     background:
-                      this.state.ficheActionsView === "CALLREPORT" ? "#d1fae5" : "#fff",
-                    color: "#1f7a4d",
-                    borderRadius: 6,
-                    padding: "6px 10px",
+                      this.state.ficheActionsView === "CALLREPORT"
+                        ? "#eef2ff"
+                        : "none",
+                    border: "none",
+                    padding: "10px",
+                    borderRadius: "8px",
                     cursor: "pointer",
-                    display: "inline-flex",
+                    color:
+                      this.state.ficheActionsView === "CALLREPORT"
+                        ? "#4f46e5"
+                        : "#6b7280",
+                    transition: "all 0.2s ease",
+                    display: "flex",
                     alignItems: "center",
-                    gap: 4,
-                    fontWeight: 700,
-                    fontSize: 12,
+                    justifyContent: "center",
                   }}
                 >
-                  <Phone size={14} /> Appeler
+                  <Phone size={20} />
                 </button>
                 <button
                   type="button"
@@ -611,21 +615,23 @@ class UserEdit extends React.Component {
                     }))
                   }
                   style={{
-                    border: "1px solid #c9cdd8",
                     background:
-                      this.state.ficheActionsView === "TASK" ? "#e0e7ff" : "#fff",
-                    color: "#2b5cff",
-                    borderRadius: 6,
-                    padding: "6px 10px",
+                      this.state.ficheActionsView === "TASK" ? "#eef2ff" : "none",
+                    border: "none",
+                    padding: "10px",
+                    borderRadius: "8px",
                     cursor: "pointer",
-                    display: "inline-flex",
+                    color:
+                      this.state.ficheActionsView === "TASK"
+                        ? "#4f46e5"
+                        : "#6b7280",
+                    transition: "all 0.2s ease",
+                    display: "flex",
                     alignItems: "center",
-                    gap: 4,
-                    fontWeight: 700,
-                    fontSize: 12,
+                    justifyContent: "center",
                   }}
                 >
-                  <CheckCircle size={14} /> Tâche
+                  <CheckCircle size={20} />
                 </button>
               </NavItem>
             </Nav>
