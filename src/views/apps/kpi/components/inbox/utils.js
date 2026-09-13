@@ -295,6 +295,36 @@ export function parseCf7ContactBody(text) {
   if (m) {
     message = m[1].trim();
   }
+  // Nouveau CF7 layout: "Besoin …" often holds the question when Message absent / snippet truncated
+  let besoin = "";
+  m = raw.match(
+    new RegExp("Besoin\\s+(.+?)" + nextLabel, "i"),
+  );
+  if (m) {
+    besoin = m[1].trim();
+  }
+  if (!interest && besoin) {
+    interest = besoin;
+  }
+  if (!message && besoin) {
+    message = besoin;
+  }
+  // Statut professionnel (Nouveau layout)
+  m = raw.match(
+    new RegExp("Statut\\s+professionnel\\s+(.+?)" + nextLabel, "i"),
+  );
+  // keep in message trail only if still empty and we have leftover after birth
+  if (!message) {
+    m = raw.match(
+      /Date\s*de\s*naissance\s*[:\s]\s*[0-9/. -]{8,12}\s*(.+)$/i,
+    );
+    if (m) {
+      const rest = m[1].trim();
+      if (rest && !/^Formulaire\s+rempli/i.test(rest)) {
+        message = rest;
+      }
+    }
+  }
 
   let formUrl = "";
   m = raw.match(
@@ -389,6 +419,7 @@ export function mapInboundEmailToInboxItem(row) {
     priority: "medium",
     hasMultipleChannels: false,
     gmailPermalink: row.gmail_permalink || null,
+    gmailMessageId: row.gmail_message_id || null,
     raw: { ...row, _source: "email", source: row.source },
   };
 }
@@ -417,6 +448,34 @@ export function buildCf7QuotedBody(item) {
  * Gmail compose URL for CF7 reply (client-side only — no SMTP/outbox).
  * If no prospect email: mailto: fallback with same subject/body.
  */
+/** Deep-link Gmail to the ingested message on contact@ (not jfc@ u/0 inbox). */
+export function buildGmailOpenHref(item) {
+  if (!item) return null;
+  const mid = (item.gmailMessageId || item.gmail_message_id || "").trim();
+  const auth = "contact@eor.fr";
+  if (mid) {
+    // Search by id works across mailboxes; authuser forces contact@ session
+    return (
+      "https://mail.google.com/mail/?authuser=" +
+      encodeURIComponent(auth) +
+      "#search/" +
+      encodeURIComponent(mid)
+    );
+  }
+  const permalink = (item.gmailPermalink || item.gmail_permalink || "").trim();
+  if (permalink) {
+    // Rewrite u/0 → authuser=contact@ when possible
+    try {
+      const u = new URL(permalink);
+      u.searchParams.set("authuser", auth);
+      return u.toString().replace("/mail/u/0/", "/mail/").replace("/mail/u/1/", "/mail/");
+    } catch (e) {
+      return permalink;
+    }
+  }
+  return null;
+}
+
 export function buildCf7ReplyHref(item) {
   if (!item) return { href: null, disabled: true };
   const email = (item.email || "").trim();

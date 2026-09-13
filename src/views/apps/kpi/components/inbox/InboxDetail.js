@@ -35,6 +35,7 @@ import {
   calculateComplexityScore,
   generateVisualReport,
   buildCf7ReplyHref,
+  buildGmailOpenHref,
 } from "./utils";
 
 const InboxDetail = ({
@@ -1261,23 +1262,27 @@ const InboxDetail = ({
                 </div>
               ) : null}
 
-              {selectedItem.gmailPermalink ? (
-                <div style={{ marginTop: "8px", paddingTop: "8px" }}>
-                  <a
-                    href={selectedItem.gmailPermalink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: "inline-block",
-                      fontSize: "13px",
-                      color: "#4f46e5",
-                      fontWeight: 500,
-                    }}
-                  >
-                    Ouvrir dans Gmail →
-                  </a>
-                </div>
-              ) : null}
+              {(() => {
+                const gmailHref = buildGmailOpenHref(selectedItem);
+                if (!gmailHref) return null;
+                return (
+                  <div style={{ marginTop: "8px", paddingTop: "8px" }}>
+                    <a
+                      href={gmailHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: "inline-block",
+                        fontSize: "13px",
+                        color: "#4f46e5",
+                        fontWeight: 500,
+                      }}
+                    >
+                      Ouvrir dans Gmail →
+                    </a>
+                  </div>
+                );
+              })()}
             </div>
           ) : (
             <div>
