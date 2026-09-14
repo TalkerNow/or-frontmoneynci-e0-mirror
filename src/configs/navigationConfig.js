@@ -6,7 +6,7 @@ import * as Icon from "react-feather";
  * Admin order: Tableau de bord · Contacts · Leads · Clients · Tâches · Accès · Admin moteur
  * Contacts = leaf people → /app/user/clientslist (no children)
  * Leads = Mail · Chatbot · Diagnostic · Inscrits (Appels DROP — no invent)
- * Clients = collapse move Opportunités · Suivi administratif · Prospects (no signed-contracts filter)
+ * Clients = leaf → /kpi/opportunities (DROP Opp/Suivi/Prospects from menu; pages remain by URL)
  * Consultant: Contacts leaf → clientslist (unchanged)
  */
 
@@ -84,39 +84,14 @@ const items = {
     ],
   },
 
-  // Clients = NEW collapse; children moved from former Contacts (tip C)
+  // Clients = leaf → Opportunités route (DROP children; pages remain by URL)
   clients: {
     id: "clients",
     title: "Clients",
-    type: "collapse",
+    type: "item",
     icon: <Icon.Briefcase size={20} />,
     permissions: ["admin"],
-    children: [
-      {
-        id: "crm-opportunities",
-        title: "Opportunités",
-        type: "item",
-        icon: <Icon.Briefcase size={16} />,
-        permissions: ["admin"],
-        navLink: "/kpi/opportunities",
-      },
-      {
-        id: "crm-suivi",
-        title: "Suivi administratif",
-        type: "item",
-        icon: <Icon.FileText size={16} />,
-        permissions: ["admin"],
-        navLink: "/kpi/suivi",
-      },
-      {
-        id: "prospects",
-        title: "Prospects",
-        type: "item",
-        icon: <Icon.Target size={16} />,
-        permissions: ["admin"],
-        navLink: "/app/user/prospectslist",
-      },
-    ],
+    navLink: "/kpi/opportunities",
   },
 
   tasks: {
