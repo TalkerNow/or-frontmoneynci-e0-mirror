@@ -6,7 +6,7 @@ import * as Icon from "react-feather";
  * Admin order: Tableau de bord · Contacts · Leads · Clients · Tâches · Accès · Admin moteur
  * Contacts = leaf people → /app/user/clientslist (no children)
  * Leads = Mail · Chatbot · Diagnostic · Inscrits (Appels DROP — no invent)
- * Clients = leaf → /kpi/opportunities (DROP Opp/Suivi/Prospects from menu; pages remain by URL)
+ * Clients = leaf → /app/user/mesclientslist Mes Clients (NOT Kanban; /kpi/opportunities remains by URL)
  * Consultant: Contacts leaf → clientslist (unchanged)
  */
 
@@ -84,14 +84,14 @@ const items = {
     ],
   },
 
-  // Clients = leaf → Opportunités route (DROP children; pages remain by URL)
+  // Clients = leaf → ClientsList Mes Clients (NOT Kanban; /kpi/opportunities remains by URL)
   clients: {
     id: "clients",
     title: "Clients",
     type: "item",
     icon: <Icon.Briefcase size={20} />,
     permissions: ["admin"],
-    navLink: "/kpi/opportunities",
+    navLink: "/app/user/mesclientslist",
   },
 
   tasks: {

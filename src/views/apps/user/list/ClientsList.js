@@ -76,7 +76,7 @@ const ALLOWED_EMAILS = [
   "sebastien@eor.fr",
 ];
 
-/** Prospects leaf /app/user/prospectslist (or ?tab=prospect) → ClientsList tab. */
+/** Prospects / Mes Clients leaf paths (or ?tab=) → ClientsList tab. */
 const resolveClientsListTab = (location) => {
   const loc =
     location ||
@@ -87,6 +87,8 @@ const resolveClientsListTab = (location) => {
   const search = loc.search || "";
   if (pathname.indexOf("prospectslist") !== -1) return "prospect";
   if (search.indexOf("tab=prospect") !== -1) return "prospect";
+  if (pathname.indexOf("mesclientslist") !== -1) return "mine";
+  if (search.indexOf("tab=mine") !== -1) return "mine";
   return "all";
 };
 
@@ -248,6 +250,8 @@ class ClientsList extends React.Component {
               </Badge>
             );
           }
+          // Type Inscrit: ONLY if real user flag exists — DO NOT invent FK/BDD/sourceFlags.inscrit.
+          // No real flag today → never render Type Inscrit.
 
           return (
             <div className="d-flex align-items-center" style={{ gap: 4, flexWrap: "wrap" }}>
@@ -1279,65 +1283,13 @@ class ClientsList extends React.Component {
                     {/* Lot1 JF 23:09: +bonhomme Nouveau removed (déjà fiche) */}
                   </div>
 
-                  {/* === TOP pastilles filtre source (Contacts pack) — exclusive single-select === */}
-                  <div
-                    className="d-flex align-items-center"
-                    style={{ gap: "0.5rem", flexWrap: "wrap" }}
-                  >
-                    {[
-                      {
-                        key: "cf7",
-                        label: "CF7",
-                        bg: "#eef2ff",
-                        fg: "#4f46e5",
-                      },
-                      {
-                        key: "chatbot",
-                        label: "Chatbot",
-                        bg: "#e8f4fd",
-                        fg: "#1e88e5",
-                      },
-                      {
-                        key: "diagnostic",
-                        label: "Diagnostic",
-                        bg: "#fff3e0",
-                        fg: "#ef6c00",
-                      },
-                    ].map((p) => {
-                      const active = this.state.sourceFilter === p.key;
-                      return (
-                        <Badge
-                          key={p.key}
-                          pill
-                          className="cursor-pointer"
-                          onClick={() => this.setSourceFilter(p.key)}
-                          style={{
-                            fontSize: "0.8rem",
-                            fontWeight: 600,
-                            padding: "0.4rem 0.85rem",
-                            backgroundColor: active ? p.fg : p.bg,
-                            color: active ? "#fff" : p.fg,
-                            border: `1px solid ${p.fg}`,
-                            cursor: "pointer",
-                          }}
-                          title={
-                            active
-                              ? "Cliquer pour retirer le filtre"
-                              : `Filtrer source ${p.label}`
-                          }
-                        >
-                          {p.label}
-                        </Badge>
-                      );
-                    })}
-                  </div>
-
-                  {/* === BAS : Onglets (Tous, Mes Clients, Anciens, Prospects) === */}
+                  {/* === Onglets + pastilles source (after Prospects, same line) === */}
                   <div
                     className="d-flex align-items-center"
                     style={{
                       gap: "2.5rem",
                       overflowX: "auto",
+                      flexWrap: "wrap",
                     }}
                   >
                     {/* Onglet TOUS */}
@@ -1402,6 +1354,76 @@ class ClientsList extends React.Component {
                       onClick={() => this.toggleTab("prospect")}
                     >
                       Prospects
+                    </div>
+
+                    {/* Pastilles filtre source AFTER Prospects (exclusive; tip D pastels) + Inscrit disabled ANCIEN */}
+                    <div
+                      className="d-flex align-items-center"
+                      style={{ gap: "0.5rem", flexWrap: "wrap" }}
+                    >
+                      {[
+                        {
+                          key: "cf7",
+                          label: "CF7",
+                          bg: "#eef2ff",
+                          fg: "#4f46e5",
+                        },
+                        {
+                          key: "chatbot",
+                          label: "Chatbot",
+                          bg: "#e8f4fd",
+                          fg: "#1e88e5",
+                        },
+                        {
+                          key: "diagnostic",
+                          label: "Diagnostic",
+                          bg: "#fff3e0",
+                          fg: "#ef6c00",
+                        },
+                      ].map((p) => {
+                        const active = this.state.sourceFilter === p.key;
+                        return (
+                          <Badge
+                            key={p.key}
+                            pill
+                            className="cursor-pointer"
+                            onClick={() => this.setSourceFilter(p.key)}
+                            style={{
+                              fontSize: "0.8rem",
+                              fontWeight: 600,
+                              padding: "0.4rem 0.85rem",
+                              backgroundColor: active ? p.fg : p.bg,
+                              color: active ? "#fff" : p.fg,
+                              border: `1px solid ${p.fg}`,
+                              cursor: "pointer",
+                            }}
+                            title={
+                              active
+                                ? "Cliquer pour retirer le filtre"
+                                : `Filtrer source ${p.label}`
+                            }
+                          >
+                            {p.label}
+                          </Badge>
+                        );
+                      })}
+                      {/* Inscrit: visible DISABLED until real source flag — ANCIEN grey; not in sourceFilter */}
+                      <Badge
+                        pill
+                        style={{
+                          fontSize: "0.8rem",
+                          fontWeight: 600,
+                          padding: "0.4rem 0.85rem",
+                          backgroundColor: "#e9ecef",
+                          color: "#6c757d",
+                          border: "1px solid #6c757d",
+                          cursor: "not-allowed",
+                          opacity: 0.7,
+                        }}
+                        title="Inscrit — bientôt (filtre désactivé)"
+                      >
+                        Inscrit
+                      </Badge>
                     </div>
                   </div>
                 </div>
