@@ -673,6 +673,7 @@ class UserEdit extends React.Component {
                 controlledView={this.state.ficheActionsView}
                 onViewChange={(v) =>
                   this.setState({
+                    // Cap'tain tip Appel+Tâche: HOME closes bandeau; HISTORY/CALLREPORT/TASK keep it open
                     ficheActionsView: v === "HOME" ? null : v,
                   })
                 }

@@ -13,6 +13,17 @@ import ProspectCreateModal from "./ProspectCreateModal";
 import CreateUserKanbanModal from "../kanban/Modals/CreateUserKanbanModal";
 import ActivityList from "./ActivityList";
 
+const todayYmd = () => new Date().toISOString().split("T")[0];
+
+const normalizeTask = (t) => ({
+  ...t,
+  text: t.text || t.title || t.desc || getTaskText(t) || "",
+  type: "TASK",
+  customer_id: t.customer_id ?? t.user_id,
+  end_date: t.end_date || t.date || null,
+  created_at: t.created_at || t.date || null,
+});
+
 const ActionsSection = ({
   clientId,
   adminId,
@@ -35,6 +46,7 @@ const ActionsSection = ({
   const [newCallReport, setNewCallReport] = useState("");
   const [newTaskText, setNewTaskText] = useState("");
   const [taskDateTime, setTaskDateTime] = useState("");
+  const [historyFilter, setHistoryFilter] = useState("ALL");
 
   // Create Prospect Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -56,6 +68,7 @@ const ActionsSection = ({
     setTaskDateTime("");
     setShowCreateModal(false);
     setShowKanbanModal(false);
+    setHistoryFilter("ALL");
   }, [clientId, prospectId, type]);
 
   // Effective Client ID (prop or locally created)
@@ -117,7 +130,7 @@ const ActionsSection = ({
     fetchCallReports();
   }, [ownerId]);
 
-  // Fetch Tasks
+  // Fetch Tasks — menu model (/tasks via customer_tasks), NOT inbox-tasks
   useEffect(() => {
     const fetchTasks = async () => {
       if (!ownerId) {
@@ -129,21 +142,38 @@ const ActionsSection = ({
         const Config = {
           headers: { Authorization: "Bearer " + localStorage.getItem("token") },
         };
-        const response = await axios.get(
-          global.config.server_url + `/v1/inbox-tasks`,
-          Config,
-        );
-
-        const tasksData = Array.isArray(response.data)
-          ? response.data
-          : response.data.data || [];
+        // Prefer customer-scoped endpoint; fallback to /tasks?filter=all + client filter
+        let tasksData = [];
+        try {
+          const response = await axios.get(
+            global.config.server_url +
+              `/customer_tasks?filter=all&user_id=${ownerId}`,
+            Config,
+          );
+          tasksData = Array.isArray(response.data)
+            ? response.data
+            : response.data.data || [];
+        } catch (e) {
+          const response = await axios.get(
+            global.config.server_url + `/tasks?filter=all`,
+            Config,
+          );
+          const all = Array.isArray(response.data)
+            ? response.data
+            : response.data.data || [];
+          tasksData = all.filter(
+            (t) => String(t.customer_id) === String(ownerId),
+          );
+        }
 
         setTasks(
-          tasksData.sort(
-            (a, b) =>
-              new Date(b.created_at || b.date) -
-              new Date(a.created_at || a.date),
-          ),
+          tasksData
+            .map(normalizeTask)
+            .sort(
+              (a, b) =>
+                new Date(b.created_at || b.date || 0) -
+                new Date(a.created_at || a.date || 0),
+            ),
         );
       } catch (error) {
         console.error("Failed to fetch tasks", error);
@@ -154,6 +184,14 @@ const ActionsSection = ({
 
     fetchTasks();
   }, [ownerId]);
+
+  const refreshTasksBadge = () => {
+    try {
+      window.dispatchEvent(new CustomEvent("eor-tasks-badge-refresh"));
+    } catch (e) {
+      /* ignore */
+    }
+  };
 
   // ===== HANDLERS =====
   const handleAddCallReport = async () => {
@@ -188,11 +226,12 @@ const ActionsSection = ({
         ...serverData,
         id: serverData.id,
         type: "CALLREPORT",
+        created_at: serverData.created_at || new Date().toISOString(),
       };
       setCallReports((prev) => [savedReport, ...prev]);
 
       setNewCallReport("");
-      setActiveView("HOME");
+      // Cap'tain: stay on form + refresh list of 5 (do NOT close bandeau)
     } catch (error) {
       console.error("Failed to add call report", error);
       window.alert("Erreur lors de la sauvegarde du rapport.");
@@ -214,17 +253,25 @@ const ActionsSection = ({
         headers: { Authorization: "Bearer " + localStorage.getItem("token") },
       };
 
+      // Cap'tain: end_date empty → default today (urgent sidebar badge)
+      const endDate = taskDateTime
+        ? taskDateTime.split("T")[0]
+        : todayYmd();
+
       const payload = {
-        user_id: ownerId,
-        admin_id: adminId || localStorage.getItem("userid"),
-        data: JSON.stringify({ text: newTaskText.trim() }),
-        date: taskDateTime
-          ? taskDateTime.split("T")[0]
-          : new Date().toISOString().split("T")[0],
+        title: newTaskText.trim(),
+        desc: newTaskText.trim(),
+        isCompleted: false,
+        isImportant: false,
+        isRead: false,
+        type: "other",
+        end_date: endDate,
+        customer_id: ownerId,
+        creator_id: adminId || localStorage.getItem("userid"),
       };
 
       const response = await axios.post(
-        global.config.server_url + "/v1/inbox-tasks",
+        global.config.server_url + "/tasks",
         payload,
         Config,
       );
@@ -238,24 +285,35 @@ const ActionsSection = ({
         }
       }
 
-      const savedTask = {
+      const savedTask = normalizeTask({
         ...(typeof serverData === "object" ? serverData : {}),
         id: serverData?.id,
+        title: newTaskText.trim(),
+        desc: newTaskText.trim(),
         text: newTaskText.trim(),
-        user_id: ownerId,
-        type: "TASK",
-        created_at: new Date().toISOString(),
-      };
+        customer_id: ownerId,
+        end_date: endDate,
+        created_at:
+          (typeof serverData === "object" && serverData?.created_at) ||
+          new Date().toISOString(),
+        isCompleted: false,
+      });
 
       setTasks((prev) => [savedTask, ...prev]);
 
       setNewTaskText("");
       setTaskDateTime("");
-      setActiveView("HOME");
+      // Cap'tain: stay on form; refresh badge so menu Tâches increments
+      refreshTasksBadge();
     } catch (error) {
       console.error("Failed to add task", error);
       window.alert("Erreur lors de la sauvegarde de la tâche.");
     }
+  };
+
+  const openHistory = (filter) => {
+    setHistoryFilter(filter || "ALL");
+    setActiveView("HISTORY");
   };
 
   // ===== EDIT STATE =====
@@ -265,7 +323,7 @@ const ActionsSection = ({
   const handleEditItem = (item) => {
     setEditingItem(item);
     if (item.type === "TASK") {
-      setEditText(getTaskText(item));
+      setEditText(getTaskText(item) || item.title || item.desc || "");
     } else {
       setEditText(item.report || item.content || item.call_report || "");
     }
@@ -312,11 +370,12 @@ const ActionsSection = ({
           headers: { Authorization: "Bearer " + localStorage.getItem("token") },
         };
         const updatePayload = {
-          data: JSON.stringify({ text: editText.trim() }),
+          title: editText.trim(),
+          desc: editText.trim(),
         };
 
         await axios.put(
-          global.config.server_url + `/v1/inbox-tasks/${editingItem.id}`,
+          global.config.server_url + `/tasks/${editingItem.id}`,
           updatePayload,
           Config,
         );
@@ -326,7 +385,9 @@ const ActionsSection = ({
             t.id === editingItem.id
               ? {
                   ...t,
-                  data: JSON.stringify({ text: editText.trim() }),
+                  title: editText.trim(),
+                  desc: editText.trim(),
+                  text: editText.trim(),
                 }
               : t,
           ),
@@ -393,10 +454,11 @@ const ActionsSection = ({
           },
         };
         await axios.delete(
-          global.config.server_url + `/v1/inbox-tasks/${item.id}`,
+          global.config.server_url + `/tasks/${item.id}`,
           Config,
         );
         setTasks((prev) => prev.filter((t) => t.id !== item.id));
+        refreshTasksBadge();
       } catch (error) {
         console.error("Failed to delete task", error);
         window.alert("Erreur lors de la suppression de la tâche.");
@@ -406,12 +468,8 @@ const ActionsSection = ({
     setItemToDelete(null);
   };
 
-  // Render Logic
-  const visibleTasks = tasks.filter(
-    (t) =>
-      String(t.user_id) === String(ownerId) ||
-      String(t.ownerId) === String(ownerId),
-  );
+  // Render Logic — tasks already scoped to owner via customer_tasks / filter
+  const visibleTasks = tasks;
 
   const allItems = [
     ...callReports.map((r) => ({ ...r, type: "CALLREPORT" })),
@@ -421,6 +479,11 @@ const ActionsSection = ({
     (a, b) =>
       new Date(b.created_at || b.date) - new Date(a.created_at || a.date),
   );
+
+  const latestCalls = callReports
+    .map((r) => ({ ...r, type: "CALLREPORT" }))
+    .slice(0, 5);
+  const latestTasks = visibleTasks.slice(0, 5);
 
   // Styles
   const iconButtonStyle = (isActive) => ({
@@ -587,7 +650,53 @@ const ActionsSection = ({
           />
         )}
 
-        {/* CALLREPORT View - Form */}
+        {/* HISTORY — full typed history, bandeau stays open (ClientEdit keeps HISTORY) */}
+        {activeView === "HISTORY" && (
+          <div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "8px",
+              }}
+            >
+              <h4
+                style={{
+                  margin: 0,
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  color: "#374151",
+                }}
+              >
+                Historique
+              </h4>
+              <button
+                style={{ ...secondaryButtonStyle, padding: "6px 12px" }}
+                onClick={() =>
+                  setActiveView(
+                    historyFilter === "TASK" ? "TASK" : "CALLREPORT",
+                  )
+                }
+              >
+                Retour
+              </button>
+            </div>
+            <ActivityList
+              items={allItems}
+              initialFilter={historyFilter}
+              onEdit={handleEditItem}
+              onDelete={handleDeleteItem}
+              editingItem={editingItem}
+              saveEditHandler={handleSaveEdit}
+              cancelEditHandler={handleCancelEdit}
+              editText={editText}
+              setEditText={setEditText}
+            />
+          </div>
+        )}
+
+        {/* CALLREPORT View - Form + 5 latest */}
         {activeView === "CALLREPORT" && (
           <div>
             <h4
@@ -612,15 +721,43 @@ const ActionsSection = ({
               </button>
               <button
                 style={secondaryButtonStyle}
-                onClick={() => setActiveView("HOME")}
+                onClick={() => openHistory("CALLREPORT")}
               >
                 Voir historique
               </button>
             </div>
+            <div style={{ marginTop: "16px" }}>
+              <p
+                style={{
+                  margin: "0 0 8px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  color: "#6b7280",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.04em",
+                }}
+              >
+                5 derniers appels
+              </p>
+              <ActivityList
+                items={latestCalls}
+                initialFilter="CALLREPORT"
+                limit={5}
+                hideFilters
+                compact
+                onEdit={handleEditItem}
+                onDelete={handleDeleteItem}
+                editingItem={editingItem}
+                saveEditHandler={handleSaveEdit}
+                cancelEditHandler={handleCancelEdit}
+                editText={editText}
+                setEditText={setEditText}
+              />
+            </div>
           </div>
         )}
 
-        {/* TASK View - Form */}
+        {/* TASK View - Form + 5 latest */}
         {activeView === "TASK" && (
           <div>
             <h4
@@ -652,10 +789,38 @@ const ActionsSection = ({
               </button>
               <button
                 style={secondaryButtonStyle}
-                onClick={() => setActiveView("HOME")}
+                onClick={() => openHistory("TASK")}
               >
                 Voir historique
               </button>
+            </div>
+            <div style={{ marginTop: "16px" }}>
+              <p
+                style={{
+                  margin: "0 0 8px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  color: "#6b7280",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.04em",
+                }}
+              >
+                5 dernières tâches
+              </p>
+              <ActivityList
+                items={latestTasks}
+                initialFilter="TASK"
+                limit={5}
+                hideFilters
+                compact
+                onEdit={handleEditItem}
+                onDelete={handleDeleteItem}
+                editingItem={editingItem}
+                saveEditHandler={handleSaveEdit}
+                cancelEditHandler={handleCancelEdit}
+                editText={editText}
+                setEditText={setEditText}
+              />
             </div>
           </div>
         )}

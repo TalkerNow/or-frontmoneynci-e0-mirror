@@ -348,7 +348,7 @@ const InboxDetail = ({
 
           {/* Mail header → legacy ActionsSection forms (CALLREPORT bandeau / TASK form) */}
           {selectedItem.type === "email" &&
-            (actionsView === "CALLREPORT" || actionsView === "TASK") && (
+            (actionsView === "CALLREPORT" || actionsView === "TASK" || actionsView === "HISTORY") && (
               <div
                 style={{
                   marginTop: "12px",
@@ -1574,7 +1574,7 @@ const InboxDetail = ({
           {/* Actions Section — skip duplicate while mail header bandeau owns TASK/CALLREPORT */}
           {!(
             selectedItem.type === "email" &&
-            (actionsView === "CALLREPORT" || actionsView === "TASK")
+            (actionsView === "CALLREPORT" || actionsView === "TASK" || actionsView === "HISTORY")
           ) && (
           <div
             style={{

@@ -503,6 +503,32 @@ class SideMenuContent extends React.Component {
       );
   };
 
+  fetchTasksBadge = () => {
+    const Config = {
+      headers: {
+        Authorization: "Bearer " + localStorage.getItem("token"),
+      },
+    };
+    axios
+      .get(global.config.server_url + "/tasks?filter=all", Config)
+      .then((res) => {
+        const tasks = Array.isArray(res.data) ? res.data : [];
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        const urgentTasks = tasks.filter((task) => {
+          if (!task.end_date) return false;
+          if (task.isCompleted) return false;
+          const endDate = new Date(task.end_date);
+          endDate.setHours(0, 0, 0, 0);
+          return endDate <= now;
+        });
+        this.setState({ tasksBadge: urgentTasks.length });
+      })
+      .catch((err) =>
+        console.error("❌ Error fetching urgent tasks count", err),
+      );
+  };
+
     componentDidMount() {
     this.initRender(this.parentArr[0] ? this.parentArr[0] : []);
 
@@ -571,29 +597,15 @@ class SideMenuContent extends React.Component {
       );
 
     // --- Fetch Urgent Tasks Count ---
-    axios
-      .get(global.config.server_url + "/tasks?filter=all", Config)
-      .then((res) => {
-        const tasks = Array.isArray(res.data) ? res.data : [];
+    this.fetchTasksBadge();
 
-        // Get today's date (without time) - same logic as TaskList.js
-        const now = new Date();
-        now.setHours(0, 0, 0, 0);
-
-        // Count urgent tasks: end_date <= today AND isCompleted = false
-        const urgentTasks = tasks.filter((task) => {
-          if (!task.end_date) return false;
-          if (task.isCompleted) return false;
-          const endDate = new Date(task.end_date);
-          endDate.setHours(0, 0, 0, 0);
-          return endDate <= now; // <= pour inclure aujourd'hui
-        });
-
-        this.setState({ tasksBadge: urgentTasks.length });
-      })
-      .catch((err) =>
-        console.error("❌ Error fetching urgent tasks count", err),
-      );
+    this._onTasksBadgeRefresh = () => {
+      this.fetchTasksBadge();
+    };
+    window.addEventListener(
+      "eor-tasks-badge-refresh",
+      this._onTasksBadgeRefresh,
+    );
 
 
     // --- Mails/contacts child pastille only (NOT Contacts/Leads parents) ---
@@ -650,6 +662,12 @@ class SideMenuContent extends React.Component {
       window.removeEventListener(
         "eor-inbox-badge-refresh",
         this._onInboxBadgeRefresh,
+      );
+    }
+    if (this._onTasksBadgeRefresh) {
+      window.removeEventListener(
+        "eor-tasks-badge-refresh",
+        this._onTasksBadgeRefresh,
       );
     }
   }
