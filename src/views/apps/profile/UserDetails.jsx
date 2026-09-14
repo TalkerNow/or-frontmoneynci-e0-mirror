@@ -436,7 +436,7 @@ export default function UserDetails({
                       }}
                       title="Résultat diagnostic"
                     >
-                      Diagnostic
+                      Diag
                     </Badge>
                   )}
                   {consultantAccess && ADMIN_IDS.includes(currentUserId) && (

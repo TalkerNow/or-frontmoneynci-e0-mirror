@@ -9,7 +9,6 @@ import { history } from "../../../../history";
 import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss";
 import "../../../../assets/scss/pages/users.scss";
 import SweetAlert from "react-bootstrap-sweetalert";
-import Moment from "react-moment";
 import Chip from "../../../../../src/components/@vuexy/chips/ChipComponent";
 
 // === Couleurs pastilles identiques à la liste des contrats ===
@@ -119,6 +118,8 @@ class ClientsList extends React.Component {
     servicesByUserId: {},
     // Tip D: flags source CF7 / Chatbot / Diagnostic (batch endpoints, no users?include=)
     sourceFlagsByUserId: {},
+    // Contacts pack: TOP pastilles filtre source (exclusive single-select)
+    sourceFilter: null, // null | "cf7" | "chatbot" | "diagnostic"
     gridOptions: {
       onCellClicked: (params) => {
         const colKey = params?.colDef?.field || params?.colDef?.colId;
@@ -243,7 +244,7 @@ class ClientsList extends React.Component {
                   color: "#ef6c00",
                 }}
               >
-                Diagnostic
+                Diag
               </Badge>
             );
           }
@@ -261,13 +262,19 @@ class ClientsList extends React.Component {
       {
         headerName: "Création",
         filter: true,
-        width: 120,
+        width: 130,
         minWidth: 120,
         flex: 0,
         cellRendererFramework: (params) => {
+          const { date, time } = this.formatCreationBrussels(
+            params?.data?.created_at,
+          );
           return (
-            <div>
-              <Moment format="DD/MM/YYYY" date={params.data.created_at} utc />
+            <div style={{ lineHeight: 1.15 }}>
+              <div>{date}</div>
+              {time ? (
+                <div style={{ fontSize: "0.7rem", color: "#6e6b7b" }}>{time}</div>
+              ) : null}
             </div>
           );
         },
@@ -484,6 +491,59 @@ class ClientsList extends React.Component {
     return Number.isNaN(n) ? String(v) : n;
   };
 
+  // Contacts pack: Création date + HHhMM in Europe/Brussels
+  formatCreationBrussels = (iso) => {
+    if (!iso) return { date: "-", time: "" };
+    try {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return { date: "-", time: "" };
+      const dateParts = new Intl.DateTimeFormat("fr-BE", {
+        timeZone: "Europe/Brussels",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).formatToParts(d);
+      const get = (parts, t) =>
+        (parts.find((p) => p.type === t) || {}).value || "";
+      const date = `${get(dateParts, "day")}/${get(dateParts, "month")}/${get(
+        dateParts,
+        "year",
+      )}`;
+      const timeParts = new Intl.DateTimeFormat("fr-BE", {
+        timeZone: "Europe/Brussels",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }).formatToParts(d);
+      const hh = get(timeParts, "hour");
+      const mm = get(timeParts, "minute");
+      const time = hh && mm ? `${hh}h${mm}` : "";
+      return { date, time };
+    } catch (e) {
+      return { date: "-", time: "" };
+    }
+  };
+
+  // Contacts pack: intersect rows with tip D sourceFlagsByUserId
+  applySourceFilterToRows = (rows) => {
+    const { sourceFilter, sourceFlagsByUserId } = this.state;
+    if (!sourceFilter) return rows || [];
+    return (rows || []).filter((u) => {
+      const flags =
+        (sourceFlagsByUserId && u && u.id != null && sourceFlagsByUserId[u.id]) ||
+        {};
+      return !!flags[sourceFilter];
+    });
+  };
+
+  // Contacts pack: TOP pastilles exclusive single-select (re-click clears)
+  setSourceFilter = (key) => {
+    const next = this.state.sourceFilter === key ? null : key;
+    this.setState({ sourceFilter: next }, () => {
+      this.toggleTab(this.state.activeTab || "all");
+    });
+  };
+
   getOwnerIdFromRow = (row) => {
     // Essaie plusieurs champs possibles pour l'ID "créateur/propriétaire/technicien"
     const candidates = [
@@ -636,6 +696,10 @@ class ClientsList extends React.Component {
         try {
           this.gridApi.refreshCells({ force: true, columns: ["type"] });
         } catch (e) {}
+      }
+      // Contacts pack: if TOP source filter active, re-intersect now that flags exist
+      if (this.state.sourceFilter) {
+        this.toggleTab(this.state.activeTab || "all");
       }
     });
   };
@@ -815,6 +879,9 @@ class ClientsList extends React.Component {
         (u) => (u.role || "").toLowerCase() === "prospect",
       );
     }
+
+    // Contacts pack: apply TOP source pastille filter (tip D flags)
+    filteredData = this.applySourceFilterToRows(filteredData);
 
     this.setState({ activeTab: tab, rowData: filteredData }, () => {
       if (this.gridApi) {
@@ -1210,6 +1277,59 @@ class ClientsList extends React.Component {
                       style={{ flex: 1 }}
                     />
                     {/* Lot1 JF 23:09: +bonhomme Nouveau removed (déjà fiche) */}
+                  </div>
+
+                  {/* === TOP pastilles filtre source (Contacts pack) — exclusive single-select === */}
+                  <div
+                    className="d-flex align-items-center"
+                    style={{ gap: "0.5rem", flexWrap: "wrap" }}
+                  >
+                    {[
+                      {
+                        key: "cf7",
+                        label: "CF7",
+                        bg: "#eef2ff",
+                        fg: "#4f46e5",
+                      },
+                      {
+                        key: "chatbot",
+                        label: "Chatbot",
+                        bg: "#e8f4fd",
+                        fg: "#1e88e5",
+                      },
+                      {
+                        key: "diagnostic",
+                        label: "Diagnostic",
+                        bg: "#fff3e0",
+                        fg: "#ef6c00",
+                      },
+                    ].map((p) => {
+                      const active = this.state.sourceFilter === p.key;
+                      return (
+                        <Badge
+                          key={p.key}
+                          pill
+                          className="cursor-pointer"
+                          onClick={() => this.setSourceFilter(p.key)}
+                          style={{
+                            fontSize: "0.8rem",
+                            fontWeight: 600,
+                            padding: "0.4rem 0.85rem",
+                            backgroundColor: active ? p.fg : p.bg,
+                            color: active ? "#fff" : p.fg,
+                            border: `1px solid ${p.fg}`,
+                            cursor: "pointer",
+                          }}
+                          title={
+                            active
+                              ? "Cliquer pour retirer le filtre"
+                              : `Filtrer source ${p.label}`
+                          }
+                        >
+                          {p.label}
+                        </Badge>
+                      );
+                    })}
                   </div>
 
                   {/* === BAS : Onglets (Tous, Mes Clients, Anciens, Prospects) === */}
