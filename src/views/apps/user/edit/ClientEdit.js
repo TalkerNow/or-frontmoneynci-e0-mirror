@@ -27,6 +27,7 @@ import {
   Phone,
   CheckCircle,
   X,
+  FileText,
 } from "react-feather";
 import ActionsSection from "../../kpi/components/inbox/ActionsSection";
 import UserDetails from "../../profile/UserDetails";
@@ -37,6 +38,7 @@ import "../../../../assets/scss/pages/users.scss";
 import "../../profile/Profile.css";
 import axios from "axios";
 import DocumentsHub from "./DocumentsHub";
+import Contracts from "./Contracts";
 import CourriersHub from "./CourriersHub";
 import SimulatorHub from "./SimulatorHub";
 import SimulatorIntegration from "./notes/SimulatorIntegration";
@@ -69,6 +71,7 @@ class UserEdit extends React.Component {
 
   navRef = null;
   documentsHubRef = React.createRef();
+  contractsRef = React.createRef();
 
   computeSimuOffset = () => {
     try {
@@ -123,15 +126,12 @@ class UserEdit extends React.Component {
         5: "tasks",
         6: "commentaires",
         7: "simulateur",
-        8: "documents",
+        8: "contrats",
       };
       const next = {
         showFullForm: false,
         activeTab: mapNumToKey[tabParam] || "notes",
       };
-      if (tabParam === "8") {
-        next.documentsInitialSubTab = "contrats";
-      }
       this.setState(next);
     }
   }
@@ -276,16 +276,7 @@ class UserEdit extends React.Component {
   };
 
   toggle = (tab) => {
-    // Deep-link / legacy: Contrats is now a Documents sub-tab
-    if (tab === "contrats") {
-      this.setState(
-        { activeTab: "documents", documentsInitialSubTab: "contrats" },
-        () => {
-          setTimeout(this.computeDocsOffset, 0);
-        },
-      );
-      return;
-    }
+    // Tip 2026-09-15: Contrat is a first-class right-panel tab (reuse Contracts UI)
     if (this.state.activeTab !== tab) {
       const next = { activeTab: tab };
       if (tab === "documents") next.documentsInitialSubTab = null;
@@ -489,6 +480,19 @@ class UserEdit extends React.Component {
                   onClick={() => this.toggle("notes")}
                 >
                   <Info className="text-primary mr-50" size={16} /> Infos
+                </NavLink>
+              </NavItem>
+
+              <NavItem>
+                <NavLink
+                  id={`contrat-link-client-${id}`}
+                  className={classnames({
+                    active: this.state.activeTab === "contrats",
+                  })}
+                  onClick={() => this.toggle("contrats")}
+                >
+                  <FileText className="text-primary mr-50" size={16} />
+                  <span id={`contrat-label-client-${id}`}> Contrat</span>
                 </NavLink>
               </NavItem>
 
@@ -698,6 +702,19 @@ class UserEdit extends React.Component {
                   ) : null
                 }
               />
+            </TabPane>
+
+            <TabPane tabId="contrats">
+              <Card className="mb-1" style={{ borderRadius: 12 }}>
+                <CardBody>
+                  <Contracts
+                    name={this.state.rowData?.name}
+                    id={id}
+                    parent_id={this.state.rowData?.parent_id}
+                    ref={this.contractsRef}
+                  />
+                </CardBody>
+              </Card>
             </TabPane>
 
             {String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
