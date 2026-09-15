@@ -686,7 +686,11 @@ class UserEdit extends React.Component {
               />
             </div>
           )}
-          <TabContent activeTab={this.state.activeTab}>
+          {/* Cap'tain: hide text-tab panes while Appel/Tache bandeau open (no dual-active look) */}
+          <TabContent
+            activeTab={this.state.activeTab}
+            style={{ display: this.state.ficheActionsView ? "none" : undefined }}
+          >
             <TabPane tabId="notes">
               <NotesTab
                 data={this.state.rowData}
