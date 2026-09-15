@@ -46,6 +46,9 @@ const ActionsSection = ({
   const [newCallReport, setNewCallReport] = useState("");
   const [newTaskText, setNewTaskText] = useState("");
   const [taskDateTime, setTaskDateTime] = useState("");
+  const [showCallEcheance, setShowCallEcheance] = useState(false);
+  const [callEcheanceDate, setCallEcheanceDate] = useState("");
+  const [callsExpanded, setCallsExpanded] = useState(false);
   const [historyFilter, setHistoryFilter] = useState("ALL");
 
   // Create Prospect Modal State
@@ -66,6 +69,9 @@ const ActionsSection = ({
     setNewCallReport("");
     setNewTaskText("");
     setTaskDateTime("");
+    setShowCallEcheance(false);
+    setCallEcheanceDate("");
+    setCallsExpanded(false);
     setShowCreateModal(false);
     setShowKanbanModal(false);
     setHistoryFilter("ALL");
@@ -230,7 +236,53 @@ const ActionsSection = ({
       };
       setCallReports((prev) => [savedReport, ...prev]);
 
+      // Cap'tain 2026-09-15: optional echeance → create reminder task (end_date)
+      if (callEcheanceDate) {
+        try {
+          const endDate = callEcheanceDate.split("T")[0];
+          const taskPayload = {
+            title: `Rappel appel: ${newCallReport.trim().slice(0, 80)}`,
+            desc: `Rappel suite appel — ${newCallReport.trim()}`,
+            isCompleted: false,
+            isImportant: false,
+            isRead: false,
+            type: "other",
+            end_date: endDate,
+            customer_id: ownerId,
+            creator_id: adminId || localStorage.getItem("userid"),
+          };
+          const taskResp = await axios.post(
+            global.config.server_url + "/tasks",
+            taskPayload,
+            Config,
+          );
+          let taskData = taskResp.data.data || taskResp.data;
+          if (typeof taskData === "string") {
+            try { taskData = JSON.parse(taskData); } catch (e) { /* ignore */ }
+          }
+          const savedTask = normalizeTask({
+            ...(typeof taskData === "object" ? taskData : {}),
+            id: taskData && taskData.id,
+            title: taskPayload.title,
+            desc: taskPayload.desc,
+            text: taskPayload.title,
+            customer_id: ownerId,
+            end_date: endDate,
+            created_at:
+              (typeof taskData === "object" && taskData && taskData.created_at) ||
+              new Date().toISOString(),
+            isCompleted: false,
+          });
+          setTasks((prev) => [savedTask, ...prev]);
+          refreshTasksBadge();
+        } catch (taskErr) {
+          console.error("Failed to add call echeance reminder", taskErr);
+        }
+      }
+
       setNewCallReport("");
+      setCallEcheanceDate("");
+      setShowCallEcheance(false);
       // Cap'tain: stay on form + refresh list of 5 (do NOT close bandeau)
     } catch (error) {
       console.error("Failed to add call report", error);
@@ -480,9 +532,9 @@ const ActionsSection = ({
       new Date(b.created_at || b.date) - new Date(a.created_at || a.date),
   );
 
-  const latestCalls = callReports
-    .map((r) => ({ ...r, type: "CALLREPORT" }))
-    .slice(0, 5);
+  const allCalls = callReports.map((r) => ({ ...r, type: "CALLREPORT" }));
+  const latestCalls = allCalls.slice(0, 5);
+  const displayedCalls = callsExpanded ? allCalls : latestCalls;
   const latestTasks = visibleTasks.slice(0, 5);
 
   // Styles
@@ -715,15 +767,50 @@ const ActionsSection = ({
               onChange={(e) => setNewCallReport(e.target.value)}
               style={textareaStyle}
             />
+            {showCallEcheance && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  marginBottom: "12px",
+                }}
+              >
+                <label
+                  htmlFor="or-call-echeance"
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    color: "#374151",
+                    margin: 0,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Échéance
+                </label>
+                <input
+                  id="or-call-echeance"
+                  type="date"
+                  title="Échéance (rappel) — crée une tâche rappel à cette date"
+                  aria-label="Échéance"
+                  value={callEcheanceDate}
+                  onChange={(e) => setCallEcheanceDate(e.target.value)}
+                  onClick={(e) => e.target.showPicker && e.target.showPicker()}
+                  style={{ ...inputStyle, width: "180px", cursor: "pointer", marginBottom: 0 }}
+                />
+              </div>
+            )}
             <div style={{ display: "flex", gap: "10px" }}>
               <button style={buttonStyle} onClick={handleAddCallReport}>
                 Ajouter
               </button>
               <button
+                type="button"
                 style={secondaryButtonStyle}
-                onClick={() => openHistory("CALLREPORT")}
+                onClick={() => setShowCallEcheance((v) => !v)}
+                aria-expanded={showCallEcheance}
               >
-                Voir historique
+                Ajouter une échéance
               </button>
             </div>
             <div style={{ marginTop: "16px" }}>
@@ -740,9 +827,9 @@ const ActionsSection = ({
                 5 derniers appels
               </p>
               <ActivityList
-                items={latestCalls}
+                items={displayedCalls}
                 initialFilter="CALLREPORT"
-                limit={5}
+                limit={callsExpanded ? undefined : 5}
                 hideFilters
                 compact
                 onEdit={handleEditItem}
@@ -753,6 +840,25 @@ const ActionsSection = ({
                 editText={editText}
                 setEditText={setEditText}
               />
+              {allCalls.length > 5 && (
+                <button
+                  type="button"
+                  onClick={() => setCallsExpanded((v) => !v)}
+                  style={{
+                    marginTop: 8,
+                    padding: 0,
+                    border: "none",
+                    background: "none",
+                    color: "#4f46e5",
+                    fontSize: 13,
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                  }}
+                  aria-expanded={callsExpanded}
+                >
+                  {callsExpanded ? "réduire" : "suite"}
+                </button>
+              )}
             </div>
           </div>
         )}

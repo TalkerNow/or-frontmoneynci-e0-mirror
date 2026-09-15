@@ -277,8 +277,9 @@ class UserEdit extends React.Component {
 
   toggle = (tab) => {
     // Tip 2026-09-15: Contrat is a first-class right-panel tab (reuse Contracts UI)
-    if (this.state.activeTab !== tab) {
-      const next = { activeTab: tab };
+    // Cap'tain 2026-09-15 Appel panel: text tabs clear Appel/Tache so only ONE active underline
+    if (this.state.activeTab !== tab || this.state.ficheActionsView) {
+      const next = { activeTab: tab, ficheActionsView: null };
       if (tab === "documents") next.documentsInitialSubTab = null;
       if (tab === "simulateur" && !this.state.isCollapsed)
         next.isCollapsed = true;
@@ -475,7 +476,7 @@ class UserEdit extends React.Component {
               <NavItem>
                 <NavLink
                   className={classnames({
-                    active: this.state.activeTab === "notes",
+                    active: this.state.activeTab === "notes" && !this.state.ficheActionsView,
                   })}
                   onClick={() => this.toggle("notes")}
                 >
@@ -487,7 +488,7 @@ class UserEdit extends React.Component {
                 <NavLink
                   id={`contrat-link-client-${id}`}
                   className={classnames({
-                    active: this.state.activeTab === "contrats",
+                    active: this.state.activeTab === "contrats" && !this.state.ficheActionsView,
                   })}
                   onClick={() => this.toggle("contrats")}
                 >
@@ -500,7 +501,7 @@ class UserEdit extends React.Component {
                 <NavLink
                   id={`documents-link-client-${id}`}
                   className={classnames({
-                    active: this.state.activeTab === "documents",
+                    active: this.state.activeTab === "documents" && !this.state.ficheActionsView,
                   })}
                   onClick={() => this.toggle("documents")}
                 >
@@ -518,7 +519,7 @@ class UserEdit extends React.Component {
                   <NavItem>
                     <NavLink
                       className={classnames("d-flex align-items-center", {
-                        active: this.state.activeTab === "tasks",
+                        active: this.state.activeTab === "tasks" && !this.state.ficheActionsView,
                       })}
                       onClick={() => this.toggle("tasks")}
                     >
@@ -545,7 +546,7 @@ class UserEdit extends React.Component {
                   <NavItem>
                     <NavLink
                       className={classnames({
-                        active: this.state.activeTab === "courriers",
+                        active: this.state.activeTab === "courriers" && !this.state.ficheActionsView,
                       })}
                       onClick={() => this.toggle("courriers")}
                     >
@@ -562,7 +563,7 @@ class UserEdit extends React.Component {
                       <NavLink
                         id={`simulateur-link-client-${id}`}
                         className={classnames({
-                          active: this.state.activeTab === "simulateur",
+                          active: this.state.activeTab === "simulateur" && !this.state.ficheActionsView,
                         })}
                         onClick={() => this.toggle("simulateur")}
                       >
