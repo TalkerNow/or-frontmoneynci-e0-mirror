@@ -928,32 +928,48 @@ export default function UserDetails({
               Détails
             </Button.Ripple>
           ) : (
-            /* Plain button — avoid btn-success solid which hid the letter V */
+            /* Pastille = same lightness pattern as PROSPECT (#dbeafe/#2c6ddf) but green CLIENT tokens */
             <button
               type="button"
               aria-label="Valider et verrouiller la carte"
               title="V — enregistrer et verrouiller la carte"
+              data-identity-validate="1"
               className="mr-1"
+              disabled={isSavingIdentity}
+              onClick={handleValidateIdentity}
               style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
                 height: 40,
-                minWidth: 40,
-                padding: "0 12px",
+                minWidth: 44,
+                padding: "0 14px",
                 marginBottom: "10px",
-                fontWeight: 700,
-                fontSize: "1rem",
-                lineHeight: 1,
-                borderRadius: "0.358rem",
+                borderRadius: 20,
                 cursor: isSavingIdentity ? "wait" : "pointer",
-                /* pastille CLIENT light tokens (#dcfce7 fill / #28c76f text+border) */
                 backgroundColor: "#dcfce7",
                 color: "#28c76f",
                 border: "1px solid #28c76f",
                 boxShadow: "none",
+                outline: "none",
+                appearance: "none",
+                WebkitAppearance: "none",
+                opacity: 1,
               }}
-              onClick={handleValidateIdentity}
-              disabled={isSavingIdentity}
             >
-              {isSavingIdentity ? "…" : "V"}
+              <span
+                style={{
+                  color: "#28c76f",
+                  WebkitTextFillColor: "#28c76f",
+                  fontWeight: 700,
+                  fontSize: "1.15rem",
+                  lineHeight: 1,
+                  letterSpacing: "0.02em",
+                  userSelect: "none",
+                }}
+              >
+                {isSavingIdentity ? "…" : "V"}
+              </span>
             </button>
           )}
           <Button.Ripple
