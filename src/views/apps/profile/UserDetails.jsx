@@ -777,6 +777,22 @@ export default function UserDetails({
                 )}
               </div>
             </div>
+
+            <div className="d-flex user-info align-items-center">
+              <div className="user-info-title font-weight-bold">Tél :</div>
+              <div className="flex-grow-1">
+                {renderIdentityValue(
+                  "mobile_number",
+                  <div>
+                    {formatPhoneFR(
+                      identityForm.mobile_number ||
+                        user.mobile_number ||
+                        user.office_number
+                    ) || "—"}
+                  </div>
+                )}
+              </div>
+            </div>
             <div className="d-flex user-info align-items-center">
               <div className="user-info-title font-weight-bold">Né(e) le :</div>
               <div className="flex-grow-1">
@@ -839,23 +855,7 @@ export default function UserDetails({
                   )}
                 </div>
               </div>
-            )}
-            <div className="d-flex user-info align-items-center">
-              <div className="user-info-title font-weight-bold">Tél :</div>
-              <div className="flex-grow-1">
-                {renderIdentityValue(
-                  "mobile_number",
-                  <div>
-                    {formatPhoneFR(
-                      identityForm.mobile_number ||
-                        user.mobile_number ||
-                        user.office_number
-                    ) || "—"}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="d-flex user-info align-items-center">
+            )}            <div className="d-flex user-info align-items-center">
               <div className="user-info-title font-weight-bold">Adresse :</div>
               <div className="flex-grow-1">
                 {renderIdentityValue(
@@ -915,38 +915,42 @@ export default function UserDetails({
         </div>
 
         <div className="d-flex justify-content-center justify-content-sm-end flex-wrap mt-auto mb-0 pb-0">
-          <Button.Ripple
-            color="primary"
-            aria-label="Détails"
-            title="Détails"
-            className="mr-1"
-            style={{ height: 40, padding: "0 12px", marginBottom: "10px" }}
-            onClick={onEdit}
-          >
-            Détails
-          </Button.Ripple>
-          <Button.Ripple
-            color="success"
-            aria-label={identityLocked ? "Identité validée (carte verrouillée)" : "Valider et verrouiller la carte"}
-            title={identityLocked ? "Validé — carte verrouillée (éditer via Détails)" : "V — enregistrer et verrouiller la carte"}
-            className="mr-1"
-            style={{
-              height: 40,
-              minWidth: 40,
-              padding: "0 12px",
-              marginBottom: "10px",
-              fontWeight: 700,
-              /* pastille CLIENT green tokens already in this file (#28c76f / #dcfce7) */
-              backgroundColor: "#dcfce7",
-              color: "#28c76f",
-              border: "1px solid #28c76f",
-              boxShadow: "none",
-            }}
-            onClick={handleValidateIdentity}
-            disabled={identityLocked || isSavingIdentity}
-          >
-            {isSavingIdentity ? "…" : "V"}
-          </Button.Ripple>
+          {/* Unlocked: V + trash. Locked: Détails (escape) + trash. No V after lock. */}
+          {identityLocked ? (
+            <Button.Ripple
+              color="primary"
+              aria-label="Détails"
+              title="Détails"
+              className="mr-1"
+              style={{ height: 40, padding: "0 12px", marginBottom: "10px" }}
+              onClick={onEdit}
+            >
+              Détails
+            </Button.Ripple>
+          ) : (
+            <Button.Ripple
+              color="success"
+              aria-label="Valider et verrouiller la carte"
+              title="V — enregistrer et verrouiller la carte"
+              className="mr-1"
+              style={{
+                height: 40,
+                minWidth: 40,
+                padding: "0 12px",
+                marginBottom: "10px",
+                fontWeight: 700,
+                /* pastille CLIENT green tokens already in this file (#28c76f / #dcfce7) */
+                backgroundColor: "#dcfce7",
+                color: "#28c76f",
+                border: "1px solid #28c76f",
+                boxShadow: "none",
+              }}
+              onClick={handleValidateIdentity}
+              disabled={isSavingIdentity}
+            >
+              {isSavingIdentity ? "…" : "V"}
+            </Button.Ripple>
+          )}
           <Button.Ripple
             color="danger"
             aria-label="Supprimer"
