@@ -44,7 +44,6 @@ import { history } from "../../../../history";
 // SuiviAvancementBox hidden from fiche Infos (JF 2026-09-08) — file kept
 // import SuiviAvancementBox from "./SuiviAvancementBox";
 
-import { canAccessSimulator } from "../../../../constants/permissions";
 import ClientTasks from "./clientTask/Task";
 
 
@@ -552,7 +551,6 @@ class UserEdit extends React.Component {
                     </NavLink>
                   </NavItem>
 
-                  {canAccessSimulator() && (
                     <NavItem>
                       <NavLink
                         id={`simulateur-link-client-${id}`}
@@ -568,7 +566,6 @@ class UserEdit extends React.Component {
                         </span>
                       </NavLink>
                     </NavItem>
-                  )}
                 </>
               )}
 {/* Lot1 JF tip B icons: origin ActionsSection Phone/CheckCircle icon-only */}
