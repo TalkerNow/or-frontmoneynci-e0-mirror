@@ -926,8 +926,7 @@ export default function UserDetails({
             Détails
           </Button.Ripple>
           <Button.Ripple
-            color={identityLocked ? "success" : "primary"}
-            outline={!identityLocked}
+            color="success"
             aria-label={identityLocked ? "Identité validée (carte verrouillée)" : "Valider et verrouiller la carte"}
             title={identityLocked ? "Validé — carte verrouillée (éditer via Détails)" : "V — enregistrer et verrouiller la carte"}
             className="mr-1"
@@ -937,6 +936,11 @@ export default function UserDetails({
               padding: "0 12px",
               marginBottom: "10px",
               fontWeight: 700,
+              /* pastille CLIENT green tokens already in this file (#28c76f / #dcfce7) */
+              backgroundColor: "#dcfce7",
+              color: "#28c76f",
+              border: "1px solid #28c76f",
+              boxShadow: "none",
             }}
             onClick={handleValidateIdentity}
             disabled={identityLocked || isSavingIdentity}
