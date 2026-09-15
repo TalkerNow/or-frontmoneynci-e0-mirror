@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
-import { Card, CardBody, Button, Badge, UncontrolledTooltip } from "reactstrap";
+import { Card, CardBody, Button, Badge, UncontrolledTooltip, Input } from "reactstrap";
 import { User as UserIcon, Disc, ArrowLeft, Trash2 } from "react-feather";
 import api from "../../../services/api";
 import { history } from "../../../history";
@@ -26,6 +26,71 @@ export default function UserDetails({
   const [consultantAccess, setConsultantAccess] = useState(null);
   // Tip D: CF7 flag (chatbot/diag from include already on user)
   const [hasCf7, setHasCf7] = useState(false);
+
+  // Tip identité editable: lock = left card only (localStorage). Détails reste éditable.
+  const lockStorageKey = (id) => `or_identity_card_locked_${id}`;
+  const readLocked = (id) => {
+    if (!id) return false;
+    try {
+      return localStorage.getItem(lockStorageKey(id)) === "1";
+    } catch (e) {
+      return false;
+    }
+  };
+  const toDateInput = (val) => {
+    if (!val) return "";
+    const s = String(val);
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+    try {
+      const d = new Date(s);
+      if (Number.isNaN(d.getTime())) return "";
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    } catch (e) {
+      return "";
+    }
+  };
+  const buildFormFromUser = (u = {}) => ({
+    first_name: u.first_name ?? "",
+    last_name: u.last_name ?? "",
+    email: u.email ?? "",
+    birth_date: toDateInput(u.birth_date),
+    children_number:
+      u.children_number != null && u.children_number !== ""
+        ? String(u.children_number)
+        : "",
+    military_service:
+      u.military_service === true ||
+      String(u.military_service || "").toLowerCase() === "oui"
+        ? "oui"
+        : u.military_service != null && u.military_service !== ""
+          ? "Non"
+          : "Non",
+    mobile_number: u.mobile_number || u.office_number || "",
+    personal_address: u.personal_address ?? "",
+    personal_zip_code: u.personal_zip_code ?? "",
+    personal_city: u.personal_city ?? "",
+    personal_country: u.personal_country ?? "",
+  });
+  const [identityLocked, setIdentityLocked] = useState(() => readLocked(user?.id));
+  const [identityForm, setIdentityForm] = useState(() => buildFormFromUser(user));
+  const [isSavingIdentity, setIsSavingIdentity] = useState(false);
+  const [identitySaveError, setIdentitySaveError] = useState(null);
+
+  useEffect(() => {
+    setIdentityLocked(readLocked(user?.id));
+    setIdentityForm(buildFormFromUser(user));
+    setIdentitySaveError(null);
+  }, [user?.id, user?.first_name, user?.last_name, user?.email, user?.birth_date,
+      user?.children_number, user?.military_service, user?.mobile_number,
+      user?.office_number, user?.personal_address, user?.personal_zip_code,
+      user?.personal_city, user?.personal_country]);
+
+  const setField = (key, value) => {
+    setIdentityForm((prev) => ({ ...prev, [key]: value }));
+  };
 
   const ADMIN_IDS = [4, 1271, 1638];
   const currentUserId = parseInt(localStorage.getItem("userid"), 10);
@@ -198,7 +263,110 @@ export default function UserDetails({
     return "—";
   }, [user, members, parentName]);
 
-  const handleSaveConsultant = async (consultantId) => {
+  const handleValidateIdentity = async () => {
+    if (!user?.id || identityLocked || isSavingIdentity) return;
+    setIsSavingIdentity(true);
+    setIdentitySaveError(null);
+    try {
+      const Config = {
+        headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+      };
+      const base = (global?.config?.server_url || "").replace(/\/+$/, "");
+      const firstName = (identityForm.first_name || "").trim();
+      const lastName = (identityForm.last_name || "").trim();
+      const email = (identityForm.email || "").trim();
+
+      // Keep parent_id/status/role so UsersController partial-update side-effects stay safe
+      await axios.put(
+        `${base}/users/${user.id}`,
+        {
+          name: `${firstName} ${lastName}`.trim() || user.name,
+          email: email || user.email,
+          parent_id: user.parent_id,
+          status: user.status,
+          status_fa: user.status_fa,
+          role: user.role,
+        },
+        Config
+      );
+
+      const piPayload = {
+        first_name: firstName,
+        last_name: lastName,
+        birth_date: identityForm.birth_date || null,
+        children_number:
+          identityForm.children_number === ""
+            ? null
+            : identityForm.children_number,
+        mobile_number: identityForm.mobile_number || null,
+        personal_address: identityForm.personal_address || null,
+        personal_zip_code: identityForm.personal_zip_code || null,
+        personal_city: identityForm.personal_city || null,
+        personal_country: identityForm.personal_country || null,
+      };
+      if (user.civility === "Monsieur") {
+        piPayload.military_service = identityForm.military_service || "Non";
+      }
+      await axios.put(
+        `${base}/personal_information/${user.id}`,
+        piPayload,
+        Config
+      );
+
+      try {
+        localStorage.setItem(lockStorageKey(user.id), "1");
+      } catch (e) {}
+      setIdentityLocked(true);
+    } catch (e) {
+      console.error("Erreur sauvegarde identité (V)", e);
+      const msg =
+        e?.response?.data?.error ||
+        e?.message ||
+        "Erreur lors de la sauvegarde";
+      setIdentitySaveError(String(msg));
+    } finally {
+      setIsSavingIdentity(false);
+    }
+  };
+
+  const inputStyle = {
+    height: 28,
+    fontSize: "0.85rem",
+    padding: "2px 8px",
+    maxWidth: "100%",
+  };
+
+  const renderIdentityValue = (key, displayNode, inputProps = {}) => {
+    if (identityLocked) return displayNode;
+    const { type = "text", ...rest } = inputProps;
+    if (type === "select") {
+      return (
+        <Input
+          type="select"
+          bsSize="sm"
+          style={inputStyle}
+          value={identityForm[key] ?? ""}
+          onChange={(e) => setField(key, e.target.value)}
+          disabled={isSavingIdentity}
+        >
+          {rest.options}
+        </Input>
+      );
+    }
+    return (
+      <Input
+        type={type}
+        bsSize="sm"
+        style={inputStyle}
+        value={identityForm[key] ?? ""}
+        onChange={(e) => setField(key, e.target.value)}
+        disabled={isSavingIdentity}
+        {...rest}
+      />
+    );
+  };
+
+    const handleSaveConsultant = async (consultantId) => {
     if (!consultantId || consultantId === "null") return;
     setIsSaving(true);
     try {
@@ -579,81 +747,170 @@ export default function UserDetails({
             }}
           />
           <div className="users-page-view-table compact-rows">
-            <div className="d-flex user-info">
+            <div className="d-flex user-info align-items-center">
               <div className="user-info-title font-weight-bold">Prénom :</div>
-              <div>{user.first_name || "—"}</div>
+              <div className="flex-grow-1">
+                {renderIdentityValue(
+                  "first_name",
+                  <div>{identityForm.first_name || user.first_name || "—"}</div>
+                )}
+              </div>
             </div>
-            <div className="d-flex user-info">
+            <div className="d-flex user-info align-items-center">
               <div className="user-info-title font-weight-bold">Nom :</div>
-              <div>{user.last_name || "—"}</div>
+              <div className="flex-grow-1">
+                {renderIdentityValue(
+                  "last_name",
+                  <div>{identityForm.last_name || user.last_name || "—"}</div>
+                )}
+              </div>
             </div>
-            <div className="d-flex user-info">
+            <div className="d-flex user-info align-items-center">
               <div className="user-info-title font-weight-bold">Email :</div>
-              <div
-                className="text-break"
-                style={{ overflowWrap: "anywhere" }}
-                title={user.email || ""}
-              >
-                {user.email || "—"}
+              <div className="flex-grow-1 text-break" style={{ overflowWrap: "anywhere" }}>
+                {renderIdentityValue(
+                  "email",
+                  <div title={identityForm.email || user.email || ""}>
+                    {identityForm.email || user.email || "—"}
+                  </div>,
+                  { type: "email" }
+                )}
               </div>
             </div>
-            <div className="d-flex user-info">
+            <div className="d-flex user-info align-items-center">
               <div className="user-info-title font-weight-bold">Né(e) le :</div>
-              <div>
-                {user.birth_date
-                  ? new Date(user.birth_date).toLocaleDateString("fr-FR", {
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                    })
-                  : "—"}
+              <div className="flex-grow-1">
+                {renderIdentityValue(
+                  "birth_date",
+                  <div>
+                    {identityForm.birth_date || user.birth_date
+                      ? new Date(identityForm.birth_date || user.birth_date).toLocaleDateString("fr-FR", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })
+                      : "—"}
+                  </div>,
+                  { type: "date" }
+                )}
               </div>
             </div>
-            <div className="d-flex user-info">
+            <div className="d-flex user-info align-items-center">
               <div className="user-info-title font-weight-bold">
                 Nombre d'enfants :
               </div>
-              <div>
-                {user.children_number != null ? user.children_number : "—"}
+              <div className="flex-grow-1">
+                {renderIdentityValue(
+                  "children_number",
+                  <div>
+                    {identityForm.children_number !== ""
+                      ? identityForm.children_number
+                      : user.children_number != null
+                        ? user.children_number
+                        : "—"}
+                  </div>,
+                  { type: "number", min: 0 }
+                )}
               </div>
             </div>
             {user.civility === "Monsieur" && (
-              <div className="d-flex user-info">
+              <div className="d-flex user-info align-items-center">
                 <div className="user-info-title font-weight-bold">
                   Service militaire :
                 </div>
-                <div>
-                  {user.military_service === "oui" ||
-                  user.military_service === true
-                    ? "Oui"
-                    : "Non"}
+                <div className="flex-grow-1">
+                  {renderIdentityValue(
+                    "military_service",
+                    <div>
+                      {identityForm.military_service === "oui" ||
+                      identityForm.military_service === true
+                        ? "Oui"
+                        : "Non"}
+                    </div>,
+                    {
+                      type: "select",
+                      options: (
+                        <>
+                          <option value="oui">Oui</option>
+                          <option value="Non">Non</option>
+                        </>
+                      ),
+                    }
+                  )}
                 </div>
               </div>
             )}
-            <div className="d-flex user-info">
+            <div className="d-flex user-info align-items-center">
               <div className="user-info-title font-weight-bold">Tél :</div>
-              <div>
-                {formatPhoneFR(user.mobile_number || user.office_number) || "—"}
+              <div className="flex-grow-1">
+                {renderIdentityValue(
+                  "mobile_number",
+                  <div>
+                    {formatPhoneFR(
+                      identityForm.mobile_number ||
+                        user.mobile_number ||
+                        user.office_number
+                    ) || "—"}
+                  </div>
+                )}
               </div>
             </div>
-            <div className="d-flex user-info">
+            <div className="d-flex user-info align-items-center">
               <div className="user-info-title font-weight-bold">Adresse :</div>
-              <div>
-                {formatAddress(user.personal_address, user.personal_address_2)}
+              <div className="flex-grow-1">
+                {renderIdentityValue(
+                  "personal_address",
+                  <div>
+                    {formatAddress(
+                      identityForm.personal_address || user.personal_address,
+                      user.personal_address_2
+                    )}
+                  </div>
+                )}
               </div>
             </div>
-            <div className="d-flex user-info">
+            <div className="d-flex user-info align-items-center">
               <div className="user-info-title font-weight-bold">CP :</div>
-              <div>{user.personal_zip_code || "—"}</div>
+              <div className="flex-grow-1">
+                {renderIdentityValue(
+                  "personal_zip_code",
+                  <div>
+                    {identityForm.personal_zip_code ||
+                      user.personal_zip_code ||
+                      "—"}
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="d-flex user-info">
+            <div className="d-flex user-info align-items-center">
               <div className="user-info-title font-weight-bold">Ville :</div>
-              <div>{user.personal_city || "—"}</div>
+              <div className="flex-grow-1">
+                {renderIdentityValue(
+                  "personal_city",
+                  <div>
+                    {identityForm.personal_city || user.personal_city || "—"}
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="d-flex user-info">
+            <div className="d-flex user-info align-items-center">
               <div className="user-info-title font-weight-bold">Pays :</div>
-              <div>{user.personal_country || "—"}</div>
+              <div className="flex-grow-1">
+                {renderIdentityValue(
+                  "personal_country",
+                  <div>
+                    {identityForm.personal_country ||
+                      user.personal_country ||
+                      "—"}
+                  </div>
+                )}
+              </div>
             </div>
+            {identitySaveError ? (
+              <div className="text-danger mt-25" style={{ fontSize: "0.8rem" }}>
+                {identitySaveError}
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -667,6 +924,24 @@ export default function UserDetails({
             onClick={onEdit}
           >
             Détails
+          </Button.Ripple>
+          <Button.Ripple
+            color={identityLocked ? "success" : "primary"}
+            outline={!identityLocked}
+            aria-label={identityLocked ? "Identité validée (carte verrouillée)" : "Valider et verrouiller la carte"}
+            title={identityLocked ? "Validé — carte verrouillée (éditer via Détails)" : "V — enregistrer et verrouiller la carte"}
+            className="mr-1"
+            style={{
+              height: 40,
+              minWidth: 40,
+              padding: "0 12px",
+              marginBottom: "10px",
+              fontWeight: 700,
+            }}
+            onClick={handleValidateIdentity}
+            disabled={identityLocked || isSavingIdentity}
+          >
+            {isSavingIdentity ? "…" : "V"}
           </Button.Ripple>
           <Button.Ripple
             color="danger"
