@@ -928,8 +928,9 @@ export default function UserDetails({
               Détails
             </Button.Ripple>
           ) : (
-            <Button.Ripple
-              color="success"
+            /* Plain button — avoid btn-success solid which hid the letter V */
+            <button
+              type="button"
               aria-label="Valider et verrouiller la carte"
               title="V — enregistrer et verrouiller la carte"
               className="mr-1"
@@ -939,7 +940,11 @@ export default function UserDetails({
                 padding: "0 12px",
                 marginBottom: "10px",
                 fontWeight: 700,
-                /* pastille CLIENT green tokens already in this file (#28c76f / #dcfce7) */
+                fontSize: "1rem",
+                lineHeight: 1,
+                borderRadius: "0.358rem",
+                cursor: isSavingIdentity ? "wait" : "pointer",
+                /* pastille CLIENT light tokens (#dcfce7 fill / #28c76f text+border) */
                 backgroundColor: "#dcfce7",
                 color: "#28c76f",
                 border: "1px solid #28c76f",
@@ -949,7 +954,7 @@ export default function UserDetails({
               disabled={isSavingIdentity}
             >
               {isSavingIdentity ? "…" : "V"}
-            </Button.Ripple>
+            </button>
           )}
           <Button.Ripple
             color="danger"
