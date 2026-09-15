@@ -1321,7 +1321,7 @@ class ClientsList extends React.Component {
                       }}
                       onClick={() => this.toggleTab("mine")}
                     >
-                      Mes Clients
+                      Clients
                     </div>
 
                     {/* Onglet ANCIENS CLIENTS */}
