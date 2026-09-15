@@ -253,7 +253,7 @@ const ActionsSection = ({
         headers: { Authorization: "Bearer " + localStorage.getItem("token") },
       };
 
-      // Cap'tain: end_date empty → default today (urgent sidebar badge)
+      // Cap'tain: user date = échéance (end_date); created_at auto server/now. Empty → today
       const endDate = taskDateTime
         ? taskDateTime.split("T")[0]
         : todayYmd();
@@ -776,13 +776,38 @@ const ActionsSection = ({
               onChange={(e) => setNewTaskText(e.target.value)}
               style={textareaStyle}
             />
-            <input
-              type="date"
-              value={taskDateTime}
-              onChange={(e) => setTaskDateTime(e.target.value)}
-              onClick={(e) => e.target.showPicker && e.target.showPicker()}
-              style={{ ...inputStyle, width: "180px", cursor: "pointer" }}
-            />
+            {/* Cap'tain 2026-09-15: date field = échéance only; created_at auto-stamped on save */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                marginBottom: "12px",
+              }}
+            >
+              <label
+                htmlFor="or-task-echeance"
+                style={{
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  color: "#374151",
+                  margin: 0,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Échéance
+              </label>
+              <input
+                id="or-task-echeance"
+                type="date"
+                title="Échéance (rappel) — la date de création est horodatée automatiquement"
+                aria-label="Échéance"
+                value={taskDateTime}
+                onChange={(e) => setTaskDateTime(e.target.value)}
+                onClick={(e) => e.target.showPicker && e.target.showPicker()}
+                style={{ ...inputStyle, width: "180px", cursor: "pointer", marginBottom: 0 }}
+              />
+            </div>
             <div style={{ display: "flex", gap: "10px" }}>
               <button style={buttonStyle} onClick={handleAddTask}>
                 Ajouter
