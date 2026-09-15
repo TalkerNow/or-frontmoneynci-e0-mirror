@@ -2,11 +2,11 @@ import React from "react";
 import * as Icon from "react-feather";
 
 /**
- * Menu CRM — tip C LOCKED Cap'tain 2026-09-14 (TEST)
- * Admin order: Tableau de bord · Contacts · Leads · Clients · Tâches · Accès · Admin moteur
+ * Menu CRM — tip C + Cap'tain GO 2026-09-15 (TEST)
+ * Admin order: Tableau de bord · Contacts · Leads · Tâches · Accès · Admin moteur
  * Contacts = leaf people → /app/user/clientslist (no children)
  * Leads = Mail · Chatbot · Diagnostic · Inscrits (Appels DROP — no invent)
- * Clients = leaf → /app/user/mesclientslist Mes Clients (NOT Kanban; /kpi/opportunities remains by URL)
+ * Clients sidebar leaf REMOVED — filter tab « Clients » lives inside Contacts list only
  * Consultant: Contacts leaf → clientslist (unchanged)
  */
 
@@ -84,16 +84,6 @@ const items = {
     ],
   },
 
-  // Clients = leaf → ClientsList Mes Clients (NOT Kanban; /kpi/opportunities remains by URL)
-  clients: {
-    id: "clients",
-    title: "Clients",
-    type: "item",
-    icon: <Icon.Briefcase size={20} />,
-    permissions: ["admin"],
-    navLink: "/app/user/mesclientslist",
-  },
-
   tasks: {
     id: "tasks",
     title: "Tâches",
@@ -121,7 +111,7 @@ const items = {
   },
 };
 
-const adminOrder = ["dashboard", "contacts", "contact", "clients", "tasks", "consultantAccess", "adminMoteur"];
+const adminOrder = ["dashboard", "contacts", "contact", "tasks", "consultantAccess", "adminMoteur"];
 const consultantOrder = ["clientsList", "tasks"];
 
 const buildMenu = (order) => order.map((key) => items[key]).filter(Boolean);

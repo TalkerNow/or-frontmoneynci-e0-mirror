@@ -122,6 +122,8 @@ class ClientsList extends React.Component {
     sourceFlagsByUserId: {},
     // Contacts pack: TOP pastilles filtre source (exclusive single-select)
     sourceFilter: null, // null | "cf7" | "chatbot" | "diagnostic"
+    // Cap'tain GO 2026-09-15: Prestation pastilles filter (mine tab ONLY)
+    prestationFilter: null, // null | "CH" | "AR" | "TFD" | "SIMU" | "RAC"
     gridOptions: {
       onCellClicked: (params) => {
         const colKey = params?.colDef?.field || params?.colDef?.colId;
@@ -543,8 +545,26 @@ class ClientsList extends React.Component {
   // Contacts pack: TOP pastilles exclusive single-select (re-click clears)
   setSourceFilter = (key) => {
     const next = this.state.sourceFilter === key ? null : key;
-    this.setState({ sourceFilter: next }, () => {
+    this.setState({ sourceFilter: next, prestationFilter: null }, () => {
       this.toggleTab(this.state.activeTab || "all");
+    });
+  };
+
+  applyPrestationFilterToRows = (rows) => {
+    const { prestationFilter, servicesByUserId } = this.state;
+    if (!prestationFilter) return rows || [];
+    return (rows || []).filter((u) => {
+      const services =
+        (servicesByUserId && u && u.id != null && servicesByUserId[u.id]) || [];
+      return Array.isArray(services) && services.indexOf(prestationFilter) !== -1;
+    });
+  };
+
+  // Cap'tain GO: Prestation pastilles exclusive (mine tab); re-click clears
+  setPrestationFilter = (key) => {
+    const next = this.state.prestationFilter === key ? null : key;
+    this.setState({ prestationFilter: next, sourceFilter: null }, () => {
+      this.toggleTab(this.state.activeTab || "mine");
     });
   };
 
@@ -884,10 +904,17 @@ class ClientsList extends React.Component {
       );
     }
 
-    // Contacts pack: apply TOP source pastille filter (tip D flags)
-    filteredData = this.applySourceFilterToRows(filteredData);
+    // Cap'tain GO: source pastilles on Tous/Anciens/Prospects; Prestation on mine only
+    const nextState = { activeTab: tab };
+    if (tab === "mine") {
+      nextState.sourceFilter = null;
+      filteredData = this.applyPrestationFilterToRows(filteredData);
+    } else {
+      nextState.prestationFilter = null;
+      filteredData = this.applySourceFilterToRows(filteredData);
+    }
 
-    this.setState({ activeTab: tab, rowData: filteredData }, () => {
+    this.setState({ ...nextState, rowData: filteredData }, () => {
       if (this.gridApi) {
         this.gridApi.onFilterChanged();
       }
@@ -1356,75 +1383,116 @@ class ClientsList extends React.Component {
                       Prospects
                     </div>
 
-                    {/* Pastilles filtre source AFTER Prospects (exclusive; tip D pastels) + Inscrit disabled ANCIEN */}
-                    <div
-                      className="d-flex align-items-center"
-                      style={{ gap: "0.5rem", flexWrap: "wrap" }}
-                    >
-                      {[
-                        {
-                          key: "cf7",
-                          label: "CF7",
-                          bg: "#eef2ff",
-                          fg: "#4f46e5",
-                        },
-                        {
-                          key: "chatbot",
-                          label: "Chatbot",
-                          bg: "#e8f4fd",
-                          fg: "#1e88e5",
-                        },
-                        {
-                          key: "diagnostic",
-                          label: "Diagnostic",
-                          bg: "#fff3e0",
-                          fg: "#ef6c00",
-                        },
-                      ].map((p) => {
-                        const active = this.state.sourceFilter === p.key;
-                        return (
-                          <Badge
-                            key={p.key}
-                            pill
-                            className="cursor-pointer"
-                            onClick={() => this.setSourceFilter(p.key)}
-                            style={{
-                              fontSize: "0.8rem",
-                              fontWeight: 600,
-                              padding: "0.4rem 0.85rem",
-                              backgroundColor: active ? p.fg : p.bg,
-                              color: active ? "#fff" : p.fg,
-                              border: `1px solid ${p.fg}`,
-                              cursor: "pointer",
-                            }}
-                            title={
-                              active
-                                ? "Cliquer pour retirer le filtre"
-                                : `Filtrer source ${p.label}`
-                            }
-                          >
-                            {p.label}
-                          </Badge>
-                        );
-                      })}
-                      {/* Inscrit: visible DISABLED until real source flag — ANCIEN grey; not in sourceFilter */}
-                      <Badge
-                        pill
+                    {/* Cap'tain GO: source pastilles OR Prestation pastilles (mine) — RIGHT same line */}
+                    {activeTab === "mine" ? (
+                      <div
+                        className="d-flex align-items-center"
                         style={{
-                          fontSize: "0.8rem",
-                          fontWeight: 600,
-                          padding: "0.4rem 0.85rem",
-                          backgroundColor: "#e9ecef",
-                          color: "#6c757d",
-                          border: "1px solid #6c757d",
-                          cursor: "not-allowed",
-                          opacity: 0.7,
+                          gap: "0.5rem",
+                          flexWrap: "wrap",
+                          marginLeft: "auto",
                         }}
-                        title="Inscrit — bientôt (filtre désactivé)"
                       >
-                        Inscrit
-                      </Badge>
-                    </div>
+                        {["CH", "AR", "TFD", "SIMU", "RAC"].map((code) => {
+                          const active = this.state.prestationFilter === code;
+                          return (
+                            <div
+                              key={code}
+                              className="cursor-pointer"
+                              onClick={() => this.setPrestationFilter(code)}
+                              title={
+                                active
+                                  ? "Cliquer pour retirer le filtre"
+                                  : `Filtrer Prestation ${code}`
+                              }
+                              style={{
+                                cursor: "pointer",
+                                outline: active
+                                  ? "2px solid #7367f0"
+                                  : "2px solid transparent",
+                                borderRadius: "1.428rem",
+                                lineHeight: 0,
+                              }}
+                            >
+                              <Chip
+                                className="m-0 text-center"
+                                color={chipColors[code] || "primary"}
+                                text={code}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div
+                        className="d-flex align-items-center"
+                        style={{ gap: "0.5rem", flexWrap: "wrap" }}
+                      >
+                        {[
+                          {
+                            key: "cf7",
+                            label: "CF7",
+                            bg: "#eef2ff",
+                            fg: "#4f46e5",
+                          },
+                          {
+                            key: "chatbot",
+                            label: "Chatbot",
+                            bg: "#e8f4fd",
+                            fg: "#1e88e5",
+                          },
+                          {
+                            key: "diagnostic",
+                            label: "Diagnostic",
+                            bg: "#fff3e0",
+                            fg: "#ef6c00",
+                          },
+                        ].map((p) => {
+                          const active = this.state.sourceFilter === p.key;
+                          return (
+                            <Badge
+                              key={p.key}
+                              pill
+                              className="cursor-pointer"
+                              onClick={() => this.setSourceFilter(p.key)}
+                              style={{
+                                fontSize: "0.8rem",
+                                fontWeight: 600,
+                                padding: "0.4rem 0.85rem",
+                                backgroundColor: active ? p.fg : p.bg,
+                                color: active ? "#fff" : p.fg,
+                                border: `1px solid ${p.fg}`,
+                                cursor: "pointer",
+                              }}
+                              title={
+                                active
+                                  ? "Cliquer pour retirer le filtre"
+                                  : `Filtrer source ${p.label}`
+                              }
+                            >
+                              {p.label}
+                            </Badge>
+                          );
+                        })}
+                        {/* Inscrit: visible DISABLED until real source flag — ANCIEN grey; not in sourceFilter */}
+                        <Badge
+                          pill
+                          style={{
+                            fontSize: "0.8rem",
+                            fontWeight: 600,
+                            padding: "0.4rem 0.85rem",
+                            backgroundColor: "#e9ecef",
+                            color: "#6c757d",
+                            border: "1px solid #6c757d",
+                            cursor: "not-allowed",
+                            opacity: 0.7,
+                          }}
+                          title="Inscrit — bientôt (filtre désactivé)"
+                        >
+                          Inscrit
+                        </Badge>
+                      </div>
+                    )}
                   </div>
                 </div>
 
