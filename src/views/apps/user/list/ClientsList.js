@@ -1380,7 +1380,7 @@ class ClientsList extends React.Component {
                       }}
                       onClick={() => this.toggleTab("prospect")}
                     >
-                      Prospects
+                      Leads
                     </div>
 
                     {/* Cap'tain GO: source pastilles OR Prestation pastilles (mine) — RIGHT same line */}
