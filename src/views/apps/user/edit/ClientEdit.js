@@ -469,7 +469,18 @@ class UserEdit extends React.Component {
                 borderBottom: "none",
               }}
             >
-              <style>{`.nav-tabs .nav-link { white-space: nowrap; }`}</style>
+              <style>{`
+.nav-tabs .nav-link { white-space: nowrap; }
+.nav-tabs .nav-link.active {
+  font-weight: 700;
+  background-color: #f8f9fa;
+  border-radius: 0.357rem;
+}
+.nav-tabs .nav-link.active:after,
+.nav-tabs .nav-link.active::after {
+  height: 3px !important;
+}
+`}</style>
               {this.state.isCollapsed && (
                 <NavItem className="d-flex align-items-center mr-50">
                   <div
