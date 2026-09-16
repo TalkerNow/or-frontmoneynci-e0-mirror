@@ -278,20 +278,12 @@
 }
 .notes-action-btn {
   border-radius: 9px !important;
-  min-width: 120px;
-  min-height: 32px;
-  height: 32px;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.85rem;
-  font-weight: 400;
-  line-height: 1;
-  transition: transform 160ms ease, box-shadow 160ms ease, font-weight 120ms ease;
+  min-width: 160px;
+  padding: 0.55rem 1.2rem;
+  font-size: 0.95rem;
+  transition: transform 160ms ease, box-shadow 160ms ease;
   box-shadow: 0 4px 16px rgba(115, 103, 240, 0.2);
   cursor: pointer;
-}
-.notes-action-btn:not(:disabled):hover,
-.notes-action-btn:not(:disabled):focus {
-  font-weight: 700;
 }
 .notes-action-btn:not(:disabled):hover {
   transform: translateY(-2px);
@@ -684,33 +676,10 @@
 }
 .notes-action-row .notes-action-btn {
   border-radius: 8px;
-  min-width: 120px;
-  min-height: 32px;
-  height: 32px;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.85rem;
-  font-weight: 400;
-  line-height: 1;
+  min-width: 160px;
+  padding: 0.55rem 1.2rem;
+  font-size: 0.95rem;
 }
-
-/* Identity card actions — compact btn-sm + fw 400 / 700 hover+focus */
-.identity-action-btn {
-  min-height: 32px !important;
-  height: 32px !important;
-  padding: 0.25rem 0.75rem !important;
-  font-size: 0.85rem !important;
-  font-weight: 400 !important;
-  line-height: 1 !important;
-}
-.identity-action-btn:hover,
-.identity-action-btn:focus {
-  font-weight: 700 !important;
-}
-.identity-action-btn:hover span,
-.identity-action-btn:focus span {
-  font-weight: 700 !important;
-}
-
 
 /* ===== Quick Tags Styles ===== */
 .quick-tags-container {

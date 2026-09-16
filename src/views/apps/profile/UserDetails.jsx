@@ -929,13 +929,10 @@ export default function UserDetails({
               color="primary"
               aria-label="Détails"
               title="Détails"
-              className="mr-1 identity-action-btn"
+              className="mr-1"
               style={{
-                height: 32,
-                minHeight: 32,
-                padding: "0.25rem 0.75rem",
-                fontSize: "0.85rem",
-                fontWeight: 400,
+                padding: "0.55rem 1.2rem",
+                fontSize: "0.95rem",
                 lineHeight: 1,
                 marginBottom: "10px",
               }}
@@ -950,7 +947,7 @@ export default function UserDetails({
               aria-label="Valider"
               title="Valider"
               data-identity-validate="1"
-              className="mr-1 identity-action-btn"
+              className="mr-1"
               disabled={isSavingIdentity}
               onClick={handleValidateIdentity}
               style={{
@@ -958,12 +955,9 @@ export default function UserDetails({
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 6,
-                height: 32,
-                minHeight: 32,
                 minWidth: 44,
-                padding: "0.25rem 0.75rem",
-                fontSize: "0.85rem",
-                fontWeight: 400,
+                padding: "0.55rem 1.2rem",
+                fontSize: "0.95rem",
                 lineHeight: 1,
                 marginBottom: "10px",
                 borderRadius: 20,
@@ -984,8 +978,8 @@ export default function UserDetails({
                   style={{
                     color: "#28c76f",
                     WebkitTextFillColor: "#28c76f",
-                    fontWeight: 400,
-                    fontSize: "0.85rem",
+                    fontWeight: 700,
+                    fontSize: "0.95rem",
                     lineHeight: 1,
                     userSelect: "none",
                   }}
@@ -1014,8 +1008,8 @@ export default function UserDetails({
                     style={{
                       color: "#28c76f",
                       WebkitTextFillColor: "#28c76f",
-                      fontWeight: 400,
-                      fontSize: "0.85rem",
+                      fontWeight: 700,
+                      fontSize: "0.95rem",
                       lineHeight: 1,
                       letterSpacing: "0.01em",
                       userSelect: "none",
@@ -1031,13 +1025,10 @@ export default function UserDetails({
             color="danger"
             aria-label="Supprimer"
             title="Supprimer"
-            className="mr-1 identity-action-btn"
+            className="mr-1"
             style={{
-              height: 32,
-              minHeight: 32,
-              padding: "0.25rem 0.75rem",
-              fontSize: "0.85rem",
-              fontWeight: 400,
+              padding: "0.55rem 1.2rem",
+              fontSize: "0.95rem",
               lineHeight: 1,
               marginBottom: "10px",
             }}
