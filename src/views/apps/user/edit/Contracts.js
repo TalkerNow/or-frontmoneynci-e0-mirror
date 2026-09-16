@@ -727,17 +727,13 @@ class Contracts extends React.Component {
             </Button.Ripple>
             <Button.Ripple
               className="shadow-sm"
-              color="success"
-              onClick={this.requestSignature}
-              disabled={this.state.requestingSignature}
+              color="secondary"
+              disabled
               outline
+              title="Bientôt disponible (YouTrust)"
             >
-              {this.state.requestingSignature ? (
-                <Spinner size="sm" className="mr-1" />
-              ) : (
-                <FileText size={16} className="mr-1" />
-              )}
-              DocuSign Procuration
+              <FileText size={16} className="mr-1" />
+              Envoi procuration
             </Button.Ripple>
           </div>
         </div>
